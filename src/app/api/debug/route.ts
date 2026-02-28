@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 
+export const runtime = 'edge';
+
 export async function GET() {
     const steps: string[] = [];
     try {
