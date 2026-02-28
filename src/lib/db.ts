@@ -1,30 +1,28 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+let prismaInstance: PrismaClient | undefined;
 
-function createPrismaClient() {
-  const url = process.env.TURSO_DATABASE_URL;
-  const authToken = process.env.TURSO_AUTH_TOKEN;
-
-  if (!url) {
-    throw new Error(`TURSO_DATABASE_URL is not set. Available env keys: ${Object.keys(process.env).filter(k => k.includes('TURSO')).join(', ')}`);
+function getPrisma(): PrismaClient {
+  if (!prismaInstance) {
+    const adapter = new PrismaLibSql({
+      url: process.env.TURSO_DATABASE_URL!,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+    prismaInstance = new PrismaClient({ adapter });
   }
-
-  const adapter = new PrismaLibSql({ url, authToken });
-  return new PrismaClient({ adapter });
+  return prismaInstance;
 }
 
-// Lazy initialization — don't create the client until it's actually used
-const handler = {
-  get(_target: Record<string, unknown>, prop: string) {
-    if (!globalForPrisma.prisma) {
-      globalForPrisma.prisma = createPrismaClient();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const prisma = new Proxy({} as PrismaClient, {
+  get(_target, prop: string | symbol) {
+    const client = getPrisma();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const value = (client as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(client);
     }
-    return (globalForPrisma.prisma as unknown as Record<string, unknown>)[prop];
+    return value;
   },
-};
-
-export const prisma = new Proxy({} as PrismaClient, handler);
+});
