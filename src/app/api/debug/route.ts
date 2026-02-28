@@ -5,7 +5,10 @@ import { PrismaLibSql } from '@prisma/adapter-libsql';
 export async function GET() {
     const steps: string[] = [];
     try {
-        const url = process.env.TURSO_DATABASE_URL;
+        let url = process.env.TURSO_DATABASE_URL;
+        if (url && url.startsWith('libsql://')) {
+            url = url.replace('libsql://', 'https://');
+        }
         const token = process.env.TURSO_AUTH_TOKEN;
 
         steps.push(`URL: ${url ? url.substring(0, 30) + '...' : 'MISSING'}`);
