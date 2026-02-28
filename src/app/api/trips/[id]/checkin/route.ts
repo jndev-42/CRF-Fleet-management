@@ -45,7 +45,8 @@ export async function PATCH(
         }
 
         // Mettre à jour le trip et le véhicule en transaction
-        const updatedTrip = await prisma.$transaction(async (tx: typeof prisma) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updatedTrip = await prisma.$transaction(async (tx: any) => {
             const result = await tx.trip.update({
                 where: { id },
                 data: {

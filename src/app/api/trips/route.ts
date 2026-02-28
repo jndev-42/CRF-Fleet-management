@@ -39,7 +39,8 @@ export async function POST(request: Request) {
         }
 
         // Créer le trip et mettre à jour le véhicule en transaction
-        const trip = await prisma.$transaction(async (tx: typeof prisma) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const trip = await prisma.$transaction(async (tx: any) => {
             const newTrip = await tx.trip.create({
                 data: {
                     vehicleId: data.vehicleId,
