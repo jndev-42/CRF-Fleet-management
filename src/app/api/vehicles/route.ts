@@ -26,9 +26,12 @@ export async function GET() {
         });
         return NextResponse.json(vehicles);
     } catch (error) {
-        console.error('Error fetching vehicles:', error);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error('Error fetching vehicles:', errorMessage);
+        console.error('TURSO_DATABASE_URL set:', !!process.env.TURSO_DATABASE_URL);
+        console.error('TURSO_AUTH_TOKEN set:', !!process.env.TURSO_AUTH_TOKEN);
         return NextResponse.json(
-            { error: 'Erreur lors de la récupération des véhicules' },
+            { error: 'Erreur lors de la récupération des véhicules', detail: errorMessage },
             { status: 500 }
         );
     }
