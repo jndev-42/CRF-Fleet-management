@@ -6,15 +6,25 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  const adapter = new PrismaLibSql({
-    url: process.env.TURSO_DATABASE_URL!,
-    authToken: process.env.TURSO_AUTH_TOKEN,
-  });
+  const url = process.env.TURSO_DATABASE_URL;
+  const authToken = process.env.TURSO_AUTH_TOKEN;
+
+  if (!url) {
+    throw new Error(`TURSO_DATABASE_URL is not set. Available env keys: ${Object.keys(process.env).filter(k => k.includes('TURSO')).join(', ')}`);
+  }
+
+  const adapter = new PrismaLibSql({ url, authToken });
   return new PrismaClient({ adapter });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+// Lazy initialization — don't create the client until it's actually used
+const handler = {
+  get(_target: Record<string, unknown>, prop: string) {
+    if (!globalForPrisma.prisma) {
+      globalForPrisma.prisma = createPrismaClient();
+    }
+    return (globalForPrisma.prisma as unknown as Record<string, unknown>)[prop];
+  },
+};
 
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
-}
+export const prisma = new Proxy({} as PrismaClient, handler);
