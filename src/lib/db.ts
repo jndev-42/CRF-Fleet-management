@@ -5,12 +5,8 @@ let prismaInstance: PrismaClient | undefined;
 
 function getPrisma(): PrismaClient {
   if (!prismaInstance) {
-    let url = process.env.TURSO_DATABASE_URL!.trim();
-    if (url.startsWith('libsql://')) {
-      url = url.replace('libsql://', 'https://');
-    }
     const adapter = new PrismaLibSql({
-      url,
+      url: process.env.TURSO_DATABASE_URL!.trim(),
       authToken: process.env.TURSO_AUTH_TOKEN?.trim(),
     });
     prismaInstance = new PrismaClient({ adapter });

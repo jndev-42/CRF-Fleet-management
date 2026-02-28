@@ -2,15 +2,10 @@ import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSql } from '@prisma/adapter-libsql';
 
-export const runtime = 'edge';
-
 export async function GET() {
     const steps: string[] = [];
     try {
-        let url = process.env.TURSO_DATABASE_URL;
-        if (url && url.startsWith('libsql://')) {
-            url = url.replace('libsql://', 'https://');
-        }
+        const url = process.env.TURSO_DATABASE_URL;
         const token = process.env.TURSO_AUTH_TOKEN;
 
         steps.push(`URL: ${url ? url.substring(0, 30) + '...' : 'MISSING'}`);
