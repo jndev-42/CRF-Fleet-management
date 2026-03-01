@@ -40,6 +40,10 @@ function isElectric(vehicleName: string) {
   return vehicleName.toUpperCase().includes('VL186');
 }
 
+function isDiesel(vehicleName: string) {
+  return vehicleName.toUpperCase().includes('182');
+}
+
 function getFuelClass(level: number) {
   if (level >= 50) return 'full';
   if (level >= 25) return 'mid';
@@ -200,6 +204,8 @@ export default function DashboardPage() {
 
               {isElectric(vehicle.name) ? (
                 <div style={{ fontSize: 12, color: '#3B82F6', marginBottom: 8, fontWeight: 600 }}>⚡ Électrique</div>
+              ) : isDiesel(vehicle.name) ? (
+                <div style={{ fontSize: 12, color: '#374151', marginBottom: 8, fontWeight: 600 }}>⛽ Diesel</div>
               ) : (
                 <div style={{ fontSize: 12, color: '#F97316', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
               )}
@@ -229,7 +235,7 @@ export default function DashboardPage() {
                 if (rData) {
                   const isElec = rData.isElectric;
                   const val = isElec ? rData.batteryLevel : rData.fuelQuantity;
-                  const label = isElec ? '🔋 Batterie (live)' : '⛽ Essence (live)';
+                  const label = isElec ? '🔋 Batterie (live)' : (isDiesel(vehicle.name) ? '⛽ Diesel (live)' : '⛽ Essence (live)');
                   const displayVal = isElec ? `${val}%` : `${val} L`;
                   // For fuel quantity we map it roughly to percentage for the bar (assuming 50L tank roughly)
                   const fillPct = isElec ? (val || 0) : Math.min(((val || 0) / 50) * 100, 100);
@@ -257,7 +263,7 @@ export default function DashboardPage() {
                 return (
                   <div className="fuel-bar-container">
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span className="meta-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'}</span>
+                      <span className="meta-label">{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')}</span>
                       <span className="meta-label">{vehicle.fuelLevel}%</span>
                     </div>
                     <div className="fuel-bar">
