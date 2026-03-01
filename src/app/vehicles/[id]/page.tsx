@@ -96,15 +96,15 @@ export default function VehicleDetailPage() {
     const [showCheckOut, setShowCheckOut] = useState(false);
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
-    const [userRole, setUserRole] = useState<'ADMIN' | 'USER' | null>(null);
+    const [userRoles, setUserRoles] = useState<string[]>([]);
 
     useEffect(() => {
         // Fetch session to determine Admin role
         fetch('/api/auth/session')
             .then(res => res.json())
             .then(session => {
-                if (session?.user?.role) {
-                    setUserRole(session.user.role);
+                if (session?.user?.roles) {
+                    setUserRoles(session.user.roles);
                 }
             })
             .catch(console.error);
@@ -221,7 +221,7 @@ export default function VehicleDetailPage() {
                                 ⛽ Essence
                             </span>
                         )}
-                        {userRole === 'ADMIN' && (
+                        {userRoles.includes('ADMIN') && (
                             <button
                                 onClick={async () => {
                                     try {
@@ -253,14 +253,29 @@ export default function VehicleDetailPage() {
                     </div>
                 </div>
                 <div className="vehicle-detail-actions">
-                    {vehicle.status === 'AVAILABLE' && (
-                        <button
-                            className="btn btn-primary btn-lg"
-                            onClick={() => setShowCheckOut(true)}
-                        >
-                            🚗 Prendre le véhicule
-                        </button>
-                    )}
+                    {vehicle.status === 'AVAILABLE' && (() => {
+                        const isAdmin = userRoles.includes('ADMIN');
+                        const isCHVL = userRoles.includes('CHVL');
+                        const isCHVPSP = userRoles.includes('CHVPSP');
+                        // VPSP vehicle if type contains VPSP
+                        const isVPSP = vehicle.type.toUpperCase().includes('VPSP');
+
+                        let canBorrow = false;
+                        if (isAdmin) canBorrow = true;
+                        else if (isCHVPSP) canBorrow = true; // Can borrow both VL and VPSP
+                        else if (isCHVL && !isVPSP) canBorrow = true; // Can borrow only VL
+
+                        return (
+                            <button
+                                className={`btn btn-primary btn-lg ${!canBorrow ? 'disabled' : ''}`}
+                                onClick={() => { if (canBorrow) setShowCheckOut(true); }}
+                                disabled={!canBorrow}
+                                title={!canBorrow ? "Vous n'avez pas les droits pour emprunter ce véhicule" : ""}
+                            >
+                                🚗 Prendre le véhicule
+                            </button>
+                        );
+                    })()}
                     {vehicle.status === 'IN_USE' && activeTrip && (
                         <button
                             className="btn btn-success btn-lg"
@@ -269,7 +284,7 @@ export default function VehicleDetailPage() {
                             ✅ Rendre le véhicule
                         </button>
                     )}
-                    {vehicle.status !== 'IN_USE' && userRole === 'ADMIN' && (
+                    {vehicle.status !== 'IN_USE' && userRoles.includes('ADMIN') && (
                         <button
                             className="btn btn-secondary"
                             onClick={toggleMaintenance}

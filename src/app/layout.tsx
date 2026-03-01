@@ -32,6 +32,9 @@ export default async function RootLayout({
               <nav className="header-nav" style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <a href="/" className="nav-link">Dashboard</a>
                 <a href="/vehicles" className="nav-link">Véhicules</a>
+                {session?.user?.roles?.includes('ADMIN') && (
+                  <a href="/users" className="nav-link">Utilisateurs</a>
+                )}
                 {session?.user && (
                   <form action={async () => {
                     "use server";

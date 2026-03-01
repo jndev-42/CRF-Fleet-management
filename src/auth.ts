@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 declare module "next-auth" {
     interface Session {
         user: {
-            role: "ADMIN" | "USER";
+            roles: string[];
         } & DefaultSession["user"];
     }
 }
@@ -57,6 +57,35 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
             // Strict restriction to @croix-rouge.fr emails (case insensitive)
             if (email.toLowerCase().endsWith("@croix-rouge.fr")) {
+                try {
+                    // Check if user exists
+                    const resUser = await db.execute({
+                        sql: 'SELECT id FROM "User" WHERE email = ?',
+                        args: [email]
+                    });
+
+                    if (resUser.rows.length === 0) {
+                        // User does not exist, create them
+                        const guestRes = await db.execute(`SELECT id FROM "Role" WHERE name = 'GUEST'`);
+                        if (guestRes.rows.length > 0) {
+                            const userId = crypto.randomUUID();
+                            const guestId = guestRes.rows[0].id;
+
+                            await db.execute({
+                                sql: 'INSERT INTO "User" (id, email, name) VALUES (?, ?, ?)',
+                                args: [userId, email, user?.name || profile?.name || null]
+                            });
+
+                            await db.execute({
+                                sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
+                                args: [userId, guestId]
+                            });
+                            console.log(`Auto-registered new user: ${email} with GUEST role`);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to auto-register user:", e);
+                }
                 return true;
             }
 
@@ -72,16 +101,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
 
             try {
-                // Check if user is an admin
                 const res = await db.execute({
-                    sql: 'SELECT 1 FROM "Admin" WHERE email = ?',
+                    sql: `
+                        SELECT r.name 
+                        FROM "User" u
+                        JOIN "UserRole" ur ON u.id = ur.userId
+                        JOIN "Role" r ON ur.roleId = r.id
+                        WHERE u.email = ?
+                    `,
                     args: [email]
                 });
 
-                session.user.role = res.rows.length > 0 ? "ADMIN" : "USER";
+                session.user.roles = res.rows.map(row => row.name as string);
+                if (session.user.roles.length === 0) {
+                    session.user.roles = ["GUEST"]; // Fallback if no roles found
+                }
             } catch (e) {
-                console.error("Failed to check admin role:", e);
-                session.user.role = "USER";
+                console.error("Failed to fetch user roles:", e);
+                session.user.roles = ["GUEST"];
             }
 
             return session;

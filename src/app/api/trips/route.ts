@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData, getVinFromName } from '@/lib/renault';
+import { auth } from '@/auth';
 
 const checkOutSchema = z.object({
     vehicleId: z.string().min(1),
@@ -38,6 +39,27 @@ export async function POST(request: Request) {
             return NextResponse.json(
                 { error: 'Ce véhicule n\'est pas disponible' },
                 { status: 400 }
+            );
+        }
+
+        // Verify Roles
+        const session = await auth();
+        const roles = session?.user?.roles || ['GUEST'];
+        const isAdmin = roles.includes('ADMIN');
+        const isCHVL = roles.includes('CHVL');
+        const isCHVPSP = roles.includes('CHVPSP');
+        const vehicleType = String(vehicle.type || '');
+        const isVPSP = vehicleType.toUpperCase().includes('VPSP');
+
+        let canBorrow = false;
+        if (isAdmin) canBorrow = true;
+        else if (isCHVPSP) canBorrow = true;
+        else if (isCHVL && !isVPSP) canBorrow = true;
+
+        if (!canBorrow) {
+            return NextResponse.json(
+                { error: 'Vous n\'avez pas les droits pour emprunter ce véhicule' },
+                { status: 403 }
             );
         }
 
