@@ -60,6 +60,8 @@ export async function GET(
                 vehicleId: tRow.vehicleId,
                 driverName: tRow.driverName,
                 driverEmail: tRow.driverEmail,
+                secondDriverName: tRow.secondDriverName || null,
+                secondDriverEmail: tRow.secondDriverEmail || null,
                 missionType: tRow.missionType,
                 missionName: tRow.missionName,
                 checkOutAt: new Date(tRow.checkOutAt as string),

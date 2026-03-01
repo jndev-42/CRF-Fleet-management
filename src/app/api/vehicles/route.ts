@@ -18,7 +18,7 @@ export async function GET() {
         const result = await db.execute(`
             SELECT 
                 v.*,
-                t.id as trip_id, t.driverName as trip_driverName, t.missionType as trip_missionType,
+                t.id as trip_id, t.driverName as trip_driverName, t.secondDriverName as trip_secondDriverName, t.missionType as trip_missionType,
                 t.checkOutAt as trip_checkOutAt
             FROM Vehicle v
             LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
@@ -50,6 +50,7 @@ export async function GET() {
                 vehiclesMap.get(vehicleId).trips.push({
                     id: row.trip_id,
                     driverName: row.trip_driverName,
+                    secondDriverName: row.trip_secondDriverName,
                     missionType: row.trip_missionType,
                     checkOutAt: new Date(row.trip_checkOutAt as string),
                 });

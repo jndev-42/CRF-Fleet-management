@@ -15,7 +15,13 @@ interface Vehicle {
   mileage: number;
   hasDSA: boolean;
   notes: string | null;
-  trips: { id: string; driverName: string; missionType: string; checkOutAt: string }[];
+  trips: {
+    id: string;
+    driverName: string;
+    secondDriverName?: string | null;
+    missionType: string;
+    checkOutAt: string;
+  }[];
 }
 
 const statusLabels: Record<string, string> = {
@@ -194,7 +200,7 @@ export default function DashboardPage() {
                   color: 'var(--status-inuse)',
                   marginBottom: 12,
                 }}>
-                  🧑‍✈️ {vehicle.trips[0].driverName} — {vehicle.trips[0].missionType}
+                  🧑‍✈️ {vehicle.trips[0].driverName} {vehicle.trips[0].secondDriverName ? ` & ${vehicle.trips[0].secondDriverName}` : ''} — {vehicle.trips[0].missionType}
                 </div>
               )}
 
