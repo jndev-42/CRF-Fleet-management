@@ -133,7 +133,7 @@ export default function VehiclesPage() {
                     {filteredVehicles.map((vehicle) => (
                         <Link
                             key={vehicle.id}
-                            href={`/vehicles/${vehicle.id}`}
+                            href={`/vehicles/${vehicle.name}`}
                             className="vehicle-card"
                         >
                             <div className="vehicle-card-header">
@@ -177,7 +177,10 @@ export default function VehiclesPage() {
                                 <div className="meta-item">
                                     <span className="meta-label">Kilométrage</span>
                                     <span className="meta-value">
-                                        {vehicle.mileage.toLocaleString('fr-FR')} km
+                                        {renaultData[vehicle.name]?.totalMileage
+                                            ? <span style={{ color: isElectric(vehicle.name) ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{renaultData[vehicle.name].totalMileage?.toLocaleString('fr-FR')} km</span>
+                                            : `${vehicle.mileage.toLocaleString('fr-FR')} km`
+                                        }
                                     </span>
                                 </div>
                                 <div className="meta-item">
@@ -213,7 +216,7 @@ export default function VehiclesPage() {
                                                 />
                                             </div>
                                             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, textAlign: 'right' }}>
-                                                Km réels: {rData.totalMileage?.toLocaleString('fr-FR') || '—'} / Autonomie: {rData.batteryAutonomy || rData.fuelAutonomy || '—'} km
+                                                Autonomie: {rData.batteryAutonomy || rData.fuelAutonomy || '—'} km
                                             </div>
                                         </div>
                                     );

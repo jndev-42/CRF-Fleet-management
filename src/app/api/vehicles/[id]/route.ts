@@ -21,9 +21,9 @@ export async function GET(
     try {
         const { id } = await params;
 
-        // Fetch vehicle
+        // Fetch vehicle by name since [id] is now the vehicle name
         const vehicleResult = await db.execute({
-            sql: `SELECT * FROM Vehicle WHERE id = ?`,
+            sql: `SELECT * FROM Vehicle WHERE name = ?`,
             args: [id]
         });
 
@@ -36,10 +36,10 @@ export async function GET(
 
         const row = vehicleResult.rows[0];
 
-        // Fetch trips
+        // Fetch trips using the actual vehicle UUID
         const tripsResult = await db.execute({
             sql: `SELECT * FROM Trip WHERE vehicleId = ? ORDER BY checkOutAt DESC LIMIT 20`,
-            args: [id]
+            args: [row.id]
         });
 
         const vehicle = {
@@ -120,7 +120,7 @@ export async function PATCH(
             args.push(id);
 
             await db.execute({
-                sql: `UPDATE Vehicle SET ${setClauses.join(', ')} WHERE id = ?`,
+                sql: `UPDATE Vehicle SET ${setClauses.join(', ')} WHERE name = ?`,
                 args
             });
 

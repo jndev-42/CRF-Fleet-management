@@ -67,6 +67,15 @@ function isElectric(vehicleName: string) {
     return vehicleName.toUpperCase().includes('VL186');
 }
 
+function isDiesel(vehicleName: string) {
+    return vehicleName.toUpperCase().includes('182');
+}
+
+function isConnected(vehicleName: string) {
+    const upper = vehicleName.toUpperCase();
+    return upper.includes('VL186') || upper.includes('VL188');
+}
+
 function formatDate(d: string) {
     return new Date(d).toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -87,24 +96,25 @@ export default function VehicleDetailPage() {
     const [showCheckOut, setShowCheckOut] = useState(false);
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+    const [userRole, setUserRole] = useState<'ADMIN' | 'USER' | null>(null);
+
+    useEffect(() => {
+        // Fetch session to determine Admin role
+        fetch('/api/auth/session')
+            .then(res => res.json())
+            .then(session => {
+                if (session?.user?.role) {
+                    setUserRole(session.user.role);
+                }
+            })
+            .catch(console.error);
+    }, []);
 
     const fetchVehicle = useCallback(async () => {
         try {
             const res = await fetch(`/api/vehicles/${id}`);
             const data = await res.json();
             setVehicle(data);
-
-            // Only fetch Renault data for VL186 and VL188
-            if (data.name?.includes('VL186') || data.name?.includes('VL188')) {
-                setLoadingRenault(true);
-                fetch(`/api/renault/${encodeURIComponent(data.name)}`)
-                    .then(r => r.json())
-                    .then(rData => {
-                        if (!rData.error) setRenaultData(rData);
-                    })
-                    .catch(e => console.error('Failed to get Renault data:', e))
-                    .finally(() => setLoadingRenault(false));
-            }
         } catch (error) {
             console.error('Erreur:', error);
         } finally {
@@ -115,6 +125,20 @@ export default function VehicleDetailPage() {
     useEffect(() => {
         fetchVehicle();
     }, [fetchVehicle]);
+
+    // Fetch Renault data separately, only once when vehicle name is known
+    useEffect(() => {
+        if (vehicle?.name && (vehicle.name.includes('VL186') || vehicle.name.includes('VL188')) && !renaultData) {
+            setLoadingRenault(true);
+            fetch(`/api/renault/${encodeURIComponent(vehicle.name)}`)
+                .then(r => r.json())
+                .then(rData => {
+                    if (!rData.error) setRenaultData(rData);
+                })
+                .catch(e => console.error('Failed to get Renault data:', e))
+                .finally(() => setLoadingRenault(false));
+        }
+    }, [vehicle?.name, renaultData]);
 
     function showToast(message: string, type: string = 'success') {
         setToast({ message, type });
@@ -188,10 +212,43 @@ export default function VehicleDetailPage() {
                             <span className="vehicle-type-badge" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}>
                                 ⚡ Électrique
                             </span>
+                        ) : isDiesel(vehicle.name) ? (
+                            <span className="vehicle-type-badge" style={{ background: 'rgba(107, 114, 128, 0.1)', color: '#374151' }}>
+                                ⛽ Diesel
+                            </span>
                         ) : (
                             <span className="vehicle-type-badge" style={{ background: 'rgba(249, 115, 22, 0.1)', color: '#F97316' }}>
                                 ⛽ Essence
                             </span>
+                        )}
+                        {userRole === 'ADMIN' && (
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await fetch(`/api/vehicles/${id}`, {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ hasDSA: !vehicle.hasDSA })
+                                        });
+                                        fetchVehicle();
+                                        showToast(`DSA ${!vehicle.hasDSA ? 'activé' : 'désactivé'}`);
+                                    } catch (e) {
+                                        showToast('Erreur lors de la modification du DSA', 'error');
+                                    }
+                                }}
+                                style={{
+                                    background: 'var(--bg-secondary)',
+                                    border: '1px solid var(--border-primary)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    padding: '4px 8px',
+                                    fontSize: 12,
+                                    cursor: 'pointer',
+                                    fontWeight: 500,
+                                    color: 'var(--text-secondary)'
+                                }}
+                            >
+                                {vehicle.hasDSA ? 'Retirer DSA' : 'Ajouter DSA'}
+                            </button>
                         )}
                     </div>
                 </div>
@@ -212,7 +269,7 @@ export default function VehicleDetailPage() {
                             ✅ Rendre le véhicule
                         </button>
                     )}
-                    {vehicle.status !== 'IN_USE' && (
+                    {vehicle.status !== 'IN_USE' && userRole === 'ADMIN' && (
                         <button
                             className="btn btn-secondary"
                             onClick={toggleMaintenance}
@@ -258,22 +315,26 @@ export default function VehicleDetailPage() {
             )}
 
             <div className="detail-grid">
-                <div className="detail-card">
-                    <div className="detail-card-title">Kilométrage</div>
-                    <div className="detail-card-value">
-                        {vehicle.mileage.toLocaleString('fr-FR')} km
+                {!isConnected(vehicle.name) && (
+                    <div className="detail-card">
+                        <div className="detail-card-title">Kilométrage</div>
+                        <div className="detail-card-value">
+                            {vehicle.mileage.toLocaleString('fr-FR')} km
+                        </div>
                     </div>
-                </div>
-                <div className="detail-card">
-                    <div className="detail-card-title">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'}</div>
-                    <div className="detail-card-value">{vehicle.fuelLevel}%</div>
-                    <div className="fuel-bar" style={{ marginTop: 8 }}>
-                        <div
-                            className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
-                            style={{ width: `${vehicle.fuelLevel}%` }}
-                        />
+                )}
+                {!isConnected(vehicle.name) && (
+                    <div className="detail-card">
+                        <div className="detail-card-title">{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')}</div>
+                        <div className="detail-card-value">{vehicle.fuelLevel}%</div>
+                        <div className="fuel-bar" style={{ marginTop: 8 }}>
+                            <div
+                                className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
+                                style={{ width: `${vehicle.fuelLevel}%` }}
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
                 <div className="detail-card">
                     <div className="detail-card-title">Stationnement</div>
                     <div className="detail-card-value">
@@ -417,11 +478,11 @@ export default function VehicleDetailPage() {
                                     </span>
                                 </div>
                                 <div className="trip-detail-item">
-                                    <span className="trip-detail-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} départ</span>
+                                    <span className="trip-detail-label">{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')} départ</span>
                                     <span className="trip-detail-value">{trip.fuelOut}%</span>
                                 </div>
                                 <div className="trip-detail-item">
-                                    <span className="trip-detail-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} retour</span>
+                                    <span className="trip-detail-label">{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')} retour</span>
                                     <span className="trip-detail-value">
                                         {trip.fuelIn !== null ? `${trip.fuelIn}%` : '—'}
                                     </span>
@@ -563,18 +624,39 @@ function CheckOutModal({
     const [form, setForm] = useState({
         driverName: '',
         driverEmail: '',
-        missionType: 'DAPS',
+        missionType: 'DPS',
         missionName: '',
         conditionOut: 'Bon état',
-        parkingOut: vehicle.parkingSpot || '',
+        parkingOutSelection: 'Baigneur (devant l’UL)',
+        parkingOutCustom: '',
         dsaChecked: false,
         commentsOut: '',
     });
     const [submitting, setSubmitting] = useState(false);
+    const [sessionLoading, setSessionLoading] = useState(true);
 
+    useEffect(() => {
+        fetch('/api/auth/session')
+            .then(res => res.json())
+            .then(session => {
+                if (session?.user) {
+                    setForm(f => ({
+                        ...f,
+                        driverName: session.user.name || '',
+                        driverEmail: session.user.email || '',
+                    }));
+                }
+            })
+            .catch(console.error)
+            .finally(() => setSessionLoading(false));
+    }, []);
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setSubmitting(true);
+        const finalParkingOut = form.parkingOutSelection === 'Autre'
+            ? form.parkingOutCustom
+            : form.parkingOutSelection;
+
         try {
             const res = await fetch('/api/trips', {
                 method: 'POST',
@@ -582,6 +664,7 @@ function CheckOutModal({
                 body: JSON.stringify({
                     vehicleId: vehicle.id,
                     ...form,
+                    parkingOut: finalParkingOut
                 }),
             });
             if (res.ok) {
@@ -618,31 +701,40 @@ function CheckOutModal({
                         >
                             <div><strong>Immatriculation :</strong> {vehicle.plate}</div>
                             <div><strong>Kilométrage :</strong> {vehicle.mileage.toLocaleString('fr-FR')} km</div>
-                            <div><strong>{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} :</strong> {vehicle.fuelLevel}%</div>
+                            <div><strong>{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')} :</strong> {vehicle.fuelLevel}%</div>
                             {vehicle.hasDSA && <div><strong>DSA :</strong> Équipé</div>}
                         </div>
 
                         {/* Identité */}
                         <div className="form-row">
                             <div className="form-group">
-                                <label className="form-label">Votre nom *</label>
+                                <label className="form-label">Votre nom * <span style={{ fontSize: 12, fontWeight: 'normal', color: 'var(--text-secondary)' }}>🔒 Rempli via Google</span></label>
                                 <input
                                     className="form-input"
-                                    placeholder="Prénom NOM"
+                                    placeholder={sessionLoading ? "Chargement..." : "Prénom NOM"}
                                     value={form.driverName}
-                                    onChange={(e) => setForm({ ...form, driverName: e.target.value })}
+                                    readOnly
                                     required
-                                    autoFocus
+                                    style={{
+                                        background: 'var(--bg-card)',
+                                        color: 'var(--text-secondary)',
+                                        cursor: 'not-allowed'
+                                    }}
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Email</label>
+                                <label className="form-label">Email <span style={{ fontSize: 12, fontWeight: 'normal', color: 'var(--text-secondary)' }}>🔒 Rempli via Google</span></label>
                                 <input
                                     className="form-input"
                                     type="email"
-                                    placeholder="pour recevoir le rapport"
+                                    placeholder={sessionLoading ? "Chargement..." : "pour recevoir le rapport"}
                                     value={form.driverEmail}
-                                    onChange={(e) => setForm({ ...form, driverEmail: e.target.value })}
+                                    readOnly
+                                    style={{
+                                        background: 'var(--bg-card)',
+                                        color: 'var(--text-secondary)',
+                                        cursor: 'not-allowed'
+                                    }}
                                 />
                             </div>
                         </div>
@@ -656,13 +748,11 @@ function CheckOutModal({
                                     value={form.missionType}
                                     onChange={(e) => setForm({ ...form, missionType: e.target.value })}
                                 >
-                                    <option value="DAPS">DAPS</option>
-                                    <option value="Maraude">Maraude</option>
-                                    <option value="Formation">Formation</option>
-                                    <option value="Transport">Transport de matériel</option>
-                                    <option value="Action sociale">Action sociale</option>
+                                    <option value="DPS">DPS</option>
+                                    <option value="PAPS">PAPS</option>
+                                    <option value="Réseaux">Réseaux</option>
                                     <option value="Logistique">Logistique</option>
-                                    <option value="Autre">Autre</option>
+                                    <option value="Maraude">Maraude</option>
                                 </select>
                             </div>
                             <div className="form-group">
@@ -693,12 +783,25 @@ function CheckOutModal({
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Place de stationnement</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="ex: Place A1"
-                                    value={form.parkingOut}
-                                    onChange={(e) => setForm({ ...form, parkingOut: e.target.value })}
-                                />
+                                <select
+                                    className="form-select"
+                                    value={form.parkingOutSelection}
+                                    onChange={(e) => setForm({ ...form, parkingOutSelection: e.target.value })}
+                                >
+                                    <option value="Baigneur (devant l’UL)">Baigneur (devant l’UL)</option>
+                                    <option value="Parking Aubervillers">Parking Aubervillers</option>
+                                    <option value="Autre">Autre</option>
+                                </select>
+                                {form.parkingOutSelection === 'Autre' && (
+                                    <input
+                                        style={{ marginTop: 8 }}
+                                        className="form-input"
+                                        placeholder="Précisez la place..."
+                                        value={form.parkingOutCustom}
+                                        onChange={(e) => setForm({ ...form, parkingOutCustom: e.target.value })}
+                                        required
+                                    />
+                                )}
                             </div>
                         </div>
 
@@ -757,7 +860,8 @@ function CheckInModal({
     const [form, setForm] = useState({
         mileageIn: vehicle.mileage,
         fuelIn: vehicle.fuelLevel,
-        parkingIn: vehicle.parkingSpot || '',
+        parkingInSelection: 'Baigneur (devant l’UL)',
+        parkingInCustom: '',
         conditionIn: 'Bon état',
         windowsClosed: false,
         vehicleInspected: false,
@@ -771,13 +875,50 @@ function CheckInModal({
     function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 5 * 1024 * 1024) {
-            alert('La photo ne doit pas dépasser 5 Mo');
+
+        // We accept up to 10MB now, because we will compress it down anyway
+        if (file.size > 10 * 1024 * 1024) {
+            alert('La photo ne doit pas dépasser 10 Mo');
             return;
         }
+
         const reader = new FileReader();
         reader.onloadend = () => {
-            setForm({ ...form, parkingPhoto: reader.result as string });
+            const img = new Image();
+            img.src = reader.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                // Max dimensions to keep the image size < 1MB
+                const MAX_SIZE = 1080;
+                if (width > height) {
+                    if (width > MAX_SIZE) {
+                        height *= MAX_SIZE / width;
+                        width = MAX_SIZE;
+                    }
+                } else {
+                    if (height > MAX_SIZE) {
+                        width *= MAX_SIZE / height;
+                        height = MAX_SIZE;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    // Export as compressed JPEG (70% quality)
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                    setForm({ ...form, parkingPhoto: dataUrl });
+                } else {
+                    // Fallback to uncompressed if canvas fails
+                    setForm({ ...form, parkingPhoto: reader.result as string });
+                }
+            };
         };
         reader.readAsDataURL(file);
     }
@@ -786,14 +927,25 @@ function CheckInModal({
         e.preventDefault();
         setSubmitting(true);
         try {
+            const finalParkingIn = form.parkingInSelection === 'Autre'
+                ? form.parkingInCustom
+                : form.parkingInSelection;
+
+            const payload = { ...form, parkingIn: finalParkingIn };
+
+            // Remove manual metrics if connected, otherwise parse them
+            if (isConnected(vehicle.name)) {
+                delete (payload as any).mileageIn;
+                delete (payload as any).fuelIn;
+            } else {
+                payload.mileageIn = Number(form.mileageIn);
+                payload.fuelIn = Number(form.fuelIn);
+            }
+
             const res = await fetch(`/api/trips/${trip.id}/checkin`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...form,
-                    mileageIn: Number(form.mileageIn),
-                    fuelIn: Number(form.fuelIn),
-                }),
+                body: JSON.stringify(payload),
             });
             if (res.ok) {
                 onSuccess();
@@ -835,49 +987,72 @@ function CheckInModal({
 
                         {/* Km et parking */}
                         <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">Kilométrage actuel *</label>
-                                <input
-                                    className="form-input"
-                                    type="number"
-                                    min={trip.mileageOut}
-                                    value={form.mileageIn}
-                                    onChange={(e) => setForm({ ...form, mileageIn: Number(e.target.value) })}
-                                    required
-                                />
-                                <div className="form-hint">
-                                    Min: {trip.mileageOut.toLocaleString('fr-FR')} km
+                            {!isConnected(vehicle.name) && (
+                                <div className="form-group">
+                                    <label className="form-label">Kilométrage actuel *</label>
+                                    <input
+                                        className="form-input"
+                                        type="number"
+                                        min={trip.mileageOut}
+                                        value={form.mileageIn}
+                                        onChange={(e) => setForm({ ...form, mileageIn: Number(e.target.value) })}
+                                        required
+                                    />
+                                    <div className="form-hint">
+                                        Min: {trip.mileageOut.toLocaleString('fr-FR')} km
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                             <div className="form-group">
                                 <label className="form-label">Place de stationnement</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="ex: Place A1"
-                                    value={form.parkingIn}
-                                    onChange={(e) => setForm({ ...form, parkingIn: e.target.value })}
-                                />
+                                <select
+                                    className="form-select"
+                                    value={form.parkingInSelection}
+                                    onChange={(e) => setForm({ ...form, parkingInSelection: e.target.value })}
+                                >
+                                    <option value="Baigneur (devant l’UL)">Baigneur (devant l’UL)</option>
+                                    <option value="Parking Aubervillers">Parking Aubervillers</option>
+                                    <option value="Autre">Autre</option>
+                                </select>
+                                {form.parkingInSelection === 'Autre' && (
+                                    <input
+                                        style={{ marginTop: 8 }}
+                                        className="form-input"
+                                        placeholder="Précisez la place..."
+                                        value={form.parkingInCustom}
+                                        onChange={(e) => setForm({ ...form, parkingInCustom: e.target.value })}
+                                        required
+                                    />
+                                )}
                             </div>
                         </div>
 
                         {/* Essence */}
-                        <div className="form-group">
-                            <label className="form-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} ({form.fuelIn}%)</label>
-                            <input
-                                type="range"
-                                className="fuel-slider"
-                                min={0}
-                                max={100}
-                                value={form.fuelIn}
-                                onChange={(e) => setForm({ ...form, fuelIn: Number(e.target.value) })}
-                            />
-                            <div className="fuel-bar" style={{ marginTop: 8 }}>
-                                <div
-                                    className={`fuel-bar-fill ${getFuelClass(form.fuelIn)}`}
-                                    style={{ width: `${form.fuelIn}%` }}
+                        {!isConnected(vehicle.name) && (
+                            <div className="form-group">
+                                <label className="form-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} ({form.fuelIn}%)</label>
+                                <input
+                                    type="range"
+                                    className="fuel-slider"
+                                    min={0}
+                                    max={100}
+                                    value={form.fuelIn}
+                                    onChange={(e) => setForm({ ...form, fuelIn: Number(e.target.value) })}
                                 />
+                                <div className="fuel-bar" style={{ marginTop: 8 }}>
+                                    <div
+                                        className={`fuel-bar-fill ${getFuelClass(form.fuelIn)}`}
+                                        style={{ width: `${form.fuelIn}%` }}
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
+
+                        {isConnected(vehicle.name) && (
+                            <div style={{ marginBottom: 20, padding: 12, background: 'rgba(59, 130, 246, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.2)', fontSize: 13, color: '#1E40AF' }}>
+                                ℹ️ <strong>Données connectées :</strong> Le kilométrage et le niveau de {isElectric(vehicle.name) ? 'batterie' : 'carburant'} remontent automatiquement depuis le véhicule. Il n'est pas nécessaire de les saisir.
+                            </div>
+                        )}
 
                         {/* État */}
                         <div className="form-group">

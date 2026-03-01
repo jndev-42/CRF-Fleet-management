@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { getRenaultVehicleData, getVinFromName } from '@/lib/renault';
 
 const checkOutSchema = z.object({
     vehicleId: z.string().min(1),
@@ -40,6 +41,29 @@ export async function POST(request: Request) {
             );
         }
 
+        // Fetch live Renault data if vehicle is connected
+        let mileageOut = vehicle.mileage as number;
+        let fuelOut = vehicle.fuelLevel as number;
+        const vehicleName = vehicle.name as string | undefined;
+
+        if (vehicleName && (vehicleName.includes('VL186') || vehicleName.includes('VL188'))) {
+            const vin = getVinFromName(vehicleName);
+            if (vin) {
+                try {
+                    const rData = await getRenaultVehicleData(vin);
+                    if (rData.totalMileage !== null) mileageOut = rData.totalMileage;
+                    if (rData.isElectric && rData.batteryLevel !== null) fuelOut = rData.batteryLevel;
+                    if (!rData.isElectric && rData.fuelQuantity !== null) {
+                        // Map fuel quantity (L) back to a rough percentage for DB consistency, or just store the L value
+                        // DB expects 0-100. Assume ~50L tank capacity for Espace VI.
+                        fuelOut = Math.min(Math.round((rData.fuelQuantity / 50) * 100), 100);
+                    }
+                } catch (e) {
+                    console.error('Failed to get live Renault data during checkout', e);
+                }
+            }
+        }
+
         // Créer le trip et mettre à jour le véhicule en transaction
         const tx = await db.transaction('write');
         const tripId = crypto.randomUUID();
@@ -59,8 +83,8 @@ export async function POST(request: Request) {
                     data.missionType,
                     data.missionName || null,
                     timestamp, // checkOutAt
-                    vehicle.mileage as number,
-                    vehicle.fuelLevel as number,
+                    mileageOut,
+                    fuelOut,
                     data.conditionOut,
                     data.parkingOut || (vehicle.parkingSpot as string) || null,
                     data.dsaChecked ? 1 : 0,
@@ -70,8 +94,8 @@ export async function POST(request: Request) {
             });
 
             await tx.execute({
-                sql: `UPDATE Vehicle SET status = 'IN_USE', updatedAt = ? WHERE id = ?`,
-                args: [timestamp, data.vehicleId]
+                sql: `UPDATE Vehicle SET status = 'IN_USE', mileage = ?, fuelLevel = ?, updatedAt = ? WHERE id = ?`,
+                args: [mileageOut, fuelOut, timestamp, data.vehicleId]
             });
 
             await tx.commit();
@@ -84,14 +108,14 @@ export async function POST(request: Request) {
                 missionType: data.missionType,
                 missionName: data.missionName || null,
                 checkOutAt: timestamp,
-                mileageOut: vehicle.mileage,
-                fuelOut: vehicle.fuelLevel,
+                mileageOut,
+                fuelOut,
                 conditionOut: data.conditionOut,
                 parkingOut: data.parkingOut || vehicle.parkingSpot,
                 dsaChecked: data.dsaChecked,
                 commentsOut: data.commentsOut || null,
                 createdAt: timestamp,
-                vehicle: { ...vehicle }
+                vehicle: { ...vehicle, status: 'IN_USE', mileage: mileageOut, fuelLevel: fuelOut, updatedAt: timestamp }
             };
 
             return NextResponse.json(trip, { status: 201 });

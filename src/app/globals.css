@@ -5,24 +5,59 @@
   --crf-red: #E30613;
   --crf-red-dark: #B8050F;
   --crf-red-light: #FF2D3A;
-  --crf-red-glow: rgba(227, 6, 19, 0.3);
+  --crf-red-glow: rgba(227, 6, 19, 0.2);
 
-  /* Neutrals */
+  /* Light Theme Neutrals */
+  --bg-primary: #F9FAFB;
+  --bg-secondary: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F3F4F6;
+  --bg-header: rgba(255, 255, 255, 0.85);
+  --bg-input: #FFFFFF;
+  --bg-modal: rgba(255, 255, 255, 0.85);
+
+  --border-primary: #E5E7EB;
+  --border-hover: #D1D5DB;
+  --border-focus: rgba(227, 6, 19, 0.5);
+
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-muted: #6B7280;
+  --text-accent: #E30613;
+
+  /* Shadows for Light Mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 20px var(--crf-red-glow);
+}
+
+.dark {
+  /* Dark Theme Neutrals */
   --bg-primary: #0A0B0E;
   --bg-secondary: #12141A;
   --bg-card: #181B23;
   --bg-card-hover: #1E2230;
+  --bg-header: rgba(18, 20, 26, 0.85);
   --bg-input: #1A1D27;
   --bg-modal: rgba(10, 11, 14, 0.85);
 
   --border-primary: rgba(255, 255, 255, 0.06);
   --border-hover: rgba(255, 255, 255, 0.12);
-  --border-focus: rgba(227, 6, 19, 0.5);
 
   --text-primary: #F0F1F5;
   --text-secondary: #9398A7;
   --text-muted: #5C6070;
-  --text-accent: #E30613;
+
+  /* Shadows for Dark Mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --crf-red-glow: rgba(227, 6, 19, 0.3);
+}
+
+:root,
+.dark {
 
   /* Status Colors */
   --status-available: #22C55E;
@@ -36,12 +71,6 @@
   --fuel-full: #22C55E;
   --fuel-mid: #F59E0B;
   --fuel-low: #EF4444;
-
-  /* Shadows */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px var(--crf-red-glow);
 
   /* Spacing */
   --radius-sm: 8px;
@@ -94,7 +123,7 @@ body {
   top: 0;
   z-index: 100;
   backdrop-filter: blur(12px);
-  background: rgba(18, 20, 26, 0.85);
+  background: var(--bg-header);
 }
 
 .header-brand {
@@ -209,10 +238,21 @@ body {
   border-radius: var(--radius-md) var(--radius-md) 0 0;
 }
 
-.stat-card.total::before { background: var(--crf-red); }
-.stat-card.available::before { background: var(--status-available); }
-.stat-card.inuse::before { background: var(--status-inuse); }
-.stat-card.maintenance::before { background: var(--status-maintenance); }
+.stat-card.total::before {
+  background: var(--crf-red);
+}
+
+.stat-card.available::before {
+  background: var(--status-available);
+}
+
+.stat-card.inuse::before {
+  background: var(--status-inuse);
+}
+
+.stat-card.maintenance::before {
+  background: var(--status-maintenance);
+}
 
 .stat-card:hover {
   border-color: var(--border-hover);
@@ -235,10 +275,21 @@ body {
   letter-spacing: -1px;
 }
 
-.stat-card.total .stat-value { color: var(--text-primary); }
-.stat-card.available .stat-value { color: var(--status-available); }
-.stat-card.inuse .stat-value { color: var(--status-inuse); }
-.stat-card.maintenance .stat-value { color: var(--status-maintenance); }
+.stat-card.total .stat-value {
+  color: var(--text-primary);
+}
+
+.stat-card.available .stat-value {
+  color: var(--status-available);
+}
+
+.stat-card.inuse .stat-value {
+  color: var(--status-inuse);
+}
+
+.stat-card.maintenance .stat-value {
+  color: var(--status-maintenance);
+}
 
 /* ===== VEHICLE GRID ===== */
 .section-header {
@@ -357,8 +408,15 @@ body {
 }
 
 @keyframes pulse-dot {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .vehicle-meta {
@@ -410,9 +468,17 @@ body {
   transition: width var(--transition-slow);
 }
 
-.fuel-bar-fill.full { background: var(--fuel-full); }
-.fuel-bar-fill.mid { background: var(--fuel-mid); }
-.fuel-bar-fill.low { background: var(--fuel-low); }
+.fuel-bar-fill.full {
+  background: var(--fuel-full);
+}
+
+.fuel-bar-fill.mid {
+  background: var(--fuel-mid);
+}
+
+.fuel-bar-fill.low {
+  background: var(--fuel-low);
+}
 
 /* ===== VEHICLE DETAIL PAGE ===== */
 .back-link {
@@ -802,13 +868,25 @@ body {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px) scale(0.98); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ===== LOADING ===== */
@@ -829,7 +907,9 @@ body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ===== EMPTY STATE ===== */
@@ -909,13 +989,28 @@ body {
   min-width: 280px;
 }
 
-.toast.success { border-left: 3px solid var(--status-available); }
-.toast.error { border-left: 3px solid var(--status-maintenance); }
-.toast.info { border-left: 3px solid var(--crf-red); }
+.toast.success {
+  border-left: 3px solid var(--status-available);
+}
+
+.toast.error {
+  border-left: 3px solid var(--status-maintenance);
+}
+
+.toast.info {
+  border-left: 3px solid var(--crf-red);
+}
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateX(30px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 /* ===== RESPONSIVE ===== */

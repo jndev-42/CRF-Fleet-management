@@ -164,7 +164,7 @@ export default function DashboardPage() {
           {filteredVehicles.map((vehicle) => (
             <Link
               key={vehicle.id}
-              href={`/vehicles/${vehicle.id}`}
+              href={`/vehicles/${vehicle.name}`}
               className="vehicle-card"
             >
               <div className="vehicle-card-header">
@@ -208,7 +208,10 @@ export default function DashboardPage() {
                 <div className="meta-item">
                   <span className="meta-label">Kilométrage</span>
                   <span className="meta-value">
-                    {vehicle.mileage.toLocaleString('fr-FR')} km
+                    {renaultData[vehicle.name]?.totalMileage
+                      ? <span style={{ color: isElectric(vehicle.name) ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{renaultData[vehicle.name].totalMileage?.toLocaleString('fr-FR')} km</span>
+                      : `${vehicle.mileage.toLocaleString('fr-FR')} km`
+                    }
                   </span>
                 </div>
                 <div className="meta-item">

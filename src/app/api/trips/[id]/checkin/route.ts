@@ -1,10 +1,14 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { getRenaultVehicleData, getVinFromName } from '@/lib/renault';
+
+// Increase duration limits for Vercel Serverless Functions
+export const maxDuration = 30; // 30 seconds max duration
 
 const checkInSchema = z.object({
-    mileageIn: z.number().min(0, 'Le kilométrage est requis'),
-    fuelIn: z.number().min(0).max(100, "Le niveau d'essence doit être entre 0 et 100"),
+    mileageIn: z.number().min(0, 'Le kilométrage est requis').optional(),
+    fuelIn: z.number().min(0).max(100, "Le niveau d'essence doit être entre 0 et 100").optional(),
     parkingIn: z.string().optional(),
     conditionIn: z.string().min(1, "L'état du véhicule est requis"),
     windowsClosed: z.boolean().default(false),
@@ -51,6 +55,41 @@ export async function PATCH(
         });
         const vehicle = vehicleResult.rows[0];
 
+        // Fetch live Renault data if vehicle is connected and data is missing
+        let finalMileageIn = data.mileageIn;
+        let finalFuelIn = data.fuelIn;
+        const vehicleName = vehicle.name as string | undefined;
+
+        if (vehicleName && (finalMileageIn === undefined || finalFuelIn === undefined)) {
+            if (vehicleName.includes('VL186') || vehicleName.includes('VL188')) {
+                const vin = getVinFromName(vehicleName);
+                if (vin) {
+                    try {
+                        const rData = await getRenaultVehicleData(vin);
+                        if (finalMileageIn === undefined && rData.totalMileage !== null) {
+                            finalMileageIn = rData.totalMileage;
+                        }
+                        if (finalFuelIn === undefined) {
+                            if (rData.isElectric && rData.batteryLevel !== null) {
+                                finalFuelIn = rData.batteryLevel;
+                            } else if (!rData.isElectric && rData.fuelQuantity !== null) {
+                                finalFuelIn = Math.min(Math.round((rData.fuelQuantity / 50) * 100), 100);
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Failed to get live Renault data during checkin', e);
+                    }
+                }
+            }
+        }
+
+        if (finalMileageIn === undefined || finalFuelIn === undefined) {
+            return NextResponse.json(
+                { error: 'Données manquantes : kilométrage et niveau de carburant requis' },
+                { status: 400 }
+            );
+        }
+
         // Mettre à jour le trip et le véhicule en transaction
         const tx = await db.transaction('write');
         const timestamp = new Date().toISOString();
@@ -64,8 +103,8 @@ export async function PATCH(
                       WHERE id = ?`,
                 args: [
                     timestamp,
-                    data.mileageIn,
-                    data.fuelIn,
+                    finalMileageIn,
+                    finalFuelIn,
                     data.parkingIn || null,
                     data.conditionIn,
                     data.windowsClosed ? 1 : 0,
@@ -83,8 +122,8 @@ export async function PATCH(
                         status = 'AVAILABLE', mileage = ?, fuelLevel = ?, parkingSpot = ?, updatedAt = ? 
                       WHERE id = ?`,
                 args: [
-                    data.mileageIn,
-                    data.fuelIn,
+                    finalMileageIn,
+                    finalFuelIn,
                     data.parkingIn || vehicle.parkingSpot,
                     timestamp,
                     trip.vehicleId
@@ -96,8 +135,8 @@ export async function PATCH(
             const updatedTrip = {
                 ...trip,
                 checkInAt: timestamp,
-                mileageIn: data.mileageIn,
-                fuelIn: data.fuelIn,
+                mileageIn: finalMileageIn,
+                fuelIn: finalFuelIn,
                 parkingIn: data.parkingIn || null,
                 conditionIn: data.conditionIn,
                 windowsClosed: data.windowsClosed,
@@ -109,8 +148,8 @@ export async function PATCH(
                 vehicle: {
                     ...vehicle,
                     status: 'AVAILABLE',
-                    mileage: data.mileageIn,
-                    fuelLevel: data.fuelIn,
+                    mileage: finalMileageIn,
+                    fuelLevel: finalFuelIn,
                     parkingSpot: data.parkingIn || vehicle.parkingSpot,
                     updatedAt: timestamp
                 }
