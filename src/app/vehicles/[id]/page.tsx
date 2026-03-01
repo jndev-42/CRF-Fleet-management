@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { RenaultVehicleData } from '@/lib/renault';
 
 interface Trip {
     id: string;
@@ -62,6 +63,10 @@ function getFuelClass(level: number) {
     return 'low';
 }
 
+function isElectric(vehicleName: string) {
+    return vehicleName.toUpperCase().includes('VL186');
+}
+
 function formatDate(d: string) {
     return new Date(d).toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -76,7 +81,9 @@ export default function VehicleDetailPage() {
     const params = useParams();
     const id = params.id as string;
     const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+    const [renaultData, setRenaultData] = useState<RenaultVehicleData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [loadingRenault, setLoadingRenault] = useState(false);
     const [showCheckOut, setShowCheckOut] = useState(false);
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
@@ -86,6 +93,18 @@ export default function VehicleDetailPage() {
             const res = await fetch(`/api/vehicles/${id}`);
             const data = await res.json();
             setVehicle(data);
+
+            // Only fetch Renault data for VL186 and VL188
+            if (data.name?.includes('VL186') || data.name?.includes('VL188')) {
+                setLoadingRenault(true);
+                fetch(`/api/renault/${encodeURIComponent(data.name)}`)
+                    .then(r => r.json())
+                    .then(rData => {
+                        if (!rData.error) setRenaultData(rData);
+                    })
+                    .catch(e => console.error('Failed to get Renault data:', e))
+                    .finally(() => setLoadingRenault(false));
+            }
         } catch (error) {
             console.error('Erreur:', error);
         } finally {
@@ -165,6 +184,15 @@ export default function VehicleDetailPage() {
                                 🫀 DSA
                             </span>
                         )}
+                        {isElectric(vehicle.name) ? (
+                            <span className="vehicle-type-badge" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}>
+                                ⚡ Électrique
+                            </span>
+                        ) : (
+                            <span className="vehicle-type-badge" style={{ background: 'rgba(249, 115, 22, 0.1)', color: '#F97316' }}>
+                                ⛽ Essence
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="vehicle-detail-actions">
@@ -237,7 +265,7 @@ export default function VehicleDetailPage() {
                     </div>
                 </div>
                 <div className="detail-card">
-                    <div className="detail-card-title">Essence</div>
+                    <div className="detail-card-title">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'}</div>
                     <div className="detail-card-value">{vehicle.fuelLevel}%</div>
                     <div className="fuel-bar" style={{ marginTop: 8 }}>
                         <div
@@ -257,6 +285,75 @@ export default function VehicleDetailPage() {
                     <div className="detail-card-value">{vehicle.trips.length}</div>
                 </div>
             </div>
+
+            {/* Renault Connect Section */}
+            {(renaultData || loadingRenault) && (
+                <div style={{ marginBottom: 24 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                        <h2 className="section-title" style={{ margin: 0 }}>Renault Connect</h2>
+                        {loadingRenault && <div className="loading-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />}
+                        {!loadingRenault && renaultData && (
+                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                                Actualisé le {formatDate(renaultData.batteryTimestamp || renaultData.cockpitTimestamp || new Date().toISOString())}
+                            </span>
+                        )}
+                    </div>
+
+                    {!loadingRenault && renaultData && (
+                        <div className="detail-grid">
+                            {(renaultData.totalMileage !== null) && (
+                                <div className="detail-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                                    <div className="detail-card-title">Kilométrage (réel)</div>
+                                    <div className="detail-card-value">{renaultData.totalMileage.toLocaleString('fr-FR')} km</div>
+                                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                                        Remonte par la télématique
+                                    </div>
+                                </div>
+                            )}
+
+                            {renaultData.isElectric ? (
+                                <>
+                                    <div className="detail-card" style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                        <div className="detail-card-title" style={{ color: '#2563EB' }}>Batterie (réelle)</div>
+                                        <div className="detail-card-value">{renaultData.batteryLevel}%</div>
+                                        <div className="fuel-bar" style={{ marginTop: 8 }}>
+                                            <div
+                                                className={`fuel-bar-fill ${getFuelClass(renaultData.batteryLevel || 0)}`}
+                                                style={{ width: `${renaultData.batteryLevel}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="detail-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                                        <div className="detail-card-title">Autonomie estimée</div>
+                                        <div className="detail-card-value">{renaultData.batteryAutonomy} km</div>
+                                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                                            Liée à la charge actuelle
+                                        </div>
+                                    </div>
+                                    <div className="detail-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                                        <div className="detail-card-title">État de charge</div>
+                                        <div className="detail-card-value" style={{ fontSize: 16, marginTop: 4 }}>
+                                            {renaultData.plugStatus === 1 ? '🔌 Branché' : '⚡ Non branché'}
+                                            {renaultData.chargingStatus === 1 && ' (En charge)'}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="detail-card" style={{ background: 'rgba(249, 115, 22, 0.05)', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
+                                        <div className="detail-card-title" style={{ color: '#EA580C' }}>Carburant estimé</div>
+                                        <div className="detail-card-value">{renaultData.fuelQuantity} L</div>
+                                    </div>
+                                    <div className="detail-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                                        <div className="detail-card-title">Autonomie estimée</div>
+                                        <div className="detail-card-value">{renaultData.fuelAutonomy} km</div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {vehicle.notes && (
                 <div className="detail-card" style={{ marginBottom: 24 }}>
@@ -320,11 +417,11 @@ export default function VehicleDetailPage() {
                                     </span>
                                 </div>
                                 <div className="trip-detail-item">
-                                    <span className="trip-detail-label">Essence départ</span>
+                                    <span className="trip-detail-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} départ</span>
                                     <span className="trip-detail-value">{trip.fuelOut}%</span>
                                 </div>
                                 <div className="trip-detail-item">
-                                    <span className="trip-detail-label">Essence retour</span>
+                                    <span className="trip-detail-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} retour</span>
                                     <span className="trip-detail-value">
                                         {trip.fuelIn !== null ? `${trip.fuelIn}%` : '—'}
                                     </span>
@@ -521,7 +618,7 @@ function CheckOutModal({
                         >
                             <div><strong>Immatriculation :</strong> {vehicle.plate}</div>
                             <div><strong>Kilométrage :</strong> {vehicle.mileage.toLocaleString('fr-FR')} km</div>
-                            <div><strong>Essence :</strong> {vehicle.fuelLevel}%</div>
+                            <div><strong>{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} :</strong> {vehicle.fuelLevel}%</div>
                             {vehicle.hasDSA && <div><strong>DSA :</strong> Équipé</div>}
                         </div>
 
@@ -765,7 +862,7 @@ function CheckInModal({
 
                         {/* Essence */}
                         <div className="form-group">
-                            <label className="form-label">Essence ({form.fuelIn}%)</label>
+                            <label className="form-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} ({form.fuelIn}%)</label>
                             <input
                                 type="range"
                                 className="fuel-slider"

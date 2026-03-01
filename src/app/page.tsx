@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { RenaultVehicleData } from '@/lib/renault';
 
 interface Vehicle {
   id: string;
@@ -35,6 +36,10 @@ const vehicleIcons: Record<string, string> = {
   Utilitaire: '🚐',
 };
 
+function isElectric(vehicleName: string) {
+  return vehicleName.toUpperCase().includes('VL186');
+}
+
 function getFuelClass(level: number) {
   if (level >= 50) return 'full';
   if (level >= 25) return 'mid';
@@ -43,6 +48,7 @@ function getFuelClass(level: number) {
 
 export default function DashboardPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [renaultData, setRenaultData] = useState<Record<string, RenaultVehicleData>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
 
@@ -55,6 +61,22 @@ export default function DashboardPage() {
       const res = await fetch('/api/vehicles');
       const data = await res.json();
       setVehicles(data);
+
+      // Fetch Renault data for supported vehicles
+      const renaultVehicles = data.filter((v: Vehicle) => v.name.includes('VL186') || v.name.includes('VL188'));
+      if (renaultVehicles.length > 0) {
+        Promise.all(renaultVehicles.map(async (v: Vehicle) => {
+          try {
+            const rRes = await fetch(`/api/renault/${encodeURIComponent(v.name)}`);
+            const rData = await rRes.json();
+            if (!rData.error) {
+              setRenaultData(prev => ({ ...prev, [v.name]: rData }));
+            }
+          } catch (e) {
+            console.error('Failed to get Renault data for', v.name, e);
+          }
+        }));
+      }
     } catch (error) {
       console.error('Erreur:', error);
     } finally {
@@ -176,6 +198,12 @@ export default function DashboardPage() {
                 <div style={{ fontSize: 12, color: '#22C55E', marginBottom: 8, fontWeight: 600 }}>🫀 DSA</div>
               )}
 
+              {isElectric(vehicle.name) ? (
+                <div style={{ fontSize: 12, color: '#3B82F6', marginBottom: 8, fontWeight: 600 }}>⚡ Électrique</div>
+              ) : (
+                <div style={{ fontSize: 12, color: '#F97316', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
+              )}
+
               <div className="vehicle-meta">
                 <div className="meta-item">
                   <span className="meta-label">Kilométrage</span>
@@ -191,18 +219,53 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="fuel-bar-container">
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span className="meta-label">Essence</span>
-                  <span className="meta-label">{vehicle.fuelLevel}%</span>
-                </div>
-                <div className="fuel-bar">
-                  <div
-                    className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
-                    style={{ width: `${vehicle.fuelLevel}%` }}
-                  />
-                </div>
-              </div>
+              {(() => {
+                const rData = renaultData[vehicle.name];
+
+                // Display Live Renault Data if available
+                if (rData) {
+                  const isElec = rData.isElectric;
+                  const val = isElec ? rData.batteryLevel : rData.fuelQuantity;
+                  const label = isElec ? '🔋 Batterie (live)' : '⛽ Essence (live)';
+                  const displayVal = isElec ? `${val}%` : `${val} L`;
+                  // For fuel quantity we map it roughly to percentage for the bar (assuming 50L tank roughly)
+                  const fillPct = isElec ? (val || 0) : Math.min(((val || 0) / 50) * 100, 100);
+
+                  return (
+                    <div className="fuel-bar-container">
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span className="meta-label" style={{ color: isElec ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{label}</span>
+                        <span className="meta-label" style={{ fontWeight: 600 }}>{displayVal}</span>
+                      </div>
+                      <div className="fuel-bar">
+                        <div
+                          className={`fuel-bar-fill ${getFuelClass(fillPct)}`}
+                          style={{ width: `${fillPct}%` }}
+                        />
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, textAlign: 'right' }}>
+                        Autonomie: {rData.batteryAutonomy || rData.fuelAutonomy || '—'} km
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Fallback to manual manual data
+                return (
+                  <div className="fuel-bar-container">
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span className="meta-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'}</span>
+                      <span className="meta-label">{vehicle.fuelLevel}%</span>
+                    </div>
+                    <div className="fuel-bar">
+                      <div
+                        className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
+                        style={{ width: `${vehicle.fuelLevel}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
             </Link>
           ))}
         </div>

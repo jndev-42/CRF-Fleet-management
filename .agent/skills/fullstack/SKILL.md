@@ -295,4 +295,10 @@ npx prisma migrate dev --name init
 
 # Generate Prisma client
 npx prisma generate
+
+# Install dependencies
+npm install
+
+# Run dev server (localhost:3000)
+npm run dev
 ```
