@@ -25,6 +25,8 @@ interface Trip {
     dsaUsed: boolean | null;
     commentsOut: string | null;
     commentsIn: string | null;
+    secondDriverName: string | null;
+    secondDriverEmail: string | null;
     windowsClosed: boolean | null;
     vehicleInspected: boolean | null;
     incident: string | null;
@@ -97,6 +99,7 @@ export default function VehicleDetailPage() {
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [userRoles, setUserRoles] = useState<string[]>([]);
+    const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
     useEffect(() => {
         // Fetch session to determine Admin role
@@ -105,6 +108,9 @@ export default function VehicleDetailPage() {
             .then(session => {
                 if (session?.user?.roles) {
                     setUserRoles(session.user.roles);
+                }
+                if (session?.user?.email) {
+                    setCurrentUserEmail(session.user.email);
                 }
             })
             .catch(console.error);
@@ -186,6 +192,11 @@ export default function VehicleDetailPage() {
     }
 
     const activeTrip = vehicle.trips.find((t) => !t.checkInAt);
+    const canCheckIn = activeTrip ? (
+        userRoles.includes('ADMIN') ||
+        activeTrip.driverEmail === currentUserEmail ||
+        activeTrip.secondDriverEmail === currentUserEmail
+    ) : false;
 
     return (
         <>
@@ -278,8 +289,10 @@ export default function VehicleDetailPage() {
                     })()}
                     {vehicle.status === 'IN_USE' && activeTrip && (
                         <button
-                            className="btn btn-success btn-lg"
-                            onClick={() => setShowCheckIn(true)}
+                            className={`btn btn-success btn-lg ${!canCheckIn ? 'disabled' : ''}`}
+                            onClick={() => { if (canCheckIn) setShowCheckIn(true); }}
+                            disabled={!canCheckIn}
+                            title={!canCheckIn ? "Seul l'emprunteur ou un admin peut rendre ce véhicule" : ""}
                         >
                             ✅ Rendre le véhicule
                         </button>
@@ -321,8 +334,10 @@ export default function VehicleDetailPage() {
                         </div>
                     </div>
                     <button
-                        className="btn btn-success"
-                        onClick={() => setShowCheckIn(true)}
+                        className={`btn btn-success ${!canCheckIn ? 'disabled' : ''}`}
+                        onClick={() => { if (canCheckIn) setShowCheckIn(true); }}
+                        disabled={!canCheckIn}
+                        title={!canCheckIn ? "Seul l'emprunteur ou un admin peut rendre ce véhicule" : ""}
                     >
                         ✅ Rendre
                     </button>
@@ -458,7 +473,7 @@ export default function VehicleDetailPage() {
                         >
                             <div className="trip-header">
                                 <div>
-                                    <span className="trip-driver">🧑‍✈️ {trip.driverName}</span>
+                                    <span className="trip-driver">🧑‍✈️ {trip.driverName} {trip.secondDriverName ? ` & ${trip.secondDriverName}` : ''}</span>
                                     <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
                                         {trip.missionType}{trip.missionName ? ` — ${trip.missionName}` : ''}
                                     </span>
@@ -639,6 +654,7 @@ function CheckOutModal({
     const [form, setForm] = useState({
         driverName: '',
         driverEmail: '',
+        secondDriverEmail: '',
         missionType: 'DPS',
         missionName: '',
         conditionOut: 'Bon état',
@@ -649,6 +665,7 @@ function CheckOutModal({
     });
     const [submitting, setSubmitting] = useState(false);
     const [sessionLoading, setSessionLoading] = useState(true);
+    const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
 
     useEffect(() => {
         fetch('/api/auth/session')
@@ -664,6 +681,13 @@ function CheckOutModal({
             })
             .catch(console.error)
             .finally(() => setSessionLoading(false));
+
+        fetch('/api/users')
+            .then(res => res.json())
+            .then(data => {
+                if (data.users) setUsers(data.users);
+            })
+            .catch(console.error);
     }, []);
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -672,6 +696,12 @@ function CheckOutModal({
             ? form.parkingOutCustom
             : form.parkingOutSelection;
 
+        let secondDriverName = '';
+        if (form.secondDriverEmail) {
+            const match = users.find(u => u.email === form.secondDriverEmail);
+            secondDriverName = match?.name || form.secondDriverEmail;
+        }
+
         try {
             const res = await fetch('/api/trips', {
                 method: 'POST',
@@ -679,6 +709,8 @@ function CheckOutModal({
                 body: JSON.stringify({
                     vehicleId: vehicle.id,
                     ...form,
+                    secondDriverName: secondDriverName || undefined,
+                    secondDriverEmail: form.secondDriverEmail || undefined,
                     parkingOut: finalParkingOut
                 }),
             });
@@ -752,6 +784,23 @@ function CheckOutModal({
                                     }}
                                 />
                             </div>
+                        </div>
+
+                        {/* 2nd Conducteur */}
+                        <div className="form-group" style={{ marginBottom: 16 }}>
+                            <label className="form-label">2ème Conducteur (Optionnel)</label>
+                            <input
+                                className="form-input"
+                                list="users-list"
+                                placeholder="Rechercher par adresse email..."
+                                value={form.secondDriverEmail}
+                                onChange={(e) => setForm({ ...form, secondDriverEmail: e.target.value })}
+                            />
+                            <datalist id="users-list">
+                                {users.map(u => (
+                                    <option key={u.email} value={u.email}>{u.name || u.email}</option>
+                                ))}
+                            </datalist>
                         </div>
 
                         {/* Mission */}

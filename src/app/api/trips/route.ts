@@ -14,6 +14,8 @@ const checkOutSchema = z.object({
     parkingOut: z.string().optional(),
     dsaChecked: z.boolean().default(false),
     commentsOut: z.string().optional(),
+    secondDriverName: z.string().optional(),
+    secondDriverEmail: z.string().email().optional().or(z.literal('')),
 });
 
 export async function POST(request: Request) {
@@ -95,8 +97,9 @@ export async function POST(request: Request) {
             await tx.execute({
                 sql: `INSERT INTO Trip (
                         id, vehicleId, driverName, driverEmail, missionType, missionName, 
-                        checkOutAt, mileageOut, fuelOut, conditionOut, parkingOut, dsaChecked, commentsOut, createdAt
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        checkOutAt, mileageOut, fuelOut, conditionOut, parkingOut, dsaChecked, commentsOut, 
+                        secondDriverName, secondDriverEmail, createdAt
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     tripId,
                     data.vehicleId,
@@ -111,6 +114,8 @@ export async function POST(request: Request) {
                     data.parkingOut || (vehicle.parkingSpot as string) || null,
                     data.dsaChecked ? 1 : 0,
                     data.commentsOut || null,
+                    data.secondDriverName || null,
+                    data.secondDriverEmail || null,
                     timestamp // createdAt
                 ]
             });
@@ -136,6 +141,8 @@ export async function POST(request: Request) {
                 parkingOut: data.parkingOut || vehicle.parkingSpot,
                 dsaChecked: data.dsaChecked,
                 commentsOut: data.commentsOut || null,
+                secondDriverName: data.secondDriverName || null,
+                secondDriverEmail: data.secondDriverEmail || null,
                 createdAt: timestamp,
                 vehicle: { ...vehicle, status: 'IN_USE', mileage: mileageOut, fuelLevel: fuelOut, updatedAt: timestamp }
             };

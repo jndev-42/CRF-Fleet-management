@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData, getVinFromName } from '@/lib/renault';
+import { auth } from '@/auth';
 
 // Increase duration limits for Vercel Serverless Functions
 export const maxDuration = 30; // 30 seconds max duration
@@ -48,6 +49,27 @@ export async function PATCH(
                 { status: 400 }
             );
         }
+
+        // --- ENFORCE RETURN AUTHORIZATION ---
+        const session = await auth();
+        const userEmail = session?.user?.email;
+        const userRoles = session?.user?.roles || [];
+
+        if (!userEmail) {
+            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        }
+
+        const isAdmin = userRoles.includes('ADMIN');
+        const isFirstDriver = userEmail === trip.driverEmail;
+        const isSecondDriver = userEmail === trip.secondDriverEmail;
+
+        if (!isAdmin && !isFirstDriver && !isSecondDriver) {
+            return NextResponse.json(
+                { error: "Vous n'êtes pas autorisé à rendre ce véhicule. Seul l'emprunteur ou un administrateur peut le faire." },
+                { status: 403 }
+            );
+        }
+        // ------------------------------------
 
         const vehicleResult = await db.execute({
             sql: `SELECT * FROM Vehicle WHERE id = ?`,
