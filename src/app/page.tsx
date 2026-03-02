@@ -440,10 +440,13 @@ function AddVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                 </select>
               </div>
               <div className="form-group">
-                <label className="form-label">Numéro de châssis / VIN (Optionnel)</label>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  Numéro de châssis / VIN (Optionnel)
+                  <span title="Permet de récupérer automatiquement les données utiles via l'API Renault pour les véhicules connectés (kilométrage et batterie/carburant)." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
+                </label>
                 <input
                   className="form-input"
-                  placeholder="Pour connectivité API Renault"
+                  placeholder="ex: VF1..."
                   value={form.vin}
                   onChange={(e) => setForm({ ...form, vin: e.target.value })}
                 />
