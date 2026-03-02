@@ -35,6 +35,7 @@ export default async function RootLayout({
                 {session?.user?.roles?.includes('ADMIN') && (
                   <a href="/users" className="nav-link">Utilisateurs</a>
                 )}
+                <a href="/aide" className="nav-link">Aide</a>
                 {session?.user && (
                   <form action={async () => {
                     "use server";
