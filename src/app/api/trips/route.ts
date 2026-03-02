@@ -142,7 +142,7 @@ export async function POST(request: Request) {
                             en: `${data.driverName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,
                             fr: `${data.driverName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`
                         },
-                        url: `https://cr-chauffeur.vercel.app/vehicles/${data.vehicleId}`
+                        url: `https://cr-chauffeur.vercel.app/vehicles/${vName}`
                     });
                 } catch (pushError) {
                     console.error('Erreur lors de l\'envoi de la notification Push Incident:', pushError);

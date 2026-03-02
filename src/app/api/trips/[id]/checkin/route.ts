@@ -169,7 +169,7 @@ export async function PATCH(
                             en: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`,
                             fr: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`
                         },
-                        url: `https://cr-chauffeur.vercel.app/vehicles/${trip.vehicleId}`
+                        url: `https://cr-chauffeur.vercel.app/vehicles/${vName}`
                     });
                 } catch (pushError) {
                     console.error('Erreur lors de l\'envoi de la notification Push Incident (Retour):', pushError);
