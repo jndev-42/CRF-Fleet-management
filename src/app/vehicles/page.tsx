@@ -192,7 +192,7 @@ export default function VehiclesPage() {
                                     <span className="meta-label">Kilométrage</span>
                                     <span className="meta-value">
                                         {renaultData[vehicle.name]?.totalMileage
-                                            ? <span style={{ color: isElectric(vehicle.name) ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{renaultData[vehicle.name].totalMileage?.toLocaleString('fr-FR')} km</span>
+                                            ? <span>{renaultData[vehicle.name].totalMileage?.toLocaleString('fr-FR')} km</span>
                                             : `${vehicle.mileage.toLocaleString('fr-FR')} km`
                                         }
                                     </span>
