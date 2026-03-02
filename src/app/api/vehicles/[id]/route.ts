@@ -87,6 +87,7 @@ export async function GET(
                 dsaUsed: tRow.dsaUsed !== null ? !!tRow.dsaUsed : null,
                 commentsIn: tRow.commentsIn,
                 parkingPhoto: tRow.parkingPhoto,
+                driveFolderId: tRow.driveFolderId || null,
                 createdAt: new Date(tRow.createdAt as string),
             }))
         };
@@ -155,6 +156,8 @@ export async function PATCH(
     }
 }
 
+import { deleteDriveFolder } from '@/lib/drive';
+
 export async function DELETE(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -181,6 +184,20 @@ export async function DELETE(
         }
 
         const realId = vehicleResult.rows[0].id;
+
+        // Fetch trips to delete their associated Drive folders
+        const tripsRes = await db.execute({
+            sql: `SELECT driveFolderId FROM Trip WHERE vehicleId = ?`,
+            args: [realId]
+        });
+
+        const foldersToDelete = tripsRes.rows
+            .map(row => row.driveFolderId as string)
+            .filter(Boolean);
+
+        if (foldersToDelete.length > 0) {
+            await Promise.allSettled(foldersToDelete.map(folderId => deleteDriveFolder(folderId)));
+        }
 
         // Delete all trips associated with the vehicle first
         await db.execute({

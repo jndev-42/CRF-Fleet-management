@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
 
@@ -46,10 +48,20 @@ export default function VehiclesPage() {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('ALL');
     const [showAddModal, setShowAddModal] = useState(false);
+    const { status } = useSession();
+    const router = useRouter();
 
     useEffect(() => {
-        fetchVehicles();
-    }, []);
+        if (status === 'unauthenticated') {
+            router.push('/login');
+        }
+    }, [status, router]);
+
+    useEffect(() => {
+        if (status === 'authenticated') {
+            fetchVehicles();
+        }
+    }, [status]);
 
     async function fetchVehicles() {
         try {
@@ -84,13 +96,15 @@ export default function VehiclesPage() {
             ? vehicles
             : vehicles.filter((v) => v.status === filter);
 
-    if (loading) {
+    if (loading || status === 'loading') {
         return (
             <div className="loading-container">
                 <div className="loading-spinner" />
             </div>
         );
     }
+
+    if (status === 'unauthenticated') return null;
 
     return (
         <>

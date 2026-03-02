@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { google } from 'googleapis';
+import { getDriveClient } from '@/lib/drive';
 
 export async function GET(request: Request) {
     try {
         const session = await auth();
-        if (!session?.user || !session.accessToken) {
-            return NextResponse.json({ error: 'Non authentifié ou token manquant' }, { status: 401 });
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
         const { searchParams } = new URL(request.url);
@@ -16,9 +16,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Paramètre folderId manquant' }, { status: 400 });
         }
 
-        const oauth2Client = new google.auth.OAuth2();
-        oauth2Client.setCredentials({ access_token: session.accessToken });
-        const drive = google.drive({ version: 'v3', auth: oauth2Client });
+        const drive = getDriveClient();
 
         // 1. Fetch subfolders inside parent `[Vehicule]-[Date]` folder (e.g. "emprunt", "rendu")
         const subfoldersRes = await drive.files.list({
@@ -52,13 +50,6 @@ export async function GET(request: Request) {
 
     } catch (error: any) {
         console.error('Google Drive Photos Fetch Error:', error?.response?.data || error.message);
-
-        if (error?.response?.status === 401 || error?.response?.status === 403) {
-            return NextResponse.json(
-                { error: 'Permissions expirées. Veuillez vous reconnecter.' },
-                { status: 401 }
-            );
-        }
 
         return NextResponse.json({ error: 'Erreur lors de la récupération des photos' }, { status: 500 });
     }

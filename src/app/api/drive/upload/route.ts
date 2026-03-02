@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { google } from 'googleapis';
+import { getDriveClient } from '@/lib/drive';
 import { Readable } from 'stream';
 
-const SHARED_FOLDER_ID = '1OqPb5TLpNhIYRxzwWiOcpQkFWLGs8m3X';
+const SHARED_FOLDER_ID = '11UwzHHOzNhn--f16eMaoWk9NgvOwOt2G';
 
 export async function POST(request: Request) {
     try {
         const session = await auth();
-        // Check if user is authenticated and has an access token
-        if (!session?.user || !session.accessToken) {
+        // Just verify they are logged in. We don't need their tokens anymore.
+        if (!session?.user) {
             return NextResponse.json(
-                { error: 'Non authentifié ou permission Drive manquante. Veuillez vous reconnecter.' },
+                { error: 'Non authentifié.' },
                 { status: 401 }
             );
         }
@@ -32,10 +32,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Données manquantes (vehicleName, date, stage)' }, { status: 400 });
         }
 
-        // Initialize Google Drive API client with user's access token
-        const oauth2Client = new google.auth.OAuth2();
-        oauth2Client.setCredentials({ access_token: session.accessToken });
-        const drive = google.drive({ version: 'v3', auth: oauth2Client });
+        // Initialize Google Drive API client using Service Account
+        const drive = getDriveClient();
 
         // 1. Get or Create Parent Folder: "[Véhicule]-[Date]"
         let parentFolderId = existingFolderId;
@@ -108,14 +106,6 @@ export async function POST(request: Request) {
 
     } catch (error: any) {
         console.error('Google Drive Upload Error:', error?.response?.data || error.message);
-
-        // Handle token expiration or scope errors specifically
-        if (error?.response?.status === 401 || error?.response?.status === 403) {
-            return NextResponse.json(
-                { error: 'Permissions Google Drive invalides ou expirées. Veuillez vous déconnecter puis vous reconnecter.' },
-                { status: 401 }
-            );
-        }
 
         return NextResponse.json(
             { error: 'Erreur lors de la création du dossier ou de l\'envoi des photos.' },

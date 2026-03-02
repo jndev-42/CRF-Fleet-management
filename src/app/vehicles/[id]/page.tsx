@@ -100,6 +100,10 @@ export default function VehicleDetailPage() {
     const [editNotesValue, setEditNotesValue] = useState('');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [viewingPhotosFolderId, setViewingPhotosFolderId] = useState<string | null>(null);
+    const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
+    const [showAddSecondDriver, setShowAddSecondDriver] = useState(false);
+    const [secondDriverEmail, setSecondDriverEmail] = useState('');
+    const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -113,6 +117,14 @@ export default function VehicleDetailPage() {
                 if (session?.user?.email) {
                     setCurrentUserEmail(session.user.email);
                 }
+            })
+            .catch(console.error);
+
+        // Fetch users for the second driver dropdown
+        fetch('/api/users')
+            .then(res => res.json())
+            .then(data => {
+                if (data.users) setUsers(data.users);
             })
             .catch(console.error);
     }, []);
@@ -132,6 +144,39 @@ export default function VehicleDetailPage() {
     useEffect(() => {
         fetchVehicle();
     }, [fetchVehicle]);
+
+    async function handleAddSecondDriver(e: React.FormEvent) {
+        e.preventDefault();
+        if (!activeTrip || !secondDriverEmail) return;
+
+        setSubmittingSecondDriver(true);
+        let secondDriverName = '';
+        const match = users.find(u => u.email === secondDriverEmail);
+        secondDriverName = match?.name || secondDriverEmail;
+
+        try {
+            const res = await fetch(`/api/trips/${activeTrip.id}/second-driver`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ secondDriverName, secondDriverEmail }),
+            });
+
+            if (res.ok) {
+                setShowAddSecondDriver(false);
+                setSecondDriverEmail('');
+                fetchVehicle();
+                showToast('2ème conducteur ajouté avec succès !');
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Erreur lors de l\'ajout du 2ème conducteur');
+            }
+        } catch (error) {
+            console.error('Erreur:', error);
+            alert('Erreur de connexion');
+        } finally {
+            setSubmittingSecondDriver(false);
+        }
+    }
 
     // Fetch Renault data separately, only once when vehicle name is known
     useEffect(() => {
@@ -359,13 +404,52 @@ export default function VehicleDetailPage() {
                 >
                     <div>
                         <div style={{ fontWeight: 700, color: 'var(--status-inuse)', marginBottom: 2 }}>
-                            🧑‍✈️ En mission avec {activeTrip.driverName}
+                            🧑‍✈️ En mission avec {activeTrip.driverName} {activeTrip.secondDriverName && ` & ${activeTrip.secondDriverName}`}
                         </div>
                         <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                             Depuis le {formatDate(activeTrip.checkOutAt)}
                             {' — '}{activeTrip.missionType}
                             {activeTrip.missionName && ` : ${activeTrip.missionName}`}
                         </div>
+
+                        {!activeTrip.secondDriverName && (currentUserEmail === activeTrip.driverEmail || userRoles.includes('ADMIN')) && (
+                            <div style={{ marginTop: 12 }}>
+                                {!showAddSecondDriver ? (
+                                    <button
+                                        className="btn btn-secondary"
+                                        style={{ fontSize: 13, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6 }}
+                                        onClick={() => setShowAddSecondDriver(true)}
+                                    >
+                                        ➕ Ajouter 2nd cond.
+                                    </button>
+                                ) : (
+                                    <form onSubmit={handleAddSecondDriver} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <div>
+                                            <input
+                                                list="user-list-inline"
+                                                className="form-input"
+                                                placeholder="Sélectionner un utilisateur..."
+                                                value={secondDriverEmail}
+                                                onChange={(e) => setSecondDriverEmail(e.target.value)}
+                                                style={{ fontSize: 13, padding: '6px 10px', width: '220px' }}
+                                                required
+                                            />
+                                            <datalist id="user-list-inline">
+                                                {users.map(u => (
+                                                    <option key={u.email} value={u.email}>{u.name}</option>
+                                                ))}
+                                            </datalist>
+                                        </div>
+                                        <button type="submit" className="btn btn-primary" style={{ fontSize: 13, padding: '6px 12px' }} disabled={submittingSecondDriver}>
+                                            {submittingSecondDriver ? '...' : 'Valider'}
+                                        </button>
+                                        <button type="button" className="btn btn-secondary" style={{ fontSize: 13, padding: '6px 12px' }} onClick={() => setShowAddSecondDriver(false)}>
+                                            Annuler
+                                        </button>
+                                    </form>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <button
                         className={`btn btn-success ${!canCheckIn ? 'disabled' : ''}`}
@@ -890,7 +974,7 @@ function CheckOutModal({
                 }
 
                 const uploadData = await uploadRes.json();
-                driveFolderId = uploadData.driveFolderId;
+                driveFolderId = uploadData.folderId;
             }
 
             const res = await fetch('/api/trips', {
@@ -1072,7 +1156,7 @@ function CheckOutModal({
                         <div className="form-group" style={{ marginTop: 16 }}>
                             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 📸 Photos avant départ (Optionnel)
-                                <span title="Ces photos seront envoyées sur un Google Drive partagé (vous devez vous y connecter). Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
+                                <span title="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
                             </label>
                             <input
                                 type="file"
@@ -1221,7 +1305,7 @@ function CheckInModal({
                 }
 
                 const uploadData = await uploadRes.json();
-                driveFolderId = uploadData.driveFolderId;
+                driveFolderId = uploadData.folderId;
             }
 
             const payload = { ...form, parkingIn: finalParkingIn, driveFolderId };
@@ -1425,7 +1509,7 @@ function CheckInModal({
                         <div className="form-group" style={{ marginTop: 16 }}>
                             <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 📸 Photos après le retour (Optionnel)
-                                <span title="Ces photos seront envoyées sur un Google Drive partagé (vous devez vous y connecter). Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
+                                <span title="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
                             </label>
                             <input
                                 type="file"

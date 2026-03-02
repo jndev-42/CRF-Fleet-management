@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { google } from 'googleapis';
+import { getDriveClient } from '@/lib/drive';
 
 export async function GET(
     request: Request,
@@ -8,14 +8,12 @@ export async function GET(
 ) {
     try {
         const session = await auth();
-        // Check if user is authenticated and has an access token
-        if (!session?.user || !session.accessToken) {
+        // Just verify they are logged in.
+        if (!session?.user) {
             return new Response('Unauthorized', { status: 401 });
         }
 
-        const oauth2Client = new google.auth.OAuth2();
-        oauth2Client.setCredentials({ access_token: session.accessToken });
-        const drive = google.drive({ version: 'v3', auth: oauth2Client });
+        const drive = getDriveClient();
 
         const resolvedParams = await params;
         const fileId = resolvedParams.fileId;

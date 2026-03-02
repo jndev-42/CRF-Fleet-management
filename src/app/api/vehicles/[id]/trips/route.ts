@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { deleteDriveFolder } from '@/lib/drive';
 
 export async function DELETE(
     request: Request,
@@ -13,6 +14,20 @@ export async function DELETE(
         }
 
         const { id } = await params;
+
+        // Fetch all trips for this vehicle to delete their Drive folders
+        const tripsRes = await db.execute({
+            sql: `SELECT driveFolderId FROM Trip WHERE vehicleId = ?`,
+            args: [id]
+        });
+
+        const foldersToDelete = tripsRes.rows
+            .map(row => row.driveFolderId as string)
+            .filter(Boolean);
+
+        if (foldersToDelete.length > 0) {
+            await Promise.allSettled(foldersToDelete.map(folderId => deleteDriveFolder(folderId)));
+        }
 
         await db.execute({
             sql: `DELETE FROM Trip WHERE vehicleId = ?`,

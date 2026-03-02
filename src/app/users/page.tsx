@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 interface User {
     id: string;
@@ -17,11 +18,20 @@ export default function UsersPage() {
     const [availableRoles, setAvailableRoles] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const { data: session, status } = useSession();
     const router = useRouter();
 
     useEffect(() => {
-        fetchUsers();
-    }, []);
+        if (status === 'unauthenticated' || (status === 'authenticated' && !session?.user?.roles?.includes('ADMIN'))) {
+            router.push('/');  // non-admins shouldn't even be here
+        }
+    }, [status, session, router]);
+
+    useEffect(() => {
+        if (status === 'authenticated' && session?.user?.roles?.includes('ADMIN')) {
+            fetchUsers();
+        }
+    }, [status, session]);
 
     async function fetchUsers() {
         try {
@@ -73,13 +83,15 @@ export default function UsersPage() {
         }
     }
 
-    if (loading) {
+    if (loading || status === 'loading') {
         return (
             <div className="loading-container">
                 <div className="loading-spinner" />
             </div>
         );
     }
+
+    if (status === 'unauthenticated' || !session?.user?.roles?.includes('ADMIN')) return null;
 
     return (
         <div className="page-container" style={{ padding: '0px 24px', maxWidth: '1200px', margin: '0 auto' }}>

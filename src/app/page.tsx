@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { RenaultVehicleData } from '@/lib/renault';
 
 interface Vehicle {
@@ -57,18 +59,23 @@ export default function DashboardPage() {
   const [filter, setFilter] = useState('ALL');
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const { data: session, status } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
-    fetchVehicles();
-    fetch('/api/auth/session')
-      .then(res => res.json())
-      .then(session => {
-        if (session?.user?.roles?.includes('ADMIN')) {
-          setIsAdmin(true);
-        }
-      })
-      .catch(console.error);
-  }, []);
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchVehicles();
+      if (session?.user?.roles?.includes('ADMIN')) {
+        setIsAdmin(true);
+      }
+    }
+  }, [status, session]);
 
   async function fetchVehicles() {
     try {
@@ -106,18 +113,21 @@ export default function DashboardPage() {
     maintenance: vehicles.filter((v) => v.status === 'MAINTENANCE').length,
   };
 
-  const filteredVehicles =
-    filter === 'ALL'
-      ? vehicles
-      : vehicles.filter((v) => v.status === filter);
 
-  if (loading) {
+  if (loading || status === 'loading') {
     return (
       <div className="loading-container">
         <div className="loading-spinner" />
       </div>
     );
   }
+
+  if (status === 'unauthenticated') return null;
+
+  const filteredVehicles =
+    filter === 'ALL'
+      ? vehicles
+      : vehicles.filter((v) => v.status === filter);
 
   return (
     <>
