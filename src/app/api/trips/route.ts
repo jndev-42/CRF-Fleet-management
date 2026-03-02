@@ -16,6 +16,7 @@ const checkOutSchema = z.object({
     commentsOut: z.string().optional(),
     secondDriverName: z.string().optional(),
     secondDriverEmail: z.string().email().optional().or(z.literal('')),
+    driveFolderId: z.string().optional(),
 });
 
 export async function POST(request: Request) {
@@ -98,8 +99,8 @@ export async function POST(request: Request) {
                 sql: `INSERT INTO Trip (
                         id, vehicleId, driverName, driverEmail, missionType, missionName, 
                         checkOutAt, mileageOut, fuelOut, conditionOut, parkingOut, dsaChecked, commentsOut, 
-                        secondDriverName, secondDriverEmail, createdAt
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        secondDriverName, secondDriverEmail, driveFolderId, createdAt
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     tripId,
                     data.vehicleId,
@@ -116,6 +117,7 @@ export async function POST(request: Request) {
                     data.commentsOut || null,
                     data.secondDriverName || null,
                     data.secondDriverEmail || null,
+                    data.driveFolderId || null,
                     timestamp // createdAt
                 ]
             });
@@ -143,6 +145,7 @@ export async function POST(request: Request) {
                 commentsOut: data.commentsOut || null,
                 secondDriverName: data.secondDriverName || null,
                 secondDriverEmail: data.secondDriverEmail || null,
+                driveFolderId: data.driveFolderId || null,
                 createdAt: timestamp,
                 vehicle: { ...vehicle, status: 'IN_USE', mileage: mileageOut, fuelLevel: fuelOut, updatedAt: timestamp }
             };

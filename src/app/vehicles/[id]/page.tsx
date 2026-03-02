@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
+import PhotoViewer from '@/components/PhotoViewer';
 
 interface Trip {
     id: string;
@@ -31,6 +32,7 @@ interface Trip {
     vehicleInspected: boolean | null;
     incident: string | null;
     parkingPhoto: string | null;
+    driveFolderId: string | null;
 }
 
 interface Vehicle {
@@ -97,6 +99,7 @@ export default function VehicleDetailPage() {
     const [isEditingNotes, setIsEditingNotes] = useState(false);
     const [editNotesValue, setEditNotesValue] = useState('');
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [viewingPhotosFolderId, setViewingPhotosFolderId] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -726,9 +729,28 @@ export default function VehicleDetailPage() {
                                     />
                                 </div>
                             )}
+                            {trip.driveFolderId && (
+                                <div style={{ marginTop: 12 }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        style={{ fontSize: 13, padding: '6px 12px' }}
+                                        onClick={() => setViewingPhotosFolderId(trip.driveFolderId)}
+                                    >
+                                        📸 Voir les photos
+                                    </button>
+                                </div>
+                            )}
+
                         </div>
                     ))}
                 </div>
+            )}
+
+            {viewingPhotosFolderId && (
+                <PhotoViewer
+                    driveFolderId={viewingPhotosFolderId}
+                    onClose={() => setViewingPhotosFolderId(null)}
+                />
             )}
 
             {showCheckOut && (
@@ -798,6 +820,7 @@ function CheckOutModal({
     const [submitting, setSubmitting] = useState(false);
     const [sessionLoading, setSessionLoading] = useState(true);
     const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
+    const [photos, setPhotos] = useState<File[]>([]);
 
     useEffect(() => {
         fetch('/api/auth/session')
@@ -832,6 +855,44 @@ function CheckOutModal({
         }
 
         try {
+            // Upload photos first if provided
+            let driveFolderId: string | undefined = undefined;
+            if (photos.length > 0) {
+                const formData = new FormData();
+                formData.append('vehicleName', vehicle.name);
+
+                // Get local date formatted as YYYY-MM-DD_HH-mm
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
+
+                formData.append('date', dateStr);
+                formData.append('stage', 'emprunt');
+
+                photos.forEach((file) => {
+                    formData.append('files', file);
+                });
+
+                const uploadRes = await fetch('/api/drive/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!uploadRes.ok) {
+                    const errorData = await uploadRes.json();
+                    alert(`Erreur lors de l'upload des photos: ${errorData.error || uploadRes.statusText}`);
+                    setSubmitting(false);
+                    return;
+                }
+
+                const uploadData = await uploadRes.json();
+                driveFolderId = uploadData.driveFolderId;
+            }
+
             const res = await fetch('/api/trips', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -839,7 +900,8 @@ function CheckOutModal({
                     vehicleId: vehicle.id,
                     ...form,
                     secondDriverName: secondDriverName || undefined,
-                    secondDriverEmail: form.secondDriverEmail || undefined
+                    secondDriverEmail: form.secondDriverEmail || undefined,
+                    driveFolderId,
                 }),
             });
             if (res.ok) {
@@ -1005,6 +1067,68 @@ function CheckOutModal({
                                 onChange={(e) => setForm({ ...form, commentsOut: e.target.value })}
                             />
                         </div>
+
+                        {/* Photos (Optionnel) */}
+                        <div className="form-group" style={{ marginTop: 16 }}>
+                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                📸 Photos avant départ (Optionnel)
+                                <span title="Ces photos seront envoyées sur un Google Drive partagé (vous devez vous y connecter). Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
+                            </label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                capture="environment"
+                                onChange={(e) => {
+                                    if (e.target.files) {
+                                        const newFiles = Array.from(e.target.files);
+                                        const validFiles = newFiles.filter(f => {
+                                            if (f.size > 10 * 1024 * 1024) {
+                                                alert(`Le fichier ${f.name} dépasse 10 Mo et ne sera pas ajouté.`);
+                                                return false;
+                                            }
+                                            return true;
+                                        });
+                                        setPhotos(prev => [...prev, ...validFiles]);
+                                    }
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '10px 14px',
+                                    background: 'var(--bg-input)',
+                                    border: '1px solid var(--border-primary)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    color: 'var(--text-primary)',
+                                    fontSize: 14,
+                                }}
+                            />
+                            {photos.length > 0 && (
+                                <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                    {photos.map((photo, i) => (
+                                        <div key={i} style={{ position: 'relative', width: 80, height: 80, borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={URL.createObjectURL(photo)}
+                                                alt="Aperçu"
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                                                style={{
+                                                    position: 'absolute', top: 4, right: 4,
+                                                    background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none',
+                                                    borderRadius: '50%', width: 20, height: 20, cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
+                                                }}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={onClose}>
@@ -1043,60 +1167,11 @@ function CheckInModal({
         incident: '',
         dsaUsed: false,
         commentsIn: '',
-        parkingPhoto: '',
     });
     const [submitting, setSubmitting] = useState(false);
+    const [photos, setPhotos] = useState<File[]>([]);
 
-    function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        // We accept up to 10MB now, because we will compress it down anyway
-        if (file.size > 10 * 1024 * 1024) {
-            alert('La photo ne doit pas dépasser 10 Mo');
-            return;
-        }
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const img = new Image();
-            img.src = reader.result as string;
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-
-                // Max dimensions to keep the image size < 1MB
-                const MAX_SIZE = 1080;
-                if (width > height) {
-                    if (width > MAX_SIZE) {
-                        height *= MAX_SIZE / width;
-                        width = MAX_SIZE;
-                    }
-                } else {
-                    if (height > MAX_SIZE) {
-                        width *= MAX_SIZE / height;
-                        height = MAX_SIZE;
-                    }
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext('2d');
-                if (ctx) {
-                    ctx.drawImage(img, 0, 0, width, height);
-                    // Export as compressed JPEG (70% quality)
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                    setForm({ ...form, parkingPhoto: dataUrl });
-                } else {
-                    // Fallback to uncompressed if canvas fails
-                    setForm({ ...form, parkingPhoto: reader.result as string });
-                }
-            };
-        };
-        reader.readAsDataURL(file);
-    }
+    // Removed handlePhotoChange with canvas compression since we now use the array and Google Drive.
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -1106,7 +1181,50 @@ function CheckInModal({
                 ? form.parkingInCustom
                 : form.parkingInSelection;
 
-            const payload = { ...form, parkingIn: finalParkingIn };
+            // Upload photos first if provided
+            let driveFolderId: string | undefined = undefined;
+            if (photos.length > 0) {
+                const formData = new FormData();
+                formData.append('vehicleName', vehicle.name);
+
+                // Use the checkout date to group the folder correctly, if available.
+                const checkOutDate = new Date(trip.checkOutAt);
+                const year = checkOutDate.getFullYear();
+                const month = String(checkOutDate.getMonth() + 1).padStart(2, '0');
+                const day = String(checkOutDate.getDate()).padStart(2, '0');
+                const hours = String(checkOutDate.getHours()).padStart(2, '0');
+                const minutes = String(checkOutDate.getMinutes()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
+
+                formData.append('date', dateStr);
+                formData.append('stage', 'rendu');
+
+                // If trip already has a folder, pass it so the backend doesn't search for it
+                if (trip.driveFolderId) {
+                    formData.append('existingDriveFolderId', trip.driveFolderId);
+                }
+
+                photos.forEach((file) => {
+                    formData.append('files', file);
+                });
+
+                const uploadRes = await fetch('/api/drive/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!uploadRes.ok) {
+                    const errorData = await uploadRes.json();
+                    alert(`Erreur lors de l'upload des photos: ${errorData.error || uploadRes.statusText}`);
+                    setSubmitting(false);
+                    return;
+                }
+
+                const uploadData = await uploadRes.json();
+                driveFolderId = uploadData.driveFolderId;
+            }
+
+            const payload = { ...form, parkingIn: finalParkingIn, driveFolderId };
 
             // Remove manual metrics if connected, otherwise parse them
             if (isConnected(vehicle.name)) {
@@ -1303,14 +1421,30 @@ function CheckInModal({
                             />
                         </div>
 
-                        {/* Photo */}
-                        <div className="form-group">
-                            <label className="form-label">📸 Photo du véhicule (stationnement)</label>
+                        {/* Photos (Optionnel) */}
+                        <div className="form-group" style={{ marginTop: 16 }}>
+                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                📸 Photos après le retour (Optionnel)
+                                <span title="Ces photos seront envoyées sur un Google Drive partagé (vous devez vous y connecter). Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
+                            </label>
                             <input
                                 type="file"
                                 accept="image/*"
+                                multiple
                                 capture="environment"
-                                onChange={handlePhotoChange}
+                                onChange={(e) => {
+                                    if (e.target.files) {
+                                        const newFiles = Array.from(e.target.files);
+                                        const validFiles = newFiles.filter(f => {
+                                            if (f.size > 10 * 1024 * 1024) {
+                                                alert(`Le fichier ${f.name} dépasse 10 Mo et ne sera pas ajouté.`);
+                                                return false;
+                                            }
+                                            return true;
+                                        });
+                                        setPhotos(prev => [...prev, ...validFiles]);
+                                    }
+                                }}
                                 style={{
                                     width: '100%',
                                     padding: '10px 14px',
@@ -1321,19 +1455,31 @@ function CheckInModal({
                                     fontSize: 14,
                                 }}
                             />
-                            <div className="form-hint">Max 5 Mo — photo montrant le stationnement du véhicule</div>
-                            {form.parkingPhoto && (
-                                <img
-                                    src={form.parkingPhoto}
-                                    alt="Aperçu"
-                                    style={{
-                                        marginTop: 8,
-                                        maxWidth: '100%',
-                                        maxHeight: 150,
-                                        borderRadius: 'var(--radius-sm)',
-                                        border: '1px solid var(--border-primary)',
-                                    }}
-                                />
+                            {photos.length > 0 && (
+                                <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                    {photos.map((photo, i) => (
+                                        <div key={i} style={{ position: 'relative', width: 80, height: 80, borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img
+                                                src={URL.createObjectURL(photo)}
+                                                alt="Aperçu"
+                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                                                style={{
+                                                    position: 'absolute', top: 4, right: 4,
+                                                    background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none',
+                                                    borderRadius: '50%', width: 20, height: 20, cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
+                                                }}
+                                            >
+                                                ✕
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     </div>

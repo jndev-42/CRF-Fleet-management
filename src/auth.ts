@@ -7,6 +7,7 @@ declare module "next-auth" {
         user: {
             roles: string[];
         } & DefaultSession["user"];
+        accessToken?: string;
     }
 }
 
@@ -17,7 +18,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
             authorization: {
                 params: {
-                    prompt: "select_account",
+                    prompt: "consent",
+                    access_type: "offline",
+                    response_type: "code",
+                    scope: "openid email profile https://www.googleapis.com/auth/drive.file"
                 },
             },
         }),
@@ -121,7 +125,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 session.user.roles = ["GUEST"];
             }
 
+            // Pass the access token to the session
+            if (token?.accessToken) {
+                session.accessToken = token.accessToken as string;
+            }
+
             return session;
+        },
+        async jwt({ token, account }) {
+            // Persist the OAuth access_token to the token right after signin
+            if (account) {
+                token.accessToken = account.access_token;
+            }
+            return token;
         }
     },
 });

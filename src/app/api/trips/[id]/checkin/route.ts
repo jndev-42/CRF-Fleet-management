@@ -18,6 +18,7 @@ const checkInSchema = z.object({
     dsaUsed: z.boolean().default(false),
     commentsIn: z.string().optional(),
     parkingPhoto: z.string().optional(),
+    driveFolderId: z.string().optional(),
 });
 
 export async function PATCH(
@@ -121,7 +122,7 @@ export async function PATCH(
                 sql: `UPDATE Trip SET 
                         checkInAt = ?, mileageIn = ?, fuelIn = ?, parkingIn = ?, conditionIn = ?, 
                         windowsClosed = ?, vehicleInspected = ?, incident = ?, dsaUsed = ?, 
-                        commentsIn = ?, parkingPhoto = ?
+                        commentsIn = ?, parkingPhoto = ?, driveFolderId = ?
                       WHERE id = ?`,
                 args: [
                     timestamp,
@@ -135,6 +136,7 @@ export async function PATCH(
                     data.dsaUsed ? 1 : 0,
                     data.commentsIn || null,
                     data.parkingPhoto || null,
+                    data.driveFolderId || trip.driveFolderId || null,
                     id
                 ]
             });
