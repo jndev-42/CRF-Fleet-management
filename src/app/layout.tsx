@@ -62,7 +62,7 @@ export default async function RootLayout({
                 borderTop: '1px solid var(--border-primary)',
                 marginTop: 'auto'
               }}>
-                © 2026 - Jean-Noël DURAND pour le compte de la croix rouge (unité locale de Paris 18). Tous droits réservés.
+                © 2026 - Jean-Noël DURAND pour le compte de la Croix Rouge (unité locale de Paris 18). Tous droits réservés.
               </footer>
             </div>
           </ThemeProvider>
