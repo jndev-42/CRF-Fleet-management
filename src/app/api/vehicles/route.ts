@@ -3,14 +3,16 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 
 const createVehicleSchema = z.object({
-    name: z.string().min(1),
-    type: z.string().min(1),
-    plate: z.string().min(1),
-    parkingSpot: z.string().optional(),
-    fuelLevel: z.number().min(0).max(100).default(100),
-    mileage: z.number().min(0).default(0),
+    name: z.string().min(1, "Nom requis"),
+    type: z.string().min(1, "Type requis"),
+    plate: z.string().min(1, "Plaque requise"),
+    parkingSpot: z.string().optional().nullable(),
+    fuelLevel: z.number().min(0).max(100),
+    mileage: z.number().min(0),
     hasDSA: z.boolean().default(false),
-    notes: z.string().optional(),
+    notes: z.string().optional().nullable(),
+    vin: z.string().optional().nullable(),
+    fuelType: z.string().optional().nullable(),
 });
 
 export async function GET() {
@@ -41,6 +43,8 @@ export async function GET() {
                     mileage: row.mileage,
                     hasDSA: !!row.hasDSA,
                     notes: row.notes,
+                    vin: row.vin,
+                    fuelType: row.fuelType,
                     createdAt: new Date(row.createdAt as string),
                     updatedAt: new Date(row.updatedAt as string),
                     trips: []
@@ -77,18 +81,20 @@ export async function POST(request: Request) {
         const timestamp = new Date().toISOString();
 
         await db.execute({
-            sql: `INSERT INTO Vehicle (id, name, type, plate, parkingSpot, fuelLevel, mileage, hasDSA, notes, createdAt, updatedAt)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, notes, vin, fuelType, createdAt, updatedAt)
+                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 id,
                 data.name,
                 data.type,
                 data.plate,
-                data.parkingSpot || null,
+                data.parkingSpot ?? null,
                 data.fuelLevel,
                 data.mileage,
                 data.hasDSA ? 1 : 0,
-                data.notes || null,
+                data.notes ?? null,
+                data.vin ?? null,
+                data.fuelType ?? null,
                 timestamp,
                 timestamp
             ]

@@ -44,6 +44,8 @@ interface Vehicle {
     mileage: number;
     hasDSA: boolean;
     notes: string | null;
+    vin: string | null;
+    fuelType: string | null;
     trips: Trip[];
 }
 
@@ -63,14 +65,6 @@ function getFuelClass(level: number) {
     if (level >= 50) return 'full';
     if (level >= 25) return 'mid';
     return 'low';
-}
-
-function isElectric(vehicleName: string) {
-    return vehicleName.toUpperCase().includes('VL186');
-}
-
-function isDiesel(vehicleName: string) {
-    return vehicleName.toUpperCase().includes('182');
 }
 
 function isConnected(vehicleName: string) {
@@ -239,19 +233,19 @@ export default function VehicleDetailPage() {
                                 🫀 DSA
                             </span>
                         )}
-                        {isElectric(vehicle.name) ? (
+                        {vehicle.fuelType === 'Électrique' ? (
                             <span className="vehicle-type-badge" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}>
                                 ⚡ Électrique
                             </span>
-                        ) : isDiesel(vehicle.name) ? (
+                        ) : vehicle.fuelType === 'Diesel' ? (
                             <span className="vehicle-type-badge" style={{ background: 'rgba(107, 114, 128, 0.1)', color: '#374151' }}>
                                 ⛽ Diesel
                             </span>
-                        ) : (
+                        ) : vehicle.fuelType === 'Essence' ? (
                             <span className="vehicle-type-badge" style={{ background: 'rgba(249, 115, 22, 0.1)', color: '#F97316' }}>
                                 ⛽ Essence
                             </span>
-                        )}
+                        ) : null}
                         {userRoles.includes('ADMIN') && (
                             <button
                                 onClick={async () => {
@@ -392,7 +386,7 @@ export default function VehicleDetailPage() {
                 )}
                 {!isConnected(vehicle.name) && (
                     <div className="detail-card">
-                        <div className="detail-card-title">{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')}</div>
+                        <div className="detail-card-title">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}</div>
                         <div className="detail-card-value">{vehicle.fuelLevel}%</div>
                         <div className="fuel-bar" style={{ marginTop: 8 }}>
                             <div
@@ -586,14 +580,12 @@ export default function VehicleDetailPage() {
                                     </span>
                                 </div>
                                 <div className="trip-detail-item">
-                                    <span className="trip-detail-label">{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')} départ</span>
+                                    <span className="trip-detail-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} départ</span>
                                     <span className="trip-detail-value">{trip.fuelOut}%</span>
                                 </div>
                                 <div className="trip-detail-item">
-                                    <span className="trip-detail-label">{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')} retour</span>
-                                    <span className="trip-detail-value">
-                                        {trip.fuelIn !== null ? `${trip.fuelIn}%` : '—'}
-                                    </span>
+                                    <span className="trip-detail-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} retour</span>
+                                    <span className="trip-detail-value">{trip.fuelIn !== null ? `${trip.fuelIn}%` : '—'}</span>
                                 </div>
                                 <div className="trip-detail-item">
                                     <span className="trip-detail-label">État départ</span>
@@ -830,7 +822,7 @@ function CheckOutModal({
                         >
                             <div><strong>Immatriculation :</strong> {vehicle.plate}</div>
                             <div><strong>Kilométrage :</strong> {vehicle.mileage.toLocaleString('fr-FR')} km</div>
-                            <div><strong>{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')} :</strong> {vehicle.fuelLevel}%</div>
+                            <div><strong>{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} :</strong> {vehicle.fuelLevel}%</div>
                             {vehicle.hasDSA && <div><strong>DSA :</strong> Équipé</div>}
                         </div>
 
@@ -909,6 +901,11 @@ function CheckOutModal({
                                     value={form.missionName}
                                     onChange={(e) => setForm({ ...form, missionName: e.target.value })}
                                 />
+                                {vehicle.fuelType === 'Électrique' ? (
+                                    <div className="form-hint">En dessous de 50%, merci de le signaler ou de recharger le véhicule</div>
+                                ) : (
+                                    <div className="form-hint">En dessous de 25% (1/4), le plein doit avoir été fait sinon le signaler</div>
+                                )}
                             </div>
                         </div>
 
@@ -1154,7 +1151,7 @@ function CheckInModal({
                         {/* Essence */}
                         {!isConnected(vehicle.name) && (
                             <div className="form-group">
-                                <label className="form-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'} ({form.fuelIn}%)</label>
+                                <label className="form-label">{vehicle.fuelType === 'Électrique' ? 'Niveau de batterie *' : (vehicle.fuelType === 'Diesel' ? 'Niveau de diesel *' : 'Niveau d\'essence *')}</label>
                                 <input
                                     type="range"
                                     className="fuel-slider"
@@ -1174,7 +1171,7 @@ function CheckInModal({
 
                         {isConnected(vehicle.name) && (
                             <div style={{ marginBottom: 20, padding: 12, background: 'rgba(59, 130, 246, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.2)', fontSize: 13, color: '#1E40AF' }}>
-                                ℹ️ <strong>Données connectées :</strong> Le kilométrage et le niveau de {isElectric(vehicle.name) ? 'batterie' : 'carburant'} remontent automatiquement depuis le véhicule. Il n'est pas nécessaire de les saisir.
+                                ℹ️ <strong>Données connectées :</strong> Le kilométrage et le niveau de {vehicle.fuelType === 'Électrique' ? 'batterie' : 'carburant'} remontent automatiquement depuis le véhicule. Il n'est pas nécessaire de les saisir.
                             </div>
                         )}
 

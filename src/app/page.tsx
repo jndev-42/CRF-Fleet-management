@@ -15,6 +15,8 @@ interface Vehicle {
   mileage: number;
   hasDSA: boolean;
   notes: string | null;
+  vin: string | null;
+  fuelType: string | null;
   trips: {
     id: string;
     driverName: string;
@@ -41,14 +43,6 @@ const vehicleIcons: Record<string, string> = {
   VPSP: '🚑',
   Utilitaire: '🚐',
 };
-
-function isElectric(vehicleName: string) {
-  return vehicleName.toUpperCase().includes('VL186');
-}
-
-function isDiesel(vehicleName: string) {
-  return vehicleName.toUpperCase().includes('182');
-}
 
 function getFuelClass(level: number) {
   if (level >= 50) return 'full';
@@ -83,11 +77,12 @@ export default function DashboardPage() {
       setVehicles(data);
 
       // Fetch Renault data for supported vehicles
-      const renaultVehicles = data.filter((v: Vehicle) => v.name.includes('VL186') || v.name.includes('VL188'));
+      const renaultVehicles = data.filter((v: Vehicle) => v.vin);
       if (renaultVehicles.length > 0) {
         Promise.all(renaultVehicles.map(async (v: Vehicle) => {
           try {
-            const rRes = await fetch(`/api/renault/${encodeURIComponent(v.name)}`);
+            // we have a raw vin or fallback string
+            const rRes = await fetch(`/api/renault/${encodeURIComponent(v.vin || v.name)}`);
             const rData = await rRes.json();
             if (!rData.error) {
               setRenaultData(prev => ({ ...prev, [v.name]: rData }));
@@ -226,20 +221,20 @@ export default function DashboardPage() {
                 <div style={{ fontSize: 12, color: '#22C55E', marginBottom: 8, fontWeight: 600 }}>🫀 DSA</div>
               )}
 
-              {isElectric(vehicle.name) ? (
+              {vehicle.fuelType === 'Électrique' ? (
                 <div style={{ fontSize: 12, color: '#3B82F6', marginBottom: 8, fontWeight: 600 }}>⚡ Électrique</div>
-              ) : isDiesel(vehicle.name) ? (
+              ) : vehicle.fuelType === 'Diesel' ? (
                 <div style={{ fontSize: 12, color: '#374151', marginBottom: 8, fontWeight: 600 }}>⛽ Diesel</div>
-              ) : (
+              ) : vehicle.fuelType === 'Essence' ? (
                 <div style={{ fontSize: 12, color: '#F97316', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
-              )}
+              ) : null}
 
               <div className="vehicle-meta">
                 <div className="meta-item">
                   <span className="meta-label">Kilométrage</span>
                   <span className="meta-value">
                     {renaultData[vehicle.name]?.totalMileage
-                      ? <span style={{ color: isElectric(vehicle.name) ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{renaultData[vehicle.name].totalMileage?.toLocaleString('fr-FR')} km</span>
+                      ? <span style={{ color: vehicle.fuelType === 'Électrique' ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{renaultData[vehicle.name].totalMileage?.toLocaleString('fr-FR')} km</span>
                       : `${vehicle.mileage.toLocaleString('fr-FR')} km`
                     }
                   </span>
@@ -259,7 +254,7 @@ export default function DashboardPage() {
                 if (rData) {
                   const isElec = rData.isElectric;
                   const val = isElec ? rData.batteryLevel : rData.fuelQuantity;
-                  const label = isElec ? '🔋 Batterie (live)' : (isDiesel(vehicle.name) ? '⛽ Diesel (live)' : '⛽ Essence (live)');
+                  const label = isElec ? '🔋 Batterie (live)' : (vehicle.fuelType === 'Diesel' ? '⛽ Diesel (live)' : '⛽ Essence (live)');
                   const displayVal = isElec ? `${val}%` : `${val} L`;
                   // For fuel quantity we map it roughly to percentage for the bar (assuming 50L tank roughly)
                   const fillPct = isElec ? (val || 0) : Math.min(((val || 0) / 50) * 100, 100);
@@ -287,7 +282,7 @@ export default function DashboardPage() {
                 return (
                   <div className="fuel-bar-container">
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span className="meta-label">{isElectric(vehicle.name) ? 'Batterie' : (isDiesel(vehicle.name) ? 'Diesel' : 'Essence')}</span>
+                      <span className="meta-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}</span>
                       <span className="meta-label">{vehicle.fuelLevel}%</span>
                     </div>
                     <div className="fuel-bar">
@@ -322,9 +317,12 @@ function AddVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSucces
     name: '',
     type: 'VL',
     plate: '',
-    parkingSpot: 'Baigneur (devant l’UL)',
+    parkingSpotSelection: 'Baigneur (devant l’UL)',
+    parkingSpotCustom: '',
     fuelLevel: 100,
     mileage: 0,
+    fuelType: 'Essence',
+    vin: '',
     hasDSA: false,
     notes: '',
   });
@@ -333,11 +331,20 @@ function AddVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSucces
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+
+    const finalParkingSpot = form.parkingSpotSelection === 'Autre'
+      ? form.parkingSpotCustom
+      : form.parkingSpotSelection;
+
     try {
       const res = await fetch('/api/vehicles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          parkingSpot: finalParkingSpot,
+          vin: form.vin.trim() || undefined,
+        }),
       });
       if (res.ok) {
         onSuccess();
@@ -396,11 +403,49 @@ function AddVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSucces
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Lieu de stationnement habituel</label>
+                <label className="form-label">Lieu de stationnement habituel *</label>
+                <select
+                  className="form-select"
+                  value={form.parkingSpotSelection}
+                  onChange={(e) => setForm({ ...form, parkingSpotSelection: e.target.value })}
+                >
+                  <option value="Baigneur (devant l’UL)">Baigneur (devant l’UL)</option>
+                  <option value="Parking Aubervilliers">Parking Aubervilliers</option>
+                  <option value="Autre">Autre</option>
+                </select>
+                {form.parkingSpotSelection === 'Autre' && (
+                  <input
+                    style={{ marginTop: 8 }}
+                    className="form-input"
+                    placeholder="Précisez la place..."
+                    value={form.parkingSpotCustom}
+                    onChange={(e) => setForm({ ...form, parkingSpotCustom: e.target.value })}
+                    required
+                  />
+                )}
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Énergie *</label>
+                <select
+                  className="form-select"
+                  value={form.fuelType}
+                  onChange={(e) => setForm({ ...form, fuelType: e.target.value })}
+                >
+                  <option value="Essence">Essence</option>
+                  <option value="Diesel">Diesel</option>
+                  <option value="Électrique">Électrique</option>
+                  <option value="Non applicable">Non applicable</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Numéro de châssis / VIN (Optionnel)</label>
                 <input
                   className="form-input"
-                  value={form.parkingSpot}
-                  onChange={(e) => setForm({ ...form, parkingSpot: e.target.value })}
+                  placeholder="Pour connectivité API Renault"
+                  value={form.vin}
+                  onChange={(e) => setForm({ ...form, vin: e.target.value })}
                 />
               </div>
             </div>

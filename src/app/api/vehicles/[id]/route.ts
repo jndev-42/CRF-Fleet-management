@@ -13,6 +13,8 @@ const updateVehicleSchema = z.object({
     mileage: z.number().min(0).optional(),
     hasDSA: z.boolean().optional(),
     notes: z.string().optional().nullable(),
+    vin: z.string().optional().nullable(),
+    fuelType: z.string().optional().nullable(),
 });
 
 export async function GET(
@@ -54,6 +56,8 @@ export async function GET(
             mileage: row.mileage,
             hasDSA: !!row.hasDSA,
             notes: row.notes,
+            vin: row.vin,
+            fuelType: row.fuelType,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
             trips: tripsResult.rows.map((tRow: any) => ({
