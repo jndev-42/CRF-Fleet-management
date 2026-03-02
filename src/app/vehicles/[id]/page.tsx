@@ -528,7 +528,33 @@ export default function VehicleDetailPage() {
             </div>
 
             <div className="section-header">
-                <h2 className="section-title">Historique des sorties</h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                    <h2 className="section-title" style={{ margin: 0 }}>Historique des sorties</h2>
+                    {userRoles.includes('ADMIN') && vehicle.trips.length > 0 && (
+                        <button
+                            className="btn btn-secondary"
+                            style={{ color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)', padding: '4px 10px', fontSize: 13 }}
+                            onClick={async () => {
+                                if (window.confirm("Voulez-vous vraiment effacer TOUT l'historique de ce véhicule ? Cette action est irréversible.")) {
+                                    try {
+                                        const res = await fetch(`/api/vehicles/${vehicle.id}/trips`, { method: 'DELETE' });
+                                        if (res.ok) {
+                                            fetchVehicle();
+                                            showToast("L'historique a été vidé avec succès.");
+                                        } else {
+                                            const body = await res.json();
+                                            alert(body.error || "Erreur de suppression");
+                                        }
+                                    } catch (e) {
+                                        alert("Erreur de connexion");
+                                    }
+                                }
+                            }}
+                        >
+                            🗑️ Vider
+                        </button>
+                    )}
+                </div>
             </div>
 
             {vehicle.trips.length === 0 ? (
@@ -550,9 +576,37 @@ export default function VehicleDetailPage() {
                                         {trip.missionType}{trip.missionName ? ` — ${trip.missionName}` : ''}
                                     </span>
                                 </div>
-                                <span className={`status-badge ${trip.checkInAt ? 'available' : 'inuse'}`}>
-                                    {trip.checkInAt ? 'Terminé' : 'En cours'}
-                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <span className={`status-badge ${trip.checkInAt ? 'available' : 'inuse'}`}>
+                                        {trip.checkInAt ? 'Terminé' : 'En cours'}
+                                    </span>
+                                    {userRoles.includes('ADMIN') && (
+                                        <button
+                                            title="Supprimer cette sortie"
+                                            style={{
+                                                background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,
+                                                padding: '4px', opacity: 0.6
+                                            }}
+                                            onClick={async () => {
+                                                if (window.confirm("Voulez-vous vraiment supprimer cette sortie de l'historique ?")) {
+                                                    try {
+                                                        const res = await fetch(`/api/trips/${trip.id}`, { method: 'DELETE' });
+                                                        if (res.ok) {
+                                                            fetchVehicle();
+                                                        } else {
+                                                            const body = await res.json();
+                                                            alert(body.error || "Erreur de suppression");
+                                                        }
+                                                    } catch (e) {
+                                                        alert("Erreur de connexion");
+                                                    }
+                                                }
+                                            }}
+                                        >
+                                            🗑️
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             <div className="trip-details">
                                 <div className="trip-detail-item">
