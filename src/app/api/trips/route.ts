@@ -130,42 +130,42 @@ export async function POST(request: Request) {
             await tx.commit();
 
             // Incident email notification
-            if (data.conditionOut === "Problème signalé" || data.conditionOut === "Dégradé") {
-                try {
-                    const respoUsers = await db.execute(`
-                        SELECT u.email 
-                        FROM User u 
-                        JOIN UserRole ur ON u.id = ur.userId 
-                        JOIN Role r ON ur.roleId = r.id 
-                        WHERE r.name = 'RESPO'
-                    `);
-                    const respoEmails = respoUsers.rows.map(r => r.email as string).filter(Boolean);
+            // if (data.conditionOut === "Problème signalé" || data.conditionOut === "Dégradé") {
+            //     try {
+            //         const respoUsers = await db.execute(`
+            //             SELECT u.email 
+            //             FROM User u 
+            //             JOIN UserRole ur ON u.id = ur.userId 
+            //             JOIN Role r ON ur.roleId = r.id 
+            //             WHERE r.name = 'RESPO'
+            //         `);
+            //         const respoEmails = respoUsers.rows.map(r => r.email as string).filter(Boolean);
 
-                    if (respoEmails.length > 0) {
-                        const { sendEmailViaWebhook } = await import('@/lib/email');
-                        const vName = vehicle.name || 'Véhicule inconnu';
+            //         if (respoEmails.length > 0) {
+            //             const { sendEmailViaWebhook } = await import('@/lib/email');
+            //             const vName = vehicle.name || 'Véhicule inconnu';
 
-                        await sendEmailViaWebhook({
-                            to: respoEmails,
-                            subject: `🚨 Incident signalé à la prise de ${vName}`,
-                            body: `
-                                <h2>Alerte Incident Véhicule (Prise)</h2>
-                                <p>Le conducteur <strong>${data.driverName}</strong> a signalé un incident lors de la prise du véhicule <strong>${vName}</strong>.</p>
-                                <ul>
-                                    <li><strong>État de la carrosserie :</strong> ${data.conditionOut}</li>
-                                    <li><strong>Date/Heure :</strong> ${new Date(timestamp).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}</li>
-                                </ul>
-                                <p><strong>Commentaire :</strong><br />
-                                <i>${data.commentsOut || 'Aucun commentaire fourni.'}</i></p>
-                                <br />
-                                <p><a href="https://cr-chauffeur.vercel.app/vehicles/${data.vehicleId}">Voir le véhicule sur l'application</a></p>
-                            `
-                        });
-                    }
-                } catch (emailError) {
-                    console.error('Erreur lors de l\'envoi de l\'alerte email Incident:', emailError);
-                }
-            }
+            //             await sendEmailViaWebhook({
+            //                 to: respoEmails,
+            //                 subject: `🚨 Incident signalé à la prise de ${vName}`,
+            //                 body: `
+            //                     <h2>Alerte Incident Véhicule (Prise)</h2>
+            //                     <p>Le conducteur <strong>${data.driverName}</strong> a signalé un incident lors de la prise du véhicule <strong>${vName}</strong>.</p>
+            //                     <ul>
+            //                         <li><strong>État du véhicule :</strong> ${data.conditionOut}</li>
+            //                         <li><strong>Date/Heure :</strong> ${new Date(timestamp).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}</li>
+            //                     </ul>
+            //                     <p><strong>Commentaire :</strong><br />
+            //                     <i>${data.commentsOut || 'Aucun commentaire fourni.'}</i></p>
+            //                     <br />
+            //                     <p><a href="https://cr-chauffeur.vercel.app/vehicles/${data.vehicleId}">Voir le véhicule sur l'application</a></p>
+            //                 `
+            //             });
+            //         }
+            //     } catch (emailError) {
+            //         console.error('Erreur lors de l\'envoi de l\'alerte email Incident:', emailError);
+            //     }
+            // }
 
             const trip = {
                 id: tripId,

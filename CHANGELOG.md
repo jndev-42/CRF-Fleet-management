@@ -8,12 +8,12 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [1.1.0] - 2026-03-02
 
 ### Added
-- **Notifications par email :** Intégration d'un webhook Google Apps Script pour l'envoi d'e-mails automatiques (`logistique.paris18@croix-rouge.fr`).
 - **Alertes Incidents :** Notification automatique envoyée aux rôles `RESPO` lors du signalement d'un incident (matériel ou autre) au Check-Out et Check-In.
 - **Vérifications Kilométriques (Cron) :** Mise en place d'une tâche planifiée (23h59) de détection des anomalies kilométriques journalières (API Renault) avec signalement aux `ADMIN`. Ignore automatiquement les véhicules en maintenance.
 - **Branding Croix-Rouge :** Mise à jour visuelle intégrant le logo officiel de la Croix-Rouge Française et la dénomination "Gestion de flotte" (Favicon et en-tête).
 
 ### Changed
+- **Notifications par email :** Passage à `Nodemailer` avec configuration SMTP générique (via `SMTP_USER` et `SMTP_PASS`) pour des envois fiables et gratuits depuis le serveur Vercel, sans dépendance à Resend.
 - **URLs lisibles :** Refonte des adresses web des véhicules pour utiliser leur nomenclature opérationnelle (ex. `/vehicles/VL186`) plutôt que leur ID de base de données.
 - **Sécurisation des Emprunts :** Auto-complétion et verrouillage en lecture seule de l'identité du conducteur principal sur le formulaire de Check-Out.
 - **Permissions de Maintenance :** Les accès pour basculer le statut du véhicule en maintenance sont désormais adossés au système de rôles dynamique en base de données.

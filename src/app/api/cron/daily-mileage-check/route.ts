@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getRenaultVehicleData, getVinFromName } from '@/lib/renault';
+import { getRenaultVehicleData } from '@/lib/renault';
 import { sendEmailViaWebhook } from '@/lib/email';
 
 // Route sécurisée par Vercel Cron. On n'associe pas d'auth NextAuth ici.
@@ -25,11 +25,11 @@ export async function GET(request: Request) {
             return NextResponse.json({ message: 'Aucun admin configuré pour recevoir des alertes.' });
         }
 
-        // On cherche les véhicules qui sont connectés (ex: VL186 et VL188, ou hasDSA = vrai mais on cible via VIN)
+        // On cherche les véhicules qui sont connectés
         const connectedVehiclesObj = await db.execute(`
-            SELECT id, name, mileage, status, isMaintenance 
+            SELECT id, name, mileage, status, isMaintenance, vin 
             FROM Vehicle 
-            WHERE name LIKE '%VL186%' OR name LIKE '%VL188%'
+            WHERE vin IS NOT NULL AND vin != ''
         `);
         const vehicles = connectedVehiclesObj.rows;
 
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
                 continue; // Pas d'alerte pour les véhicules en maintenance
             }
 
-            const vin = getVinFromName(name);
+            const vin = v.vin as string;
             if (!vin) continue;
 
             const rData = await getRenaultVehicleData(vin);
@@ -71,22 +71,22 @@ export async function GET(request: Request) {
 
                 if (todayTrips.rows.length === 0) {
                     // Aucune déclaration d'emprunt aujourd'hui, mais la voiture a été roulée d'au moins X km. ALERTE ADMIN.
-                    await sendEmailViaWebhook({
-                        to: adminEmails,
-                        subject: `🚨 Utilisation suspecte : ${name} a été déplacé sans emprunt`,
-                        body: `
-                            <h2>Alerte Mouvement Fantôme - ${name}</h2>
-                            <p>Le système a détecté une augmentation anormale du kilométrage du véhicule <strong>${name}</strong>.</p>
-                            <ul>
-                                <li><strong>Kilométrage précédent :</strong> ${currentDbMileage} km</li>
-                                <li><strong>Nouveau kilométrage lu par la voiture :</strong> ${newMileage} km</li>
-                                <li><strong>Différence inexpliquée :</strong> +${gap} km</li>
-                            </ul>
-                            <p>Aucun formulaire de Check-out n'a apparemment été rempli pour cette journée et le véhicule n'est pas en maintenance ou en statut 'En cours d'utilisation'.</p>
-                            <br />
-                            <p><a href="https://cr-chauffeur.vercel.app/vehicles/${vehicleId}">Voir le véhicule sur l'application</a></p>
-                        `
-                    });
+                    // await sendEmailViaWebhook({
+                    //     to: adminEmails,
+                    //     subject: `🚨 Utilisation suspecte : ${name} a été déplacé sans emprunt`,
+                    //     body: `
+                    //         <h2>Alerte Mouvement Fantôme - ${name}</h2>
+                    //         <p>Le système a détecté une augmentation anormale du kilométrage du véhicule <strong>${name}</strong>.</p>
+                    //         <ul>
+                    //             <li><strong>Kilométrage précédent :</strong> ${currentDbMileage} km</li>
+                    //             <li><strong>Nouveau kilométrage lu par la voiture :</strong> ${newMileage} km</li>
+                    //             <li><strong>Différence inexpliquée :</strong> +${gap} km</li>
+                    //         </ul>
+                    //         <p>Aucun formulaire n'a apparemment été rempli pour cette journée et le véhicule n'est pas en maintenance ou en statut 'En cours d'utilisation'.</p>
+                    //         <br />
+                    //         <p><a href="https://cr-chauffeur.vercel.app/vehicles/${vehicleId}">Voir le véhicule sur l'application</a></p>
+                    //     `
+                    // });
 
                     alertsSent.push(name);
 

@@ -1,3 +1,5 @@
+import nodemailer from 'nodemailer';
+
 export async function sendEmailViaWebhook({
     to,
     subject,
@@ -7,36 +9,31 @@ export async function sendEmailViaWebhook({
     subject: string;
     body: string;
 }) {
-    const webhookUrl = process.env.GOOGLE_WEBHOOK_URL;
-    const webhookSecret = process.env.WEBHOOK_SECRET;
-
-    if (!webhookUrl || !webhookSecret) {
-        console.warn('Webhook URL or Secret is not defined in environment variables. Email will not be sent.');
+    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.warn('SMTP_USER or SMTP_PASS is not defined. Email will not be sent.');
         return false;
     }
 
     try {
-        const res = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
+        const transporter = nodemailer.createTransport({
+            service: 'gmail', // par défaut pour une adresse gmail
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
             },
-            body: JSON.stringify({
-                secret: webhookSecret,
-                to,
-                subject,
-                body
-            })
         });
 
-        if (!res.ok) {
-            console.error('Failed to send email via webhook:', await res.text());
-            return false;
-        }
+        const info = await transporter.sendMail({
+            from: `"Gestion de Flotte" <${process.env.SMTP_USER}>`,
+            to: to.join(', '),
+            subject,
+            html: body
+        });
 
+        console.log('Message sent: %s', info.messageId);
         return true;
     } catch (error) {
-        console.error('Network error sending email via webhook:', error);
+        console.error('Network error sending email via Nodemailer:', error);
         return false;
     }
 }
