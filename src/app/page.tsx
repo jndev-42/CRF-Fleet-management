@@ -61,9 +61,19 @@ export default function DashboardPage() {
   const [renaultData, setRenaultData] = useState<Record<string, RenaultVehicleData>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     fetchVehicles();
+    fetch('/api/auth/session')
+      .then(res => res.json())
+      .then(session => {
+        if (session?.user?.roles?.includes('ADMIN')) {
+          setIsAdmin(true);
+        }
+      })
+      .catch(console.error);
   }, []);
 
   async function fetchVehicles() {
@@ -142,8 +152,16 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="section-header">
-        <h2 className="section-title">Véhicules</h2>
+      <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 className="section-title" style={{ margin: 0 }}>Véhicules</h2>
+        {isAdmin && (
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowAddModal(true)}
+          >
+            ➕ Ajouter un véhicule
+          </button>
+        )}
       </div>
 
       <div className="filters-bar">
@@ -285,6 +303,163 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
+
+      {showAddModal && (
+        <AddVehicleModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            fetchVehicles();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function AddVehicleModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [form, setForm] = useState({
+    name: '',
+    type: 'VL',
+    plate: '',
+    parkingSpot: 'Baigneur (devant l’UL)',
+    fuelLevel: 100,
+    mileage: 0,
+    hasDSA: false,
+    notes: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/vehicles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        onSuccess();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Erreur lors de la création');
+      }
+    } catch {
+      alert('Erreur de connexion');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <h2 className="modal-title">➕ Ajouter un véhicule</h2>
+          <button className="modal-close" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Nom du véhicule * (ex: VL186)</label>
+                <input
+                  className="form-input"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Type *</label>
+                <select
+                  className="form-select"
+                  value={form.type}
+                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                >
+                  <option value="VL">VL (Véhicule Léger)</option>
+                  <option value="VPSP">VPSP (Ambulance)</option>
+                  <option value="Utilitaire">Utilitaire</option>
+                  <option value="Moto">Moto</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Immatriculation *</label>
+                <input
+                  className="form-input"
+                  value={form.plate}
+                  onChange={(e) => setForm({ ...form, plate: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Lieu de stationnement habituel</label>
+                <input
+                  className="form-input"
+                  value={form.parkingSpot}
+                  onChange={(e) => setForm({ ...form, parkingSpot: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Kilométrage initial *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  value={form.mileage}
+                  onChange={(e) => setForm({ ...form, mileage: parseInt(e.target.value) || 0 })}
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Niveau de carburant/batterie (%) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  className="form-input"
+                  value={form.fuelLevel}
+                  onChange={(e) => setForm({ ...form, fuelLevel: parseInt(e.target.value) || 0 })}
+                  required
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
+                <input
+                  type="checkbox"
+                  checked={form.hasDSA}
+                  onChange={(e) => setForm({ ...form, hasDSA: e.target.checked })}
+                  style={{ width: 18, height: 18, accentColor: 'var(--crf-red)' }}
+                />
+                <span style={{ fontSize: 14, fontWeight: 500 }}>🫀 Le véhicule est équipé d&apos;un DSA</span>
+              </label>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Notes (Optionnel)</label>
+              <textarea
+                className="form-textarea"
+                rows={3}
+                placeholder="Informations supplémentaires..."
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={onClose}>
+              Annuler
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Création...' : 'Créer le véhicule'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }

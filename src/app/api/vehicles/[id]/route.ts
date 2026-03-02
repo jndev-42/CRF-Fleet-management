@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { auth } from '@/auth';
 
 const updateVehicleSchema = z.object({
     name: z.string().min(1).optional(),
@@ -101,6 +102,11 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await auth();
+        if (!session?.user?.roles?.includes('ADMIN')) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+        }
+
         const { id } = await params;
         const body = await request.json();
         const data = updateVehicleSchema.parse(body);
@@ -140,6 +146,55 @@ export async function PATCH(
         console.error('Error updating vehicle:', error);
         return NextResponse.json(
             { error: 'Erreur lors de la mise à jour du véhicule' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function DELETE(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await auth();
+        if (!session?.user?.roles?.includes('ADMIN')) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+        }
+
+        const { id } = await params;
+
+        // Find the vehicle by name first to get its UUID
+        const vehicleResult = await db.execute({
+            sql: `SELECT id FROM Vehicle WHERE name = ?`,
+            args: [id]
+        });
+
+        if (vehicleResult.rows.length === 0) {
+            return NextResponse.json(
+                { error: 'Véhicule non trouvé' },
+                { status: 404 }
+            );
+        }
+
+        const realId = vehicleResult.rows[0].id;
+
+        // Delete all trips associated with the vehicle first
+        await db.execute({
+            sql: `DELETE FROM Trip WHERE vehicleId = ?`,
+            args: [realId]
+        });
+
+        // Then delete the vehicle
+        await db.execute({
+            sql: `DELETE FROM Vehicle WHERE id = ?`,
+            args: [realId]
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting vehicle:', error);
+        return NextResponse.json(
+            { error: 'Erreur lors de la suppression du véhicule' },
             { status: 500 }
         );
     }
