@@ -247,15 +247,21 @@ body {
     right: -280px;
     width: 280px;
     height: 100vh;
+    height: 100dvh;
+    /* Use dynamic viewport height for mobile browsers */
     background: var(--bg-secondary);
     display: flex;
     flex-direction: column;
     align-items: stretch;
     padding: 24px;
+    padding-bottom: env(safe-area-inset-bottom, 24px);
+    /* Safe area for iOS */
     gap: 16px;
     z-index: 1000;
     transition: right var(--transition-base);
     box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    /* Allow scrolling if content is too tall */
   }
 
   .header-nav.open {
@@ -302,6 +308,8 @@ body {
     flex-direction: column;
     align-items: stretch;
     padding-top: 24px;
+    padding-bottom: 24px;
+    /* Ensure button is not cut off at the very bottom */
     border-top: 1px solid var(--border-primary);
   }
 
