@@ -4,6 +4,7 @@ import { auth, signOut } from "@/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SessionProvider } from "next-auth/react";
+import FooterChangelog from "@/components/FooterChangelog";
 
 export const metadata: Metadata = {
   title: "Gestion de flotte | Croix-Rouge Paris 18",
@@ -62,7 +63,8 @@ export default async function RootLayout({
                 borderTop: '1px solid var(--border-primary)',
                 marginTop: 'auto'
               }}>
-                © 2026 - Jean-Noël DURAND pour le compte de la Croix Rouge (unité locale de Paris 18). Tous droits réservés.
+                <div>© 2026 - Jean-Noël DURAND pour le compte de la Croix Rouge (unité locale de Paris 18). Tous droits réservés.</div>
+                <FooterChangelog />
               </footer>
             </div>
           </ThemeProvider>
