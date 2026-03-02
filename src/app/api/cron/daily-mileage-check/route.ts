@@ -74,7 +74,7 @@ export async function GET(request: Request) {
                     // Envoi Notification Push aux admins
                     const { sendPushNotification } = await import('@/lib/onesignal');
                     await sendPushNotification({
-                        tags: [{ key: "role_ADMIN", relation: "=", value: "true" }],
+                        tags: [{ field: "tag", key: "role_ADMIN", relation: "=", value: "true" }],
                         headings: { en: `🚨 Utilisation suspecte : ${name}`, fr: `🚨 Utilisation suspecte : ${name}` },
                         contents: {
                             en: `${name} a été déplacé sans emprunt. Mouvement inexpliqué de +${gap} km.`,

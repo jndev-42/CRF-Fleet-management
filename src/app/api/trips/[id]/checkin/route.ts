@@ -163,7 +163,7 @@ export async function PATCH(
                     const vName = vehicle.name || 'Véhicule inconnu';
 
                     await sendPushNotification({
-                        tags: [{ key: "role_RESPO", relation: "=", value: "true" }],
+                        tags: [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }],
                         headings: { en: `🚨 Incident signalé au retour de ${vName}`, fr: `🚨 Incident signalé au retour de ${vName}` },
                         contents: {
                             en: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`,

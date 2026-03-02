@@ -4,7 +4,7 @@ export async function sendPushNotification({
     contents,
     url
 }: {
-    tags: Array<{ key: string, relation: string, value: string }>;
+    tags: Array<{ field: string, key: string, relation: string, value: string }>;
     headings: { [key: string]: string };
     contents: { [key: string]: string };
     url?: string;

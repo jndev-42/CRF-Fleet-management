@@ -136,7 +136,7 @@ export async function POST(request: Request) {
                     const vName = vehicle.name || 'Véhicule inconnu';
 
                     await sendPushNotification({
-                        tags: [{ key: "role_RESPO", relation: "=", value: "true" }],
+                        tags: [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }],
                         headings: { en: `🚨 Incident signalé à la prise de ${vName}`, fr: `🚨 Incident signalé à la prise de ${vName}` },
                         contents: {
                             en: `${data.driverName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,
