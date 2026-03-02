@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SessionProvider } from "next-auth/react";
 import FooterChangelog from "@/components/FooterChangelog";
+import { OneSignalProvider } from "@/components/OneSignalProvider";
 
 export const metadata: Metadata = {
   title: "Gestion de flotte | Croix-Rouge Paris 18",
@@ -17,10 +18,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
+  const onesignalId = process.env.ONESIGNAL_ID || '';
+  const roles = session?.user?.roles || [];
 
   return (
     <html lang="fr">
       <body suppressHydrationWarning>
+        <OneSignalProvider appId={onesignalId} roles={roles} />
         <SessionProvider session={session}>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
             <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>

@@ -71,22 +71,17 @@ export async function GET(request: Request) {
 
                 if (todayTrips.rows.length === 0) {
                     // Aucune déclaration d'emprunt aujourd'hui, mais la voiture a été roulée d'au moins X km. ALERTE ADMIN.
-                    // await sendEmailViaWebhook({
-                    //     to: adminEmails,
-                    //     subject: `🚨 Utilisation suspecte : ${name} a été déplacé sans emprunt`,
-                    //     body: `
-                    //         <h2>Alerte Mouvement Fantôme - ${name}</h2>
-                    //         <p>Le système a détecté une augmentation anormale du kilométrage du véhicule <strong>${name}</strong>.</p>
-                    //         <ul>
-                    //             <li><strong>Kilométrage précédent :</strong> ${currentDbMileage} km</li>
-                    //             <li><strong>Nouveau kilométrage lu par la voiture :</strong> ${newMileage} km</li>
-                    //             <li><strong>Différence inexpliquée :</strong> +${gap} km</li>
-                    //         </ul>
-                    //         <p>Aucun formulaire n'a apparemment été rempli pour cette journée et le véhicule n'est pas en maintenance ou en statut 'En cours d'utilisation'.</p>
-                    //         <br />
-                    //         <p><a href="https://cr-chauffeur.vercel.app/vehicles/${vehicleId}">Voir le véhicule sur l'application</a></p>
-                    //     `
-                    // });
+                    // Envoi Notification Push aux admins
+                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    await sendPushNotification({
+                        tags: [{ key: "role_ADMIN", relation: "=", value: "true" }],
+                        headings: { en: `🚨 Utilisation suspecte : ${name}`, fr: `🚨 Utilisation suspecte : ${name}` },
+                        contents: {
+                            en: `${name} a été déplacé sans emprunt. Mouvement inexpliqué de +${gap} km.`,
+                            fr: `${name} a été déplacé sans emprunt. Mouvement inexpliqué de +${gap} km.`
+                        },
+                        url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleId}`
+                    });
 
                     alertsSent.push(name);
 
