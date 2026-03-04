@@ -67,9 +67,19 @@ const TOUR_STEPS: TourStep[] = [
     {
         target: '[data-tour="aide"]',
         title: 'Page d\'aide',
-        body: "Retrouvez ici les contacts d'urgence, les numéros utiles et un bouton pour <strong>relancer ce tutoriel</strong> à tout moment.",
+        body: "Cette page centralise toutes les informations pratiques. Vous pouvez aussi y <strong>relancer ce tutoriel</strong> à tout moment.",
         icon: '❓',
         position: 'bottom',
+    },
+    {
+        target: null,
+        title: 'Que trouve-t-on dans l\'Aide ?',
+        body: `La page Aide contient toutes les informations essentielles :<br/><br/>
+        • <strong>🛡️ Assurance</strong> : numéro de police AXA XL Insurance<br/>
+        • <strong>🆘 Assistance</strong> : numéros AXA Assistance (France et étranger)<br/>
+        • <strong>📍 Contacts opérationnels</strong> : DLUS, DLUSA, MOT, Onyx (cadre de permanence), Vigie, astreintes, COT, PCM…<br/><br/>
+        Un bouton <em>"📞 Enregistrer les contacts (VCard)"</em> permet d'<strong>enregistrer tous ces numéros dans votre téléphone</strong> en un clic.`,
+        icon: '📋',
     },
 
     // ── PART 2: Check-out / Check-in (info cards, no spotlight) ──
