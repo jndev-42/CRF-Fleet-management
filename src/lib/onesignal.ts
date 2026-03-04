@@ -44,16 +44,12 @@ export async function sendPushNotification({
             const title = headings.fr || headings.en || 'Nouvelle notification';
             const message = contents.fr || contents.en || '';
 
-            // Insert them one by one or batched
+            // Insert a notification record for each targeted user
             const insertPromises = res.rows.map(row => {
                 const notifyId = crypto.randomUUID();
-                // Append notifyId to the URL so that when the user clicks the push notification,
-                // we can delete it from the DB.
-                const updatedUrl = url ? (url.includes('?') ? `${url}&notifyId=${notifyId}` : `${url}?notifyId=${notifyId}`) : undefined;
-
                 return db.execute({
                     sql: `INSERT INTO "Notification" (id, userId, title, message, url) VALUES (?, ?, ?, ?, ?)`,
-                    args: [notifyId, row.id as string, title, message, updatedUrl || null]
+                    args: [notifyId, row.id as string, title, message, url || null]
                 });
             });
 
@@ -71,7 +67,9 @@ export async function sendPushNotification({
                 filters: tags, // Targeting by tags like [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }]
                 headings,
                 contents,
-                url
+                // Append fromPush=true so the client can detect a push notification click
+                // and auto-dismiss matching in-app notifications
+                url: url ? (url.includes('?') ? `${url}&fromPush=true` : `${url}?fromPush=true`) : undefined
             })
         });
 

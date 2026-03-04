@@ -45,21 +45,53 @@ export function NotificationBell() {
         return () => clearInterval(intervalId);
     }, []);
 
-    // Check for `notifyId` in URL parameters (push notification click)
+    // Detect if the user arrived from a push notification click (?fromPush=true)
+    // If so, find and delete any in-app notifications matching the current page
     useEffect(() => {
-        const notifyId = searchParams.get('notifyId');
-        if (notifyId) {
-            // Delete the notification from DB since user clicked the push
-            fetch(`/api/notifications/${notifyId}`, { method: 'DELETE' })
-                .then(() => {
-                    // Remove from local state
-                    setNotifications(prev => prev.filter(n => n.id !== notifyId));
-                    // Remove from URL without reloading
-                    const currentUrl = new URL(window.location.href);
-                    currentUrl.searchParams.delete('notifyId');
-                    window.history.replaceState({}, '', currentUrl.toString());
-                })
-                .catch(console.error);
+        const fromPush = searchParams.get('fromPush');
+        if (fromPush === 'true') {
+            const currentPath = window.location.pathname;
+
+            // Wait for notifications to be loaded, then find and delete matching ones
+            const cleanup = async () => {
+                try {
+                    // Fetch fresh notifications to make sure we have the latest
+                    const res = await fetch('/api/notifications');
+                    if (res.ok) {
+                        const data = await res.json();
+                        const allNotifs: Notification[] = data.notifications || [];
+
+                        // Find notifications whose URL contains the current page path
+                        const matching = allNotifs.filter(n => {
+                            if (!n.url) return false;
+                            try {
+                                const notifUrl = new URL(n.url, window.location.origin);
+                                return notifUrl.pathname === currentPath;
+                            } catch {
+                                return n.url.includes(currentPath);
+                            }
+                        });
+
+                        // Delete all matching notifications
+                        await Promise.all(
+                            matching.map(n => fetch(`/api/notifications/${n.id}`, { method: 'DELETE' }))
+                        );
+
+                        // Update local state
+                        const matchingIds = new Set(matching.map(n => n.id));
+                        setNotifications(prev => prev.filter(n => !matchingIds.has(n.id)));
+                    }
+                } catch (error) {
+                    console.error("Failed to clean up push notifications:", error);
+                }
+
+                // Clean the URL by removing fromPush param
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.delete('fromPush');
+                window.history.replaceState({}, '', currentUrl.toString());
+            };
+
+            cleanup();
         }
     }, [searchParams]);
 
@@ -86,12 +118,10 @@ export function NotificationBell() {
         // Close dropdown & Navigate
         setIsOpen(false);
         if (notification.url) {
-            // Reconstruct URL without the notifyId parameter to keep it clean
             try {
                 const urlObj = new URL(notification.url, window.location.origin);
-                urlObj.searchParams.delete('notifyId');
-                router.push(urlObj.pathname + urlObj.search);
-            } catch (e) {
+                router.push(urlObj.pathname);
+            } catch {
                 router.push(notification.url);
             }
         }
@@ -115,7 +145,7 @@ export function NotificationBell() {
                 className="btn btn-icon notification-bell-button"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-label="Notifications"
-                style={{ position: 'relative', background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px', color: 'var(--text-color)' }}
+                style={{ position: 'relative', background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px', color: 'var(--text-primary)' }}
             >
                 <Bell size={24} />
                 {hasUnread && (
@@ -125,11 +155,11 @@ export function NotificationBell() {
                             position: 'absolute',
                             top: '4px',
                             right: '6px',
-                            backgroundColor: 'red',
+                            backgroundColor: 'var(--crf-red)',
                             width: '10px',
                             height: '10px',
                             borderRadius: '50%',
-                            border: '2px solid var(--bg-color)',
+                            border: '2px solid var(--bg-secondary)',
                         }}
                     />
                 )}
@@ -143,10 +173,10 @@ export function NotificationBell() {
                         top: '100%',
                         right: 0,
                         width: '320px',
-                        backgroundColor: 'var(--bg-color)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                        backgroundColor: 'var(--bg-card)',
+                        border: '1px solid var(--border-primary)',
+                        borderRadius: 'var(--radius-md)',
+                        boxShadow: 'var(--shadow-lg)',
                         zIndex: 1000,
                         maxHeight: '400px',
                         overflowY: 'auto',
@@ -162,11 +192,12 @@ export function NotificationBell() {
                             justifyContent: 'space-between',
                             alignItems: 'center',
                             padding: '12px 16px',
-                            borderBottom: '1px solid var(--border-color)',
+                            borderBottom: '1px solid var(--border-primary)',
                             position: 'sticky',
                             top: 0,
-                            backgroundColor: 'var(--bg-color)',
-                            zIndex: 10
+                            backgroundColor: 'var(--bg-card)',
+                            zIndex: 10,
+                            borderRadius: 'var(--radius-md) var(--radius-md) 0 0'
                         }}
                     >
                         <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Notifications</h3>
@@ -176,7 +207,7 @@ export function NotificationBell() {
                                 style={{
                                     background: 'none',
                                     border: 'none',
-                                    color: 'var(--text-color-muted)',
+                                    color: 'var(--text-secondary)',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -192,11 +223,11 @@ export function NotificationBell() {
 
                     <div className="notification-list">
                         {isLoading ? (
-                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-color-muted)' }}>
+                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                 Chargement...
                             </div>
                         ) : notifications.length === 0 ? (
-                            <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-color-muted)' }}>
+                            <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                 Aucune notification
                             </div>
                         ) : (
@@ -207,19 +238,19 @@ export function NotificationBell() {
                                     onClick={() => handleNotificationClick(notification)}
                                     style={{
                                         padding: '12px 16px',
-                                        borderBottom: '1px solid var(--border-color)',
+                                        borderBottom: '1px solid var(--border-primary)',
                                         cursor: 'pointer',
                                         transition: 'background-color 0.2s',
                                         display: 'flex',
                                         flexDirection: 'column',
                                         gap: '4px'
                                     }}
-                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-hover)'}
+                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
                                     onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                                 >
                                     <div style={{ fontWeight: 600, fontSize: '14px' }}>{notification.title}</div>
-                                    <div style={{ fontSize: '13px', color: 'var(--text-color-muted)', lineHeight: '1.4' }}>{notification.message}</div>
-                                    <div style={{ fontSize: '11px', color: 'var(--text-color-muted)', marginTop: '4px' }}>
+                                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{notification.message}</div>
+                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
                                         {new Date(notification.createdAt).toLocaleString('fr-FR')}
                                     </div>
                                 </div>
