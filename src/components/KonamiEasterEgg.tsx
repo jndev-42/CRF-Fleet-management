@@ -9,11 +9,11 @@ const KONAMI_CODE = [
     'b', 'a'
 ];
 
-const IMAGES = ['/alerte.jpg', '/gyro.jpg', '/phare.jpg'];
+const IMAGES = ['/alerte.jpg', '/gyro.jpg', '/phare.jpg', '/frite.jpg'];
 
-// Dimensions approximatives des colliders pour les images
-const IMAGE_WIDTH = 120;
-const IMAGE_HEIGHT = 120;
+// Dimensions exactes des colliders pour correspondre au scale visuel (512px * 0.12 ~= 61px)
+const IMAGE_WIDTH = 61;
+const IMAGE_HEIGHT = 61;
 
 export default function KonamiEasterEgg() {
     const [isActive, setIsActive] = useState(false);
@@ -93,7 +93,7 @@ export default function KonamiEasterEgg() {
 
         // S'assurer qu'il y a au moins une de chaque image
         const selectedImages = [...IMAGES];
-        while (selectedImages.length < 30) {
+        while (selectedImages.length < 60) {
             selectedImages.push(IMAGES[Math.floor(Math.random() * IMAGES.length)]);
         }
 

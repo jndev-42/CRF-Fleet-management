@@ -5,6 +5,11 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2] - 2026-03-04
+
+### Added
+- **Konami code :** Ajout d'un easter egg qui permet de lancer une simulation de physique avec des images qui tombent.
+
 ## [1.2.1] - 2026-03-04
 
 ### Added

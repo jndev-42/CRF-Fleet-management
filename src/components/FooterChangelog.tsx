@@ -44,7 +44,7 @@ export default function FooterChangelog() {
                         padding: 0
                     }}
                 >
-                    v1.2.1
+                    v1.2.2
                 </button>
             </div>
 
