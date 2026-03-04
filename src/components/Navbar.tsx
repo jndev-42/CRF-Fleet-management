@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NotificationBell } from "@/components/NotificationBell";
 import { User } from 'next-auth';
 
 type NavbarProps = {
@@ -57,6 +58,7 @@ export default function Navbar({ user }: NavbarProps) {
                 <a href="/aide" className="nav-link" onClick={() => setIsOpen(false)}>Aide</a>
 
                 <div className="nav-actions">
+                    {user && <NotificationBell />}
                     <ThemeToggle />
                     {user && (
                         <button

@@ -1,3 +1,6 @@
+import crypto from 'crypto';
+import { db } from '@/lib/db';
+
 export async function sendPushNotification({
     tags,
     headings,
@@ -18,6 +21,45 @@ export async function sendPushNotification({
     }
 
     try {
+        // Find targeted users based on the OneSignal tags
+        const targetedRoleNames = tags
+            .filter(t => t.field === 'tag' && t.key.startsWith('role_') && t.value === 'true')
+            .map(t => t.key.replace('role_', ''));
+
+        if (targetedRoleNames.length > 0) {
+            // Build the SQL query to find users matching any of the roles
+            const placeholders = targetedRoleNames.map(() => '?').join(',');
+            const res = await db.execute({
+                sql: `
+                    SELECT DISTINCT u.id 
+                    FROM "User" u
+                    JOIN "UserRole" ur ON u.id = ur.userId
+                    JOIN "Role" r ON ur.roleId = r.id
+                    WHERE r.name IN (${placeholders})
+                `,
+                args: targetedRoleNames
+            });
+
+            // Insert a notification for each targeted user
+            const title = headings.fr || headings.en || 'Nouvelle notification';
+            const message = contents.fr || contents.en || '';
+
+            // Insert them one by one or batched
+            const insertPromises = res.rows.map(row => {
+                const notifyId = crypto.randomUUID();
+                // Append notifyId to the URL so that when the user clicks the push notification,
+                // we can delete it from the DB.
+                const updatedUrl = url ? (url.includes('?') ? `${url}&notifyId=${notifyId}` : `${url}?notifyId=${notifyId}`) : undefined;
+
+                return db.execute({
+                    sql: `INSERT INTO "Notification" (id, userId, title, message, url) VALUES (?, ?, ?, ?, ?)`,
+                    args: [notifyId, row.id as string, title, message, updatedUrl || null]
+                });
+            });
+
+            await Promise.all(insertPromises);
+        }
+
         const response = await fetch('https://onesignal.com/api/v1/notifications', {
             method: 'POST',
             headers: {
@@ -40,7 +82,7 @@ export async function sendPushNotification({
 
         return true;
     } catch (error) {
-        console.error('Network error OneSignal push:', error);
+        console.error('Error sending push or in-app notification:', error);
         return false;
     }
 }
