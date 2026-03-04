@@ -1254,7 +1254,7 @@ body {
 
 /* Tooltip (positioned near spotlight element) */
 .tour-tooltip {
-  position: absolute;
+  position: fixed;
   z-index: 10002;
   background: var(--bg-card);
   border: 1px solid var(--border-primary);

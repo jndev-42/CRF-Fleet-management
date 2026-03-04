@@ -157,7 +157,21 @@ export default function GuidedTour() {
         return () => window.removeEventListener('restart-tour', handleRestart);
     }, []);
 
+    // ── Scroll target element into view when step changes ──
+    useEffect(() => {
+        if (!isActive) return;
+        const currentStep = TOUR_STEPS[step];
+        if (!currentStep?.target) return;
+
+        const el = document.querySelector(currentStep.target);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [isActive, step]);
+
     // ── Position the tooltip relative to the target element ──
+    // All coordinates are viewport-relative (position: fixed) so we
+    // use getBoundingClientRect() directly without adding scroll offsets.
     const positionTooltip = useCallback(() => {
         const currentStep = TOUR_STEPS[step];
         if (!currentStep?.target) {
@@ -193,11 +207,9 @@ export default function GuidedTour() {
             const spaceAbove = rect.top;
 
             if (preferBottom && spaceBelow > tooltipHeight + padding + arrowOffset) {
-                // Position below
                 top = rect.bottom + arrowOffset;
                 arrowPos = 'top';
             } else if (!preferBottom && spaceAbove > tooltipHeight + padding + arrowOffset) {
-                // Position above
                 top = rect.top - tooltipHeight - arrowOffset;
                 arrowPos = 'bottom';
             } else if (spaceBelow > spaceAbove) {
@@ -208,12 +220,12 @@ export default function GuidedTour() {
                 arrowPos = 'bottom';
             }
 
-            // Horizontal centering
+            // Horizontal centering (viewport-relative)
             let left = rect.left + rect.width / 2 - tooltipWidth / 2;
             left = Math.max(padding, Math.min(left, window.innerWidth - tooltipWidth - padding));
 
             setTooltipStyle({
-                top: `${top + window.scrollY}px`,
+                top: `${top}px`,
                 left: `${left}px`,
                 width: `${tooltipWidth}px`,
             });
@@ -223,11 +235,13 @@ export default function GuidedTour() {
 
     useEffect(() => {
         if (!isActive) return;
-        positionTooltip();
+        // Small delay to let scrollIntoView finish before positioning
+        const timer = setTimeout(positionTooltip, 350);
 
         window.addEventListener('resize', positionTooltip);
         window.addEventListener('scroll', positionTooltip, true);
         return () => {
+            clearTimeout(timer);
             window.removeEventListener('resize', positionTooltip);
             window.removeEventListener('scroll', positionTooltip, true);
         };
@@ -260,16 +274,15 @@ export default function GuidedTour() {
     const isLastStep = step === TOUR_STEPS.length - 1;
     const isFirstStep = step === 0;
 
-    // Build clip-path for the spotlight hole
+    // Build clip-path for the spotlight hole (viewport-relative, no scroll offset)
     let clipPath: string | undefined;
     if (spotlightRect && !isInfoCard) {
         const pad = 8;
-        const x = spotlightRect.left - pad + window.scrollX;
-        const y = spotlightRect.top - pad + window.scrollY;
+        const x = spotlightRect.left - pad;
+        const y = spotlightRect.top - pad;
         const w = spotlightRect.width + pad * 2;
         const h = spotlightRect.height + pad * 2;
         const r = 12;
-        // Outer rectangle (full viewport) then inner rounded rect
         clipPath = `
             polygon(
                 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%,
