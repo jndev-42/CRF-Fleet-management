@@ -7,6 +7,7 @@ import FooterChangelog from "@/components/FooterChangelog";
 import { OneSignalProvider } from "@/components/OneSignalProvider";
 import Navbar from "@/components/Navbar";
 import GuidedTour from "@/components/GuidedTour";
+import KonamiEasterEgg from "@/components/KonamiEasterEgg";
 
 export const metadata: Metadata = {
   title: "Gestion de flotte | Croix-Rouge Paris 18",
@@ -34,6 +35,7 @@ export default async function RootLayout({
                 {children}
               </main>
               {session?.user && <GuidedTour />}
+              {session?.user && <KonamiEasterEgg />}
               <footer style={{
                 textAlign: 'center',
                 padding: '24px 16px',
