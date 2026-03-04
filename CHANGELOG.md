@@ -5,6 +5,11 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-03-04
+
+### Added
+- **Tutoriel Interactif :** Nouveau guide étape par étape (Guided Tour) avec mise en évidence (spotlight) des éléments clés de l'interface pour accompagner les nouveaux utilisateurs dans la prise en main (Dashboard et processus d'Emprunt/Retour). Relançable depuis la page Aide.
+
 ## [1.1.0] - 2026-03-02
 
 ### Added
