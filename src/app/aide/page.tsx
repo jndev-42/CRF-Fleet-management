@@ -1,6 +1,19 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+
 export default function AidePage() {
+    const router = useRouter();
+
+    function handleRestartTour() {
+        localStorage.removeItem('tour-completed');
+        router.push('/');
+        // Small delay to let navigation happen before dispatching the event
+        setTimeout(() => {
+            window.dispatchEvent(new Event('restart-tour'));
+        }, 500);
+    }
+
     return (
         <div className="page-container" style={{ maxWidth: 800, margin: '0 auto', padding: '20px' }}>
             <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
@@ -16,6 +29,21 @@ export default function AidePage() {
                 >
                     <span style={{ fontSize: '18px' }}>📞</span> Enregistrer les contacts (VCard)
                 </a>
+            </div>
+
+            {/* Restart Tour */}
+            <div className="detail-card" style={{ marginBottom: 24, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                    <h2 className="section-title" style={{ fontSize: 16, marginBottom: 4 }}>🎓 Tutoriel interactif</h2>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>Découvrez comment utiliser l&apos;application pas à pas.</p>
+                </div>
+                <button
+                    className="btn btn-primary"
+                    onClick={handleRestartTour}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                >
+                    <span style={{ fontSize: '16px' }}>🚀</span> Lancer le tutoriel
+                </button>
             </div>
 
             <div className="detail-card" style={{ marginBottom: 24, padding: '20px' }}>

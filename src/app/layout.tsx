@@ -6,6 +6,7 @@ import { SessionProvider } from "next-auth/react";
 import FooterChangelog from "@/components/FooterChangelog";
 import { OneSignalProvider } from "@/components/OneSignalProvider";
 import Navbar from "@/components/Navbar";
+import GuidedTour from "@/components/GuidedTour";
 
 export const metadata: Metadata = {
   title: "Gestion de flotte | Croix-Rouge Paris 18",
@@ -32,6 +33,7 @@ export default async function RootLayout({
               <main className="main-content" style={{ flexGrow: 1 }}>
                 {children}
               </main>
+              {session?.user && <GuidedTour />}
               <footer style={{
                 textAlign: 'center',
                 padding: '24px 16px',

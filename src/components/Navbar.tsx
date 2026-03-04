@@ -55,10 +55,10 @@ export default function Navbar({ user }: NavbarProps) {
                 {user?.roles?.includes('ADMIN') && (
                     <a href="/users" className="nav-link" onClick={() => setIsOpen(false)}>Utilisateurs</a>
                 )}
-                <a href="/aide" className="nav-link" onClick={() => setIsOpen(false)}>Aide</a>
+                <a href="/aide" className="nav-link" data-tour="aide" onClick={() => setIsOpen(false)}>Aide</a>
 
                 <div className="nav-actions">
-                    {user && <NotificationBell />}
+                    {user && <span data-tour="notifications"><NotificationBell /></span>}
                     <ThemeToggle />
                     {user && (
                         <button

@@ -138,7 +138,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      <div className="stats-grid">
+      <div className="stats-grid" data-tour="stats">
         <div className="stat-card total">
           <div className="stat-label">Total véhicules</div>
           <div className="stat-value">{stats.total}</div>
@@ -169,7 +169,7 @@ export default function DashboardPage() {
         )}
       </div>
 
-      <div className="filters-bar">
+      <div className="filters-bar" data-tour="filters">
         {[
           { key: 'ALL', label: 'Tous' },
           { key: 'AVAILABLE', label: '🟢 Disponibles' },
@@ -193,7 +193,7 @@ export default function DashboardPage() {
           <p>Aucun véhicule ne correspond au filtre sélectionné.</p>
         </div>
       ) : (
-        <div className="vehicle-grid">
+        <div className="vehicle-grid" data-tour="vehicle-card">
           {filteredVehicles.map((vehicle) => (
             <Link
               key={vehicle.id}
@@ -258,6 +258,7 @@ export default function DashboardPage() {
               </div>
 
               {(() => {
+                const isFirstVehicle = filteredVehicles.indexOf(vehicle) === 0;
                 const rData = renaultData[vehicle.name];
 
                 // Display Live Renault Data if available
@@ -270,7 +271,7 @@ export default function DashboardPage() {
                   const fillPct = isElec ? (val || 0) : Math.min(((val || 0) / 50) * 100, 100);
 
                   return (
-                    <div className="fuel-bar-container">
+                    <div className="fuel-bar-container" {...(isFirstVehicle ? { 'data-tour': 'fuel-bar' } : {})}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span className="meta-label" style={{ color: isElec ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{label}</span>
                         <span className="meta-label" style={{ fontWeight: 600 }}>{displayVal}</span>
@@ -290,7 +291,7 @@ export default function DashboardPage() {
 
                 // Fallback to manual manual data
                 return (
-                  <div className="fuel-bar-container">
+                  <div className="fuel-bar-container" {...(isFirstVehicle ? { 'data-tour': 'fuel-bar' } : {})}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span className="meta-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}</span>
                       <span className="meta-label">{vehicle.fuelLevel}%</span>
