@@ -93,7 +93,7 @@ export default function KonamiEasterEgg() {
 
         // S'assurer qu'il y a au moins une de chaque image
         const selectedImages = [...IMAGES];
-        while (selectedImages.length < 10) {
+        while (selectedImages.length < 30) {
             selectedImages.push(IMAGES[Math.floor(Math.random() * IMAGES.length)]);
         }
 
