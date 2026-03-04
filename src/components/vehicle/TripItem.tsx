@@ -1,0 +1,177 @@
+import React from 'react';
+import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
+import { formatDate } from '@/app/vehicles/[id]/utils';
+
+interface TripItemProps {
+    trip: Trip;
+    vehicle: Vehicle;
+    userRoles: string[];
+    onDelete: (tripId: string) => Promise<void>;
+    onViewPhotos: (folderId: string) => void;
+}
+
+/**
+ * Renders a single trip log detailing checkout and check-in times, mileage, fuel, and incident reports.
+ */
+export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPhotos }: TripItemProps) {
+    return (
+        <div className={`trip-item ${!trip.checkInAt ? 'active' : ''}`}>
+            <div className="trip-header">
+                <div>
+                    <span className="trip-driver">🧑‍✈️ {trip.driverName} {trip.secondDriverName ? ` & ${trip.secondDriverName}` : ''}</span>
+                    <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+                        {trip.missionType}{trip.missionName ? ` — ${trip.missionName}` : ''}
+                    </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span className={`status-badge ${trip.checkInAt ? 'available' : 'inuse'}`}>
+                        {trip.checkInAt ? 'Terminé' : 'En cours'}
+                    </span>
+                    {userRoles.includes('ADMIN') && (
+                        <button
+                            title="Supprimer cette sortie"
+                            style={{
+                                background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,
+                                padding: '4px', opacity: 0.6
+                            }}
+                            onClick={() => onDelete(trip.id)}
+                        >
+                            🗑️
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            <div className="trip-details">
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">Départ</span>
+                    <span className="trip-detail-value">{formatDate(trip.checkOutAt)}</span>
+                </div>
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">Retour</span>
+                    <span className="trip-detail-value">
+                        {trip.checkInAt ? formatDate(trip.checkInAt) : '—'}
+                    </span>
+                </div>
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">Km départ</span>
+                    <span className="trip-detail-value">
+                        {trip.mileageOut.toLocaleString('fr-FR')} km
+                    </span>
+                </div>
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">Km retour</span>
+                    <span className="trip-detail-value">
+                        {trip.mileageIn
+                            ? `${trip.mileageIn.toLocaleString('fr-FR')} km`
+                            : '—'}
+                    </span>
+                </div>
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} départ</span>
+                    <span className="trip-detail-value">{trip.fuelOut}%</span>
+                </div>
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} retour</span>
+                    <span className="trip-detail-value">{trip.fuelIn !== null ? `${trip.fuelIn}%` : '—'}</span>
+                </div>
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">État départ</span>
+                    <span className="trip-detail-value">{trip.conditionOut}</span>
+                </div>
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">État retour</span>
+                    <span className="trip-detail-value">
+                        {trip.conditionIn || '—'}
+                    </span>
+                </div>
+            </div>
+
+            {/* Extra info row */}
+            <div className="trip-details" style={{ marginTop: 8 }}>
+                {trip.dsaChecked && (
+                    <div className="trip-detail-item">
+                        <span className="trip-detail-label">DSA vérifié</span>
+                        <span className="trip-detail-value">✅ Oui</span>
+                    </div>
+                )}
+                {trip.dsaUsed && (
+                    <div className="trip-detail-item">
+                        <span className="trip-detail-label">DSA utilisé</span>
+                        <span className="trip-detail-value">⚠️ Oui</span>
+                    </div>
+                )}
+                {trip.windowsClosed !== null && (
+                    <div className="trip-detail-item">
+                        <span className="trip-detail-label">Vitres / Radios</span>
+                        <span className="trip-detail-value">{trip.windowsClosed ? '✅ Fermées' : '❌ Non'}</span>
+                    </div>
+                )}
+                {trip.vehicleInspected !== null && (
+                    <div className="trip-detail-item">
+                        <span className="trip-detail-label">Tour véhicule</span>
+                        <span className="trip-detail-value">{trip.vehicleInspected ? '✅ Effectué' : '❌ Non'}</span>
+                    </div>
+                )}
+            </div>
+
+            {trip.incident && (
+                <div
+                    style={{
+                        marginTop: 12,
+                        padding: '10px 14px',
+                        background: 'var(--status-maintenance-bg)',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        fontSize: 13,
+                        color: 'var(--status-maintenance)',
+                    }}
+                >
+                    ⚠️ <strong>Incident :</strong> {trip.incident}
+                </div>
+            )}
+
+            {(trip.commentsOut || trip.commentsIn) && (
+                <div
+                    style={{
+                        marginTop: 12,
+                        paddingTop: 12,
+                        borderTop: '1px solid var(--border-primary)',
+                        fontSize: 13,
+                        color: 'var(--text-secondary)',
+                    }}
+                >
+                    {trip.commentsOut && <div>📝 <strong>Avant :</strong> {trip.commentsOut}</div>}
+                    {trip.commentsIn && <div style={{ marginTop: 4 }}>📝 <strong>Après :</strong> {trip.commentsIn}</div>}
+                </div>
+            )}
+
+            {trip.parkingPhoto && (
+                <div style={{ marginTop: 12 }}>
+                    <img
+                        src={trip.parkingPhoto}
+                        alt="Photo stationnement"
+                        style={{
+                            maxWidth: '100%',
+                            maxHeight: 200,
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border-primary)',
+                        }}
+                    />
+                </div>
+            )}
+
+            {trip.driveFolderId && (
+                <div style={{ marginTop: 12 }}>
+                    <button
+                        className="btn btn-secondary"
+                        style={{ fontSize: 13, padding: '6px 12px' }}
+                        onClick={() => onViewPhotos(trip.driveFolderId as string)}
+                    >
+                        📸 Voir les photos
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+}

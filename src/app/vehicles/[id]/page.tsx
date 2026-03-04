@@ -6,84 +6,27 @@ import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
 import PhotoViewer from '@/components/PhotoViewer';
 
-interface Trip {
-    id: string;
-    driverName: string;
-    driverEmail: string | null;
-    missionType: string;
-    missionName: string | null;
-    checkOutAt: string;
-    checkInAt: string | null;
-    mileageOut: number;
-    mileageIn: number | null;
-    fuelOut: number;
-    fuelIn: number | null;
-    parkingOut: string | null;
-    parkingIn: string | null;
-    conditionOut: string;
-    conditionIn: string | null;
-    dsaChecked: boolean;
-    dsaUsed: boolean | null;
-    commentsOut: string | null;
-    commentsIn: string | null;
-    secondDriverName: string | null;
-    secondDriverEmail: string | null;
-    windowsClosed: boolean | null;
-    vehicleInspected: boolean | null;
-    incident: string | null;
-    parkingPhoto: string | null;
-    driveFolderId: string | null;
-}
-
-interface Vehicle {
-    id: string;
-    name: string;
-    type: string;
-    plate: string;
-    status: string;
-    parkingSpot: string | null;
-    fuelLevel: number;
-    mileage: number;
-    hasDSA: boolean;
-    notes: string | null;
-    vin: string | null;
-    fuelType: string | null;
-    trips: Trip[];
-}
-
-const statusLabels: Record<string, string> = {
-    AVAILABLE: 'Disponible',
-    IN_USE: 'En mission',
-    MAINTENANCE: 'Maintenance',
-};
-
-const statusClass: Record<string, string> = {
-    AVAILABLE: 'available',
-    IN_USE: 'inuse',
-    MAINTENANCE: 'maintenance',
-};
-
-function getFuelClass(level: number) {
-    if (level >= 50) return 'full';
-    if (level >= 25) return 'mid';
-    return 'low';
-}
-
-function isConnected(vehicleName: string) {
-    const upper = vehicleName.toUpperCase();
-    return upper.includes('VL186') || upper.includes('VL188');
-}
-
-function formatDate(d: string) {
-    return new Date(d).toLocaleDateString('fr-FR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
+import { Vehicle, Trip } from './types';
+import { formatDate, isConnected, getFuelClass, statusClass, statusLabels } from './utils';
+import VehicleBadges from '@/components/vehicle/VehicleBadges';
+import DetailCard from '@/components/vehicle/DetailCard';
+import RenaultConnectBlock from '@/components/vehicle/RenaultConnectBlock';
+import VehicleNotes from '@/components/vehicle/VehicleNotes';
+import TripItem from '@/components/vehicle/TripItem';
+import CheckOutModal from '@/components/vehicle/modals/CheckOutModal';
+import CheckInModal from '@/components/vehicle/modals/CheckInModal';
+import DeleteConfirmationModal from '@/components/vehicle/modals/DeleteConfirmationModal';
+/**
+ * VehicleDetailPage Component
+ * 
+ * Main page for viewing a single vehicle's full details. 
+ * This component handles data fetching for the vehicle entity itself, its trips,
+ * and external data (e.g., Renault Connect telemetry).
+ * 
+ * It manages several distinct modal states (checkout, check-in, deletion) and renders
+ * smaller sub-components (VehicleBadges, DetailCard, RenaultConnectBlock, VehicleNotes, TripItem)
+ * to keep the UI modular and maintainable.
+ */
 export default function VehicleDetailPage() {
     const params = useParams();
     const id = params.id as string;
@@ -96,8 +39,7 @@ export default function VehicleDetailPage() {
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [userRoles, setUserRoles] = useState<string[]>([]);
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-    const [isEditingNotes, setIsEditingNotes] = useState(false);
-    const [editNotesValue, setEditNotesValue] = useState('');
+
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [viewingPhotosFolderId, setViewingPhotosFolderId] = useState<string | null>(null);
     const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
@@ -107,7 +49,7 @@ export default function VehicleDetailPage() {
     const router = useRouter();
 
     useEffect(() => {
-        // Fetch session to determine Admin role
+        // Fetch the current session to determine if the user has specific roles (e.g., ADMIN)
         fetch('/api/auth/session')
             .then(res => res.json())
             .then(session => {
@@ -120,7 +62,7 @@ export default function VehicleDetailPage() {
             })
             .catch(console.error);
 
-        // Fetch users for the second driver dropdown
+        // Fetch user list so that it can be used for assigning the second driver dropdown
         fetch('/api/users')
             .then(res => res.json())
             .then(data => {
@@ -129,6 +71,10 @@ export default function VehicleDetailPage() {
             .catch(console.error);
     }, []);
 
+    /**
+     * Fetches the detailed vehicle data from the database.
+     * Re-runs whenever the page is refreshed or immediately after modifying a trip.
+     */
     const fetchVehicle = useCallback(async () => {
         try {
             const res = await fetch(`/api/vehicles/${id}`);
@@ -145,6 +91,17 @@ export default function VehicleDetailPage() {
         fetchVehicle();
     }, [fetchVehicle]);
 
+    /**
+     * Reusable toast notification triggered from child components or modal callbacks
+     */
+    function showToast(message: string, type: string = 'success') {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 4000);
+    }
+
+    /**
+     * Add a second driver dynamically to the currently active checkout trip
+     */
     async function handleAddSecondDriver(e: React.FormEvent) {
         e.preventDefault();
         if (!activeTrip || !secondDriverEmail) return;
@@ -178,7 +135,8 @@ export default function VehicleDetailPage() {
         }
     }
 
-    // Fetch Renault data separately, only once when vehicle name is known
+    // Fetch Renault Connect telemetry specifically for VL186/VL188 models
+    // Triggered once the base vehicle data has loaded and we know it's connected
     useEffect(() => {
         if (vehicle?.name && (vehicle.name.includes('VL186') || vehicle.name.includes('VL188')) && !renaultData) {
             setLoadingRenault(true);
@@ -192,11 +150,11 @@ export default function VehicleDetailPage() {
         }
     }, [vehicle?.name, renaultData]);
 
-    function showToast(message: string, type: string = 'success') {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 4000);
-    }
 
+
+    /**
+     * Admin capability to toggle vehicle maintenance mode, preventing regular usage.
+     */
     async function toggleMaintenance() {
         if (!vehicle) return;
         const newStatus = vehicle.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
@@ -217,21 +175,7 @@ export default function VehicleDetailPage() {
         }
     }
 
-    async function saveNotes() {
-        if (!vehicle) return;
-        try {
-            await fetch(`/api/vehicles/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ notes: editNotesValue }),
-            });
-            setVehicle({ ...vehicle, notes: editNotesValue });
-            setIsEditingNotes(false);
-            showToast('Notes mises à jour');
-        } catch {
-            showToast('Erreur lors de la mise à jour des notes', 'error');
-        }
-    }
+
 
     if (loading) {
         return (
@@ -253,6 +197,7 @@ export default function VehicleDetailPage() {
         );
     }
 
+    // Determine whether there's an active (un-checked-in) trip to render Check-In UI
     const activeTrip = vehicle.trips.find((t) => !t.checkInAt);
     const canCheckIn = activeTrip ? (
         userRoles.includes('ADMIN') ||
@@ -270,77 +215,24 @@ export default function VehicleDetailPage() {
                 <div className="vehicle-detail-info">
                     <h1>{vehicle.name}</h1>
                     <div className="vehicle-detail-plate">{vehicle.plate}</div>
-                    <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <span className="vehicle-type-badge">{vehicle.type}</span>
-                        <span className={`status-badge ${statusClass[vehicle.status]}`}>
-                            <span className="status-dot" />
-                            {statusLabels[vehicle.status]}
-                        </span>
-                        {vehicle.hasDSA && (
-                            <span className="vehicle-type-badge" style={{ background: 'rgba(34, 197, 94, 0.1)', color: '#22C55E' }}>
-                                🫀 DSA
-                            </span>
-                        )}
-                        {vehicle.fuelType === 'Électrique' ? (
-                            <span className="vehicle-type-badge" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}>
-                                ⚡ Électrique
-                            </span>
-                        ) : vehicle.fuelType === 'Diesel' ? (
-                            <span className="vehicle-type-badge" style={{ background: 'rgba(107, 114, 128, 0.1)', color: '#374151' }}>
-                                ⛽ Diesel
-                            </span>
-                        ) : vehicle.fuelType === 'Essence' ? (
-                            <span className="vehicle-type-badge" style={{ background: 'rgba(249, 115, 22, 0.1)', color: '#F97316' }}>
-                                ⛽ Essence
-                            </span>
-                        ) : null}
-                        {userRoles.includes('ADMIN') && (
-                            <button
-                                onClick={async () => {
-                                    try {
-                                        await fetch(`/api/vehicles/${id}`, {
-                                            method: 'PATCH',
-                                            headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ hasDSA: !vehicle.hasDSA })
-                                        });
-                                        fetchVehicle();
-                                        showToast(`DSA ${!vehicle.hasDSA ? 'activé' : 'désactivé'}`);
-                                    } catch (e) {
-                                        showToast('Erreur lors de la modification du DSA', 'error');
-                                    }
-                                }}
-                                style={{
-                                    background: 'var(--bg-secondary)',
-                                    border: '1px solid var(--border-primary)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    padding: '4px 8px',
-                                    fontSize: 12,
-                                    cursor: 'pointer',
-                                    fontWeight: 500,
-                                    color: 'var(--text-secondary)'
-                                }}
-                            >
-                                {vehicle.hasDSA ? 'Retirer DSA' : 'Ajouter DSA'}
-                            </button>
-                        )}
-                        {userRoles.includes('ADMIN') && (
-                            <button
-                                onClick={() => setShowDeleteModal(true)}
-                                style={{
-                                    background: 'rgba(239, 68, 68, 0.1)',
-                                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    padding: '4px 8px',
-                                    fontSize: 12,
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
-                                    color: '#EF4444'
-                                }}
-                            >
-                                🗑️ Supprimer
-                            </button>
-                        )}
-                    </div>
+                    <VehicleBadges
+                        vehicle={vehicle}
+                        userRoles={userRoles}
+                        onToggleDSA={async () => {
+                            try {
+                                await fetch(`/api/vehicles/${id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ hasDSA: !vehicle.hasDSA })
+                                });
+                                fetchVehicle();
+                                showToast(`DSA ${!vehicle.hasDSA ? 'activé' : 'désactivé'}`);
+                            } catch (e) {
+                                showToast('Erreur lors de la modification du DSA', 'error');
+                            }
+                        }}
+                        onDelete={() => setShowDeleteModal(true)}
+                    />
                 </div>
                 <div className="vehicle-detail-actions">
                     {vehicle.status === 'AVAILABLE' && (() => {
@@ -464,155 +356,57 @@ export default function VehicleDetailPage() {
 
             <div className="detail-grid">
                 {!isConnected(vehicle.name) && (
-                    <div className="detail-card">
-                        <div className="detail-card-title">Kilométrage</div>
-                        <div className="detail-card-value">
-                            {vehicle.mileage.toLocaleString('fr-FR')} km
-                        </div>
-                    </div>
+                    <DetailCard
+                        title="Kilométrage"
+                        value={`${vehicle.mileage.toLocaleString('fr-FR')} km`}
+                    />
                 )}
                 {!isConnected(vehicle.name) && (
-                    <div className="detail-card">
-                        <div className="detail-card-title">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}</div>
-                        <div className="detail-card-value">{vehicle.fuelLevel}%</div>
+                    <DetailCard
+                        title={vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}
+                        value={`${vehicle.fuelLevel}%`}
+                    >
                         <div className="fuel-bar" style={{ marginTop: 8 }}>
                             <div
                                 className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
                                 style={{ width: `${vehicle.fuelLevel}%` }}
                             />
                         </div>
-                    </div>
+                    </DetailCard>
                 )}
-                <div className="detail-card">
-                    <div className="detail-card-title">Stationnement</div>
-                    <div className="detail-card-value">
-                        {vehicle.parkingSpot || '—'}
-                    </div>
-                </div>
-                <div className="detail-card">
-                    <div className="detail-card-title">Nombre de sorties</div>
-                    <div className="detail-card-value">{vehicle.trips.length}</div>
-                </div>
+                <DetailCard
+                    title="Stationnement"
+                    value={vehicle.parkingSpot || '—'}
+                />
+                <DetailCard
+                    title="Nombre de sorties"
+                    value={vehicle.trips.length}
+                />
             </div>
 
             {/* Renault Connect Section */}
-            {(renaultData || loadingRenault) && (
-                <div style={{ marginBottom: 24 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                        <h2 className="section-title" style={{ margin: 0 }}>Renault Connect</h2>
-                        {loadingRenault && <div className="loading-spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />}
-                        {!loadingRenault && renaultData && (
-                            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                                Actualisé le {formatDate(renaultData.batteryTimestamp || renaultData.cockpitTimestamp || new Date().toISOString())}
-                            </span>
-                        )}
-                    </div>
+            <RenaultConnectBlock
+                renaultData={renaultData}
+                loadingRenault={loadingRenault}
+            />
 
-                    {!loadingRenault && renaultData && (
-                        <div className="detail-grid">
-                            {(renaultData.totalMileage !== null) && (
-                                <div className="detail-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
-                                    <div className="detail-card-title">Kilométrage (réel)</div>
-                                    <div className="detail-card-value">{renaultData.totalMileage.toLocaleString('fr-FR')} km</div>
-                                    <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
-                                        Remonte par la télématique
-                                    </div>
-                                </div>
-                            )}
-
-                            {renaultData.isElectric ? (
-                                <>
-                                    <div className="detail-card" style={{ background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                                        <div className="detail-card-title" style={{ color: '#2563EB' }}>Batterie (réelle)</div>
-                                        <div className="detail-card-value">{renaultData.batteryLevel}%</div>
-                                        <div className="fuel-bar" style={{ marginTop: 8 }}>
-                                            <div
-                                                className={`fuel-bar-fill ${getFuelClass(renaultData.batteryLevel || 0)}`}
-                                                style={{ width: `${renaultData.batteryLevel}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="detail-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
-                                        <div className="detail-card-title">Autonomie estimée</div>
-                                        <div className="detail-card-value">{renaultData.batteryAutonomy} km</div>
-                                        <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
-                                            Liée à la charge actuelle
-                                        </div>
-                                    </div>
-                                    <div className="detail-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
-                                        <div className="detail-card-title">État de charge</div>
-                                        <div className="detail-card-value" style={{ fontSize: 16, marginTop: 4 }}>
-                                            {renaultData.plugStatus === 1 ? '🔌 Branché' : '⚡ Non branché'}
-                                            {renaultData.chargingStatus === 1 && ' (En charge)'}
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="detail-card" style={{ background: 'rgba(249, 115, 22, 0.05)', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
-                                        <div className="detail-card-title" style={{ color: '#EA580C' }}>Carburant estimé</div>
-                                        <div className="detail-card-value">{renaultData.fuelQuantity} L</div>
-                                    </div>
-                                    <div className="detail-card" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
-                                        <div className="detail-card-title">Autonomie estimée</div>
-                                        <div className="detail-card-value">{renaultData.fuelAutonomy} km</div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            <div className="detail-card" style={{ marginBottom: 24, padding: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <div className="detail-card-title" style={{ margin: 0 }}>Notes</div>
-                    {userRoles.includes('ADMIN') && !isEditingNotes && (
-                        <button
-                            onClick={() => {
-                                setEditNotesValue(vehicle.notes || '');
-                                setIsEditingNotes(true);
-                            }}
-                            className="btn btn-secondary"
-                            style={{ padding: '4px 12px', fontSize: 13 }}
-                        >
-                            ✏️ Éditer
-                        </button>
-                    )}
-                </div>
-                {isEditingNotes ? (
-                    <div>
-                        <textarea
-                            className="form-textarea"
-                            value={editNotesValue}
-                            onChange={(e) => setEditNotesValue(e.target.value)}
-                            rows={4}
-                            placeholder="Saisissez des informations sur le véhicule..."
-                            style={{ marginBottom: 12 }}
-                        />
-                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                            <button
-                                className="btn btn-secondary"
-                                onClick={() => setIsEditingNotes(false)}
-                            >
-                                Annuler
-                            </button>
-                            <button
-                                className="btn btn-primary"
-                                onClick={saveNotes}
-                            >
-                                Sauvegarder
-                            </button>
-                        </div>
-                    </div>
-                ) : (
-                    <div style={{ color: vehicle.notes ? 'var(--text-secondary)' : 'var(--text-tertiary)', fontSize: 14 }}>
-                        {vehicle.notes ? (
-                            <div style={{ whiteSpace: 'pre-wrap' }}>{vehicle.notes}</div>
-                        ) : 'Aucune note pour ce véhicule.'}
-                    </div>
-                )}
-            </div>
+            <VehicleNotes
+                vehicle={vehicle}
+                userRoles={userRoles}
+                onSaveNotes={async (notes: string) => {
+                    try {
+                        await fetch(`/api/vehicles/${id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ notes }),
+                        });
+                        setVehicle({ ...vehicle, notes });
+                        showToast('Notes mises à jour');
+                    } catch {
+                        showToast('Erreur lors de la mise à jour des notes', 'error');
+                    }
+                }}
+            />
 
             <div className="section-header">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
@@ -652,180 +446,28 @@ export default function VehicleDetailPage() {
             ) : (
                 <div className="trip-list">
                     {vehicle.trips.map((trip) => (
-                        <div
+                        <TripItem
                             key={trip.id}
-                            className={`trip-item ${!trip.checkInAt ? 'active' : ''}`}
-                        >
-                            <div className="trip-header">
-                                <div>
-                                    <span className="trip-driver">🧑‍✈️ {trip.driverName} {trip.secondDriverName ? ` & ${trip.secondDriverName}` : ''}</span>
-                                    <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
-                                        {trip.missionType}{trip.missionName ? ` — ${trip.missionName}` : ''}
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <span className={`status-badge ${trip.checkInAt ? 'available' : 'inuse'}`}>
-                                        {trip.checkInAt ? 'Terminé' : 'En cours'}
-                                    </span>
-                                    {userRoles.includes('ADMIN') && (
-                                        <button
-                                            title="Supprimer cette sortie"
-                                            style={{
-                                                background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,
-                                                padding: '4px', opacity: 0.6
-                                            }}
-                                            onClick={async () => {
-                                                if (window.confirm("Voulez-vous vraiment supprimer cette sortie de l'historique ?")) {
-                                                    try {
-                                                        const res = await fetch(`/api/trips/${trip.id}`, { method: 'DELETE' });
-                                                        if (res.ok) {
-                                                            fetchVehicle();
-                                                        } else {
-                                                            const body = await res.json();
-                                                            alert(body.error || "Erreur de suppression");
-                                                        }
-                                                    } catch (e) {
-                                                        alert("Erreur de connexion");
-                                                    }
-                                                }
-                                            }}
-                                        >
-                                            🗑️
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="trip-details">
-                                <div className="trip-detail-item">
-                                    <span className="trip-detail-label">Départ</span>
-                                    <span className="trip-detail-value">{formatDate(trip.checkOutAt)}</span>
-                                </div>
-                                <div className="trip-detail-item">
-                                    <span className="trip-detail-label">Retour</span>
-                                    <span className="trip-detail-value">
-                                        {trip.checkInAt ? formatDate(trip.checkInAt) : '—'}
-                                    </span>
-                                </div>
-                                <div className="trip-detail-item">
-                                    <span className="trip-detail-label">Km départ</span>
-                                    <span className="trip-detail-value">
-                                        {trip.mileageOut.toLocaleString('fr-FR')} km
-                                    </span>
-                                </div>
-                                <div className="trip-detail-item">
-                                    <span className="trip-detail-label">Km retour</span>
-                                    <span className="trip-detail-value">
-                                        {trip.mileageIn
-                                            ? `${trip.mileageIn.toLocaleString('fr-FR')} km`
-                                            : '—'}
-                                    </span>
-                                </div>
-                                <div className="trip-detail-item">
-                                    <span className="trip-detail-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} départ</span>
-                                    <span className="trip-detail-value">{trip.fuelOut}%</span>
-                                </div>
-                                <div className="trip-detail-item">
-                                    <span className="trip-detail-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} retour</span>
-                                    <span className="trip-detail-value">{trip.fuelIn !== null ? `${trip.fuelIn}%` : '—'}</span>
-                                </div>
-                                <div className="trip-detail-item">
-                                    <span className="trip-detail-label">État départ</span>
-                                    <span className="trip-detail-value">{trip.conditionOut}</span>
-                                </div>
-                                <div className="trip-detail-item">
-                                    <span className="trip-detail-label">État retour</span>
-                                    <span className="trip-detail-value">
-                                        {trip.conditionIn || '—'}
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Extra info row */}
-                            <div className="trip-details" style={{ marginTop: 8 }}>
-                                {trip.dsaChecked && (
-                                    <div className="trip-detail-item">
-                                        <span className="trip-detail-label">DSA vérifié</span>
-                                        <span className="trip-detail-value">✅ Oui</span>
-                                    </div>
-                                )}
-                                {trip.dsaUsed && (
-                                    <div className="trip-detail-item">
-                                        <span className="trip-detail-label">DSA utilisé</span>
-                                        <span className="trip-detail-value">⚠️ Oui</span>
-                                    </div>
-                                )}
-                                {trip.windowsClosed !== null && (
-                                    <div className="trip-detail-item">
-                                        <span className="trip-detail-label">Vitres / Radios</span>
-                                        <span className="trip-detail-value">{trip.windowsClosed ? '✅ Fermées' : '❌ Non'}</span>
-                                    </div>
-                                )}
-                                {trip.vehicleInspected !== null && (
-                                    <div className="trip-detail-item">
-                                        <span className="trip-detail-label">Tour véhicule</span>
-                                        <span className="trip-detail-value">{trip.vehicleInspected ? '✅ Effectué' : '❌ Non'}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {trip.incident && (
-                                <div
-                                    style={{
-                                        marginTop: 12,
-                                        padding: '10px 14px',
-                                        background: 'var(--status-maintenance-bg)',
-                                        borderRadius: 'var(--radius-sm)',
-                                        border: '1px solid rgba(239, 68, 68, 0.3)',
-                                        fontSize: 13,
-                                        color: 'var(--status-maintenance)',
-                                    }}
-                                >
-                                    ⚠️ <strong>Incident :</strong> {trip.incident}
-                                </div>
-                            )}
-
-                            {(trip.commentsOut || trip.commentsIn) && (
-                                <div
-                                    style={{
-                                        marginTop: 12,
-                                        paddingTop: 12,
-                                        borderTop: '1px solid var(--border-primary)',
-                                        fontSize: 13,
-                                        color: 'var(--text-secondary)',
-                                    }}
-                                >
-                                    {trip.commentsOut && <div>📝 <strong>Avant :</strong> {trip.commentsOut}</div>}
-                                    {trip.commentsIn && <div style={{ marginTop: 4 }}>📝 <strong>Après :</strong> {trip.commentsIn}</div>}
-                                </div>
-                            )}
-
-                            {trip.parkingPhoto && (
-                                <div style={{ marginTop: 12 }}>
-                                    <img
-                                        src={trip.parkingPhoto}
-                                        alt="Photo stationnement"
-                                        style={{
-                                            maxWidth: '100%',
-                                            maxHeight: 200,
-                                            borderRadius: 'var(--radius-sm)',
-                                            border: '1px solid var(--border-primary)',
-                                        }}
-                                    />
-                                </div>
-                            )}
-                            {trip.driveFolderId && (
-                                <div style={{ marginTop: 12 }}>
-                                    <button
-                                        className="btn btn-secondary"
-                                        style={{ fontSize: 13, padding: '6px 12px' }}
-                                        onClick={() => setViewingPhotosFolderId(trip.driveFolderId)}
-                                    >
-                                        📸 Voir les photos
-                                    </button>
-                                </div>
-                            )}
-
-                        </div>
+                            trip={trip}
+                            vehicle={vehicle}
+                            userRoles={userRoles}
+                            onDelete={async (tripId: string) => {
+                                if (window.confirm("Voulez-vous vraiment supprimer cette sortie de l'historique ?")) {
+                                    try {
+                                        const res = await fetch(`/api/trips/${tripId}`, { method: 'DELETE' });
+                                        if (res.ok) {
+                                            fetchVehicle();
+                                        } else {
+                                            const body = await res.json();
+                                            alert(body.error || "Erreur de suppression");
+                                        }
+                                    } catch (e) {
+                                        alert("Erreur de connexion");
+                                    }
+                                }
+                            }}
+                            onViewPhotos={(folderId: string) => setViewingPhotosFolderId(folderId)}
+                        />
                     ))}
                 </div>
             )}
@@ -881,785 +523,4 @@ export default function VehicleDetailPage() {
     );
 }
 
-/* ===== CHECK-OUT MODAL ===== */
-function CheckOutModal({
-    vehicle,
-    onClose,
-    onSuccess,
-}: {
-    vehicle: Vehicle;
-    onClose: () => void;
-    onSuccess: () => void;
-}) {
-    const [form, setForm] = useState({
-        driverName: '',
-        driverEmail: '',
-        secondDriverEmail: '',
-        missionType: 'DPS',
-        missionName: '',
-        conditionOut: 'Bon état',
-        dsaChecked: false,
-        commentsOut: '',
-    });
-    const [submitting, setSubmitting] = useState(false);
-    const [sessionLoading, setSessionLoading] = useState(true);
-    const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
-    const [photos, setPhotos] = useState<File[]>([]);
 
-    useEffect(() => {
-        fetch('/api/auth/session')
-            .then(res => res.json())
-            .then(session => {
-                if (session?.user) {
-                    setForm(f => ({
-                        ...f,
-                        driverName: session.user.name || '',
-                        driverEmail: session.user.email || '',
-                    }));
-                }
-            })
-            .catch(console.error)
-            .finally(() => setSessionLoading(false));
-
-        fetch('/api/users')
-            .then(res => res.json())
-            .then(data => {
-                if (data.users) setUsers(data.users);
-            })
-            .catch(console.error);
-    }, []);
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        setSubmitting(true);
-
-        let secondDriverName = '';
-        if (form.secondDriverEmail) {
-            const match = users.find(u => u.email === form.secondDriverEmail);
-            secondDriverName = match?.name || form.secondDriverEmail;
-        }
-
-        try {
-            // Upload photos first if provided
-            let driveFolderId: string | undefined = undefined;
-            if (photos.length > 0) {
-                const formData = new FormData();
-                formData.append('vehicleName', vehicle.name);
-
-                // Get local date formatted as YYYY-MM-DD_HH-mm
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const day = String(now.getDate()).padStart(2, '0');
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
-
-                formData.append('date', dateStr);
-                formData.append('stage', 'emprunt');
-
-                photos.forEach((file) => {
-                    formData.append('files', file);
-                });
-
-                const uploadRes = await fetch('/api/drive/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (!uploadRes.ok) {
-                    const errorData = await uploadRes.json();
-                    alert(`Erreur lors de l'upload des photos: ${errorData.error || uploadRes.statusText}`);
-                    setSubmitting(false);
-                    return;
-                }
-
-                const uploadData = await uploadRes.json();
-                driveFolderId = uploadData.folderId;
-            }
-
-            const res = await fetch('/api/trips', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    vehicleId: vehicle.id,
-                    ...form,
-                    secondDriverName: secondDriverName || undefined,
-                    secondDriverEmail: form.secondDriverEmail || undefined,
-                    driveFolderId,
-                }),
-            });
-            if (res.ok) {
-                onSuccess();
-            } else {
-                const data = await res.json();
-                alert(data.error || 'Erreur');
-            }
-        } catch {
-            alert('Erreur de connexion');
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2 className="modal-title">🚗 Prendre {vehicle.name}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
-                </div>
-                <form onSubmit={handleSubmit}>
-                    <div className="modal-body">
-                        <div
-                            style={{
-                                background: 'var(--bg-card)',
-                                borderRadius: 'var(--radius-sm)',
-                                padding: 12,
-                                marginBottom: 20,
-                                fontSize: 13,
-                                color: 'var(--text-secondary)',
-                            }}
-                        >
-                            <div><strong>Immatriculation :</strong> {vehicle.plate}</div>
-                            <div><strong>Kilométrage :</strong> {vehicle.mileage.toLocaleString('fr-FR')} km</div>
-                            <div><strong>{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} :</strong> {vehicle.fuelLevel}%</div>
-                            {vehicle.hasDSA && <div><strong>DSA :</strong> Équipé</div>}
-                        </div>
-
-                        {/* Identité */}
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">Votre nom * <span style={{ fontSize: 12, fontWeight: 'normal', color: 'var(--text-secondary)' }}>🔒 Rempli via Google</span></label>
-                                <input
-                                    className="form-input"
-                                    placeholder={sessionLoading ? "Chargement..." : "Prénom NOM"}
-                                    value={form.driverName}
-                                    readOnly
-                                    required
-                                    style={{
-                                        background: 'var(--bg-card)',
-                                        color: 'var(--text-secondary)',
-                                        cursor: 'not-allowed'
-                                    }}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Email <span style={{ fontSize: 12, fontWeight: 'normal', color: 'var(--text-secondary)' }}>🔒 Rempli via Google</span></label>
-                                <input
-                                    className="form-input"
-                                    type="email"
-                                    placeholder={sessionLoading ? "Chargement..." : "pour recevoir le rapport"}
-                                    value={form.driverEmail}
-                                    readOnly
-                                    style={{
-                                        background: 'var(--bg-card)',
-                                        color: 'var(--text-secondary)',
-                                        cursor: 'not-allowed'
-                                    }}
-                                />
-                            </div>
-                        </div>
-
-                        {/* 2nd Conducteur */}
-                        <div className="form-group" style={{ marginBottom: 16 }}>
-                            <label className="form-label">2ème Conducteur (Optionnel)</label>
-                            <input
-                                className="form-input"
-                                list="users-list"
-                                placeholder="Rechercher par adresse email..."
-                                value={form.secondDriverEmail}
-                                onChange={(e) => setForm({ ...form, secondDriverEmail: e.target.value })}
-                            />
-                            <datalist id="users-list">
-                                {users.map(u => (
-                                    <option key={u.email} value={u.email}>{u.name || u.email}</option>
-                                ))}
-                            </datalist>
-                        </div>
-
-                        {/* Mission */}
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">Type de mission *</label>
-                                <select
-                                    className="form-select"
-                                    value={form.missionType}
-                                    onChange={(e) => setForm({ ...form, missionType: e.target.value })}
-                                >
-                                    <option value="DPS">DPS</option>
-                                    <option value="PAPS">PAPS</option>
-                                    <option value="Réseaux">Réseaux</option>
-                                    <option value="Urgence">Urgence</option>
-                                    <option value="Logistique">Logistique</option>
-                                    <option value="Maraude">Maraude</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Nom de la mission</label>
-                                <input
-                                    className="form-input"
-                                    placeholder="si applicable"
-                                    value={form.missionName}
-                                    onChange={(e) => setForm({ ...form, missionName: e.target.value })}
-                                />
-                                {vehicle.fuelType === 'Électrique' ? (
-                                    <div className="form-hint">En dessous de 50%, merci de le signaler ou de recharger le véhicule</div>
-                                ) : (
-                                    <div className="form-hint">En dessous de 25% (1/4), le plein doit avoir été fait sinon le signaler</div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* État véhicule */}
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">État du véhicule *</label>
-                                <select
-                                    className="form-select"
-                                    value={form.conditionOut}
-                                    onChange={(e) => setForm({ ...form, conditionOut: e.target.value })}
-                                >
-                                    <option value="Bon état">✅ Bon état</option>
-                                    <option value="Correct">👍 Correct</option>
-                                    <option value="Dégradé">⚠️ Dégradé</option>
-                                    <option value="Problème signalé">❌ Problème à signaler</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* DSA */}
-                        {vehicle.hasDSA && (
-                            <div className="form-group">
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={form.dsaChecked}
-                                        onChange={(e) => setForm({ ...form, dsaChecked: e.target.checked })}
-                                        style={{ width: 18, height: 18, accentColor: 'var(--crf-red)' }}
-                                    />
-                                    <span style={{ fontSize: 14, fontWeight: 500 }}>🫀 J&apos;ai vérifié le DSA du véhicule</span>
-                                </label>
-                            </div>
-                        )}
-
-                        {/* Commentaires */}
-                        <div className="form-group">
-                            <label className="form-label">Commentaires avant le poste</label>
-                            <textarea
-                                className="form-textarea"
-                                placeholder="Remarques sur le véhicule..."
-                                value={form.commentsOut}
-                                onChange={(e) => setForm({ ...form, commentsOut: e.target.value })}
-                            />
-                        </div>
-
-                        {/* Photos (Optionnel) */}
-                        <div className="form-group" style={{ marginTop: 16 }}>
-                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                📸 Photos avant départ (Optionnel)
-                                <span title="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
-                            </label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                capture="environment"
-                                onChange={(e) => {
-                                    if (e.target.files) {
-                                        const newFiles = Array.from(e.target.files);
-                                        const validFiles = newFiles.filter(f => {
-                                            if (f.size > 10 * 1024 * 1024) {
-                                                alert(`Le fichier ${f.name} dépasse 10 Mo et ne sera pas ajouté.`);
-                                                return false;
-                                            }
-                                            return true;
-                                        });
-                                        setPhotos(prev => [...prev, ...validFiles]);
-                                    }
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    background: 'var(--bg-input)',
-                                    border: '1px solid var(--border-primary)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: 14,
-                                }}
-                            />
-                            {photos.length > 0 && (
-                                <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    {photos.map((photo, i) => (
-                                        <div key={i} style={{ position: 'relative', width: 80, height: 80, borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src={URL.createObjectURL(photo)}
-                                                alt="Aperçu"
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
-                                                style={{
-                                                    position: 'absolute', top: 4, right: 4,
-                                                    background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none',
-                                                    borderRadius: '50%', width: 20, height: 20, cursor: 'pointer',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
-                                                }}
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>
-                            Annuler
-                        </button>
-                        <button type="submit" className="btn btn-primary" disabled={submitting}>
-                            {submitting ? 'En cours...' : '🚗 Prendre le véhicule'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-/* ===== CHECK-IN MODAL ===== */
-function CheckInModal({
-    vehicle,
-    trip,
-    onClose,
-    onSuccess,
-}: {
-    vehicle: Vehicle;
-    trip: Trip;
-    onClose: () => void;
-    onSuccess: () => void;
-}) {
-    const [form, setForm] = useState({
-        mileageIn: vehicle.mileage,
-        fuelIn: vehicle.fuelLevel,
-        parkingInSelection: 'Baigneur (devant l’UL)',
-        parkingInCustom: '',
-        conditionIn: 'Bon état',
-        windowsClosed: false,
-        vehicleInspected: false,
-        incident: '',
-        dsaUsed: false,
-        commentsIn: '',
-    });
-    const [submitting, setSubmitting] = useState(false);
-    const [photos, setPhotos] = useState<File[]>([]);
-
-    // Removed handlePhotoChange with canvas compression since we now use the array and Google Drive.
-
-    async function handleSubmit(e: React.FormEvent) {
-        e.preventDefault();
-        setSubmitting(true);
-        try {
-            const finalParkingIn = form.parkingInSelection === 'Autre'
-                ? form.parkingInCustom
-                : form.parkingInSelection;
-
-            // Upload photos first if provided
-            let driveFolderId: string | undefined = undefined;
-            if (photos.length > 0) {
-                const formData = new FormData();
-                formData.append('vehicleName', vehicle.name);
-
-                // Use the checkout date to group the folder correctly, if available.
-                const checkOutDate = new Date(trip.checkOutAt);
-                const year = checkOutDate.getFullYear();
-                const month = String(checkOutDate.getMonth() + 1).padStart(2, '0');
-                const day = String(checkOutDate.getDate()).padStart(2, '0');
-                const hours = String(checkOutDate.getHours()).padStart(2, '0');
-                const minutes = String(checkOutDate.getMinutes()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
-
-                formData.append('date', dateStr);
-                formData.append('stage', 'rendu');
-
-                // If trip already has a folder, pass it so the backend doesn't search for it
-                if (trip.driveFolderId) {
-                    formData.append('existingDriveFolderId', trip.driveFolderId);
-                }
-
-                photos.forEach((file) => {
-                    formData.append('files', file);
-                });
-
-                const uploadRes = await fetch('/api/drive/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (!uploadRes.ok) {
-                    const errorData = await uploadRes.json();
-                    alert(`Erreur lors de l'upload des photos: ${errorData.error || uploadRes.statusText}`);
-                    setSubmitting(false);
-                    return;
-                }
-
-                const uploadData = await uploadRes.json();
-                driveFolderId = uploadData.folderId;
-            }
-
-            const payload = { ...form, parkingIn: finalParkingIn, driveFolderId };
-
-            // Remove manual metrics if connected, otherwise parse them
-            if (isConnected(vehicle.name)) {
-                delete (payload as any).mileageIn;
-                delete (payload as any).fuelIn;
-            } else {
-                payload.mileageIn = Number(form.mileageIn);
-                payload.fuelIn = Number(form.fuelIn);
-            }
-
-            const res = await fetch(`/api/trips/${trip.id}/checkin`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-            });
-            if (res.ok) {
-                onSuccess();
-            } else {
-                const data = await res.json();
-                alert(data.error || 'Erreur');
-            }
-        } catch {
-            alert('Erreur de connexion');
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
-    return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2 className="modal-title">✅ Rendre {vehicle.name}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
-                </div>
-                <form onSubmit={handleSubmit}>
-                    <div className="modal-body">
-                        <div
-                            style={{
-                                background: 'var(--bg-card)',
-                                borderRadius: 'var(--radius-sm)',
-                                padding: 12,
-                                marginBottom: 20,
-                                fontSize: 13,
-                                color: 'var(--text-secondary)',
-                            }}
-                        >
-                            <div><strong>Chauffeur :</strong> {trip.driverName}</div>
-                            <div><strong>Mission :</strong> {trip.missionType}{trip.missionName ? ` — ${trip.missionName}` : ''}</div>
-                            <div><strong>Départ :</strong> {formatDate(trip.checkOutAt)}</div>
-                            <div><strong>Km au départ :</strong> {trip.mileageOut.toLocaleString('fr-FR')} km</div>
-                        </div>
-
-                        {/* Km et parking */}
-                        <div className="form-row">
-                            {!isConnected(vehicle.name) && (
-                                <div className="form-group">
-                                    <label className="form-label">Kilométrage actuel *</label>
-                                    <input
-                                        className="form-input"
-                                        type="number"
-                                        min={trip.mileageOut}
-                                        value={form.mileageIn}
-                                        onChange={(e) => setForm({ ...form, mileageIn: Number(e.target.value) })}
-                                        required
-                                    />
-                                    <div className="form-hint">
-                                        Min: {trip.mileageOut.toLocaleString('fr-FR')} km
-                                    </div>
-                                </div>
-                            )}
-                            <div className="form-group">
-                                <label className="form-label">Place de stationnement</label>
-                                <select
-                                    className="form-select"
-                                    value={form.parkingInSelection}
-                                    onChange={(e) => setForm({ ...form, parkingInSelection: e.target.value })}
-                                >
-                                    <option value="Baigneur (devant l’UL)">Baigneur (devant l’UL)</option>
-                                    <option value="Parking Aubervillers">Parking Aubervillers</option>
-                                    <option value="Autre">Autre</option>
-                                </select>
-                                {form.parkingInSelection === 'Autre' && (
-                                    <input
-                                        style={{ marginTop: 8 }}
-                                        className="form-input"
-                                        placeholder="Précisez la place..."
-                                        value={form.parkingInCustom}
-                                        onChange={(e) => setForm({ ...form, parkingInCustom: e.target.value })}
-                                        required
-                                    />
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Essence */}
-                        {!isConnected(vehicle.name) && (
-                            <div className="form-group">
-                                <label className="form-label">{vehicle.fuelType === 'Électrique' ? 'Niveau de batterie *' : (vehicle.fuelType === 'Diesel' ? 'Niveau de diesel *' : 'Niveau d\'essence *')}</label>
-                                <input
-                                    type="range"
-                                    className="fuel-slider"
-                                    min={0}
-                                    max={100}
-                                    value={form.fuelIn}
-                                    onChange={(e) => setForm({ ...form, fuelIn: Number(e.target.value) })}
-                                />
-                                <div className="fuel-bar" style={{ marginTop: 8 }}>
-                                    <div
-                                        className={`fuel-bar-fill ${getFuelClass(form.fuelIn)}`}
-                                        style={{ width: `${form.fuelIn}%` }}
-                                    />
-                                </div>
-                            </div>
-                        )}
-
-                        {isConnected(vehicle.name) && (
-                            <div style={{ marginBottom: 20, padding: 12, background: 'rgba(59, 130, 246, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.2)', fontSize: 13, color: '#1E40AF' }}>
-                                ℹ️ <strong>Données connectées :</strong> Le kilométrage et le niveau de {vehicle.fuelType === 'Électrique' ? 'batterie' : 'carburant'} remontent automatiquement depuis le véhicule. Il n'est pas nécessaire de les saisir.
-                            </div>
-                        )}
-
-                        {/* État */}
-                        <div className="form-group">
-                            <label className="form-label">État du véhicule au retour *</label>
-                            <select
-                                className="form-select"
-                                value={form.conditionIn}
-                                onChange={(e) => setForm({ ...form, conditionIn: e.target.value })}
-                            >
-                                <option value="Bon état">✅ Bon état</option>
-                                <option value="Correct">👍 Correct</option>
-                                <option value="Dégradé">⚠️ Dégradé</option>
-                                <option value="Problème signalé">❌ Problème à signaler</option>
-                            </select>
-                        </div>
-
-                        {/* Checklists */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={form.windowsClosed}
-                                    onChange={(e) => setForm({ ...form, windowsClosed: e.target.checked })}
-                                    style={{ width: 18, height: 18, accentColor: 'var(--crf-red)' }}
-                                />
-                                <span style={{ fontSize: 14, fontWeight: 500 }}>🪟 J&apos;ai fermé les vitres et éteint les radios</span>
-                            </label>
-
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={form.vehicleInspected}
-                                    onChange={(e) => setForm({ ...form, vehicleInspected: e.target.checked })}
-                                    style={{ width: 18, height: 18, accentColor: 'var(--crf-red)' }}
-                                />
-                                <span style={{ fontSize: 14, fontWeight: 500 }}>🔍 J&apos;ai effectué un tour du véhicule</span>
-                            </label>
-
-                            {vehicle.hasDSA && (
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={form.dsaUsed}
-                                        onChange={(e) => setForm({ ...form, dsaUsed: e.target.checked })}
-                                        style={{ width: 18, height: 18, accentColor: 'var(--status-inuse)' }}
-                                    />
-                                    <span style={{ fontSize: 14, fontWeight: 500 }}>🫀 J&apos;ai utilisé le DSA du véhicule</span>
-                                </label>
-                            )}
-                        </div>
-
-                        {/* Incident */}
-                        <div className="form-group">
-                            <label className="form-label">Incident sur véhicule</label>
-                            <textarea
-                                className="form-textarea"
-                                placeholder="Décrire l'incident si applicable..."
-                                value={form.incident}
-                                onChange={(e) => setForm({ ...form, incident: e.target.value })}
-                                style={{ minHeight: 60 }}
-                            />
-                        </div>
-
-                        {/* Commentaires */}
-                        <div className="form-group">
-                            <label className="form-label">Commentaires après le poste</label>
-                            <textarea
-                                className="form-textarea"
-                                placeholder="Remarques sur le véhicule..."
-                                value={form.commentsIn}
-                                onChange={(e) => setForm({ ...form, commentsIn: e.target.value })}
-                                style={{ minHeight: 60 }}
-                            />
-                        </div>
-
-                        {/* Photos (Optionnel) */}
-                        <div className="form-group" style={{ marginTop: 16 }}>
-                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                📸 Photos après le retour (Optionnel)
-                                <span title="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
-                            </label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                capture="environment"
-                                onChange={(e) => {
-                                    if (e.target.files) {
-                                        const newFiles = Array.from(e.target.files);
-                                        const validFiles = newFiles.filter(f => {
-                                            if (f.size > 10 * 1024 * 1024) {
-                                                alert(`Le fichier ${f.name} dépasse 10 Mo et ne sera pas ajouté.`);
-                                                return false;
-                                            }
-                                            return true;
-                                        });
-                                        setPhotos(prev => [...prev, ...validFiles]);
-                                    }
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    background: 'var(--bg-input)',
-                                    border: '1px solid var(--border-primary)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: 14,
-                                }}
-                            />
-                            {photos.length > 0 && (
-                                <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    {photos.map((photo, i) => (
-                                        <div key={i} style={{ position: 'relative', width: 80, height: 80, borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src={URL.createObjectURL(photo)}
-                                                alt="Aperçu"
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
-                                                style={{
-                                                    position: 'absolute', top: 4, right: 4,
-                                                    background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none',
-                                                    borderRadius: '50%', width: 20, height: 20, cursor: 'pointer',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
-                                                }}
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>
-                            Annuler
-                        </button>
-                        <button type="submit" className="btn btn-success" disabled={submitting}>
-                            {submitting ? 'En cours...' : '✅ Rendre le véhicule'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
-
-/* ===== DELETE CONFIRMATION MODAL ===== */
-function DeleteConfirmationModal({
-    vehicle,
-    onClose,
-    onSuccess,
-}: {
-    vehicle: Vehicle;
-    onClose: () => void;
-    onSuccess: () => void;
-}) {
-    const [confirmName, setConfirmName] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-
-    const isMatch = confirmName === vehicle.name;
-
-    async function handleDelete(e: React.FormEvent) {
-        e.preventDefault();
-        if (!isMatch) return;
-        setSubmitting(true);
-        try {
-            const res = await fetch(`/api/vehicles/${encodeURIComponent(vehicle.name)}`, {
-                method: 'DELETE',
-            });
-            if (res.ok) {
-                onSuccess();
-            } else {
-                const data = await res.json();
-                alert(data.error || 'Erreur lors de la suppression');
-            }
-        } catch {
-            alert('Erreur de connexion');
-        } finally {
-            setSubmitting(false);
-        }
-    }
-
-    return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2 className="modal-title" style={{ color: '#EF4444' }}>⚠️ Supprimer {vehicle.name}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
-                </div>
-                <form onSubmit={handleDelete}>
-                    <div className="modal-body">
-                        <p style={{ marginBottom: 16 }}>
-                            Êtes-vous sûr de vouloir supprimer définitivement le véhicule <strong>{vehicle.name}</strong> ?<br />
-                            Cette action supprimera également tout l&apos;historique de ses trajets ({vehicle.trips.length} trajets associés).
-                        </p>
-                        <div className="form-group">
-                            <label className="form-label" style={{ color: '#EF4444' }}>
-                                Veuillez taper <strong>{vehicle.name}</strong> pour confirmer :
-                            </label>
-                            <input
-                                className="form-input"
-                                value={confirmName}
-                                onChange={(e) => setConfirmName(e.target.value)}
-                                placeholder={vehicle.name}
-                                style={{ borderColor: isMatch ? '#22C55E' : 'var(--border-primary)' }}
-                                required
-                            />
-                        </div>
-                    </div>
-                    <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
-                            Annuler
-                        </button>
-                        <button
-                            type="submit"
-                            className="btn btn-primary"
-                            style={{ background: '#EF4444', opacity: (!isMatch || submitting) ? 0.5 : 1 }}
-                            disabled={!isMatch || submitting}
-                        >
-                            {submitting ? 'Suppression...' : 'Confirmer la suppression'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    );
-}
