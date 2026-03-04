@@ -5,6 +5,11 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-03-04
+
+### Added
+- **Gestion des Utilisateurs :** Ajout d'une barre de recherche dynamique (par nom ou e-mail) et d'une pagination (6 utilisateurs par page) dans la vue administrateur pour faciliter la gestion d'un grand nombre de volontaires existants.
+
 ## [1.2.0] - 2026-03-04
 
 ### Added
