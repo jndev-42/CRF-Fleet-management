@@ -130,6 +130,40 @@ const TOUR_STEPS: TourStep[] = [
 
 const LOCALSTORAGE_KEY = 'tour-completed';
 
+/**
+ * Check if an element is actually visible in the viewport
+ * (not hidden inside a collapsed burger menu or off-screen container)
+ */
+function isElementVisible(el: Element): boolean {
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return false;
+    if (rect.right < 0 || rect.left > window.innerWidth) return false;
+    if (rect.bottom < 0 || rect.top > window.innerHeight) return false;
+    const style = window.getComputedStyle(el);
+    if (style.visibility === 'hidden' || style.display === 'none') return false;
+    return true;
+}
+
+/** Programmatically open the mobile burger menu */
+function openBurgerMenu() {
+    const nav = document.querySelector('.header-nav');
+    const overlay = document.querySelector('.nav-overlay');
+    if (nav && !nav.classList.contains('open')) {
+        nav.classList.add('open');
+        overlay?.classList.add('open');
+    }
+}
+
+/** Programmatically close the mobile burger menu */
+function closeBurgerMenu() {
+    const nav = document.querySelector('.header-nav');
+    const overlay = document.querySelector('.nav-overlay');
+    if (nav?.classList.contains('open')) {
+        nav.classList.remove('open');
+        overlay?.classList.remove('open');
+    }
+}
+
 // ──────────────────────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────────────────────
@@ -140,6 +174,7 @@ export default function GuidedTour() {
     const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
     const [tooltipStyle, setTooltipStyle] = useState<React.CSSProperties>({});
     const [arrowClass, setArrowClass] = useState<'top' | 'bottom'>('top');
+    const [targetHidden, setTargetHidden] = useState(false);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
     const router = useRouter();
@@ -167,16 +202,43 @@ export default function GuidedTour() {
         return () => window.removeEventListener('restart-tour', handleRestart);
     }, []);
 
-    // ── Scroll target element into view when step changes ──
+    // ── Open/close burger menu and scroll target into view ──
     useEffect(() => {
         if (!isActive) return;
         const currentStep = TOUR_STEPS[step];
-        if (!currentStep?.target) return;
+
+        if (!currentStep?.target) {
+            setTargetHidden(false);
+            // Close burger menu if we move to a non-target step
+            closeBurgerMenu();
+            return;
+        }
 
         const el = document.querySelector(currentStep.target);
-        if (el) {
+
+        if (el && isElementVisible(el)) {
+            // Element already visible — just scroll to it
+            setTargetHidden(false);
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            return;
         }
+
+        // Check if the element is inside the burger menu (header-nav)
+        if (el?.closest('.header-nav')) {
+            openBurgerMenu();
+            // Wait for the burger menu slide-in animation, then recheck visibility
+            const timer = setTimeout(() => {
+                if (el && isElementVisible(el)) {
+                    setTargetHidden(false);
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    setTargetHidden(true);
+                }
+            }, 350);
+            return () => clearTimeout(timer);
+        }
+
+        setTargetHidden(true);
     }, [isActive, step]);
 
     // ── Position the tooltip relative to the target element ──
@@ -191,12 +253,15 @@ export default function GuidedTour() {
         }
 
         const el = document.querySelector(currentStep.target);
-        if (!el) {
+        if (!el || !isElementVisible(el)) {
+            // Target not visible (e.g. inside collapsed burger menu)
             setSpotlightRect(null);
             setTooltipStyle({});
+            setTargetHidden(true);
             return;
         }
 
+        setTargetHidden(false);
         const rect = el.getBoundingClientRect();
         setSpotlightRect(rect);
 
@@ -273,6 +338,7 @@ export default function GuidedTour() {
     function finish() {
         setIsActive(false);
         setStep(0);
+        closeBurgerMenu();
         localStorage.setItem(LOCALSTORAGE_KEY, 'true');
     }
 
@@ -280,7 +346,7 @@ export default function GuidedTour() {
     if (!isActive) return null;
 
     const currentStep = TOUR_STEPS[step];
-    const isInfoCard = !currentStep.target;
+    const isInfoCard = !currentStep.target || targetHidden;
     const isLastStep = step === TOUR_STEPS.length - 1;
     const isFirstStep = step === 0;
 
