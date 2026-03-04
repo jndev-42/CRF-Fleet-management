@@ -10,6 +10,9 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Added
 - **Konami code :** Ajout d'un easter egg qui permet de lancer une simulation de physique avec des images qui tombent.
 
+### Fixed
+- **Sécurité et Redirection :** Ajout d'un Middleware global pour bloquer l'accès direct aux vues profondes de l'application sans être connecté. La redirection dynamique après la connexion via l'authentification Google reconduit désormais fidèlement l'utilisateur à sa requête initiale plutôt qu'à la page d'accueil par défaut.
+
 ## [1.2.1] - 2026-03-04
 
 ### Added

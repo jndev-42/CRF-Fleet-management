@@ -1,7 +1,7 @@
 import { signIn, auth } from "@/auth";
 import { redirect } from "next/navigation";
 
-export default async function LoginPage(props: { searchParams: Promise<{ error?: string }> }) {
+export default async function LoginPage(props: { searchParams: Promise<{ error?: string, callbackUrl?: string }> }) {
     const session = await auth();
     if (session?.user) {
         redirect("/");
@@ -9,6 +9,7 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
 
     const searchParams = await props.searchParams;
     const error = searchParams?.error;
+    const callbackUrl = searchParams?.callbackUrl || "/";
 
     return (
         <div className="empty-state" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -39,7 +40,7 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
             <form
                 action={async () => {
                     "use server";
-                    await signIn("google", { redirectTo: "/" });
+                    await signIn("google", { redirectTo: callbackUrl });
                 }}
             >
                 <button type="submit" className="btn btn-primary btn-lg" style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '0 auto' }}>
