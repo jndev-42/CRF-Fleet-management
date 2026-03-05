@@ -21,6 +21,7 @@ import DeleteConfirmationModal from '@/components/vehicle/modals/DeleteConfirmat
 import QRCodeModal from '@/components/vehicle/modals/QRCodeModal';
 import ReservationBlock from '@/components/vehicle/ReservationBlock';
 import ChecklistManager from '@/components/vehicle/ChecklistManager';
+import EditMetricsModal from '@/components/vehicle/modals/EditMetricsModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
@@ -44,6 +45,7 @@ export default function VehicleDetailPage() {
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [showQRModal, setShowQRModal] = useState(false);
     const [showChecklistManager, setShowChecklistManager] = useState(false);
+    const [showEditMetricsModal, setShowEditMetricsModal] = useState(false);
     const [isReservedByOther, setIsReservedByOther] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [userRoles, setUserRoles] = useState<string[]>([]);
@@ -436,12 +438,14 @@ export default function VehicleDetailPage() {
                     <DetailCard
                         title="Kilométrage"
                         value={`${vehicle.mileage.toLocaleString('fr-FR')} km`}
+                        onEdit={() => setShowEditMetricsModal(true)}
                     />
                 )}
                 {!isConnected(vehicle.name) && (
                     <DetailCard
                         title={vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}
                         value={`${vehicle.fuelLevel}%`}
+                        onEdit={() => setShowEditMetricsModal(true)}
                     >
                         <div className="fuel-bar" style={{ marginTop: 8 }}>
                             <div
@@ -603,6 +607,18 @@ export default function VehicleDetailPage() {
                     vehicleId={vehicle.id}
                     vehicleName={vehicle.name}
                     onClose={() => setShowChecklistManager(false)}
+                />
+            )}
+
+            {showEditMetricsModal && vehicle && (
+                <EditMetricsModal
+                    vehicle={vehicle}
+                    onClose={() => setShowEditMetricsModal(false)}
+                    onSuccess={(updatedVehicle) => {
+                        setVehicle(updatedVehicle);
+                        setShowEditMetricsModal(false);
+                        showToast('Métriques mises à jour avec succès !');
+                    }}
                 />
             )}
 
