@@ -25,7 +25,6 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         missionName: '',
         conditionOut: 'Bon état',
         parkingOut: vehicle.parkingSpot as string,
-        dsaChecked: false,
         commentsOut: '',
     });
 
@@ -110,15 +109,19 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                 driveFolderId = uploadData.folderId;
             }
 
+            const isDsaChecked = checklistOut[`dsa-checkout-${vehicle.id}`] || false;
+
             const res = await fetch('/api/trips', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     vehicleId: vehicle.id,
                     ...form,
+                    dsaChecked: isDsaChecked,
                     secondDriverName: secondDriverName || undefined,
                     secondDriverEmail: form.secondDriverEmail || undefined,
                     driveFolderId,
+                    checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
                 }),
             });
             if (res.ok) {
@@ -258,21 +261,6 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                 </select>
                             </div>
                         </div>
-
-                        {/* DSA */}
-                        {vehicle.hasDSA && (
-                            <div className="form-group">
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={form.dsaChecked}
-                                        onChange={(e) => setForm({ ...form, dsaChecked: e.target.checked })}
-                                        style={{ width: 18, height: 18, accentColor: 'var(--crf-red)' }}
-                                    />
-                                    <span style={{ fontSize: 14, fontWeight: 500 }}>🫀 J&apos;ai vérifié le DSA du véhicule</span>
-                                </label>
-                            </div>
-                        )}
 
                         {/* Custom Checklist */}
                         <ChecklistItems

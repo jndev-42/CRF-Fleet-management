@@ -76,6 +76,10 @@ export async function DELETE(
 
         const { itemId } = await params;
 
+        if (itemId.startsWith('dsa-')) {
+            return NextResponse.json({ error: 'Le DSA ne peut pas être supprimé. Désactivez-le dans les paramètres du véhicule.' }, { status: 400 });
+        }
+
         await db.execute({
             sql: `DELETE FROM "VehicleChecklistItem" WHERE id = ?`,
             args: [itemId],

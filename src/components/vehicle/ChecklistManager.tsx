@@ -217,7 +217,9 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
                                             ⋮⋮
                                         </div>
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                            <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
+                                            <span style={{ fontSize: 14, fontWeight: 500, color: item.id.startsWith('dsa-') ? 'var(--status-inuse)' : 'inherit' }}>
+                                                {item.label}
+                                            </span>
                                             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', width: 'fit-content' }}>
                                                 <input
                                                     type="checkbox"
@@ -227,18 +229,20 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
                                                 Obligatoire
                                             </label>
                                         </div>
-                                        <button
-                                            onClick={() => handleDeleteItem(item.id)}
-                                            style={{
-                                                background: 'none', border: 'none', color: '#EF4444',
-                                                cursor: 'pointer', padding: 4, opacity: 0.7
-                                            }}
-                                            onMouseOver={e => e.currentTarget.style.opacity = '1'}
-                                            onMouseOut={e => e.currentTarget.style.opacity = '0.7'}
-                                            title="Supprimer l'item"
-                                        >
-                                            🗑️
-                                        </button>
+                                        {!item.id.startsWith('dsa-') && (
+                                            <button
+                                                onClick={() => handleDeleteItem(item.id)}
+                                                style={{
+                                                    background: 'none', border: 'none', color: '#EF4444',
+                                                    cursor: 'pointer', padding: 4, opacity: 0.7
+                                                }}
+                                                onMouseOver={e => e.currentTarget.style.opacity = '1'}
+                                                onMouseOut={e => e.currentTarget.style.opacity = '0.7'}
+                                                title="Supprimer l'item"
+                                            >
+                                                🗑️
+                                            </button>
+                                        )}
                                     </div>
                                 ))
                             )}

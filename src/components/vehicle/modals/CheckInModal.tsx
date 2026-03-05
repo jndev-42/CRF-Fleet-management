@@ -26,7 +26,6 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
         parkingInCustom: trip.parkingOut && trip.parkingOut !== 'Baigneur (devant l’UL)' && trip.parkingOut !== 'Parking Aubervillers' ? trip.parkingOut : '',
         conditionIn: 'Bon état',
         incident: '',
-        dsaUsed: false,
         commentsIn: '',
     });
     const [checklistIn, setChecklistIn] = useState<Record<string, boolean>>({});
@@ -82,6 +81,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 }
             }
 
+            const isDsaUsed = checklistIn[`dsa-checkin-${vehicle.id}`] || false;
+
             const res = await fetch(`/api/trips/${trip.id}/checkin`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -91,7 +92,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     parkingIn: finalParkingIn,
                     conditionIn: form.conditionIn,
                     incident: form.incident,
-                    dsaUsed: form.dsaUsed,
+                    dsaUsed: isDsaUsed,
                     commentsIn: form.commentsIn,
                     checklistIn: Object.keys(checklistIn).length > 0 ? checklistIn : undefined,
                     driveFolderId,
@@ -226,18 +227,6 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                 responses={checklistIn}
                                 onChange={setChecklistIn}
                             />
-
-                            {vehicle.hasDSA && (
-                                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={form.dsaUsed}
-                                        onChange={(e) => setForm({ ...form, dsaUsed: e.target.checked })}
-                                        style={{ width: 18, height: 18, accentColor: 'var(--status-inuse)' }}
-                                    />
-                                    <span style={{ fontSize: 14, fontWeight: 500 }}>🫀 J&apos;ai utilisé le DSA du véhicule</span>
-                                </label>
-                            )}
                         </div>
 
                         {/* Incident */}
