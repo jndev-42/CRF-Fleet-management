@@ -1,5 +1,7 @@
 'use client';
 
+import { QrCode } from 'lucide-react';
+
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -16,6 +18,7 @@ import TripItem from '@/components/vehicle/TripItem';
 import CheckOutModal from '@/components/vehicle/modals/CheckOutModal';
 import CheckInModal from '@/components/vehicle/modals/CheckInModal';
 import DeleteConfirmationModal from '@/components/vehicle/modals/DeleteConfirmationModal';
+import QRCodeModal from '@/components/vehicle/modals/QRCodeModal';
 /**
  * VehicleDetailPage Component
  * 
@@ -36,6 +39,7 @@ export default function VehicleDetailPage() {
     const [loadingRenault, setLoadingRenault] = useState(false);
     const [showCheckOut, setShowCheckOut] = useState(false);
     const [showCheckIn, setShowCheckIn] = useState(false);
+    const [showQRModal, setShowQRModal] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [userRoles, setUserRoles] = useState<string[]>([]);
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
@@ -213,8 +217,29 @@ export default function VehicleDetailPage() {
 
             <div className="vehicle-detail-header">
                 <div className="vehicle-detail-info">
-                    <h1>{vehicle.name}</h1>
-                    <div className="vehicle-detail-plate">{vehicle.plate}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <h1 style={{ margin: 0 }}>{vehicle.name}</h1>
+                        <button
+                            onClick={() => setShowQRModal(true)}
+                            title="Générer un QR Code pour cette page"
+                            style={{
+                                background: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '6px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                color: 'var(--text-secondary)',
+                                borderRadius: 'var(--radius-md)',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                            onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                            <QrCode size={20} />
+                        </button>
+                    </div>
+                    <div className="vehicle-detail-plate" style={{ marginTop: '8px' }}>{vehicle.plate}</div>
                     <VehicleBadges
                         vehicle={vehicle}
                         userRoles={userRoles}
@@ -501,6 +526,13 @@ export default function VehicleDetailPage() {
                         fetchVehicle();
                         showToast('Véhicule rendu avec succès !');
                     }}
+                />
+            )}
+
+            {showQRModal && (
+                <QRCodeModal
+                    vehicleName={vehicle.name}
+                    onClose={() => setShowQRModal(false)}
                 />
             )}
 

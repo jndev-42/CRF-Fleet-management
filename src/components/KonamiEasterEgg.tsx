@@ -88,39 +88,44 @@ export default function KonamiEasterEgg() {
 
         Composite.add(world, [ground, leftWall, rightWall]);
 
-        // Génération des 10 images tombantes
-        const bodies: Matter.Body[] = [];
-
-        // S'assurer qu'il y a au moins une de chaque image
+        // Génération des images de manière progressive (comme une pluie)
         const selectedImages = [...IMAGES];
         while (selectedImages.length < 60) {
             selectedImages.push(IMAGES[Math.floor(Math.random() * IMAGES.length)]);
         }
 
+        // Mélanger les images pour plus de naturel
+        selectedImages.sort(() => Math.random() - 0.5);
+
+        // Tableau pour garder la trace des timeouts et les nettoyer si l'utilisateur quitte
+        const dropTimeouts: ReturnType<typeof setTimeout>[] = [];
+
         selectedImages.forEach((imgUrl, i) => {
-            // Position de départ dispersée en X, et décalée en Y pour qu'elles ne tombent pas toutes d'un bloc exact
-            const startX = Math.random() * (width - 200) + 100;
-            const startY = -200 - (Math.random() * 500);
+            // Décaler la chute de chaque image (ex: 150ms d'écart)
+            const timeoutId = setTimeout(() => {
+                const startX = Math.random() * (width - 200) + 100;
+                const startY = -150; // Apparaît juste au dessus de l'écran
 
-            // Nous devons ajuster l'échelle pour que la texture de l'image (qui peut être grande) 
-            // corresponde à une box ~ 120x120px
-            // On part du principe que l'image fait ~1000px, xScale: 0.15 est une donne safe.
-            // On utilise des cercles/carrés pour la physique.
-            const body = Bodies.rectangle(startX, startY, IMAGE_WIDTH, IMAGE_HEIGHT, {
-                restitution: 0.6, // Rebond moyen
-                frictionAir: 0.01,
-                render: {
-                    sprite: {
-                        texture: imgUrl,
-                        xScale: 0.12,
-                        yScale: 0.12
+                const body = Bodies.rectangle(startX, startY, IMAGE_WIDTH, IMAGE_HEIGHT, {
+                    restitution: 0.6, // Rebond moyen
+                    frictionAir: 0.01,
+                    render: {
+                        sprite: {
+                            texture: imgUrl,
+                            xScale: 0.12,
+                            yScale: 0.12
+                        }
                     }
-                }
-            });
-            bodies.push(body);
-        });
+                });
 
-        Composite.add(world, bodies);
+                // Ajouter l'élément physique si la simulation est toujours active
+                if (engine.world) {
+                    Composite.add(world, body);
+                }
+            }, i * 150 + Math.random() * 50);
+
+            dropTimeouts.push(timeoutId);
+        });
 
         // Ajout du contrôle à la souris
         const mouse = Mouse.create(render.canvas);
@@ -159,6 +164,7 @@ export default function KonamiEasterEgg() {
 
         // Nettoyage complet
         return () => {
+            dropTimeouts.forEach(clearTimeout); // Arrêter la pluie en cours
             window.removeEventListener('resize', handleResize);
             if (renderRef.current) Render.stop(renderRef.current);
             if (runnerRef.current) Runner.stop(runnerRef.current);

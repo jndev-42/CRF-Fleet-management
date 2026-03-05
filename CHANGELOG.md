@@ -5,6 +5,11 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-03-05
+
+### Added
+- **Export QR Code :** Ajout d'un bouton sur les pages des véhicules permettant de générer et de télécharger un QR Code menant directement à l'URL du véhicule (pratique pour un usage mobile ou l'impression d'étiquettes à mettre dans les véhicules).
+
 ## [1.2.2] - 2026-03-04
 
 ### Added
