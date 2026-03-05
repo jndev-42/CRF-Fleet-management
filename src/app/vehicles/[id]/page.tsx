@@ -434,14 +434,14 @@ export default function VehicleDetailPage() {
             )}
 
             <div className="detail-grid">
-                {!isConnected(vehicle.name) && (
+                {!vehicle.vin && (
                     <DetailCard
                         title="Kilométrage"
                         value={`${vehicle.mileage.toLocaleString('fr-FR')} km`}
                         onEdit={() => setShowEditMetricsModal(true)}
                     />
                 )}
-                {!isConnected(vehicle.name) && (
+                {!vehicle.vin && (
                     <DetailCard
                         title={vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}
                         value={`${vehicle.fuelLevel}%`}
