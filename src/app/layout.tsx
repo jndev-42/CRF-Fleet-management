@@ -12,6 +12,13 @@ import KonamiEasterEgg from "@/components/KonamiEasterEgg";
 export const metadata: Metadata = {
   title: "Gestion de flotte | Croix-Rouge Paris 18",
   description: "Application de gestion de flotte de véhicules pour la Croix-Rouge Française, Unité Locale de Paris 18ème.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "CR Chauffeur",
+    statusBarStyle: "black-translucent",
+  },
+  themeColor: "#c70000",
 };
 
 export default async function RootLayout({
@@ -26,6 +33,17 @@ export default async function RootLayout({
   return (
     <html lang="fr">
       <body suppressHydrationWarning>
+        {/* Service Worker registration for PWA support */}
+        <script dangerouslySetInnerHTML={{
+          __html: `
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+              navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                console.log('SW registration failed: ', err);
+              });
+            });
+          }
+        `}} />
         <OneSignalProvider appId={onesignalId} roles={roles} />
         <SessionProvider session={session}>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>

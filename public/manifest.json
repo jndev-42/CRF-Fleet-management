@@ -1,0 +1,43 @@
+{
+    "name": "CR Chauffeur — Croix-Rouge Paris 18",
+    "short_name": "CR Chauffeur",
+    "description": "Application de gestion de flotte de véhicules pour la Croix-Rouge Française, Unité Locale de Paris 18.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0f1117",
+    "theme_color": "#c70000",
+    "orientation": "portrait",
+    "lang": "fr",
+    "icons": [
+        {
+            "src": "/crf-logo.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "shortcuts": [
+        {
+            "name": "Voir les véhicules",
+            "short_name": "Véhicules",
+            "description": "Accéder à la liste des véhicules",
+            "url": "/",
+            "icons": [
+                {
+                    "src": "/crf-logo.svg",
+                    "sizes": "any"
+                }
+            ]
+        }
+    ]
+}

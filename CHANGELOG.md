@@ -5,7 +5,21 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-05
+
+### Added
+- **Système de Réservation :** Nouvelle table `Reservation` en base de données et endpoints API (`GET`, `POST`, `DELETE /api/vehicles/[id]/reservations` et `/api/reservations/[id]`). Un composant `ReservationBlock` affiche les réservations à venir sur la page de détail d'un véhicule avec une modale de création.
+- **Interface Squelettons (Skeletons) :** Nouveau composant générique `Skeleton` + `VehicleCardSkeleton` et `VehicleDetailSkeleton`. Les spinners de chargement sont remplacés par des blocs grisés animés qui reproduisent la structure de chaque page pour éviter les sauts de layout (CLS).
+- **PWA (Progressive Web App) :** Ajout de `manifest.json`, des meta-tags iOS (`apple-mobile-web-app-capable`) et Android (`theme-color`), et d'un Service Worker manuel (`sw.js`) avec stratégie cache-first pour les assets statiques et network-first pour les pages. L'application peut désormais être installée sur mobile comme une application native.
+- **Validation Zod Stricte :** Les endpoints `POST /api/vehicles/[id]/reservations`, `POST /api/trips` et `PATCH /api/trips/[id]/checkin` utilisent maintenant des schémas Zod formels avec des messages d'erreur explicites, rejetant toute donnée invalide avec un code HTTP 400 et le détail des erreurs.
+
+### Changed
+- **Optimistic UI :** Les actions "Prendre le véhicule" (Check-Out), "Rendre le véhicule" (Check-In) et "Activer/Désactiver la Maintenance" ferment maintenant instantanément leur modale/interface pendant que la requête réseau se complète en arrière-plan. En cas d'erreur serveur, l'état est automatiquement rétabli.
+- **QR Code :** Le bouton d'accès au QR Code est maintenant une petite icône `<QrCode>` positionnée directement à côté du nom du véhicule pour un accès discrèt et intuitif.
+- **Pluie Konami :** Les images de l'easter egg tombent maintenant progressivement avec des délais aléatoires (style pluie naturelle) au lieu de toutes apparaître simultanément.
+
 ## [1.2.3] - 2026-03-05
+
 
 ### Added
 - **Export QR Code :** Ajout d'un bouton sur les pages des véhicules permettant de générer et de télécharger un QR Code menant directement à l'URL du véhicule (pratique pour un usage mobile ou l'impression d'étiquettes à mettre dans les véhicules).

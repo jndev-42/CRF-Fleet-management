@@ -61,6 +61,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess }: CheckOutM
         }
 
         try {
+            // Optimistic execution: instantly close the modal while sending data to back-end
+            onSuccess();
+
             let driveFolderId: string | undefined = undefined;
             if (photos.length > 0) {
                 const formData = new FormData();
@@ -108,15 +111,11 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess }: CheckOutM
                     driveFolderId,
                 }),
             });
-            if (res.ok) {
-                onSuccess();
-            } else {
-                const data = await res.json();
-                alert(data.error || 'Erreur');
+            if (!res.ok) {
+                console.error("Failed to checkout silently");
             }
         } catch {
             alert('Erreur de connexion');
-        } finally {
             setSubmitting(false);
         }
     }

@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RenaultVehicleData } from '@/lib/renault';
+import { DashboardSkeletons } from '@/components/ui/Skeleton';
 
 interface Vehicle {
   id: string;
@@ -114,20 +115,7 @@ export default function DashboardPage() {
   };
 
 
-  if (loading || status === 'loading') {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner" />
-      </div>
-    );
-  }
-
   if (status === 'unauthenticated') return null;
-
-  const filteredVehicles =
-    filter === 'ALL'
-      ? vehicles
-      : vehicles.filter((v) => v.status === filter);
 
   return (
     <>
@@ -186,129 +174,142 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {filteredVehicles.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-state-icon">🚗</div>
-          <div className="empty-state-title">Aucun véhicule trouvé</div>
-          <p>Aucun véhicule ne correspond au filtre sélectionné.</p>
-        </div>
-      ) : (
-        <div className="vehicle-grid" data-tour="vehicle-card">
-          {filteredVehicles.map((vehicle) => (
-            <Link
-              key={vehicle.id}
-              href={`/vehicles/${vehicle.name}`}
-              className="vehicle-card"
-            >
-              <div className="vehicle-card-header">
-                <div>
-                  <div className="vehicle-name">{vehicle.name}</div>
-                  <div className="vehicle-plate">{vehicle.plate}</div>
+      {loading || status === 'loading' ? (
+        <DashboardSkeletons count={6} />
+      ) : (() => {
+        const filteredVehicles =
+          filter === 'ALL'
+            ? vehicles
+            : vehicles.filter((v) => v.status === filter);
+
+        if (filteredVehicles.length === 0) {
+          return (
+            <div className="empty-state">
+              <div className="empty-state-icon">🚗</div>
+              <div className="empty-state-title">Aucun véhicule trouvé</div>
+              <p>Aucun véhicule ne correspond au filtre sélectionné.</p>
+            </div>
+          );
+        }
+
+        return (
+          <div className="vehicle-grid" data-tour="vehicle-card">
+            {filteredVehicles.map((vehicle) => (
+              <Link
+                key={vehicle.id}
+                href={`/vehicles/${vehicle.name}`}
+                className="vehicle-card"
+              >
+                <div className="vehicle-card-header">
+                  <div>
+                    <div className="vehicle-name">{vehicle.name}</div>
+                    <div className="vehicle-plate">{vehicle.plate}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                    <span className="vehicle-type-badge">{vehicle.type}</span>
+                    <span className={`status-badge ${statusClass[vehicle.status]}`}>
+                      <span className="status-dot" />
+                      {statusLabels[vehicle.status]}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                  <span className="vehicle-type-badge">{vehicle.type}</span>
-                  <span className={`status-badge ${statusClass[vehicle.status]}`}>
-                    <span className="status-dot" />
-                    {statusLabels[vehicle.status]}
-                  </span>
+
+                {vehicle.status === 'IN_USE' && vehicle.trips[0] && (
+                  <div style={{
+                    padding: '8px 12px',
+                    background: 'var(--status-inuse-bg)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 13,
+                    color: 'var(--status-inuse)',
+                    marginBottom: 12,
+                  }}>
+                    🧑‍✈️ {vehicle.trips[0].driverName} {vehicle.trips[0].secondDriverName ? ` & ${vehicle.trips[0].secondDriverName}` : ''} — {vehicle.trips[0].missionType}
+                  </div>
+                )}
+
+                {vehicle.hasDSA && (
+                  <div style={{ fontSize: 12, color: '#22C55E', marginBottom: 8, fontWeight: 600 }}>🫀 DSA</div>
+                )}
+
+                {vehicle.fuelType === 'Électrique' ? (
+                  <div style={{ fontSize: 12, color: '#3B82F6', marginBottom: 8, fontWeight: 600 }}>⚡ Électrique</div>
+                ) : vehicle.fuelType === 'Diesel' ? (
+                  <div style={{ fontSize: 12, color: '#374151', marginBottom: 8, fontWeight: 600 }}>⛽ Diesel</div>
+                ) : vehicle.fuelType === 'Essence' ? (
+                  <div style={{ fontSize: 12, color: '#F97316', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
+                ) : null}
+
+                <div className="vehicle-meta">
+                  <div className="meta-item">
+                    <span className="meta-label">Kilométrage</span>
+                    <span className="meta-value">
+                      {renaultData[vehicle.name]?.totalMileage
+                        ? <span>{renaultData[vehicle.name].totalMileage?.toLocaleString('fr-FR')} km</span>
+                        : `${vehicle.mileage.toLocaleString('fr-FR')} km`
+                      }
+                    </span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="meta-label">Stationnement</span>
+                    <span className="meta-value">
+                      {vehicle.parkingSpot || '—'}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              {vehicle.status === 'IN_USE' && vehicle.trips[0] && (
-                <div style={{
-                  padding: '8px 12px',
-                  background: 'var(--status-inuse-bg)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: 13,
-                  color: 'var(--status-inuse)',
-                  marginBottom: 12,
-                }}>
-                  🧑‍✈️ {vehicle.trips[0].driverName} {vehicle.trips[0].secondDriverName ? ` & ${vehicle.trips[0].secondDriverName}` : ''} — {vehicle.trips[0].missionType}
-                </div>
-              )}
+                {(() => {
+                  const isFirstVehicle = filteredVehicles.indexOf(vehicle) === 0;
+                  const rData = renaultData[vehicle.name];
 
-              {vehicle.hasDSA && (
-                <div style={{ fontSize: 12, color: '#22C55E', marginBottom: 8, fontWeight: 600 }}>🫀 DSA</div>
-              )}
+                  // Display Live Renault Data if available
+                  if (rData) {
+                    const isElec = rData.isElectric;
+                    const val = isElec ? rData.batteryLevel : rData.fuelQuantity;
+                    const label = isElec ? '🔋 Batterie (live)' : (vehicle.fuelType === 'Diesel' ? '⛽ Diesel (live)' : '⛽ Essence (live)');
+                    const displayVal = isElec ? `${val}%` : `${val} L`;
+                    // For fuel quantity we map it roughly to percentage for the bar (assuming 50L tank roughly)
+                    const fillPct = isElec ? (val || 0) : Math.min(((val || 0) / 50) * 100, 100);
 
-              {vehicle.fuelType === 'Électrique' ? (
-                <div style={{ fontSize: 12, color: '#3B82F6', marginBottom: 8, fontWeight: 600 }}>⚡ Électrique</div>
-              ) : vehicle.fuelType === 'Diesel' ? (
-                <div style={{ fontSize: 12, color: '#374151', marginBottom: 8, fontWeight: 600 }}>⛽ Diesel</div>
-              ) : vehicle.fuelType === 'Essence' ? (
-                <div style={{ fontSize: 12, color: '#F97316', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
-              ) : null}
+                    return (
+                      <div className="fuel-bar-container" {...(isFirstVehicle ? { 'data-tour': 'fuel-bar' } : {})}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span className="meta-label" style={{ color: isElec ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{label}</span>
+                          <span className="meta-label" style={{ fontWeight: 600 }}>{displayVal}</span>
+                        </div>
+                        <div className="fuel-bar">
+                          <div
+                            className={`fuel-bar-fill ${getFuelClass(fillPct)}`}
+                            style={{ width: `${fillPct}%` }}
+                          />
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, textAlign: 'right' }}>
+                          Autonomie: {rData.batteryAutonomy || rData.fuelAutonomy || '—'} km
+                        </div>
+                      </div>
+                    );
+                  }
 
-              <div className="vehicle-meta">
-                <div className="meta-item">
-                  <span className="meta-label">Kilométrage</span>
-                  <span className="meta-value">
-                    {renaultData[vehicle.name]?.totalMileage
-                      ? <span>{renaultData[vehicle.name].totalMileage?.toLocaleString('fr-FR')} km</span>
-                      : `${vehicle.mileage.toLocaleString('fr-FR')} km`
-                    }
-                  </span>
-                </div>
-                <div className="meta-item">
-                  <span className="meta-label">Stationnement</span>
-                  <span className="meta-value">
-                    {vehicle.parkingSpot || '—'}
-                  </span>
-                </div>
-              </div>
-
-              {(() => {
-                const isFirstVehicle = filteredVehicles.indexOf(vehicle) === 0;
-                const rData = renaultData[vehicle.name];
-
-                // Display Live Renault Data if available
-                if (rData) {
-                  const isElec = rData.isElectric;
-                  const val = isElec ? rData.batteryLevel : rData.fuelQuantity;
-                  const label = isElec ? '🔋 Batterie (live)' : (vehicle.fuelType === 'Diesel' ? '⛽ Diesel (live)' : '⛽ Essence (live)');
-                  const displayVal = isElec ? `${val}%` : `${val} L`;
-                  // For fuel quantity we map it roughly to percentage for the bar (assuming 50L tank roughly)
-                  const fillPct = isElec ? (val || 0) : Math.min(((val || 0) / 50) * 100, 100);
-
+                  // Fallback to manual manual data
                   return (
                     <div className="fuel-bar-container" {...(isFirstVehicle ? { 'data-tour': 'fuel-bar' } : {})}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span className="meta-label" style={{ color: isElec ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{label}</span>
-                        <span className="meta-label" style={{ fontWeight: 600 }}>{displayVal}</span>
+                        <span className="meta-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}</span>
+                        <span className="meta-label">{vehicle.fuelLevel}%</span>
                       </div>
                       <div className="fuel-bar">
                         <div
-                          className={`fuel-bar-fill ${getFuelClass(fillPct)}`}
-                          style={{ width: `${fillPct}%` }}
+                          className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
+                          style={{ width: `${vehicle.fuelLevel}%` }}
                         />
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, textAlign: 'right' }}>
-                        Autonomie: {rData.batteryAutonomy || rData.fuelAutonomy || '—'} km
                       </div>
                     </div>
                   );
-                }
-
-                // Fallback to manual manual data
-                return (
-                  <div className="fuel-bar-container" {...(isFirstVehicle ? { 'data-tour': 'fuel-bar' } : {})}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span className="meta-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}</span>
-                      <span className="meta-label">{vehicle.fuelLevel}%</span>
-                    </div>
-                    <div className="fuel-bar">
-                      <div
-                        className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
-                        style={{ width: `${vehicle.fuelLevel}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })()}
-            </Link>
-          ))}
-        </div>
-      )}
+                })()}
+              </Link>
+            ))}
+          </div>
+        );
+      })()}
 
       {showAddModal && (
         <AddVehicleModal

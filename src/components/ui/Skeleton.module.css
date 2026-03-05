@@ -1,0 +1,48 @@
+.skeleton {
+    background-color: var(--border-secondary);
+    border-radius: var(--radius-sm);
+    animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: .5;
+    }
+}
+
+.skeleton.circle {
+    border-radius: 50%;
+}
+
+.skeleton.rounded {
+    border-radius: var(--radius-md);
+}
+
+.vehicleCard {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+}
+
+.vehicleCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.details {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}

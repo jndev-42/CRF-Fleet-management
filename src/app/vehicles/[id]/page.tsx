@@ -19,6 +19,8 @@ import CheckOutModal from '@/components/vehicle/modals/CheckOutModal';
 import CheckInModal from '@/components/vehicle/modals/CheckInModal';
 import DeleteConfirmationModal from '@/components/vehicle/modals/DeleteConfirmationModal';
 import QRCodeModal from '@/components/vehicle/modals/QRCodeModal';
+import ReservationBlock from '@/components/vehicle/ReservationBlock';
+import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
  * 
@@ -158,23 +160,34 @@ export default function VehicleDetailPage() {
 
     /**
      * Admin capability to toggle vehicle maintenance mode, preventing regular usage.
+     * Uses Optimistic UI for immediate feedback.
      */
     async function toggleMaintenance() {
         if (!vehicle) return;
-        const newStatus = vehicle.status === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
+
+        const previousStatus = vehicle.status;
+        const newStatus = previousStatus === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
+
+        // Optimistic update
+        setVehicle({ ...vehicle, status: newStatus });
+
         try {
-            await fetch(`/api/vehicles/${id}`, {
+            const res = await fetch(`/api/vehicles/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: newStatus }),
             });
-            fetchVehicle();
+
+            if (!res.ok) throw new Error('Failed to update status');
+
             showToast(
                 newStatus === 'MAINTENANCE'
                     ? 'Véhicule mis en maintenance'
                     : 'Véhicule remis en service'
             );
         } catch {
+            // Revert on failure
+            setVehicle({ ...vehicle, status: previousStatus });
             showToast('Erreur', 'error');
         }
     }
@@ -183,8 +196,8 @@ export default function VehicleDetailPage() {
 
     if (loading) {
         return (
-            <div className="loading-container">
-                <div className="loading-spinner" />
+            <div style={{ padding: '24px 0' }}>
+                <VehicleDetailSkeleton />
             </div>
         );
     }
@@ -378,6 +391,12 @@ export default function VehicleDetailPage() {
                     </button>
                 </div>
             )}
+
+            <ReservationBlock
+                vehicleId={vehicle.id}
+                currentUserEmail={currentUserEmail}
+                userRoles={userRoles}
+            />
 
             <div className="detail-grid">
                 {!isConnected(vehicle.name) && (

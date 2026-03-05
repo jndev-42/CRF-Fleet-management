@@ -31,7 +31,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess }: Chec
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        setSubmitting(true);
+        // Optimistic execution: instantly close the modal while sending data to back-end
+        onSuccess();
+
         try {
             const finalParkingIn = form.parkingInSelection === 'Autre'
                 ? form.parkingInCustom
@@ -68,40 +70,35 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess }: Chec
 
                 if (!uploadRes.ok) {
                     const errorData = await uploadRes.json();
-                    alert(`Erreur lors de l'upload des photos: ${errorData.error || uploadRes.statusText}`);
-                    setSubmitting(false);
-                    return;
+                    console.error(`Erreur lors de l'upload des photos: ${errorData.error || uploadRes.statusText}`);
+                } else {
+                    const uploadData = await uploadRes.json();
+                    driveFolderId = uploadData.folderId;
                 }
-
-                const uploadData = await uploadRes.json();
-                driveFolderId = uploadData.folderId;
-            }
-
-            const payload = { ...form, parkingIn: finalParkingIn, driveFolderId };
-
-            if (isConnected(vehicle.name)) {
-                delete (payload as any).mileageIn;
-                delete (payload as any).fuelIn;
-            } else {
-                payload.mileageIn = Number(form.mileageIn);
-                payload.fuelIn = Number(form.fuelIn);
             }
 
             const res = await fetch(`/api/trips/${trip.id}/checkin`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({
+                    mileageIn: isConnected(vehicle.name) ? null : form.mileageIn,
+                    fuelIn: isConnected(vehicle.name) ? null : form.fuelIn,
+                    parkingIn: finalParkingIn,
+                    conditionIn: form.conditionIn,
+                    windowsClosed: form.windowsClosed,
+                    vehicleInspected: form.vehicleInspected,
+                    incident: form.incident,
+                    dsaUsed: form.dsaUsed,
+                    commentsIn: form.commentsIn,
+                    driveFolderId,
+                }),
             });
-            if (res.ok) {
-                onSuccess();
-            } else {
-                const data = await res.json();
-                alert(data.error || 'Erreur');
+
+            if (!res.ok) {
+                console.error("Failed to checkin silently");
             }
-        } catch {
-            alert('Erreur de connexion');
-        } finally {
-            setSubmitting(false);
+        } catch (error) {
+            console.error('Erreur de connexion lors du check-in silencieux:', error);
         }
     }
 
