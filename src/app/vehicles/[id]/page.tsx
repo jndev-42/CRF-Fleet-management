@@ -434,27 +434,23 @@ export default function VehicleDetailPage() {
             )}
 
             <div className="detail-grid">
-                {!vehicle.vin && (
-                    <DetailCard
-                        title="Kilométrage"
-                        value={`${vehicle.mileage.toLocaleString('fr-FR')} km`}
-                        onEdit={() => setShowEditMetricsModal(true)}
-                    />
-                )}
-                {!vehicle.vin && (
-                    <DetailCard
-                        title={vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}
-                        value={`${vehicle.fuelLevel}%`}
-                        onEdit={() => setShowEditMetricsModal(true)}
-                    >
-                        <div className="fuel-bar" style={{ marginTop: 8 }}>
-                            <div
-                                className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
-                                style={{ width: `${vehicle.fuelLevel}%` }}
-                            />
-                        </div>
-                    </DetailCard>
-                )}
+                <DetailCard
+                    title="Kilométrage"
+                    value={`${vehicle.mileage.toLocaleString('fr-FR')} km`}
+                    onEdit={!vehicle.vin ? () => setShowEditMetricsModal(true) : undefined}
+                />
+                <DetailCard
+                    title={vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}
+                    value={`${vehicle.fuelLevel}%`}
+                    onEdit={!vehicle.vin ? () => setShowEditMetricsModal(true) : undefined}
+                >
+                    <div className="fuel-bar" style={{ marginTop: 8 }}>
+                        <div
+                            className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
+                            style={{ width: `${vehicle.fuelLevel}%` }}
+                        />
+                    </div>
+                </DetailCard>
                 <DetailCard
                     title="Stationnement"
                     value={vehicle.parkingSpot || '—'}
