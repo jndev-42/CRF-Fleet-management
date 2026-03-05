@@ -256,16 +256,22 @@ export default function VehicleDetailPage() {
                     <VehicleBadges
                         vehicle={vehicle}
                         userRoles={userRoles}
+                        showAdminDsaToggle={true}
                         onToggleDSA={async () => {
+                            const newHasDSA = !vehicle.hasDSA;
+                            // Optimistic update
+                            setVehicle({ ...vehicle, hasDSA: newHasDSA });
                             try {
-                                await fetch(`/api/vehicles/${id}`, {
+                                const res = await fetch(`/api/vehicles/${id}`, {
                                     method: 'PATCH',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ hasDSA: !vehicle.hasDSA })
+                                    body: JSON.stringify({ hasDSA: newHasDSA })
                                 });
-                                fetchVehicle();
-                                showToast(`DSA ${!vehicle.hasDSA ? 'activé' : 'désactivé'}`);
-                            } catch (e) {
+                                if (!res.ok) throw new Error();
+                                showToast(`DSA ${newHasDSA ? 'activé' : 'désactivé'}`);
+                            } catch {
+                                // Rollback on failure
+                                setVehicle({ ...vehicle, hasDSA: !newHasDSA });
                                 showToast('Erreur lors de la modification du DSA', 'error');
                             }
                         }}
