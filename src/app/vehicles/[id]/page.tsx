@@ -611,7 +611,7 @@ export default function VehicleDetailPage() {
                     vehicle={vehicle}
                     onClose={() => setShowEditMetricsModal(false)}
                     onSuccess={(updatedVehicle) => {
-                        setVehicle(updatedVehicle);
+                        setVehicle(prev => prev ? { ...prev, ...updatedVehicle } : updatedVehicle);
                         setShowEditMetricsModal(false);
                         showToast('Métriques mises à jour avec succès !');
                     }}
