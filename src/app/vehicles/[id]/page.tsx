@@ -20,6 +20,7 @@ import CheckInModal from '@/components/vehicle/modals/CheckInModal';
 import DeleteConfirmationModal from '@/components/vehicle/modals/DeleteConfirmationModal';
 import QRCodeModal from '@/components/vehicle/modals/QRCodeModal';
 import ReservationBlock from '@/components/vehicle/ReservationBlock';
+import ChecklistManager from '@/components/vehicle/ChecklistManager';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
@@ -42,6 +43,7 @@ export default function VehicleDetailPage() {
     const [showCheckOut, setShowCheckOut] = useState(false);
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [showQRModal, setShowQRModal] = useState(false);
+    const [showChecklistManager, setShowChecklistManager] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [userRoles, setUserRoles] = useState<string[]>([]);
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
@@ -320,6 +322,14 @@ export default function VehicleDetailPage() {
                             {vehicle.status === 'MAINTENANCE' ? '✅ Remettre en service' : '🔧 Maintenance'}
                         </button>
                     )}
+                    {userRoles.includes('ADMIN') && (
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => setShowChecklistManager(true)}
+                        >
+                            ⚙️ Gérer la checklist
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -568,6 +578,14 @@ export default function VehicleDetailPage() {
                     onSuccess={() => {
                         router.push('/');
                     }}
+                />
+            )}
+
+            {showChecklistManager && vehicle && (
+                <ChecklistManager
+                    vehicleId={vehicle.id}
+                    vehicleName={vehicle.name}
+                    onClose={() => setShowChecklistManager(false)}
                 />
             )}
 

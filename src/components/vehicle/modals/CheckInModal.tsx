@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import { isConnected, getFuelClass, formatDate } from '@/app/vehicles/[id]/utils';
+import { useSession } from 'next-auth/react';
+import ChecklistItems from '../ChecklistItems';
 
 interface CheckInModalProps {
     vehicle: Vehicle;
@@ -20,16 +22,16 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [form, setForm] = useState({
         mileageIn: vehicle.mileage,
         fuelIn: vehicle.fuelLevel,
-        parkingInSelection: 'Baigneur (devant l’UL)',
-        parkingInCustom: '',
+        parkingInSelection: trip.parkingOut === 'Baigneur (devant l’UL)' || trip.parkingOut === 'Parking Aubervillers' ? trip.parkingOut : (trip.parkingOut ? 'Autre' : 'Baigneur (devant l’UL)'),
+        parkingInCustom: trip.parkingOut && trip.parkingOut !== 'Baigneur (devant l’UL)' && trip.parkingOut !== 'Parking Aubervillers' ? trip.parkingOut : '',
         conditionIn: 'Bon état',
-        windowsClosed: false,
-        vehicleInspected: false,
         incident: '',
         dsaUsed: false,
         commentsIn: '',
     });
+    const [checklistIn, setChecklistIn] = useState<Record<string, boolean>>({});
     const [submitting, setSubmitting] = useState(false);
+    const [parkingPhoto, setParkingPhoto] = useState<File | null>(null);
     const [photos, setPhotos] = useState<File[]>([]);
 
     async function handleSubmit(e: React.FormEvent) {
@@ -53,7 +55,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 const day = String(checkOutDate.getDate()).padStart(2, '0');
                 const hours = String(checkOutDate.getHours()).padStart(2, '0');
                 const minutes = String(checkOutDate.getMinutes()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
+                const dateStr = `${year} -${month} -${day}_${hours} -${minutes} `;
 
                 formData.append('date', dateStr);
                 formData.append('stage', 'rendu');
@@ -88,11 +90,10 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     fuelIn: isConnected(vehicle.name) ? null : form.fuelIn,
                     parkingIn: finalParkingIn,
                     conditionIn: form.conditionIn,
-                    windowsClosed: form.windowsClosed,
-                    vehicleInspected: form.vehicleInspected,
                     incident: form.incident,
                     dsaUsed: form.dsaUsed,
                     commentsIn: form.commentsIn,
+                    checklistIn: Object.keys(checklistIn).length > 0 ? checklistIn : undefined,
                     driveFolderId,
                 }),
             });
@@ -219,25 +220,6 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {/* Checklists */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={form.windowsClosed}
-                                    onChange={(e) => setForm({ ...form, windowsClosed: e.target.checked })}
-                                    style={{ width: 18, height: 18, accentColor: 'var(--crf-red)' }}
-                                />
-                                <span style={{ fontSize: 14, fontWeight: 500 }}>🪟 J&apos;ai fermé les vitres et éteint les radios</span>
-                            </label>
-
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={form.vehicleInspected}
-                                    onChange={(e) => setForm({ ...form, vehicleInspected: e.target.checked })}
-                                    style={{ width: 18, height: 18, accentColor: 'var(--crf-red)' }}
-                                />
-                                <span style={{ fontSize: 14, fontWeight: 500 }}>🔍 J&apos;ai effectué un tour du véhicule</span>
-                            </label>
 
                             {vehicle.hasDSA && (
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>

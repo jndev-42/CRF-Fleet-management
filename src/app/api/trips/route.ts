@@ -12,11 +12,12 @@ const checkOutSchema = z.object({
     missionName: z.string().optional(),
     conditionOut: z.string().min(1, "L'état du véhicule est requis"),
     parkingOut: z.string().optional(),
-    dsaChecked: z.boolean().default(false),
+    dsaChecked: z.boolean(),
     commentsOut: z.string().optional(),
     secondDriverName: z.string().optional(),
-    secondDriverEmail: z.string().email().optional().or(z.literal('')),
+    secondDriverEmail: z.string().email('Email 2nd conducteur invalide').optional().or(z.literal('')),
     driveFolderId: z.string().optional(),
+    checklistOut: z.record(z.string(), z.boolean()).optional(),
 });
 
 export async function POST(request: Request) {
@@ -99,8 +100,8 @@ export async function POST(request: Request) {
                 sql: `INSERT INTO Trip (
                         id, vehicleId, driverName, driverEmail, missionType, missionName, 
                         checkOutAt, mileageOut, fuelOut, conditionOut, parkingOut, dsaChecked, commentsOut, 
-                        secondDriverName, secondDriverEmail, driveFolderId, createdAt
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        secondDriverName, secondDriverEmail, driveFolderId, checklistOut, createdAt
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     tripId,
                     data.vehicleId,
@@ -118,6 +119,7 @@ export async function POST(request: Request) {
                     data.secondDriverName || null,
                     data.secondDriverEmail || null,
                     data.driveFolderId || null,
+                    data.checklistOut ? JSON.stringify(data.checklistOut) : null,
                     timestamp // createdAt
                 ]
             });
@@ -166,6 +168,7 @@ export async function POST(request: Request) {
                 secondDriverName: data.secondDriverName || null,
                 secondDriverEmail: data.secondDriverEmail || null,
                 driveFolderId: data.driveFolderId || null,
+                checklistOut: data.checklistOut || null,
                 createdAt: timestamp,
                 vehicle: { ...vehicle, status: 'IN_USE', mileage: mileageOut, fuelLevel: fuelOut, updatedAt: timestamp }
             };

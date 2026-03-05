@@ -5,6 +5,17 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-05
+
+### Added
+- **Checklists Personnalisées par Véhicule :** Possibilité pour les administrateurs de configurer des listes de vérifications (checklists) entièrement sur-mesure pour chaque véhicule (prises et rendus). Les items peuvent être marqués comme obligatoires (bloquant ainsi la soumission côté chauffeur si non cochés).
+- **Gestion des Utilisateurs :** Ajout de la création d'utilisateurs directement depuis le panel Admin avec vérification d'unicité de l'email et assignation immédiate des rôles.
+
+### Fixed
+- **Installation PWA (Progressive Web App) :** Résolution d'un bug où le middleware bloquait le `manifest.json` et empêchait l'apparition du bouton "Ajouter à l'écran d'accueil" sur mobiles. 
+- **Conflits de Service Worker :** Suppression d'un double enregistrement du Service Worker causant des interférences avec les notifications Push de OneSignal.
+- **Sécurité :** Mise à jour et retrait de dépendances vulnérables (`npm audit`).
+
 ## [1.3.0] - 2026-03-05
 
 ### Added

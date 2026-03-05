@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 
+import ChecklistItems from '../ChecklistItems';
+
 interface CheckOutModalProps {
     vehicle: Vehicle;
     onClose: () => void;
@@ -22,9 +24,14 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         missionType: 'DPS',
         missionName: '',
         conditionOut: 'Bon état',
+        parkingOut: vehicle.parkingSpot as string,
         dsaChecked: false,
         commentsOut: '',
     });
+
+    // Custom checklist responses
+    const [checklistOut, setChecklistOut] = useState<Record<string, boolean>>({});
+
     const [submitting, setSubmitting] = useState(false);
     const [sessionLoading, setSessionLoading] = useState(true);
     const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
@@ -78,7 +85,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                 const day = String(now.getDate()).padStart(2, '0');
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
+                const dateStr = `${year} -${month} -${day}_${hours} -${minutes} `;
 
                 formData.append('date', dateStr);
                 formData.append('stage', 'emprunt');
@@ -266,6 +273,14 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                 </label>
                             </div>
                         )}
+
+                        {/* Custom Checklist */}
+                        <ChecklistItems
+                            vehicleId={vehicle.id}
+                            type="checkout"
+                            responses={checklistOut}
+                            onChange={setChecklistOut}
+                        />
 
                         {/* Commentaires */}
                         <div className="form-group">
