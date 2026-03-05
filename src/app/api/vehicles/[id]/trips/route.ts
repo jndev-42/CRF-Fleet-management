@@ -29,10 +29,23 @@ export async function DELETE(
             await Promise.allSettled(foldersToDelete.map(folderId => deleteDriveFolder(folderId)));
         }
 
-        await db.execute({
-            sql: `DELETE FROM Trip WHERE vehicleId = ?`,
-            args: [id],
-        });
+        const tx = await db.transaction('write');
+        try {
+            await tx.execute({
+                sql: `DELETE FROM Trip WHERE vehicleId = ?`,
+                args: [id],
+            });
+
+            await tx.execute({
+                sql: `UPDATE Vehicle SET status = 'AVAILABLE' WHERE id = ? AND status = 'IN_USE'`,
+                args: [id]
+            });
+
+            await tx.commit();
+        } catch (txError) {
+            await tx.rollback();
+            throw txError;
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

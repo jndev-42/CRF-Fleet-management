@@ -23,6 +23,7 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
     const [items, setItems] = useState<ChecklistItemType[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'checkout' | 'checkin'>('checkout');
+    const [draggedItem, setDraggedItem] = useState<string | null>(null);
 
     // New item form
     const [newItemLabel, setNewItemLabel] = useState('');
@@ -104,6 +105,49 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
         }
     }
 
+    async function handleDrop(e: React.DragEvent, targetId: string) {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        if (!draggedId || draggedId === targetId) return;
+
+        const currentTabItems = items.filter(i => i.type === activeTab).sort((a, b) => a.order - b.order);
+        const draggedIndex = currentTabItems.findIndex(i => i.id === draggedId);
+        const targetIndex = currentTabItems.findIndex(i => i.id === targetId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        const newItems = [...currentTabItems];
+        const [removed] = newItems.splice(draggedIndex, 1);
+        newItems.splice(targetIndex, 0, removed);
+
+        // Update local orders
+        const updatedItems = newItems.map((item, index) => ({ ...item, order: index }));
+
+        // Optimistically update state
+        setItems(prev => {
+            const otherItems = prev.filter(i => i.type !== activeTab);
+            return [...otherItems, ...updatedItems];
+        });
+        setDraggedItem(null);
+
+        // Persist order asynchronously
+        try {
+            await Promise.all(
+                updatedItems.map(item =>
+                    fetch(`/api/checklist/${item.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ order: item.order })
+                    })
+                )
+            );
+        } catch (error) {
+            console.error('Failed to persist reordering', error);
+            // Re-fetch to sync if failed
+            fetchItems();
+        }
+    }
+
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1000 }}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
@@ -149,11 +193,29 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
                                 </div>
                             ) : (
                                 activeItems.map(item => (
-                                    <div key={item.id} style={{
-                                        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
-                                        padding: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)',
-                                        borderRadius: 'var(--radius-sm)'
-                                    }}>
+                                    <div
+                                        key={item.id}
+                                        draggable
+                                        onDragStart={(e) => {
+                                            setDraggedItem(item.id);
+                                            e.dataTransfer.setData('text/plain', item.id);
+                                            e.dataTransfer.effectAllowed = 'move';
+                                        }}
+                                        onDragOver={(e) => e.preventDefault()}
+                                        onDrop={(e) => handleDrop(e, item.id)}
+                                        onDragEnd={() => setDraggedItem(null)}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                                            padding: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)',
+                                            borderRadius: 'var(--radius-sm)',
+                                            cursor: 'grab',
+                                            opacity: draggedItem === item.id ? 0.5 : 1,
+                                            transform: draggedItem === item.id ? 'scale(0.98)' : 'none',
+                                            transition: 'transform 0.1s'
+                                        }}>
+                                        <div style={{ color: 'var(--text-secondary)', cursor: 'grab', fontSize: 18, marginRight: 4, display: 'flex', alignItems: 'center' }}>
+                                            ⋮⋮
+                                        </div>
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                                             <span style={{ fontSize: 14, fontWeight: 500 }}>{item.label}</span>
                                             <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', width: 'fit-content' }}>

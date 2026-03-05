@@ -220,6 +220,12 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {/* Checklists */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+                            <ChecklistItems
+                                vehicleId={vehicle.id}
+                                type="checkin"
+                                responses={checklistIn}
+                                onChange={setChecklistIn}
+                            />
 
                             {vehicle.hasDSA && (
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
