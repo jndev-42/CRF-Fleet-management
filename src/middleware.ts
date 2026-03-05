@@ -10,7 +10,7 @@ export const config = {
      * - Les fichiers statiques publics : images, SVG, polices, JSON (manifest), scripts SW
      * - Le favicon
      *
-     * IMPORTANT : manifest.json et sw.js DOIVENT être accessibles sans authentification
+     * IMPORTANT : manifest.json DOIT être accessible sans authentification
      * pour que la PWA fonctionne (le navigateur les charge sans cookie de session).
      */
     matcher: [

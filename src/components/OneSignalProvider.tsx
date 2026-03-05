@@ -44,6 +44,19 @@ export function OneSignalProvider({ appId, roles }: { appId: string, roles: stri
 
         // Only run on client
         if (typeof window !== 'undefined') {
+            // Cleanup redundant custom SW (sw.js) if it exists
+            // This is necessary because sw.js conflicts with OneSignal
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    for (const registration of registrations) {
+                        if (registration.active?.scriptURL.includes('sw.js')) {
+                            console.log('Unregistering conflicting custom service worker:', registration.active.scriptURL);
+                            registration.unregister();
+                        }
+                    }
+                });
+            }
+
             runOneSignal();
         }
     }, [appId, roles]);
