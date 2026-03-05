@@ -88,8 +88,8 @@ export async function POST(request: Request) {
         const tx = await db.transaction('write');
         try {
             await tx.execute({
-                sql: 'INSERT INTO "User" (id, email, name, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)',
-                args: [userId, data.email, data.name, now, now]
+                sql: 'INSERT INTO "User" (id, email, name, createdAt) VALUES (?, ?, ?, ?)',
+                args: [userId, data.email, data.name, now]
             });
 
             // Assign initial roles

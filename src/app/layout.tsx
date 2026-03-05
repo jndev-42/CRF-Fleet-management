@@ -33,17 +33,12 @@ export default async function RootLayout({
   return (
     <html lang="fr">
       <body suppressHydrationWarning>
-        {/* Service Worker registration for PWA support */}
-        <script dangerouslySetInnerHTML={{
-          __html: `
-          if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-              navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                console.log('SW registration failed: ', err);
-              });
-            });
-          }
-        `}} />
+        {/*
+          NOTE: We do NOT register a custom sw.js here because OneSignal already
+          registers its own Service Worker (OneSignalSDKWorker.js) at the root scope.
+          Two SWs at the same scope conflict — OneSignal's SW is sufficient for
+          PWA install criteria (it has a fetch handler) + push notifications.
+        */}
         <OneSignalProvider appId={onesignalId} roles={roles} />
         <SessionProvider session={session}>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
