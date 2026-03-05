@@ -40,7 +40,7 @@ export async function GET(
                 const typesToSync = type ? [type] : ['checkout', 'checkin'];
                 for (const t of typesToSync) {
                     const dsaId = `dsa-${t}-${vehicleId}`;
-                    const label = t === 'checkout' ? "🫀 J'ai vérifié le DSA du véhicule, son clignotant vert est allumé" : "🫀 J'ai utilisé le DSA du véhicule";
+                    const label = "J'ai vérifié le DSA";
                     const exists = await db.execute({
                         sql: `SELECT 1 FROM "VehicleChecklistItem" WHERE id = ?`,
                         args: [dsaId]
@@ -49,7 +49,13 @@ export async function GET(
                         await db.execute({
                             sql: `INSERT INTO "VehicleChecklistItem" (id, vehicleId, label, type, required, "order", createdAt)
                                   VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                            args: [dsaId, vehicleId, label, t, 0, 0, new Date().toISOString()]
+                            args: [dsaId, vehicleId, label, t, 1, 0, new Date().toISOString()]
+                        });
+                    } else {
+                        // Force update to ensure the label matches the new spec and stays required if someone changed it before this patch
+                        await db.execute({
+                            sql: `UPDATE "VehicleChecklistItem" SET label = ?, required = 1 WHERE id = ?`,
+                            args: [label, dsaId]
                         });
                     }
                 }

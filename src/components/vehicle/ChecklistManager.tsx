@@ -217,14 +217,19 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
                                             ⋮⋮
                                         </div>
                                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                                            <span style={{ fontSize: 14, fontWeight: 500, color: item.id.startsWith('dsa-') ? 'var(--status-inuse)' : 'inherit' }}>
+                                            <span style={{ fontSize: 14, fontWeight: 500 }}>
                                                 {item.label}
                                             </span>
-                                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', width: 'fit-content' }}>
+                                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: item.id.startsWith('dsa-') ? 'var(--text-tertiary)' : 'var(--text-secondary)', cursor: item.id.startsWith('dsa-') ? 'not-allowed' : 'pointer', width: 'fit-content' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={item.required}
-                                                    onChange={() => handleToggleRequired(item)}
+                                                    onChange={() => {
+                                                        if (!item.id.startsWith('dsa-')) {
+                                                            handleToggleRequired(item);
+                                                        }
+                                                    }}
+                                                    disabled={item.id.startsWith('dsa-')}
                                                 />
                                                 Obligatoire
                                             </label>

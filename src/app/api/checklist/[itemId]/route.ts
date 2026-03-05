@@ -39,8 +39,20 @@ export async function PATCH(
         const setClauses: string[] = [];
         const args: (string | number)[] = [];
 
-        if (data.label !== undefined) { setClauses.push('label = ?'); args.push(data.label); }
-        if (data.required !== undefined) { setClauses.push('"required" = ?'); args.push(data.required ? 1 : 0); }
+        if (data.label !== undefined) {
+            if (itemId.startsWith('dsa-')) {
+                return NextResponse.json({ error: 'Le libellé du DSA ne peut pas être modifié' }, { status: 400 });
+            }
+            setClauses.push('label = ?');
+            args.push(data.label);
+        }
+        if (data.required !== undefined) {
+            if (itemId.startsWith('dsa-') && !data.required) {
+                return NextResponse.json({ error: 'Le DSA doit rester obligatoire' }, { status: 400 });
+            }
+            setClauses.push('"required" = ?');
+            args.push(data.required ? 1 : 0);
+        }
         if (data.order !== undefined) { setClauses.push('"order" = ?'); args.push(data.order); }
 
         if (setClauses.length === 0) {
