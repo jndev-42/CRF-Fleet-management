@@ -16,9 +16,10 @@ interface ReservationBlockProps {
     vehicleId: string;
     currentUserEmail: string | null;
     userRoles: string[];
+    onActiveReservationChange?: (isReservedByOther: boolean) => void;
 }
 
-export default function ReservationBlock({ vehicleId, currentUserEmail, userRoles }: ReservationBlockProps) {
+export default function ReservationBlock({ vehicleId, currentUserEmail, userRoles, onActiveReservationChange }: ReservationBlockProps) {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -35,8 +36,18 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
         try {
             const res = await fetch(`/api/vehicles/${vehicleId}/reservations`);
             if (res.ok) {
-                const data = await res.json();
+                const data: Reservation[] = await res.json();
                 setReservations(data);
+
+                if (onActiveReservationChange) {
+                    const now = new Date();
+                    const activeRes = data.find(r => new Date(r.startTime) <= now && new Date(r.endTime) >= now);
+                    if (activeRes && activeRes.userEmail !== currentUserEmail) {
+                        onActiveReservationChange(true);
+                    } else {
+                        onActiveReservationChange(false);
+                    }
+                }
             }
         } catch (e) {
             console.error('Failed to fetch reservations', e);

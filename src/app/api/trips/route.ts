@@ -129,6 +129,14 @@ export async function POST(request: Request) {
                 args: [mileageOut, fuelOut, timestamp, data.vehicleId]
             });
 
+            // Auto-delete active reservation for this user if they are taking the vehicle they reserved
+            if (data.driverEmail) {
+                await tx.execute({
+                    sql: `DELETE FROM "Reservation" WHERE vehicleId = ? AND userEmail = ? AND startTime <= ? AND endTime >= ?`,
+                    args: [data.vehicleId, data.driverEmail, timestamp, timestamp]
+                });
+            }
+
             await tx.commit();
 
             // Incident push notification

@@ -44,6 +44,7 @@ export default function VehicleDetailPage() {
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [showQRModal, setShowQRModal] = useState(false);
     const [showChecklistManager, setShowChecklistManager] = useState(false);
+    const [isReservedByOther, setIsReservedByOther] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [userRoles, setUserRoles] = useState<string[]>([]);
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
@@ -293,12 +294,25 @@ export default function VehicleDetailPage() {
                         else if (isCHVPSP) canBorrow = true; // Can borrow both VL and VPSP
                         else if (isCHVL && !isVPSP) canBorrow = true; // Can borrow only VL
 
+                        if (canBorrow && isReservedByOther && !isAdmin) {
+                            canBorrow = false; // Block if there is an active reservation by another user, unless ADMIN
+                        }
+
+                        let titleAttr = "";
+                        if (!canBorrow) {
+                            if (isReservedByOther && !isAdmin) {
+                                titleAttr = "Ce véhicule est actuellement réservé par quelqu'un d'autre.";
+                            } else {
+                                titleAttr = "Vous n'avez pas les droits pour emprunter ce véhicule";
+                            }
+                        }
+
                         return (
                             <button
                                 className={`btn btn-primary btn-lg ${!canBorrow ? 'disabled' : ''}`}
                                 onClick={() => { if (canBorrow) setShowCheckOut(true); }}
                                 disabled={!canBorrow}
-                                title={!canBorrow ? "Vous n'avez pas les droits pour emprunter ce véhicule" : ""}
+                                title={titleAttr}
                             >
                                 🚗 Prendre le véhicule
                             </button>
@@ -408,11 +422,14 @@ export default function VehicleDetailPage() {
                 </div>
             )}
 
-            <ReservationBlock
-                vehicleId={vehicle.id}
-                currentUserEmail={currentUserEmail}
-                userRoles={userRoles}
-            />
+            {vehicle && (
+                <ReservationBlock
+                    vehicleId={vehicle.id}
+                    currentUserEmail={currentUserEmail}
+                    userRoles={userRoles}
+                    onActiveReservationChange={setIsReservedByOther}
+                />
+            )}
 
             <div className="detail-grid">
                 {!isConnected(vehicle.name) && (
