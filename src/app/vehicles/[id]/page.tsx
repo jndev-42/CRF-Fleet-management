@@ -529,9 +529,9 @@ export default function VehicleDetailPage() {
                     onClose={() => setShowCheckOut(false)}
                     onSuccess={() => {
                         setShowCheckOut(false);
-                        fetchVehicle();
                         showToast('Véhicule pris avec succès !');
                     }}
+                    onRefetch={fetchVehicle}
                 />
             )}
 
@@ -542,9 +542,9 @@ export default function VehicleDetailPage() {
                     onClose={() => setShowCheckIn(false)}
                     onSuccess={() => {
                         setShowCheckIn(false);
-                        fetchVehicle();
                         showToast('Véhicule rendu avec succès !');
                     }}
+                    onRefetch={fetchVehicle}
                 />
             )}
 

@@ -6,14 +6,17 @@ interface CheckInModalProps {
     vehicle: Vehicle;
     trip: Trip;
     onClose: () => void;
+    /** Called immediately when the form is submitted (optimistic close) */
     onSuccess: () => void;
+    /** Called after the API request completes successfully (triggers data refetch) */
+    onRefetch?: () => void;
 }
 
 /**
  * Modal shown when a user is returning a vehicle.
  * Collects returning mileage, condition, issues, and photos.
  */
-export default function CheckInModal({ vehicle, trip, onClose, onSuccess }: CheckInModalProps) {
+export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch }: CheckInModalProps) {
     const [form, setForm] = useState({
         mileageIn: vehicle.mileage,
         fuelIn: vehicle.fuelLevel,
@@ -94,8 +97,11 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess }: Chec
                 }),
             });
 
-            if (!res.ok) {
-                console.error("Failed to checkin silently");
+            if (res.ok) {
+                // API completed — trigger refetch to sync real server state
+                onRefetch?.();
+            } else {
+                console.error('Failed to checkin silently');
             }
         } catch (error) {
             console.error('Erreur de connexion lors du check-in silencieux:', error);

@@ -4,14 +4,17 @@ import { Vehicle } from '@/app/vehicles/[id]/types';
 interface CheckOutModalProps {
     vehicle: Vehicle;
     onClose: () => void;
+    /** Called immediately when the form is submitted (optimistic close) */
     onSuccess: () => void;
+    /** Called after the API request completes successfully (triggers data refetch) */
+    onRefetch?: () => void;
 }
 
 /**
  * Modal shown when a user is checking out (taking) a vehicle.
  * Collects mission type, vehicle condition, and optional photos.
  */
-export default function CheckOutModal({ vehicle, onClose, onSuccess }: CheckOutModalProps) {
+export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }: CheckOutModalProps) {
     const [form, setForm] = useState({
         driverName: '',
         driverEmail: '',
@@ -111,8 +114,11 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess }: CheckOutM
                     driveFolderId,
                 }),
             });
-            if (!res.ok) {
-                console.error("Failed to checkout silently");
+            if (res.ok) {
+                // API completed — trigger refetch to sync real server state
+                onRefetch?.();
+            } else {
+                console.error('Failed to checkout silently');
             }
         } catch {
             alert('Erreur de connexion');
