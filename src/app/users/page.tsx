@@ -24,6 +24,7 @@ export default function UsersPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const usersPerPage = 6;
+    const [showAddModal, setShowAddModal] = useState(false);
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !session?.user?.roles?.includes('ADMIN'))) {
@@ -87,6 +88,19 @@ export default function UsersPage() {
         }
     }
 
+    async function createUser(email: string, name: string, roles: string[]) {
+        const res = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name, roles }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur');
+        // Optimistically add to list
+        const newUser: User = { id: data.id, email, name, createdAt: new Date().toISOString(), roles };
+        setUsers(prev => [...prev, newUser].sort((a, b) => a.email.localeCompare(b.email)));
+    }
+
     // --- Search & Pagination Logic ---
     const filteredUsers = users.filter(user => {
         const searchLower = searchQuery.toLowerCase();
@@ -129,8 +143,8 @@ export default function UsersPage() {
                     <h1 className="page-title">Gestion des Utilisateurs</h1>
                     <p className="page-description">Définissez les rôles et permissions des utilisateurs.</p>
                 </div>
-                <div style={{ flex: '1', minWidth: '250px', maxWidth: '350px' }}>
-                    <div style={{ position: 'relative' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', minWidth: '250px', maxWidth: '350px' }}>
                         <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>🔍</span>
                         <input
                             type="search"
@@ -149,6 +163,12 @@ export default function UsersPage() {
                             }}
                         />
                     </div>
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => setShowAddModal(true)}
+                    >
+                        ➕ Ajouter un utilisateur
+                    </button>
                 </div>
             </div>
 
@@ -265,6 +285,134 @@ export default function UsersPage() {
                     </div>
                 </div>
             </div>
-        </div >
+
+            {showAddModal && (
+                <AddUserModal
+                    availableRoles={availableRoles}
+                    onClose={() => setShowAddModal(false)}
+                    onSuccess={async (email, name, roles) => {
+                        try {
+                            await createUser(email, name, roles);
+                            setShowAddModal(false);
+                            showToast(`Utilisateur ${email} ajouté avec succès !`);
+                        } catch (err: any) {
+                            showToast(err.message || 'Erreur lors de la création', 'error');
+                        }
+                    }}
+                />
+            )}
+        </div>
+    );
+}
+
+/** Modal for creating a new user — collects email, name and initial roles */
+function AddUserModal({
+    availableRoles,
+    onClose,
+    onSuccess
+}: {
+    availableRoles: string[];
+    onClose: () => void;
+    onSuccess: (email: string, name: string, roles: string[]) => Promise<void>;
+}) {
+    const [form, setForm] = useState({ email: '', name: '' });
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+    const [submitting, setSubmitting] = useState(false);
+
+    function toggleRole(role: string) {
+        setSelectedRoles(prev =>
+            prev.includes(role) ? prev.filter(r => r !== role) : [...prev, role]
+        );
+    }
+
+    async function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        setSubmitting(true);
+        try {
+            await onSuccess(form.email.trim(), form.name.trim(), selectedRoles);
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    return (
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2 className="modal-title">➕ Ajouter un utilisateur</h2>
+                    <button className="modal-close" onClick={onClose}>✕</button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        <div className="form-group">
+                            <label className="form-label">Email *</label>
+                            <input
+                                className="form-input"
+                                type="email"
+                                placeholder="prenom.nom@croix-rouge.fr"
+                                value={form.email}
+                                onChange={e => setForm({ ...form, email: e.target.value })}
+                                required
+                                autoFocus
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Nom complet *</label>
+                            <input
+                                className="form-input"
+                                type="text"
+                                placeholder="Prénom NOM"
+                                value={form.name}
+                                onChange={e => setForm({ ...form, name: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Rôles initiaux (optionnel)</label>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
+                                {availableRoles.map(role => {
+                                    const active = selectedRoles.includes(role);
+                                    return (
+                                        <label key={role} style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '6px',
+                                            background: active ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.05)',
+                                            border: `1px solid ${active ? '#3B82F6' : 'var(--border-primary)'}`,
+                                            borderRadius: '100px',
+                                            padding: '4px 10px',
+                                            fontSize: '13px',
+                                            cursor: 'pointer',
+                                            color: active ? '#60A5FA' : 'var(--text-secondary)',
+                                            transition: 'all 0.2s',
+                                            userSelect: 'none'
+                                        }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={active}
+                                                onChange={() => toggleRole(role)}
+                                                style={{ display: 'none' }}
+                                            />
+                                            {role}
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginTop: '8px' }}>
+                                ℹ️ Les rôles peuvent être modifiés après la création.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>
+                            Annuler
+                        </button>
+                        <button type="submit" className="btn btn-primary" disabled={submitting}>
+                            {submitting ? 'Création...' : '✅ Créer l\'utilisateur'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     );
 }
