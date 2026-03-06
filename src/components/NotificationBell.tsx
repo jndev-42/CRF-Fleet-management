@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Bell, Trash2 } from 'lucide-react';
+import OneSignal from 'react-onesignal';
 
 type Notification = {
     id: string;
@@ -100,27 +101,28 @@ export function NotificationBell() {
     // Sync push opt-in state when dropdown opens
     useEffect(() => {
         if (!isOpen) return;
-        const os = (window as any).OneSignal;
-        if (os?.User?.PushSubscription) {
-            setPushEnabled(!!os.User.PushSubscription.optedIn);
+        const sub = OneSignal.User?.PushSubscription;
+        if (sub) {
+            setPushEnabled(!!sub.optedIn);
         }
     }, [isOpen]);
 
     const handlePushToggle = async () => {
-        const os = (window as any).OneSignal;
-        if (!os?.User?.PushSubscription) return;
+        const sub = OneSignal.User?.PushSubscription;
+        if (!sub) return;
 
         if (pushEnabled) {
-            await os.User.PushSubscription.optOut();
+            await sub.optOut();
+            setPushEnabled(false);
         } else {
             if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
                 setPushBlocked(true);
                 return;
             }
-            await os.User.PushSubscription.optIn();
+            await sub.optIn();
+            setPushEnabled(true);
         }
         setPushBlocked(false);
-        setPushEnabled(!!os.User.PushSubscription.optedIn);
     };
 
     // Handle closing dropdown when clicking outside
