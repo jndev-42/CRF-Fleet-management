@@ -184,7 +184,12 @@ function closeBurgerMenu() {
 // Component
 // ──────────────────────────────────────────────────────────────
 
-export default function GuidedTour() {
+export default function GuidedTour({ roles = [] }: { roles?: string[] }) {
+    const canSeeNotifications = roles.includes('ADMIN') || roles.includes('RESPO');
+    const activeSteps = TOUR_STEPS.filter(s =>
+        s.target !== '[data-tour="notifications"]' || canSeeNotifications
+    );
+
     const [isActive, setIsActive] = useState(false);
     const [step, setStep] = useState(0);
     const [spotlightRect, setSpotlightRect] = useState<DOMRect | null>(null);
@@ -220,7 +225,7 @@ export default function GuidedTour() {
     // ── Open/close burger menu and scroll target into view ──
     useEffect(() => {
         if (!isActive) return;
-        const currentStep = TOUR_STEPS[step];
+        const currentStep = activeSteps[step];
 
         if (!currentStep?.target) {
             setTargetHidden(false);
@@ -260,7 +265,7 @@ export default function GuidedTour() {
     // All coordinates are viewport-relative (position: fixed) so we
     // use getBoundingClientRect() directly without adding scroll offsets.
     const positionTooltip = useCallback(() => {
-        const currentStep = TOUR_STEPS[step];
+        const currentStep = activeSteps[step];
         if (!currentStep?.target) {
             setSpotlightRect(null);
             setTooltipStyle({});
@@ -360,9 +365,9 @@ export default function GuidedTour() {
     // ── Render ──
     if (!isActive) return null;
 
-    const currentStep = TOUR_STEPS[step];
+    const currentStep = activeSteps[step];
     const isInfoCard = !currentStep.target || targetHidden;
-    const isLastStep = step === TOUR_STEPS.length - 1;
+    const isLastStep = step === activeSteps.length - 1;
     const isFirstStep = step === 0;
 
     // Build clip-path for the spotlight hole (viewport-relative, no scroll offset)
@@ -416,7 +421,7 @@ export default function GuidedTour() {
                             )}
                         </div>
                         <div className="tour-progress">
-                            {TOUR_STEPS.map((_, i) => (
+                            {activeSteps.map((_, i) => (
                                 <span key={i} className={`tour-dot ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`} />
                             ))}
                         </div>
@@ -458,7 +463,7 @@ export default function GuidedTour() {
                             )}
                         </div>
                         <div className="tour-progress">
-                            {TOUR_STEPS.map((_, i) => (
+                            {activeSteps.map((_, i) => (
                                 <span key={i} className={`tour-dot ${i === step ? 'active' : ''} ${i < step ? 'done' : ''}`} />
                             ))}
                         </div>

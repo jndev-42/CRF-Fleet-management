@@ -47,7 +47,7 @@ export default async function RootLayout({
               <main className="main-content" style={{ flexGrow: 1 }}>
                 {children}
               </main>
-              {session?.user && <GuidedTour />}
+              {session?.user && <GuidedTour roles={roles} />}
               {session?.user && <KonamiEasterEgg />}
               <footer style={{
                 textAlign: 'center',
