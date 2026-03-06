@@ -41,6 +41,8 @@ export async function GET(request: Request) {
             url: row.url,
             isRead: Boolean(row.isRead),
             createdAt: row.createdAt
+                ? new Date(String(row.createdAt).replace(' ', 'T') + (String(row.createdAt).includes('Z') || String(row.createdAt).includes('+') ? '' : 'Z')).toISOString()
+                : null
         }));
 
         return NextResponse.json({ notifications }, { status: 200 });
