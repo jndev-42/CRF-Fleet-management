@@ -155,8 +155,8 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
                                 <div className={styles.itemInfo}>
                                     <div className={styles.itemDateRow}>
                                         <div className={styles.itemDate}>
-                                            Du <strong>{start.toLocaleDateString('fr-FR')} à {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong>
-                                            {' '}au <strong>{end.toLocaleDateString('fr-FR')} à {end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong>
+                                            Du <strong>{start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} à {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}</strong>
+                                            {' '}au <strong>{end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} à {end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}</strong>
                                         </div>
                                         <span className={isPending ? styles.badgePending : styles.badgeValidated}>
                                             {isPending ? 'En attente' : 'Validée'}

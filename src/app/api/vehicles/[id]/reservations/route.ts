@@ -136,8 +136,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
                     tags: [{ field: "tag", key: "role_ADMIN", relation: "=", value: "true" }],
                     headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
                     contents: {
-                        fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}. En attente de validation.`,
-                        en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR')} to ${end.toLocaleDateString('fr-FR')}. Pending validation.`
+                        fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,
+                        en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} to ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. Pending validation.`
                     },
                     url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`
                 });
@@ -147,8 +147,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
                     tags: [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }],
                     headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
                     contents: {
-                        fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}. En attente de validation.`,
-                        en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR')} to ${end.toLocaleDateString('fr-FR')}. Pending validation.`
+                        fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,
+                        en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} to ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. Pending validation.`
                     },
                     url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`
                 });
