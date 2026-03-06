@@ -53,6 +53,8 @@ export default function VehicleDetailPage() {
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [viewingPhotosFolderId, setViewingPhotosFolderId] = useState<string | null>(null);
+    const [tripsPage, setTripsPage] = useState(1);
+    const TRIPS_PER_PAGE = 3;
     const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
     const [showAddSecondDriver, setShowAddSecondDriver] = useState(false);
     const [secondDriverEmail, setSecondDriverEmail] = useState('');
@@ -520,34 +522,75 @@ export default function VehicleDetailPage() {
                     <div className="empty-state-icon">📋</div>
                     <div className="empty-state-title">Aucune sortie enregistrée</div>
                 </div>
-            ) : (
-                <div className="trip-list">
-                    {vehicle.trips.map((trip) => (
-                        <TripItem
-                            key={trip.id}
-                            trip={trip}
-                            vehicle={vehicle}
-                            userRoles={userRoles}
-                            onDelete={async (tripId: string) => {
-                                if (window.confirm("Voulez-vous vraiment supprimer cette sortie de l'historique ?")) {
-                                    try {
-                                        const res = await fetch(`/api/trips/${tripId}`, { method: 'DELETE' });
-                                        if (res.ok) {
-                                            fetchVehicle();
-                                        } else {
-                                            const body = await res.json();
-                                            alert(body.error || "Erreur de suppression");
+            ) : (() => {
+                const totalPages = Math.ceil(vehicle.trips.length / TRIPS_PER_PAGE);
+                const visibleTrips = vehicle.trips.slice(
+                    (tripsPage - 1) * TRIPS_PER_PAGE,
+                    tripsPage * TRIPS_PER_PAGE
+                );
+                return (
+                    <>
+                        <div className="trip-list">
+                            {visibleTrips.map((trip) => (
+                                <TripItem
+                                    key={trip.id}
+                                    trip={trip}
+                                    vehicle={vehicle}
+                                    userRoles={userRoles}
+                                    onDelete={async (tripId: string) => {
+                                        if (window.confirm("Voulez-vous vraiment supprimer cette sortie de l'historique ?")) {
+                                            try {
+                                                const res = await fetch(`/api/trips/${tripId}`, { method: 'DELETE' });
+                                                if (res.ok) {
+                                                    fetchVehicle();
+                                                    // Stay on previous page if current page becomes empty after deletion
+                                                    setTripsPage(p => Math.min(p, Math.ceil((vehicle.trips.length - 1) / TRIPS_PER_PAGE)));
+                                                } else {
+                                                    const body = await res.json();
+                                                    alert(body.error || "Erreur de suppression");
+                                                }
+                                            } catch (e) {
+                                                alert("Erreur de connexion");
+                                            }
                                         }
-                                    } catch (e) {
-                                        alert("Erreur de connexion");
-                                    }
-                                }
-                            }}
-                            onViewPhotos={(folderId: string) => setViewingPhotosFolderId(folderId)}
-                        />
-                    ))}
-                </div>
-            )}
+                                    }}
+                                    onViewPhotos={(folderId: string) => setViewingPhotosFolderId(folderId)}
+                                />
+                            ))}
+                        </div>
+                        {totalPages > 1 && (
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 12,
+                                marginTop: 16,
+                                fontSize: 14,
+                            }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    style={{ padding: '6px 14px' }}
+                                    onClick={() => setTripsPage(p => p - 1)}
+                                    disabled={tripsPage === 1}
+                                >
+                                    ← Précédent
+                                </button>
+                                <span style={{ color: 'var(--text-secondary)' }}>
+                                    {tripsPage} / {totalPages}
+                                </span>
+                                <button
+                                    className="btn btn-secondary"
+                                    style={{ padding: '6px 14px' }}
+                                    onClick={() => setTripsPage(p => p + 1)}
+                                    disabled={tripsPage === totalPages}
+                                >
+                                    Suivant →
+                                </button>
+                            </div>
+                        )}
+                    </>
+                );
+            })()}
 
             {viewingPhotosFolderId && (
                 <PhotoViewer
