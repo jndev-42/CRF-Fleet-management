@@ -5,6 +5,34 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-03-06
+
+### Modifié
+- **Cache session Renault** : Remplacement du cache en mémoire (`cachedSession`) dans `src/lib/renault.ts` par un cache persistant en base de données (table `RenaultSession`). La session Gigya/Renault survit désormais aux cold-starts Vercel et est partagée entre toutes les instances serverless.
+- **Migration DB** : Ajout du script `scripts/add-renault-session-table.ts` pour créer la table `RenaultSession` (singleton, ligne `id=1`).
+
+## [1.6.0] - 2026-03-06
+
+### Sécurité
+- **Auth API véhicules** : Les routes `GET /api/vehicles` et `GET /api/vehicles/[id]` exigent désormais une session authentifiée (401 si absent). `POST /api/vehicles` est restreint aux ADMIN (403 sinon).
+- **Auth API Renault** : `GET /api/renault/[vin]` exige une session authentifiée (401).
+- **Auth API trips** : L'appel `auth()` est déplacé en tout premier dans `POST /api/trips`, avant tout parsing du corps ou requête DB.
+- **VINs codés en dur supprimés** : `src/lib/renault.ts` ne contient plus de VINs en fallback. `getVehicleVin()` est désormais async et interroge d'abord la colonne `vin` de la table `Vehicle`, puis se rabat sur les variables d'environnement.
+- **En-têtes de sécurité HTTP** : Ajout de `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` et `Strict-Transport-Security` via `next.config.ts`.
+- **Validation `callbackUrl`** : La page de connexion valide que le `callbackUrl` est un chemin relatif avant de l'utiliser dans `signIn`, prévenant les redirections ouvertes.
+- **Validation fichiers upload** : `POST /api/drive/upload` valide côté serveur le nombre de fichiers (≤ 10), la taille (≤ 10 Mo) et le type MIME (images uniquement) avant tout envoi vers Google Drive.
+- **URLs de notifications encodées** : Tous les noms de véhicules insérés dans des URLs de notifications push utilisent désormais `encodeURIComponent` (`trips`, `reservations/[id]`).
+
+### Corrigé
+- **CheckOutModal / CheckInModal** : `onSuccess()` est désormais appelé uniquement après confirmation du succès de la requête API (`res.ok`), éliminant la perte silencieuse de données due à l'ancienne fermeture optimiste.
+- **Navbar — déconnexion** : Remplacement de `window.location.href = '/api/auth/signout'` par `signOut({ callbackUrl: '/login' })` de `next-auth/react`.
+- **GuidedTour — XSS** : Suppression de `dangerouslySetInnerHTML`. Le type `body` des étapes du tour passe de `string` à `React.ReactNode` ; les contenus HTML sont convertis en JSX.
+- **DSA checklist — effet de bord GET** : La logique d'upsert DSA est retirée du handler GET de `/api/vehicles/[id]/checklist`. Elle est déplacée dans le PATCH de `/api/vehicles/[id]` : insertion lors du passage `hasDSA` false→true, suppression lors du passage true→false.
+- **`next.config.ts`** : Suppression du bloc `outputFileTracingIncludes` référençant des fichiers Prisma inexistants (le projet utilise libSQL).
+
+### Ajouté
+- **Composant `AddVehicleModal`** : Extraction de la modale d'ajout de véhicule en composant réutilisable (`src/components/vehicle/modals/AddVehicleModal.tsx`), partagé entre `app/page.tsx` et `app/vehicles/page.tsx`. La version extraite est la plus complète (avec VIN, type de carburant, DSA, sélecteur de parking).
+
 ## [1.5.0] - 2026-03-06
 
 ### Added

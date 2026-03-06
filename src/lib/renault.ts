@@ -1,31 +1,58 @@
 import { GigyaApi, KamereonApi } from '@remscodes/renault-api';
+import { db } from '@/lib/db';
 
-// VIN mapping for known vehicles
-export const VEHICLE_VINS: Record<string, string> = {
-    VL186: process.env.RENAULT_VIN_VL186 || 'VYSP01H0876365199',
-    VL188: process.env.RENAULT_VIN_VL188 || 'VF1RHN00472485396',
+// Env-var-only VIN map (no hardcoded fallback strings)
+const ENV_VEHICLE_VINS: Record<string, string | undefined> = {
+    VL186: process.env.RENAULT_VIN_VL186,
+    VL188: process.env.RENAULT_VIN_VL188,
 };
 
-// Map vehicle names to VINs (case-insensitive partial match)
-export function getVinFromName(vehicleName: string): string | null {
-    const upper = vehicleName.toUpperCase();
-    for (const [key, vin] of Object.entries(VEHICLE_VINS)) {
-        if (upper.includes(key)) return vin;
+/**
+ * Resolve a vehicle name to its VIN.
+ * First tries an exact DB lookup (Vehicle.vin), then falls back to env vars.
+ * Returns null if no VIN is found.
+ */
+export async function getVinFromName(vehicleName: string): Promise<string | null> {
+    // 1. Look up VIN from the database by vehicle name
+    try {
+        const result = await db.execute({
+            sql: `SELECT vin FROM Vehicle WHERE name = ?`,
+            args: [vehicleName],
+        });
+        const vin = result.rows[0]?.vin as string | null | undefined;
+        if (vin) return vin;
+    } catch (e) {
+        console.error('DB lookup for VIN failed:', e);
     }
+
+    // 2. Fall back to env vars (partial, case-insensitive key match)
+    const upper = vehicleName.toUpperCase();
+    for (const [key, vin] of Object.entries(ENV_VEHICLE_VINS)) {
+        if (upper.includes(key) && vin) return vin;
+    }
+
     return null;
 }
 
-// Session cache to avoid re-authenticating on every request
-let cachedSession: {
-    idToken: string;
-    accountId: string;
-    expiresAt: number;
-} | null = null;
-
 async function authenticate(): Promise<{ idToken: string; accountId: string }> {
-    // Return cached session if still valid (with 60s margin)
-    if (cachedSession && Date.now() < cachedSession.expiresAt - 60_000) {
-        return { idToken: cachedSession.idToken, accountId: cachedSession.accountId };
+    // Check DB-backed session cache (persists across serverless cold starts)
+    try {
+        const cached = await db.execute({
+            sql: `SELECT idToken, accountId, expiresAt FROM RenaultSession WHERE id = 1`,
+            args: [],
+        });
+        const row = cached.rows[0];
+        if (row) {
+            const expiresAt = Number(row.expiresAt);
+            if (Date.now() < expiresAt - 60_000) {
+                return {
+                    idToken: String(row.idToken),
+                    accountId: String(row.accountId),
+                };
+            }
+        }
+    } catch (e) {
+        console.error('RenaultSession DB read failed, will re-authenticate:', e);
     }
 
     const mail = process.env.RENAULT_MAIL;
@@ -72,8 +99,16 @@ async function authenticate(): Promise<{ idToken: string; accountId: string }> {
     if (!myAccount) throw new Error('No MYRENAULT account found');
     const accountId = myAccount.accountId;
 
-    // Cache for 14 minutes
-    cachedSession = { idToken, accountId, expiresAt: Date.now() + 14 * 60_000 };
+    // Upsert session into DB — persists across serverless instances (14-minute TTL)
+    const expiresAt = Date.now() + 14 * 60_000;
+    try {
+        await db.execute({
+            sql: `INSERT OR REPLACE INTO RenaultSession (id, idToken, accountId, expiresAt) VALUES (1, ?, ?, ?)`,
+            args: [idToken, accountId, expiresAt],
+        });
+    } catch (e) {
+        console.error('RenaultSession DB write failed (non-fatal):', e);
+    }
 
     return { idToken, accountId };
 }

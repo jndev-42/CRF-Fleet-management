@@ -9,7 +9,8 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
 
     const searchParams = await props.searchParams;
     const error = searchParams?.error;
-    const callbackUrl = searchParams?.callbackUrl || "/";
+    const rawCallback = searchParams?.callbackUrl || '/';
+    const callbackUrl = rawCallback.startsWith('/') && !rawCallback.startsWith('//') ? rawCallback : '/';
 
     return (
         <div className="empty-state" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>

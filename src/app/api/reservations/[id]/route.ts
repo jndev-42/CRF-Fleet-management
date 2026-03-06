@@ -129,7 +129,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
                         userId,
                         `✅ Réservation validée`,
                         `Votre réservation de ${vehicleName} du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')} a été validée.`,
-                        `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`
+                        `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(vehicleName)}`
                     ]
                 });
             }

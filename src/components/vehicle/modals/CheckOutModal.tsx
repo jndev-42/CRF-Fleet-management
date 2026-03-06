@@ -6,7 +6,7 @@ import ChecklistItems from '../ChecklistItems';
 interface CheckOutModalProps {
     vehicle: Vehicle;
     onClose: () => void;
-    /** Called immediately when the form is submitted (optimistic close) */
+    /** Called after the API request completes successfully */
     onSuccess: () => void;
     /** Called after the API request completes successfully (triggers data refetch) */
     onRefetch?: () => void;
@@ -15,6 +15,7 @@ interface CheckOutModalProps {
 /**
  * Modal shown when a user is checking out (taking) a vehicle.
  * Collects mission type, vehicle condition, and optional photos.
+ * onSuccess is called only after the API request completes successfully.
  */
 export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }: CheckOutModalProps) {
     const [form, setForm] = useState({
@@ -70,9 +71,6 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         }
 
         try {
-            // Optimistic execution: instantly close the modal while sending data to back-end
-            onSuccess();
-
             let driveFolderId: string | undefined = undefined;
             if (photos.length > 0) {
                 const formData = new FormData();
@@ -125,10 +123,13 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                 }),
             });
             if (res.ok) {
-                // API completed — trigger refetch to sync real server state
+                // API completed successfully — close modal and trigger refetch
+                onSuccess();
                 onRefetch?.();
             } else {
-                console.error('Failed to checkout silently');
+                const errorData = await res.json().catch(() => ({}));
+                alert(errorData.error || 'Erreur lors de la prise du véhicule');
+                setSubmitting(false);
             }
         } catch {
             alert('Erreur de connexion');

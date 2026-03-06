@@ -5,6 +5,10 @@ import { Readable } from 'stream';
 
 const SHARED_FOLDER_ID = '11UwzHHOzNhn--f16eMaoWk9NgvOwOt2G';
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_FILES = 10;
+const ALLOWED_MIME_PREFIX = 'image/';
+
 export async function POST(request: Request) {
     try {
         const session = await auth();
@@ -30,6 +34,28 @@ export async function POST(request: Request) {
 
         if (!vehicleName || !dateStr || !stage) {
             return NextResponse.json({ error: 'Données manquantes (vehicleName, date, stage)' }, { status: 400 });
+        }
+
+        // Server-side file validation
+        if (files.length > MAX_FILES) {
+            return NextResponse.json(
+                { error: `Trop de fichiers. Maximum ${MAX_FILES} fichiers autorisés.` },
+                { status: 400 }
+            );
+        }
+        for (const file of files) {
+            if (file.size > MAX_FILE_SIZE) {
+                return NextResponse.json(
+                    { error: `Le fichier "${file.name}" dépasse la taille maximale de 10 Mo.` },
+                    { status: 400 }
+                );
+            }
+            if (!file.type.startsWith(ALLOWED_MIME_PREFIX)) {
+                return NextResponse.json(
+                    { error: `Le fichier "${file.name}" n'est pas une image valide.` },
+                    { status: 400 }
+                );
+            }
         }
 
         // Initialize Google Drive API client using Service Account

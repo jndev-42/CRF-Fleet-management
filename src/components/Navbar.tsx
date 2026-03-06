@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react';
+import { signOut } from 'next-auth/react';
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
 import { User } from 'next-auth';
@@ -64,12 +65,7 @@ export default function Navbar({ user }: NavbarProps) {
                         <button
                             className="btn btn-secondary nav-logout-btn"
                             title={user.email || ''}
-                            onClick={() => {
-                                // A simpler client-side signout using next-auth/react could be imported here,
-                                // but doing a hard redirect or form post to Next.js API is also fine.
-                                // Since we are moving this to a client component, let's just trigger window.location
-                                window.location.href = '/api/auth/signout';
-                            }}
+                            onClick={() => signOut({ callbackUrl: '/login' })}
                         >
                             Déconnexion
                         </button>

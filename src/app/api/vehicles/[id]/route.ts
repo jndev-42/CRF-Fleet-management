@@ -22,6 +22,11 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        }
+
         const { id } = await params;
 
         // Fetch vehicle by name since [id] is now the vehicle name
@@ -116,6 +121,15 @@ export async function PATCH(
         const body = await request.json();
         const data = updateVehicleSchema.parse(body);
 
+        // Fetch the current vehicle state (UUID + hasDSA) so we can sync DSA checklist items
+        const currentVehicleRes = await db.execute({
+            sql: `SELECT id, hasDSA FROM Vehicle WHERE name = ?`,
+            args: [id]
+        });
+        const currentVehicle = currentVehicleRes.rows[0] ?? null;
+        const vehicleUuid = currentVehicle?.id as string | undefined;
+        const previousHasDSA = currentVehicle ? !!currentVehicle.hasDSA : null;
+
         const setClauses = [];
         const args = [];
         for (const [key, value] of Object.entries(data)) {
@@ -138,6 +152,35 @@ export async function PATCH(
             });
 
             vehicle = { id, ...data, updatedAt: timestamp };
+        }
+
+        // Sync DSA checklist items when hasDSA changes
+        if (vehicleUuid && data.hasDSA !== undefined && data.hasDSA !== previousHasDSA) {
+            const now = new Date().toISOString();
+            if (data.hasDSA) {
+                // hasDSA changed false → true: insert DSA checklist items for both types
+                for (const t of ['checkout', 'checkin'] as const) {
+                    const dsaId = `dsa-${t}-${vehicleUuid}`;
+                    const label = "J'ai vérifié le DSA";
+                    const exists = await db.execute({
+                        sql: `SELECT 1 FROM "VehicleChecklistItem" WHERE id = ?`,
+                        args: [dsaId]
+                    });
+                    if (exists.rows.length === 0) {
+                        await db.execute({
+                            sql: `INSERT INTO "VehicleChecklistItem" (id, vehicleId, label, type, required, "order", createdAt)
+                                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                            args: [dsaId, vehicleUuid, label, t, 1, 0, now]
+                        });
+                    }
+                }
+            } else {
+                // hasDSA changed true → false: remove DSA checklist items
+                await db.execute({
+                    sql: `DELETE FROM "VehicleChecklistItem" WHERE id = ? OR id = ?`,
+                    args: [`dsa-checkout-${vehicleUuid}`, `dsa-checkin-${vehicleUuid}`]
+                });
+            }
         }
 
         return NextResponse.json(vehicle);

@@ -28,45 +28,6 @@ export async function GET(
         const { searchParams } = new URL(request.url);
         const type = searchParams.get('type'); // 'checkout' | 'checkin' | null (all)
 
-        // Ensure DSA items sync
-        const vehicleRes = await db.execute({
-            sql: `SELECT hasDSA FROM Vehicle WHERE id = ?`,
-            args: [vehicleId]
-        });
-
-        if (vehicleRes.rows.length > 0) {
-            const hasDSA = !!vehicleRes.rows[0].hasDSA;
-            if (hasDSA) {
-                const typesToSync = type ? [type] : ['checkout', 'checkin'];
-                for (const t of typesToSync) {
-                    const dsaId = `dsa-${t}-${vehicleId}`;
-                    const label = "J'ai vérifié le DSA";
-                    const exists = await db.execute({
-                        sql: `SELECT 1 FROM "VehicleChecklistItem" WHERE id = ?`,
-                        args: [dsaId]
-                    });
-                    if (exists.rows.length === 0) {
-                        await db.execute({
-                            sql: `INSERT INTO "VehicleChecklistItem" (id, vehicleId, label, type, required, "order", createdAt)
-                                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                            args: [dsaId, vehicleId, label, t, 1, 0, new Date().toISOString()]
-                        });
-                    } else {
-                        // Force update to ensure the label matches the new spec and stays required if someone changed it before this patch
-                        await db.execute({
-                            sql: `UPDATE "VehicleChecklistItem" SET label = ?, required = 1 WHERE id = ?`,
-                            args: [label, dsaId]
-                        });
-                    }
-                }
-            } else {
-                await db.execute({
-                    sql: `DELETE FROM "VehicleChecklistItem" WHERE id = ? OR id = ?`,
-                    args: [`dsa-checkout-${vehicleId}`, `dsa-checkin-${vehicleId}`]
-                });
-            }
-        }
-
         const rows = await db.execute({
             sql: `
                 SELECT id, vehicleId, label, type, required, "order", createdAt

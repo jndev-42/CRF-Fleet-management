@@ -4,10 +4,20 @@ const nextConfig: NextConfig = {
   // Add an empty turbopack config to silence the webpack/turbopack mismatch warning
   // next-pwa is removed since it doesn't support Turbopack (Next.js 16 default)
   turbopack: {},
-  // Include prisma.config.ts in serverless function bundles (Vercel)
-  // PrismaClient reads this at query time to resolve the datasource URL
-  outputFileTracingIncludes: {
-    '/api/**': ['./prisma.config.ts', './prisma/schema.prisma'],
+
+  async headers() {
+    return [
+      {
+        source: '/(.*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+        ],
+      },
+    ];
   },
 };
 

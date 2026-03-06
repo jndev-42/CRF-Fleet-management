@@ -22,6 +22,15 @@ const checkOutSchema = z.object({
 
 export async function POST(request: Request) {
     try {
+        // Auth check must happen before any body parsing or DB queries
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json(
+                { error: 'Non authentifié' },
+                { status: 401 }
+            );
+        }
+
         const body = await request.json();
         const data = checkOutSchema.parse(body);
 
@@ -47,7 +56,6 @@ export async function POST(request: Request) {
         }
 
         // Verify Roles
-        const session = await auth();
         const roles = session?.user?.roles || ['GUEST'];
         const isAdmin = roles.includes('ADMIN');
         const isCHVL = roles.includes('CHVL');
@@ -73,7 +81,7 @@ export async function POST(request: Request) {
         const vehicleName = vehicle.name as string | undefined;
 
         if (vehicleName && (vehicleName.includes('VL186') || vehicleName.includes('VL188'))) {
-            const vin = getVinFromName(vehicleName);
+            const vin = await getVinFromName(vehicleName);
             if (vin) {
                 try {
                     const rData = await getRenaultVehicleData(vin);
@@ -152,7 +160,7 @@ export async function POST(request: Request) {
                             en: `${data.driverName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,
                             fr: `${data.driverName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`
                         },
-                        url: `https://cr-chauffeur.vercel.app/vehicles/${vName}`
+                        url: `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(String(vName))}`
                     });
                 } catch (pushError) {
                     console.error('Erreur lors de l\'envoi de la notification Push Incident:', pushError);

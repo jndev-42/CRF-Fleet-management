@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 
 // ──────────────────────────────────────────────────────────────
 // Tour Step Definitions
@@ -13,8 +13,8 @@ interface TourStep {
     target: string | null;
     /** Title of the tooltip/card */
     title: string;
-    /** Body text (HTML supported) */
-    body: string;
+    /** Body content (React nodes — no dangerouslySetInnerHTML) */
+    body: React.ReactNode;
     /** Emoji icon displayed in the card header */
     icon: string;
     /** Preferred tooltip position relative to the target */
@@ -46,14 +46,14 @@ const TOUR_STEPS: TourStep[] = [
     {
         target: '[data-tour="vehicle-card"]',
         title: 'Carte véhicule',
-        body: "Chaque carte représente un véhicule. Vous y voyez son nom, immatriculation, statut et kilométrage. <strong>Cliquez dessus</strong> pour accéder à sa fiche détaillée.",
+        body: <>Chaque carte représente un véhicule. Vous y voyez son nom, immatriculation, statut et kilométrage. <strong>Cliquez dessus</strong> pour accéder à sa fiche détaillée.</>,
         icon: '🚗',
         position: 'bottom',
     },
     {
         target: '[data-tour="fuel-bar"]',
         title: 'Jauge carburant / batterie',
-        body: "La jauge indique le niveau de carburant ou de batterie. Pour les véhicules connectés (Renault), les données remontent <strong>en temps réel</strong> avec l'autonomie restante.",
+        body: <>La jauge indique le niveau de carburant ou de batterie. Pour les véhicules connectés (Renault), les données remontent <strong>en temps réel</strong> avec l&apos;autonomie restante.</>,
         icon: '⛽',
         position: 'top',
     },
@@ -66,19 +66,23 @@ const TOUR_STEPS: TourStep[] = [
     },
     {
         target: '[data-tour="aide"]',
-        title: 'Page d\'aide',
-        body: "Cette page centralise toutes les informations pratiques. Vous pouvez aussi y <strong>relancer ce tutoriel</strong> à tout moment.",
+        title: "Page d'aide",
+        body: <>Cette page centralise toutes les informations pratiques. Vous pouvez aussi y <strong>relancer ce tutoriel</strong> à tout moment.</>,
         icon: '❓',
         position: 'bottom',
     },
     {
         target: null,
-        title: 'Que trouve-t-on dans l\'Aide ?',
-        body: `La page Aide contient toutes les informations essentielles :<br/><br/>
-        • <strong>🛡️ Assurance</strong> : numéro de police AXA XL Insurance<br/>
-        • <strong>🆘 Assistance</strong> : numéros AXA Assistance (France et étranger)<br/>
-        • <strong>📍 Contacts opérationnels</strong> : DLUS, DLUSA, MOT, Onyx (cadre de permanence), Vigie, astreintes, COT, PCM…<br/><br/>
-        Un bouton <em>"📞 Enregistrer les contacts (VCard)"</em> permet d'<strong>enregistrer tous ces numéros dans votre téléphone</strong> en un clic.`,
+        title: "Que trouve-t-on dans l'Aide ?",
+        body: (
+            <>
+                La page Aide contient toutes les informations essentielles :<br /><br />
+                • <strong>🛡️ Assurance</strong> : numéro de police AXA XL Insurance<br />
+                • <strong>🆘 Assistance</strong> : numéros AXA Assistance (France et étranger)<br />
+                • <strong>📍 Contacts opérationnels</strong> : DLUS, DLUSA, MOT, Onyx (cadre de permanence), Vigie, astreintes, COT, PCM…<br /><br />
+                Un bouton <em>&ldquo;📞 Enregistrer les contacts (VCard)&rdquo;</em> permet d&apos;<strong>enregistrer tous ces numéros dans votre téléphone</strong> en un clic.
+            </>
+        ),
         icon: '📋',
     },
 
@@ -92,38 +96,50 @@ const TOUR_STEPS: TourStep[] = [
     {
         target: null,
         title: 'Prendre un véhicule (Check-out)',
-        body: `Depuis la fiche d'un véhicule <strong>disponible</strong>, cliquez sur <em>"🚗 Prendre le véhicule"</em>. Un formulaire vous demandera :<br/><br/>
-        • <strong>Type de mission</strong> (DPS, PAPS, Maraude, etc.)<br/>
-        • <strong>État du véhicule</strong> au départ<br/>
-        • <strong>Photos</strong> avant départ (optionnel)<br/>
-        • <strong>Vérification du DSA</strong> si le véhicule en est équipé<br/><br/>
-        Votre identité est automatiquement remplie via votre compte Google.`,
+        body: (
+            <>
+                Depuis la fiche d&apos;un véhicule <strong>disponible</strong>, cliquez sur <em>&ldquo;🚗 Prendre le véhicule&rdquo;</em>. Un formulaire vous demandera :<br /><br />
+                • <strong>Type de mission</strong> (DPS, PAPS, Maraude, etc.)<br />
+                • <strong>État du véhicule</strong> au départ<br />
+                • <strong>Photos</strong> avant départ (optionnel)<br />
+                • <strong>Vérification du DSA</strong> si le véhicule en est équipé<br /><br />
+                Votre identité est automatiquement remplie via votre compte Google.
+            </>
+        ),
         icon: '🚗',
     },
     {
         target: null,
         title: 'Le 2ème conducteur',
-        body: `Vous pouvez ajouter un <strong>2ème conducteur</strong> de deux façons :<br/><br/>
-        • <strong>Au moment du départ</strong> : dans le formulaire de check-out, un champ optionnel permet de le sélectionner<br/>
-        • <strong>Pendant la mission</strong> : depuis la fiche véhicule, le bouton <em>"➕ Ajouter 2nd cond."</em> apparaît tant qu'aucun 2ème conducteur n'est assigné<br/><br/>
-        Le 2ème conducteur pourra <strong>lui aussi rendre le véhicule</strong> à la fin de la mission.`,
+        body: (
+            <>
+                Vous pouvez ajouter un <strong>2ème conducteur</strong> de deux façons :<br /><br />
+                • <strong>Au moment du départ</strong> : dans le formulaire de check-out, un champ optionnel permet de le sélectionner<br />
+                • <strong>Pendant la mission</strong> : depuis la fiche véhicule, le bouton <em>&ldquo;➕ Ajouter 2nd cond.&rdquo;</em> apparaît tant qu&apos;aucun 2ème conducteur n&apos;est assigné<br /><br />
+                Le 2ème conducteur pourra <strong>lui aussi rendre le véhicule</strong> à la fin de la mission.
+            </>
+        ),
         icon: '👥',
     },
     {
         target: null,
         title: 'Rendre un véhicule (Check-in)',
-        body: `Quand la mission est terminée, cliquez sur <em>"✅ Rendre le véhicule"</em>. Le formulaire demande :<br/><br/>
-        • <strong>Kilométrage</strong> et <strong>niveau de carburant</strong> actuels (sauf véhicules connectés)<br/>
-        • <strong>Place de stationnement</strong> où vous garez le véhicule<br/>
-        • <strong>État du véhicule</strong> et checklist (vitres, radio, tour du véhicule)<br/>
-        • <strong>Incident</strong> éventuel à signaler<br/><br/>
-        <strong>Qui peut rendre ?</strong> Le conducteur principal, le 2ème conducteur, ou un administrateur.`,
+        body: (
+            <>
+                Quand la mission est terminée, cliquez sur <em>&ldquo;✅ Rendre le véhicule&rdquo;</em>. Le formulaire demande :<br /><br />
+                • <strong>Kilométrage</strong> et <strong>niveau de carburant</strong> actuels (sauf véhicules connectés)<br />
+                • <strong>Place de stationnement</strong> où vous garez le véhicule<br />
+                • <strong>État du véhicule</strong> et checklist (vitres, radio, tour du véhicule)<br />
+                • <strong>Incident</strong> éventuel à signaler<br /><br />
+                <strong>Qui peut rendre ?</strong> Le conducteur principal, le 2ème conducteur, ou un administrateur.
+            </>
+        ),
         icon: '✅',
     },
     {
         target: null,
         title: 'Vous êtes prêt ! 🎉',
-        body: "Vous savez maintenant utiliser l'application. N'hésitez pas à consulter la page <strong>Aide</strong> pour retrouver les contacts utiles ou relancer ce tutoriel.<br/><br/>Bonne route ! 🚗",
+        body: <>Vous savez maintenant utiliser l&apos;application. N&apos;hésitez pas à consulter la page <strong>Aide</strong> pour retrouver les contacts utiles ou relancer ce tutoriel.<br /><br />Bonne route ! 🚗</>,
         icon: '🎉',
     },
 ];
@@ -177,7 +193,6 @@ export default function GuidedTour() {
     const [targetHidden, setTargetHidden] = useState(false);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const pathname = usePathname();
-    const router = useRouter();
 
     // ── Start tour on first visit or when localStorage flag is cleared ──
     useEffect(() => {
@@ -389,10 +404,9 @@ export default function GuidedTour() {
                 <div className="tour-info-card" key={step}>
                     <div className="tour-info-icon">{currentStep.icon}</div>
                     <h3 className="tour-info-title">{currentStep.title}</h3>
-                    <div
-                        className="tour-info-body"
-                        dangerouslySetInnerHTML={{ __html: currentStep.body }}
-                    />
+                    <div className="tour-info-body">
+                        {currentStep.body}
+                    </div>
                     <div className="tour-controls">
                         <div className="tour-controls-left">
                             {!isFirstStep && (
@@ -432,10 +446,9 @@ export default function GuidedTour() {
                         <span className="tour-tooltip-icon">{currentStep.icon}</span>
                         <span className="tour-tooltip-title">{currentStep.title}</span>
                     </div>
-                    <div
-                        className="tour-tooltip-body"
-                        dangerouslySetInnerHTML={{ __html: currentStep.body }}
-                    />
+                    <div className="tour-tooltip-body">
+                        {currentStep.body}
+                    </div>
                     <div className="tour-controls">
                         <div className="tour-controls-left">
                             {!isFirstStep && (

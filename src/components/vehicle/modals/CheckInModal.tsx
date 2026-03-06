@@ -8,7 +8,7 @@ interface CheckInModalProps {
     vehicle: Vehicle;
     trip: Trip;
     onClose: () => void;
-    /** Called immediately when the form is submitted (optimistic close) */
+    /** Called after the API request completes successfully */
     onSuccess: () => void;
     /** Called after the API request completes successfully (triggers data refetch) */
     onRefetch?: () => void;
@@ -35,8 +35,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        // Optimistic execution: instantly close the modal while sending data to back-end
-        onSuccess();
+        setSubmitting(true);
 
         try {
             const finalParkingIn = form.parkingInSelection === 'Autre'
@@ -100,13 +99,18 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
             });
 
             if (res.ok) {
-                // API completed — trigger refetch to sync real server state
+                // API completed successfully — close modal and trigger refetch
+                onSuccess();
                 onRefetch?.();
             } else {
-                console.error('Failed to checkin silently');
+                const errorData = await res.json().catch(() => ({}));
+                alert(errorData.error || 'Erreur lors du retour du véhicule');
+                setSubmitting(false);
             }
         } catch (error) {
-            console.error('Erreur de connexion lors du check-in silencieux:', error);
+            console.error('Erreur de connexion lors du check-in:', error);
+            alert('Erreur de connexion');
+            setSubmitting(false);
         }
     }
 
