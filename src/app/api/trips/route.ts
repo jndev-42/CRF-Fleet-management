@@ -18,6 +18,9 @@ const checkOutSchema = z.object({
     secondDriverEmail: z.string().email('Email 2nd conducteur invalide').optional().or(z.literal('')),
     driveFolderId: z.string().optional(),
     checklistOut: z.record(z.string(), z.boolean()).optional(),
+    dataIncorrect: z.boolean().optional(),
+    correctedMileage: z.number().int().min(0).optional(),
+    correctedFuel: z.number().int().min(0).max(100).optional(),
 });
 
 export async function POST(request: Request) {
@@ -98,6 +101,14 @@ export async function POST(request: Request) {
             }
         }
 
+        // Override with user-reported corrections for non-connected vehicles
+        const originalMileage = mileageOut;
+        const originalFuel = fuelOut;
+        if (data.dataIncorrect) {
+            if (data.correctedMileage !== undefined) mileageOut = data.correctedMileage;
+            if (data.correctedFuel !== undefined) fuelOut = data.correctedFuel;
+        }
+
         // Créer le trip et mettre à jour le véhicule en transaction
         const tx = await db.transaction('write');
         const tripId = crypto.randomUUID();
@@ -146,6 +157,31 @@ export async function POST(request: Request) {
             }
 
             await tx.commit();
+
+            // Incorrect data push notification (non-connected vehicle)
+            if (data.dataIncorrect) {
+                try {
+                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    const vName = vehicle.name || 'Véhicule inconnu';
+                    const fuelLabel = vehicle.fuelType === 'Électrique' ? 'Batterie' : 'Carburant';
+
+                    await sendPushNotification({
+                        tags: [
+                            { field: 'tag', key: 'role_RESPO', relation: '=', value: 'true' },
+                            { operator: 'OR' },
+                            { field: 'tag', key: 'role_ADMIN', relation: '=', value: 'true' },
+                        ],
+                        headings: { fr: `⚠️ Données incorrectes — ${vName}`, en: `⚠️ Incorrect data — ${vName}` },
+                        contents: {
+                            fr: `${data.driverName} a signalé des données incorrectes sur ${vName}. Km : ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel} : ${originalFuel}% → ${fuelOut}%.`,
+                            en: `${data.driverName} reported incorrect data on ${vName}. Mileage: ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel}: ${originalFuel}% → ${fuelOut}%.`,
+                        },
+                        url: `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(String(vName))}`,
+                    });
+                } catch (pushError) {
+                    console.error('Erreur lors de l\'envoi de la notification données incorrectes:', pushError);
+                }
+            }
 
             // Incident push notification
             if (data.conditionOut === "Problème signalé" || data.conditionOut === "Dégradé") {

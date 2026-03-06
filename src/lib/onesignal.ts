@@ -1,13 +1,15 @@
 import crypto from 'crypto';
 import { db } from '@/lib/db';
 
+type OneSignalTag = { field: string; key: string; relation: string; value: string } | { operator: string };
+
 export async function sendPushNotification({
     tags,
     headings,
     contents,
     url
 }: {
-    tags: Array<{ field: string, key: string, relation: string, value: string }>;
+    tags: OneSignalTag[];
     headings: { [key: string]: string };
     contents: { [key: string]: string };
     url?: string;
@@ -23,7 +25,8 @@ export async function sendPushNotification({
     try {
         // Find targeted users based on the OneSignal tags
         const targetedRoleNames = tags
-            .filter(t => t.field === 'tag' && t.key.startsWith('role_') && t.value === 'true')
+            .filter((t): t is { field: string; key: string; relation: string; value: string } =>
+                'field' in t && t.field === 'tag' && t.key.startsWith('role_') && t.value === 'true')
             .map(t => t.key.replace('role_', ''));
 
         if (targetedRoleNames.length > 0) {

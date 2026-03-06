@@ -32,6 +32,10 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
     // Custom checklist responses
     const [checklistOut, setChecklistOut] = useState<Record<string, boolean>>({});
 
+    const [dataIncorrect, setDataIncorrect] = useState(false);
+    const [correctedMileage, setCorrectedMileage] = useState(vehicle.mileage);
+    const [correctedFuel, setCorrectedFuel] = useState(vehicle.fuelLevel);
+
     const [submitting, setSubmitting] = useState(false);
     const [sessionLoading, setSessionLoading] = useState(true);
     const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
@@ -120,6 +124,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                     secondDriverEmail: form.secondDriverEmail || undefined,
                     driveFolderId,
                     checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
+                    dataIncorrect: dataIncorrect || undefined,
+                    correctedMileage: dataIncorrect ? correctedMileage : undefined,
+                    correctedFuel: dataIncorrect ? correctedFuel : undefined,
                 }),
             });
             if (res.ok) {
@@ -161,6 +168,59 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                             <div><strong>{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} :</strong> {vehicle.fuelLevel}%</div>
                             {vehicle.hasDSA && <div><strong>DSA :</strong> Équipé</div>}
                         </div>
+
+                        {/* Correction données véhicule (véhicule non connecté) */}
+                        {!vehicle.vin && (
+                            <div
+                                style={{
+                                    marginBottom: 20,
+                                    padding: '12px 14px',
+                                    background: dataIncorrect ? 'var(--status-maintenance-bg)' : 'var(--bg-card)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: `1px solid ${dataIncorrect ? 'rgba(239,68,68,0.4)' : 'var(--border-primary)'}`,
+                                }}
+                            >
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={dataIncorrect}
+                                        onChange={e => setDataIncorrect(e.target.checked)}
+                                        style={{ width: 16, height: 16, cursor: 'pointer' }}
+                                    />
+                                    <span>Le kilométrage et/ou le niveau d&apos;essence est erroné</span>
+                                </label>
+
+                                {dataIncorrect && (
+                                    <div className="form-row" style={{ marginTop: 14 }}>
+                                        <div className="form-group">
+                                            <label className="form-label">Kilométrage réel (km)</label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                value={correctedMileage}
+                                                onChange={e => setCorrectedMileage(Number(e.target.value))}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">
+                                                {vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} réel (%)
+                                            </label>
+                                            <input
+                                                className="form-input"
+                                                type="number"
+                                                min={0}
+                                                max={100}
+                                                value={correctedFuel}
+                                                onChange={e => setCorrectedFuel(Number(e.target.value))}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* Identité */}
                         <div className="form-row">
