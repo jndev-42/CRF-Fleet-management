@@ -61,7 +61,9 @@ export default function Navbar({ user }: NavbarProps) {
                         <a href="/aide" className="nav-link" data-tour="aide" onClick={() => setIsOpen(false)}>Aide</a>
 
                         <div className="nav-actions">
-                            <span data-tour="notifications"><NotificationBell /></span>
+                            {(user.roles?.includes('ADMIN') || user.roles?.includes('RESPO')) && (
+                                <span data-tour="notifications"><NotificationBell /></span>
+                            )}
                             <ThemeToggle />
                             <button
                                 className="btn btn-secondary nav-logout-btn"

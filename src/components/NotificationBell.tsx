@@ -17,6 +17,8 @@ export function NotificationBell() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
+    const [pushBlocked, setPushBlocked] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -94,6 +96,32 @@ export function NotificationBell() {
             cleanup();
         }
     }, [searchParams]);
+
+    // Sync push opt-in state when dropdown opens
+    useEffect(() => {
+        if (!isOpen) return;
+        const os = (window as any).OneSignal;
+        if (os?.User?.PushSubscription) {
+            setPushEnabled(!!os.User.PushSubscription.optedIn);
+        }
+    }, [isOpen]);
+
+    const handlePushToggle = async () => {
+        const os = (window as any).OneSignal;
+        if (!os?.User?.PushSubscription) return;
+
+        if (pushEnabled) {
+            await os.User.PushSubscription.optOut();
+        } else {
+            if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+                setPushBlocked(true);
+                return;
+            }
+            await os.User.PushSubscription.optIn();
+        }
+        setPushBlocked(false);
+        setPushEnabled(!!os.User.PushSubscription.optedIn);
+    };
 
     // Handle closing dropdown when clicking outside
     useEffect(() => {
@@ -257,6 +285,54 @@ export function NotificationBell() {
                             ))
                         )}
                     </div>
+
+                    {/* Push notification toggle */}
+                    {pushEnabled !== null && (
+                        <div style={{
+                            borderTop: '1px solid var(--border-primary)',
+                            padding: '10px 16px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 6,
+                            position: 'sticky',
+                            bottom: 0,
+                            backgroundColor: 'var(--bg-card)',
+                            borderRadius: '0 0 var(--radius-md) var(--radius-md)',
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Notifications push</span>
+                                <button
+                                    onClick={handlePushToggle}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        background: pushEnabled ? 'var(--crf-red)' : 'var(--bg-secondary)',
+                                        border: 'none',
+                                        borderRadius: 20,
+                                        padding: '4px 12px',
+                                        cursor: 'pointer',
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        color: pushEnabled ? '#fff' : 'var(--text-secondary)',
+                                        transition: 'background 0.2s',
+                                    }}
+                                >
+                                    <span style={{
+                                        width: 8, height: 8, borderRadius: '50%',
+                                        background: pushEnabled ? '#fff' : 'var(--text-muted)',
+                                        display: 'inline-block',
+                                    }} />
+                                    {pushEnabled ? 'Activées' : 'Désactivées'}
+                                </button>
+                            </div>
+                            {pushBlocked && (
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                    Autorisez les notifications dans les paramètres de votre navigateur pour les réactiver.
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
         </div>
