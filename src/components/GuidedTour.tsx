@@ -344,7 +344,7 @@ export default function GuidedTour({ roles = [] }: { roles?: string[] }) {
 
     // ── Navigation ──
     function next() {
-        if (step < TOUR_STEPS.length - 1) {
+        if (step < activeSteps.length - 1) {
             setStep(step + 1);
         } else {
             finish();

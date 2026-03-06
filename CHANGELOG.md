@@ -17,6 +17,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Corrigé
 - **Page d'aide accessible sans authentification** : La page `/aide` redirige désormais vers `/login` si l'utilisateur n'est pas connecté.
 - **Navigation visible sans authentification** : Le menu de navigation (burger + liens) est désormais masqué lorsque l'utilisateur n'est pas connecté.
+- **Page blanche en fin de tour (non-ADMIN/RESPO)** : La fonction `next()` du tour guidé utilisait `TOUR_STEPS.length` au lieu de `activeSteps.length`, ce qui faisait dépasser les bornes du tableau filtré et provoquait un crash client pour les utilisateurs sans rôle RESPO ou ADMIN.
 
 ## [1.7.0] - 2026-03-06
 
