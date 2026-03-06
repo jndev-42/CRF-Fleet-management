@@ -70,6 +70,72 @@
     color: var(--text-tertiary);
 }
 
+.itemDateRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.itemPending {
+    border-color: rgba(234, 179, 8, 0.4);
+    background: rgba(234, 179, 8, 0.03);
+}
+
+.badgePending {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(234, 179, 8, 0.15);
+    color: #ca8a04;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+    white-space: nowrap;
+}
+
+.badgeValidated {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(34, 197, 94, 0.12);
+    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    white-space: nowrap;
+}
+
+.itemActions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.validateBtn {
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #16a34a;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.validateBtn:hover:not(:disabled) {
+    background: rgba(34, 197, 94, 0.2);
+}
+
+.validateBtn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 .deleteBtn {
     background: transparent;
     border: none;
@@ -86,6 +152,16 @@
 
 .deleteBtn:hover {
     background: rgba(239, 68, 68, 0.1);
+}
+
+.pendingNotice {
+    font-size: 13px;
+    color: #ca8a04;
+    background: rgba(234, 179, 8, 0.08);
+    border: 1px solid rgba(234, 179, 8, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    margin-top: 12px;
 }
 
 .formRow {

@@ -654,6 +654,7 @@ body {
 .vehicle-detail-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 .detail-grid {
@@ -1196,6 +1197,15 @@ body {
 
   .vehicle-detail-header {
     flex-direction: column;
+  }
+
+  .vehicle-detail-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .vehicle-detail-actions .btn {
+    width: 100%;
   }
 
   .header-subtitle {

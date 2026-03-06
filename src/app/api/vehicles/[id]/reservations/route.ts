@@ -28,7 +28,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
         const result = await db.execute({
             sql: `
-                SELECT r.id, r.vehicleId, r.userEmail, r.userName, r.startTime, r.endTime, r.reason, r.createdAt
+                SELECT r.id, r.vehicleId, r.userEmail, r.userName, r.startTime, r.endTime, r.reason, r.status, r.createdAt
                 FROM "Reservation" r
                 WHERE r.vehicleId = ?
                 ORDER BY r.startTime ASC
@@ -36,7 +36,6 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
             args: [vehicleId]
         });
 
-        // Convertir les objets Row en tableau typé proprement
         const reservations = result.rows.map(row => ({
             id: row.id as string,
             vehicleId: row.vehicleId as string,
@@ -45,6 +44,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
             startTime: row.startTime as string,
             endTime: row.endTime as string,
             reason: row.reason as string | null,
+            status: (row.status as string) || 'PENDING',
             createdAt: row.createdAt as string
         }));
 
@@ -79,29 +79,33 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         const start = new Date(data.startTime);
         const end = new Date(data.endTime);
 
-        // Vérification de chevauchement basique pour ce véhicule
+        // ADMIN et RESPO voient leurs réservations auto-validées
+        const userRoles: string[] = session.user.roles || [];
+        const isValidator = userRoles.includes('ADMIN') || userRoles.includes('RESPO');
+        const status = isValidator ? 'VALIDATED' : 'PENDING';
+
+        // Vérification de chevauchement uniquement sur les réservations VALIDÉES
         const conflictCheck = await db.execute({
             sql: `
-                SELECT id 
-                FROM "Reservation" 
-                WHERE vehicleId = ? 
-                AND (
-                    (startTime < ? AND endTime > ?)
-                )
+                SELECT id
+                FROM "Reservation"
+                WHERE vehicleId = ?
+                AND status = 'VALIDATED'
+                AND (startTime < ? AND endTime > ?)
             `,
             args: [vehicleId, end.toISOString(), start.toISOString()]
         });
 
         if (conflictCheck.rows.length > 0) {
-            return NextResponse.json({ error: 'Ce créneau chevauche une réservation existante.' }, { status: 409 });
+            return NextResponse.json({ error: 'Ce créneau chevauche une réservation déjà validée.' }, { status: 409 });
         }
 
         const id = crypto.randomUUID();
 
         await db.execute({
             sql: `
-                INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `,
             args: [
                 id,
@@ -110,12 +114,50 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
                 session.user.name || session.user.email as string,
                 start.toISOString(),
                 end.toISOString(),
-                data.reason || null
+                data.reason || null,
+                status
             ]
         });
 
+        // Si la réservation est en attente, notifier les ADMIN et RESPO
+        if (status === 'PENDING') {
+            try {
+                const vehicleResult = await db.execute({
+                    sql: `SELECT name FROM "Vehicle" WHERE id = ?`,
+                    args: [vehicleId]
+                });
+                const vehicleName = vehicleResult.rows[0]?.name as string || vehicleId;
+                const requesterName = session.user.name || session.user.email;
 
-        return NextResponse.json({ success: true, id }, { status: 201 });
+                const { sendPushNotification } = await import('@/lib/onesignal');
+
+                // Notifier les ADMIN
+                await sendPushNotification({
+                    tags: [{ field: "tag", key: "role_ADMIN", relation: "=", value: "true" }],
+                    headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
+                    contents: {
+                        fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}. En attente de validation.`,
+                        en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR')} to ${end.toLocaleDateString('fr-FR')}. Pending validation.`
+                    },
+                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`
+                });
+
+                // Notifier les RESPO
+                await sendPushNotification({
+                    tags: [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }],
+                    headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
+                    contents: {
+                        fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR')} au ${end.toLocaleDateString('fr-FR')}. En attente de validation.`,
+                        en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR')} to ${end.toLocaleDateString('fr-FR')}. Pending validation.`
+                    },
+                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`
+                });
+            } catch (notifErr) {
+                console.error('Failed to send reservation notification:', notifErr);
+            }
+        }
+
+        return NextResponse.json({ success: true, id, status }, { status: 201 });
     } catch (error) {
         console.error('Failed to create reservation:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

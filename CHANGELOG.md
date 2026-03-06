@@ -5,6 +5,17 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-03-06
+
+### Added
+- **Workflow de Validation des Réservations :** Les utilisateurs CHVL/CHVPSP soumettent désormais une demande de réservation (statut `PENDING`). Les ADMIN et RESPO reçoivent une notification Push et peuvent valider depuis la fiche véhicule (bouton "✓ Valider"). À la validation, une notification in-app est envoyée au demandeur. Les réservations ADMIN/RESPO sont auto-validées à la création.
+- **Badges de statut sur les réservations :** Indicateur visuel "En attente" (orange) / "Validée" (vert) sur chaque réservation dans le bloc `ReservationBlock`.
+
+### Changed
+- **Conflit de réservation :** La détection de chevauchement ne porte plus que sur les réservations `VALIDATED`. Une demande en attente ne bloque plus la création d'une autre réservation ni l'emprunt du véhicule.
+- **Cron de surveillance kilométrique :** Fréquence passée de `23:59 chaque soir` à `toutes les 30 minutes` pour une détection plus réactive des mouvements suspects.
+- **Responsivité mobile :** Les boutons d'action de la fiche véhicule (Prendre, Rendre, Maintenance, Gérer la checklist) s'affichent désormais en colonne pleine largeur sur mobile au lieu de déborder hors écran.
+
 ## [1.4.0] - 2026-03-05
 
 ### Added

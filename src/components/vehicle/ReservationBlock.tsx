@@ -9,6 +9,7 @@ interface Reservation {
     startTime: string;
     endTime: string;
     reason: string | null;
+    status: 'PENDING' | 'VALIDATED';
     createdAt: string;
 }
 
@@ -23,6 +24,7 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [validating, setValidating] = useState<string | null>(null);
 
     // Form fields
     const [startDate, setStartDate] = useState('');
@@ -31,6 +33,10 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
     const [endTime, setEndTime] = useState('');
     const [reason, setReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
+
+    const isAdmin = userRoles.includes('ADMIN');
+    const isRespo = userRoles.includes('RESPO');
+    const canValidate = isAdmin || isRespo;
 
     const fetchReservations = async () => {
         try {
@@ -41,12 +47,13 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
 
                 if (onActiveReservationChange) {
                     const now = new Date();
-                    const activeRes = data.find(r => new Date(r.startTime) <= now && new Date(r.endTime) >= now);
-                    if (activeRes && activeRes.userEmail !== currentUserEmail) {
-                        onActiveReservationChange(true);
-                    } else {
-                        onActiveReservationChange(false);
-                    }
+                    // Seules les réservations VALIDÉES bloquent l'emprunt
+                    const activeRes = data.find(r =>
+                        r.status === 'VALIDATED' &&
+                        new Date(r.startTime) <= now &&
+                        new Date(r.endTime) >= now
+                    );
+                    onActiveReservationChange(!!activeRes && activeRes.userEmail !== currentUserEmail);
                 }
             }
         } catch (e) {
@@ -70,11 +77,7 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
             const res = await fetch(`/api/vehicles/${vehicleId}/reservations`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    startTime: startISO,
-                    endTime: endISO,
-                    reason
-                })
+                body: JSON.stringify({ startTime: startISO, endTime: endISO, reason })
             });
 
             if (res.ok) {
@@ -106,9 +109,24 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
         }
     };
 
-    const isAdmin = userRoles.includes('ADMIN');
+    const handleValidate = async (id: string) => {
+        setValidating(id);
+        try {
+            const res = await fetch(`/api/reservations/${id}`, { method: 'PATCH' });
+            if (res.ok) {
+                fetchReservations();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Erreur lors de la validation');
+            }
+        } catch (e) {
+            alert('Erreur réseau');
+        } finally {
+            setValidating(null);
+        }
+    };
 
-    // Filter out reservations that have already strictly passed to clean up UI
+    // Filter out reservations that have already strictly passed
     const upcomingReservations = reservations.filter(r => new Date(r.endTime) >= new Date());
 
     return (
@@ -130,22 +148,41 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
                         const start = new Date(res.startTime);
                         const end = new Date(res.endTime);
                         const canDelete = isAdmin || res.userEmail === currentUserEmail;
+                        const isPending = res.status === 'PENDING';
 
                         return (
-                            <div key={res.id} className={styles.item}>
+                            <div key={res.id} className={`${styles.item} ${isPending ? styles.itemPending : ''}`}>
                                 <div className={styles.itemInfo}>
-                                    <div className={styles.itemDate}>
-                                        Du <strong>{start.toLocaleDateString('fr-FR')} à {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong> au <strong>{end.toLocaleDateString('fr-FR')} à {end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong>
+                                    <div className={styles.itemDateRow}>
+                                        <div className={styles.itemDate}>
+                                            Du <strong>{start.toLocaleDateString('fr-FR')} à {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong>
+                                            {' '}au <strong>{end.toLocaleDateString('fr-FR')} à {end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</strong>
+                                        </div>
+                                        <span className={isPending ? styles.badgePending : styles.badgeValidated}>
+                                            {isPending ? 'En attente' : 'Validée'}
+                                        </span>
                                     </div>
                                     <div className={styles.itemUser}>
-                                        Par {res.userName} {res.reason && <span className={styles.itemReason}>- {res.reason}</span>}
+                                        Par {res.userName}{res.reason && <span className={styles.itemReason}> - {res.reason}</span>}
                                     </div>
                                 </div>
-                                {canDelete && (
-                                    <button onClick={() => handleDelete(res.id)} className={styles.deleteBtn} aria-label="Supprimer la réservation">
-                                        ✕
-                                    </button>
-                                )}
+                                <div className={styles.itemActions}>
+                                    {canValidate && isPending && (
+                                        <button
+                                            onClick={() => handleValidate(res.id)}
+                                            className={styles.validateBtn}
+                                            disabled={validating === res.id}
+                                            aria-label="Valider la réservation"
+                                        >
+                                            {validating === res.id ? '...' : '✓ Valider'}
+                                        </button>
+                                    )}
+                                    {canDelete && (
+                                        <button onClick={() => handleDelete(res.id)} className={styles.deleteBtn} aria-label="Supprimer la réservation">
+                                            ✕
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}
@@ -156,6 +193,11 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
                 <div className="modal-overlay" onClick={() => setShowModal(false)} style={{ zIndex: 1000 }}>
                     <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
                         <h3>Réserver ce véhicule</h3>
+                        {!canValidate && (
+                            <p className={styles.pendingNotice}>
+                                Votre demande sera soumise à validation par un responsable.
+                            </p>
+                        )}
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                             <div className={styles.formRow}>
                                 <div className={styles.formGroup}>
@@ -183,7 +225,7 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
                             </div>
                             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
-                                    {submitting ? '...' : 'Valider'}
+                                    {submitting ? '...' : canValidate ? 'Valider' : 'Soumettre la demande'}
                                 </button>
                                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)}>
                                     Annuler
