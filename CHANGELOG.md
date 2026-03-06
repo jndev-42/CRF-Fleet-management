@@ -5,6 +5,19 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-03-06
+
+### Ajouté
+- **Toggle notifications push** : Dans le dropdown de la cloche, un bouton permet d'activer ou désactiver les notifications push OneSignal sans passer par les paramètres du navigateur. N'affecte pas les notifications in-app (cloche). Si le navigateur a bloqué les notifications, un message d'aide s'affiche à la place.
+
+### Modifié
+- **Cloche de notifications réservée aux RESPO/ADMIN** : L'icône de cloche n'est plus affichée pour les rôles CHVL, CHVPSP et GUEST.
+- **Tour de première utilisation** : L'étape de présentation de la cloche de notifications est désormais masquée pour les utilisateurs sans rôle RESPO ou ADMIN.
+
+### Corrigé
+- **Page d'aide accessible sans authentification** : La page `/aide` redirige désormais vers `/login` si l'utilisateur n'est pas connecté.
+- **Navigation visible sans authentification** : Le menu de navigation (burger + liens) est désormais masqué lorsque l'utilisateur n'est pas connecté.
+
 ## [1.7.0] - 2026-03-06
 
 ### Ajouté
