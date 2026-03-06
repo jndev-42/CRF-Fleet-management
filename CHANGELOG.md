@@ -5,6 +5,17 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-03-06
+
+### Ajouté
+- **Signalement données incorrectes** : Sur la modale de prise de véhicule (véhicules non connectés uniquement), nouvelle case à cocher "Le kilométrage et/ou le niveau d'essence est erroné". Lorsqu'elle est cochée, des champs éditables permettent de saisir les valeurs réelles. À la validation, les données corrigées sont enregistrées en base et une notification push + cloche est envoyée aux rôles RESPO et ADMIN avec les anciennes et nouvelles valeurs.
+- **Pagination de l'historique des sorties** : Les sorties (trips) sur la fiche véhicule sont désormais paginées (3 par page). Des boutons Précédent / Suivant avec indicateur de page s'affichent uniquement s'il y a plus de 3 sorties. En cas de suppression d'un trip, la pagination se recale automatiquement.
+
+### Corrigé
+- **Fuseau horaire UTC+1** : Toutes les dates de l'application (`formatDate`, `ReservationBlock`, `NotificationBell`) affichent désormais l'heure en heure de Paris (Europe/Paris) au lieu de l'UTC. Les timestamps SQLite (format `YYYY-MM-DD HH:MM:SS` sans `Z`) sont normalisés à la source dans l'API notifications avant d'être envoyés au client.
+- **Notifications push bloquées** : Les en-têtes de sécurité (`Permissions-Policy`) n'étaient pas appliqués aux scripts de service worker OneSignal, empêchant la réception des notifications sur mobile et desktop. Le filtre `source` dans `next.config.ts` exclut désormais les fichiers `.js`, `.json`, les assets statiques et les routes API.
+- **Items de checklist hardcodés supprimés** : Les lignes "DSA vérifié", "DSA utilisé", "Vitres/Radios", "Tour véhicule" codées en dur dans `TripItem` ont été retirées.
+
 ## [1.6.1] - 2026-03-06
 
 ### Modifié
