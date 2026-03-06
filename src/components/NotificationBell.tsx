@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Bell, Trash2 } from 'lucide-react';
-import OneSignal from 'react-onesignal';
 
 type Notification = {
     id: string;
@@ -101,14 +100,14 @@ export function NotificationBell() {
     // Sync push opt-in state when dropdown opens
     useEffect(() => {
         if (!isOpen) return;
-        const sub = OneSignal.User?.PushSubscription;
+        const sub = (window as any).OneSignal?.User?.PushSubscription;
         if (sub) {
             setPushEnabled(!!sub.optedIn);
         }
     }, [isOpen]);
 
     const handlePushToggle = async () => {
-        const sub = OneSignal.User?.PushSubscription;
+        const sub = (window as any).OneSignal?.User?.PushSubscription;
         if (!sub) return;
 
         if (pushEnabled) {
