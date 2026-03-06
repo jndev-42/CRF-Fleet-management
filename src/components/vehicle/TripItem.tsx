@@ -87,33 +87,6 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                 </div>
             </div>
 
-            {/* Extra info row */}
-            <div className="trip-details" style={{ marginTop: 8 }}>
-                {trip.dsaChecked && (
-                    <div className="trip-detail-item">
-                        <span className="trip-detail-label">DSA vérifié</span>
-                        <span className="trip-detail-value">✅ Oui</span>
-                    </div>
-                )}
-                {trip.dsaUsed && (
-                    <div className="trip-detail-item">
-                        <span className="trip-detail-label">DSA utilisé</span>
-                        <span className="trip-detail-value">⚠️ Oui</span>
-                    </div>
-                )}
-                {trip.windowsClosed !== null && (
-                    <div className="trip-detail-item">
-                        <span className="trip-detail-label">Vitres / Radios</span>
-                        <span className="trip-detail-value">{trip.windowsClosed ? '✅ Fermées' : '❌ Non'}</span>
-                    </div>
-                )}
-                {trip.vehicleInspected !== null && (
-                    <div className="trip-detail-item">
-                        <span className="trip-detail-label">Tour véhicule</span>
-                        <span className="trip-detail-value">{trip.vehicleInspected ? '✅ Effectué' : '❌ Non'}</span>
-                    </div>
-                )}
-            </div>
 
             {trip.incident && (
                 <div
