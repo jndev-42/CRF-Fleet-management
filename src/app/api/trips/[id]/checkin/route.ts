@@ -86,7 +86,7 @@ export async function PATCH(
 
         if (vehicleName && (finalMileageIn === undefined || finalFuelIn === undefined)) {
             if (vehicleName.includes('VL186') || vehicleName.includes('VL188')) {
-                const vin = getVinFromName(vehicleName);
+                const vin = await getVinFromName(vehicleName);
                 if (vin) {
                     try {
                         const rData = await getRenaultVehicleData(vin);
