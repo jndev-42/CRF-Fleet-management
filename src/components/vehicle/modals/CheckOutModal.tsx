@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 
 import ChecklistItems from '../ChecklistItems';
+import FuelBar from '@/components/vehicle/FuelBar';
 
 interface CheckOutModalProps {
     vehicle: Vehicle;
@@ -205,17 +206,17 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                         </div>
                                         <div className="form-group">
                                             <label className="form-label">
-                                                {vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} réel (%)
+                                                {vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} réel : {correctedFuel}%
                                             </label>
                                             <input
-                                                className="form-input"
-                                                type="number"
+                                                type="range"
+                                                className="fuel-slider"
                                                 min={0}
                                                 max={100}
                                                 value={correctedFuel}
                                                 onChange={e => setCorrectedFuel(Number(e.target.value))}
-                                                required
                                             />
+                                            <FuelBar level={correctedFuel} electric={vehicle.fuelType === 'Électrique'} style={{ marginTop: 6 }} />
                                         </div>
                                     </div>
                                 )}

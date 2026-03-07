@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
 import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
+import FuelBar from '@/components/vehicle/FuelBar';
 
 interface Vehicle {
     id: string;
@@ -37,11 +38,6 @@ function isElectric(vehicleName: string) {
     return vehicleName.toUpperCase().includes('VL186');
 }
 
-function getFuelClass(level: number) {
-    if (level >= 50) return 'full';
-    if (level >= 25) return 'mid';
-    return 'low';
-}
 
 export default function VehiclesPage() {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -224,12 +220,7 @@ export default function VehiclesPage() {
                                                 <span className="meta-label" style={{ color: isElec ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{label}</span>
                                                 <span className="meta-label" style={{ fontWeight: 600 }}>{displayVal}</span>
                                             </div>
-                                            <div className="fuel-bar">
-                                                <div
-                                                    className={`fuel-bar-fill ${getFuelClass(fillPct)}`}
-                                                    style={{ width: `${fillPct}%` }}
-                                                />
-                                            </div>
+                                            <FuelBar level={fillPct} electric={isElec} style={{ marginTop: 4 }} />
                                             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, textAlign: 'right' }}>
                                                 Autonomie: {rData.batteryAutonomy || rData.fuelAutonomy || '—'} km
                                             </div>
@@ -244,12 +235,7 @@ export default function VehiclesPage() {
                                             <span className="meta-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'}</span>
                                             <span className="meta-label">{vehicle.fuelLevel}%</span>
                                         </div>
-                                        <div className="fuel-bar">
-                                            <div
-                                                className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
-                                                style={{ width: `${vehicle.fuelLevel}%` }}
-                                            />
-                                        </div>
+                                        <FuelBar level={vehicle.fuelLevel} electric={isElectric(vehicle.name)} style={{ marginTop: 4 }} />
                                     </div>
                                 );
                             })()}

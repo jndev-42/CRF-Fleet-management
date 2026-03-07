@@ -8,8 +8,9 @@ import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
 import PhotoViewer from '@/components/PhotoViewer';
 
-import { Vehicle, Trip } from './types';
-import { formatDate, isConnected, getFuelClass, statusClass, statusLabels } from './utils';
+import { Vehicle } from './types';
+import { formatDate } from './utils';
+import FuelBar from '@/components/vehicle/FuelBar';
 import VehicleBadges from '@/components/vehicle/VehicleBadges';
 import DetailCard from '@/components/vehicle/DetailCard';
 import RenaultConnectBlock from '@/components/vehicle/RenaultConnectBlock';
@@ -446,12 +447,7 @@ export default function VehicleDetailPage() {
                     value={`${vehicle.fuelLevel}%`}
                     onEdit={!vehicle.vin ? () => setShowEditMetricsModal(true) : undefined}
                 >
-                    <div className="fuel-bar" style={{ marginTop: 8 }}>
-                        <div
-                            className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
-                            style={{ width: `${vehicle.fuelLevel}%` }}
-                        />
-                    </div>
+                    <FuelBar level={vehicle.fuelLevel} electric={vehicle.fuelType === 'Électrique'} style={{ marginTop: 8 }} />
                 </DetailCard>
                 <DetailCard
                     title="Stationnement"

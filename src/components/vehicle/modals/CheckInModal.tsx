@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
-import { isConnected, getFuelClass, formatDate } from '@/app/vehicles/[id]/utils';
+import { isConnected, formatDate } from '@/app/vehicles/[id]/utils';
+import FuelBar from '@/components/vehicle/FuelBar';
 import { useSession } from 'next-auth/react';
 import ChecklistItems from '../ChecklistItems';
 
@@ -193,12 +194,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     value={form.fuelIn}
                                     onChange={(e) => setForm({ ...form, fuelIn: Number(e.target.value) })}
                                 />
-                                <div className="fuel-bar" style={{ marginTop: 8 }}>
-                                    <div
-                                        className={`fuel-bar-fill ${getFuelClass(form.fuelIn)}`}
-                                        style={{ width: `${form.fuelIn}%` }}
-                                    />
-                                </div>
+                                <FuelBar level={form.fuelIn} electric={vehicle.fuelType === 'Électrique'} style={{ marginTop: 8 }} />
                             </div>
                         )}
 
