@@ -1,100 +1,108 @@
-# 🚑 Croix-Rouge Chauffeur
+# CR Chauffeur — Gestion de flotte · Croix-Rouge Paris 18
 
-Application de gestion de flotte de véhicules pour la Croix-Rouge, permettant le suivi des départs en mission et des retours de véhicules (kilométrage, niveau d'essence, vérification de l'état, équipement).
-
-## 🛠️ Stack Technique
-
-- **Frontend / Backend** : [Next.js](https://nextjs.org/) (App Router)
-- **Style** : [Tailwind CSS](https://tailwindcss.com/)
-- **Base de données** : [Turso](https://turso.tech/) (SQLite in the cloud via libSQL)
-- **Hébergement** : [Vercel](https://vercel.com/)
+Application web de gestion de la flotte de véhicules de l'Unité Locale de la Croix-Rouge Française de Paris 18. Elle centralise le suivi des emprunts de véhicules, les états des sorties/retours, les niveaux d'essence et kilométrages, ainsi que les réservations et notifications internes.
 
 ---
 
-## 💻 Développement Local
+## Fonctionnalités
 
-### Prérequis
+### Gestion des véhicules
+- Liste de la flotte avec statut en temps réel (Disponible / En mission / Maintenance)
+- Fiche détaillée par véhicule : kilométrage, niveau de carburant/batterie, emplacement de stationnement
+- Jauge de carburant visuelle avec jalons (E / 1/4 / 1/2 / 3/4 / F) et code couleur dynamique
+- Ajout, édition et suppression de véhicules (ADMIN)
+- Notes internes par véhicule
 
-- [Node.js](https://nodejs.org/) (version 18 ou supérieure)
-- Un compte [Turso](https://turso.tech/) (optionnel pour le dev local si vous utilisez un fichier SQLite local, mais recommandé pour avoir les mêmes données).
+### Sorties & retours (trips)
+- **Check-out** : saisie du nom du chauffeur, type de mission, kilométrage, niveau d'essence, checklist pré-départ, deuxième conducteur optionnel
+- **Check-in** : saisie du kilométrage et niveau d'essence retour, état du véhicule, checklist retour
+- Signalement de données incorrectes (kilométrage/carburant erroné) lors d'un check-out sur véhicule non connecté → notification automatique aux RESPO/ADMIN
+- Historique paginé des sorties par véhicule (3 par page)
+- Ajout d'un dossier de déplacement (lien Google Drive)
 
-### Installation
+### Réservations
+- Système de réservation de véhicules par plage horaire
+- Vue calendrier ou liste des réservations à venir
+- Gestion des conflits de créneaux
 
-1. Clonez le dépôt :
-   ```bash
-   git clone <votre-url-git>
-   cd cr-chauffeur
-   ```
+### Véhicules connectés (Renault)
+- Intégration Renault Connect : niveau de batterie/carburant, autonomie et kilométrage en temps réel
+- Sessions Renault/Gigya persistées en base (résistantes aux cold-starts Vercel)
 
-2. Installez les dépendances :
-   ```bash
-   npm install
-   ```
+### Notifications
+- **In-app** (cloche) : notifications persistées en base, visibles uniquement par les RESPO et ADMIN
+- **Push** (OneSignal) : notifications push natives (bureau / mobile) pour les événements critiques
+- Toggle activation/désactivation des notifications push directement depuis la cloche
 
-3. Configurez les variables d'environnement en créant un fichier `.env` à la racine :
-   ```env
-   TURSO_DATABASE_URL=file:./dev.db
-   # Laissez TURSO_AUTH_TOKEN vide pour un fichier local en développement
-   ```
+### Authentification & rôles
+- Authentification OAuth2 via Google (restreinte aux emails `@croix-rouge.fr`)
+- Auto-inscription à la première connexion avec rôle `GUEST`
+- 5 rôles : `ADMIN`, `RESPO`, `CHVL`, `CHVPSP`, `GUEST`
+- Gestion des utilisateurs et rôles (ADMIN)
 
-4. Lancez le serveur de développement :
-   ```bash
-   npm run dev
-   ```
-
-5. L'application sera accessible sur [http://localhost:3000](http://localhost:3000).
+### Expérience utilisateur
+- PWA installable (iOS / Android / desktop)
+- Mode sombre / clair
+- Tour guidé de première utilisation (adapté selon le rôle)
+- Easter egg Konami
 
 ---
 
-## 🚀 Déploiement Manuel (Vercel + Turso)
+## Stack technique
 
-Suivez ces étapes pour déployer l'application manuellement ou configurer un nouvel environnement de production.
+| Couche | Technologie |
+|---|---|
+| Frontend + Backend | [Next.js 16](https://nextjs.org/) — App Router, Server & Client Components |
+| Base de données | [Turso](https://turso.tech/) — SQLite cloud via libSQL (`@libsql/client`) |
+| Authentification | [NextAuth v5](https://authjs.dev/) — OAuth2 Google |
+| Notifications push | [OneSignal](https://onesignal.com/) — SDK Web v16 |
+| Hébergement | [Vercel](https://vercel.com/) |
+| Icônes | [Lucide React](https://lucide.dev/) |
 
-### Partie 1 : Configuration de la Base de Données (Turso)
+---
 
-Turso nous permet d'héberger la base de données SQLite dans le cloud, avec une API accessible depuis Vercel.
+## Architecture
 
-1. Installez l'outil en ligne de commande Turso :
-   - Mac/Linux : `brew install tursodatabase/tap/turso` ou `curl -sSfL https://get.tur.so/install.sh | bash`
-   - Windows : Consultez la [documentation Turso](https://docs.turso.tech/cli/installation).
+```
+src/
+├── app/                    # Pages Next.js (App Router)
+│   ├── page.tsx            # Dashboard
+│   ├── vehicles/           # Liste et fiches véhicules
+│   ├── users/              # Gestion des utilisateurs (ADMIN)
+│   ├── reservations/       # Réservations
+│   ├── aide/               # Page d'aide (authentifiée)
+│   └── api/                # Routes API (REST, serverless)
+├── components/
+│   ├── vehicle/            # Composants liés aux véhicules et modales
+│   ├── Navbar.tsx
+│   ├── NotificationBell.tsx
+│   ├── GuidedTour.tsx
+│   └── OneSignalProvider.tsx
+├── lib/
+│   ├── db.ts               # Client Turso/libSQL
+│   ├── onesignal.ts        # Envoi de notifications (serveur)
+│   └── renault.ts          # Intégration API Renault Connect
+└── auth.ts                 # Configuration NextAuth
+```
 
-2. Connectez-vous à votre compte Turso :
-   ```bash
-   turso auth login
-   ```
+---
 
-3. Créez une nouvelle base de données :
-   ```bash
-   turso db create cr-chauffeur
-   ```
+## Variables d'environnement
 
-4. Récupérez les identifiants de connexion :
-   - L'URL de la base de données :
-     ```bash
-     turso db show cr-chauffeur --url
-     # Exemple : libsql://cr-chauffeur-votrenom.turso.io
-     ```
-   - Le token d'authentification :
-     ```bash
-     turso db tokens create cr-chauffeur
-     # Exemple : eyJhbGciOiJFZ...
-     ```
+| Variable | Description |
+|---|---|
+| `AUTH_SECRET` | Secret NextAuth (généré via `npx auth secret`) |
+| `GOOGLE_CLIENT_ID` | OAuth2 Google — Client ID |
+| `GOOGLE_CLIENT_SECRET` | OAuth2 Google — Client Secret |
+| `TURSO_DATABASE_URL` | URL de la base Turso (`libsql://...`) |
+| `TURSO_AUTH_TOKEN` | Token d'authentification Turso |
+| `ONESIGNAL_ID` | App ID OneSignal |
+| `ONESIGNAL_API_KEY` | REST API Key OneSignal |
+| `RENAULT_MAIL` | Email du compte Renault Connect |
+| `RENAULT_PASS` | Mot de passe du compte Renault Connect |
 
-### Partie 2 : Déploiement du Code (Vercel)
+---
 
-L'application est optimisée pour être déployée sur Vercel.
+## Contribuer & déployer
 
-1. Créez un compte sur [Vercel](https://vercel.com/) si vous n'en avez pas.
-2. Connectez votre dépôt GitHub à Vercel :
-   - Allez sur le Dashboard Vercel.
-   - Cliquez sur **Add New...** > **Project**
-   - Importez le dépôt Git contenant l'application `cr-chauffeur`.
-3. **Configuration des variables d'environnement** :
-   Dans l'étape de configuration du projet (avant de cliquer sur Deploy), ajoutez les deux variables suivantes :
-   - `TURSO_DATABASE_URL` : l'URL récupérée à l'étape 1.4 (ex: `libsql://cr-chauffeur-...`)
-   - `TURSO_AUTH_TOKEN` : le token généré à l'étape 1.4
-4. Cliquez sur **Deploy**.
-
-> **Note technique** : L'API de l'application utilise directement le package `@libsql/client` (SQL natif) pour se connecter à Turso, s'affranchissant ainsi des incompatibilités connues entre Prisma v7 et l'environnement Vercel Node.js Serverless.
-
-Et voilà ! L'application est maintenant en ligne, et connectée à votre base de données cloud 🎉.
+Voir [CONTRIBUTING.md](./CONTRIBUTING.md) pour les instructions de lancement local, de test et de déploiement.

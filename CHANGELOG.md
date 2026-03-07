@@ -5,6 +5,16 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-03-07
+
+### Ajouté
+- **Jauge de carburant améliorée** : Pour les véhicules non électriques, la jauge affiche désormais des jalons visuels (E / 1/4 / 1/2 / 3/4 / F). Tous types confondus, la couleur de la jauge est dynamique selon le niveau : rouge (< 25%), orange (25–49%), vert (≥ 50%).
+- **Jauge interactive dans les modales** : Les modales de check-in, check-out (correction de données) et d'édition des métriques affichent maintenant la jauge en temps réel lors de la saisie du niveau de carburant, remplaçant les anciens champs numériques.
+
+### Documentation
+- **README.md** restructuré : présentation du projet, liste des fonctionnalités, stack technique, architecture, variables d'environnement.
+- **CONTRIBUTING.md** créé : instructions de lancement local, initialisation de la base de données, tests et déploiement (Turso + Vercel).
+
 ## [1.8.0] - 2026-03-06
 
 ### Ajouté
