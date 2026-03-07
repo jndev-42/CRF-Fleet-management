@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
+import FuelBar from '@/components/vehicle/FuelBar';
 
 interface EditMetricsModalProps {
     vehicle: Vehicle;
@@ -76,17 +77,17 @@ export default function EditMetricsModal({ vehicle, onClose, onSuccess }: EditMe
                     </div>
                     <div className="form-group" style={{ marginTop: 16 }}>
                         <label className="form-label">
-                            Niveau {vehicle.fuelType === 'Électrique' ? 'de batterie' : 'de carburant'} (%)
+                            Niveau {vehicle.fuelType === 'Électrique' ? 'de batterie' : 'de carburant'} : {fuelLevel}%
                         </label>
                         <input
-                            type="number"
-                            className="form-input"
-                            value={fuelLevel}
-                            onChange={(e) => setFuelLevel(e.target.value ? parseInt(e.target.value, 10) : '')}
+                            type="range"
+                            className="fuel-slider"
+                            value={fuelLevel === '' ? 0 : fuelLevel}
+                            onChange={(e) => setFuelLevel(parseInt(e.target.value, 10))}
                             min={0}
                             max={100}
-                            required
                         />
+                        <FuelBar level={fuelLevel === '' ? 0 : fuelLevel} electric={vehicle.fuelType === 'Électrique'} style={{ marginTop: 6 }} />
                     </div>
                     <div className="modal-footer" style={{ marginTop: 24, padding: 0, justifyContent: 'flex-end', display: 'flex', gap: 12 }}>
                         <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>Annuler</button>
