@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   // next-pwa is removed since it doesn't support Turbopack (Next.js 16 default)
   turbopack: {},
 
+  // Force transpilation of packages that use modern JS syntax (?.  ??) — needed for iOS 12
+  transpilePackages: ['react-onesignal', 'next-themes'],
+
   async headers() {
     return [
       {
