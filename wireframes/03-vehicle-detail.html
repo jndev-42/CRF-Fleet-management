@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wireframe 03 — Fiche véhicule</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --crf-red: #E30613; --crf-red-glow: rgba(227,6,19,0.2);
+      --bg-primary: #0A0B0E; --bg-secondary: #12141A; --bg-card: #181B23;
+      --bg-card-hover: #1E2230; --bg-header: rgba(18,20,26,0.92); --bg-input: #1A1D27;
+      --border-primary: rgba(255,255,255,0.06); --border-hover: rgba(255,255,255,0.12);
+      --text-primary: #F0F1F5; --text-secondary: #9398A7; --text-muted: #5C6070;
+      --status-available: #22C55E; --status-inuse: #F59E0B;
+      --fuel-full: #22C55E; --fuel-mid: #F59E0B; --fuel-low: #EF4444;
+      --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+      --transition-fast: 150ms cubic-bezier(0.4,0,0.2,1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; margin-right: 300px; }
+
+    /* Annotations */
+    .wf-annotated { position: relative; }
+    .wf-badge { position: absolute; top: -9px; right: -9px; width: 20px; height: 20px; border-radius: 50%; background: #3B82F6; color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; z-index: 100; box-shadow: 0 2px 6px rgba(0,0,0,0.6); cursor: help; flex-shrink: 0; }
+    .wf-badge.contrast { background: #F97316; }
+    .wf-badge.semantic { background: #22C55E; color: #111; }
+    .wf-highlight { outline: 1.5px dashed rgba(59,130,246,0.5); outline-offset: 2px; border-radius: 4px; }
+    .wf-highlight.contrast { outline-color: rgba(249,115,22,0.6); }
+    .wf-highlight.semantic { outline-color: rgba(34,197,94,0.6); }
+
+    /* Legend */
+    .wf-legend { position: fixed; right: 0; top: 0; bottom: 0; width: 300px; background: #12141A; border-left: 1px solid rgba(255,255,255,0.07); overflow-y: auto; padding: 20px 16px; z-index: 9999; font-size: 11.5px; }
+    .wf-legend-title { font-size: 13px; font-weight: 700; color: #F0F1F5; margin-bottom: 4px; }
+    .wf-legend-subtitle { font-size: 11px; color: #5C6070; margin-bottom: 16px; line-height: 1.5; }
+    .wf-legend-section { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #5C6070; margin: 14px 0 8px; }
+    .wf-legend-item { display: flex; gap: 8px; margin-bottom: 10px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.03); }
+    .wf-num { width: 18px; height: 18px; border-radius: 50%; font-size: 9px; font-weight: 800; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .wf-num.aria { background: #3B82F6; color: #fff; }
+    .wf-num.semantic { background: #22C55E; color: #111; }
+    .wf-legend-text { color: #9398A7; line-height: 1.5; font-size: 11px; }
+    .wf-legend-code { font-family: 'SF Mono', monospace; font-size: 10px; color: #93C5FD; display: block; margin-top: 3px; word-break: break-all; }
+    .wf-legend-key { display: flex; gap: 10px; margin-bottom: 8px; font-size: 11px; }
+    .wf-legend-key-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+    .wf-legend-sep { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 14px 0; }
+    .wf-screen-label { background: rgba(227,6,19,0.1); color: #E30613; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; }
+
+    /* App styles */
+    header { background: var(--bg-header); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border-primary); height: 64px; display: flex; align-items: center; padding: 0 24px; gap: 16px; }
+    .header-logo { width: 36px; height: 36px; background: var(--crf-red); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px var(--crf-red-glow); }
+    .header-title { font-size: 16px; font-weight: 700; }
+    .header-subtitle { font-size: 11px; color: var(--text-secondary); }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 500; color: var(--text-secondary); text-decoration: none; margin-bottom: 24px; }
+    .back-link:hover { color: var(--text-primary); }
+
+    .vehicle-detail-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; }
+    .vehicle-detail-info h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; }
+    .vehicle-detail-plate { font-size: 16px; color: var(--text-secondary); font-family: 'SF Mono', monospace; margin-top: 4px; }
+    .vehicle-detail-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    .badge { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 6px; }
+    .badge-type { background: rgba(227,6,19,0.18); color: #c00011; }
+    .badge-available { background: rgba(34,197,94,0.18); color: #16a34a; }
+    .badge-inuse { background: rgba(245,158,11,0.18); color: #b45309; }
+    .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .badge-available .status-dot { background: #16a34a; }
+
+    .btn { font-size: 14px; font-weight: 600; padding: 10px 20px; border: none; border-radius: var(--radius-sm); cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-family: inherit; transition: all var(--transition-fast); }
+    .btn-primary { background: var(--crf-red); color: #fff; box-shadow: 0 0 12px var(--crf-red-glow); }
+    .btn-secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-primary); }
+    .btn-sm { font-size: 13px; padding: 6px 12px; }
+    .btn-icon-sm { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--bg-input); border: 1px solid var(--border-primary); border-radius: var(--radius-sm); cursor: pointer; color: var(--text-secondary); font-size: 14px; }
+
+    /* Mission banner */
+    .mission-banner {
+      background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);
+      border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 24px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .mission-info { font-size: 14px; }
+    .mission-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--status-inuse); margin-bottom: 4px; }
+
+    /* Detail grid */
+    .detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .detail-card { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: 20px; }
+    .detail-card-title { font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .detail-card-value { font-size: 24px; font-weight: 700; }
+    .fuel-bar { width: 100%; height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; margin-top: 10px; }
+    .fuel-bar-fill { height: 100%; border-radius: 4px; }
+    .fuel-bar-fill.full { background: var(--fuel-full); }
+    .fuel-bar-fill.mid { background: var(--fuel-mid); }
+
+    /* Trip list */
+    .section-title { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
+    .trip-list { display: flex; flex-direction: column; gap: 12px; }
+    .trip-item { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: 20px; }
+    .trip-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+    .trip-driver { font-size: 15px; font-weight: 600; }
+    .trip-date { font-size: 13px; color: var(--text-secondary); }
+    .trip-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .trip-detail-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); }
+    .trip-detail-value { font-size: 14px; font-weight: 500; margin-top: 2px; }
+
+    /* Pagination */
+    .pagination { display: flex; align-items: center; gap: 12px; margin-top: 16px; justify-content: center; }
+    .pagination-btn { font-size: 13px; font-weight: 600; padding: 8px 16px; background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-sm); cursor: pointer; color: var(--text-primary); font-family: inherit; }
+    .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pagination-info { font-size: 13px; color: var(--text-secondary); }
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-logo">
+    <svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M12 2L2 7v10l10 5 10-5V7L12 2z"/></svg>
+  </div>
+  <div style="flex:1">
+    <div class="header-title">CR Chauffeur</div>
+    <div class="header-subtitle">Croix-Rouge Paris 18</div>
+  </div>
+</header>
+
+<main id="main-content" role="main">
+
+  <!-- ① Lien retour avec aria-label -->
+  <a href="#" class="back-link wf-annotated wf-highlight" aria-label="Retour au tableau de bord">
+    <span class="wf-badge" title="aria-label='Retour au tableau de bord' — plus explicite que '← Retour'">1</span>
+    ← Retour au tableau de bord
+  </a>
+
+  <!-- En-tête véhicule -->
+  <div class="vehicle-detail-header">
+    <div class="vehicle-detail-info">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <h1>VL186 — Renault Zoé</h1>
+        <span class="badge badge-type" aria-label="Type de véhicule : VL">VL</span>
+        <span class="badge badge-available" aria-label="Statut : Disponible">
+          <span class="status-dot" aria-hidden="true"></span>
+          Disponible
+        </span>
+        <!-- ⑩ Badge DSA cliquable — role="button" -->
+        <span class="badge wf-annotated wf-highlight" role="button" tabindex="0"
+          aria-pressed="true" aria-label="DSA présent — cliquer pour retirer"
+          style="background:rgba(34,197,94,0.18);color:#16a34a;cursor:pointer">
+          <span class="wf-badge" title="role='button' + tabindex='0' + aria-pressed='true' + aria-label explicite — le badge est interactif pour les ADMIN">10</span>
+          DSA
+        </span>
+      </div>
+      <div class="vehicle-detail-plate">AB-123-CD</div>
+    </div>
+    <div class="vehicle-detail-actions">
+      <!-- ③ Bouton action principal avec aria-label -->
+      <button class="btn btn-primary wf-annotated wf-highlight" aria-label="Prendre le véhicule VL186">
+        <span class="wf-badge" title="aria-label='Prendre le véhicule VL186' — identifie le véhicule concerné">3</span>
+        Prendre le véhicule
+      </button>
+      <!-- ② Bouton QR code avec aria-label -->
+      <button class="btn-icon-sm wf-annotated wf-highlight" aria-label="Afficher le QR code du véhicule VL186">
+        <span class="wf-badge" title="aria-label='Afficher le QR code du véhicule VL186' — remplace l'icône muette">2</span>
+        &#9638;
+      </button>
+    </div>
+  </div>
+
+  <!-- ④ Bannière mission avec role="status" + aria-live -->
+  <section class="mission-banner wf-annotated wf-highlight" role="status" aria-label="Mission en cours" aria-live="polite">
+    <span class="wf-badge" title="role='status' + aria-live='polite' + aria-label='Mission en cours' — mis à jour dynamiquement, annoncé aux SR">4</span>
+    <div class="mission-info">
+      <div class="mission-label">En mission</div>
+      <div>Conducteur : <strong>Marie DUPONT</strong></div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-top:2px">Maraude · Depuis le 07/03/2026 à 14:30</div>
+    </div>
+    <button class="btn btn-sm btn-secondary">Rendre le véhicule</button>
+  </section>
+
+  <!-- Métriques -->
+  <div class="detail-grid">
+    <div class="detail-card">
+      <div class="detail-card-title">
+        Kilométrage
+        <!-- ⑤ Bouton edit km avec aria-label -->
+        <button class="btn-icon-sm wf-annotated wf-highlight" aria-label="Modifier le kilométrage manuellement">
+          <span class="wf-badge" title="aria-label='Modifier le kilométrage manuellement' — décrit l'action ET le champ">5</span>
+          ✏️
+        </button>
+      </div>
+      <div class="detail-card-value">12 450 km</div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-title">
+        Batterie
+        <!-- ⑥ Bouton edit carburant avec aria-label -->
+        <button class="btn-icon-sm wf-annotated wf-highlight" aria-label="Modifier le niveau de batterie manuellement">
+          <span class="wf-badge" title="aria-label='Modifier le niveau de batterie manuellement'">6</span>
+          ✏️
+        </button>
+      </div>
+      <div class="detail-card-value">78%</div>
+      <div class="fuel-bar"><div class="fuel-bar-fill full" style="width:78%"></div></div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-title">Stationnement</div>
+      <div class="detail-card-value">Box A2</div>
+    </div>
+
+    <div class="detail-card">
+      <div class="detail-card-title">Nombre de sorties</div>
+      <div class="detail-card-value">12</div>
+    </div>
+  </div>
+
+  <!-- Historique trips -->
+  <h2 class="section-title">Historique des sorties</h2>
+
+  <!-- ⑧ Liste trips avec role="list" -->
+  <ul class="trip-list wf-annotated wf-highlight semantic" role="list" aria-label="Historique des sorties du véhicule VL186">
+    <span class="wf-badge semantic" style="top:-9px;left:-9px;right:auto" title="role='list' + aria-label='Historique des sorties du véhicule VL186'">8</span>
+
+    <!-- Trip 1 -->
+    <li class="trip-item" role="listitem">
+      <div class="trip-header">
+        <div>
+          <div class="trip-driver">Marie DUPONT</div>
+          <div class="trip-date">07/03/2026 09:15 → 14:30</div>
+        </div>
+        <!-- ⑨ Bouton supprimer avec aria-label contextuel -->
+        <button class="btn-icon-sm wf-annotated wf-highlight" aria-label="Supprimer la sortie du 07/03/2026 par Marie DUPONT">
+          <span class="wf-badge" title="aria-label='Supprimer la sortie du 07/03/2026 par Marie DUPONT' — contextualise l'action">9</span>
+          🗑️
+        </button>
+      </div>
+      <div class="trip-details">
+        <div><div class="trip-detail-label">Mission</div><div class="trip-detail-value">Maraude</div></div>
+        <div><div class="trip-detail-label">Km parcourus</div><div class="trip-detail-value">+24 km</div></div>
+        <div><div class="trip-detail-label">Carburant</div><div class="trip-detail-value">78% → 72%</div></div>
+      </div>
+    </li>
+
+    <!-- Trip 2 -->
+    <li class="trip-item" role="listitem">
+      <div class="trip-header">
+        <div>
+          <div class="trip-driver">Jean MARTIN</div>
+          <div class="trip-date">05/03/2026 18:00 → 22:45</div>
+        </div>
+        <button class="btn-icon-sm" aria-label="Supprimer la sortie du 05/03/2026 par Jean MARTIN">🗑️</button>
+      </div>
+      <div class="trip-details">
+        <div><div class="trip-detail-label">Mission</div><div class="trip-detail-value">Transport</div></div>
+        <div><div class="trip-detail-label">Km parcourus</div><div class="trip-detail-value">+18 km</div></div>
+        <div><div class="trip-detail-label">Carburant</div><div class="trip-detail-value">85% → 78%</div></div>
+      </div>
+    </li>
+
+    <!-- Trip 3 -->
+    <li class="trip-item" role="listitem">
+      <div class="trip-header">
+        <div>
+          <div class="trip-driver">Sophie BERNARD</div>
+          <div class="trip-date">03/03/2026 10:30 → 13:00</div>
+        </div>
+        <button class="btn-icon-sm" aria-label="Supprimer la sortie du 03/03/2026 par Sophie BERNARD">🗑️</button>
+      </div>
+      <div class="trip-details">
+        <div><div class="trip-detail-label">Mission</div><div class="trip-detail-value">Formation</div></div>
+        <div><div class="trip-detail-label">Km parcourus</div><div class="trip-detail-value">+12 km</div></div>
+        <div><div class="trip-detail-label">Carburant</div><div class="trip-detail-value">92% → 85%</div></div>
+      </div>
+    </li>
+  </ul>
+
+  <!-- ⑦ Pagination avec landmarks ARIA -->
+  <nav class="pagination wf-annotated wf-highlight" aria-label="Pagination de l'historique des sorties">
+    <span class="wf-badge" title="nav + aria-label='Pagination de l'historique des sorties'">7</span>
+    <button class="pagination-btn" aria-label="Page précédente" disabled>← Précédent</button>
+    <span class="pagination-info" aria-current="page" aria-label="Page 1 sur 4">Page 1 / 4</span>
+    <button class="pagination-btn" aria-label="Page suivante">Suivant →</button>
+  </nav>
+
+</main>
+
+<!-- ===== LEGENDE ===== -->
+<aside class="wf-legend" role="complementary" aria-label="Légende des annotations">
+  <div class="wf-screen-label">Wireframe 03 / 04</div>
+  <div class="wf-legend-title">Fiche véhicule</div>
+  <div class="wf-legend-subtitle">Améliorations accessibilité WCAG 2.1 AA — design inchangé</div>
+
+  <div class="wf-legend-key">
+    <span class="wf-legend-key-dot" style="background:#3B82F6;margin-top:3px"></span>
+    <span style="color:#9398A7">Ajout ARIA</span>
+  </div>
+  <div class="wf-legend-key">
+    <span class="wf-legend-key-dot" style="background:#22C55E;margin-top:3px"></span>
+    <span style="color:#9398A7">Sémantique HTML5</span>
+  </div>
+
+  <hr class="wf-legend-sep" />
+
+  <div class="wf-legend-item">
+    <span class="wf-num aria">1</span>
+    <div>
+      <div class="wf-legend-text">Lien retour explicite</div>
+      <code class="wf-legend-code">aria-label="Retour au tableau de bord"</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">2</span>
+    <div>
+      <div class="wf-legend-text">Bouton QR code nommé</div>
+      <code class="wf-legend-code">aria-label="Afficher le QR code du véhicule VL186"</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">3</span>
+    <div>
+      <div class="wf-legend-text">Action principale contextualisée</div>
+      <code class="wf-legend-code">aria-label="Prendre le véhicule VL186"</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">4</span>
+    <div>
+      <div class="wf-legend-text">Bannière mission dynamique</div>
+      <code class="wf-legend-code">role="status"
+aria-live="polite"
+aria-label="Mission en cours"</code>
+      <div style="font-size:10px;color:#5C6070;margin-top:2px">Annoncé automatiquement lors de changements d'état</div>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">5</span>
+    <div>
+      <div class="wf-legend-text">Edit kilométrage explicite</div>
+      <code class="wf-legend-code">aria-label="Modifier le kilométrage manuellement"</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">6</span>
+    <div>
+      <div class="wf-legend-text">Edit carburant explicite</div>
+      <code class="wf-legend-code">aria-label="Modifier le niveau de batterie manuellement"</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">7</span>
+    <div>
+      <div class="wf-legend-text">Pagination accessible</div>
+      <code class="wf-legend-code">&lt;nav aria-label="Pagination de l'historique"&gt;
+aria-label="Page précédente"
+aria-label="Page suivante"
+aria-current="page" sur l'indicateur</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num semantic">8</span>
+    <div>
+      <div class="wf-legend-text">Liste trips sémantique</div>
+      <code class="wf-legend-code">&lt;ul role="list"
+  aria-label="Historique des sorties"&gt;
+&lt;li role="listitem"&gt;</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">9</span>
+    <div>
+      <div class="wf-legend-text">Supprimer trip contextuel</div>
+      <code class="wf-legend-code">aria-label="Supprimer la sortie du [DATE] par [CONDUCTEUR]"</code>
+      <div style="font-size:10px;color:#5C6070;margin-top:2px">Label dynamique — évite "Supprimer" répété N fois</div>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">10</span>
+    <div>
+      <div class="wf-legend-text">Badge DSA interactif déclaré</div>
+      <code class="wf-legend-code">role="button"
+tabindex="0"
+aria-pressed="true"
+aria-label="DSA présent — cliquer pour retirer"</code>
+    </div>
+  </div>
+
+  <hr class="wf-legend-sep" />
+  <div style="font-size:10px;color:#5C6070;line-height:1.6">
+    Tester : Tab pour atteindre chaque élément · SR doit lire le label complet de chaque bouton
+  </div>
+</aside>
+</body>
+</html>

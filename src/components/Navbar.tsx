@@ -16,7 +16,7 @@ export default function Navbar({ user }: NavbarProps) {
     return (
         <header className="header">
             <a href="/" className="header-brand">
-                <img src="/crf-logo.svg" alt="Croix-Rouge" className="header-logo" style={{ background: 'transparent', boxShadow: 'none', width: 32, height: 32 }} />
+                <img src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" />
                 <div>
                     <div className="header-title">Gestion de flotte</div>
                     <div className="header-subtitle">Unité Locale Paris 18</div>

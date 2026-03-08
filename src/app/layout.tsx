@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   title: "Gestion de flotte | Croix-Rouge Paris 18",
   description: "Application de gestion de flotte de véhicules pour la Croix-Rouge Française, Unité Locale de Paris 18ème.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/crf-logo.svg",
+    shortcut: "/crf-logo.svg",
+    apple: "/crf-logo.svg",
+  },
   appleWebApp: {
     capable: true,
     title: "CR Chauffeur",

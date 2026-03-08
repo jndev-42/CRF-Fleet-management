@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>CR Chauffeur — Comparaison des logos</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0f1117;
+      color: #e5e7eb;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 40px 32px 80px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f9fafb;
+      margin-bottom: 6px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 48px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #6b7280;
+      margin-bottom: 24px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 32px;
+      margin-bottom: 64px;
+    }
+
+    .logo-card {
+      background: #1a1d27;
+      border: 1px solid #2d3040;
+      border-radius: 16px;
+      padding: 28px 24px 24px;
+    }
+
+    .logo-card.current {
+      border-color: #3d4050;
+      opacity: 0.7;
+    }
+
+    .logo-card .label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+    .logo-card.current .label { color: #6b7280; }
+
+    .logo-card .name {
+      font-size: 17px;
+      font-weight: 700;
+      color: #f3f4f6;
+      margin-bottom: 6px;
+    }
+
+    .logo-card .desc {
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+
+    /* Preview sizes */
+    .sizes {
+      display: flex;
+      align-items: flex-end;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .size-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .size-item img {
+      display: block;
+    }
+
+    .size-label {
+      font-size: 10px;
+      color: #4b5563;
+      letter-spacing: 0.05em;
+    }
+
+    /* Context previews */
+    .context-section {
+      margin-bottom: 64px;
+    }
+
+    .navbar-preview {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid #2d3040;
+      border-radius: 10px;
+      padding: 12px 20px;
+      width: fit-content;
+      margin-bottom: 16px;
+    }
+    .navbar-preview .nav-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f3f4f6;
+    }
+    .navbar-preview .nav-sub {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .pwa-grid {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+
+    .pwa-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pwa-item img {
+      border-radius: 22.5%;
+    }
+
+    .pwa-item .pwa-label {
+      font-size: 11px;
+      color: #4b5563;
+      text-align: center;
+    }
+
+    .tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      margin-bottom: 12px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .tag-old { background: #1f2937; color: #6b7280; border: 1px solid #374151; }
+    .tag-new { background: rgba(227,6,19,0.12); color: #ef4444; border: 1px solid rgba(227,6,19,0.25); }
+
+    hr.sep {
+      border: none;
+      border-top: 1px solid #2d3040;
+      margin: 48px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Comparaison des logos — CR Chauffeur</h1>
+  <p class="subtitle">7 propositions · Ouvrir dans un navigateur pour voir le rendu SVG réel</p>
+
+  <!-- ── ANCIENS ── -->
+  <p class="section-title">Session précédente (3 propositions)</p>
+  <div class="grid">
+
+    <div class="logo-card current">
+      <div class="tag tag-old">Ancienne session</div>
+      <div class="label">Option A</div>
+      <div class="name">Volant + Croix</div>
+      <div class="desc">Cercle rouge, volant blanc 3 branches, croix blanche au moyeu. Clair au favicon (croix sur rouge), lisible à 32 px.</div>
+      <div class="sizes">
+        <div class="size-item"><img src="../public/crf-logo.svg" width="16" height="16" alt="16px"><span class="size-label">16px</span></div>
+        <div class="size-item"><img src="../public/crf-logo.svg" width="32" height="32" alt="32px"><span class="size-label">32px</span></div>
+        <div class="size-item"><img src="../public/crf-logo.svg" width="64" height="64" alt="64px"><span class="size-label">64px</span></div>
+        <div class="size-item"><img src="../public/crf-logo.svg" width="128" height="128" alt="128px"><span class="size-label">128px</span></div>
+      </div>
+    </div>
+
+    <div class="logo-card current">
+      <div class="tag tag-old">Ancienne session</div>
+      <div class="label">Option B</div>
+      <div class="name">Bouclier</div>
+      <div class="desc">Bouclier héraldique rouge, croix blanche. Institutionnel, lisible, évoque la protection et l'identité CRF.</div>
+      <div class="sizes">
+        <div class="size-item"><img src="../public/crf-logo-shield.svg" width="16" height="16" alt="16px"><span class="size-label">16px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-shield.svg" width="32" height="32" alt="32px"><span class="size-label">32px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-shield.svg" width="64" height="64" alt="64px"><span class="size-label">64px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-shield.svg" width="128" height="128" alt="128px"><span class="size-label">128px</span></div>
+      </div>
+    </div>
+
+    <div class="logo-card current">
+      <div class="tag tag-old">Ancienne session</div>
+      <div class="label">Option C</div>
+      <div class="name">Voiture + Badge</div>
+      <div class="desc">Fond sombre, silhouette blanche d'une voiture de profil, badge croix rouge en haut à droite. Lisibilité maximale de la flotte.</div>
+      <div class="sizes">
+        <div class="size-item"><img src="../public/crf-logo-car.svg" width="16" height="16" alt="16px"><span class="size-label">16px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-car.svg" width="32" height="32" alt="32px"><span class="size-label">32px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-car.svg" width="64" height="64" alt="64px"><span class="size-label">64px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-car.svg" width="128" height="128" alt="128px"><span class="size-label">128px</span></div>
+      </div>
+    </div>
+
+    <div class="logo-card current">
+      <div class="tag tag-old">Ancienne session</div>
+      <div class="label">Option D</div>
+      <div class="name">Hexagone</div>
+      <div class="desc">Hexagone rouge, croix blanche épaisse. Moderne, distinctif, fonctionne comme icône d'appli ou badge de notification.</div>
+      <div class="sizes">
+        <div class="size-item"><img src="../public/crf-logo-hex.svg" width="16" height="16" alt="16px"><span class="size-label">16px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-hex.svg" width="32" height="32" alt="32px"><span class="size-label">32px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-hex.svg" width="64" height="64" alt="64px"><span class="size-label">64px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-hex.svg" width="128" height="128" alt="128px"><span class="size-label">128px</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="sep">
+
+  <!-- ── NOUVEAUX ── -->
+  <p class="section-title">Nouvelles propositions — Croix-Rouge &amp; Véhicules</p>
+  <div class="grid">
+
+    <div class="logo-card">
+      <div class="tag tag-new">Nouvelle proposition</div>
+      <div class="label">Option E</div>
+      <div class="name">Clé de voiture</div>
+      <div class="desc">La croix CRF <em>est</em> l'anneau de la clé de voiture. Fond sombre, croix rouge en haut, lame blanche avec encoches. Concept unique, fort.</div>
+      <div class="sizes">
+        <div class="size-item"><img src="../public/crf-logo-key.svg" width="16" height="16" alt="16px"><span class="size-label">16px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-key.svg" width="32" height="32" alt="32px"><span class="size-label">32px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-key.svg" width="64" height="64" alt="64px"><span class="size-label">64px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-key.svg" width="128" height="128" alt="128px"><span class="size-label">128px</span></div>
+      </div>
+    </div>
+
+    <div class="logo-card">
+      <div class="tag tag-new">Nouvelle proposition</div>
+      <div class="label">Option F</div>
+      <div class="name">Route vers la croix</div>
+      <div class="desc">Fond sombre, route en perspective convergente, croix rouge au point de fuite. Évoque la mission, le trajet, la destination humanitaire.</div>
+      <div class="sizes">
+        <div class="size-item"><img src="../public/crf-logo-road.svg" width="16" height="16" alt="16px"><span class="size-label">16px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-road.svg" width="32" height="32" alt="32px"><span class="size-label">32px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-road.svg" width="64" height="64" alt="64px"><span class="size-label">64px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-road.svg" width="128" height="128" alt="128px"><span class="size-label">128px</span></div>
+      </div>
+    </div>
+
+    <div class="logo-card">
+      <div class="tag tag-new">Nouvelle proposition</div>
+      <div class="label">Option G</div>
+      <div class="name">Véhicule CRF (face)</div>
+      <div class="desc">Vue de face d'un véhicule rouge (comme les véhicules réels CRF), croix blanche sur le toit, phares jaunes. Iconique et immédiatement reconnaissable.</div>
+      <div class="sizes">
+        <div class="size-item"><img src="../public/crf-logo-vehicle.svg" width="16" height="16" alt="16px"><span class="size-label">16px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-vehicle.svg" width="32" height="32" alt="32px"><span class="size-label">32px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-vehicle.svg" width="64" height="64" alt="64px"><span class="size-label">64px</span></div>
+        <div class="size-item"><img src="../public/crf-logo-vehicle.svg" width="128" height="128" alt="128px"><span class="size-label">128px</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <hr class="sep">
+
+  <!-- ── CONTEXTE NAVBAR ── -->
+  <p class="section-title">Aperçu en contexte — Barre de navigation (36 px)</p>
+
+  <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:64px;">
+
+    <div class="navbar-preview">
+      <img src="../public/crf-logo.svg" width="36" height="36" alt="" style="border-radius:50%;">
+      <div><div class="nav-title">Gestion de flotte</div><div class="nav-sub">Unité Locale Paris 18</div></div>
+      <span style="margin-left:8px; font-size:12px; color:#4b5563;">(A) Volant</span>
+    </div>
+
+    <div class="navbar-preview">
+      <img src="../public/crf-logo-shield.svg" width="36" height="36" alt="">
+      <div><div class="nav-title">Gestion de flotte</div><div class="nav-sub">Unité Locale Paris 18</div></div>
+      <span style="margin-left:8px; font-size:12px; color:#4b5563;">(B) Bouclier</span>
+    </div>
+
+    <div class="navbar-preview">
+      <img src="../public/crf-logo-car.svg" width="36" height="36" alt="" style="border-radius:8px;">
+      <div><div class="nav-title">Gestion de flotte</div><div class="nav-sub">Unité Locale Paris 18</div></div>
+      <span style="margin-left:8px; font-size:12px; color:#4b5563;">(C) Voiture + Badge</span>
+    </div>
+
+    <div class="navbar-preview">
+      <img src="../public/crf-logo-hex.svg" width="36" height="36" alt="">
+      <div><div class="nav-title">Gestion de flotte</div><div class="nav-sub">Unité Locale Paris 18</div></div>
+      <span style="margin-left:8px; font-size:12px; color:#4b5563;">(D) Hexagone</span>
+    </div>
+
+    <div class="navbar-preview">
+      <img src="../public/crf-logo-key.svg" width="36" height="36" alt="" style="border-radius:50%;">
+      <div><div class="nav-title">Gestion de flotte</div><div class="nav-sub">Unité Locale Paris 18</div></div>
+      <span style="margin-left:8px; font-size:12px; color:#4b5563;">(E) Clé de voiture</span>
+    </div>
+
+    <div class="navbar-preview">
+      <img src="../public/crf-logo-road.svg" width="36" height="36" alt="" style="border-radius:50%;">
+      <div><div class="nav-title">Gestion de flotte</div><div class="nav-sub">Unité Locale Paris 18</div></div>
+      <span style="margin-left:8px; font-size:12px; color:#4b5563;">(F) Route vers la croix</span>
+    </div>
+
+    <div class="navbar-preview">
+      <img src="../public/crf-logo-vehicle.svg" width="36" height="36" alt="" style="border-radius:50%;">
+      <div><div class="nav-title">Gestion de flotte</div><div class="nav-sub">Unité Locale Paris 18</div></div>
+      <span style="margin-left:8px; font-size:12px; color:#4b5563;">(G) Véhicule CRF</span>
+    </div>
+
+  </div>
+
+  <!-- ── CONTEXTE PWA ── -->
+  <p class="section-title">Aperçu en contexte — Icône PWA (192 px, avec masque arrondi)</p>
+  <div class="pwa-grid">
+    <div class="pwa-item">
+      <img src="../public/crf-logo.svg" width="96" height="96" alt="A" style="border-radius:22.5%;">
+      <span class="pwa-label">(A) Volant</span>
+    </div>
+    <div class="pwa-item">
+      <img src="../public/crf-logo-shield.svg" width="96" height="96" alt="B" style="border-radius:22.5%;">
+      <span class="pwa-label">(B) Bouclier</span>
+    </div>
+    <div class="pwa-item">
+      <img src="../public/crf-logo-car.svg" width="96" height="96" alt="C" style="border-radius:22.5%;">
+      <span class="pwa-label">(C) Voiture</span>
+    </div>
+    <div class="pwa-item">
+      <img src="../public/crf-logo-hex.svg" width="96" height="96" alt="D" style="border-radius:22.5%;">
+      <span class="pwa-label">(D) Hexagone</span>
+    </div>
+    <div class="pwa-item">
+      <img src="../public/crf-logo-key.svg" width="96" height="96" alt="E" style="border-radius:22.5%;">
+      <span class="pwa-label">(E) Clé</span>
+    </div>
+    <div class="pwa-item">
+      <img src="../public/crf-logo-road.svg" width="96" height="96" alt="F" style="border-radius:22.5%;">
+      <span class="pwa-label">(F) Route</span>
+    </div>
+    <div class="pwa-item">
+      <img src="../public/crf-logo-vehicle.svg" width="96" height="96" alt="G" style="border-radius:22.5%;">
+      <span class="pwa-label">(G) Véhicule</span>
+    </div>
+  </div>
+
+</body>
+</html>

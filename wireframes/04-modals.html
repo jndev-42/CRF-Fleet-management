@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wireframe 04 — Modales CheckOut & CheckIn</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --crf-red: #E30613; --crf-red-glow: rgba(227,6,19,0.2);
+      --bg-primary: #0A0B0E; --bg-secondary: #12141A; --bg-card: #181B23;
+      --bg-card-hover: #1E2230; --bg-header: rgba(18,20,26,0.92); --bg-input: #1A1D27;
+      --border-primary: rgba(255,255,255,0.06); --border-hover: rgba(255,255,255,0.12);
+      --border-focus: rgba(227,6,19,0.5);
+      --text-primary: #F0F1F5; --text-secondary: #9398A7; --text-muted: #5C6070;
+      --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px; --radius-xl: 20px;
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+      --transition-fast: 150ms cubic-bezier(0.4,0,0.2,1);
+      --fuel-full: #22C55E; --fuel-mid: #F59E0B;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-primary); line-height: 1.6; margin-right: 300px; }
+
+    /* Annotations */
+    .wf-annotated { position: relative; }
+    .wf-badge { position: absolute; top: -9px; right: -9px; width: 20px; height: 20px; border-radius: 50%; background: #3B82F6; color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; z-index: 1000; box-shadow: 0 2px 6px rgba(0,0,0,0.6); cursor: help; flex-shrink: 0; }
+    .wf-badge.contrast { background: #F97316; }
+    .wf-badge.semantic { background: #22C55E; color: #111; }
+    .wf-highlight { outline: 1.5px dashed rgba(59,130,246,0.5); outline-offset: 2px; border-radius: 4px; }
+    .wf-highlight.contrast { outline-color: rgba(249,115,22,0.6); }
+    .wf-highlight.semantic { outline-color: rgba(34,197,94,0.6); }
+
+    /* Legend */
+    .wf-legend { position: fixed; right: 0; top: 0; bottom: 0; width: 300px; background: #12141A; border-left: 1px solid rgba(255,255,255,0.07); overflow-y: auto; padding: 20px 16px; z-index: 9999; font-size: 11.5px; }
+    .wf-legend-title { font-size: 13px; font-weight: 700; color: #F0F1F5; margin-bottom: 4px; }
+    .wf-legend-subtitle { font-size: 11px; color: #5C6070; margin-bottom: 16px; line-height: 1.5; }
+    .wf-legend-section { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #5C6070; margin: 14px 0 8px; }
+    .wf-legend-item { display: flex; gap: 8px; margin-bottom: 10px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.03); }
+    .wf-num { width: 18px; height: 18px; border-radius: 50%; font-size: 9px; font-weight: 800; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .wf-num.aria { background: #3B82F6; color: #fff; }
+    .wf-num.contrast { background: #F97316; color: #fff; }
+    .wf-num.semantic { background: #22C55E; color: #111; }
+    .wf-legend-text { color: #9398A7; line-height: 1.5; font-size: 11px; }
+    .wf-legend-code { font-family: 'SF Mono', monospace; font-size: 10px; color: #93C5FD; display: block; margin-top: 3px; word-break: break-all; }
+    .wf-legend-key { display: flex; gap: 10px; margin-bottom: 8px; font-size: 11px; }
+    .wf-legend-key-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+    .wf-legend-sep { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 14px 0; }
+    .wf-screen-label { background: rgba(227,6,19,0.1); color: #E30613; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-bottom: 16px; text-transform: uppercase; }
+
+    /* Page layout */
+    .page-bg {
+      min-height: 100vh;
+      background: rgba(0,0,0,0.65);
+      padding: 32px 24px;
+    }
+    .modals-row { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; max-width: 1100px; margin: 0 auto; }
+    .modal-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 12px; text-align: center; }
+
+    /* Modal */
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+    }
+    .modal-header { padding: 20px 20px 0; display: flex; justify-content: space-between; align-items: center; }
+    .modal-title { font-size: 20px; font-weight: 700; }
+    .modal-close { width: 36px; height: 36px; border-radius: var(--radius-sm); background: transparent; border: 1px solid var(--border-primary); cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 16px; font-family: inherit; }
+    .modal-close:hover { background: rgba(255,255,255,0.05); }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 0 20px 20px; display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* Form */
+    .form-group { margin-bottom: 20px; }
+    /* ⑨ CORRIGÉ : form-label utilise text-secondary (4.6:1) au lieu de text-muted (3.1:1) */
+    .form-label {
+      display: block; font-size: 13px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.3px; margin-bottom: 6px;
+      color: var(--text-secondary); /* CORRIGÉ — était var(--text-muted) */
+    }
+    .form-input, .form-select {
+      width: 100%; font-size: 15px; padding: 12px 16px;
+      background: var(--bg-input); border: 1px solid var(--border-primary);
+      border-radius: var(--radius-sm); color: var(--text-primary); font-family: inherit;
+    }
+    /* ⑩ CORRIGÉ : focus ring 25% opacité (visible) au lieu de 10% (invisible en mode clair) */
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(227,6,19,0.25); /* CORRIGÉ — était 0.1 */
+    }
+    .form-input.focused-demo {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(227,6,19,0.25);
+    }
+    .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Fuel slider */
+    .fuel-slider { width: 100%; height: 4px; appearance: none; background: var(--bg-input); border-radius: 2px; outline: none; margin-top: 8px; cursor: pointer; }
+    .fuel-slider::-webkit-slider-thumb { appearance: none; width: 24px; height: 24px; border-radius: 50%; background: var(--crf-red); cursor: pointer; box-shadow: 0 0 8px var(--crf-red-glow); }
+    .fuel-bar { width: 100%; height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+    .fuel-bar-fill { height: 100%; border-radius: 4px; }
+    .fuel-bar-fill.mid { background: var(--fuel-mid); }
+    .fuel-bar-fill.full { background: var(--fuel-full); }
+
+    /* Buttons */
+    .btn { font-size: 14px; font-weight: 600; padding: 10px 20px; border: none; border-radius: var(--radius-sm); cursor: pointer; font-family: inherit; }
+    .btn-primary { background: var(--crf-red); color: #fff; }
+    .btn-secondary { background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border-primary); }
+
+    /* Focus trap diagram */
+    .focus-trap-diagram {
+      border: 1px dashed rgba(59,130,246,0.4); border-radius: var(--radius-sm);
+      padding: 10px; margin-top: 12px;
+      background: rgba(59,130,246,0.05);
+    }
+    .focus-trap-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #3B82F6; margin-bottom: 6px; }
+    .focus-trap-text { font-size: 11px; color: #6B7280; line-height: 1.6; }
+
+    /* Checklist */
+    .checklist-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-primary); margin-bottom: 8px; }
+    .checklist-checkbox { width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--border-hover); appearance: none; background: var(--bg-input); cursor: pointer; }
+    .checklist-checkbox:checked { background: var(--crf-red); border-color: var(--crf-red); }
+    .checklist-label { font-size: 14px; font-weight: 500; }
+  </style>
+</head>
+<body>
+
+<div class="page-bg">
+  <div style="text-align:center;margin-bottom:28px">
+    <h1 style="font-size:18px;font-weight:700;color:var(--text-primary)">Wireframe 04 / 04 — Modales</h1>
+    <p style="font-size:13px;color:var(--text-secondary);margin-top:4px">Modale Check-Out (gauche) · Modale Check-In (droite)</p>
+  </div>
+
+  <div class="modals-row">
+
+    <!-- ===== MODALE CHECK-OUT ===== -->
+    <div>
+      <div class="modal-label">Modale Check-Out (prise de véhicule)</div>
+
+      <!-- ① dialog + aria-modal + aria-labelledby -->
+      <div class="modal wf-annotated" role="dialog" aria-modal="true" aria-labelledby="modal-checkout-title">
+        <span class="wf-badge" style="top:-9px;left:-9px;right:auto" title="role='dialog' + aria-modal='true' + aria-labelledby='modal-checkout-title'">1</span>
+
+        <div class="modal-header">
+          <!-- ② id sur le titre pour aria-labelledby -->
+          <h2 class="modal-title wf-annotated wf-highlight" id="modal-checkout-title">
+            <span class="wf-badge semantic" title="id='modal-checkout-title' associé au aria-labelledby du dialog">2</span>
+            Prendre un véhicule
+          </h2>
+          <!-- ③ Close button avec aria-label -->
+          <button class="modal-close wf-annotated wf-highlight" aria-label="Fermer la modale de prise de véhicule">
+            <span class="wf-badge" title="aria-label='Fermer la modale de prise de véhicule' — contextualise le × générique">3</span>
+            ✕
+          </button>
+        </div>
+
+        <div class="modal-body">
+
+          <!-- ⑧ Overlay aria-hidden -->
+          <div style="font-size:11px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:6px;padding:8px 10px;margin-bottom:16px;color:#93C5FD">
+            <strong>Note :</strong> L'overlay de fond doit avoir <code style="font-family:monospace;font-size:10px">aria-hidden="true"</code> — il ne doit pas être lu par les SR.
+          </div>
+
+          <!-- Véhicule info -->
+          <div style="background:rgba(227,6,19,0.06);border:1px solid rgba(227,6,19,0.15);border-radius:var(--radius-sm);padding:12px;margin-bottom:20px;font-size:13px">
+            <strong>VL186</strong> — Renault Zoé · Batterie 78% · 12 450 km
+          </div>
+
+          <!-- ④ Association label/input explicite -->
+          <div class="form-group wf-annotated wf-highlight semantic">
+            <span class="wf-badge semantic" style="top:-9px;left:-9px;right:auto" title="for='checkout-driver' sur le label + id='checkout-driver' sur l'input — association explicite obligatoire">4</span>
+            <label class="form-label" for="checkout-driver">Votre nom *</label>
+            <input class="form-input" type="text" id="checkout-driver" name="checkout-driver"
+              value="Marie DUPONT"
+              readonly
+              aria-readonly="true"
+              aria-describedby="checkout-driver-hint" />
+            <!-- ⑤ aria-describedby pour le champ readonly -->
+            <p class="form-hint wf-annotated wf-highlight" id="checkout-driver-hint">
+              <span class="wf-badge" title="id='checkout-driver-hint' + aria-describedby sur l'input — le SR lit le hint après le label">5</span>
+              Rempli automatiquement via votre compte Google
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="checkout-mission">Type de mission *</label>
+            <select class="form-select" id="checkout-mission" name="checkout-mission">
+              <option value="">— Sélectionner —</option>
+              <option>Maraude</option>
+              <option>Transport</option>
+              <option>Formation</option>
+            </select>
+          </div>
+
+          <!-- Fuel slider avec ARIA -->
+          <div class="form-group">
+            <!-- ⑥ Slider avec aria attributes -->
+            <label class="form-label" for="checkout-fuel">Niveau d'essence *</label>
+            <input class="fuel-slider wf-annotated wf-highlight" type="range"
+              id="checkout-fuel" name="checkout-fuel"
+              min="0" max="100" value="75" step="5"
+              aria-label="Niveau d'essence"
+              aria-valuemin="0" aria-valuemax="100" aria-valuenow="75"
+              aria-valuetext="75 pourcents">
+            <span class="wf-badge" style="top:8px;right:-9px" title="aria-valuemin/max/now/valuetext — les SR lisent '75 pourcents' au lieu d'une valeur brute">6</span>
+            <div class="fuel-bar"><div class="fuel-bar-fill mid" style="width:75%"></div></div>
+          </div>
+
+          <!-- Focus trap note -->
+          <div class="focus-trap-diagram wf-annotated">
+            <span class="wf-badge" style="top:-9px;left:50%;transform:translateX(-50%)" title="Focus trap : Tab reste dans la modale. Focus initial sur premier champ. Escape ferme la modale.">7</span>
+            <div class="focus-trap-title">Focus trap requis (comportement JS)</div>
+            <div class="focus-trap-text">
+              · <strong>Focus initial</strong> : premier champ interactif à l'ouverture<br>
+              · <strong>Tab / Shift+Tab</strong> : cycle dans la modale uniquement<br>
+              · <strong>Escape</strong> : ferme la modale<br>
+              · <strong>Restauration</strong> : focus retourne sur l'élément déclencheur
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary">Annuler</button>
+          <button class="btn btn-primary">Confirmer la prise</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MODALE CHECK-IN ===== -->
+    <div>
+      <div class="modal-label">Modale Check-In (retour de véhicule)</div>
+
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-checkin-title">
+
+        <div class="modal-header">
+          <h2 class="modal-title" id="modal-checkin-title">Rendre un véhicule</h2>
+          <button class="modal-close" aria-label="Fermer la modale de retour de véhicule">✕</button>
+        </div>
+
+        <div class="modal-body">
+
+          <div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:var(--radius-sm);padding:12px;margin-bottom:20px;font-size:13px">
+            <strong>VL186</strong> — Sortie le 07/03/2026 à 09h15 par Marie DUPONT
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="checkin-mileage">Kilométrage retour *</label>
+              <input class="form-input" type="number" id="checkin-mileage" name="checkin-mileage"
+                placeholder="12 474" min="12450" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="checkin-condition">État du véhicule *</label>
+              <select class="form-select" id="checkin-condition" name="checkin-condition">
+                <option>Bon état</option>
+                <option>Légèrement dégradé</option>
+                <option>Dégradé</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Fuel slider check-in avec focus visible demo -->
+          <div class="form-group">
+            <label class="form-label" for="checkin-fuel">Niveau d'essence retour *</label>
+            <!-- ⑩ Focus ring amélioré -->
+            <input class="fuel-slider wf-annotated wf-highlight contrast focused-demo" type="range"
+              id="checkin-fuel" name="checkin-fuel"
+              min="0" max="100" value="68" step="5"
+              aria-valuemin="0" aria-valuemax="100" aria-valuenow="68" aria-valuetext="68 pourcents">
+            <span class="wf-badge contrast" style="top:8px;right:-9px" title="Focus ring corrigé : box-shadow 25% opacité (était 10%). Visible en mode clair ET sombre. WCAG 2.4.11">10</span>
+            <div class="fuel-bar"><div class="fuel-bar-fill mid" style="width:68%"></div></div>
+            <p class="form-hint" style="margin-top:6px">Input focusé : anneau de focus rouge visible ci-dessus (corrigé)</p>
+          </div>
+
+          <!-- ⑨ Form labels contrast corrigé (démo visuelle) -->
+          <div class="form-group" style="background:rgba(249,115,22,0.05);border:1px solid rgba(249,115,22,0.2);border-radius:var(--radius-sm);padding:12px">
+            <div class="wf-annotated">
+              <span class="wf-badge contrast" style="top:-9px;left:50%;transform:translateX(-50%)" title="Contraste form-label corrigé : var(--text-secondary) #9398A7 au lieu de var(--text-muted) #5C6070 → 4.7:1 au lieu de 3.1:1">9</span>
+            </div>
+            <div style="font-size:11px;color:#F97316;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px">Correction contraste labels</div>
+            <div style="display:flex;gap:16px;align-items:center">
+              <div style="text-align:center">
+                <div style="font-size:11px;color:#5C6070;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">AVANT</div>
+                <div style="font-size:11px;font-weight:700;color:#5C6070">var(--text-muted)</div>
+                <div style="font-size:10px;color:#EF4444">3.1:1 ✗ FAIL</div>
+              </div>
+              <div style="font-size:18px;color:var(--text-muted)">→</div>
+              <div style="text-align:center">
+                <div style="font-size:11px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">APRÈS</div>
+                <div style="font-size:11px;font-weight:700;color:var(--text-secondary)">var(--text-secondary)</div>
+                <div style="font-size:10px;color:#22C55E">4.7:1 ✓ PASS</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Checklist -->
+          <div class="form-group" style="margin-top:16px">
+            <label class="form-label">Vérifications retour</label>
+            <div>
+              <label class="checklist-item">
+                <input class="checklist-checkbox" type="checkbox" id="check-fuel" checked />
+                <span class="checklist-label">Niveau carburant noté</span>
+              </label>
+              <label class="checklist-item">
+                <input class="checklist-checkbox" type="checkbox" id="check-exterior" />
+                <span class="checklist-label">Tour extérieur effectué</span>
+              </label>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary">Annuler</button>
+          <button class="btn btn-primary">Confirmer le retour</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /modals-row -->
+</div>
+
+<!-- ===== LEGENDE ===== -->
+<aside class="wf-legend" role="complementary" aria-label="Légende des annotations">
+  <div class="wf-screen-label">Wireframe 04 / 04</div>
+  <div class="wf-legend-title">Modales CheckOut & CheckIn</div>
+  <div class="wf-legend-subtitle">Améliorations accessibilité WCAG 2.1 AA — design inchangé</div>
+
+  <div class="wf-legend-key">
+    <span class="wf-legend-key-dot" style="background:#3B82F6;margin-top:3px"></span>
+    <span style="color:#9398A7">Ajout ARIA</span>
+  </div>
+  <div class="wf-legend-key">
+    <span class="wf-legend-key-dot" style="background:#F97316;margin-top:3px"></span>
+    <span style="color:#9398A7">Correction contraste</span>
+  </div>
+  <div class="wf-legend-key">
+    <span class="wf-legend-key-dot" style="background:#22C55E;margin-top:3px"></span>
+    <span style="color:#9398A7">Sémantique HTML5</span>
+  </div>
+
+  <hr class="wf-legend-sep" />
+
+  <div class="wf-legend-item">
+    <span class="wf-num aria">1</span>
+    <div>
+      <div class="wf-legend-text">Modale déclarée correctement</div>
+      <code class="wf-legend-code">role="dialog"
+aria-modal="true"
+aria-labelledby="modal-checkout-title"</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num semantic">2</span>
+    <div>
+      <div class="wf-legend-text">Titre avec id pour labelledby</div>
+      <code class="wf-legend-code">&lt;h2 id="modal-checkout-title"&gt;</code>
+      <div style="font-size:10px;color:#5C6070;margin-top:2px">Le SR annonce le titre à l'ouverture</div>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">3</span>
+    <div>
+      <div class="wf-legend-text">Bouton fermer explicite</div>
+      <code class="wf-legend-code">aria-label="Fermer la modale de prise de véhicule"</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num semantic">4</span>
+    <div>
+      <div class="wf-legend-text">Association label ↔ input</div>
+      <code class="wf-legend-code">&lt;label for="checkout-driver"&gt;
+&lt;input id="checkout-driver"&gt;</code>
+      <div style="font-size:10px;color:#5C6070;margin-top:2px">Obligatoire pour chaque champ</div>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">5</span>
+    <div>
+      <div class="wf-legend-text">Champ readonly décrit</div>
+      <code class="wf-legend-code">aria-readonly="true"
+aria-describedby="checkout-driver-hint"</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">6</span>
+    <div>
+      <div class="wf-legend-text">Slider essence accessible</div>
+      <code class="wf-legend-code">aria-valuemin="0"
+aria-valuemax="100"
+aria-valuenow="75"
+aria-valuetext="75 pourcents"</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">7</span>
+    <div>
+      <div class="wf-legend-text">Focus trap (comportement JS)</div>
+      <div class="wf-legend-text" style="margin-top:4px">· Focus initial → 1er champ<br>· Tab cycle dans la modale<br>· Escape → ferme<br>· Close → focus restauré</div>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num aria">8</span>
+    <div>
+      <div class="wf-legend-text">Overlay masqué aux SR</div>
+      <code class="wf-legend-code">&lt;div class="modal-overlay"
+  aria-hidden="true"&gt;</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num contrast">9</span>
+    <div>
+      <div class="wf-legend-text">Contraste labels formulaire</div>
+      <code class="wf-legend-code">/* AVANT */ color: var(--text-muted)
+/* 3.1:1 FAIL */
+/* APRÈS */ color: var(--text-secondary)
+/* 4.7:1 PASS */</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num contrast">10</span>
+    <div>
+      <div class="wf-legend-text">Focus ring visible</div>
+      <code class="wf-legend-code">/* AVANT */
+box-shadow: 0 0 0 3px rgba(227,6,19, 0.1)
+/* invisible en mode clair */
+
+/* APRÈS */
+box-shadow: 0 0 0 3px rgba(227,6,19, 0.25)
+/* WCAG 2.4.11 PASS */</code>
+    </div>
+  </div>
+
+  <hr class="wf-legend-sep" />
+  <div style="font-size:10px;color:#5C6070;line-height:1.6">
+    Implémenter le focus trap avec <code style="font-family:monospace;color:#93C5FD">focus-trap-react</code> ou un hook personnalisé. Tester avec VoiceOver (macOS) et NVDA (Windows).
+  </div>
+</aside>
+</body>
+</html>
