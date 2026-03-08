@@ -7,13 +7,14 @@ Ce document explique comment lancer le projet en local, le tester et le déploye
 ## Prérequis
 
 - [Node.js](https://nodejs.org/) 18 ou supérieur
-- Un compte [Turso](https://turso.tech/) (ou un fichier SQLite local)
-- Un projet OAuth2 [Google Cloud](https://console.cloud.google.com/) (pour l'authentification)
 - Optionnel : un compte [OneSignal](https://onesignal.com/) (pour les notifications push)
+- Optionnel : un compte [Turso](https://turso.tech/) et un projet [Google Cloud](https://console.cloud.google.com/) (uniquement pour tester la prod en local)
 
 ---
 
-## Lancement en local
+## Lancement en local (mode développement)
+
+Le mode développement n'exige **ni OAuth Google ni base de données cloud**. Tout fonctionne en local avec un fichier SQLite et des comptes de test préconfigurés.
 
 ### 1. Cloner le dépôt
 
@@ -30,52 +31,28 @@ npm install
 
 ### 3. Configurer les variables d'environnement
 
-Créez un fichier `.env` à la racine :
+Créez un fichier `.env.local` à la racine avec le minimum requis :
 
 ```env
 # NextAuth
 AUTH_SECRET=une_valeur_aleatoire_longue   # npx auth secret
 
-# Google OAuth2
-GOOGLE_CLIENT_ID=...
-GOOGLE_CLIENT_SECRET=...
-
-# Base de données (fichier local SQLite pour le dev)
+# Base de données locale (SQLite fichier)
 TURSO_DATABASE_URL=file:./dev.db
 TURSO_AUTH_TOKEN=                         # laisser vide pour un fichier local
-
-# OneSignal (optionnel en dev)
-ONESIGNAL_ID=
-ONESIGNAL_API_KEY=
-
-# Renault Connect (optionnel)
-RENAULT_MAIL=
-RENAULT_PASS=
 ```
 
-> Pour l'OAuth2 Google, configurez l'URI de redirection autorisée sur `http://localhost:3000/api/auth/callback/google` dans la Google Cloud Console.
+Les variables Google OAuth, OneSignal et Renault Connect sont **optionnelles en développement** — l'app fonctionne sans elles.
 
-### 4. Initialiser la base de données
+### 4. Initialiser la base de données locale
 
-Le projet utilise des scripts de migration dans `scripts/`. Pour initialiser une base vierge, exécutez-les dans l'ordre (ils sont idempotents) :
+Un seul script crée toutes les tables et insère 4 utilisateurs de test + 4 véhicules de démo :
 
 ```bash
-npx tsx scripts/migrate-roles.ts
-npx tsx scripts/add-second-driver.ts
-npx tsx scripts/add-vehicle-fields.ts
-npx tsx scripts/add-notifications-table.ts
-npx tsx scripts/add-reservation-table.ts
-npx tsx scripts/add-reservation-status.ts
-npx tsx scripts/add-vehicle-checklist.ts
-npx tsx scripts/add-trip-drive-folder.ts
-npx tsx scripts/add-renault-session-table.ts
+npm run dev:setup
 ```
 
-Pour créer le premier compte ADMIN (après une première connexion Google) :
-
-```bash
-npx tsx scripts/setup-admin.ts votre.email@croix-rouge.fr
-```
+Ce script est **idempotent** — vous pouvez le relancer sans risque.
 
 ### 5. Lancer le serveur de développement
 
@@ -84,6 +61,43 @@ npm run dev
 ```
 
 L'application est accessible sur [http://localhost:3000](http://localhost:3000).
+
+### 6. Se connecter (sans OAuth)
+
+Sur la page de connexion, un panneau **"Mode développement"** propose 4 boutons de connexion rapide :
+
+| Bouton | Rôles simulés |
+|---|---|
+| Admin | `ADMIN`, `CHVL` |
+| Responsable | `RESPO`, `CHVL` |
+| Chauffeur | `CHVL` |
+| Invité | `GUEST` |
+
+Le bouton "Connexion Google" reste présent pour tester le flux OAuth si nécessaire (nécessite `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` configurés).
+
+---
+
+## Lancement en local (connecté à la prod / staging)
+
+Pour tester avec la vraie base Turso et l'authentification Google :
+
+```env
+AUTH_SECRET=...
+
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+
+TURSO_DATABASE_URL=libsql://...
+TURSO_AUTH_TOKEN=...
+```
+
+> Configurez l'URI de redirection `http://localhost:3000/api/auth/callback/google` dans la Google Cloud Console.
+
+Pour créer le premier compte ADMIN après une première connexion Google :
+
+```bash
+npx tsx scripts/setup-admin.ts votre.email@croix-rouge.fr
+```
 
 ---
 

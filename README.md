@@ -89,6 +89,8 @@ src/
 
 ## Variables d'environnement
 
+### Obligatoires (production)
+
 | Variable | Description |
 |---|---|
 | `AUTH_SECRET` | Secret NextAuth (généré via `npx auth secret`) |
@@ -96,10 +98,17 @@ src/
 | `GOOGLE_CLIENT_SECRET` | OAuth2 Google — Client Secret |
 | `TURSO_DATABASE_URL` | URL de la base Turso (`libsql://...`) |
 | `TURSO_AUTH_TOKEN` | Token d'authentification Turso |
-| `ONESIGNAL_ID` | App ID OneSignal |
+
+### Optionnelles
+
+| Variable | Description |
+|---|---|
+| `ONESIGNAL_ID` | App ID OneSignal (notifications push) |
 | `ONESIGNAL_API_KEY` | REST API Key OneSignal |
-| `RENAULT_MAIL` | Email du compte Renault Connect |
+| `RENAULT_MAIL` | Email du compte Renault Connect (véhicules connectés) |
 | `RENAULT_PASS` | Mot de passe du compte Renault Connect |
+
+> En **développement local**, seul `AUTH_SECRET` + `TURSO_DATABASE_URL=file:./dev.db` sont nécessaires. Voir [CONTRIBUTING.md](./CONTRIBUTING.md) pour le setup complet.
 
 ---
 

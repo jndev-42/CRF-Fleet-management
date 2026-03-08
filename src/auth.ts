@@ -1,5 +1,6 @@
 import NextAuth, { type DefaultSession } from "next-auth";
 import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 
 declare module "next-auth" {
@@ -10,80 +11,82 @@ declare module "next-auth" {
     }
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
-    providers: [
-        Google({
-            clientId: process.env.GOOGLE_CLIENT_ID,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-            authorization: {
-                params: {
-                    prompt: "consent",
-                    access_type: "offline",
-                    response_type: "code",
-                    scope: "openid email profile"
-                },
+// ── Utilisateurs de test (dev uniquement) ────────────────────────────────────
+const DEV_USERS: Record<string, { email: string; name: string; roles: string[] }> = {
+    admin: { email: 'admin@dev.local',  name: 'Admin Dev',     roles: ['ADMIN', 'CHVL'] },
+    respo: { email: 'respo@dev.local',  name: 'Respo Dev',     roles: ['RESPO', 'CHVL'] },
+    chvl:  { email: 'chvl@dev.local',   name: 'Chauffeur Dev', roles: ['CHVL'] },
+    guest: { email: 'guest@dev.local',  name: 'Invité Dev',    roles: ['GUEST'] },
+};
+
+const isDev = process.env.NODE_ENV === 'development';
+
+// ── Providers ────────────────────────────────────────────────────────────────
+const providers = [
+    Google({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        authorization: {
+            params: {
+                prompt: "consent",
+                access_type: "offline",
+                response_type: "code",
+                scope: "openid email profile"
+            },
+        },
+    }),
+
+    // Provider disponible uniquement en développement local
+    ...(isDev ? [
+        Credentials({
+            id: 'dev-credentials',
+            name: 'Dev Login',
+            credentials: {
+                role: { label: 'Rôle', type: 'text' },
+            },
+            async authorize(credentials) {
+                const role = credentials?.role as string;
+                const user = DEV_USERS[role];
+                if (!user) return null;
+                // devRoles est stocké dans le JWT → aucune requête DB nécessaire
+                return { id: user.email, email: user.email, name: user.name, devRoles: user.roles } as any;
             },
         }),
-    ],
+    ] : []),
+];
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+    providers,
     pages: {
         signIn: "/login",
         error: "/login",
     },
     callbacks: {
-        authorized({ auth, request: { nextUrl } }) {
-            const isLoggedIn = !!auth?.user;
-            const isApiAuthRoute = nextUrl.pathname.startsWith('/api/auth');
-            const isLoginRoute = nextUrl.pathname === '/login';
+        async signIn({ user, profile, account }) {
+            // Dev credentials : pas de vérification de domaine
+            if (account?.provider === 'dev-credentials') return true;
 
-            if (isApiAuthRoute) return true;
-
-            if (isLoginRoute) {
-                if (isLoggedIn) return Response.redirect(new URL('/', nextUrl));
-                return true;
-            }
-
-            if (!isLoggedIn) {
-                return false; // Redirects to sign-in page
-            }
-
-            return true;
-        },
-        async signIn({ user, profile }) {
-            // Check both user object and profile object just in case
             const email = user?.email || profile?.email;
-            if (!email) {
-                console.error("Sign-in failed: No email provided by Google");
-                return "/login?error=AccessDenied";
-            }
+            if (!email) return "/login?error=AccessDenied";
 
-            console.log("Login attempt with email:", email);
-
-            // Strict restriction to @croix-rouge.fr emails (case insensitive)
             if (email.toLowerCase().endsWith("@croix-rouge.fr")) {
                 try {
-                    // Check if user exists
                     const resUser = await db.execute({
                         sql: 'SELECT id FROM "User" WHERE email = ?',
-                        args: [email]
+                        args: [email],
                     });
-
                     if (resUser.rows.length === 0) {
-                        // User does not exist, create them
                         const guestRes = await db.execute(`SELECT id FROM "Role" WHERE name = 'GUEST'`);
                         if (guestRes.rows.length > 0) {
                             const userId = crypto.randomUUID();
-                            const guestId = guestRes.rows[0].id;
-
                             await db.execute({
                                 sql: 'INSERT INTO "User" (id, email, name) VALUES (?, ?, ?)',
-                                args: [userId, email, user?.name || profile?.name || null]
+                                args: [userId, email, user?.name || profile?.name || null],
                             });
-
                             await db.execute({
                                 sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
-                                args: [userId, guestId]
+                                args: [userId, guestRes.rows[0].id],
                             });
-                            console.log(`Auto-registered new user: ${email} with GUEST role`);
                         }
                     }
                 } catch (e) {
@@ -92,33 +95,50 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 return true;
             }
 
-            console.log("Rejected email:", email);
-            return "/login?error=AccessDenied"; // Explicitly redirect to our custom login page
+            return "/login?error=AccessDenied";
         },
+
         async session({ session, token }) {
             const email = session?.user?.email;
+
+            // Dev : @dev.local bypass la vérification de domaine
+            if (email?.endsWith('@dev.local')) {
+                session.user.roles = (token.roles as string[]) || [];
+                return session;
+            }
+
             if (!email || !email.toLowerCase().endsWith("@croix-rouge.fr")) {
-                // Return invalid session
                 return { ...session, error: "Unauthorized" } as any;
             }
 
-            if (session.user) {
-                session.user.roles = (token.roles as string[]) || [];
-            }
+            session.user.roles = (token.roles as string[]) || [];
             return session;
         },
-        async jwt({ token, account }) {
+
+        async jwt({ token, user }) {
+            // Première connexion dev : stocker les rôles dans le JWT (évite toute requête DB)
+            if (user && 'devRoles' in user) {
+                token.devRoles = (user as any).devRoles;
+            }
+
+            // Dev users : rôles depuis le JWT uniquement
+            if (token.email?.endsWith('@dev.local')) {
+                token.roles = (token.devRoles as string[]) || [];
+                return token;
+            }
+
+            // Utilisateurs normaux : récupération des rôles depuis la DB
             if (token.email) {
                 try {
                     const res = await db.execute({
                         sql: `
-                            SELECT r.name 
+                            SELECT r.name
                             FROM "User" u
                             JOIN "UserRole" ur ON u.id = ur.userId
                             JOIN "Role" r ON ur.roleId = r.id
                             WHERE u.email = ?
                         `,
-                        args: [token.email]
+                        args: [token.email],
                     });
                     token.roles = res.rows.map(row => row.name as string);
                 } catch (e) {
@@ -127,6 +147,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 }
             }
             return token;
-        }
+        },
     },
 });
