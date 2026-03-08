@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Add an empty turbopack config to silence the webpack/turbopack mismatch warning
-  // next-pwa is removed since it doesn't support Turbopack (Next.js 16 default)
-  turbopack: {},
-
   // Force transpilation of packages that use modern JS syntax (?.  ??) — needed for iOS 12
   transpilePackages: ['react-onesignal', 'next-themes'],
 
