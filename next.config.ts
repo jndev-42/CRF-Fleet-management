@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Force transpilation of packages that use modern JS syntax (?.  ??) — needed for iOS 12
-  transpilePackages: ['react-onesignal', 'next-themes', 'next-auth'],
+  transpilePackages: ['react-onesignal', 'next-themes', 'next-auth', '@auth/core'],
 
   async headers() {
     return [
