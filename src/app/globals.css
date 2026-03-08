@@ -816,6 +816,17 @@ body {
   border-color: var(--border-hover);
 }
 
+.btn-danger {
+  background: transparent;
+  color: var(--crf-red);
+  border: 1px solid rgba(227, 6, 19, 0.35);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(227, 6, 19, 0.1);
+  border-color: var(--crf-red);
+}
+
 .btn-success {
   background: var(--status-available);
   color: white;

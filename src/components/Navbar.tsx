@@ -64,12 +64,12 @@ export default function Navbar({ user }: NavbarProps) {
                                 </svg>
                             </button>
                         </div>
-                        <a href="/" className="nav-link" onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</a>
-                        <a href="/vehicles" className="nav-link" onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</a>
+                        <a href="/" className={`nav-link${pathname === '/' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</a>
+                        <a href="/vehicles" className={`nav-link${pathname === '/vehicles' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</a>
                         {user.roles?.includes('ADMIN') && (
-                            <a href="/users" className="nav-link" onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Utilisateurs</a>
+                            <a href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Utilisateurs</a>
                         )}
-                        <a href="/aide" className="nav-link" data-tour="aide" onClick={() => setIsOpen(false)} aria-current={pathname === '/aide' ? 'page' : undefined}>Aide</a>
+                        <a href="/aide" className={`nav-link${pathname === '/aide' ? ' active' : ''}`} data-tour="aide" onClick={() => setIsOpen(false)} aria-current={pathname === '/aide' ? 'page' : undefined}>Aide</a>
 
                         <div className="nav-actions">
                             {(user.roles?.includes('ADMIN') || user.roles?.includes('RESPO')) && (
@@ -77,7 +77,7 @@ export default function Navbar({ user }: NavbarProps) {
                             )}
                             <ThemeToggle />
                             <button
-                                className="btn btn-secondary nav-logout-btn"
+                                className="btn btn-danger nav-logout-btn"
                                 title={user.email || ''}
                                 aria-label="Se déconnecter"
                                 onClick={() => signOut({ callbackUrl: '/login' })}
