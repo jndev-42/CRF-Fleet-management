@@ -5,6 +5,13 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.2] - 2026-03-08
+
+### Ajouté
+- **Propreté du véhicule (CheckOut / CheckIn)** : Ajout du champ "Propreté du véhicule" dans les modales de départ et de retour, avec un select à quatre niveaux (Propre, Correct, Sale, Très sale). Les valeurs sont stockées dans les colonnes `cleanlinessOut` et `cleanlinessIn` de la base de données.
+- **Affichage de la propreté dans l'historique** : Chaque encart de sortie (TripItem) affiche désormais deux lignes "Propreté départ" et "Propreté retour" lorsque les données sont disponibles.
+- **Script setup-dev.ts mis à jour** : Les nouvelles colonnes `cleanlinessOut` et `cleanlinessIn` sont ajoutées via des migrations idempotentes dans le script d'initialisation de l'environnement de développement.
+
 ## [1.9.1] - 2026-03-08
 
 ### Modifié

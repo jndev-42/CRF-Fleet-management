@@ -12,6 +12,7 @@ const checkInSchema = z.object({
     fuelIn: z.number().min(0).max(100, "Le niveau d'essence doit être entre 0 et 100").optional(),
     parkingIn: z.string().optional(),
     conditionIn: z.string().min(1, "L'état du véhicule est requis"),
+    cleanlinessIn: z.string().optional(),
     windowsClosed: z.boolean().default(false),
     vehicleInspected: z.boolean().default(false),
     incident: z.string().optional(),
@@ -120,9 +121,9 @@ export async function PATCH(
 
         try {
             await tx.execute({
-                sql: `UPDATE Trip SET 
-                        checkInAt = ?, mileageIn = ?, fuelIn = ?, parkingIn = ?, conditionIn = ?, 
-                        windowsClosed = ?, vehicleInspected = ?, incident = ?, dsaUsed = ?, 
+                sql: `UPDATE Trip SET
+                        checkInAt = ?, mileageIn = ?, fuelIn = ?, parkingIn = ?, conditionIn = ?, cleanlinessIn = ?,
+                        windowsClosed = ?, vehicleInspected = ?, incident = ?, dsaUsed = ?,
                         commentsIn = ?, parkingPhoto = ?, driveFolderId = ?, checklistIn = ?
                       WHERE id = ?`,
                 args: [
@@ -131,6 +132,7 @@ export async function PATCH(
                     finalFuelIn,
                     data.parkingIn || null,
                     data.conditionIn,
+                    data.cleanlinessIn || null,
                     data.windowsClosed ? 1 : 0,
                     data.vehicleInspected ? 1 : 0,
                     data.incident || null,

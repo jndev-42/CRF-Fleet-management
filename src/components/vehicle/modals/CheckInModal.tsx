@@ -23,9 +23,10 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [form, setForm] = useState({
         mileageIn: vehicle.mileage,
         fuelIn: vehicle.fuelLevel,
-        parkingInSelection: trip.parkingOut === 'Baigneur (devant l’UL)' || trip.parkingOut === 'Parking Aubervillers' ? trip.parkingOut : (trip.parkingOut ? 'Autre' : 'Baigneur (devant l’UL)'),
-        parkingInCustom: trip.parkingOut && trip.parkingOut !== 'Baigneur (devant l’UL)' && trip.parkingOut !== 'Parking Aubervillers' ? trip.parkingOut : '',
+        parkingInSelection: trip.parkingOut === "Baigneur (devant l’UL)" || trip.parkingOut === "Parking Aubervillers" ? trip.parkingOut : (trip.parkingOut ? "Autre" : "Baigneur (devant l’UL)"),
+        parkingInCustom: trip.parkingOut && trip.parkingOut !== "Baigneur (devant l'UL)" && trip.parkingOut !== "Parking Aubervillers" ? trip.parkingOut : '',
         conditionIn: 'Bon état',
+        cleanlinessIn: 'Propre',
         incident: '',
         commentsIn: '',
     });
@@ -91,6 +92,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     fuelIn: isConnected(vehicle.name) ? null : form.fuelIn,
                     parkingIn: finalParkingIn,
                     conditionIn: form.conditionIn,
+                    cleanlinessIn: form.cleanlinessIn,
                     incident: form.incident,
                     dsaUsed: isDsaUsed,
                     commentsIn: form.commentsIn,
@@ -217,20 +219,36 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                             </div>
                         )}
 
-                        {/* État */}
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="checkin-condition">État du véhicule au retour *</label>
-                            <select
-                                id="checkin-condition"
-                                className="form-select"
-                                value={form.conditionIn}
-                                onChange={(e) => setForm({ ...form, conditionIn: e.target.value })}
-                            >
-                                <option value="Bon état">✅ Bon état</option>
-                                <option value="Correct">👍 Correct</option>
-                                <option value="Dégradé">⚠️ Dégradé</option>
-                                <option value="Problème signalé">❌ Problème à signaler</option>
-                            </select>
+                        {/* État et propreté */}
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="checkin-condition">État du véhicule au retour *</label>
+                                <select
+                                    id="checkin-condition"
+                                    className="form-select"
+                                    value={form.conditionIn}
+                                    onChange={(e) => setForm({ ...form, conditionIn: e.target.value })}
+                                >
+                                    <option value="Bon état">✅ Bon état</option>
+                                    <option value="Correct">👍 Correct</option>
+                                    <option value="Dégradé">⚠️ Dégradé</option>
+                                    <option value="Problème signalé">❌ Problème à signaler</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="checkin-cleanliness">Propreté du véhicule</label>
+                                <select
+                                    id="checkin-cleanliness"
+                                    className="form-select"
+                                    value={form.cleanlinessIn}
+                                    onChange={(e) => setForm({ ...form, cleanlinessIn: e.target.value })}
+                                >
+                                    <option value="Propre">✨ Propre</option>
+                                    <option value="Correct">👍 Correct</option>
+                                    <option value="Sale">⚠️ Sale</option>
+                                    <option value="Très sale">❌ Très sale</option>
+                                </select>
+                            </div>
                         </div>
 
                         {/* Checklists */}

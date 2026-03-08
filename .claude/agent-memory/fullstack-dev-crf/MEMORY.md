@@ -1,7 +1,7 @@
 # Agent Memory — cr-chauffeur
 
 ## Current Version
-- CHANGELOG.md and FooterChangelog.tsx: **v1.9.1** (as of 2026-03-08)
+- CHANGELOG.md and FooterChangelog.tsx: **v1.9.2** (as of 2026-03-08)
 
 ## Project Structure
 - Next.js 16 App Router, React 19, Tailwind CSS, libSQL (`@libsql/client`)

@@ -11,6 +11,7 @@ const checkOutSchema = z.object({
     missionType: z.string().min(1, 'Le type de mission est requis'),
     missionName: z.string().optional(),
     conditionOut: z.string().min(1, "L'état du véhicule est requis"),
+    cleanlinessOut: z.string().optional(),
     parkingOut: z.string().optional(),
     dsaChecked: z.boolean(),
     commentsOut: z.string().optional(),
@@ -117,10 +118,10 @@ export async function POST(request: Request) {
         try {
             await tx.execute({
                 sql: `INSERT INTO Trip (
-                        id, vehicleId, driverName, driverEmail, missionType, missionName, 
-                        checkOutAt, mileageOut, fuelOut, conditionOut, parkingOut, dsaChecked, commentsOut, 
+                        id, vehicleId, driverName, driverEmail, missionType, missionName,
+                        checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut,
                         secondDriverName, secondDriverEmail, driveFolderId, checklistOut, createdAt
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     tripId,
                     data.vehicleId,
@@ -132,6 +133,7 @@ export async function POST(request: Request) {
                     mileageOut,
                     fuelOut,
                     data.conditionOut,
+                    data.cleanlinessOut || null,
                     data.parkingOut || (vehicle.parkingSpot as string) || null,
                     data.dsaChecked ? 1 : 0,
                     data.commentsOut || null,

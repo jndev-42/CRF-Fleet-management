@@ -95,9 +95,15 @@ async function main() {
             "fuelIn"            INTEGER,
             "conditionOut"      TEXT,
             "conditionIn"       TEXT,
+            "cleanlinessOut"    TEXT,
+            "cleanlinessIn"     TEXT,
             "parkingOut"        TEXT,
             "parkingIn"         TEXT,
             "dsaChecked"        INTEGER DEFAULT 0,
+            "dsaUsed"           INTEGER DEFAULT 0,
+            "windowsClosed"     INTEGER DEFAULT 0,
+            "vehicleInspected"  INTEGER DEFAULT 0,
+            "incident"          TEXT,
             "commentsOut"       TEXT,
             "commentsIn"        TEXT,
             "secondDriverName"  TEXT,
@@ -105,10 +111,30 @@ async function main() {
             "checklistOut"      TEXT,
             "checklistIn"       TEXT,
             "driveFolderId"     TEXT,
+            "parkingPhoto"      TEXT,
             "createdAt"         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY ("vehicleId") REFERENCES "Vehicle" ("id") ON DELETE CASCADE
         )
     `);
+
+    // Migrations idempotentes pour DBs existantes
+    const tripCols = await db.execute(`PRAGMA table_info("Trip")`);
+    const existingCols = new Set(tripCols.rows.map(r => r.name as string));
+    const migrations: Array<[string, string]> = [
+        ['cleanlinessOut',   'TEXT'],
+        ['cleanlinessIn',    'TEXT'],
+        ['dsaUsed',          'INTEGER DEFAULT 0'],
+        ['windowsClosed',    'INTEGER DEFAULT 0'],
+        ['vehicleInspected', 'INTEGER DEFAULT 0'],
+        ['incident',         'TEXT'],
+        ['parkingPhoto',     'TEXT'],
+    ];
+    for (const [col, def] of migrations) {
+        if (!existingCols.has(col)) {
+            await db.execute(`ALTER TABLE "Trip" ADD COLUMN "${col}" ${def}`);
+            console.log(`  ↳ Migration : colonne Trip.${col} ajoutée`);
+        }
+    }
 
     // ── Notifications ─────────────────────────────────────────────
 
@@ -229,16 +255,16 @@ async function main() {
     const count = await db.execute(`SELECT COUNT(*) as n FROM "Vehicle"`);
     if ((count.rows[0].n as number) === 0) {
         const vehicles = [
-            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450 },
-            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200 },
-            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900 },
-            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100 },
+            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur' },
+            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur' },
+            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur' },
+            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur' },
         ];
         for (const v of vehicles) {
             await db.execute({
-                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, status, createdAt, updatedAt)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage],
+                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, parkingSpot, status, createdAt, updatedAt)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage, v.parkingSpot],
             });
         }
         console.log('\n🚗 4 véhicules de démo créés');

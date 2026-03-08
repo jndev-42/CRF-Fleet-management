@@ -26,6 +26,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         missionType: 'DPS',
         missionName: '',
         conditionOut: 'Bon état',
+        cleanlinessOut: 'Propre',
         parkingOut: vehicle.parkingSpot as string,
         commentsOut: '',
     });
@@ -324,7 +325,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                             </div>
                         </div>
 
-                        {/* État véhicule */}
+                        {/* État et propreté */}
                         <div className="form-row">
                             <div className="form-group">
                                 <label className="form-label" htmlFor="checkout-condition">État du véhicule *</label>
@@ -338,6 +339,20 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                     <option value="Correct">👍 Correct</option>
                                     <option value="Dégradé">⚠️ Dégradé</option>
                                     <option value="Problème signalé">❌ Problème à signaler</option>
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="checkout-cleanliness">Propreté du véhicule</label>
+                                <select
+                                    id="checkout-cleanliness"
+                                    className="form-select"
+                                    value={form.cleanlinessOut}
+                                    onChange={(e) => setForm({ ...form, cleanlinessOut: e.target.value })}
+                                >
+                                    <option value="Propre">✨ Propre</option>
+                                    <option value="Correct">👍 Correct</option>
+                                    <option value="Sale">⚠️ Sale</option>
+                                    <option value="Très sale">❌ Très sale</option>
                                 </select>
                             </div>
                         </div>

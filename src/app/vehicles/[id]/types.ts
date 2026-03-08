@@ -14,6 +14,8 @@ export interface Trip {
     parkingIn: string | null;
     conditionOut: string;
     conditionIn: string | null;
+    cleanlinessOut: string | null;
+    cleanlinessIn: string | null;
     dsaChecked: boolean;
     dsaUsed: boolean | null;
     commentsOut: string | null;

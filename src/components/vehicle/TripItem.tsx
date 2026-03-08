@@ -55,16 +55,12 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                 </div>
                 <div className="trip-detail-item">
                     <span className="trip-detail-label">Km départ</span>
-                    <span className="trip-detail-value">
-                        {trip.mileageOut.toLocaleString('fr-FR')} km
-                    </span>
+                    <span className="trip-detail-value">{trip.mileageOut.toLocaleString('fr-FR')} km</span>
                 </div>
                 <div className="trip-detail-item">
                     <span className="trip-detail-label">Km retour</span>
                     <span className="trip-detail-value">
-                        {trip.mileageIn
-                            ? `${trip.mileageIn.toLocaleString('fr-FR')} km`
-                            : '—'}
+                        {trip.mileageIn ? `${trip.mileageIn.toLocaleString('fr-FR')} km` : '—'}
                     </span>
                 </div>
                 <div className="trip-detail-item">
@@ -81,9 +77,15 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                 </div>
                 <div className="trip-detail-item">
                     <span className="trip-detail-label">État retour</span>
-                    <span className="trip-detail-value">
-                        {trip.conditionIn || '—'}
-                    </span>
+                    <span className="trip-detail-value">{trip.conditionIn || '—'}</span>
+                </div>
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">Propreté départ</span>
+                    <span className="trip-detail-value">{trip.cleanlinessOut || '—'}</span>
+                </div>
+                <div className="trip-detail-item">
+                    <span className="trip-detail-label">Propreté retour</span>
+                    <span className="trip-detail-value">{trip.cleanlinessIn || '—'}</span>
                 </div>
             </div>
 
