@@ -1,14 +1,64 @@
 'use client';
 
-import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import React, { useState, useEffect, ComponentType } from 'react';
+
+// Détecte si le navigateur supporte les named capture groups (ES2018)
+// Non supporté sur iOS 12 Safari — react-markdown en dépend via micromark
+function supportsModernRegex(): boolean {
+    try {
+        new RegExp('(?<test>a)');
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Renderer de secours pour les navigateurs anciens (iOS 12)
+function SimpleMarkdown({ content }: { content: string }) {
+    const lines = content.split('\n');
+    const elements: React.ReactNode[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+        if (line.startsWith('### ')) {
+            elements.push(<h3 key={i} style={{ fontSize: 14, fontWeight: 700, marginTop: 16, marginBottom: 4, color: 'var(--text-primary)' }}>{line.slice(4)}</h3>);
+        } else if (line.startsWith('## ')) {
+            elements.push(<h2 key={i} style={{ fontSize: 16, fontWeight: 700, marginTop: 20, marginBottom: 6, color: 'var(--crf-red)' }}>{line.slice(3)}</h2>);
+        } else if (line.startsWith('# ')) {
+            elements.push(<h1 key={i} style={{ fontSize: 18, fontWeight: 800, marginTop: 24, marginBottom: 8, color: 'var(--text-primary)' }}>{line.slice(2)}</h1>);
+        } else if (line.startsWith('- ') || line.startsWith('* ')) {
+            elements.push(<li key={i} style={{ marginLeft: 16, marginBottom: 2 }}>{line.slice(2)}</li>);
+        } else if (line.trim() === '') {
+            elements.push(<br key={i} />);
+        } else {
+            elements.push(<p key={i} style={{ marginBottom: 4 }}>{line}</p>);
+        }
+        i++;
+    }
+    return <div>{elements}</div>;
+}
 
 export default function FooterChangelog() {
     const [isOpen, setIsOpen] = useState(false);
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [ReactMarkdown, setReactMarkdown] = useState<ComponentType<any> | null>(null);
+    const [remarkGfm, setRemarkGfm] = useState<any>(null);
+
+    // Charge react-markdown dynamiquement seulement sur les navigateurs compatibles
+    useEffect(() => {
+        if (supportsModernRegex()) {
+            Promise.all([
+                import('react-markdown'),
+                import('remark-gfm'),
+            ]).then(([md, gfm]) => {
+                setReactMarkdown(() => md.default);
+                setRemarkGfm(() => gfm.default);
+            }).catch(() => {/* silently ignore on incompatible browsers */});
+        }
+    }, []);
 
     const openModal = async () => {
         setIsOpen(true);
@@ -69,13 +119,11 @@ export default function FooterChangelog() {
                                 </div>
                             )}
                             {!loading && !error && content && (
-                                <div className="markdown-body" style={{
-                                    textAlign: 'left',
-                                    fontSize: '14px',
-                                }}>
-                                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                        {content}
-                                    </ReactMarkdown>
+                                <div className="markdown-body" style={{ textAlign: 'left', fontSize: '14px' }}>
+                                    {ReactMarkdown && remarkGfm
+                                        ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                                        : <SimpleMarkdown content={content} />
+                                    }
                                 </div>
                             )}
                         </div>
