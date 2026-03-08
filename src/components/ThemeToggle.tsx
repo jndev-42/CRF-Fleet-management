@@ -28,7 +28,7 @@ export function ThemeToggle() {
                 alignItems: "center",
                 justifyContent: "center",
             }}
-            aria-label="Toggle Theme"
+            aria-label={theme === "dark" ? "Passer en mode clair" : "Passer en mode sombre"}
         >
             {theme === "dark" ? (
                 <Sun size={20} className="text-muted" />

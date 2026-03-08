@@ -49,12 +49,12 @@ export default async function RootLayout({
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
             <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
               <Navbar user={session?.user} />
-              <main className="main-content" style={{ flexGrow: 1 }}>
+              <main id="main-content" className="main-content" role="main" style={{ flexGrow: 1 }}>
                 {children}
               </main>
               {session?.user && <GuidedTour roles={roles} />}
               {session?.user && <KonamiEasterEgg />}
-              <footer style={{
+              <footer role="contentinfo" style={{
                 textAlign: 'center',
                 padding: '24px 16px',
                 fontSize: '12px',

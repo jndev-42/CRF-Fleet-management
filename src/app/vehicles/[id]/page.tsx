@@ -232,7 +232,7 @@ export default function VehicleDetailPage() {
 
     return (
         <>
-            <Link href="/" className="back-link">
+            <Link href="/" className="back-link" aria-label="Retour au tableau de bord">
                 ← Retour au dashboard
             </Link>
 
@@ -243,6 +243,7 @@ export default function VehicleDetailPage() {
                         <button
                             onClick={() => setShowQRModal(true)}
                             title="Générer un QR Code pour cette page"
+                            aria-label="Afficher le QR code du véhicule"
                             style={{
                                 background: 'transparent',
                                 border: 'none',
@@ -318,6 +319,7 @@ export default function VehicleDetailPage() {
                                 onClick={() => { if (canBorrow) setShowCheckOut(true); }}
                                 disabled={!canBorrow}
                                 title={titleAttr}
+                                aria-label={`Prendre le véhicule ${vehicle.name}`}
                             >
                                 🚗 Prendre le véhicule
                             </button>
@@ -354,6 +356,8 @@ export default function VehicleDetailPage() {
 
             {activeTrip && (
                 <div
+                    role="status"
+                    aria-live="polite"
                     style={{
                         background: 'var(--status-inuse-bg)',
                         border: '1px solid var(--status-inuse)',
@@ -526,36 +530,37 @@ export default function VehicleDetailPage() {
                 );
                 return (
                     <>
-                        <div className="trip-list">
+                        <ul role="list" aria-label="Historique des sorties" className="trip-list" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                             {visibleTrips.map((trip) => (
-                                <TripItem
-                                    key={trip.id}
-                                    trip={trip}
-                                    vehicle={vehicle}
-                                    userRoles={userRoles}
-                                    onDelete={async (tripId: string) => {
-                                        if (window.confirm("Voulez-vous vraiment supprimer cette sortie de l'historique ?")) {
-                                            try {
-                                                const res = await fetch(`/api/trips/${tripId}`, { method: 'DELETE' });
-                                                if (res.ok) {
-                                                    fetchVehicle();
-                                                    // Stay on previous page if current page becomes empty after deletion
-                                                    setTripsPage(p => Math.min(p, Math.ceil((vehicle.trips.length - 1) / TRIPS_PER_PAGE)));
-                                                } else {
-                                                    const body = await res.json();
-                                                    alert(body.error || "Erreur de suppression");
+                                <li key={trip.id}>
+                                    <TripItem
+                                        trip={trip}
+                                        vehicle={vehicle}
+                                        userRoles={userRoles}
+                                        onDelete={async (tripId: string) => {
+                                            if (window.confirm("Voulez-vous vraiment supprimer cette sortie de l'historique ?")) {
+                                                try {
+                                                    const res = await fetch(`/api/trips/${tripId}`, { method: 'DELETE' });
+                                                    if (res.ok) {
+                                                        fetchVehicle();
+                                                        // Stay on previous page if current page becomes empty after deletion
+                                                        setTripsPage(p => Math.min(p, Math.ceil((vehicle.trips.length - 1) / TRIPS_PER_PAGE)));
+                                                    } else {
+                                                        const body = await res.json();
+                                                        alert(body.error || "Erreur de suppression");
+                                                    }
+                                                } catch (e) {
+                                                    alert("Erreur de connexion");
                                                 }
-                                            } catch (e) {
-                                                alert("Erreur de connexion");
                                             }
-                                        }
-                                    }}
-                                    onViewPhotos={(folderId: string) => setViewingPhotosFolderId(folderId)}
-                                />
+                                        }}
+                                        onViewPhotos={(folderId: string) => setViewingPhotosFolderId(folderId)}
+                                    />
+                                </li>
                             ))}
-                        </div>
+                        </ul>
                         {totalPages > 1 && (
-                            <div style={{
+                            <nav aria-label="Pagination de l'historique" style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -568,10 +573,11 @@ export default function VehicleDetailPage() {
                                     style={{ padding: '6px 14px' }}
                                     onClick={() => setTripsPage(p => p - 1)}
                                     disabled={tripsPage === 1}
+                                    aria-label="Page précédente"
                                 >
                                     ← Précédent
                                 </button>
-                                <span style={{ color: 'var(--text-secondary)' }}>
+                                <span style={{ color: 'var(--text-secondary)' }} aria-live="polite">
                                     {tripsPage} / {totalPages}
                                 </span>
                                 <button
@@ -579,10 +585,11 @@ export default function VehicleDetailPage() {
                                     style={{ padding: '6px 14px' }}
                                     onClick={() => setTripsPage(p => p + 1)}
                                     disabled={tripsPage === totalPages}
+                                    aria-label="Page suivante"
                                 >
                                     Suivant →
                                 </button>
-                            </div>
+                            </nav>
                         )}
                     </>
                 );

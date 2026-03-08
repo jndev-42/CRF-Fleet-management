@@ -152,13 +152,14 @@ export default function DashboardPage() {
           <button
             className="btn btn-primary"
             onClick={() => setShowAddModal(true)}
+            aria-label="Ajouter un nouveau véhicule"
           >
             ➕ Ajouter un véhicule
           </button>
         )}
       </div>
 
-      <div className="filters-bar" data-tour="filters">
+      <div className="filters-bar" data-tour="filters" role="group" aria-label="Filtrer les véhicules par statut">
         {[
           { key: 'ALL', label: 'Tous' },
           { key: 'AVAILABLE', label: '🟢 Disponibles' },
@@ -169,6 +170,7 @@ export default function DashboardPage() {
             key={f.key}
             className={`filter-btn ${filter === f.key ? 'active' : ''}`}
             onClick={() => setFilter(f.key)}
+            aria-pressed={filter === f.key}
           >
             {f.label}
           </button>
@@ -176,7 +178,9 @@ export default function DashboardPage() {
       </div>
 
       {loading || status === 'loading' ? (
-        <DashboardSkeletons count={6} />
+        <div role="status" aria-label="Chargement des véhicules…">
+          <DashboardSkeletons count={6} />
+        </div>
       ) : (() => {
         const filteredVehicles =
           filter === 'ALL'
@@ -208,8 +212,11 @@ export default function DashboardPage() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
                     <span className="vehicle-type-badge">{vehicle.type}</span>
-                    <span className={`status-badge ${statusClass[vehicle.status]}`}>
-                      <span className="status-dot" />
+                    <span
+                      className={`status-badge ${statusClass[vehicle.status]}`}
+                      aria-label={`Statut : ${statusLabels[vehicle.status]}`}
+                    >
+                      <span className="status-dot" aria-hidden="true" />
                       {statusLabels[vehicle.status]}
                     </span>
                   </div>

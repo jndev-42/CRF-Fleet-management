@@ -146,11 +146,17 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
     }
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+            <div
+                className="modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-checkout-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="modal-header">
-                    <h2 className="modal-title">🚗 Prendre {vehicle.name}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <h2 id="modal-checkout-title" className="modal-title">🚗 Prendre {vehicle.name}</h2>
+                    <button className="modal-close" onClick={onClose} aria-label="Fermer la modale">✕</button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
@@ -194,8 +200,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                 {dataIncorrect && (
                                     <div className="form-row" style={{ marginTop: 14 }}>
                                         <div className="form-group">
-                                            <label className="form-label">Kilométrage réel (km)</label>
+                                            <label className="form-label" htmlFor="checkout-corrected-mileage">Kilométrage réel (km)</label>
                                             <input
+                                                id="checkout-corrected-mileage"
                                                 className="form-input"
                                                 type="number"
                                                 min={0}
@@ -205,16 +212,21 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">
+                                            <label className="form-label" htmlFor="checkout-corrected-fuel">
                                                 {vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} réel : {correctedFuel}%
                                             </label>
                                             <input
+                                                id="checkout-corrected-fuel"
                                                 type="range"
                                                 className="fuel-slider"
                                                 min={0}
                                                 max={100}
                                                 value={correctedFuel}
                                                 onChange={e => setCorrectedFuel(Number(e.target.value))}
+                                                aria-label="Niveau de carburant"
+                                                aria-valuemin={0}
+                                                aria-valuemax={100}
+                                                aria-valuenow={correctedFuel}
                                             />
                                             <FuelBar level={correctedFuel} electric={vehicle.fuelType === 'Électrique'} style={{ marginTop: 6 }} />
                                         </div>
@@ -226,8 +238,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         {/* Identité */}
                         <div className="form-row">
                             <div className="form-group">
-                                <label className="form-label">Votre nom * <span style={{ fontSize: 12, fontWeight: 'normal', color: 'var(--text-secondary)' }}>🔒 Rempli via Google</span></label>
+                                <label className="form-label" htmlFor="checkout-driver-name">Votre nom * <span style={{ fontSize: 12, fontWeight: 'normal', color: 'var(--text-secondary)' }}>🔒 Rempli via Google</span></label>
                                 <input
+                                    id="checkout-driver-name"
                                     className="form-input"
                                     placeholder={sessionLoading ? "Chargement..." : "Prénom NOM"}
                                     value={form.driverName}
@@ -241,8 +254,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                 />
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Email <span style={{ fontSize: 12, fontWeight: 'normal', color: 'var(--text-secondary)' }}>🔒 Rempli via Google</span></label>
+                                <label className="form-label" htmlFor="checkout-driver-email">Email <span style={{ fontSize: 12, fontWeight: 'normal', color: 'var(--text-secondary)' }}>🔒 Rempli via Google</span></label>
                                 <input
+                                    id="checkout-driver-email"
                                     className="form-input"
                                     type="email"
                                     placeholder={sessionLoading ? "Chargement..." : "pour recevoir le rapport"}
@@ -259,8 +273,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
                         {/* 2nd Conducteur */}
                         <div className="form-group" style={{ marginBottom: 16 }}>
-                            <label className="form-label">2ème Conducteur (Optionnel)</label>
+                            <label className="form-label" htmlFor="checkout-second-driver">2ème Conducteur (Optionnel)</label>
                             <input
+                                id="checkout-second-driver"
                                 className="form-input"
                                 list="users-list"
                                 placeholder="Rechercher par adresse email..."
@@ -277,8 +292,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         {/* Mission */}
                         <div className="form-row">
                             <div className="form-group">
-                                <label className="form-label">Type de mission *</label>
+                                <label className="form-label" htmlFor="checkout-mission-type">Type de mission *</label>
                                 <select
+                                    id="checkout-mission-type"
                                     className="form-select"
                                     value={form.missionType}
                                     onChange={(e) => setForm({ ...form, missionType: e.target.value })}
@@ -292,8 +308,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                 </select>
                             </div>
                             <div className="form-group">
-                                <label className="form-label">Nom de la mission</label>
+                                <label className="form-label" htmlFor="checkout-mission-name">Nom de la mission</label>
                                 <input
+                                    id="checkout-mission-name"
                                     className="form-input"
                                     placeholder="si applicable"
                                     value={form.missionName}
@@ -310,8 +327,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         {/* État véhicule */}
                         <div className="form-row">
                             <div className="form-group">
-                                <label className="form-label">État du véhicule *</label>
+                                <label className="form-label" htmlFor="checkout-condition">État du véhicule *</label>
                                 <select
+                                    id="checkout-condition"
                                     className="form-select"
                                     value={form.conditionOut}
                                     onChange={(e) => setForm({ ...form, conditionOut: e.target.value })}
@@ -334,8 +352,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
                         {/* Commentaires */}
                         <div className="form-group">
-                            <label className="form-label">Commentaires avant le poste</label>
+                            <label className="form-label" htmlFor="checkout-comments">Commentaires avant le poste</label>
                             <textarea
+                                id="checkout-comments"
                                 className="form-textarea"
                                 placeholder="Remarques sur le véhicule..."
                                 value={form.commentsOut}
@@ -345,11 +364,12 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
                         {/* Photos (Optionnel) */}
                         <div className="form-group" style={{ marginTop: 16 }}>
-                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <label className="form-label" htmlFor="checkout-photos" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 📸 Photos avant départ (Optionnel)
                                 <span title="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
                             </label>
                             <input
+                                id="checkout-photos"
                                 type="file"
                                 accept="image/*"
                                 multiple

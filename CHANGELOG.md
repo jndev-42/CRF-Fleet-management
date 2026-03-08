@@ -5,6 +5,13 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.1] - 2026-03-08
+
+### Modifié
+- **Accessibilité WCAG 2.1 AA — modales CheckOut et CheckIn** : Ajout de `role="dialog"`, `aria-modal="true"` et `aria-labelledby` sur le conteneur de chaque modale ; `id` sur les titres `<h2>` associés ; `aria-label="Fermer la modale"` sur les boutons de fermeture ; `aria-hidden="true"` sur les overlays ; association explicite `htmlFor`/`id` sur tous les labels et champs (nom, email, 2ème conducteur, type de mission, nom de mission, état, commentaires, photos, parking, incident).
+- **Accessibilité WCAG 2.1 AA — sliders de carburant** : Ajout de `aria-label="Niveau de carburant"`, `aria-valuemin`, `aria-valuemax` et `aria-valuenow` sur les `<input type="range">` des modales CheckOut et CheckIn.
+- **Accessibilité WCAG 2.1 AA — pagination historique véhicule** : La pagination de l'historique des sorties est désormais enveloppée dans un `<nav aria-label="Pagination de l'historique">` ; les boutons Précédent et Suivant disposent de `aria-label` explicites ; le compteur de page utilise `aria-live="polite"`.
+
 ## [1.9.0] - 2026-03-07
 
 ### Ajouté

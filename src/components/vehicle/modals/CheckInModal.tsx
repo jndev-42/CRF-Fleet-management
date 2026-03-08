@@ -116,11 +116,17 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     }
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+            <div
+                className="modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-checkin-title"
+                onClick={(e) => e.stopPropagation()}
+            >
                 <div className="modal-header">
-                    <h2 className="modal-title">✅ Rendre {vehicle.name}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <h2 id="modal-checkin-title" className="modal-title">✅ Rendre {vehicle.name}</h2>
+                    <button className="modal-close" onClick={onClose} aria-label="Fermer la modale">✕</button>
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
@@ -144,8 +150,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         <div className="form-row">
                             {!isConnected(vehicle.name) && (
                                 <div className="form-group">
-                                    <label className="form-label">Kilométrage actuel *</label>
+                                    <label className="form-label" htmlFor="checkin-mileage">Kilométrage actuel *</label>
                                     <input
+                                        id="checkin-mileage"
                                         className="form-input"
                                         type="number"
                                         min={trip.mileageOut}
@@ -159,8 +166,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                 </div>
                             )}
                             <div className="form-group">
-                                <label className="form-label">Place de stationnement</label>
+                                <label className="form-label" htmlFor="checkin-parking">Place de stationnement</label>
                                 <select
+                                    id="checkin-parking"
                                     className="form-select"
                                     value={form.parkingInSelection}
                                     onChange={(e) => setForm({ ...form, parkingInSelection: e.target.value })}
@@ -185,14 +193,19 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         {/* Essence */}
                         {!isConnected(vehicle.name) && (
                             <div className="form-group">
-                                <label className="form-label">{vehicle.fuelType === 'Électrique' ? 'Niveau de batterie *' : (vehicle.fuelType === 'Diesel' ? 'Niveau de diesel *' : 'Niveau d\'essence *')}</label>
+                                <label className="form-label" htmlFor="checkin-fuel">{vehicle.fuelType === 'Électrique' ? 'Niveau de batterie *' : (vehicle.fuelType === 'Diesel' ? 'Niveau de diesel *' : 'Niveau d\'essence *')}</label>
                                 <input
+                                    id="checkin-fuel"
                                     type="range"
                                     className="fuel-slider"
                                     min={0}
                                     max={100}
                                     value={form.fuelIn}
                                     onChange={(e) => setForm({ ...form, fuelIn: Number(e.target.value) })}
+                                    aria-label="Niveau de carburant"
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    aria-valuenow={form.fuelIn}
                                 />
                                 <FuelBar level={form.fuelIn} electric={vehicle.fuelType === 'Électrique'} style={{ marginTop: 8 }} />
                             </div>
@@ -206,8 +219,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {/* État */}
                         <div className="form-group">
-                            <label className="form-label">État du véhicule au retour *</label>
+                            <label className="form-label" htmlFor="checkin-condition">État du véhicule au retour *</label>
                             <select
+                                id="checkin-condition"
                                 className="form-select"
                                 value={form.conditionIn}
                                 onChange={(e) => setForm({ ...form, conditionIn: e.target.value })}
@@ -231,8 +245,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {/* Incident */}
                         <div className="form-group">
-                            <label className="form-label">Incident sur véhicule</label>
+                            <label className="form-label" htmlFor="checkin-incident">Incident sur véhicule</label>
                             <textarea
+                                id="checkin-incident"
                                 className="form-textarea"
                                 placeholder="Décrire l'incident si applicable..."
                                 value={form.incident}
@@ -243,8 +258,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {/* Commentaires */}
                         <div className="form-group">
-                            <label className="form-label">Commentaires après le poste</label>
+                            <label className="form-label" htmlFor="checkin-comments">Commentaires après le poste</label>
                             <textarea
+                                id="checkin-comments"
                                 className="form-textarea"
                                 placeholder="Remarques sur le véhicule..."
                                 value={form.commentsIn}
@@ -255,11 +271,12 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {/* Photos (Optionnel) */}
                         <div className="form-group" style={{ marginTop: 16 }}>
-                            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <label className="form-label" htmlFor="checkin-photos" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 📸 Photos après le retour (Optionnel)
                                 <span title="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
                             </label>
                             <input
+                                id="checkin-photos"
                                 type="file"
                                 accept="image/*"
                                 multiple

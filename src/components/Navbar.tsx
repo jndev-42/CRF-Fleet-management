@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -12,9 +13,11 @@ type NavbarProps = {
 
 export default function Navbar({ user }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const pathname = usePathname();
 
     return (
-        <header className="header">
+        <header className="header" role="banner">
+            <a href="#main-content" className="skip-link">Aller au contenu principal</a>
             <a href="/" className="header-brand">
                 <img src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" />
                 <div>
@@ -29,7 +32,9 @@ export default function Navbar({ user }: NavbarProps) {
                     <button
                         className="burger-btn"
                         onClick={() => setIsOpen(!isOpen)}
-                        aria-label="Menu"
+                        aria-label="Ouvrir le menu de navigation"
+                        aria-expanded={isOpen}
+                        aria-controls="mobile-nav"
                     >
                         {isOpen ? (
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
@@ -43,8 +48,14 @@ export default function Navbar({ user }: NavbarProps) {
                     </button>
 
                     {/* Navigation overlay/menu */}
-                    <div className={`nav-overlay ${isOpen ? 'open' : ''}`} onClick={() => setIsOpen(false)} />
-                    <nav className={`header-nav ${isOpen ? 'open' : ''}`}>
+                    <div className={`nav-overlay ${isOpen ? 'open' : ''}`} onClick={() => setIsOpen(false)} aria-hidden="true" />
+                    <nav
+                        id="mobile-nav"
+                        className={`header-nav ${isOpen ? 'open' : ''}`}
+                        role="navigation"
+                        aria-label="Navigation principale"
+                        aria-hidden={!isOpen}
+                    >
                         <div className="nav-header-mobile">
                             <span className="nav-header-title">Menu</span>
                             <button className="burger-close" onClick={() => setIsOpen(false)}>
@@ -53,12 +64,12 @@ export default function Navbar({ user }: NavbarProps) {
                                 </svg>
                             </button>
                         </div>
-                        <a href="/" className="nav-link" onClick={() => setIsOpen(false)}>Dashboard</a>
-                        <a href="/vehicles" className="nav-link" onClick={() => setIsOpen(false)}>Véhicules</a>
+                        <a href="/" className="nav-link" onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</a>
+                        <a href="/vehicles" className="nav-link" onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</a>
                         {user.roles?.includes('ADMIN') && (
-                            <a href="/users" className="nav-link" onClick={() => setIsOpen(false)}>Utilisateurs</a>
+                            <a href="/users" className="nav-link" onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Utilisateurs</a>
                         )}
-                        <a href="/aide" className="nav-link" data-tour="aide" onClick={() => setIsOpen(false)}>Aide</a>
+                        <a href="/aide" className="nav-link" data-tour="aide" onClick={() => setIsOpen(false)} aria-current={pathname === '/aide' ? 'page' : undefined}>Aide</a>
 
                         <div className="nav-actions">
                             {(user.roles?.includes('ADMIN') || user.roles?.includes('RESPO')) && (
@@ -68,6 +79,7 @@ export default function Navbar({ user }: NavbarProps) {
                             <button
                                 className="btn btn-secondary nav-logout-btn"
                                 title={user.email || ''}
+                                aria-label="Se déconnecter"
                                 onClick={() => signOut({ callbackUrl: '/login' })}
                             >
                                 Déconnexion
