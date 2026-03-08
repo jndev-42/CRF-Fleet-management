@@ -143,8 +143,6 @@ body {
 .header-logo {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  box-shadow: var(--shadow-glow);
   flex-shrink: 0;
 }
 
