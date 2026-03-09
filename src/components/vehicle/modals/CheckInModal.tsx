@@ -82,8 +82,6 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 }
             }
 
-            const isDsaUsed = checklistIn[`dsa-checkin-${vehicle.id}`] || false;
-
             const res = await fetch(`/api/trips/${trip.id}/checkin`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -94,7 +92,6 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     conditionIn: form.conditionIn,
                     cleanlinessIn: form.cleanlinessIn,
                     incident: form.incident,
-                    dsaUsed: isDsaUsed,
                     commentsIn: form.commentsIn,
                     checklistIn: Object.keys(checklistIn).length > 0 ? checklistIn : undefined,
                     driveFolderId,

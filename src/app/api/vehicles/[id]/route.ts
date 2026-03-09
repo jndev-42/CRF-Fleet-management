@@ -88,10 +88,7 @@ export async function GET(
                 conditionIn: tRow.conditionIn,
                 cleanlinessIn: tRow.cleanlinessIn || null,
                 parkingIn: tRow.parkingIn,
-                windowsClosed: tRow.windowsClosed !== null ? !!tRow.windowsClosed : null,
-                vehicleInspected: tRow.vehicleInspected !== null ? !!tRow.vehicleInspected : null,
                 incident: tRow.incident,
-                dsaUsed: tRow.dsaUsed !== null ? !!tRow.dsaUsed : null,
                 commentsIn: tRow.commentsIn,
                 parkingPhoto: tRow.parkingPhoto,
                 driveFolderId: tRow.driveFolderId || null,
@@ -162,27 +159,24 @@ export async function PATCH(
         if (vehicleUuid && data.hasDSA !== undefined && data.hasDSA !== previousHasDSA) {
             const now = new Date().toISOString();
             if (data.hasDSA) {
-                // hasDSA changed false → true: insert DSA checklist items for both types
-                for (const t of ['checkout', 'checkin'] as const) {
-                    const dsaId = `dsa-${t}-${vehicleUuid}`;
-                    const label = "J'ai vérifié le DSA";
-                    const exists = await db.execute({
-                        sql: `SELECT 1 FROM "VehicleChecklistItem" WHERE id = ?`,
-                        args: [dsaId]
+                // hasDSA changed false → true: insert DSA checkout checklist item (optional)
+                const dsaId = `dsa-checkout-${vehicleUuid}`;
+                const exists = await db.execute({
+                    sql: `SELECT 1 FROM "VehicleChecklistItem" WHERE id = ?`,
+                    args: [dsaId]
+                });
+                if (exists.rows.length === 0) {
+                    await db.execute({
+                        sql: `INSERT INTO "VehicleChecklistItem" (id, vehicleId, label, type, required, "order", createdAt)
+                              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                        args: [dsaId, vehicleUuid, "J'ai vérifié le DSA", 'checkout', 0, 0, now]
                     });
-                    if (exists.rows.length === 0) {
-                        await db.execute({
-                            sql: `INSERT INTO "VehicleChecklistItem" (id, vehicleId, label, type, required, "order", createdAt)
-                                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                            args: [dsaId, vehicleUuid, label, t, 1, 0, now]
-                        });
-                    }
                 }
             } else {
-                // hasDSA changed true → false: remove DSA checklist items
+                // hasDSA changed true → false: remove DSA checkout checklist item
                 await db.execute({
-                    sql: `DELETE FROM "VehicleChecklistItem" WHERE id = ? OR id = ?`,
-                    args: [`dsa-checkout-${vehicleUuid}`, `dsa-checkin-${vehicleUuid}`]
+                    sql: `DELETE FROM "VehicleChecklistItem" WHERE id = ?`,
+                    args: [`dsa-checkout-${vehicleUuid}`]
                 });
             }
         }

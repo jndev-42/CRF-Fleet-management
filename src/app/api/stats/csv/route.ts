@@ -74,9 +74,6 @@ export async function POST(request: Request) {
               t.parkingOut,
               t.parkingIn,
               t.dsaChecked,
-              t.dsaUsed,
-              t.windowsClosed,
-              t.vehicleInspected,
               t.incident,
               t.commentsOut,
               t.commentsIn
@@ -96,8 +93,7 @@ export async function POST(request: Request) {
       'Etat depart', 'Etat retour',
       'Proprete depart', 'Proprete retour',
       'Parking depart', 'Parking retour',
-      'DSA verifie', 'DSA utilise',
-      'Fenetres fermees', 'Vehicule inspecte',
+      'DSA verifie',
       'Incident', 'Commentaires depart', 'Commentaires retour',
     ];
 
@@ -117,9 +113,6 @@ export async function POST(request: Request) {
         t.cleanlinessOut, t.cleanlinessIn,
         t.parkingOut, t.parkingIn,
         t.dsaChecked ? 'Oui' : 'Non',
-        t.dsaUsed ? 'Oui' : 'Non',
-        t.windowsClosed ? 'Oui' : 'Non',
-        t.vehicleInspected ? 'Oui' : 'Non',
         t.incident, t.commentsOut, t.commentsIn,
       ].map(csvEscape).join(',');
     });

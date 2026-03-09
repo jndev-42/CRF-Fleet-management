@@ -13,10 +13,7 @@ const checkInSchema = z.object({
     parkingIn: z.string().optional(),
     conditionIn: z.string().min(1, "L'état du véhicule est requis"),
     cleanlinessIn: z.string().optional(),
-    windowsClosed: z.boolean().default(false),
-    vehicleInspected: z.boolean().default(false),
     incident: z.string().optional(),
-    dsaUsed: z.boolean().default(false),
     commentsIn: z.string().optional(),
     parkingPhoto: z.string().optional(),
     driveFolderId: z.string().optional(),
@@ -136,7 +133,7 @@ export async function PATCH(
             await tx.execute({
                 sql: `UPDATE Trip SET
                         checkInAt = ?, mileageIn = ?, fuelIn = ?, parkingIn = ?, conditionIn = ?, cleanlinessIn = ?,
-                        windowsClosed = ?, vehicleInspected = ?, incident = ?, dsaUsed = ?,
+                        incident = ?,
                         commentsIn = ?, parkingPhoto = ?, driveFolderId = ?, checklistIn = ?,
                         renaultDataValidated = ?, renaultLastCheckedAt = ?
                       WHERE id = ?`,
@@ -147,10 +144,7 @@ export async function PATCH(
                     data.parkingIn || null,
                     data.conditionIn,
                     data.cleanlinessIn || null,
-                    data.windowsClosed ? 1 : 0,
-                    data.vehicleInspected ? 1 : 0,
                     data.incident || null,
-                    data.dsaUsed ? 1 : 0,
                     data.commentsIn || null,
                     data.parkingPhoto || null,
                     data.driveFolderId || trip.driveFolderId || null,
@@ -203,10 +197,7 @@ export async function PATCH(
                 fuelIn: finalFuelIn,
                 parkingIn: data.parkingIn || null,
                 conditionIn: data.conditionIn,
-                windowsClosed: data.windowsClosed,
-                vehicleInspected: data.vehicleInspected,
                 incident: data.incident || null,
-                dsaUsed: data.dsaUsed,
                 commentsIn: data.commentsIn || null,
                 parkingPhoto: data.parkingPhoto || null,
                 vehicle: {

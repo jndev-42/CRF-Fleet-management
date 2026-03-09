@@ -17,13 +17,10 @@ export interface Trip {
     cleanlinessOut: string | null;
     cleanlinessIn: string | null;
     dsaChecked: boolean;
-    dsaUsed: boolean | null;
     commentsOut: string | null;
     commentsIn: string | null;
     secondDriverName: string | null;
     secondDriverEmail: string | null;
-    windowsClosed: boolean | null;
-    vehicleInspected: boolean | null;
     incident: string | null;
     parkingPhoto: string | null;
     driveFolderId: string | null;

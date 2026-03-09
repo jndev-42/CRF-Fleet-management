@@ -51,9 +51,6 @@ export async function GET(request: Request) {
               t.parkingOut,
               t.parkingIn,
               t.dsaChecked,
-              t.dsaUsed,
-              t.windowsClosed,
-              t.vehicleInspected,
               t.incident,
               t.commentsOut,
               t.commentsIn

@@ -100,9 +100,6 @@ async function main() {
             "parkingOut"        TEXT,
             "parkingIn"         TEXT,
             "dsaChecked"        INTEGER DEFAULT 0,
-            "dsaUsed"           INTEGER DEFAULT 0,
-            "windowsClosed"     INTEGER DEFAULT 0,
-            "vehicleInspected"  INTEGER DEFAULT 0,
             "incident"          TEXT,
             "commentsOut"       TEXT,
             "commentsIn"        TEXT,
@@ -125,9 +122,6 @@ async function main() {
     const migrations: Array<[string, string]> = [
         ['cleanlinessOut',         'TEXT'],
         ['cleanlinessIn',          'TEXT'],
-        ['dsaUsed',                'INTEGER DEFAULT 0'],
-        ['windowsClosed',          'INTEGER DEFAULT 0'],
-        ['vehicleInspected',       'INTEGER DEFAULT 0'],
         ['incident',               'TEXT'],
         ['parkingPhoto',           'TEXT'],
         ['renaultDataValidated',   'INTEGER DEFAULT NULL'],
@@ -137,6 +131,17 @@ async function main() {
         if (!existingCols.has(col)) {
             await db.execute(`ALTER TABLE "Trip" ADD COLUMN "${col}" ${def}`);
             console.log(`  ↳ Migration : colonne Trip.${col} ajoutée`);
+        }
+    }
+
+    // Drop unused Trip columns
+    const unusedCols = ['windowsClosed', 'vehicleInspected', 'dsaUsed'];
+    for (const col of unusedCols) {
+        const colInfo = await db.execute({ sql: `PRAGMA table_info(Trip)`, args: [] });
+        const colExists = colInfo.rows.some(r => r.name === col);
+        if (colExists) {
+            await db.execute({ sql: `ALTER TABLE "Trip" DROP COLUMN "${col}"`, args: [] });
+            console.log(`Dropped column Trip.${col}`);
         }
     }
 
@@ -201,6 +206,12 @@ async function main() {
         CREATE INDEX IF NOT EXISTS "VehicleChecklistItem_vehicleId_type_idx"
         ON "VehicleChecklistItem"("vehicleId", "type")
     `);
+
+    // Remove DSA checkin checklist items (no longer used)
+    await db.execute({ sql: `DELETE FROM "VehicleChecklistItem" WHERE id LIKE 'dsa-checkin-%'`, args: [] });
+
+    // Make DSA checkout checklist items non-required
+    await db.execute({ sql: `UPDATE "VehicleChecklistItem" SET required = 0 WHERE id LIKE 'dsa-checkout-%'`, args: [] });
 
     // ── Session Renault ───────────────────────────────────────────
 
