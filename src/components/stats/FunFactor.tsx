@@ -30,7 +30,7 @@ export default function FunFactor({ byDriver }: FunFactorProps) {
 
   byDriver.forEach((driver) => {
     driver.byVehicle.forEach((veh) => {
-      if (veh.percentOfVehicleTotal > 50) {
+      if (veh.percentOfVehicleTotal >= 65 && veh.tripCount >= 3) {
         const firstName = getFirstName(driver.driverName);
         const { emoji, text } = getMessage(veh.percentOfVehicleTotal, firstName, veh.vehicleName);
         dominanceItems.push({
