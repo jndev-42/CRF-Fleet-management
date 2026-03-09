@@ -82,7 +82,7 @@ export async function POST(request: Request) {
               t.commentsIn
             FROM Trip t
             JOIN Vehicle v ON v.id = t.vehicleId
-            WHERE t.checkOutAt >= ? AND t.checkOutAt <= ?
+            WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?
             ORDER BY t.checkOutAt DESC`,
       args: [dateFrom, dateTo],
     });

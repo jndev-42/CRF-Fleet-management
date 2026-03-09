@@ -43,7 +43,7 @@ async function generatePdf(dateFrom: string, dateTo: string): Promise<Buffer> {
   const incidentRows = await db.execute({
     sql: `SELECT t.checkOutAt, t.driverName, v.name as vehicleName, t.incident
       FROM Trip t JOIN Vehicle v ON v.id = t.vehicleId
-      WHERE t.checkOutAt >= ? AND t.checkOutAt <= ?
+      WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?
         AND t.incident IS NOT NULL AND t.incident != ''
       ORDER BY t.checkOutAt ASC`,
     args: [dateFrom, dateTo],

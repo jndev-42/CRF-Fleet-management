@@ -46,7 +46,7 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
       COUNT(CASE WHEN incident IS NOT NULL AND incident != '' THEN 1 END) as totalIncidents,
       AVG(CASE WHEN fuelIn IS NOT NULL THEN fuelOut - fuelIn ELSE NULL END) as avgFuelConsumption
     FROM Trip
-    WHERE checkOutAt >= ? AND checkOutAt <= ?`,
+    WHERE DATE(checkOutAt) >= ? AND DATE(checkOutAt) <= ?`,
     args: [dateFrom, dateTo],
   });
 
@@ -65,7 +65,7 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
       COALESCE(SUM(CASE WHEN mileageIn IS NOT NULL THEN mileageIn - mileageOut ELSE 0 END), 0) as totalKm,
       COUNT(CASE WHEN incident != '' AND incident IS NOT NULL THEN 1 END) as incidents
     FROM Trip
-    WHERE checkOutAt >= ? AND checkOutAt <= ?
+    WHERE DATE(checkOutAt) >= ? AND DATE(checkOutAt) <= ?
     GROUP BY driverEmail, driverName
     ORDER BY tripCount DESC`,
     args: [dateFrom, dateTo],
@@ -79,7 +79,7 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
       AVG(CASE WHEN t.fuelIn IS NOT NULL THEN t.fuelOut - t.fuelIn ELSE NULL END) as avgFuelDelta
     FROM Trip t
     JOIN Vehicle v ON v.id = t.vehicleId
-    WHERE t.checkOutAt >= ? AND t.checkOutAt <= ?
+    WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?
     GROUP BY t.vehicleId, v.name
     ORDER BY tripCount DESC`,
     args: [dateFrom, dateTo],
@@ -89,7 +89,7 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
   const missionResult = await db.execute({
     sql: `SELECT missionType, COUNT(*) as count
     FROM Trip
-    WHERE checkOutAt >= ? AND checkOutAt <= ? AND missionType IS NOT NULL
+    WHERE DATE(checkOutAt) >= ? AND DATE(checkOutAt) <= ? AND missionType IS NOT NULL
     GROUP BY missionType
     ORDER BY count DESC`,
     args: [dateFrom, dateTo],
@@ -102,7 +102,7 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
       COUNT(*) as trips,
       COALESCE(SUM(CASE WHEN mileageIn IS NOT NULL THEN mileageIn - mileageOut ELSE 0 END), 0) as km
     FROM Trip
-    WHERE checkOutAt >= ? AND checkOutAt <= ?
+    WHERE DATE(checkOutAt) >= ? AND DATE(checkOutAt) <= ?
     GROUP BY week
     ORDER BY week ASC`,
     args: [dateFrom, dateTo],
@@ -112,7 +112,7 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
   const crossResult = await db.execute({
     sql: `SELECT driverEmail, driverName, vehicleId, COUNT(*) as cnt
     FROM Trip
-    WHERE checkOutAt >= ? AND checkOutAt <= ?
+    WHERE DATE(checkOutAt) >= ? AND DATE(checkOutAt) <= ?
     GROUP BY vehicleId, driverEmail`,
     args: [dateFrom, dateTo],
   });
