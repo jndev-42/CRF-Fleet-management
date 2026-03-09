@@ -5,6 +5,17 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-03-09
+
+### Ajouté
+- **Pré-remplissage du nom de mission depuis la réservation** : Lorsqu'un chauffeur ouvre le formulaire de checkout, l'application récupère automatiquement ses réservations sur le véhicule et pré-remplit le champ "Nom de mission" avec le motif de la réservation dont le `startTime` est le plus proche du moment du checkout (passé ou futur). Le champ reste modifiable.
+
+### Modifié
+- **Export PDF — moteur de génération** : Migration de `pdfkit` vers `@react-pdf/renderer`. Le rapport est désormais un composant React pur avec layout flexbox, sauts de page automatiques, logo CRF réel (converti SVG → PNG via `sharp`) et numérotation automatique des pages (`Page X / Y`).
+- **Export CSV — mode arrière-plan** : L'export CSV suit désormais le même pattern que le PDF (POST → `jobId` → modale `ExportReadyModal` → téléchargement via GET). La génération est côté serveur avec toutes les colonnes brutes des trips (29 colonnes, encodage RFC 4180, BOM UTF-8).
+- **Fun Fact (renommé depuis "Fun Factor")** : La section est maintenant toujours visible (plus de mécanisme cacher/révéler). Le seuil de déclenchement est relevé à ≥ 65% de domination **ET** ≥ 3 trajets sur le véhicule, évitant les faux positifs avec peu de données.
+- **Filtre de dates stats** : Les comparaisons SQL utilisent désormais `DATE(checkOutAt)` pour inclure correctement tous les trajets du jour de fin sélectionné, quelle que soit l'heure de `checkOutAt`.
+
 ## [1.11.0] - 2026-03-09
 
 ### Ajouté

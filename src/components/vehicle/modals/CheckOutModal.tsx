@@ -44,7 +44,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
     const [photos, setPhotos] = useState<File[]>([]);
 
     useEffect(() => {
-        fetch('/api/auth/session')
+        const sessionPromise = fetch('/api/auth/session')
             .then(res => res.json())
             .then(session => {
                 if (session?.user) {
@@ -54,6 +54,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         driverEmail: session.user.email || '',
                     }));
                 }
+                return session;
             })
             .catch(console.error)
             .finally(() => setSessionLoading(false));
@@ -64,7 +65,32 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                 if (data.users) setUsers(data.users);
             })
             .catch(console.error);
-    }, []);
+
+        // Pre-fill missionName from the user's closest reservation (by startTime)
+        Promise.all([
+            sessionPromise,
+            fetch(`/api/vehicles/${vehicle.id}/reservations`).then(r => r.json()).catch(() => null),
+        ]).then(([session, reservationsData]) => {
+            const email = session?.user?.email;
+            const reservations: Array<{ userEmail: string; reason?: string | null; startTime: string }> =
+                Array.isArray(reservationsData) ? reservationsData : [];
+            if (!email || reservations.length === 0) return;
+
+            const userReservations = reservations.filter(r => r.userEmail === email && r.reason);
+            if (userReservations.length === 0) return;
+
+            const now = Date.now();
+            const closest = userReservations.reduce((best, r) => {
+                const diff = Math.abs(new Date(r.startTime).getTime() - now);
+                const bestDiff = Math.abs(new Date(best.startTime).getTime() - now);
+                return diff < bestDiff ? r : best;
+            });
+
+            if (closest.reason) {
+                setForm(f => ({ ...f, missionName: closest.reason! }));
+            }
+        });
+    }, [vehicle.id]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
