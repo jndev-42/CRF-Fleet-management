@@ -1,7 +1,7 @@
 # Agent Memory — cr-chauffeur
 
 ## Current Version
-- CHANGELOG.md and FooterChangelog.tsx: **v1.10.0** (as of 2026-03-09)
+- CHANGELOG.md and FooterChangelog.tsx: **v1.11.0** (as of 2026-03-09)
 
 ## Project Structure
 - Next.js 16 App Router, React 19, Tailwind CSS, libSQL (`@libsql/client`)
@@ -15,6 +15,7 @@
 - Renault integration: `src/lib/renault.ts`
 - Auth config: `src/auth.ts`
 - DB client: `src/lib/db.ts`
+- Stats logic: `src/lib/stats.ts` (shared between GET and PDF routes)
 - Next config: `next.config.ts`
 - Footer version string: `src/components/FooterChangelog.tsx` (hardcoded, must match CHANGELOG)
 
@@ -53,6 +54,28 @@
 ## GuidedTour
 - `TourStep.body` is `React.ReactNode` (not `string`) — use JSX, not HTML strings
 - No `dangerouslySetInnerHTML` — render `{step.body}` directly
+
+## Next.js Route File Rules
+- **Never export non-handler functions from route.ts files** — Next.js only allows `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` exports
+- Shared server-side logic must live in `src/lib/*.ts` and be imported by routes
+
+## NextResponse + Binary Data
+- `NextResponse` body must be `BodyInit`-compatible — convert Node.js `Buffer` to `Uint8Array`:
+  `new NextResponse(new Uint8Array(buffer), { headers: { 'Content-Type': 'application/pdf' } })`
+
+## @react-pdf/renderer (PDF generation)
+- Replaced pdfkit as of v1.11.0 — no pdfkit in the project anymore
+- Add `@react-pdf/renderer` to `serverExternalPackages` in `next.config.ts`
+- PDF document: `src/components/stats/StatsPdfDocument.tsx` — React component using `Document`, `Page`, `View`, `Text`, `Svg` primitives
+- Route calls `renderToBuffer(element)` — requires double cast: `as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>`
+- Use built-in fonts `Helvetica` and `Helvetica-Bold` — no font registration needed
+- `border` shorthand not supported — use `borderBottomWidth`, `borderBottomColor`, `borderBottomStyle`
+- Fixed footer: `<View fixed>` with `<Text render={({ pageNumber, totalPages }) => ...} />` for page numbers
+- `wrap={false}` on `<View>` prevents it from breaking across pages
+
+## Recharts
+- `Defs`, `LinearGradient`, `Stop` are NOT exported from recharts — use inline SVG `<defs>` in JSX instead
+- Recharts uses browser APIs — wrap with `dynamic(() => import(...), { ssr: false })` to avoid SSR errors
 
 ## Known Patterns / Gotchas
 - `vehicles/page.tsx` has its own `isElectric()` helper (name-based, legacy) — `page.tsx` uses `v.vin` to detect connected vehicles

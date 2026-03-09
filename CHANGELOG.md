@@ -5,6 +5,21 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-03-09
+
+### Ajouté
+- **Page Statistiques (`/stats`)** : Nouveau module complet d'analyse des emprunts véhicules, accessible à tous les utilisateurs authentifiés (sauf GUEST). Affiche les données sur une fenêtre glissante de 60 jours par défaut, avec une limite stricte de 62 jours pour l'affichage.
+- **6 cartes KPI globales** : Total des emprunts, sorties terminées (% complétion), km parcourus, km moyen par trajet, incidents signalés (mis en évidence en amber si > 0), consommation carburant moyenne.
+- **Graphiques Recharts** : BarChart des emprunts par chauffeur, PieChart en donut de la répartition par type de mission, AreaChart des kilomètres parcourus par semaine — tous rendus côté client avec SSR désactivé.
+- **Tableaux d'analyse** : Tableau par chauffeur avec comparaison vs. moyenne globale (badge coloré rouge/amber/vert selon le seuil), et tableau par véhicule avec barre de dominance visuelle en ligne.
+- **Fun Factor (easter egg)** : Section humoristique révélée au clic (flou CSS), affichée uniquement si un chauffeur représente plus de 50% des emprunts d'un véhicule donné — 5 niveaux de messages selon le % de dominance (50%/65%/75%/80%/90%).
+- **Export CSV** : Génération côté client à partir des données affichées, via une modale de sélection de plage sans limite de 62 jours. Inclut BOM UTF-8 pour compatibilité Excel.
+- **Export PDF** : Génération côté serveur avec `pdfkit` (Node.js), stockée en mémoire dans `global.__pdfJobs` avec nettoyage automatique après 10 minutes. Rapport A4 sur 2 pages : en-tête rouge avec titre/période/date de génération, section KPIs, tableau chauffeurs, tableau véhicules (page 1), visualisations + types de mission + incidents (page 2). Modale de confirmation à l'ouverture du PDF.
+- **Route `GET /api/stats`** : Requêtes SQL d'agrégation sur la table `Trip` (global, par chauffeur, par véhicule, par type de mission, km/semaine). Validation Zod, auth requise, limite 62 jours.
+- **Route `POST /api/stats/pdf` + `GET /api/stats/pdf?jobId=xxx`** : Génération et récupération de PDF. Le job est stocké en mémoire globale et expiré après 10 minutes.
+- **Lien "Statistiques" dans la Navbar** : Affiché pour tous les rôles sauf GUEST, avec classe `active` sur `/stats`.
+- **Seeder de trips de démonstration** dans `scripts/setup-dev.ts` : 25 sorties réparties sur les 60 derniers jours, avec 4 chauffeurs fictifs, répartition calculée pour garantir la dominance de Marc Dupont sur VL186 (>70%) et de Sandrine Martin sur VL188 (50%), rendant le Fun Factor immédiatement testable.
+
 ## [1.10.0] - 2026-03-09
 
 ### Ajouté

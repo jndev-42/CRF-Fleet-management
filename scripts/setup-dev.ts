@@ -276,6 +276,123 @@ async function main() {
         console.log('\n🚗 Véhicules déjà présents, skip');
     }
 
+    // ── Trips de démonstration ────────────────────────────────────
+
+    const tripCount = await db.execute(`SELECT COUNT(*) as n FROM "Trip"`);
+    if ((tripCount.rows[0].n as number) === 0) {
+        const vehicleRows = await db.execute(`SELECT id, name, mileage FROM "Vehicle"`);
+        const vehicleList = vehicleRows.rows.map(r => ({
+            id: r.id as string,
+            name: r.name as string,
+            mileage: r.mileage as number,
+        }));
+
+        const drivers = [
+            { name: 'Marc Dupont', email: 'marc.dupont@dev.local' },
+            { name: 'Sandrine Martin', email: 'sandrine.martin@dev.local' },
+            { name: 'Luc Bernard', email: 'luc.bernard@dev.local' },
+            { name: 'Amélie Petit', email: 'amelie.petit@dev.local' },
+            { name: 'Clément Leroy', email: 'clement.leroy@dev.local' },
+        ];
+        const missionTypes = ['Opération', 'Formation', 'Logistique', 'Autre'];
+
+        // Track mileage per vehicle
+        const vehicleMileage: Record<string, number> = {};
+        vehicleList.forEach(v => { vehicleMileage[v.id] = v.mileage; });
+
+        const now = Date.now();
+        const tripsToCreate = 25;
+
+        // Assign trips: for VL186 (index 0), Marc gets ~8 out of ~11, Sandrine ~3
+        // This achieves >50% dominance for Marc on VL186
+        const vehicleDriverMap: Array<{ vehicleIdx: number; driverIdx: number }> = [];
+
+        // VL186: 11 trips - Marc(8), Sandrine(2), Luc(1)
+        for (let i = 0; i < 8; i++) vehicleDriverMap.push({ vehicleIdx: 0, driverIdx: 0 });
+        vehicleDriverMap.push({ vehicleIdx: 0, driverIdx: 1 });
+        vehicleDriverMap.push({ vehicleIdx: 0, driverIdx: 1 });
+        vehicleDriverMap.push({ vehicleIdx: 0, driverIdx: 2 });
+
+        // VL188: 8 trips - Sandrine(4), Luc(2), Amélie(1), Clément(1)
+        for (let i = 0; i < 4; i++) vehicleDriverMap.push({ vehicleIdx: 1, driverIdx: 1 });
+        for (let i = 0; i < 2; i++) vehicleDriverMap.push({ vehicleIdx: 1, driverIdx: 2 });
+        vehicleDriverMap.push({ vehicleIdx: 1, driverIdx: 3 });
+        vehicleDriverMap.push({ vehicleIdx: 1, driverIdx: 4 });
+
+        // VL182: 4 trips - Marc(1), Amélie(2), Clément(1)
+        vehicleDriverMap.push({ vehicleIdx: 2, driverIdx: 0 });
+        for (let i = 0; i < 2; i++) vehicleDriverMap.push({ vehicleIdx: 2, driverIdx: 3 });
+        vehicleDriverMap.push({ vehicleIdx: 2, driverIdx: 4 });
+
+        // VPSP01: 2 trips - Luc(1), Amélie(1)
+        vehicleDriverMap.push({ vehicleIdx: 3, driverIdx: 2 });
+        vehicleDriverMap.push({ vehicleIdx: 3, driverIdx: 3 });
+
+        // Shuffle
+        for (let i = vehicleDriverMap.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [vehicleDriverMap[i], vehicleDriverMap[j]] = [vehicleDriverMap[j], vehicleDriverMap[i]];
+        }
+
+        const tripsList = vehicleDriverMap.slice(0, tripsToCreate);
+
+        for (let i = 0; i < tripsList.length; i++) {
+            const { vehicleIdx, driverIdx } = tripsList[i];
+            const vehicle = vehicleList[vehicleIdx % vehicleList.length];
+            const driver = drivers[driverIdx];
+            const missionType = missionTypes[Math.floor(Math.random() * missionTypes.length)];
+
+            // Spread trips over last 60 days
+            const daysAgo = Math.floor(Math.random() * 58) + 1;
+            const checkOutAt = new Date(now - daysAgo * 24 * 60 * 60 * 1000);
+            const tripDurationHours = 1 + Math.floor(Math.random() * 6);
+            const checkInAt = new Date(checkOutAt.getTime() + tripDurationHours * 60 * 60 * 1000);
+
+            const mileageOut = vehicleMileage[vehicle.id];
+            const kmTrip = 20 + Math.floor(Math.random() * 120);
+            const mileageIn = mileageOut + kmTrip;
+            vehicleMileage[vehicle.id] = mileageIn;
+
+            const fuelOut = 40 + Math.floor(Math.random() * 60);
+            const fuelIn = fuelOut - (5 + Math.floor(Math.random() * 20));
+
+            // Leave 2 active trips (no checkIn)
+            const isActive = i < 2;
+
+            const incident = (Math.random() < 0.08) ? 'Incident mineur signalé lors de la sortie.' : null;
+
+            await db.execute({
+                sql: `INSERT INTO "Trip" (
+                    id, vehicleId, driverName, driverEmail, missionType,
+                    checkOutAt, checkInAt,
+                    mileageOut, mileageIn,
+                    fuelOut, fuelIn,
+                    conditionOut, conditionIn,
+                    incident, createdAt
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+                args: [
+                    crypto.randomUUID(),
+                    vehicle.id,
+                    driver.name,
+                    driver.email,
+                    missionType,
+                    checkOutAt.toISOString(),
+                    isActive ? null : checkInAt.toISOString(),
+                    mileageOut,
+                    isActive ? null : mileageIn,
+                    fuelOut,
+                    isActive ? null : fuelIn,
+                    'Bon état',
+                    isActive ? null : 'Bon état',
+                    incident,
+                ],
+            });
+        }
+        console.log(`\n📊 ${tripsToCreate} trips de démo créés`);
+    } else {
+        console.log('\n📊 Trips déjà présents, skip');
+    }
+
     console.log('\n✅ Setup terminé ! Lance maintenant : npm run dev');
     console.log('\nComptes disponibles sur http://localhost:3000/login :');
     console.log('  Admin    → admin@dev.local');

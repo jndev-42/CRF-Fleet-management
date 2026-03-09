@@ -66,6 +66,9 @@ export default function Navbar({ user }: NavbarProps) {
                         </div>
                         <a href="/" className={`nav-link${pathname === '/' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</a>
                         <a href="/vehicles" className={`nav-link${pathname === '/vehicles' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</a>
+                        {!user.roles?.includes('GUEST') && (
+                            <a href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</a>
+                        )}
                         {user.roles?.includes('ADMIN') && (
                             <a href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Utilisateurs</a>
                         )}
