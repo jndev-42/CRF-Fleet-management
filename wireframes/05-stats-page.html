@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wireframe — Page Statistiques</title>
+<style>
+  :root {
+    --crf-red: #E30613;
+    --bg-primary: #0A0B0E;
+    --bg-secondary: #12141A;
+    --bg-card: #181B23;
+    --border-primary: rgba(255,255,255,0.06);
+    --border-hover: rgba(255,255,255,0.12);
+    --text-primary: #F0F1F5;
+    --text-secondary: #9CA3AF;
+    --text-muted: #6B7280;
+    --status-available: #22C55E;
+    --status-available-bg: rgba(34,197,94,0.1);
+    --status-inuse: #F59E0B;
+    --status-maintenance: #EF4444;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --shadow-md: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg-primary); color: var(--text-primary); font-size: 14px; display: flex; }
+
+  /* ── LAYOUT ─────────────────────────────────────── */
+  .main-area { flex: 1; min-width: 0; padding: 24px; overflow-y: auto; }
+  .legend { width: 280px; flex-shrink: 0; background: var(--bg-secondary); border-left: 1px solid var(--border-primary); padding: 20px; height: 100vh; overflow-y: auto; position: sticky; top: 0; }
+
+  /* ── NAVBAR ─────────────────────────────────────── */
+  .navbar { background: var(--bg-secondary); border-bottom: 1px solid var(--border-primary); padding: 0 24px; height: 56px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; border-radius: var(--radius-md); }
+  .navbar-brand { color: var(--crf-red); font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .navbar-links { display: flex; gap: 4px; }
+  .nav-link { padding: 6px 12px; border-radius: var(--radius-sm); color: var(--text-secondary); font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all .15s; text-decoration: none; }
+  .nav-link:hover { background: rgba(255,255,255,0.05); color: var(--text-primary); }
+  .nav-link.active { background: rgba(227,6,19,0.12); color: var(--crf-red); font-weight: 500; }
+  .badge-num { background: var(--crf-red); color: #fff; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; vertical-align: top; margin-left: 2px; }
+
+  /* ── PAGE HEADER ─────────────────────────────────── */
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+  .page-title { font-size: 22px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+  .export-actions { display: flex; gap: 8px; }
+  .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; border: none; transition: all .15s; }
+  .btn-secondary { background: rgba(255,255,255,0.06); color: var(--text-primary); border: 1px solid var(--border-hover); }
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+  .btn-primary { background: var(--crf-red); color: #fff; }
+  .btn-primary:hover { background: #c00510; }
+
+  /* ── FILTERS BAR ─────────────────────────────────── */
+  .filters-bar { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 8px; }
+  .filter-label { font-size: 12px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+  .date-input { background: var(--bg-secondary); border: 1px solid var(--border-hover); color: var(--text-primary); border-radius: var(--radius-sm); padding: 6px 10px; font-size: 13px; }
+  .filter-sep { color: var(--text-muted); }
+  .date-error { color: var(--status-maintenance); font-size: 12px; display: flex; align-items: center; gap: 4px; }
+  .filter-hint { color: var(--text-muted); font-size: 12px; margin-left: auto; }
+
+  /* ── KPI CARDS ───────────────────────────────────── */
+  .kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 20px; }
+  .kpi-card { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .kpi-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .kpi-icon.red { background: rgba(227,6,19,0.12); }
+  .kpi-icon.green { background: rgba(34,197,94,0.12); }
+  .kpi-icon.amber { background: rgba(245,158,11,0.12); }
+  .kpi-icon.blue { background: rgba(59,130,246,0.12); }
+  .kpi-label { font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+  .kpi-value { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+  .kpi-sub { font-size: 11px; color: var(--text-secondary); }
+
+  /* ── CHARTS SECTION ──────────────────────────────── */
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-card { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: 20px; }
+  .chart-card.full { grid-column: 1 / -1; }
+  .chart-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+  .chart-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 16px; }
+  .chart-area { height: 200px; border-radius: var(--radius-sm); overflow: hidden; position: relative; }
+  /* Fake BarChart */
+  .bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 100%; padding: 0 4px; }
+  .bar-group { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+  .bar { border-radius: 4px 4px 0 0; width: 100%; transition: opacity .15s; }
+  .bar.red { background: var(--crf-red); }
+  .bar.green { background: var(--status-available); }
+  .bar-label { font-size: 10px; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48px; }
+  /* Fake LineChart */
+  .line-chart-area { position: relative; height: 160px; }
+  .line-chart-area svg { width: 100%; height: 100%; }
+  /* Fake PieChart */
+  .pie-area { display: flex; align-items: center; gap: 24px; }
+  .pie-svg { flex-shrink: 0; }
+  .pie-legend { display: flex; flex-direction: column; gap: 8px; }
+  .pie-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .pie-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── BREAKDOWN TABLES ────────────────────────────── */
+  .breakdown-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .breakdown-card { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: 20px; }
+  .breakdown-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { color: var(--text-muted); font-weight: 500; text-transform: uppercase; font-size: 10px; letter-spacing: .05em; padding: 0 8px 10px; text-align: left; border-bottom: 1px solid var(--border-primary); }
+  td { padding: 10px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--text-secondary); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .driver-name { color: var(--text-primary); font-weight: 500; }
+  .pct-badge { padding: 2px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .pct-high { background: rgba(239,68,68,0.12); color: #EF4444; }
+  .pct-mid { background: rgba(245,158,11,0.12); color: #F59E0B; }
+  .pct-low { background: rgba(34,197,94,0.12); color: #22C55E; }
+  .vs-avg { font-size: 11px; }
+  .vs-pos { color: #EF4444; }
+  .vs-neg { color: #22C55E; }
+  .vs-neutral { color: var(--text-muted); }
+  .incident-dot { width: 6px; height: 6px; border-radius: 50%; background: #EF4444; display: inline-block; margin-right: 4px; }
+
+  /* ── DOMINANCE BAR ───────────────────────────────── */
+  .dominance-bar { height: 4px; background: rgba(255,255,255,0.08); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+  .dominance-fill { height: 100%; border-radius: 2px; }
+
+  /* ── FUN FACTOR ──────────────────────────────────── */
+  .fun-factor { background: linear-gradient(135deg, rgba(227,6,19,0.08), rgba(227,6,19,0.03)); border: 1px solid rgba(227,6,19,0.2); border-radius: var(--radius-md); padding: 20px; margin-bottom: 20px; }
+  .fun-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .fun-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .fun-subtitle { font-size: 11px; color: var(--text-muted); }
+  .fun-items { display: flex; flex-direction: column; gap: 10px; }
+  .fun-item { background: rgba(255,255,255,0.03); border: 1px solid var(--border-primary); border-radius: var(--radius-sm); padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px; }
+  .fun-emoji { font-size: 22px; flex-shrink: 0; }
+  .fun-message { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
+  .fun-context { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .fun-hidden { filter: blur(6px); cursor: pointer; user-select: none; }
+  .fun-reveal-hint { font-size: 11px; color: var(--crf-red); margin-top: 6px; }
+
+  /* ── EXPORT MODAL ────────────────────────────────── */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal { background: var(--bg-card); border: 1px solid var(--border-hover); border-radius: var(--radius-lg); padding: 24px; width: 360px; box-shadow: var(--shadow-md); }
+  .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .modal-sub { font-size: 12px; color: var(--text-muted); margin-bottom: 20px; }
+  .form-row { display: flex; gap: 10px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .form-label { font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+  .form-input { background: var(--bg-secondary); border: 1px solid var(--border-hover); color: var(--text-primary); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
+  .modal-hint { font-size: 11px; color: var(--text-muted); margin-top: 12px; display: flex; align-items: center; gap: 4px; }
+
+  /* ── PDF READY MODAL ─────────────────────────────── */
+  .pdf-ready-modal { background: var(--bg-card); border: 1px solid rgba(34,197,94,0.3); border-radius: var(--radius-lg); padding: 24px; width: 360px; text-align: center; }
+  .pdf-ready-icon { font-size: 40px; margin-bottom: 12px; }
+  .pdf-ready-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .pdf-ready-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+
+  /* ── LEGEND PANEL ────────────────────────────────── */
+  .legend h3 { font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border-primary); }
+  .legend-item { display: flex; gap: 8px; margin-bottom: 14px; font-size: 12px; line-height: 1.5; }
+  .legend-num { width: 20px; height: 20px; border-radius: 50%; background: var(--crf-red); color: #fff; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .legend-cat { font-size: 10px; font-weight: 600; padding: 1px 5px; border-radius: 4px; margin-bottom: 2px; display: inline-block; }
+  .cat-blue { background: rgba(59,130,246,0.15); color: #60A5FA; }
+  .cat-green { background: rgba(34,197,94,0.15); color: #4ADE80; }
+  .cat-orange { background: rgba(249,115,22,0.15); color: #FB923C; }
+  .legend-section { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin: 20px 0 10px; }
+
+  /* ── SKELETON ────────────────────────────────────── */
+  @keyframes shimmer { 0%{opacity:.4} 50%{opacity:.8} 100%{opacity:.4} }
+  .skel { background: rgba(255,255,255,0.06); border-radius: 4px; animation: shimmer 1.5s infinite; }
+
+  /* ── ANNOTATION BADGE ────────────────────────────── */
+  .ann { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--crf-red); color: #fff; font-size: 10px; font-weight: 700; vertical-align: middle; margin-left: 4px; cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="main-area">
+
+  <!-- NAVBAR -->
+  <div class="navbar">
+    <div class="navbar-brand">🚑 CR-Chauffeur</div>
+    <div class="navbar-links">
+      <a class="nav-link">🏠 Tableau de bord</a>
+      <a class="nav-link">🚗 Véhicules</a>
+      <a class="nav-link active">📊 Statistiques <span class="ann">①</span></a>
+      <a class="nav-link">👤 Utilisateurs</a>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span style="font-size:12px;color:var(--text-muted)">Admin Dev</span>
+    </div>
+  </div>
+
+  <!-- PAGE HEADER -->
+  <div class="page-header">
+    <div>
+      <div class="page-title">📊 Statistiques <span class="ann">②</span></div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px;">Analyse des emprunts véhicules</div>
+    </div>
+    <div class="export-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('csv-modal').style.display='flex'">⬇️ Export CSV <span class="ann">③</span></button>
+      <button class="btn btn-primary" onclick="document.getElementById('pdf-modal').style.display='flex'">📄 Export PDF <span class="ann">④</span></button>
+    </div>
+  </div>
+
+  <!-- FILTERS BAR -->
+  <div class="filters-bar">
+    <span class="filter-label">Période <span class="ann">⑤</span></span>
+    <div class="filter-group">
+      <input type="date" class="date-input" value="2026-01-08">
+      <span class="filter-sep">→</span>
+      <input type="date" class="date-input" value="2026-03-08">
+    </div>
+    <!-- état d'erreur (si > 2 mois) -->
+    <!-- <div class="date-error">⚠️ La plage affichée est limitée à 2 mois. Utilisez l'export pour des plages plus larges.</div> -->
+    <div class="filter-hint">⑥ Affichage limité à 2 mois • Pour des plages plus larges, utilisez l'export</div>
+  </div>
+
+  <!-- KPI CARDS -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-icon red">🚗</div>
+      <div class="kpi-label">Total emprunts <span class="ann">⑦</span></div>
+      <div class="kpi-value">47</div>
+      <div class="kpi-sub">dont 3 en cours</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon green">✅</div>
+      <div class="kpi-label">Sorties terminées</div>
+      <div class="kpi-value">44</div>
+      <div class="kpi-sub">93.6% de complétion</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon blue">📍</div>
+      <div class="kpi-label">Km parcourus</div>
+      <div class="kpi-value">3 820</div>
+      <div class="kpi-sub">sur la période</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon blue">⚡</div>
+      <div class="kpi-label">Km moy. / trajet</div>
+      <div class="kpi-value">81 km</div>
+      <div class="kpi-sub">médiane : 64 km</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon amber">⚠️</div>
+      <div class="kpi-label">Incidents signalés</div>
+      <div class="kpi-value" style="color:#F59E0B">2</div>
+      <div class="kpi-sub">4.3% des sorties</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon amber">⛽</div>
+      <div class="kpi-label">Conso. moy.</div>
+      <div class="kpi-value">−12%</div>
+      <div class="kpi-sub">par trajet</div>
+    </div>
+  </div>
+
+  <!-- CHARTS SECTION -->
+  <div class="charts-grid">
+
+    <!-- BarChart: emprunts par chauffeur -->
+    <div class="chart-card">
+      <div class="chart-title">Emprunts par chauffeur <span class="ann">⑧</span></div>
+      <div class="chart-sub">Nombre de sorties sur la période</div>
+      <div class="chart-area">
+        <div class="bar-chart" style="padding-bottom:20px">
+          <div class="bar-group">
+            <div class="bar red" style="height:80%"></div>
+            <div class="bar-label">M. Dupont</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar red" style="height:55%;opacity:.75"></div>
+            <div class="bar-label">S. Martin</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar red" style="height:40%;opacity:.65"></div>
+            <div class="bar-label">L. Bernard</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar red" style="height:28%;opacity:.55"></div>
+            <div class="bar-label">A. Petit</div>
+          </div>
+          <div class="bar-group">
+            <div class="bar red" style="height:18%;opacity:.45"></div>
+            <div class="bar-label">C. Leroy</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PieChart: répartition par mission -->
+    <div class="chart-card">
+      <div class="chart-title">Répartition par type de mission <span class="ann">⑨</span></div>
+      <div class="chart-sub">Toutes sorties confondues</div>
+      <div class="chart-area">
+        <div class="pie-area" style="height:100%;align-items:center">
+          <svg class="pie-svg" width="130" height="130" viewBox="0 0 130 130">
+            <!-- Fake donut chart -->
+            <circle cx="65" cy="65" r="52" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="22"/>
+            <circle cx="65" cy="65" r="52" fill="none" stroke="#E30613" stroke-width="22" stroke-dasharray="147 179" stroke-dashoffset="0" transform="rotate(-90 65 65)"/>
+            <circle cx="65" cy="65" r="52" fill="none" stroke="#F59E0B" stroke-width="22" stroke-dasharray="90 236" stroke-dashoffset="-147" transform="rotate(-90 65 65)"/>
+            <circle cx="65" cy="65" r="52" fill="none" stroke="#22C55E" stroke-width="22" stroke-dasharray="60 266" stroke-dashoffset="-237" transform="rotate(-90 65 65)"/>
+            <circle cx="65" cy="65" r="52" fill="none" stroke="#3B82F6" stroke-width="22" stroke-dasharray="29 297" stroke-dashoffset="-297" transform="rotate(-90 65 65)"/>
+            <text x="65" y="60" text-anchor="middle" fill="var(--text-primary)" font-size="18" font-weight="700">47</text>
+            <text x="65" y="76" text-anchor="middle" fill="var(--text-muted)" font-size="10">sorties</text>
+          </svg>
+          <div class="pie-legend">
+            <div class="pie-item"><div class="pie-dot" style="background:#E30613"></div>Opération (45%)</div>
+            <div class="pie-item"><div class="pie-dot" style="background:#F59E0B"></div>Formation (28%)</div>
+            <div class="pie-item"><div class="pie-dot" style="background:#22C55E"></div>Logistique (18%)</div>
+            <div class="pie-item"><div class="pie-dot" style="background:#3B82F6"></div>Autre (9%)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LineChart: km par semaine -->
+    <div class="chart-card full">
+      <div class="chart-title">Kilomètres parcourus par semaine <span class="ann">⑩</span></div>
+      <div class="chart-sub">Évolution sur la période sélectionnée</div>
+      <div class="line-chart-area">
+        <svg width="100%" height="160" preserveAspectRatio="none" viewBox="0 0 800 160">
+          <!-- Grille -->
+          <line x1="0" y1="30" x2="800" y2="30" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <line x1="0" y1="70" x2="800" y2="70" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <line x1="0" y1="110" x2="800" y2="110" stroke="rgba(255,255,255,0.04)" stroke-width="1"/>
+          <!-- Aire -->
+          <defs>
+            <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#E30613" stop-opacity="0.25"/>
+              <stop offset="100%" stop-color="#E30613" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="M0,120 C50,110 80,90 130,80 C180,70 200,95 250,85 C300,75 340,40 400,50 C460,60 480,35 540,30 C600,25 650,55 700,45 C750,35 780,60 800,55 L800,160 L0,160 Z" fill="url(#lineGrad)"/>
+          <!-- Ligne -->
+          <path d="M0,120 C50,110 80,90 130,80 C180,70 200,95 250,85 C300,75 340,40 400,50 C460,60 480,35 540,30 C600,25 650,55 700,45 C750,35 780,60 800,55" fill="none" stroke="#E30613" stroke-width="2.5" stroke-linejoin="round"/>
+          <!-- Points -->
+          <circle cx="130" cy="80" r="4" fill="#E30613"/>
+          <circle cx="250" cy="85" r="4" fill="#E30613"/>
+          <circle cx="400" cy="50" r="4" fill="#E30613"/>
+          <circle cx="540" cy="30" r="4" fill="#E30613"/>
+          <circle cx="700" cy="45" r="4" fill="#E30613"/>
+          <!-- Labels X -->
+          <text x="50" y="155" fill="var(--text-muted)" font-size="10" text-anchor="middle">S.02</text>
+          <text x="180" y="155" fill="var(--text-muted)" font-size="10" text-anchor="middle">S.04</text>
+          <text x="310" y="155" fill="var(--text-muted)" font-size="10" text-anchor="middle">S.06</text>
+          <text x="440" y="155" fill="var(--text-muted)" font-size="10" text-anchor="middle">S.08</text>
+          <text x="570" y="155" fill="var(--text-muted)" font-size="10" text-anchor="middle">S.10</text>
+          <text x="700" y="155" fill="var(--text-muted)" font-size="10" text-anchor="middle">S.12</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- BREAKDOWN TABLES -->
+  <div class="breakdown-grid">
+
+    <!-- Driver breakdown -->
+    <div class="breakdown-card">
+      <div class="breakdown-title">
+        Par chauffeur <span class="ann">⑪</span>
+        <span style="font-size:11px;color:var(--text-muted);font-weight:400">vs. moyenne globale</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Chauffeur</th>
+            <th>Emprunts</th>
+            <th>% total</th>
+            <th>Km</th>
+            <th>vs. moy.</th>
+            <th>Incidents</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="driver-name">M. Dupont</td>
+            <td>18</td>
+            <td><span class="pct-badge pct-high">38%</span></td>
+            <td>1 420 km</td>
+            <td class="vs-avg vs-pos">+142%</td>
+            <td>1 <span class="incident-dot"></span></td>
+          </tr>
+          <tr>
+            <td class="driver-name">S. Martin</td>
+            <td>12</td>
+            <td><span class="pct-badge pct-mid">26%</span></td>
+            <td>980 km</td>
+            <td class="vs-avg vs-pos">+62%</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="driver-name">L. Bernard</td>
+            <td>9</td>
+            <td><span class="pct-badge pct-mid">19%</span></td>
+            <td>740 km</td>
+            <td class="vs-avg vs-neutral">+21%</td>
+            <td>1 <span class="incident-dot"></span></td>
+          </tr>
+          <tr>
+            <td class="driver-name">A. Petit</td>
+            <td>5</td>
+            <td><span class="pct-badge pct-low">11%</span></td>
+            <td>420 km</td>
+            <td class="vs-avg vs-neg">−32%</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td class="driver-name">C. Leroy</td>
+            <td>3</td>
+            <td><span class="pct-badge pct-low">6%</span></td>
+            <td>260 km</td>
+            <td class="vs-avg vs-neg">−59%</td>
+            <td>0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Vehicle breakdown -->
+    <div class="breakdown-card">
+      <div class="breakdown-title">
+        Par véhicule <span class="ann">⑫</span>
+        <span style="font-size:11px;color:var(--text-muted);font-weight:400">% des emprunts</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Véhicule</th>
+            <th>Emprunts</th>
+            <th>% total</th>
+            <th>Km totaux</th>
+            <th>Conso. moy.</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="driver-name">VL186 — Zoé</td>
+            <td>22</td>
+            <td>
+              <div><span class="pct-badge pct-high">47%</span></div>
+              <div class="dominance-bar"><div class="dominance-fill" style="width:47%;background:#E30613"></div></div>
+            </td>
+            <td>1 840 km</td>
+            <td>−8%</td>
+          </tr>
+          <tr>
+            <td class="driver-name">VL188 — Kangoo</td>
+            <td>14</td>
+            <td>
+              <div><span class="pct-badge pct-mid">30%</span></div>
+              <div class="dominance-bar"><div class="dominance-fill" style="width:30%;background:#F59E0B"></div></div>
+            </td>
+            <td>1 120 km</td>
+            <td>−15%</td>
+          </tr>
+          <tr>
+            <td class="driver-name">VL182 — 208</td>
+            <td>7</td>
+            <td>
+              <div><span class="pct-badge pct-low">15%</span></div>
+              <div class="dominance-bar"><div class="dominance-fill" style="width:15%;background:#22C55E"></div></div>
+            </td>
+            <td>560 km</td>
+            <td>−10%</td>
+          </tr>
+          <tr>
+            <td class="driver-name">VPSP01 — Boxer</td>
+            <td>4</td>
+            <td>
+              <div><span class="pct-badge pct-low">9%</span></div>
+              <div class="dominance-bar"><div class="dominance-fill" style="width:9%;background:#22C55E"></div></div>
+            </td>
+            <td>300 km</td>
+            <td>−19%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- FUN FACTOR -->
+  <div class="fun-factor">
+    <div class="fun-header">
+      <div>
+        <div class="fun-title">🎭 Fun Factor <span class="ann">⑬</span></div>
+        <div class="fun-subtitle">Observations statistiquement humoristiques • cliquer pour révéler</div>
+      </div>
+    </div>
+    <div class="fun-items">
+      <div class="fun-item">
+        <div class="fun-emoji">🔑</div>
+        <div>
+          <div class="fun-message fun-hidden">Apparemment, le VL186 c'est ton VL perso, Marc !</div>
+          <div class="fun-reveal-hint">👆 Cliquer pour révéler</div>
+          <div class="fun-context">M. Dupont représente <strong>82%</strong> des emprunts du VL186 sur la période</div>
+        </div>
+      </div>
+      <div class="fun-item">
+        <div class="fun-emoji">😏</div>
+        <div>
+          <div class="fun-message">Sandrine, tu commences à prendre tes aises avec le VL188...</div>
+          <div class="fun-context">S. Martin représente <strong>57%</strong> des emprunts du VL188 sur la période</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main-area -->
+
+<!-- EXPORT CSV MODAL -->
+<div id="csv-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-title">⬇️ Export CSV <span class="ann">③</span></div>
+    <div class="modal-sub">Choisissez la plage de dates pour l'export (sans limite de durée)</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Du</label>
+        <input type="date" class="form-input" value="2026-01-01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Au</label>
+        <input type="date" class="form-input" value="2026-03-08">
+      </div>
+    </div>
+    <div class="modal-hint">💡 L'export peut couvrir n'importe quelle plage de dates</div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('csv-modal').style.display='none'">Annuler</button>
+      <button class="btn btn-primary">⬇️ Télécharger CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT PDF MODAL -->
+<div id="pdf-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-title">📄 Export PDF <span class="ann">④</span></div>
+    <div class="modal-sub">Choisissez la plage de dates pour le rapport PDF</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Du</label>
+        <input type="date" class="form-input" value="2026-01-01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Au</label>
+        <input type="date" class="form-input" value="2026-03-08">
+      </div>
+    </div>
+    <div class="modal-hint">⏳ La génération se fait en arrière-plan. Une notification apparaît quand le PDF est prêt.</div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('pdf-modal').style.display='none'">Annuler</button>
+      <button class="btn btn-primary" onclick="document.getElementById('pdf-modal').style.display='none';document.getElementById('pdf-ready-modal').style.display='flex'">🚀 Générer le PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF READY MODAL -->
+<div id="pdf-ready-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="pdf-ready-modal">
+    <div class="pdf-ready-icon">✅</div>
+    <div class="pdf-ready-title">Votre PDF est prêt !</div>
+    <div class="pdf-ready-sub">Le rapport a été généré avec succès.<br>Cliquez pour le télécharger.</div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center">📄 Télécharger le PDF</button>
+    <div style="margin-top:10px">
+      <button class="btn btn-secondary" style="width:100%;justify-content:center;margin-top:8px" onclick="document.getElementById('pdf-ready-modal').style.display='none'">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- LEGEND PANEL -->
+<div class="legend">
+  <h3>Annotations</h3>
+
+  <div class="legend-section">Navigation</div>
+  <div class="legend-item">
+    <span class="legend-num">①</span>
+    <div><span class="legend-cat cat-green">HTML5</span><br>Lien "Statistiques" ajouté dans la Navbar avec icône <code>BarChart2</code> (Lucide). Classe <code>active</code> quand sur <code>/stats</code>.</div>
+  </div>
+  <div class="legend-item">
+    <span class="legend-num">②</span>
+    <div><span class="legend-cat cat-green">HTML5</span><br>Titre de page <code>&lt;h1 class="page-title"&gt;</code> — pattern identique aux autres pages.</div>
+  </div>
+
+  <div class="legend-section">Exports</div>
+  <div class="legend-item">
+    <span class="legend-num">③</span>
+    <div><span class="legend-cat cat-blue">UX</span><br>Export CSV côté client (pas de dépendance). Modale de sélection de plage sans limite de 2 mois.</div>
+  </div>
+  <div class="legend-item">
+    <span class="legend-num">④</span>
+    <div><span class="legend-cat cat-blue">UX</span><br>Export PDF : modale de sélection → génération en arrière-plan (POST /api/stats/pdf) → popup "Prêt" avec bouton de téléchargement.</div>
+  </div>
+
+  <div class="legend-section">Filtres</div>
+  <div class="legend-item">
+    <span class="legend-num">⑤</span>
+    <div><span class="legend-cat cat-orange">Logique</span><br>Sélecteurs <code>type="date"</code> uniquement (pas d'heure). Défaut : J−60 → J.</div>
+  </div>
+  <div class="legend-item">
+    <span class="legend-num">⑥</span>
+    <div><span class="legend-cat cat-orange">Limite UI</span><br>Si la plage dépasse 62 jours : message d'erreur inline, fetch bloqué. L'export reste illimité.</div>
+  </div>
+
+  <div class="legend-section">KPIs</div>
+  <div class="legend-item">
+    <span class="legend-num">⑦</span>
+    <div><span class="legend-cat cat-blue">Data</span><br>6 cartes : Emprunts / Terminés / Km totaux / Km moy. / Incidents / Conso. moy. Réutilise <code>.stat-card</code> existant.</div>
+  </div>
+
+  <div class="legend-section">Graphiques</div>
+  <div class="legend-item">
+    <span class="legend-num">⑧</span>
+    <div><span class="legend-cat cat-blue">Recharts</span><br><code>BarChart</code> — emprunts par chauffeur. Couleur <code>var(--crf-red)</code>.</div>
+  </div>
+  <div class="legend-item">
+    <span class="legend-num">⑨</span>
+    <div><span class="legend-cat cat-blue">Recharts</span><br><code>PieChart</code> en donut — répartition par type de mission.</div>
+  </div>
+  <div class="legend-item">
+    <span class="legend-num">⑩</span>
+    <div><span class="legend-cat cat-blue">Recharts</span><br><code>LineChart</code> avec aire — km cumulés par semaine (GROUP BY strftime('%Y-W%W')).</div>
+  </div>
+
+  <div class="legend-section">Tableaux</div>
+  <div class="legend-item">
+    <span class="legend-num">⑪</span>
+    <div><span class="legend-cat cat-blue">Data</span><br>Tableau chauffeurs avec colonne "vs. moy." : <code>(kmChauffeur / kmMoyenne - 1) × 100</code>. Badge coloré selon seuil.</div>
+  </div>
+  <div class="legend-item">
+    <span class="legend-num">⑫</span>
+    <div><span class="legend-cat cat-blue">Data</span><br>Tableau véhicules avec mini barre de dominance visuelle (% du total). Alimente le Fun Factor.</div>
+  </div>
+
+  <div class="legend-section">Easter Egg</div>
+  <div class="legend-item">
+    <span class="legend-num">⑬</span>
+    <div><span class="legend-cat cat-orange">Fun</span><br>Messages floutés (blur) révélés au clic. 5 seuils : 50% / 65% / 75% / 80% / 90%. Affiché uniquement si ≥ 1 dominance > 50%.</div>
+  </div>
+</div>
+
+</body>
+</html>

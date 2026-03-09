@@ -88,8 +88,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mileageIn: isConnected(vehicle.name) ? null : form.mileageIn,
-                    fuelIn: isConnected(vehicle.name) ? null : form.fuelIn,
+                    mileageIn: isConnected(vehicle.vin) ? null : form.mileageIn,
+                    fuelIn: isConnected(vehicle.vin) ? null : form.fuelIn,
                     parkingIn: finalParkingIn,
                     conditionIn: form.conditionIn,
                     cleanlinessIn: form.cleanlinessIn,
@@ -150,7 +150,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {/* Km et parking */}
                         <div className="form-row">
-                            {!isConnected(vehicle.name) && (
+                            {!isConnected(vehicle.vin) && (
                                 <div className="form-group">
                                     <label className="form-label" htmlFor="checkin-mileage">Kilométrage actuel *</label>
                                     <input
@@ -193,7 +193,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         </div>
 
                         {/* Essence */}
-                        {!isConnected(vehicle.name) && (
+                        {!isConnected(vehicle.vin) && (
                             <div className="form-group">
                                 <label className="form-label" htmlFor="checkin-fuel">{vehicle.fuelType === 'Électrique' ? 'Niveau de batterie *' : (vehicle.fuelType === 'Diesel' ? 'Niveau de diesel *' : 'Niveau d\'essence *')}</label>
                                 <input
@@ -213,7 +213,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                             </div>
                         )}
 
-                        {isConnected(vehicle.name) && (
+                        {isConnected(vehicle.vin) && (
                             <div style={{ marginBottom: 20, padding: 12, background: 'rgba(59, 130, 246, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.2)', fontSize: 13, color: '#1E40AF' }}>
                                 ℹ️ <strong>Données connectées :</strong> Le kilométrage et le niveau de {vehicle.fuelType === 'Électrique' ? 'batterie' : 'carburant'} remontent automatiquement depuis le véhicule. Il n'est pas nécessaire de les saisir.
                             </div>

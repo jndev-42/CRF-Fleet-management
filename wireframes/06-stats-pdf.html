@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wireframe — Rapport PDF Statistiques</title>
+<style>
+  :root {
+    --crf-red: #E30613;
+    --crf-red-light: rgba(227,6,19,0.08);
+    --text-dark: #111827;
+    --text-mid: #374151;
+    --text-light: #6B7280;
+    --border: #E5E7EB;
+    --bg-light: #F9FAFB;
+    --bg-section: #F3F4F6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #D1D5DB; min-height: 100vh; display: flex; gap: 0; }
+
+  /* ── OUTER LAYOUT ─────────────────────────────────── */
+  .page-wrapper { display: flex; flex: 1; gap: 0; }
+  .pdf-container { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 32px 24px; gap: 32px; }
+  .legend { width: 300px; flex-shrink: 0; background: #1F2937; color: #F9FAFB; padding: 24px; overflow-y: auto; }
+
+  /* ── PDF PAGE ─────────────────────────────────────── */
+  .pdf-page {
+    background: #fff;
+    width: 794px; /* A4 @ 96dpi */
+    box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ── PDF HEADER ──────────────────────────────────── */
+  .pdf-header {
+    background: var(--crf-red);
+    padding: 28px 40px 24px;
+    color: #fff;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .pdf-logo { display: flex; align-items: center; gap: 14px; }
+  .pdf-logo-icon { width: 52px; height: 52px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 28px; }
+  .pdf-logo-text { }
+  .pdf-logo-name { font-size: 18px; font-weight: 700; letter-spacing: -.01em; }
+  .pdf-logo-sub { font-size: 12px; opacity: .75; margin-top: 2px; }
+  .pdf-title-block { text-align: right; }
+  .pdf-report-title { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+  .pdf-period { font-size: 13px; opacity: .85; margin-top: 4px; }
+  .pdf-generated { font-size: 11px; opacity: .65; margin-top: 2px; }
+
+  /* ── PDF DIVIDER ─────────────────────────────────── */
+  .pdf-divider { height: 4px; background: linear-gradient(90deg, var(--crf-red), #ff6b6b, #fff); opacity: .15; }
+
+  /* ── PDF SECTION ─────────────────────────────────── */
+  .pdf-body { padding: 32px 40px; }
+  .pdf-section { margin-bottom: 32px; }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--crf-red);
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    border-bottom: 2px solid var(--crf-red);
+    padding-bottom: 6px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-num { background: var(--crf-red); color: #fff; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; }
+
+  /* ── KPI ROW ─────────────────────────────────────── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 0; }
+  .kpi-box {
+    background: var(--bg-light);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    border-top: 3px solid var(--crf-red);
+  }
+  .kpi-box-label { font-size: 10px; color: var(--text-light); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; }
+  .kpi-box-value { font-size: 26px; font-weight: 700; color: var(--text-dark); margin-top: 4px; }
+  .kpi-box-sub { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
+  /* ── TABLES ─────────────────────────────────────── */
+  .pdf-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .pdf-table thead tr { background: var(--crf-red); color: #fff; }
+  .pdf-table th { padding: 9px 12px; text-align: left; font-weight: 600; font-size: 11px; letter-spacing: .04em; }
+  .pdf-table td { padding: 9px 12px; color: var(--text-mid); border-bottom: 1px solid var(--border); }
+  .pdf-table tbody tr:nth-child(even) td { background: var(--bg-light); }
+  .pdf-table tbody tr:last-child td { border-bottom: none; }
+  .td-name { font-weight: 600; color: var(--text-dark); }
+  .td-pct { font-weight: 700; }
+  .td-pct.high { color: var(--crf-red); }
+  .td-pct.mid { color: #D97706; }
+  .td-pct.low { color: #16A34A; }
+  .td-vs.pos { color: var(--crf-red); }
+  .td-vs.neg { color: #16A34A; }
+  .incident-badge { background: rgba(239,68,68,0.1); color: #DC2626; border-radius: 4px; padding: 1px 6px; font-size: 11px; font-weight: 600; }
+
+  /* ── INLINE BAR ──────────────────────────────────── */
+  .inline-bar-wrap { display: flex; align-items: center; gap: 6px; }
+  .inline-bar { height: 5px; background: var(--border); border-radius: 3px; flex: 1; overflow: hidden; }
+  .inline-bar-fill { height: 100%; border-radius: 3px; }
+
+  /* ── CHART PLACEHOLDER ───────────────────────────── */
+  .chart-placeholder {
+    background: var(--bg-section);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    height: 160px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--text-light);
+    font-size: 12px;
+  }
+  .chart-placeholder-icon { font-size: 28px; }
+  /* Fake mini bar chart in PDF */
+  .mini-bars { display: flex; align-items: flex-end; gap: 6px; height: 90px; padding: 0 20px; }
+  .mini-bar { flex: 1; border-radius: 3px 3px 0 0; background: var(--crf-red); opacity: .8; }
+  .mini-bar:nth-child(2) { opacity: .65; }
+  .mini-bar:nth-child(3) { opacity: .5; }
+  .mini-bar:nth-child(4) { opacity: .38; }
+  .mini-bar:nth-child(5) { opacity: .28; }
+
+  /* ── TWO COLUMNS ──────────────────────────────────── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .two-col-left { }
+  .two-col-right { }
+
+  /* ── PAGE 2 ──────────────────────────────────────── */
+  .page-break { display: flex; align-items: center; gap: 12px; color: #9CA3AF; font-size: 12px; width: 794px; }
+  .page-break::before, .page-break::after { content: ''; flex: 1; height: 1px; background: #9CA3AF; opacity: .4; }
+
+  /* ── PDF FOOTER ──────────────────────────────────── */
+  .pdf-footer {
+    border-top: 1px solid var(--border);
+    padding: 12px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-light);
+    background: var(--bg-light);
+  }
+  .pdf-footer-logo { display: flex; align-items: center; gap: 6px; color: var(--crf-red); font-weight: 600; }
+
+  /* ── LEGEND PANEL ────────────────────────────────── */
+  .legend h3 { font-size: 14px; font-weight: 700; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); color: #F9FAFB; }
+  .legend-item { display: flex; gap: 10px; margin-bottom: 16px; font-size: 12px; line-height: 1.6; color: #D1D5DB; }
+  .legend-num { width: 22px; height: 22px; border-radius: 50%; background: var(--crf-red); color: #fff; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+  .legend-section { font-size: 10px; font-weight: 700; color: #9CA3AF; text-transform: uppercase; letter-spacing: .08em; margin: 20px 0 10px; }
+  code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+  .tech-badge { display: inline-block; background: rgba(227,6,19,0.2); color: #F87171; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 600; margin-bottom: 2px; }
+  .lib-badge { display: inline-block; background: rgba(59,130,246,0.15); color: #93C5FD; border-radius: 4px; padding: 1px 6px; font-size: 10px; font-weight: 600; margin-bottom: 2px; }
+
+  /* annotation badge */
+  .ann { display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%; background: #E30613; color: #fff; font-size: 9px; font-weight: 700; vertical-align: middle; }
+</style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+  <div class="pdf-container">
+    <div style="color:#9CA3AF;font-size:12px;text-align:center;letter-spacing:.05em;text-transform:uppercase">Rapport PDF généré par pdfkit (Node.js) • Format A4 • 794px de large</div>
+
+    <!-- ═══ PAGE 1 ═══════════════════════════════════════════════════════════ -->
+    <div class="pdf-page">
+
+      <!-- HEADER -->
+      <div class="pdf-header">
+        <div class="pdf-logo">
+          <div class="pdf-logo-icon">🚑</div>
+          <div class="pdf-logo-text">
+            <div class="pdf-logo-name">CR-Chauffeur <span class="ann" style="background:rgba(255,255,255,0.3);color:#fff">①</span></div>
+            <div class="pdf-logo-sub">Croix-Rouge Française — Gestion des véhicules</div>
+          </div>
+        </div>
+        <div class="pdf-title-block">
+          <div class="pdf-report-title">Rapport Statistiques <span class="ann" style="background:rgba(255,255,255,0.3);color:#fff">②</span></div>
+          <div class="pdf-period">Période : 1 janvier 2026 → 8 mars 2026</div>
+          <div class="pdf-generated">Généré le 8 mars 2026 à 14h32 <span class="ann" style="background:rgba(255,255,255,0.3);color:#fff">③</span></div>
+        </div>
+      </div>
+
+      <!-- BODY -->
+      <div class="pdf-body">
+
+        <!-- Section 1 : KPIs -->
+        <div class="pdf-section">
+          <div class="section-title"><span class="section-num">1</span> Indicateurs globaux <span class="ann">④</span></div>
+          <div class="kpi-row">
+            <div class="kpi-box">
+              <div class="kpi-box-label">Total emprunts</div>
+              <div class="kpi-box-value">47</div>
+              <div class="kpi-box-sub">dont 3 en cours</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-box-label">Km parcourus</div>
+              <div class="kpi-box-value">3 820</div>
+              <div class="kpi-box-sub">81 km / trajet en moy.</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-box-label">Incidents</div>
+              <div class="kpi-box-value" style="color:var(--crf-red)">2</div>
+              <div class="kpi-box-sub">4.3% des sorties</div>
+            </div>
+            <div class="kpi-box">
+              <div class="kpi-box-label">Conso. moy.</div>
+              <div class="kpi-box-value">−12%</div>
+              <div class="kpi-box-sub">de carburant / trajet</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2 : Par chauffeur -->
+        <div class="pdf-section">
+          <div class="section-title"><span class="section-num">2</span> Détail par chauffeur <span class="ann">⑤</span></div>
+          <table class="pdf-table">
+            <thead>
+              <tr>
+                <th>Chauffeur</th>
+                <th>Emprunts</th>
+                <th>% du total</th>
+                <th>Km totaux</th>
+                <th>vs. moyenne</th>
+                <th>Incidents</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-name">M. Dupont</td>
+                <td>18</td>
+                <td class="td-pct high">38%</td>
+                <td>1 420 km</td>
+                <td class="td-vs pos">+142%</td>
+                <td><span class="incident-badge">1 ⚠️</span></td>
+              </tr>
+              <tr>
+                <td class="td-name">S. Martin</td>
+                <td>12</td>
+                <td class="td-pct mid">26%</td>
+                <td>980 km</td>
+                <td class="td-vs pos">+62%</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="td-name">L. Bernard</td>
+                <td>9</td>
+                <td class="td-pct mid">19%</td>
+                <td>740 km</td>
+                <td class="td-vs pos">+21%</td>
+                <td><span class="incident-badge">1 ⚠️</span></td>
+              </tr>
+              <tr>
+                <td class="td-name">A. Petit</td>
+                <td>5</td>
+                <td class="td-pct low">11%</td>
+                <td>420 km</td>
+                <td class="td-vs neg">−32%</td>
+                <td>—</td>
+              </tr>
+              <tr>
+                <td class="td-name">C. Leroy</td>
+                <td>3</td>
+                <td class="td-pct low">6%</td>
+                <td>260 km</td>
+                <td class="td-vs neg">−59%</td>
+                <td>—</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Section 3 : Par véhicule -->
+        <div class="pdf-section">
+          <div class="section-title"><span class="section-num">3</span> Détail par véhicule <span class="ann">⑥</span></div>
+          <table class="pdf-table">
+            <thead>
+              <tr>
+                <th>Véhicule</th>
+                <th>Type</th>
+                <th>Emprunts</th>
+                <th>% du total</th>
+                <th>Km totaux</th>
+                <th>Conso. moy.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-name">VL186 — Renault Zoé</td>
+                <td><span style="font-size:10px;background:#EFF6FF;color:#1D4ED8;padding:1px 6px;border-radius:4px;font-weight:600">VL</span></td>
+                <td>22</td>
+                <td>
+                  <div class="inline-bar-wrap">
+                    <span class="td-pct high">47%</span>
+                    <div class="inline-bar"><div class="inline-bar-fill" style="width:47%;background:var(--crf-red)"></div></div>
+                  </div>
+                </td>
+                <td>1 840 km</td>
+                <td>−8%</td>
+              </tr>
+              <tr>
+                <td class="td-name">VL188 — Renault Kangoo</td>
+                <td><span style="font-size:10px;background:#EFF6FF;color:#1D4ED8;padding:1px 6px;border-radius:4px;font-weight:600">VL</span></td>
+                <td>14</td>
+                <td>
+                  <div class="inline-bar-wrap">
+                    <span class="td-pct mid">30%</span>
+                    <div class="inline-bar"><div class="inline-bar-fill" style="width:30%;background:#D97706"></div></div>
+                  </div>
+                </td>
+                <td>1 120 km</td>
+                <td>−15%</td>
+              </tr>
+              <tr>
+                <td class="td-name">VL182 — Peugeot 208</td>
+                <td><span style="font-size:10px;background:#EFF6FF;color:#1D4ED8;padding:1px 6px;border-radius:4px;font-weight:600">VL</span></td>
+                <td>7</td>
+                <td>
+                  <div class="inline-bar-wrap">
+                    <span class="td-pct low">15%</span>
+                    <div class="inline-bar"><div class="inline-bar-fill" style="width:15%;background:#16A34A"></div></div>
+                  </div>
+                </td>
+                <td>560 km</td>
+                <td>−10%</td>
+              </tr>
+              <tr>
+                <td class="td-name">VPSP01 — Peugeot Boxer</td>
+                <td><span style="font-size:10px;background:#FFF7ED;color:#C2410C;padding:1px 6px;border-radius:4px;font-weight:600">VPSP</span></td>
+                <td>4</td>
+                <td>
+                  <div class="inline-bar-wrap">
+                    <span class="td-pct low">9%</span>
+                    <div class="inline-bar"><div class="inline-bar-fill" style="width:9%;background:#16A34A"></div></div>
+                  </div>
+                </td>
+                <td>300 km</td>
+                <td>−19%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /pdf-body -->
+
+      <div class="pdf-footer">
+        <div class="pdf-footer-logo">🚑 CR-Chauffeur v1.9.2</div>
+        <div>Rapport confidentiel — usage interne uniquement</div>
+        <div>Page 1 / 2 <span class="ann">⑦</span></div>
+      </div>
+
+    </div><!-- /pdf-page 1 -->
+
+    <!-- PAGE BREAK INDICATOR -->
+    <div class="page-break">Saut de page • Page 2</div>
+
+    <!-- ═══ PAGE 2 ═══════════════════════════════════════════════════════════ -->
+    <div class="pdf-page">
+
+      <!-- HEADER PAGE 2 (compact) -->
+      <div style="background:var(--crf-red);padding:14px 40px;display:flex;align-items:center;justify-content:space-between;">
+        <div style="color:rgba(255,255,255,0.9);font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px;">
+          🚑 CR-Chauffeur — Rapport Statistiques
+        </div>
+        <div style="color:rgba(255,255,255,0.7);font-size:11px;">
+          1 jan. 2026 → 8 mars 2026
+        </div>
+      </div>
+
+      <div class="pdf-body">
+
+        <!-- Section 4 : Graphiques -->
+        <div class="pdf-section">
+          <div class="section-title"><span class="section-num">4</span> Visualisations <span class="ann">⑧</span></div>
+          <div class="two-col">
+            <div class="two-col-left">
+              <div style="font-size:11px;color:var(--text-light);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Emprunts par chauffeur</div>
+              <div class="chart-placeholder" style="height:140px">
+                <div class="mini-bars">
+                  <div class="mini-bar" style="height:80%"></div>
+                  <div class="mini-bar" style="height:58%"></div>
+                  <div class="mini-bar" style="height:42%"></div>
+                  <div class="mini-bar" style="height:26%"></div>
+                  <div class="mini-bar" style="height:16%"></div>
+                </div>
+                <div style="font-size:10px;color:var(--text-light);padding-top:4px">BarChart — Recharts (rendu en PNG côté serveur)</div>
+              </div>
+            </div>
+            <div class="two-col-right">
+              <div style="font-size:11px;color:var(--text-light);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">Km par semaine</div>
+              <div class="chart-placeholder" style="height:140px;justify-content:flex-end;padding-bottom:16px;gap:4px">
+                <svg width="240" height="80" viewBox="0 0 240 80">
+                  <defs>
+                    <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="#E30613" stop-opacity="0.3"/>
+                      <stop offset="100%" stop-color="#E30613" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M0,60 C30,52 50,42 80,38 C110,34 120,48 150,40 C180,32 200,18 240,22 L240,80 L0,80 Z" fill="url(#g2)"/>
+                  <path d="M0,60 C30,52 50,42 80,38 C110,34 120,48 150,40 C180,32 200,18 240,22" fill="none" stroke="#E30613" stroke-width="2"/>
+                </svg>
+                <div style="font-size:10px;color:var(--text-light)">LineChart — km cumulés / semaine</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 5 : Répartition missions -->
+        <div class="pdf-section">
+          <div class="section-title"><span class="section-num">5</span> Répartition par type de mission <span class="ann">⑨</span></div>
+          <table class="pdf-table">
+            <thead>
+              <tr>
+                <th>Type de mission</th>
+                <th>Nombre</th>
+                <th>% du total</th>
+                <th style="width:200px">Poids relatif</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-name">Opération</td>
+                <td>21</td>
+                <td class="td-pct high">45%</td>
+                <td><div class="inline-bar"><div class="inline-bar-fill" style="width:45%;background:var(--crf-red)"></div></div></td>
+              </tr>
+              <tr>
+                <td class="td-name">Formation</td>
+                <td>13</td>
+                <td class="td-pct mid">28%</td>
+                <td><div class="inline-bar"><div class="inline-bar-fill" style="width:28%;background:#D97706"></div></div></td>
+              </tr>
+              <tr>
+                <td class="td-name">Logistique</td>
+                <td>9</td>
+                <td class="td-pct low">19%</td>
+                <td><div class="inline-bar"><div class="inline-bar-fill" style="width:19%;background:#16A34A"></div></div></td>
+              </tr>
+              <tr>
+                <td class="td-name">Autre</td>
+                <td>4</td>
+                <td class="td-pct low">9%</td>
+                <td><div class="inline-bar"><div class="inline-bar-fill" style="width:9%;background:#6B7280"></div></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Section 6 : Incidents -->
+        <div class="pdf-section">
+          <div class="section-title"><span class="section-num">6</span> Incidents signalés <span class="ann">⑩</span></div>
+          <table class="pdf-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Chauffeur</th>
+                <th>Véhicule</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>12 jan. 2026</td>
+                <td class="td-name">M. Dupont</td>
+                <td>VL186 — Zoé</td>
+                <td style="color:#DC2626">Accrochage léger en parking, pas de dégâts visibles.</td>
+              </tr>
+              <tr>
+                <td>28 fév. 2026</td>
+                <td class="td-name">L. Bernard</td>
+                <td>VL188 — Kangoo</td>
+                <td style="color:#DC2626">Pneu arrière dégonflé, changé sur place.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /pdf-body -->
+
+      <div class="pdf-footer">
+        <div class="pdf-footer-logo">🚑 CR-Chauffeur v1.9.2</div>
+        <div>Rapport confidentiel — usage interne uniquement</div>
+        <div>Page 2 / 2</div>
+      </div>
+
+    </div><!-- /pdf-page 2 -->
+
+    <div style="color:#9CA3AF;font-size:11px;text-align:center;padding-bottom:24px">
+      ⑧ En production : les graphiques sont rendus via <strong>canvas2image</strong> ou omis du PDF (données textuelles uniquement avec pdfkit)
+    </div>
+
+  </div><!-- /pdf-container -->
+
+  <!-- LEGEND PANEL -->
+  <div class="legend">
+    <h3>Annotations PDF</h3>
+
+    <div class="legend-section">En-tête</div>
+    <div class="legend-item">
+      <span class="legend-num">①</span>
+      <div><span class="tech-badge">pdfkit</span><br>Logo + nom app en blanc sur fond <code>var(--crf-red)</code>. pdfkit : <code>doc.rect().fill().text()</code></div>
+    </div>
+    <div class="legend-item">
+      <span class="legend-num">②</span>
+      <div>Titre du rapport + période exportée (passée en paramètre depuis le POST body).</div>
+    </div>
+    <div class="legend-item">
+      <span class="legend-num">③</span>
+      <div>Date/heure de génération côté serveur : <code>new Date().toLocaleString('fr-FR')</code></div>
+    </div>
+
+    <div class="legend-section">Contenu</div>
+    <div class="legend-item">
+      <span class="legend-num">④</span>
+      <div><span class="tech-badge">SQL</span><br>KPIs : résultat des 4 agrégats SQL globaux. Encadrés avec bordure rouge en haut.</div>
+    </div>
+    <div class="legend-item">
+      <span class="legend-num">⑤</span>
+      <div>Tableau chauffeurs : ORDER BY tripCount DESC. Colonne "vs. moyenne" calculée server-side avant génération.</div>
+    </div>
+    <div class="legend-item">
+      <span class="legend-num">⑥</span>
+      <div>Tableau véhicules avec mini barres pdfkit : <code>doc.rect(x, y, width * pct, 3).fill(color)</code></div>
+    </div>
+
+    <div class="legend-section">Pagination</div>
+    <div class="legend-item">
+      <span class="legend-num">⑦</span>
+      <div>Footer paginé : <code>doc.on('pageAdded', () => drawFooter())</code>. Numérotation automatique.</div>
+    </div>
+
+    <div class="legend-section">Graphiques</div>
+    <div class="legend-item">
+      <span class="legend-num">⑧</span>
+      <div><span class="lib-badge">pdfkit</span><br>Option A : Pas de graphiques dans le PDF (données tabulaires suffisantes, plus fiable).<br><br>Option B : Générer un PNG des charts côté client (canvas.toDataURL), l'envoyer dans le POST body, le pdfkit l'intègre via <code>doc.image(buffer)</code>.</div>
+    </div>
+    <div class="legend-item">
+      <span class="legend-num">⑨</span>
+      <div>Répartition missions : tableau avec barres inline dessinées en pdfkit (rect fill).</div>
+    </div>
+    <div class="legend-item">
+      <span class="legend-num">⑩</span>
+      <div>Section incidents : texte descriptif en rouge <code>#DC2626</code>. Affiché uniquement si incidents > 0.</div>
+    </div>
+
+    <div class="legend-section">Architecture</div>
+    <div style="font-size:11px;color:#9CA3AF;line-height:1.7;margin-top:4px">
+      <strong style="color:#D1D5DB">POST /api/stats/pdf</strong><br>
+      1. Reçoit <code>{ dateFrom, dateTo }</code><br>
+      2. Exécute les SQL agrégats<br>
+      3. Génère le PDF avec pdfkit<br>
+      4. Stocke en mémoire : <code>global.__pdfJobs.set(jobId, buffer)</code><br>
+      5. Retourne <code>{ jobId }</code><br><br>
+      <strong style="color:#D1D5DB">GET /api/stats/pdf?jobId=xxx</strong><br>
+      → Retourne le Buffer PDF avec<br>
+      <code>Content-Type: application/pdf</code><br>
+      <code>Content-Disposition: attachment</code>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

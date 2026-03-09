@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { getRenaultVehicleData, getVinFromName } from '@/lib/renault';
+import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
 
 const checkOutSchema = z.object({
@@ -79,26 +79,21 @@ export async function POST(request: Request) {
             );
         }
 
-        // Fetch live Renault data if vehicle is connected
+        // Fetch live Renault data if vehicle is connected (has a VIN)
         let mileageOut = vehicle.mileage as number;
         let fuelOut = vehicle.fuelLevel as number;
-        const vehicleName = vehicle.name as string | undefined;
+        const vin = vehicle.vin as string | null;
 
-        if (vehicleName && (vehicleName.includes('VL186') || vehicleName.includes('VL188'))) {
-            const vin = await getVinFromName(vehicleName);
-            if (vin) {
-                try {
-                    const rData = await getRenaultVehicleData(vin);
-                    if (rData.totalMileage !== null) mileageOut = rData.totalMileage;
-                    if (rData.isElectric && rData.batteryLevel !== null) fuelOut = rData.batteryLevel;
-                    if (!rData.isElectric && rData.fuelQuantity !== null) {
-                        // Map fuel quantity (L) back to a rough percentage for DB consistency, or just store the L value
-                        // DB expects 0-100. Assume ~50L tank capacity for Espace VI.
-                        fuelOut = Math.min(Math.round((rData.fuelQuantity / 50) * 100), 100);
-                    }
-                } catch (e) {
-                    console.error('Failed to get live Renault data during checkout', e);
+        if (vin) {
+            try {
+                const rData = await getRenaultVehicleData(vin);
+                if (rData.totalMileage !== null) mileageOut = rData.totalMileage;
+                if (rData.isElectric && rData.batteryLevel !== null) fuelOut = rData.batteryLevel;
+                if (!rData.isElectric && rData.fuelQuantity !== null) {
+                    fuelOut = Math.min(Math.round((rData.fuelQuantity / 50) * 100), 100);
                 }
+            } catch (e) {
+                console.error('Failed to get live Renault data during checkout', e);
             }
         }
 

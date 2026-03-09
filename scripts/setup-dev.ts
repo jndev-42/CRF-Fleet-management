@@ -108,11 +108,13 @@ async function main() {
             "commentsIn"        TEXT,
             "secondDriverName"  TEXT,
             "secondDriverEmail" TEXT,
-            "checklistOut"      TEXT,
-            "checklistIn"       TEXT,
-            "driveFolderId"     TEXT,
-            "parkingPhoto"      TEXT,
-            "createdAt"         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "checklistOut"           TEXT,
+            "checklistIn"            TEXT,
+            "driveFolderId"          TEXT,
+            "parkingPhoto"           TEXT,
+            "renaultDataValidated"   INTEGER DEFAULT NULL,
+            "renaultLastCheckedAt"   TEXT DEFAULT NULL,
+            "createdAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY ("vehicleId") REFERENCES "Vehicle" ("id") ON DELETE CASCADE
         )
     `);
@@ -121,13 +123,15 @@ async function main() {
     const tripCols = await db.execute(`PRAGMA table_info("Trip")`);
     const existingCols = new Set(tripCols.rows.map(r => r.name as string));
     const migrations: Array<[string, string]> = [
-        ['cleanlinessOut',   'TEXT'],
-        ['cleanlinessIn',    'TEXT'],
-        ['dsaUsed',          'INTEGER DEFAULT 0'],
-        ['windowsClosed',    'INTEGER DEFAULT 0'],
-        ['vehicleInspected', 'INTEGER DEFAULT 0'],
-        ['incident',         'TEXT'],
-        ['parkingPhoto',     'TEXT'],
+        ['cleanlinessOut',         'TEXT'],
+        ['cleanlinessIn',          'TEXT'],
+        ['dsaUsed',                'INTEGER DEFAULT 0'],
+        ['windowsClosed',          'INTEGER DEFAULT 0'],
+        ['vehicleInspected',       'INTEGER DEFAULT 0'],
+        ['incident',               'TEXT'],
+        ['parkingPhoto',           'TEXT'],
+        ['renaultDataValidated',   'INTEGER DEFAULT NULL'],
+        ['renaultLastCheckedAt',   'TEXT DEFAULT NULL'],
     ];
     for (const [col, def] of migrations) {
         if (!existingCols.has(col)) {

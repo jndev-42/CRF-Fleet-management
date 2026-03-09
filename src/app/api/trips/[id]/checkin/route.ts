@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { getRenaultVehicleData, getVinFromName } from '@/lib/renault';
+import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
 
 // Increase duration limits for Vercel Serverless Functions
@@ -80,31 +80,33 @@ export async function PATCH(
         });
         const vehicle = vehicleResult.rows[0];
 
-        // Fetch live Renault data if vehicle is connected and data is missing
+        // Fetch live Renault data if vehicle is connected (has a VIN) and data is missing
         let finalMileageIn = data.mileageIn;
         let finalFuelIn = data.fuelIn;
-        const vehicleName = vehicle.name as string | undefined;
+        const vin = vehicle.vin as string | null;
+        const isConnectedVehicle = !!vin;
 
-        if (vehicleName && (finalMileageIn === undefined || finalFuelIn === undefined)) {
-            if (vehicleName.includes('VL186') || vehicleName.includes('VL188')) {
-                const vin = await getVinFromName(vehicleName);
-                if (vin) {
-                    try {
-                        const rData = await getRenaultVehicleData(vin);
-                        if (finalMileageIn === undefined && rData.totalMileage !== null) {
-                            finalMileageIn = rData.totalMileage;
-                        }
-                        if (finalFuelIn === undefined) {
-                            if (rData.isElectric && rData.batteryLevel !== null) {
-                                finalFuelIn = rData.batteryLevel;
-                            } else if (!rData.isElectric && rData.fuelQuantity !== null) {
-                                finalFuelIn = Math.min(Math.round((rData.fuelQuantity / 50) * 100), 100);
-                            }
-                        }
-                    } catch (e) {
-                        console.error('Failed to get live Renault data during checkin', e);
+        const VALIDATION_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+        let cockpitTimestampMs: number | null = null;
+
+        if (vin && (finalMileageIn === undefined || finalFuelIn === undefined)) {
+            try {
+                const rData = await getRenaultVehicleData(vin);
+                if (finalMileageIn === undefined && rData.totalMileage !== null) {
+                    finalMileageIn = rData.totalMileage;
+                }
+                if (finalFuelIn === undefined) {
+                    if (rData.isElectric && rData.batteryLevel !== null) {
+                        finalFuelIn = rData.batteryLevel;
+                    } else if (!rData.isElectric && rData.fuelQuantity !== null) {
+                        finalFuelIn = Math.min(Math.round((rData.fuelQuantity / 50) * 100), 100);
                     }
                 }
+                if (rData.cockpitTimestamp) {
+                    cockpitTimestampMs = new Date(rData.cockpitTimestamp).getTime();
+                }
+            } catch (e) {
+                console.error('Failed to get live Renault data during checkin', e);
             }
         }
 
@@ -118,13 +120,25 @@ export async function PATCH(
         // Mettre à jour le trip et le véhicule en transaction
         const tx = await db.transaction('write');
         const timestamp = new Date().toISOString();
+        const checkInTimeMs = new Date(timestamp).getTime();
+
+        // Compute Renault data validation status for connected vehicles
+        let renaultDataValidated: number | null = null;
+        if (isConnectedVehicle) {
+            if (cockpitTimestampMs !== null && cockpitTimestampMs >= checkInTimeMs - VALIDATION_WINDOW_MS) {
+                renaultDataValidated = 1; // Validated: Renault data is fresh
+            } else {
+                renaultDataValidated = 0; // Pending: cockpit timestamp not fresh enough
+            }
+        }
 
         try {
             await tx.execute({
                 sql: `UPDATE Trip SET
                         checkInAt = ?, mileageIn = ?, fuelIn = ?, parkingIn = ?, conditionIn = ?, cleanlinessIn = ?,
                         windowsClosed = ?, vehicleInspected = ?, incident = ?, dsaUsed = ?,
-                        commentsIn = ?, parkingPhoto = ?, driveFolderId = ?, checklistIn = ?
+                        commentsIn = ?, parkingPhoto = ?, driveFolderId = ?, checklistIn = ?,
+                        renaultDataValidated = ?, renaultLastCheckedAt = ?
                       WHERE id = ?`,
                 args: [
                     timestamp,
@@ -141,6 +155,8 @@ export async function PATCH(
                     data.parkingPhoto || null,
                     data.driveFolderId || trip.driveFolderId || null,
                     data.checklistIn ? JSON.stringify(data.checklistIn) : null,
+                    renaultDataValidated,
+                    renaultDataValidated !== null ? timestamp : null,
                     id
                 ]
             });

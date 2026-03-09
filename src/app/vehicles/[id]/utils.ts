@@ -28,12 +28,10 @@ export function getFuelClass(level: number): string {
 
 /**
  * Check if the vehicle is connected via Renault connect.
- * (Currently matches against VL186 or VL188).
+ * A vehicle is connected if it has a VIN stored in the database.
  */
-export function isConnected(vehicleName: string): boolean {
-    if (!vehicleName) return false;
-    const upper = vehicleName.toUpperCase();
-    return upper.includes('VL186') || upper.includes('VL188');
+export function isConnected(vin: string | null | undefined): boolean {
+    return !!vin;
 }
 
 /**

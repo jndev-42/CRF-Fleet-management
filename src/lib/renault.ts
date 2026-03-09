@@ -1,39 +1,6 @@
 import { GigyaApi, KamereonApi } from '@remscodes/renault-api';
 import { db } from '@/lib/db';
 
-// Env-var-only VIN map (no hardcoded fallback strings)
-const ENV_VEHICLE_VINS: Record<string, string | undefined> = {
-    VL186: process.env.RENAULT_VIN_VL186,
-    VL188: process.env.RENAULT_VIN_VL188,
-};
-
-/**
- * Resolve a vehicle name to its VIN.
- * First tries an exact DB lookup (Vehicle.vin), then falls back to env vars.
- * Returns null if no VIN is found.
- */
-export async function getVinFromName(vehicleName: string): Promise<string | null> {
-    // 1. Look up VIN from the database by vehicle name
-    try {
-        const result = await db.execute({
-            sql: `SELECT vin FROM Vehicle WHERE name = ?`,
-            args: [vehicleName],
-        });
-        const vin = result.rows[0]?.vin as string | null | undefined;
-        if (vin) return vin;
-    } catch (e) {
-        console.error('DB lookup for VIN failed:', e);
-    }
-
-    // 2. Fall back to env vars (partial, case-insensitive key match)
-    const upper = vehicleName.toUpperCase();
-    for (const [key, vin] of Object.entries(ENV_VEHICLE_VINS)) {
-        if (upper.includes(key) && vin) return vin;
-    }
-
-    return null;
-}
-
 async function authenticate(): Promise<{ idToken: string; accountId: string }> {
     // Check DB-backed session cache (persists across serverless cold starts)
     try {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRenaultVehicleData, getVinFromName } from '@/lib/renault';
+import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
 
 export async function GET(
@@ -14,10 +14,7 @@ export async function GET(
 
         const { vin } = await params;
 
-        // Allow passing either a VIN or a vehicle name (e.g. "VL186")
-        const resolvedVin = await getVinFromName(vin) || vin;
-
-        const data = await getRenaultVehicleData(resolvedVin);
+        const data = await getRenaultVehicleData(vin);
         return NextResponse.json(data);
     } catch (error) {
         console.error('Renault API error:', error);

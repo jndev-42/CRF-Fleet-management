@@ -13,7 +13,6 @@ import { formatDate } from './utils';
 import FuelBar from '@/components/vehicle/FuelBar';
 import VehicleBadges from '@/components/vehicle/VehicleBadges';
 import DetailCard from '@/components/vehicle/DetailCard';
-import RenaultConnectBlock from '@/components/vehicle/RenaultConnectBlock';
 import VehicleNotes from '@/components/vehicle/VehicleNotes';
 import TripItem from '@/components/vehicle/TripItem';
 import CheckOutModal from '@/components/vehicle/modals/CheckOutModal';
@@ -149,12 +148,11 @@ export default function VehicleDetailPage() {
         }
     }
 
-    // Fetch Renault Connect telemetry specifically for VL186/VL188 models
-    // Triggered once the base vehicle data has loaded and we know it's connected
+    // Fetch Renault Connect telemetry for connected vehicles (those with a VIN)
     useEffect(() => {
-        if (vehicle?.name && (vehicle.name.includes('VL186') || vehicle.name.includes('VL188')) && !renaultData) {
+        if (vehicle?.vin && !renaultData) {
             setLoadingRenault(true);
-            fetch(`/api/renault/${encodeURIComponent(vehicle.name)}`)
+            fetch(`/api/renault/${encodeURIComponent(vehicle.vin)}`)
                 .then(r => r.json())
                 .then(rData => {
                     if (!rData.error) setRenaultData(rData);
@@ -162,7 +160,23 @@ export default function VehicleDetailPage() {
                 .catch(e => console.error('Failed to get Renault data:', e))
                 .finally(() => setLoadingRenault(false));
         }
-    }, [vehicle?.name, renaultData]);
+    }, [vehicle?.vin, renaultData]);
+
+    // Trigger refresh of unvalidated Renault data for completed trips
+    useEffect(() => {
+        if (!vehicle) return;
+        const unvalidatedTrip = vehicle.trips.find(t => t.checkInAt && t.renaultDataValidated === 0);
+        if (!unvalidatedTrip) return;
+
+        fetch(`/api/trips/${unvalidatedTrip.id}/refresh-renault`, { method: 'PATCH' })
+            .then(r => r.json())
+            .then(result => {
+                if (result.validated) {
+                    fetchVehicle();
+                }
+            })
+            .catch(console.error);
+    }, [vehicle, fetchVehicle]);
 
 
 
@@ -443,15 +457,46 @@ export default function VehicleDetailPage() {
             <div className="detail-grid">
                 <DetailCard
                     title="Kilométrage"
-                    value={`${vehicle.mileage.toLocaleString('fr-FR')} km`}
+                    value={
+                        loadingRenault
+                            ? '...'
+                            : renaultData?.totalMileage !== null && renaultData?.totalMileage !== undefined
+                                ? `${renaultData.totalMileage.toLocaleString('fr-FR')} km`
+                                : `${vehicle.mileage.toLocaleString('fr-FR')} km`
+                    }
                     onEdit={!vehicle.vin ? () => setShowEditMetricsModal(true) : undefined}
                 />
                 <DetailCard
                     title={vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}
-                    value={`${vehicle.fuelLevel}%`}
+                    value={(() => {
+                        if (loadingRenault) return '...';
+                        if (vehicle.fuelType === 'Électrique') {
+                            return renaultData?.batteryLevel !== null && renaultData?.batteryLevel !== undefined
+                                ? `${renaultData.batteryLevel}%`
+                                : `${vehicle.fuelLevel}%`;
+                        }
+                        if (renaultData?.fuelQuantity !== null && renaultData?.fuelQuantity !== undefined) {
+                            return `${Math.min(Math.round((renaultData.fuelQuantity / 50) * 100), 100)}%`;
+                        }
+                        return `${vehicle.fuelLevel}%`;
+                    })()}
                     onEdit={!vehicle.vin ? () => setShowEditMetricsModal(true) : undefined}
                 >
-                    <FuelBar level={vehicle.fuelLevel} electric={vehicle.fuelType === 'Électrique'} style={{ marginTop: 8 }} />
+                    <FuelBar
+                        level={(() => {
+                            if (vehicle.fuelType === 'Électrique') {
+                                return renaultData?.batteryLevel !== null && renaultData?.batteryLevel !== undefined
+                                    ? renaultData.batteryLevel
+                                    : vehicle.fuelLevel;
+                            }
+                            if (renaultData?.fuelQuantity !== null && renaultData?.fuelQuantity !== undefined) {
+                                return Math.min(Math.round((renaultData.fuelQuantity / 50) * 100), 100);
+                            }
+                            return vehicle.fuelLevel;
+                        })()}
+                        electric={vehicle.fuelType === 'Électrique'}
+                        style={{ marginTop: 8 }}
+                    />
                 </DetailCard>
                 <DetailCard
                     title="Stationnement"
@@ -462,12 +507,6 @@ export default function VehicleDetailPage() {
                     value={vehicle.trips.length}
                 />
             </div>
-
-            {/* Renault Connect Section */}
-            <RenaultConnectBlock
-                renaultData={renaultData}
-                loadingRenault={loadingRenault}
-            />
 
             <VehicleNotes
                 vehicle={vehicle}

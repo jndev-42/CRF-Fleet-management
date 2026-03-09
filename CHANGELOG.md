@@ -5,6 +5,19 @@ Tous les changements notables apportés à ce projet seront documentés dans ce 
 Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
 et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-03-09
+
+### Ajouté
+- **Données Renault temps réel dans les DetailCards** : Les tuiles "Kilométrage" et "Batterie/Carburant" de la page véhicule affichent désormais les données live issues de Renault Connect (VL186/VL188). Pendant le chargement, les valeurs affichent `...`. En cas d'erreur API, le repli se fait sur les données stockées en base.
+- **Validation asynchrone des données Renault au check-in** : Lors du retour d'un véhicule connecté, le système enregistre un statut de validation (`renaultDataValidated`) selon que le timestamp cockpit Renault est dans la fenêtre de 5 minutes autour du check-in. Si la donnée n'est pas encore fraîche (`= 0`), une vérification ultérieure est planifiée.
+- **Route API `PATCH /api/trips/[id]/refresh-renault`** : Nouvelle route qui relit les données Renault pour un trip avec validation en attente. Inclut une protection anti-spam (throttle 5 min), une fenêtre max de 2h (auto-validation passé ce délai), et une mise à jour transactionnelle du trip et du véhicule si la validation réussit.
+- **Indicateur de vérification dans TripItem** : Les colonnes "Km retour" et "Batterie/Carburant retour" affichent un indicateur `⏳ Vérification...` (avec tooltip) lorsque `renaultDataValidated === 0` sur un trip terminé.
+- **Rafraîchissement automatique depuis la page véhicule** : Un `useEffect` déclenche automatiquement la route `refresh-renault` si un trip non validé est détecté au chargement, puis re-fetche les données du véhicule si la validation aboutit.
+- **Colonnes DB `renaultDataValidated` et `renaultLastCheckedAt`** : Ajout de ces deux colonnes à la table `Trip` (schema `setup-dev.ts` + migration idempotente).
+
+### Modifié
+- **Suppression du bloc `RenaultConnectBlock`** : Le composant `<RenaultConnectBlock />` n'est plus affiché sur la page véhicule ; ses informations sont désormais intégrées directement dans les DetailCards.
+
 ## [1.9.2] - 2026-03-08
 
 ### Ajouté

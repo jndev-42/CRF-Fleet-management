@@ -60,7 +60,19 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                 <div className="trip-detail-item">
                     <span className="trip-detail-label">Km retour</span>
                     <span className="trip-detail-value">
-                        {trip.mileageIn ? `${trip.mileageIn.toLocaleString('fr-FR')} km` : '—'}
+                        {trip.mileageIn ? (
+                            <>
+                                {trip.mileageIn.toLocaleString('fr-FR')} km
+                                {trip.renaultDataValidated === 0 && trip.checkInAt && (
+                                    <span
+                                        title="Validation des données auprès de Renault en cours..."
+                                        style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-secondary)' }}
+                                    >
+                                        ⏳ Vérification...
+                                    </span>
+                                )}
+                            </>
+                        ) : '—'}
                     </span>
                 </div>
                 <div className="trip-detail-item">
@@ -69,7 +81,21 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                 </div>
                 <div className="trip-detail-item">
                     <span className="trip-detail-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} retour</span>
-                    <span className="trip-detail-value">{trip.fuelIn !== null ? `${trip.fuelIn}%` : '—'}</span>
+                    <span className="trip-detail-value">
+                        {trip.fuelIn !== null ? (
+                            <>
+                                {trip.fuelIn}%
+                                {trip.renaultDataValidated === 0 && trip.checkInAt && (
+                                    <span
+                                        title="Validation des données auprès de Renault en cours..."
+                                        style={{ marginLeft: 6, fontSize: 11, color: 'var(--text-secondary)' }}
+                                    >
+                                        ⏳ Vérification...
+                                    </span>
+                                )}
+                            </>
+                        ) : '—'}
+                    </span>
                 </div>
                 <div className="trip-detail-item">
                     <span className="trip-detail-label">État départ</span>

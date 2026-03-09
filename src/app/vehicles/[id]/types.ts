@@ -27,6 +27,8 @@ export interface Trip {
     incident: string | null;
     parkingPhoto: string | null;
     driveFolderId: string | null;
+    renaultDataValidated: number | null;
+    renaultLastCheckedAt: string | null;
 }
 
 export interface Vehicle {

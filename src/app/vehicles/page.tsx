@@ -19,6 +19,8 @@ interface Vehicle {
     mileage: number;
     hasDSA: boolean;
     notes: string | null;
+    vin: string | null;
+    fuelType: string | null;
     trips: { id: string; driverName: string; missionType: string; checkOutAt: string }[];
 }
 
@@ -34,8 +36,8 @@ const statusClass: Record<string, string> = {
     MAINTENANCE: 'maintenance',
 };
 
-function isElectric(vehicleName: string) {
-    return vehicleName.toUpperCase().includes('VL186');
+function isElectric(vehicle: Vehicle) {
+    return vehicle.fuelType === 'Électrique';
 }
 
 
@@ -67,11 +69,11 @@ export default function VehiclesPage() {
             setVehicles(data);
 
             // Fetch Renault data for supported vehicles
-            const renaultVehicles = data.filter((v: Vehicle) => v.name.includes('VL186') || v.name.includes('VL188'));
+            const renaultVehicles = data.filter((v: Vehicle) => !!v.vin);
             if (renaultVehicles.length > 0) {
                 Promise.all(renaultVehicles.map(async (v: Vehicle) => {
                     try {
-                        const rRes = await fetch(`/api/renault/${encodeURIComponent(v.name)}`);
+                        const rRes = await fetch(`/api/renault/${encodeURIComponent(v.vin!)}`);
                         const rData = await rRes.json();
                         if (!rData.error) {
                             setRenaultData(prev => ({ ...prev, [v.name]: rData }));
@@ -178,7 +180,7 @@ export default function VehiclesPage() {
                                 <div style={{ fontSize: 12, color: '#22C55E', marginBottom: 8, fontWeight: 600 }}>🫀 DSA</div>
                             )}
 
-                            {isElectric(vehicle.name) ? (
+                            {isElectric(vehicle) ? (
                                 <div style={{ fontSize: 12, color: '#3B82F6', marginBottom: 8, fontWeight: 600 }}>⚡ Électrique</div>
                             ) : (
                                 <div style={{ fontSize: 12, color: '#F97316', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
@@ -232,10 +234,10 @@ export default function VehiclesPage() {
                                 return (
                                     <div className="fuel-bar-container">
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span className="meta-label">{isElectric(vehicle.name) ? 'Batterie' : 'Essence'}</span>
+                                            <span className="meta-label">{isElectric(vehicle) ? 'Batterie' : 'Essence'}</span>
                                             <span className="meta-label">{vehicle.fuelLevel}%</span>
                                         </div>
-                                        <FuelBar level={vehicle.fuelLevel} electric={isElectric(vehicle.name)} style={{ marginTop: 4 }} />
+                                        <FuelBar level={vehicle.fuelLevel} electric={isElectric(vehicle)} style={{ marginTop: 4 }} />
                                     </div>
                                 );
                             })()}
