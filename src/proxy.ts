@@ -7,7 +7,7 @@ export default auth;
 
 export const config = {
     /**
-     * Ce matcher exclut du middleware toutes les requêtes vers :
+     * Ce matcher exclut du proxy toutes les requêtes vers :
      * - Les routes d'API (/api/*)
      * - Les assets Next.js (_next/static, _next/image)
      * - Les fichiers statiques publics : images, SVG, polices, JSON (manifest), scripts SW

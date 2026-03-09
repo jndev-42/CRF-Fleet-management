@@ -1,209 +1,173 @@
 # Changelog
 
-Tous les changements notables apportés à ce projet seront documentés dans ce fichier.
+## [1.12.0] — 9 mars 2026
 
-Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/),
-et ce projet adhère au [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+### ✨ Nouveau
+- **Pré-remplissage du nom de mission** — À l'ouverture du formulaire de prise de véhicule, le champ "Nom de mission" se remplit automatiquement avec le motif de la réservation la plus proche dans le temps. Le champ reste modifiable.
+- **Export PDF amélioré** — Le rapport PDF affiche désormais le logo CRF, les sauts de page sont automatiques et la numérotation des pages est correcte.
 
-## [1.12.0] - 2026-03-09
+### 🐛 Corrigé
+- **Stats — filtre de date de fin** — Les trajets du jour sélectionné comme date de fin étaient exclus des résultats. C'est corrigé.
+- **Fun Fact** — La section n'apparaît plus avec seulement 1 ou 2 trajets. Elle requiert désormais au moins 3 trajets sur le même véhicule avec ≥ 65% de domination.
 
-### Ajouté
-- **Pré-remplissage du nom de mission depuis la réservation** : Lorsqu'un chauffeur ouvre le formulaire de checkout, l'application récupère automatiquement ses réservations sur le véhicule et pré-remplit le champ "Nom de mission" avec le motif de la réservation dont le `startTime` est le plus proche du moment du checkout (passé ou futur). Le champ reste modifiable.
+---
 
-### Modifié
-- **Export PDF — moteur de génération** : Migration de `pdfkit` vers `@react-pdf/renderer`. Le rapport est désormais un composant React pur avec layout flexbox, sauts de page automatiques, logo CRF réel (converti SVG → PNG via `sharp`) et numérotation automatique des pages (`Page X / Y`).
-- **Export CSV — mode arrière-plan** : L'export CSV suit désormais le même pattern que le PDF (POST → `jobId` → modale `ExportReadyModal` → téléchargement via GET). La génération est côté serveur avec toutes les colonnes brutes des trips (29 colonnes, encodage RFC 4180, BOM UTF-8).
-- **Fun Fact (renommé depuis "Fun Factor")** : La section est maintenant toujours visible (plus de mécanisme cacher/révéler). Le seuil de déclenchement est relevé à ≥ 65% de domination **ET** ≥ 3 trajets sur le véhicule, évitant les faux positifs avec peu de données.
-- **Filtre de dates stats** : Les comparaisons SQL utilisent désormais `DATE(checkOutAt)` pour inclure correctement tous les trajets du jour de fin sélectionné, quelle que soit l'heure de `checkOutAt`.
+## [1.11.0] — 9 mars 2026
 
-## [1.11.0] - 2026-03-09
+### ✨ Nouveau
+- **Page Statistiques** — Nouveau module accessible depuis la barre de navigation (tous les rôles sauf Invité). Affiche sur les 60 derniers jours : indicateurs globaux (emprunts, km, incidents, consommation), graphiques par chauffeur et par semaine, répartition des types de missions, et un classement des véhicules. Inclut un export CSV (données brutes) et un export PDF (rapport complet).
+- **Fun Fact** — Section humoristique sur la page Statistiques, affichée quand un chauffeur se démarque nettement sur un véhicule.
 
-### Ajouté
-- **Page Statistiques (`/stats`)** : Nouveau module complet d'analyse des emprunts véhicules, accessible à tous les utilisateurs authentifiés (sauf GUEST). Affiche les données sur une fenêtre glissante de 60 jours par défaut, avec une limite stricte de 62 jours pour l'affichage.
-- **6 cartes KPI globales** : Total des emprunts, sorties terminées (% complétion), km parcourus, km moyen par trajet, incidents signalés (mis en évidence en amber si > 0), consommation carburant moyenne.
-- **Graphiques Recharts** : BarChart des emprunts par chauffeur, PieChart en donut de la répartition par type de mission, AreaChart des kilomètres parcourus par semaine — tous rendus côté client avec SSR désactivé.
-- **Tableaux d'analyse** : Tableau par chauffeur avec comparaison vs. moyenne globale (badge coloré rouge/amber/vert selon le seuil), et tableau par véhicule avec barre de dominance visuelle en ligne.
-- **Fun Factor (easter egg)** : Section humoristique révélée au clic (flou CSS), affichée uniquement si un chauffeur représente plus de 50% des emprunts d'un véhicule donné — 5 niveaux de messages selon le % de dominance (50%/65%/75%/80%/90%).
-- **Export CSV** : Génération côté client à partir des données affichées, via une modale de sélection de plage sans limite de 62 jours. Inclut BOM UTF-8 pour compatibilité Excel.
-- **Export PDF** : Génération côté serveur avec `pdfkit` (Node.js), stockée en mémoire dans `global.__pdfJobs` avec nettoyage automatique après 10 minutes. Rapport A4 sur 2 pages : en-tête rouge avec titre/période/date de génération, section KPIs, tableau chauffeurs, tableau véhicules (page 1), visualisations + types de mission + incidents (page 2). Modale de confirmation à l'ouverture du PDF.
-- **Route `GET /api/stats`** : Requêtes SQL d'agrégation sur la table `Trip` (global, par chauffeur, par véhicule, par type de mission, km/semaine). Validation Zod, auth requise, limite 62 jours.
-- **Route `POST /api/stats/pdf` + `GET /api/stats/pdf?jobId=xxx`** : Génération et récupération de PDF. Le job est stocké en mémoire globale et expiré après 10 minutes.
-- **Lien "Statistiques" dans la Navbar** : Affiché pour tous les rôles sauf GUEST, avec classe `active` sur `/stats`.
-- **Seeder de trips de démonstration** dans `scripts/setup-dev.ts` : 25 sorties réparties sur les 60 derniers jours, avec 4 chauffeurs fictifs, répartition calculée pour garantir la dominance de Marc Dupont sur VL186 (>70%) et de Sandrine Martin sur VL188 (50%), rendant le Fun Factor immédiatement testable.
+---
 
-## [1.10.0] - 2026-03-09
+## [1.10.0] — 9 mars 2026
 
-### Ajouté
-- **Données Renault temps réel dans les DetailCards** : Les tuiles "Kilométrage" et "Batterie/Carburant" de la page véhicule affichent désormais les données live issues de Renault Connect (VL186/VL188). Pendant le chargement, les valeurs affichent `...`. En cas d'erreur API, le repli se fait sur les données stockées en base.
-- **Validation asynchrone des données Renault au check-in** : Lors du retour d'un véhicule connecté, le système enregistre un statut de validation (`renaultDataValidated`) selon que le timestamp cockpit Renault est dans la fenêtre de 5 minutes autour du check-in. Si la donnée n'est pas encore fraîche (`= 0`), une vérification ultérieure est planifiée.
-- **Route API `PATCH /api/trips/[id]/refresh-renault`** : Nouvelle route qui relit les données Renault pour un trip avec validation en attente. Inclut une protection anti-spam (throttle 5 min), une fenêtre max de 2h (auto-validation passé ce délai), et une mise à jour transactionnelle du trip et du véhicule si la validation réussit.
-- **Indicateur de vérification dans TripItem** : Les colonnes "Km retour" et "Batterie/Carburant retour" affichent un indicateur `⏳ Vérification...` (avec tooltip) lorsque `renaultDataValidated === 0` sur un trip terminé.
-- **Rafraîchissement automatique depuis la page véhicule** : Un `useEffect` déclenche automatiquement la route `refresh-renault` si un trip non validé est détecté au chargement, puis re-fetche les données du véhicule si la validation aboutit.
-- **Colonnes DB `renaultDataValidated` et `renaultLastCheckedAt`** : Ajout de ces deux colonnes à la table `Trip` (schema `setup-dev.ts` + migration idempotente).
+### ✨ Nouveau
+- **Données véhicule en temps réel** — Le kilométrage et le niveau de carburant/batterie sur la fiche véhicule sont désormais issus directement de Renault Connect pour les véhicules connectés.
+- **Indicateur de vérification** — Un badge "⏳ Vérification..." s'affiche sur les données de retour en attente de confirmation Renault, avec mise à jour automatique.
 
-### Modifié
-- **Suppression du bloc `RenaultConnectBlock`** : Le composant `<RenaultConnectBlock />` n'est plus affiché sur la page véhicule ; ses informations sont désormais intégrées directement dans les DetailCards.
+---
 
-## [1.9.2] - 2026-03-08
+## [1.9.2] — 8 mars 2026
 
-### Ajouté
-- **Propreté du véhicule (CheckOut / CheckIn)** : Ajout du champ "Propreté du véhicule" dans les modales de départ et de retour, avec un select à quatre niveaux (Propre, Correct, Sale, Très sale). Les valeurs sont stockées dans les colonnes `cleanlinessOut` et `cleanlinessIn` de la base de données.
-- **Affichage de la propreté dans l'historique** : Chaque encart de sortie (TripItem) affiche désormais deux lignes "Propreté départ" et "Propreté retour" lorsque les données sont disponibles.
-- **Script setup-dev.ts mis à jour** : Les nouvelles colonnes `cleanlinessOut` et `cleanlinessIn` sont ajoutées via des migrations idempotentes dans le script d'initialisation de l'environnement de développement.
+### ✨ Nouveau
+- **Propreté du véhicule** — Nouveau champ au départ et au retour (Propre / Correct / Sale / Très sale). La valeur est affichée dans l'historique des sorties.
 
-## [1.9.1] - 2026-03-08
+---
 
-### Modifié
-- **Accessibilité WCAG 2.1 AA — modales CheckOut et CheckIn** : Ajout de `role="dialog"`, `aria-modal="true"` et `aria-labelledby` sur le conteneur de chaque modale ; `id` sur les titres `<h2>` associés ; `aria-label="Fermer la modale"` sur les boutons de fermeture ; `aria-hidden="true"` sur les overlays ; association explicite `htmlFor`/`id` sur tous les labels et champs (nom, email, 2ème conducteur, type de mission, nom de mission, état, commentaires, photos, parking, incident).
-- **Accessibilité WCAG 2.1 AA — sliders de carburant** : Ajout de `aria-label="Niveau de carburant"`, `aria-valuemin`, `aria-valuemax` et `aria-valuenow` sur les `<input type="range">` des modales CheckOut et CheckIn.
-- **Accessibilité WCAG 2.1 AA — pagination historique véhicule** : La pagination de l'historique des sorties est désormais enveloppée dans un `<nav aria-label="Pagination de l'historique">` ; les boutons Précédent et Suivant disposent de `aria-label` explicites ; le compteur de page utilise `aria-live="polite"`.
+## [1.9.1] — 8 mars 2026
 
-## [1.9.0] - 2026-03-07
+### 🔧 Amélioré
+- **Accessibilité** — Les modales de prise/retour de véhicule et la pagination de l'historique sont conformes WCAG 2.1 AA (lecteurs d'écran, navigation clavier).
 
-### Ajouté
-- **Jauge de carburant améliorée** : Pour les véhicules non électriques, la jauge affiche désormais des jalons visuels (E / 1/4 / 1/2 / 3/4 / F). Tous types confondus, la couleur de la jauge est dynamique selon le niveau : rouge (< 25%), orange (25–49%), vert (≥ 50%).
-- **Jauge interactive dans les modales** : Les modales de check-in, check-out (correction de données) et d'édition des métriques affichent maintenant la jauge en temps réel lors de la saisie du niveau de carburant, remplaçant les anciens champs numériques.
+---
 
-### Documentation
-- **README.md** restructuré : présentation du projet, liste des fonctionnalités, stack technique, architecture, variables d'environnement.
-- **CONTRIBUTING.md** créé : instructions de lancement local, initialisation de la base de données, tests et déploiement (Turso + Vercel).
+## [1.9.0] — 7 mars 2026
 
-## [1.8.0] - 2026-03-06
+### ✨ Nouveau
+- **Jauge de carburant visuelle** — La jauge affiche des jalons (E / ¼ / ½ / ¾ / F) et change de couleur selon le niveau : rouge en dessous de 25%, orange jusqu'à 50%, vert au-delà. La jauge est interactive dans tous les formulaires de saisie.
 
-### Ajouté
-- **Toggle notifications push** : Dans le dropdown de la cloche, un bouton permet d'activer ou désactiver les notifications push OneSignal sans passer par les paramètres du navigateur. N'affecte pas les notifications in-app (cloche). Si le navigateur a bloqué les notifications, un message d'aide s'affiche à la place.
+---
 
-### Modifié
-- **Cloche de notifications réservée aux RESPO/ADMIN** : L'icône de cloche n'est plus affichée pour les rôles CHVL, CHVPSP et GUEST.
-- **Tour de première utilisation** : L'étape de présentation de la cloche de notifications est désormais masquée pour les utilisateurs sans rôle RESPO ou ADMIN.
+## [1.8.0] — 6 mars 2026
 
-### Corrigé
-- **Page d'aide accessible sans authentification** : La page `/aide` redirige désormais vers `/login` si l'utilisateur n'est pas connecté.
-- **Navigation visible sans authentification** : Le menu de navigation (burger + liens) est désormais masqué lorsque l'utilisateur n'est pas connecté.
-- **Page blanche en fin de tour (non-ADMIN/RESPO)** : La fonction `next()` du tour guidé utilisait `TOUR_STEPS.length` au lieu de `activeSteps.length`, ce qui faisait dépasser les bornes du tableau filtré et provoquait un crash client pour les utilisateurs sans rôle RESPO ou ADMIN.
+### ✨ Nouveau
+- **Contrôle des notifications push** — Un bouton dans la cloche permet d'activer ou désactiver les notifications push sans passer par les paramètres du navigateur.
 
-## [1.7.0] - 2026-03-06
+### 🔧 Amélioré
+- **Cloche de notifications** — Réservée aux rôles Responsable et Administrateur uniquement.
 
-### Ajouté
-- **Signalement données incorrectes** : Sur la modale de prise de véhicule (véhicules non connectés uniquement), nouvelle case à cocher "Le kilométrage et/ou le niveau d'essence est erroné". Lorsqu'elle est cochée, des champs éditables permettent de saisir les valeurs réelles. À la validation, les données corrigées sont enregistrées en base et une notification push + cloche est envoyée aux rôles RESPO et ADMIN avec les anciennes et nouvelles valeurs.
-- **Pagination de l'historique des sorties** : Les sorties (trips) sur la fiche véhicule sont désormais paginées (3 par page). Des boutons Précédent / Suivant avec indicateur de page s'affichent uniquement s'il y a plus de 3 sorties. En cas de suppression d'un trip, la pagination se recale automatiquement.
+### 🐛 Corrigé
+- **Page d'aide** — Redirige vers la page de connexion si l'utilisateur n'est pas authentifié.
+- **Menu de navigation** — Masqué sur la page de connexion.
+- **Tour guidé** — Ne crashait plus à la fin pour les utilisateurs sans rôle Responsable ou Admin.
 
-### Corrigé
-- **Fuseau horaire UTC+1** : Toutes les dates de l'application (`formatDate`, `ReservationBlock`, `NotificationBell`) affichent désormais l'heure en heure de Paris (Europe/Paris) au lieu de l'UTC. Les timestamps SQLite (format `YYYY-MM-DD HH:MM:SS` sans `Z`) sont normalisés à la source dans l'API notifications avant d'être envoyés au client.
-- **Notifications push bloquées** : Les en-têtes de sécurité (`Permissions-Policy`) n'étaient pas appliqués aux scripts de service worker OneSignal, empêchant la réception des notifications sur mobile et desktop. Le filtre `source` dans `next.config.ts` exclut désormais les fichiers `.js`, `.json`, les assets statiques et les routes API.
-- **Items de checklist hardcodés supprimés** : Les lignes "DSA vérifié", "DSA utilisé", "Vitres/Radios", "Tour véhicule" codées en dur dans `TripItem` ont été retirées.
+---
 
-## [1.6.1] - 2026-03-06
+## [1.7.0] — 6 mars 2026
 
-### Modifié
-- **Cache session Renault** : Remplacement du cache en mémoire (`cachedSession`) dans `src/lib/renault.ts` par un cache persistant en base de données (table `RenaultSession`). La session Gigya/Renault survit désormais aux cold-starts Vercel et est partagée entre toutes les instances serverless.
-- **Migration DB** : Ajout du script `scripts/add-renault-session-table.ts` pour créer la table `RenaultSession` (singleton, ligne `id=1`).
+### ✨ Nouveau
+- **Signalement de données incorrectes** — Lors de la prise d'un véhicule non connecté, il est possible de signaler et corriger un kilométrage ou un niveau d'essence erroné. Les responsables et admins reçoivent une notification.
+- **Pagination de l'historique** — Les sorties sur la fiche véhicule sont paginées (3 par page).
 
-## [1.6.0] - 2026-03-06
+### 🐛 Corrigé
+- **Heure d'affichage** — Toutes les dates sont désormais affichées en heure de Paris (UTC+1).
 
-### Sécurité
-- **Auth API véhicules** : Les routes `GET /api/vehicles` et `GET /api/vehicles/[id]` exigent désormais une session authentifiée (401 si absent). `POST /api/vehicles` est restreint aux ADMIN (403 sinon).
-- **Auth API Renault** : `GET /api/renault/[vin]` exige une session authentifiée (401).
-- **Auth API trips** : L'appel `auth()` est déplacé en tout premier dans `POST /api/trips`, avant tout parsing du corps ou requête DB.
-- **VINs codés en dur supprimés** : `src/lib/renault.ts` ne contient plus de VINs en fallback. `getVehicleVin()` est désormais async et interroge d'abord la colonne `vin` de la table `Vehicle`, puis se rabat sur les variables d'environnement.
-- **En-têtes de sécurité HTTP** : Ajout de `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` et `Strict-Transport-Security` via `next.config.ts`.
-- **Validation `callbackUrl`** : La page de connexion valide que le `callbackUrl` est un chemin relatif avant de l'utiliser dans `signIn`, prévenant les redirections ouvertes.
-- **Validation fichiers upload** : `POST /api/drive/upload` valide côté serveur le nombre de fichiers (≤ 10), la taille (≤ 10 Mo) et le type MIME (images uniquement) avant tout envoi vers Google Drive.
-- **URLs de notifications encodées** : Tous les noms de véhicules insérés dans des URLs de notifications push utilisent désormais `encodeURIComponent` (`trips`, `reservations/[id]`).
+---
 
-### Corrigé
-- **CheckOutModal / CheckInModal** : `onSuccess()` est désormais appelé uniquement après confirmation du succès de la requête API (`res.ok`), éliminant la perte silencieuse de données due à l'ancienne fermeture optimiste.
-- **Navbar — déconnexion** : Remplacement de `window.location.href = '/api/auth/signout'` par `signOut({ callbackUrl: '/login' })` de `next-auth/react`.
-- **GuidedTour — XSS** : Suppression de `dangerouslySetInnerHTML`. Le type `body` des étapes du tour passe de `string` à `React.ReactNode` ; les contenus HTML sont convertis en JSX.
-- **DSA checklist — effet de bord GET** : La logique d'upsert DSA est retirée du handler GET de `/api/vehicles/[id]/checklist`. Elle est déplacée dans le PATCH de `/api/vehicles/[id]` : insertion lors du passage `hasDSA` false→true, suppression lors du passage true→false.
-- **`next.config.ts`** : Suppression du bloc `outputFileTracingIncludes` référençant des fichiers Prisma inexistants (le projet utilise libSQL).
+## [1.6.0] — 6 mars 2026
 
-### Ajouté
-- **Composant `AddVehicleModal`** : Extraction de la modale d'ajout de véhicule en composant réutilisable (`src/components/vehicle/modals/AddVehicleModal.tsx`), partagé entre `app/page.tsx` et `app/vehicles/page.tsx`. La version extraite est la plus complète (avec VIN, type de carburant, DSA, sélecteur de parking).
+### 🔒 Sécurité
+- Renforcement de l'authentification sur l'ensemble des endpoints (véhicules, Renault, emprunts).
+- Ajout d'en-têtes de sécurité HTTP (anti-clickjacking, anti-sniffing, HSTS).
+- Validation stricte des fichiers uploadés (taille, type, nombre).
 
-## [1.5.0] - 2026-03-06
+### 🐛 Corrigé
+- **Modales** — La fermeture ne se déclenche plus avant confirmation du succès côté serveur.
+- **Déconnexion** — La déconnexion redirige correctement vers la page de connexion.
 
-### Added
-- **Workflow de Validation des Réservations :** Les utilisateurs CHVL/CHVPSP soumettent désormais une demande de réservation (statut `PENDING`). Les ADMIN et RESPO reçoivent une notification Push et peuvent valider depuis la fiche véhicule (bouton "✓ Valider"). À la validation, une notification in-app est envoyée au demandeur. Les réservations ADMIN/RESPO sont auto-validées à la création.
-- **Badges de statut sur les réservations :** Indicateur visuel "En attente" (orange) / "Validée" (vert) sur chaque réservation dans le bloc `ReservationBlock`.
+---
 
-### Changed
-- **Conflit de réservation :** La détection de chevauchement ne porte plus que sur les réservations `VALIDATED`. Une demande en attente ne bloque plus la création d'une autre réservation ni l'emprunt du véhicule.
-- **Cron de surveillance kilométrique :** Fréquence passée de `23:59 chaque soir` à `toutes les 30 minutes` pour une détection plus réactive des mouvements suspects.
-- **Responsivité mobile :** Les boutons d'action de la fiche véhicule (Prendre, Rendre, Maintenance, Gérer la checklist) s'affichent désormais en colonne pleine largeur sur mobile au lieu de déborder hors écran.
+## [1.5.0] — 6 mars 2026
 
-## [1.4.0] - 2026-03-05
+### ✨ Nouveau
+- **Validation des réservations** — Les chauffeurs soumettent une demande, les Responsables et Admins reçoivent une notification et peuvent valider. Un badge "En attente" / "Validée" s'affiche sur chaque réservation. Les réservations Admin/Respo sont auto-validées.
 
-### Added
-- **Checklists Personnalisées par Véhicule :** Possibilité pour les administrateurs de configurer des listes de vérifications (checklists) entièrement sur-mesure pour chaque véhicule (prises et rendus). Les items peuvent être marqués comme obligatoires (bloquant ainsi la soumission côté chauffeur si non cochés).
-- **Gestion des Utilisateurs :** Ajout de la création d'utilisateurs directement depuis le panel Admin avec vérification d'unicité de l'email et assignation immédiate des rôles.
+### 🔧 Amélioré
+- **Responsivité mobile** — Les boutons d'action de la fiche véhicule s'affichent correctement sur petits écrans.
 
-### Fixed
-- **Installation PWA (Progressive Web App) :** Résolution d'un bug où le middleware bloquait le `manifest.json` et empêchait l'apparition du bouton "Ajouter à l'écran d'accueil" sur mobiles. 
-- **Conflits de Service Worker :** Suppression d'un double enregistrement du Service Worker causant des interférences avec les notifications Push de OneSignal.
-- **Sécurité :** Mise à jour et retrait de dépendances vulnérables (`npm audit`).
+---
 
-## [1.3.0] - 2026-03-05
+## [1.4.0] — 5 mars 2026
 
-### Added
-- **Système de Réservation :** Nouvelle table `Reservation` en base de données et endpoints API (`GET`, `POST`, `DELETE /api/vehicles/[id]/reservations` et `/api/reservations/[id]`). Un composant `ReservationBlock` affiche les réservations à venir sur la page de détail d'un véhicule avec une modale de création.
-- **Interface Squelettons (Skeletons) :** Nouveau composant générique `Skeleton` + `VehicleCardSkeleton` et `VehicleDetailSkeleton`. Les spinners de chargement sont remplacés par des blocs grisés animés qui reproduisent la structure de chaque page pour éviter les sauts de layout (CLS).
-- **PWA (Progressive Web App) :** Ajout de `manifest.json`, des meta-tags iOS (`apple-mobile-web-app-capable`) et Android (`theme-color`), et d'un Service Worker manuel (`sw.js`) avec stratégie cache-first pour les assets statiques et network-first pour les pages. L'application peut désormais être installée sur mobile comme une application native.
-- **Validation Zod Stricte :** Les endpoints `POST /api/vehicles/[id]/reservations`, `POST /api/trips` et `PATCH /api/trips/[id]/checkin` utilisent maintenant des schémas Zod formels avec des messages d'erreur explicites, rejetant toute donnée invalide avec un code HTTP 400 et le détail des erreurs.
+### ✨ Nouveau
+- **Checklists personnalisées** — Les administrateurs peuvent configurer des checklists sur-mesure par véhicule (départ et retour), avec items obligatoires bloquant la soumission si non cochés.
+- **Création d'utilisateurs** — Les administrateurs peuvent créer des comptes utilisateurs directement depuis le panel d'administration.
 
-### Changed
-- **Optimistic UI :** Les actions "Prendre le véhicule" (Check-Out), "Rendre le véhicule" (Check-In) et "Activer/Désactiver la Maintenance" ferment maintenant instantanément leur modale/interface pendant que la requête réseau se complète en arrière-plan. En cas d'erreur serveur, l'état est automatiquement rétabli.
-- **QR Code :** Le bouton d'accès au QR Code est maintenant une petite icône `<QrCode>` positionnée directement à côté du nom du véhicule pour un accès discrèt et intuitif.
-- **Pluie Konami :** Les images de l'easter egg tombent maintenant progressivement avec des délais aléatoires (style pluie naturelle) au lieu de toutes apparaître simultanément.
+### 🐛 Corrigé
+- **Installation PWA** — Le bouton "Ajouter à l'écran d'accueil" réapparaît correctement sur mobile.
 
-## [1.2.3] - 2026-03-05
+---
 
+## [1.3.0] — 5 mars 2026
 
-### Added
-- **Export QR Code :** Ajout d'un bouton sur les pages des véhicules permettant de générer et de télécharger un QR Code menant directement à l'URL du véhicule (pratique pour un usage mobile ou l'impression d'étiquettes à mettre dans les véhicules).
+### ✨ Nouveau
+- **Réservations** — Nouveau système de réservation de véhicule avec calendrier des créneaux à venir sur la fiche véhicule.
+- **Squelettes de chargement** — Les pages affichent une structure animée pendant le chargement, sans sauts de mise en page.
+- **Application installable (PWA)** — L'application peut être installée sur mobile comme une application native (Android et iOS).
 
-## [1.2.2] - 2026-03-04
+---
 
-### Added
-- **Konami code :** Ajout d'un easter egg qui permet de lancer une simulation de physique avec des images qui tombent.
+## [1.2.3] — 5 mars 2026
 
-### Fixed
-- **Sécurité et Redirection :** Ajout d'un Middleware global pour bloquer l'accès direct aux vues profondes de l'application sans être connecté. La redirection dynamique après la connexion via l'authentification Google reconduit désormais fidèlement l'utilisateur à sa requête initiale plutôt qu'à la page d'accueil par défaut.
+### ✨ Nouveau
+- **Export QR Code** — Chaque fiche véhicule dispose d'un bouton pour générer et télécharger un QR Code pointant directement vers son URL (pratique pour l'impression d'étiquettes).
 
-## [1.2.1] - 2026-03-04
+---
 
-### Added
-- **Gestion des Utilisateurs :** Ajout d'une barre de recherche dynamique (par nom ou e-mail) et d'une pagination (6 utilisateurs par page) dans la vue administrateur pour faciliter la gestion d'un grand nombre de volontaires existants.
+## [1.2.2] — 4 mars 2026
 
-## [1.2.0] - 2026-03-04
+### ✨ Nouveau
+- **Easter egg Konami** — ↑ ↑ ↓ ↓ ← → ← → B A
 
-### Added
-- **Tutoriel Interactif :** Nouveau guide étape par étape (Guided Tour) avec mise en évidence (spotlight) des éléments clés de l'interface pour accompagner les nouveaux utilisateurs dans la prise en main (Dashboard et processus d'Emprunt/Retour). Relançable depuis la page Aide.
+### 🐛 Corrigé
+- **Redirection après connexion** — L'utilisateur est redirigé vers la page qu'il tentait d'atteindre, et non vers l'accueil.
 
-## [1.1.0] - 2026-03-02
+---
 
-### Added
-- **Alerte Mouvement Suspect (Cron) :** Notification Push (`OneSignal`) envoyée aux `ADMIN` lors d'une utilisation suspecte d'un véhicule la journée.
+## [1.2.1] — 4 mars 2026
 
-### Changed
-- **Notifications d'incidents :** Passage aux Notifications Push Serverless (`OneSignal`) en lieu et place des emails pour alerter en temps réel les rôles `RESPO` et `ADMIN` sur mobile/web lors d'un incident.
-- **Envoi des alertes :** Substitution de `Nodemailer`/`Resend` par les notifications Push de OneSignal.
-- **URLs lisibles :** Refonte des adresses web des véhicules pour utiliser leur nomenclature opérationnelle (ex. `/vehicles/VL186`) plutôt que leur ID de base de données.
-- **Sécurisation des Emprunts :** Auto-complétion et verrouillage en lecture seule de l'identité du conducteur principal sur le formulaire de Check-Out.
-- **Permissions de Maintenance :** Les accès pour basculer le statut du véhicule en maintenance sont désormais adossés au système de rôles dynamique en base de données.
+### 🔧 Amélioré
+- **Gestion des utilisateurs** — Ajout d'une barre de recherche (nom ou e-mail) et d'une pagination dans la vue administrateur.
 
-## [1.0.0] - 2026-03-02
+---
 
-### Added
-- **Cœur de l'application :** Lancement initial de "Gestion de flotte" pour la Croix-Rouge Française (Unité Locale Paris 18).
-- **Authentification :** Connexion sécurisée Google OAuth, automatiquement restreinte aux adresses `@croix-rouge.fr`.
-- **Rôles structurés :** Gestion des permissions RBAC via base de données (ADMIN, RESPO, CHVL, CHVPSP, GUEST).
-- **Interface Véhicules :** Tableau de bord dynamique, vue détaillée, formulaires d'édition, gestion du parc automobile et bascule de statut de maintenance.
-- **Emprunts & Retours :** Cycle complet de Check-Out et Check-In. Formulaires incluant l'état du véhicule, l'énergie (diesel, essence, électrique), les commentaires, la vérification du DSA, les types de missions (DPS, PAPS, Réseaux, Urgence, Logistique, Maraude) et la gestion du stationnement.
-- **Multiconducteur :** Prise en charge d'un conducteur secondaire, assignable au départ ou en cours de route par l'administrateur ou le conducteur principal via recherche textuelle intelligente (datalist).
-- **Galerie Photos Sécurisée :** Connexion Backend serveur avec Google Drive (OAuth Refresh Token) contournant les restrictions des comptes Service Google. Upload transparent et proxy d'images hébergées sécurisées.
-- **Visionneuse Plein Écran :** Module d'affichage (PhotoViewer) intégré pour visualiser ou observer au zoom l'état du véhicule.
-- **Connectivité Renault :** Synchronisation automatique avec l'API Télématique de Renault Connect pour récupérer l'autonomie, l'état de branchement, l'état de la batterie (%) et le kilométrage réel directement depuis la voiture.
-- **Espace Administrateur :** Modération des profils utilisateurs, purge sécurisée en cascade des historiques de véhicules, notes cachées.
-- **UI/UX et Thème :** Application responsive avec mode sombre natif, navigation fluide et intégration des marqueurs de marque (Croix-Rouge SVG).
-- **Informations Légales:** Nouveau pied de page (Footer) de copyright global et page d'Aide recensant les numéros d'urgence et d'assurance.
+## [1.2.0] — 4 mars 2026
+
+### ✨ Nouveau
+- **Tutoriel interactif** — Un guide étape par étape accompagne les nouveaux utilisateurs à la prise en main. Relançable depuis la page Aide.
+
+---
+
+## [1.1.0] — 2 mars 2026
+
+### ✨ Nouveau
+- **Alerte mouvement suspect** — Notification push envoyée aux administrateurs si un véhicule est utilisé de manière inhabituelle.
+
+### 🔧 Amélioré
+- **Notifications** — Passage aux notifications push (mobile et web) en remplacement des e-mails pour les alertes incidents.
+- **URLs des véhicules** — Les adresses utilisent désormais la nomenclature opérationnelle (ex. `/vehicles/VL186`).
+
+---
+
+## [1.0.0] — 2 mars 2026
+
+### 🚀 Lancement
+- Authentification Google sécurisée, restreinte aux adresses `@croix-rouge.fr`.
+- Gestion du parc automobile avec tableau de bord, fiches véhicules et statuts de maintenance.
+- Cycle complet d'emprunt et de retour : état du véhicule, niveau d'énergie, DSA, type de mission, commentaires, photos.
+- Gestion des conducteurs secondaires.
+- Galerie photos connectée à Google Drive.
+- Intégration Renault Connect (kilométrage et batterie en direct).
+- Panel administrateur : gestion des rôles, historiques, notes.
+- Mode sombre natif, design responsive.

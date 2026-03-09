@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { auth, signOut } from "@/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -23,6 +23,9 @@ export const metadata: Metadata = {
     title: "CR Chauffeur",
     statusBarStyle: "black-translucent",
   },
+};
+
+export const viewport: Viewport = {
   themeColor: "#c70000",
 };
 
