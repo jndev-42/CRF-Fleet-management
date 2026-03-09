@@ -88,8 +88,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mileageIn: isConnected(vehicle.vin) ? null : form.mileageIn,
-                    fuelIn: isConnected(vehicle.vin) ? null : form.fuelIn,
+                    mileageIn: isConnected(vehicle.vin) ? undefined : form.mileageIn,
+                    fuelIn: isConnected(vehicle.vin) ? undefined : form.fuelIn,
                     parkingIn: finalParkingIn,
                     conditionIn: form.conditionIn,
                     cleanlinessIn: form.cleanlinessIn,

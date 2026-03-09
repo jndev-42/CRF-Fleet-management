@@ -95,6 +95,8 @@ export async function GET(
                 commentsIn: tRow.commentsIn,
                 parkingPhoto: tRow.parkingPhoto,
                 driveFolderId: tRow.driveFolderId || null,
+                renaultDataValidated: tRow.renaultDataValidated ?? null,
+                renaultLastCheckedAt: tRow.renaultLastCheckedAt || null,
                 createdAt: new Date(tRow.createdAt as string),
             }))
         };

@@ -8,8 +8,8 @@ import { auth } from '@/auth';
 export const maxDuration = 30; // 30 seconds max duration
 
 const checkInSchema = z.object({
-    mileageIn: z.number().min(0, 'Le kilométrage est requis').optional(),
-    fuelIn: z.number().min(0).max(100, "Le niveau d'essence doit être entre 0 et 100").optional(),
+    mileageIn: z.number().min(0).optional(),
+    fuelIn: z.number().min(0).max(100).optional(),
     parkingIn: z.string().optional(),
     conditionIn: z.string().min(1, "L'état du véhicule est requis"),
     cleanlinessIn: z.string().optional(),
