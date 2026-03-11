@@ -226,6 +226,14 @@ export default function StatsPage() {
               <div className="skel" style={{ height: '100%' }} />
             </div>
           </div>
+          <div className="breakdown-grid">
+            <div className="breakdown-card">
+              <div className="skel" style={{ height: 220 }} />
+            </div>
+            <div className="breakdown-card">
+              <div className="skel" style={{ height: 220 }} />
+            </div>
+          </div>
         </>
       )}
 

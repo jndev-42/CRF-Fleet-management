@@ -26,11 +26,11 @@ export default function VehicleBreakdown({ byVehicle }: VehicleBreakdownProps) {
       <table>
         <thead>
           <tr>
-            <th>Véhicule</th>
-            <th>Emprunts</th>
-            <th>% total</th>
-            <th>Km totaux</th>
-            <th>Conso. moy.</th>
+            <th scope="col">Véhicule</th>
+            <th scope="col">Emprunts</th>
+            <th scope="col">% total</th>
+            <th scope="col">Km totaux</th>
+            <th scope="col">Conso. moy.</th>
           </tr>
         </thead>
         <tbody>

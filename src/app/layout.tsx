@@ -1,5 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from 'next/font/google';
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  display: 'swap',
+  variable: '--font-inter',
+});
 import { auth, signOut } from "@/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SessionProvider } from "next-auth/react";
@@ -39,7 +47,7 @@ export default async function RootLayout({
   const roles = session?.user?.roles || [];
 
   return (
-    <html lang="fr">
+    <html lang="fr" className={inter.variable}>
       <body suppressHydrationWarning>
         {/*
           NOTE: We do NOT register a custom sw.js here because OneSignal already

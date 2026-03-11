@@ -35,13 +35,13 @@ export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: D
       <table>
         <thead>
           <tr>
-            <th></th>
-            <th>Chauffeur</th>
-            <th>Emprunts</th>
-            <th>% total</th>
-            <th>Km</th>
-            <th>vs. moy.</th>
-            <th>Incidents</th>
+            <th scope="col" aria-label="Détails"></th>
+            <th scope="col">Chauffeur</th>
+            <th scope="col">Emprunts</th>
+            <th scope="col">% total</th>
+            <th scope="col">Km</th>
+            <th scope="col">vs. moy.</th>
+            <th scope="col">Incidents</th>
           </tr>
         </thead>
         <tbody>
