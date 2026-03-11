@@ -35,7 +35,7 @@ You are a Senior Full-Stack Developer specialized in the **cr-chauffeur** projec
 ### Frontend
 - **Next.js 16** with the **App Router**.
 - **React 19** — use modern React patterns (Server Components by default, Client Components only when needed).
-- **Tailwind CSS** for all styling — no inline styles or external CSS unless absolutely necessary.
+- **CSS Modules** per component for all styling. Global CSS variables in `src/app/globals.css` for theming (colors, spacing). `next-themes` for dark/light mode. No Tailwind, no inline styles.
 - **Lucide icons** for all iconography.
 
 ### Validation
