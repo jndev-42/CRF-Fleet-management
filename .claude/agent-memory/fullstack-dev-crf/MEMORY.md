@@ -24,6 +24,7 @@
 - 401 for unauthenticated: `!session?.user`
 - 403 for insufficient role: `!session?.user?.roles?.includes('ADMIN')`
 - Vehicle [id] route uses vehicle **name** as the URL param (not UUID)
+- **Exception**: checkin route (`trips/[id]/checkin`) checks auth AFTER the trip lookup — 404 before 401
 
 ## DB Conventions
 - Vehicle lookup by name: `WHERE name = ?` (URL param `[id]` is actually the vehicle name)
@@ -76,6 +77,27 @@
 ## Recharts
 - `Defs`, `LinearGradient`, `Stop` are NOT exported from recharts — use inline SVG `<defs>` in JSX instead
 - Recharts uses browser APIs — wrap with `dynamic(() => import(...), { ssr: false })` to avoid SSR errors
+
+## Test Infrastructure (added 2026-03-10)
+- **Unit tests**: Vitest + jsdom + @testing-library/react + @testing-library/dom
+- **Integration tests**: Vitest with file-based temp SQLite DB (NOT in-memory) — see below
+- **E2E tests**: Playwright (separate `npm run test:e2e` command, NOT picked up by vitest)
+- Config: `vitest.config.ts` excludes `e2e/` folder; `playwright.config.ts` for E2E
+- Scripts: `npm test` (vitest run), `npm run test:watch`, `npm run test:e2e`
+- Test dirs: `src/__tests__/unit/`, `src/__tests__/components/`, `src/__tests__/integration/`, `e2e/`
+- Unit/component setup: `src/__tests__/setup.ts` (in-memory DB, beforeEach drop/recreate)
+- Integration setup: `src/__tests__/integration/setup.ts` (temp file DB, beforeEach truncate)
+
+### Critical: libSQL `file::memory:` does NOT work with `db.transaction('write')`
+- `db.transaction('write')` internally opens a second connection
+- With `file::memory:`, that second connection sees an **empty database** (separate in-memory instance)
+- Integration tests hitting routes that use transactions MUST use a temp file DB (`mkdtemp`)
+- Unit/component tests that don't trigger transactions can safely use `file::memory:`
+
+### Vitest `vi.mock` hoisting gotcha
+- `vi.mock('@/lib/db', () => ({ db }))` — `db` in the factory is `undefined` (hoisted before imports)
+- Fix: `vi.mock('@/lib/db', async () => { const { db } = await import('./setup'); return { db }; })`
+- Import test helpers (`db`, `seedVehicle`, etc.) AFTER the `vi.mock` declarations
 
 ## Known Patterns / Gotchas
 - `vehicles/page.tsx` has its own `isElectric()` helper (name-based, legacy) — `page.tsx` uses `v.vin` to detect connected vehicles
