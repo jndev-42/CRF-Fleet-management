@@ -94,7 +94,7 @@ export default function FooterChangelog() {
                         padding: 0
                     }}
                 >
-                    v1.12.0
+                    v{process.env.NEXT_PUBLIC_APP_VERSION}
                 </button>
             </div>
 

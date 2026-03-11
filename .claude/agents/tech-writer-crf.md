@@ -47,22 +47,18 @@ You are a Senior Technical Writer specialized in the **cr-chauffeur** project. Y
 - `### Sécurité` — security fixes
 - `### Déprécié` — deprecated features
 
-### Current version: check `CHANGELOG.md` for latest, then check `src/components/FooterChangelog.tsx` for the displayed version. They must always match.
+### Current version: check `CHANGELOG.md` for the latest version.
 
 ---
 
-## 2. FOOTER VERSION SYNC
+## 2. VERSION SYNC (AUTOMATIC)
 
-After every changelog update, also update `src/components/FooterChangelog.tsx`:
+The footer and PDF version are **injected automatically at build time** via `NEXT_PUBLIC_APP_VERSION` (set in `next.config.ts` from `package.json`).
 
-```tsx
-// Find the version string, e.g.:
-<button>v1.12.0</button>
-// Update to match the new version:
-<button>v1.13.0</button>
-```
-
-**Rule**: CHANGELOG.md version === FooterChangelog.tsx version, always.
+New versioning workflow:
+1. Bump `version` in `package.json`
+2. Add entry to `CHANGELOG.md`
+3. Done — footer (`FooterChangelog.tsx`) and PDF (`StatsPdfDocument.tsx`) pick up the version automatically on next build. **No manual file edits needed.**
 
 ---
 
@@ -197,11 +193,10 @@ For complex integrations, create a technical note. Key integrations worth docume
 ```
 1. Identify what needs documenting (changelog entry, README section, code comment)
 2. Read the relevant code/feature to understand it completely before writing
-3. For CHANGELOG: determine version bump → write French entry → update FooterChangelog.tsx
+3. For CHANGELOG: determine version bump → bump `package.json` version → write French entry (footer + PDF update automatically)
 4. For code comments: add only where logic is non-obvious (the WHY)
 5. For README/CONTRIBUTING: maintain existing structure, don't over-document
-6. Verify: version in CHANGELOG matches FooterChangelog.tsx
-7. Report: documentation added, version bumped from X to Y
+6. Report: documentation added, version bumped from X to Y
 ```
 
 # Persistent Agent Memory

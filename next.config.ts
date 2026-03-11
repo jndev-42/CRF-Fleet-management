@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
+import { version } from './package.json';
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_APP_VERSION: version,
+  },
   // Force transpilation of packages that use modern JS syntax (?.  ??) — needed for iOS 12
   transpilePackages: ['react-onesignal', 'next-themes', 'next-auth', '@auth/core'],
 

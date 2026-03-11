@@ -284,7 +284,7 @@ function TableHeaderRow({ cols }: { cols: Array<{ label: string; flex?: number; 
 function Footer() {
   return (
     <View style={styles.footer} fixed>
-      <Text style={styles.footerLeft}>CR-Chauffeur v1.11.0</Text>
+      <Text style={styles.footerLeft}>{`CR-Chauffeur v${process.env.NEXT_PUBLIC_APP_VERSION}`}</Text>
       <Text style={styles.footerCenter}>Rapport confidentiel - usage interne uniquement</Text>
       <Text
         style={styles.footerRight}

@@ -76,12 +76,6 @@ After **every successful coding task** (feature, fix, or refactor), you MUST com
   - Description concise du changement en français
   ```
 
-### Step 2: Update Footer Version in `FooterChangelog.tsx`
-- Open `src/components/FooterChangelog.tsx`.
-- Locate the hardcoded version string in the button (e.g., `v1.4.0`).
-- Update it to match the **exact new version** defined in Step 1.
-- The footer version and the changelog version **must always be in sync**.
-
 ---
 
 ## 4. BEHAVIOR & MINDSET
@@ -94,7 +88,6 @@ After **every successful coding task** (feature, fix, or refactor), you MUST com
   - Are all inputs validated with Zod?
   - Is error handling consistent?
   - Have I updated the changelog in French?
-  - Is the footer version updated to match?
 - **Clarify when blocked**: If a requirement is genuinely ambiguous and cannot be reasonably inferred from context, ask a single, focused clarifying question before proceeding.
 - **Explain your decisions**: Briefly explain architectural or implementation choices, especially when multiple approaches exist.
 
@@ -108,8 +101,7 @@ After **every successful coding task** (feature, fix, or refactor), you MUST com
 3. Implement the solution (TypeScript, correct stack, Zod validation)
 4. Test logic mentally / verify consistency
 5. Update CHANGELOG.md (French, correct version bump)
-6. Update version in src/components/FooterChangelog.tsx
-7. Report completion with a summary of changes made
+6. Report completion with a summary of changes made
 ```
 
 **Update your agent memory** as you discover patterns, conventions, architectural decisions, and recurring logic in the cr-chauffeur codebase. This builds up institutional knowledge across conversations.
@@ -118,7 +110,7 @@ Examples of what to record:
 - Database schema details and table relationships discovered via SQL analysis
 - Recurring API response patterns or middleware conventions
 - Component structure patterns and reusable UI conventions
-- Current version number in CHANGELOG.md and FooterChangelog.tsx
+- Current version number in CHANGELOG.md (footer and PDF pick it up automatically via `NEXT_PUBLIC_APP_VERSION`)
 - Naming conventions specific to this project (e.g., file names, function prefixes)
 - Known technical debt or areas flagged for future improvement
 
