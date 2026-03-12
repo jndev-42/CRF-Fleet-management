@@ -45,7 +45,7 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
       COUNT(CASE WHEN checkInAt IS NOT NULL THEN 1 END) as completedTrips,
       COALESCE(SUM(CASE WHEN mileageIn IS NOT NULL THEN mileageIn - mileageOut ELSE 0 END), 0) as totalKm,
       COUNT(CASE WHEN incident IS NOT NULL AND incident != '' THEN 1 END) as totalIncidents,
-      AVG(CASE WHEN fuelIn IS NOT NULL THEN fuelOut - fuelIn ELSE NULL END) as avgFuelConsumption
+      AVG(CASE WHEN fuelIn IS NOT NULL AND fuelOut > fuelIn THEN fuelOut - fuelIn ELSE NULL END) as avgFuelConsumption
     FROM Trip
     WHERE DATE(checkOutAt) >= ? AND DATE(checkOutAt) <= ?`,
     args: [dateFrom, dateTo],
@@ -78,7 +78,7 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
     sql: `SELECT t.vehicleId, v.name as vehicleName,
       COUNT(*) as tripCount,
       COALESCE(SUM(CASE WHEN t.mileageIn IS NOT NULL THEN t.mileageIn - t.mileageOut ELSE 0 END), 0) as totalKm,
-      AVG(CASE WHEN t.fuelIn IS NOT NULL THEN t.fuelOut - t.fuelIn ELSE NULL END) as avgFuelDelta
+      AVG(CASE WHEN t.fuelIn IS NOT NULL AND t.fuelOut > t.fuelIn THEN t.fuelOut - t.fuelIn ELSE NULL END) as avgFuelDelta
     FROM Trip t
     JOIN Vehicle v ON v.id = t.vehicleId
     WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?

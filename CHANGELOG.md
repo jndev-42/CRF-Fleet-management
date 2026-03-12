@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.2] — 12 mars 2026
+
+### Corrigé
+- **Conso. Moy. — exclusion des trajets sans consommation nette** — La moyenne de carburant (`avgFuelConsumption` global et `avgFuelDelta` par véhicule) excluait déjà les trajets sans données, mais incluait à tort les trajets où le niveau a monté (recharge / plein) ou est resté stable. Le prédicat SQL a été resserré à `fuelOut > fuelIn` pour ne moyenner que les trajets à consommation nette positive.
+
+---
+
 ## [1.15.1] — 12 mars 2026
 
 ### Modifié
