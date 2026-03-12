@@ -1,14 +1,20 @@
 # Changelog
 
+## [1.14.0] — 12 mars 2026
+
+### Ajouté
+- **Signalement de bug** — Bouton flottant accessible sur toutes les pages authentifiées (rôle CHVL et supérieur). Ouvre une modale permettant de saisir un titre et une description, avec affichage optionnel des logs techniques (console + réseau). Crée automatiquement un ticket GitHub avec le rapport complet.
+- **Tests automatisés** — Tests unitaires, d'intégration et de composants pour le module de signalement de bug (16 + 11 + 15 cas couverts). Règle : toute nouvelle fonctionnalité doit désormais embarquer ses tests.
+
+---
+
 ## [1.13.0] — 12 mars 2026
 
 ### Modifié
-- **Refactorisation schéma Trip** — Les colonnes dénormalisées `driverName`, `driverEmail`, `secondDriverName`, `secondDriverEmail` sont remplacées par des clés étrangères `driverId` et `secondDriverId` vers `User.id`. Toutes les requêtes SQL utilisent désormais une jointure `JOIN User` pour récupérer le nom et l'email du chauffeur à l'affichage.
 - **Sécurité des routes checkin/second-driver** — Les vérifications d'autorisation utilisent maintenant `session.user.id` (FK stable) au lieu de `session.user.email` (donnée mutable), ce qui empêche les usurpations d'identité en cas de changement d'email.
 - **JWT** — L'identifiant `User.id` est désormais exposé dans le token JWT et disponible via `session.user.id` dans toutes les routes API.
 - **Formulaire de prise de véhicule** — `driverName` et `driverEmail` ne sont plus envoyés dans le corps de la requête POST ; le serveur résout automatiquement le chauffeur depuis la session.
 - **Stats** — Les requêtes groupées par chauffeur utilisent `GROUP BY driverId` au lieu de `GROUP BY driverEmail`, ce qui garantit la cohérence même si l'email change.
-- **Script de migration** — Nouveau script `scripts/migrate-driver-ids.ts` pour effectuer la migration sur les bases existantes (Turso production).
 
 ---
 

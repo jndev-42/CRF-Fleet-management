@@ -1,0 +1,36 @@
+.floatingButton {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 300;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: var(--crf-red);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(227, 6, 19, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.floatingButton:hover {
+  background: var(--crf-red-light);
+  transform: scale(1.1) translateY(-2px);
+}
+
+.floatingButton:active {
+  transform: scale(0.96);
+}
+
+@media (max-width: 768px) {
+  .floatingButton {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    width: 46px;
+    height: 46px;
+  }
+}

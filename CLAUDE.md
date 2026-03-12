@@ -67,3 +67,19 @@ await db.execute({ sql: "SELECT * FROM Vehicle WHERE id = ?", args: [id] });
 **Styling:** CSS Modules per component + global CSS variables in `app/globals.css` for theming. `next-themes` for dark/light persistence.
 
 **Deployment:** Vercel (auto-deploy on `main` push). DB: Turso cloud. Uses `--webpack` (not Turbopack) in both dev and build.
+
+## Testing
+
+**Stack:** Vitest + React Testing Library (jsdom). Run with `npm run test`.
+
+**Structure:**
+- `src/__tests__/unit/` — pure functions, no DB, no network
+- `src/__tests__/components/` — React Testing Library, no DB
+- `src/__tests__/integration/` — real SQLite DB (via `./setup.ts`), mocked auth + external services
+
+**Rule: every new feature must ship with tests.** For each feature:
+- New API route → integration test covering 401, 403, 400 (Zod), and the happy path
+- New lib module → unit tests covering all exported functions
+- New React component with state/logic → component test via React Testing Library
+
+See `src/__tests__/CLAUDE.md` for mocking patterns, auth mock setup, and request factory.

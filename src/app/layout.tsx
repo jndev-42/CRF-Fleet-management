@@ -16,6 +16,7 @@ import { OneSignalProvider } from "@/components/OneSignalProvider";
 import Navbar from "@/components/Navbar";
 import GuidedTour from "@/components/GuidedTour";
 import KonamiEasterEgg from "@/components/KonamiEasterEgg";
+import BugReportButton from "@/components/BugReportButton";
 
 export const metadata: Metadata = {
   title: "Gestion de flotte | Croix-Rouge Paris 18",
@@ -65,6 +66,7 @@ export default async function RootLayout({
               </main>
               {session?.user && <GuidedTour roles={roles} />}
               {session?.user && <KonamiEasterEgg />}
+              {session?.user && <BugReportButton />}
               <footer role="contentinfo" style={{
                 textAlign: 'center',
                 padding: '24px 16px',
