@@ -52,7 +52,6 @@ export async function POST(request: Request) {
 
     const result = await db.execute({
       sql: `SELECT
-              t.id,
               t.checkOutAt,
               t.checkInAt,
               u.name  AS driverName,
@@ -87,7 +86,7 @@ export async function POST(request: Request) {
     });
 
     const headers = [
-      'ID', 'Date depart', 'Date retour', 'Chauffeur', 'Email chauffeur',
+      'Date depart', 'Date retour', 'Chauffeur', 'Email chauffeur',
       '2e chauffeur', 'Email 2e chauffeur', 'Vehicule', 'Plaque',
       'Type de mission', 'Nom de mission',
       'Km depart', 'Km retour', 'Km parcourus',
@@ -103,7 +102,7 @@ export async function POST(request: Request) {
       const mileageOut = t.mileageOut as number | null;
       const mileageIn = t.mileageIn as number | null;
       return [
-        t.id, t.checkOutAt, t.checkInAt,
+        t.checkOutAt, t.checkInAt,
         t.driverName, t.driverEmail,
         t.secondDriverName, t.secondDriverEmail,
         t.vehicleName, t.vehiclePlate,
