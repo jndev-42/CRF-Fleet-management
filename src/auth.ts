@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 declare module "next-auth" {
     interface Session {
         user: {
+            id: string;
             roles: string[];
         } & DefaultSession["user"];
     }
@@ -101,6 +102,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         async session({ session, token }) {
             const email = session?.user?.email;
 
+            // Expose the user DB id from the JWT so API routes can use session.user.id
+            if (token.userId) {
+                session.user.id = token.userId as string;
+            }
+
             // Dev : @dev.local bypass la vérification de domaine
             if (email?.endsWith('@dev.local')) {
                 session.user.roles = (token.roles as string[]) || [];
@@ -121,18 +127,32 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 token.devRoles = (user as any).devRoles;
             }
 
-            // Dev users : rôles depuis le JWT uniquement
+            // Dev users : rôles depuis le JWT uniquement; userId = email (dev DB convention)
             if (token.email?.endsWith('@dev.local')) {
                 token.roles = (token.devRoles as string[]) || [];
+                if (!token.userId) {
+                    // Fetch the actual User.id from DB for dev users too
+                    try {
+                        const devUser = await db.execute({
+                            sql: `SELECT id FROM "User" WHERE email = ?`,
+                            args: [token.email],
+                        });
+                        if (devUser.rows.length > 0) {
+                            token.userId = devUser.rows[0].id as string;
+                        }
+                    } catch {
+                        // non-fatal — dev env may not have a User row yet
+                    }
+                }
                 return token;
             }
 
-            // Utilisateurs normaux : récupération des rôles depuis la DB
+            // Utilisateurs normaux : récupération des rôles et userId depuis la DB
             if (token.email) {
                 try {
                     const res = await db.execute({
                         sql: `
-                            SELECT r.name
+                            SELECT u.id, r.name
                             FROM "User" u
                             JOIN "UserRole" ur ON u.id = ur.userId
                             JOIN "Role" r ON ur.roleId = r.id
@@ -141,6 +161,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         args: [token.email],
                     });
                     token.roles = res.rows.map(row => row.name as string);
+                    if (res.rows.length > 0) {
+                        token.userId = res.rows[0].id as string;
+                    }
                 } catch (e) {
                     console.error("Failed to fetch roles for JWT:", e);
                     token.roles = [];

@@ -32,10 +32,11 @@ export async function GET(request: Request) {
               t.id,
               t.checkOutAt,
               t.checkInAt,
-              t.driverName,
-              t.driverEmail,
-              t.secondDriverName,
-              t.secondDriverEmail,
+              t.driverId,
+              u.name  AS driverName,
+              u.email AS driverEmail,
+              u2.name  AS secondDriverName,
+              u2.email AS secondDriverEmail,
               v.name  AS vehicleName,
               v.plate AS vehiclePlate,
               t.missionType,
@@ -56,6 +57,8 @@ export async function GET(request: Request) {
               t.commentsIn
             FROM Trip t
             JOIN Vehicle v ON v.id = t.vehicleId
+            JOIN "User" u ON u.id = t.driverId
+            LEFT JOIN "User" u2 ON u2.id = t.secondDriverId
             WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?
             ORDER BY t.checkOutAt DESC`,
       args: [dateFrom, dateTo],

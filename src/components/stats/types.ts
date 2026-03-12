@@ -9,6 +9,7 @@ export interface StatsData {
     avgFuelConsumption: number;
   };
   byDriver: Array<{
+    driverId: string;
     driverName: string;
     driverEmail: string;
     tripCount: number;

@@ -44,9 +44,18 @@ export async function GET(
 
         const row = vehicleResult.rows[0];
 
-        // Fetch trips using the actual vehicle UUID
+        // Fetch trips using the actual vehicle UUID — JOIN User to get display name/email
         const tripsResult = await db.execute({
-            sql: `SELECT * FROM Trip WHERE vehicleId = ? ORDER BY checkOutAt DESC LIMIT 20`,
+            sql: `SELECT t.*,
+                         u.name  AS driverName,
+                         u.email AS driverEmail,
+                         u2.name  AS secondDriverName,
+                         u2.email AS secondDriverEmail
+                  FROM Trip t
+                  JOIN "User" u ON u.id = t.driverId
+                  LEFT JOIN "User" u2 ON u2.id = t.secondDriverId
+                  WHERE t.vehicleId = ?
+                  ORDER BY t.checkOutAt DESC LIMIT 20`,
             args: [row.id]
         });
 
@@ -68,8 +77,10 @@ export async function GET(
             trips: tripsResult.rows.map((tRow: any) => ({
                 id: tRow.id,
                 vehicleId: tRow.vehicleId,
-                driverName: tRow.driverName,
-                driverEmail: tRow.driverEmail,
+                driverId: tRow.driverId,
+                secondDriverId: tRow.secondDriverId || null,
+                driverName: tRow.driverName || null,
+                driverEmail: tRow.driverEmail || null,
                 secondDriverName: tRow.secondDriverName || null,
                 secondDriverEmail: tRow.secondDriverEmail || null,
                 missionType: tRow.missionType,

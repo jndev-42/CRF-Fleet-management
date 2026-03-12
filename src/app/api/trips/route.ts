@@ -6,8 +6,6 @@ import { auth } from '@/auth';
 
 const checkOutSchema = z.object({
     vehicleId: z.string().min(1),
-    driverName: z.string().min(1, 'Le nom du chauffeur est requis'),
-    driverEmail: z.string().email().optional().or(z.literal('')),
     missionType: z.string().min(1, 'Le type de mission est requis'),
     missionName: z.string().optional(),
     conditionOut: z.string().min(1, "L'état du véhicule est requis"),
@@ -15,8 +13,7 @@ const checkOutSchema = z.object({
     parkingOut: z.string().optional(),
     dsaChecked: z.boolean(),
     commentsOut: z.string().optional(),
-    secondDriverName: z.string().optional(),
-    secondDriverEmail: z.string().email('Email 2nd conducteur invalide').optional().or(z.literal('')),
+    secondDriverId: z.string().optional().nullable(),
     driveFolderId: z.string().optional(),
     checklistOut: z.record(z.string(), z.boolean()).optional(),
     dataIncorrect: z.boolean().optional(),
@@ -105,6 +102,8 @@ export async function POST(request: Request) {
             if (data.correctedFuel !== undefined) fuelOut = data.correctedFuel;
         }
 
+        const driverId = session.user.id;
+
         // Créer le trip et mettre à jour le véhicule en transaction
         const tx = await db.transaction('write');
         const tripId = crypto.randomUUID();
@@ -113,15 +112,15 @@ export async function POST(request: Request) {
         try {
             await tx.execute({
                 sql: `INSERT INTO Trip (
-                        id, vehicleId, driverName, driverEmail, missionType, missionName,
+                        id, vehicleId, driverId, secondDriverId, missionType, missionName,
                         checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut,
-                        secondDriverName, secondDriverEmail, driveFolderId, checklistOut, createdAt
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        driveFolderId, checklistOut, createdAt
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     tripId,
                     data.vehicleId,
-                    data.driverName,
-                    data.driverEmail || null,
+                    driverId,
+                    data.secondDriverId || null,
                     data.missionType,
                     data.missionName || null,
                     timestamp, // checkOutAt
@@ -132,8 +131,6 @@ export async function POST(request: Request) {
                     data.parkingOut || (vehicle.parkingSpot as string) || null,
                     data.dsaChecked ? 1 : 0,
                     data.commentsOut || null,
-                    data.secondDriverName || null,
-                    data.secondDriverEmail || null,
                     data.driveFolderId || null,
                     data.checklistOut ? JSON.stringify(data.checklistOut) : null,
                     timestamp // createdAt
@@ -146,10 +143,10 @@ export async function POST(request: Request) {
             });
 
             // Auto-delete active reservation for this user if they are taking the vehicle they reserved
-            if (data.driverEmail) {
+            if (session.user.email) {
                 await tx.execute({
                     sql: `DELETE FROM "Reservation" WHERE vehicleId = ? AND userEmail = ? AND startTime <= ? AND endTime >= ?`,
-                    args: [data.vehicleId, data.driverEmail, timestamp, timestamp]
+                    args: [data.vehicleId, session.user.email, timestamp, timestamp]
                 });
             }
 
@@ -161,6 +158,7 @@ export async function POST(request: Request) {
                     const { sendPushNotification } = await import('@/lib/onesignal');
                     const vName = vehicle.name || 'Véhicule inconnu';
                     const fuelLabel = vehicle.fuelType === 'Électrique' ? 'Batterie' : 'Carburant';
+                    const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
 
                     await sendPushNotification({
                         tags: [
@@ -170,8 +168,8 @@ export async function POST(request: Request) {
                         ],
                         headings: { fr: `⚠️ Données incorrectes — ${vName}`, en: `⚠️ Incorrect data — ${vName}` },
                         contents: {
-                            fr: `${data.driverName} a signalé des données incorrectes sur ${vName}. Km : ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel} : ${originalFuel}% → ${fuelOut}%.`,
-                            en: `${data.driverName} reported incorrect data on ${vName}. Mileage: ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel}: ${originalFuel}% → ${fuelOut}%.`,
+                            fr: `${driverDisplayName} a signalé des données incorrectes sur ${vName}. Km : ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel} : ${originalFuel}% → ${fuelOut}%.`,
+                            en: `${driverDisplayName} reported incorrect data on ${vName}. Mileage: ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel}: ${originalFuel}% → ${fuelOut}%.`,
                         },
                         url: `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(String(vName))}`,
                     });
@@ -185,13 +183,14 @@ export async function POST(request: Request) {
                 try {
                     const { sendPushNotification } = await import('@/lib/onesignal');
                     const vName = vehicle.name || 'Véhicule inconnu';
+                    const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
 
                     await sendPushNotification({
                         tags: [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }],
                         headings: { en: `🚨 Incident signalé à la prise de ${vName}`, fr: `🚨 Incident signalé à la prise de ${vName}` },
                         contents: {
-                            en: `${data.driverName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,
-                            fr: `${data.driverName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`
+                            en: `${driverDisplayName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,
+                            fr: `${driverDisplayName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`
                         },
                         url: `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(String(vName))}`
                     });
@@ -203,8 +202,9 @@ export async function POST(request: Request) {
             const trip = {
                 id: tripId,
                 vehicleId: data.vehicleId,
-                driverName: data.driverName,
-                driverEmail: data.driverEmail || null,
+                driverId,
+                driverName: session.user.name || null,
+                driverEmail: session.user.email || null,
                 missionType: data.missionType,
                 missionName: data.missionName || null,
                 checkOutAt: timestamp,
@@ -214,8 +214,7 @@ export async function POST(request: Request) {
                 parkingOut: data.parkingOut || vehicle.parkingSpot,
                 dsaChecked: data.dsaChecked,
                 commentsOut: data.commentsOut || null,
-                secondDriverName: data.secondDriverName || null,
-                secondDriverEmail: data.secondDriverEmail || null,
+                secondDriverId: data.secondDriverId || null,
                 driveFolderId: data.driveFolderId || null,
                 checklistOut: data.checklistOut || null,
                 createdAt: timestamp,

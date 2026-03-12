@@ -24,12 +24,14 @@ export async function GET() {
         }
 
         const result = await db.execute(`
-            SELECT 
+            SELECT
                 v.*,
-                t.id as trip_id, t.driverName as trip_driverName, t.secondDriverName as trip_secondDriverName, t.missionType as trip_missionType,
+                t.id as trip_id, u.name as trip_driverName, u2.name as trip_secondDriverName, t.missionType as trip_missionType,
                 t.checkOutAt as trip_checkOutAt
             FROM Vehicle v
             LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
+            LEFT JOIN User u ON u.id = t.driverId
+            LEFT JOIN User u2 ON u2.id = t.secondDriverId
             ORDER BY v.name ASC
         `);
 

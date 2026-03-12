@@ -52,16 +52,16 @@ export async function PATCH(
 
         // --- ENFORCE RETURN AUTHORIZATION ---
         const session = await auth();
-        const userEmail = session?.user?.email;
+        const userId = session?.user?.id;
         const userRoles = session?.user?.roles || [];
 
-        if (!userEmail) {
+        if (!userId) {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
         const isAdmin = userRoles.includes('ADMIN');
-        const isFirstDriver = userEmail === trip.driverEmail;
-        const isSecondDriver = userEmail === trip.secondDriverEmail;
+        const isFirstDriver = userId === trip.driverId;
+        const isSecondDriver = userId === trip.secondDriverId;
 
         if (!isAdmin && !isFirstDriver && !isSecondDriver) {
             return NextResponse.json(

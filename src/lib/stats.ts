@@ -11,6 +11,7 @@ export interface StatsDataResult {
     avgFuelConsumption: number;
   };
   byDriver: Array<{
+    driverId: string;
     driverName: string;
     driverEmail: string;
     tripCount: number;
@@ -60,13 +61,14 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
 
   // By driver
   const driverResult = await db.execute({
-    sql: `SELECT driverName, driverEmail,
+    sql: `SELECT t.driverId, u.name AS driverName, u.email AS driverEmail,
       COUNT(*) as tripCount,
-      COALESCE(SUM(CASE WHEN mileageIn IS NOT NULL THEN mileageIn - mileageOut ELSE 0 END), 0) as totalKm,
-      COUNT(CASE WHEN incident != '' AND incident IS NOT NULL THEN 1 END) as incidents
-    FROM Trip
-    WHERE DATE(checkOutAt) >= ? AND DATE(checkOutAt) <= ?
-    GROUP BY driverEmail, driverName
+      COALESCE(SUM(CASE WHEN t.mileageIn IS NOT NULL THEN t.mileageIn - t.mileageOut ELSE 0 END), 0) as totalKm,
+      COUNT(CASE WHEN t.incident != '' AND t.incident IS NOT NULL THEN 1 END) as incidents
+    FROM Trip t
+    JOIN "User" u ON u.id = t.driverId
+    WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?
+    GROUP BY t.driverId, u.name, u.email
     ORDER BY tripCount DESC`,
     args: [dateFrom, dateTo],
   });
@@ -110,10 +112,11 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
 
   // Cross-query for driver-vehicle breakdown
   const crossResult = await db.execute({
-    sql: `SELECT driverEmail, driverName, vehicleId, COUNT(*) as cnt
-    FROM Trip
-    WHERE DATE(checkOutAt) >= ? AND DATE(checkOutAt) <= ?
-    GROUP BY vehicleId, driverEmail`,
+    sql: `SELECT t.driverId, u.email AS driverEmail, u.name AS driverName, t.vehicleId, COUNT(*) as cnt
+    FROM Trip t
+    JOIN "User" u ON u.id = t.driverId
+    WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?
+    GROUP BY t.vehicleId, t.driverId`,
     args: [dateFrom, dateTo],
   });
 
@@ -129,7 +132,7 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
     vehicleNameMap[String(r.vehicleId)] = String(r.vehicleName);
   });
 
-  // Build per-driver vehicle breakdown
+  // Build per-driver vehicle breakdown (keyed by driverId)
   const driverVehicleMap: Record<string, Array<{
     vehicleId: string;
     vehicleName: string;
@@ -137,12 +140,12 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
     percentOfVehicleTotal: number;
   }>> = {};
   crossResult.rows.forEach((r) => {
-    const email = String(r.driverEmail);
+    const driverId = String(r.driverId);
     const vehicleId = String(r.vehicleId);
     const cnt = Number(r.cnt);
     const vehicleTotal = vehicleTripCounts[vehicleId] ?? 1;
-    if (!driverVehicleMap[email]) driverVehicleMap[email] = [];
-    driverVehicleMap[email].push({
+    if (!driverVehicleMap[driverId]) driverVehicleMap[driverId] = [];
+    driverVehicleMap[driverId].push({
       vehicleId,
       vehicleName: vehicleNameMap[vehicleId] ?? vehicleId,
       tripCount: cnt,
@@ -153,15 +156,16 @@ export async function fetchStatsData(dateFrom: string, dateTo: string): Promise<
   const byDriver = driverResult.rows.map((r) => {
     const driverTripCount = Number(r.tripCount);
     const driverKm = Number(r.totalKm ?? 0);
-    const email = String(r.driverEmail);
+    const driverId = String(r.driverId);
     return {
+      driverId,
       driverName: String(r.driverName),
-      driverEmail: email,
+      driverEmail: String(r.driverEmail),
       tripCount: driverTripCount,
       totalKm: driverKm,
       percentOfTotal: totalTrips > 0 ? Math.round((driverTripCount / totalTrips) * 100) : 0,
       incidents: Number(r.incidents ?? 0),
-      byVehicle: driverVehicleMap[email] ?? [],
+      byVehicle: driverVehicleMap[driverId] ?? [],
     };
   });
 

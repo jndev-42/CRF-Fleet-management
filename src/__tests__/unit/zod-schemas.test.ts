@@ -16,8 +16,6 @@ import { z } from 'zod';
 // Copie du checkOutSchema depuis src/app/api/trips/route.ts
 const checkOutSchema = z.object({
   vehicleId: z.string().min(1),
-  driverName: z.string().min(1, 'Le nom du chauffeur est requis'),
-  driverEmail: z.string().email().optional().or(z.literal('')),
   missionType: z.string().min(1, 'Le type de mission est requis'),
   missionName: z.string().optional(),
   conditionOut: z.string().min(1, "L'état du véhicule est requis"),
@@ -25,8 +23,7 @@ const checkOutSchema = z.object({
   parkingOut: z.string().optional(),
   dsaChecked: z.boolean(),
   commentsOut: z.string().optional(),
-  secondDriverName: z.string().optional(),
-  secondDriverEmail: z.string().email('Email 2nd conducteur invalide').optional().or(z.literal('')),
+  secondDriverId: z.string().optional().nullable(),
   driveFolderId: z.string().optional(),
   checklistOut: z.record(z.string(), z.boolean()).optional(),
   dataIncorrect: z.boolean().optional(),
@@ -50,8 +47,6 @@ const checkInSchema = z.object({
 
 const validCheckOut = {
   vehicleId: 'VL001',
-  driverName: 'Test Driver',
-  driverEmail: 'driver@test.com',
   missionType: 'LOGISTIQUE',
   conditionOut: 'BON',
   dsaChecked: false,
@@ -98,14 +93,14 @@ describe('checkOutSchema', () => {
     }
   });
 
-  it('accepts empty string for optional email fields', () => {
-    const result = checkOutSchema.safeParse({ ...validCheckOut, driverEmail: '' });
+  it('accepts optional secondDriverId', () => {
+    const result = checkOutSchema.safeParse({ ...validCheckOut, secondDriverId: 'some-user-id' });
     expect(result.success).toBe(true);
   });
 
-  it('rejects invalid email format', () => {
-    const result = checkOutSchema.safeParse({ ...validCheckOut, driverEmail: 'not-an-email' });
-    expect(result.success).toBe(false);
+  it('accepts null secondDriverId', () => {
+    const result = checkOutSchema.safeParse({ ...validCheckOut, secondDriverId: null });
+    expect(result.success).toBe(true);
   });
 
   it('rejects correctedFuel above 100', () => {

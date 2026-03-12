@@ -21,6 +21,7 @@ type ByDriver = StatsData['byDriver'];
 function makeByDriver(name: string, pct: number, tripCount: number): ByDriver {
   return [
     {
+      driverId: `${name.toLowerCase().replace(' ', '-')}-id`,
       driverName: name,
       driverEmail: `${name.toLowerCase().replace(' ', '.')}@test.com`,
       tripCount,
@@ -83,6 +84,7 @@ describe('FunFactor component', () => {
   it('renders multiple fun facts sorted by pct descending', () => {
     const byDriver: ByDriver = [
       {
+        driverId: 'alice-id',
         driverName: 'Alice Martin',
         driverEmail: 'alice@test.com',
         tripCount: 5,
@@ -93,6 +95,7 @@ describe('FunFactor component', () => {
         byVehicle: [{ vehicleId: 'VL001', vehicleName: 'VL186', tripCount: 5, percentOfVehicleTotal: 75 }],
       },
       {
+        driverId: 'bob-id',
         driverName: 'Bob Dupont',
         driverEmail: 'bob@test.com',
         tripCount: 8,

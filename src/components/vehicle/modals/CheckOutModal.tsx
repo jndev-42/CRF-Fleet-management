@@ -20,9 +20,10 @@ interface CheckOutModalProps {
  */
 export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }: CheckOutModalProps) {
     const [form, setForm] = useState({
+        // driverName and driverEmail are display-only; the API resolves the driver from session server-side
         driverName: '',
         driverEmail: '',
-        secondDriverEmail: '',
+        secondDriverId: '',
         missionType: 'DPS',
         missionName: '',
         conditionOut: 'Bon état',
@@ -40,7 +41,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
     const [submitting, setSubmitting] = useState(false);
     const [sessionLoading, setSessionLoading] = useState(true);
-    const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
+    const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
     const [photos, setPhotos] = useState<File[]>([]);
 
     useEffect(() => {
@@ -96,12 +97,6 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         e.preventDefault();
         setSubmitting(true);
 
-        let secondDriverName = '';
-        if (form.secondDriverEmail) {
-            const match = users.find(u => u.email === form.secondDriverEmail);
-            secondDriverName = match?.name || form.secondDriverEmail;
-        }
-
         try {
             let driveFolderId: string | undefined = undefined;
             if (photos.length > 0) {
@@ -146,10 +141,14 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     vehicleId: vehicle.id,
-                    ...form,
+                    missionType: form.missionType,
+                    missionName: form.missionName || undefined,
+                    conditionOut: form.conditionOut,
+                    cleanlinessOut: form.cleanlinessOut,
+                    parkingOut: form.parkingOut || undefined,
+                    commentsOut: form.commentsOut || undefined,
                     dsaChecked: isDsaChecked,
-                    secondDriverName: secondDriverName || undefined,
-                    secondDriverEmail: form.secondDriverEmail || undefined,
+                    secondDriverId: form.secondDriverId || undefined,
                     driveFolderId,
                     checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
                     dataIncorrect: dataIncorrect || undefined,
@@ -301,19 +300,17 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         {/* 2nd Conducteur */}
                         <div className="form-group" style={{ marginBottom: 16 }}>
                             <label className="form-label" htmlFor="checkout-second-driver">2ème Conducteur (Optionnel)</label>
-                            <input
+                            <select
                                 id="checkout-second-driver"
-                                className="form-input"
-                                list="users-list"
-                                placeholder="Rechercher par adresse email..."
-                                value={form.secondDriverEmail}
-                                onChange={(e) => setForm({ ...form, secondDriverEmail: e.target.value })}
-                            />
-                            <datalist id="users-list">
+                                className="form-select"
+                                value={form.secondDriverId}
+                                onChange={(e) => setForm({ ...form, secondDriverId: e.target.value })}
+                            >
+                                <option value="">— Aucun —</option>
                                 {users.map(u => (
-                                    <option key={u.email} value={u.email}>{u.name || u.email}</option>
+                                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
                                 ))}
-                            </datalist>
+                            </select>
                         </div>
 
                         {/* Mission */}

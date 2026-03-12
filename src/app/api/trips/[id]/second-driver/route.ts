@@ -4,8 +4,7 @@ import { auth } from '@/auth';
 import { z } from 'zod';
 
 const updateSecondDriverSchema = z.object({
-    secondDriverName: z.string().min(1, 'Le nom du 2ème conducteur est requis'),
-    secondDriverEmail: z.string().email().optional().or(z.literal('')),
+    secondDriverId: z.string().min(1, 'L\'identifiant du 2ème conducteur est requis'),
 });
 
 export async function PATCH(
@@ -14,7 +13,7 @@ export async function PATCH(
 ) {
     try {
         const session = await auth();
-        if (!session?.user?.email) {
+        if (!session?.user?.id) {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
@@ -24,7 +23,7 @@ export async function PATCH(
 
         // Verify if user is admin or is the primary driver for this trip
         const tripRes = await db.execute({
-            sql: `SELECT driverEmail FROM Trip WHERE id = ?`,
+            sql: `SELECT driverId FROM Trip WHERE id = ?`,
             args: [id]
         });
 
@@ -33,19 +32,24 @@ export async function PATCH(
         }
 
         const isAdmin = session.user.roles?.includes('ADMIN');
-        const isPrimaryDriver = session.user.email === tripRes.rows[0].driverEmail;
+        const isPrimaryDriver = session.user.id === tripRes.rows[0].driverId;
 
         if (!isAdmin && !isPrimaryDriver) {
             return NextResponse.json({ error: 'Non autorisé à modifier ce trajet' }, { status: 403 });
         }
 
+        // Verify the secondDriver user exists
+        const userRes = await db.execute({
+            sql: `SELECT id FROM "User" WHERE id = ?`,
+            args: [data.secondDriverId]
+        });
+        if (userRes.rows.length === 0) {
+            return NextResponse.json({ error: 'Utilisateur 2ème conducteur introuvable' }, { status: 404 });
+        }
+
         await db.execute({
-            sql: `UPDATE Trip SET secondDriverName = ?, secondDriverEmail = ? WHERE id = ?`,
-            args: [
-                data.secondDriverName,
-                data.secondDriverEmail || null,
-                id
-            ]
+            sql: `UPDATE Trip SET secondDriverId = ? WHERE id = ?`,
+            args: [data.secondDriverId, id]
         });
 
         return NextResponse.json({ success: true });

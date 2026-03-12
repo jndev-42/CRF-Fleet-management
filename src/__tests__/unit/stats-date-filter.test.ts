@@ -7,13 +7,14 @@
  * is compared.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { db, seedVehicle, seedTrip } from '../setup';
+import { db, seedVehicle, seedTrip, seedUser } from '../setup';
 
 const TRIP_DATE = '2026-03-09';
 const TRIP_TIMESTAMP = '2026-03-09T23:59:00.000Z';
 
 describe('stats DATE() regression', () => {
   beforeEach(async () => {
+    await seedUser({ id: 'user-1', email: 'driver@test.com', name: 'Test Driver' });
     await seedVehicle();
     await seedTrip({ checkOutAt: TRIP_TIMESTAMP });
   });

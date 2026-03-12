@@ -35,7 +35,7 @@ vi.mock('@/lib/onesignal', () => ({
 
 import { PATCH } from '@/app/api/trips/[id]/checkin/route';
 import { auth } from '@/auth';
-import { db, seedVehicle, seedTrip } from './setup';
+import { db, seedVehicle, seedTrip, seedUser } from './setup';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -69,7 +69,7 @@ describe('PATCH /api/trips/[id]/checkin', () => {
     // donc on a besoin d'une session valide pour atteindre ce code
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'driver@test.com', roles: ['CHVL'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
     });
 
     const [req, ctx] = makeRequest('nonexistent-trip', validCheckInBody);
@@ -83,12 +83,13 @@ describe('PATCH /api/trips/[id]/checkin', () => {
   it('returns 400 when trip is already checked in', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'driver@test.com', roles: ['CHVL'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
     });
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
     await seedVehicle();
     await seedTrip({
       id: 'trip-1',
-      driverEmail: 'driver@test.com',
+      driverId: 'user-driver',
       checkInAt: new Date(Date.now() - 3600000).toISOString(),
     });
 
@@ -103,8 +104,9 @@ describe('PATCH /api/trips/[id]/checkin', () => {
   it('returns 401 when not authenticated', async () => {
     // @ts-expect-error — auth returns null in test
     mockedAuth.mockResolvedValue(null);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
     await seedVehicle();
-    await seedTrip({ id: 'trip-1', driverEmail: 'driver@test.com' });
+    await seedTrip({ id: 'trip-1', driverId: 'user-driver' });
 
     const [req, ctx] = makeRequest('trip-1', validCheckInBody);
     const response = await PATCH(req, ctx);
@@ -114,13 +116,14 @@ describe('PATCH /api/trips/[id]/checkin', () => {
   it('returns 403 when a different user tries to checkin', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'other@test.com', roles: ['CHVL'] },
+      user: { id: 'other-user', email: 'other@test.com', roles: ['CHVL'] },
     });
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
     await seedVehicle();
     await seedTrip({
       id: 'trip-1',
-      driverEmail: 'driver@test.com',
-      secondDriverEmail: null,
+      driverId: 'user-driver',
+      secondDriverId: null,
     });
 
     const [req, ctx] = makeRequest('trip-1', validCheckInBody);
@@ -133,13 +136,14 @@ describe('PATCH /api/trips/[id]/checkin', () => {
     // (vehicle.status → AVAILABLE, mileage et fuelLevel mis à jour)
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'driver@test.com', roles: ['CHVL'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
     });
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
     await seedVehicle({ id: 'VL001', status: 'IN_USE', mileage: 10000, fuelLevel: 75 });
     await seedTrip({
       id: 'trip-1',
       vehicleId: 'VL001',
-      driverEmail: 'driver@test.com',
+      driverId: 'user-driver',
       checkInAt: null,
     });
 
@@ -165,14 +169,16 @@ describe('PATCH /api/trips/[id]/checkin', () => {
   it('returns 200 when second driver performs the checkin', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'second@test.com', roles: ['CHVL'] },
+      user: { id: 'user-second', email: 'second@test.com', roles: ['CHVL'] },
     });
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedUser({ id: 'user-second', email: 'second@test.com' });
     await seedVehicle({ id: 'VL001', status: 'IN_USE' });
     await seedTrip({
       id: 'trip-1',
       vehicleId: 'VL001',
-      driverEmail: 'driver@test.com',
-      secondDriverEmail: 'second@test.com',
+      driverId: 'user-driver',
+      secondDriverId: 'user-second',
       checkInAt: null,
     });
 
@@ -184,13 +190,14 @@ describe('PATCH /api/trips/[id]/checkin', () => {
   it("returns 200 when ADMIN performs the checkin for someone else's trip", async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'admin@test.com', roles: ['ADMIN'] },
+      user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'] },
     });
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
     await seedVehicle({ id: 'VL001', status: 'IN_USE' });
     await seedTrip({
       id: 'trip-1',
       vehicleId: 'VL001',
-      driverEmail: 'driver@test.com',
+      driverId: 'user-driver',
       checkInAt: null,
     });
 

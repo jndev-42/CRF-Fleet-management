@@ -81,30 +81,28 @@ async function main() {
 
     await db.execute(`
         CREATE TABLE IF NOT EXISTS "Trip" (
-            "id"                TEXT NOT NULL PRIMARY KEY,
-            "vehicleId"         TEXT NOT NULL,
-            "driverName"        TEXT NOT NULL,
-            "driverEmail"       TEXT NOT NULL,
-            "missionType"       TEXT,
-            "missionName"       TEXT,
-            "checkOutAt"        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            "checkInAt"         DATETIME,
-            "mileageOut"        INTEGER,
-            "mileageIn"         INTEGER,
-            "fuelOut"           INTEGER,
-            "fuelIn"            INTEGER,
-            "conditionOut"      TEXT,
-            "conditionIn"       TEXT,
-            "cleanlinessOut"    TEXT,
-            "cleanlinessIn"     TEXT,
-            "parkingOut"        TEXT,
-            "parkingIn"         TEXT,
-            "dsaChecked"        INTEGER DEFAULT 0,
-            "incident"          TEXT,
-            "commentsOut"       TEXT,
-            "commentsIn"        TEXT,
-            "secondDriverName"  TEXT,
-            "secondDriverEmail" TEXT,
+            "id"                     TEXT NOT NULL PRIMARY KEY,
+            "vehicleId"              TEXT NOT NULL,
+            "driverId"               TEXT REFERENCES "User" ("id"),
+            "secondDriverId"         TEXT REFERENCES "User" ("id"),
+            "missionType"            TEXT,
+            "missionName"            TEXT,
+            "checkOutAt"             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "checkInAt"              DATETIME,
+            "mileageOut"             INTEGER,
+            "mileageIn"              INTEGER,
+            "fuelOut"                INTEGER,
+            "fuelIn"                 INTEGER,
+            "conditionOut"           TEXT,
+            "conditionIn"            TEXT,
+            "cleanlinessOut"         TEXT,
+            "cleanlinessIn"          TEXT,
+            "parkingOut"             TEXT,
+            "parkingIn"              TEXT,
+            "dsaChecked"             INTEGER DEFAULT 0,
+            "incident"               TEXT,
+            "commentsOut"            TEXT,
+            "commentsIn"             TEXT,
             "checklistOut"           TEXT,
             "checklistIn"            TEXT,
             "driveFolderId"          TEXT,
@@ -126,6 +124,8 @@ async function main() {
         ['parkingPhoto',           'TEXT'],
         ['renaultDataValidated',   'INTEGER DEFAULT NULL'],
         ['renaultLastCheckedAt',   'TEXT DEFAULT NULL'],
+        ['driverId',               'TEXT REFERENCES "User" ("id")'],
+        ['secondDriverId',         'TEXT REFERENCES "User" ("id")'],
     ];
     for (const [col, def] of migrations) {
         if (!existingCols.has(col)) {
@@ -134,14 +134,28 @@ async function main() {
         }
     }
 
-    // Drop unused Trip columns
-    const unusedCols = ['windowsClosed', 'vehicleInspected', 'dsaUsed'];
-    for (const col of unusedCols) {
+    // Backfill driverId / secondDriverId from email for existing rows (only if old columns still exist)
+    if (existingCols.has('driverEmail')) {
+        await db.execute({
+            sql: `UPDATE "Trip" SET driverId = (SELECT id FROM "User" WHERE email = Trip.driverEmail) WHERE driverId IS NULL AND driverEmail IS NOT NULL`,
+            args: [],
+        });
+    }
+    if (existingCols.has('secondDriverEmail')) {
+        await db.execute({
+            sql: `UPDATE "Trip" SET secondDriverId = (SELECT id FROM "User" WHERE email = Trip.secondDriverEmail) WHERE secondDriverId IS NULL AND secondDriverEmail IS NOT NULL`,
+            args: [],
+        });
+    }
+
+    // Drop old denormalized driver columns if they exist
+    const dropCols = ['driverName', 'driverEmail', 'secondDriverName', 'secondDriverEmail', 'windowsClosed', 'vehicleInspected', 'dsaUsed'];
+    for (const col of dropCols) {
         const colInfo = await db.execute({ sql: `PRAGMA table_info(Trip)`, args: [] });
         const colExists = colInfo.rows.some(r => r.name === col);
         if (colExists) {
             await db.execute({ sql: `ALTER TABLE "Trip" DROP COLUMN "${col}"`, args: [] });
-            console.log(`Dropped column Trip.${col}`);
+            console.log(`  ↳ Migration : colonne Trip.${col} supprimée`);
         }
     }
 
@@ -298,13 +312,26 @@ async function main() {
             mileage: r.mileage as number,
         }));
 
-        const drivers = [
+        // Seed demo drivers as User rows (idempotent)
+        const driverDefs = [
             { name: 'Marc Dupont', email: 'marc.dupont@dev.local' },
             { name: 'Sandrine Martin', email: 'sandrine.martin@dev.local' },
             { name: 'Luc Bernard', email: 'luc.bernard@dev.local' },
             { name: 'Amélie Petit', email: 'amelie.petit@dev.local' },
             { name: 'Clément Leroy', email: 'clement.leroy@dev.local' },
         ];
+        const driverIds: string[] = [];
+        for (const d of driverDefs) {
+            const existing = await db.execute({ sql: `SELECT id FROM "User" WHERE email = ?`, args: [d.email] });
+            if (existing.rows.length > 0) {
+                driverIds.push(existing.rows[0].id as string);
+            } else {
+                const uid = crypto.randomUUID();
+                await db.execute({ sql: `INSERT INTO "User" (id, email, name) VALUES (?, ?, ?)`, args: [uid, d.email, d.name] });
+                driverIds.push(uid);
+            }
+        }
+
         const missionTypes = ['Opération', 'Formation', 'Logistique', 'Autre'];
 
         // Track mileage per vehicle
@@ -350,7 +377,7 @@ async function main() {
         for (let i = 0; i < tripsList.length; i++) {
             const { vehicleIdx, driverIdx } = tripsList[i];
             const vehicle = vehicleList[vehicleIdx % vehicleList.length];
-            const driver = drivers[driverIdx];
+            const driverId = driverIds[driverIdx];
             const missionType = missionTypes[Math.floor(Math.random() * missionTypes.length)];
 
             // Spread trips over last 60 days
@@ -374,18 +401,17 @@ async function main() {
 
             await db.execute({
                 sql: `INSERT INTO "Trip" (
-                    id, vehicleId, driverName, driverEmail, missionType,
+                    id, vehicleId, driverId, missionType,
                     checkOutAt, checkInAt,
                     mileageOut, mileageIn,
                     fuelOut, fuelIn,
                     conditionOut, conditionIn,
                     incident, createdAt
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
                 args: [
                     crypto.randomUUID(),
                     vehicle.id,
-                    driver.name,
-                    driver.email,
+                    driverId,
                     missionType,
                     checkOutAt.toISOString(),
                     isActive ? null : checkInAt.toISOString(),

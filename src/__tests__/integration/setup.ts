@@ -35,11 +35,18 @@ async function createTables() {
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  await db.execute(`CREATE TABLE IF NOT EXISTS "User" (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    name TEXT,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "Trip" (
     id TEXT PRIMARY KEY,
     vehicleId TEXT NOT NULL,
-    driverName TEXT NOT NULL,
-    driverEmail TEXT NOT NULL,
+    driverId TEXT REFERENCES "User"(id),
+    secondDriverId TEXT REFERENCES "User"(id),
     missionType TEXT,
     missionName TEXT,
     checkOutAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -58,8 +65,6 @@ async function createTables() {
     incident TEXT,
     commentsOut TEXT,
     commentsIn TEXT,
-    secondDriverName TEXT,
-    secondDriverEmail TEXT,
     checklistOut TEXT,
     checklistIn TEXT,
     driveFolderId TEXT,
@@ -88,6 +93,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "Trip"`);
   await db.execute(`DELETE FROM "Reservation"`);
   await db.execute(`DELETE FROM "Vehicle"`);
+  await db.execute(`DELETE FROM "User"`);
 }
 
 // Create tables once on first import
@@ -142,11 +148,28 @@ export async function seedVehicle(overrides: Partial<{
   return v;
 }
 
+export async function seedUser(overrides: Partial<{
+  id: string;
+  email: string;
+  name: string;
+}> = {}) {
+  const u = {
+    id: 'user-driver',
+    email: 'driver@test.com',
+    name: 'Test Driver',
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO "User" (id, email, name) VALUES (?,?,?)`,
+    args: [u.id, u.email, u.name],
+  });
+  return u;
+}
+
 export async function seedTrip(overrides: Partial<{
   id: string;
   vehicleId: string;
-  driverName: string;
-  driverEmail: string;
+  driverId: string;
   missionType: string;
   checkOutAt: string;
   conditionOut: string;
@@ -154,15 +177,14 @@ export async function seedTrip(overrides: Partial<{
   fuelOut: number;
   checkInAt: string | null;
   conditionIn: string | null;
-  secondDriverEmail: string | null;
+  secondDriverId: string | null;
   mileageIn: number | null;
   fuelIn: number | null;
 }> = {}) {
   const t = {
     id: 'trip-1',
     vehicleId: 'VL001',
-    driverName: 'Test Driver',
-    driverEmail: 'driver@test.com',
+    driverId: 'user-driver',
     missionType: 'LOGISTIQUE',
     checkOutAt: new Date().toISOString(),
     conditionOut: 'BON',
@@ -170,21 +192,21 @@ export async function seedTrip(overrides: Partial<{
     fuelOut: 75,
     checkInAt: null,
     conditionIn: null,
-    secondDriverEmail: null,
+    secondDriverId: null,
     mileageIn: null,
     fuelIn: null,
     ...overrides,
   };
   await db.execute({
     sql: `INSERT INTO "Trip" (
-            id, vehicleId, driverName, driverEmail, missionType,
+            id, vehicleId, driverId, missionType,
             checkOutAt, conditionOut, mileageOut, fuelOut,
-            checkInAt, conditionIn, mileageIn, fuelIn, secondDriverEmail
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            checkInAt, conditionIn, mileageIn, fuelIn, secondDriverId
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     args: [
-      t.id, t.vehicleId, t.driverName, t.driverEmail, t.missionType,
+      t.id, t.vehicleId, t.driverId, t.missionType,
       t.checkOutAt, t.conditionOut, t.mileageOut, t.fuelOut,
-      t.checkInAt, t.conditionIn, t.mileageIn, t.fuelIn, t.secondDriverEmail,
+      t.checkInAt, t.conditionIn, t.mileageIn, t.fuelIn, t.secondDriverId,
     ],
   });
   return t;

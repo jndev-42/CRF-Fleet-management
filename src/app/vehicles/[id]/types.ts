@@ -1,7 +1,15 @@
 export interface Trip {
     id: string;
-    driverName: string;
+    /** FK to User.id — the primary driver */
+    driverId: string;
+    /** FK to User.id — optional second driver */
+    secondDriverId: string | null;
+    /** Computed from JOIN User — present in API responses */
+    driverName: string | null;
     driverEmail: string | null;
+    /** Computed from JOIN User — present in API responses */
+    secondDriverName: string | null;
+    secondDriverEmail: string | null;
     missionType: string;
     missionName: string | null;
     checkOutAt: string;
@@ -19,8 +27,6 @@ export interface Trip {
     dsaChecked: boolean;
     commentsOut: string | null;
     commentsIn: string | null;
-    secondDriverName: string | null;
-    secondDriverEmail: string | null;
     incident: string | null;
     parkingPhoto: string | null;
     driveFolderId: string | null;

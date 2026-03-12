@@ -41,7 +41,7 @@ vi.mock('@/lib/onesignal', () => ({
 
 import { POST } from '@/app/api/trips/route';
 import { auth } from '@/auth';
-import { db, seedVehicle } from './setup';
+import { db, seedVehicle, seedUser } from './setup';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -56,8 +56,6 @@ function makeRequest(body: Record<string, unknown>): Request {
 
 const validCheckOutBody = {
   vehicleId: 'VL001',
-  driverName: 'Test Driver',
-  driverEmail: 'driver@test.com',
   missionType: 'LOGISTIQUE',
   conditionOut: 'BON',
   dsaChecked: false,
@@ -82,7 +80,7 @@ describe('POST /api/trips (checkout)', () => {
   it('returns 403 when user has only GUEST role', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'guest@test.com', roles: ['GUEST'] },
+      user: { id: 'guest-id', email: 'guest@test.com', roles: ['GUEST'] },
     });
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
 
@@ -93,7 +91,7 @@ describe('POST /api/trips (checkout)', () => {
   it('returns 404 when vehicle does not exist', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'driver@test.com', roles: ['CHVL'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
     });
 
     const response = await POST(makeRequest({ ...validCheckOutBody, vehicleId: 'NONEXISTENT' }));
@@ -103,7 +101,7 @@ describe('POST /api/trips (checkout)', () => {
   it('returns 400 when vehicle is not AVAILABLE', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'driver@test.com', roles: ['CHVL'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
     });
     await seedVehicle({ id: 'VL001', status: 'IN_USE' });
 
@@ -117,8 +115,9 @@ describe('POST /api/trips (checkout)', () => {
   it('returns 201 and sets vehicle to IN_USE on successful checkout', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'driver@test.com', roles: ['CHVL'] },
+      user: { id: 'user-driver', email: 'driver@test.com', name: 'Test Driver', roles: ['CHVL'] },
     });
+    await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE', mileage: 10000, fuelLevel: 75 });
 
     const response = await POST(makeRequest(validCheckOutBody));
@@ -126,7 +125,7 @@ describe('POST /api/trips (checkout)', () => {
 
     const trip = await response.json();
     expect(trip.vehicleId).toBe('VL001');
-    expect(trip.driverName).toBe('Test Driver');
+    expect(trip.driverId).toBe('user-driver');
     expect(trip.missionType).toBe('LOGISTIQUE');
     // checkInAt doit être null au checkout — il sera rempli au retour
     expect(trip.checkInAt == null).toBe(true);
@@ -142,7 +141,7 @@ describe('POST /api/trips (checkout)', () => {
   it('returns 400 for invalid Zod body (missing conditionOut)', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'driver@test.com', roles: ['CHVL'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
     });
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
 
@@ -154,8 +153,9 @@ describe('POST /api/trips (checkout)', () => {
   it('allows ADMIN role to checkout any vehicle type', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'admin@test.com', roles: ['ADMIN'] },
+      user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'] },
     });
+    await seedUser({ id: 'admin-id', email: 'admin@test.com', name: 'Admin Test' });
     // Les véhicules VPSP sont normalement réservés aux rôles CHVPSP et ADMIN
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE', type: 'VPSP' });
 
@@ -166,7 +166,7 @@ describe('POST /api/trips (checkout)', () => {
   it('returns 403 when CHVL tries to checkout a VPSP vehicle', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue({
-      user: { email: 'driver@test.com', roles: ['CHVL'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
     });
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE', type: 'VPSP' });
 
