@@ -20,12 +20,47 @@ function getFirstName(fullName: string): string {
   return fullName.trim().split(' ')[0];
 }
 
+function pickByHash<T>(arr: T[], key: string): T {
+  const hash = key.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return arr[hash % arr.length];
+}
+
+const TIER_90 = [
+  { emoji: '🪥', text: (f: string, v: string) => `${f}, t'as laissé une brosse à dents dans le ${v} ?` },
+  { emoji: '🛖', text: (f: string, v: string) => `Le ${v}, c'est devenu ton adresse postale, ${f} ?` },
+  { emoji: '🔐', text: (f: string, v: string) => `${f}, t'as changé le code du ${v} pour être sûr ?` },
+  { emoji: '🏷️', text: (f: string, v: string) => `${f} a mis son nom dessus — le ${v} est pris.` },
+];
+
+const TIER_80 = [
+  { emoji: '🔑', text: (f: string, v: string) => `Apparemment, le ${v} c'est ton VL perso, ${f} !` },
+  { emoji: '🧰', text: (f: string, v: string) => `${f} a rangé ses affaires dans le ${v}, non ?` },
+  { emoji: '🎯', text: (f: string, v: string) => `Le ${v} est ton véhicule attitré, ${f}.` },
+  { emoji: '🚗', text: (f: string, v: string) => `Le ${v} a déjà programmé "maison" dans son GPS, ${f} ?` },
+];
+
+const TIER_75 = [
+  { emoji: '🏠', text: (f: string, v: string) => `Le ${v} est devenu ton bureau mobile, ${f}.` },
+  { emoji: '📦', text: (f: string, v: string) => `${f} utilise le ${v} comme entrepôt personnel.` },
+  { emoji: '🛋️', text: (f: string, v: string) => `Le ${v}, c'est ton deuxième salon, ${f} ?` },
+  { emoji: '☕', text: (f: string, v: string) => `${f}, tu déjeunes dans le ${v} aussi ?` },
+];
+
+const TIER_65 = [
+  { emoji: '🐾', text: (f: string, v: string) => `On dirait que tu as adopté le ${v}, ${f}.` },
+  { emoji: '🤝', text: (f: string, v: string) => `${f} et le ${v} : une relation exclusive.` },
+  { emoji: '👀', text: (f: string, v: string) => `Les autres chauffeurs sont jaloux du ${v}, ${f}.` },
+  { emoji: '🌱', text: (f: string, v: string) => `${f} a apprivoisé le ${v}.` },
+];
+
 function getMessage(pct: number, firstName: string, vehicle: string): { emoji: string; text: string } {
-  if (pct >= 90) return { emoji: '🪥', text: `${firstName}, t'as laissé une brosse à dents dans le ${vehicle} ?` };
-  if (pct >= 80) return { emoji: '🔑', text: `Apparemment, le ${vehicle} c'est ton VL perso, ${firstName} !` };
-  if (pct >= 75) return { emoji: '🏠', text: `Le ${vehicle} est devenu ton bureau mobile, ${firstName}.` };
-  if (pct >= 65) return { emoji: '🐾', text: `On dirait que tu as adopté ce véhicule, ${firstName}.` };
-  return { emoji: '😏', text: `${firstName}, tu commences à prendre tes aises avec le ${vehicle}...` };
+  const key = firstName + vehicle;
+  let pool = TIER_65;
+  if (pct >= 90) pool = TIER_90;
+  else if (pct >= 80) pool = TIER_80;
+  else if (pct >= 75) pool = TIER_75;
+  const entry = pickByHash(pool, key);
+  return { emoji: entry.emoji, text: entry.text(firstName, vehicle) };
 }
 
 interface DominanceItem {
@@ -110,27 +145,47 @@ describe('FunFactor — filtering logic', () => {
 });
 
 describe('getMessage — tier messages', () => {
-  it('returns 65% tier message (🐾) for pct in [65, 74]', () => {
+  it('returns a 65% tier message for pct in [65, 74]', () => {
     const result = getMessage(65, 'Marc', 'VL186');
-    expect(result.emoji).toBe('🐾');
+    expect(['🐾', '🤝', '👀', '🌱']).toContain(result.emoji);
     expect(result.text).toContain('Marc');
   });
 
-  it('returns 75% tier message (🏠) for pct in [75, 79]', () => {
+  it('returns a 75% tier message for pct in [75, 79]', () => {
     const result = getMessage(75, 'Marc', 'VL186');
-    expect(result.emoji).toBe('🏠');
+    expect(['🏠', '📦', '🛋️', '☕']).toContain(result.emoji);
   });
 
-  it('returns 80% tier message (🔑) for pct in [80, 89]', () => {
+  it('returns a 80% tier message for pct in [80, 89]', () => {
     const result = getMessage(80, 'Marc', 'VL186');
-    expect(result.emoji).toBe('🔑');
+    expect(['🔑', '🧰', '🎯', '🚗']).toContain(result.emoji);
   });
 
-  it('returns 90% tier message (🪥) for pct >= 90', () => {
+  it('returns a 90% tier message for pct >= 90', () => {
     const result = getMessage(90, 'Marc', 'VL186');
-    expect(result.emoji).toBe('🪥');
+    expect(['🪥', '🛖', '🔐', '🏷️']).toContain(result.emoji);
     expect(result.text).toContain('Marc');
     expect(result.text).toContain('VL186');
+  });
+
+  it('is deterministic — same inputs always produce the same output', () => {
+    const a = getMessage(90, 'Marc', 'VL186');
+    const b = getMessage(90, 'Marc', 'VL186');
+    expect(a.emoji).toBe(b.emoji);
+    expect(a.text).toBe(b.text);
+  });
+
+  it('produces different messages for different driver/vehicle combos (hash variety)', () => {
+    const results = [
+      getMessage(90, 'Alice', 'VL001'),
+      getMessage(90, 'Bob', 'VL002'),
+      getMessage(90, 'Claire', 'VL003'),
+      getMessage(90, 'David', 'VL004'),
+    ];
+    const emojis = results.map((r) => r.emoji);
+    // At least 2 distinct emojis across 4 different inputs (pool has 4 entries)
+    const unique = new Set(emojis);
+    expect(unique.size).toBeGreaterThanOrEqual(2);
   });
 
   it('uses first name only from full name', () => {

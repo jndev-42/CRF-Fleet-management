@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1] — 12 mars 2026
+
+### Modifié
+- **FunFactor — messages diversifiés** — `getMessage` dans `FunFactor.tsx` utilise désormais des pools de 3 à 4 messages par palier (≥65 %, ≥75 %, ≥80 %, ≥90 %), sélectionnés de façon déterministe via un hash de `firstName + vehicle`. Chaque combinaison chauffeur/véhicule affiche un message différent, stable d'un rendu à l'autre.
+
+---
+
 ## [1.15.0] — 12 mars 2026
 
 ### Ajouté

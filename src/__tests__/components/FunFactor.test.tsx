@@ -72,8 +72,17 @@ describe('FunFactor component', () => {
 
   it('renders 90% tier message for a driver at 90%', () => {
     render(<FunFactor byDriver={makeByDriver('Alice Martin', 90, 5)} />);
-    // 90% tier: "brosse à dents"
-    expect(screen.getByText(/brosse à dents/i)).toBeTruthy();
+    // 90% tier: one of the pool emojis must appear
+    const emoji = screen.getByText((_, el) =>
+      el?.classList.contains('fun-emoji') &&
+      ['🪥', '🛖', '🔐', '🏷️'].includes(el.textContent ?? '')
+    );
+    expect(emoji).toBeTruthy();
+    // The message must include the driver's first name
+    const message = screen.getByText((_, el) =>
+      el?.classList.contains('fun-message') === true
+    );
+    expect(message.textContent).toContain('Alice');
   });
 
   it('renders the context line with percentage', () => {
@@ -107,8 +116,19 @@ describe('FunFactor component', () => {
       },
     ];
     render(<FunFactor byDriver={byDriver} />);
-    // Both items should be rendered
-    expect(screen.getByText(/brosse à dents/i)).toBeTruthy(); // Bob at 90%
-    expect(screen.getByText(/bureau mobile/i)).toBeTruthy();  // Alice at 75%
+    // Both items should be rendered — verify by driver first name presence in messages
+    const messages = screen.getAllByText((_, el) =>
+      el?.classList.contains('fun-message') === true
+    );
+    expect(messages).toHaveLength(2);
+    const allText = messages.map((m) => m.textContent ?? '').join(' ');
+    expect(allText).toContain('Bob');
+    expect(allText).toContain('Alice');
+    // Bob is at 90% so his emoji must be from the 90% tier
+    const emojis = screen.getAllByText((_, el) =>
+      el?.classList.contains('fun-emoji') === true
+    );
+    const emojiTexts = emojis.map((e) => e.textContent ?? '');
+    expect(['🪥', '🛖', '🔐', '🏷️'].some((e) => emojiTexts.includes(e))).toBe(true);
   });
 });
