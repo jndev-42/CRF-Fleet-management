@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { StatsData } from './types';
 
@@ -52,9 +52,8 @@ export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: D
             const isExpanded = expanded === driver.driverEmail;
 
             return (
-              <>
+              <React.Fragment key={driver.driverEmail}>
                 <tr
-                  key={driver.driverEmail}
                   style={{ cursor: driver.byVehicle.length > 0 ? 'pointer' : 'default' }}
                   onClick={() => driver.byVehicle.length > 0 && setExpanded(isExpanded ? null : driver.driverEmail)}
                 >
@@ -98,7 +97,7 @@ export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: D
                     </td>
                   </tr>
                 ))}
-              </>
+              </React.Fragment>
             );
           })}
           {byDriver.length === 0 && (

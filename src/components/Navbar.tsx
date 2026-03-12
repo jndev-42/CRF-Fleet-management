@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -18,13 +20,13 @@ export default function Navbar({ user }: NavbarProps) {
     return (
         <header className="header" role="banner">
             <a href="#main-content" className="skip-link">Aller au contenu principal</a>
-            <a href="/" className="header-brand">
-                <img src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" />
+            <Link href="/" className="header-brand">
+                <Image src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" width={40} height={40} />
                 <div>
                     <div className="header-title">Gestion de flotte</div>
                     <div className="header-subtitle">Unité Locale Paris 18</div>
                 </div>
-            </a>
+            </Link>
 
             {user && (
                 <>
@@ -64,15 +66,15 @@ export default function Navbar({ user }: NavbarProps) {
                                 </svg>
                             </button>
                         </div>
-                        <a href="/" className={`nav-link${pathname === '/' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</a>
-                        <a href="/vehicles" className={`nav-link${pathname === '/vehicles' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</a>
+                        <Link href="/" className={`nav-link${pathname === '/' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</Link>
+                        <Link href="/vehicles" className={`nav-link${pathname === '/vehicles' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</Link>
                         {!user.roles?.includes('GUEST') && (
-                            <a href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</a>
+                            <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
                         )}
                         {user.roles?.includes('ADMIN') && (
-                            <a href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Utilisateurs</a>
+                            <Link href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Utilisateurs</Link>
                         )}
-                        <a href="/aide" className={`nav-link${pathname === '/aide' ? ' active' : ''}`} data-tour="aide" onClick={() => setIsOpen(false)} aria-current={pathname === '/aide' ? 'page' : undefined}>Aide</a>
+                        <Link href="/aide" className={`nav-link${pathname === '/aide' ? ' active' : ''}`} data-tour="aide" onClick={() => setIsOpen(false)} aria-current={pathname === '/aide' ? 'page' : undefined}>Aide</Link>
 
                         <div className="nav-actions">
                             {(user.roles?.includes('ADMIN') || user.roles?.includes('RESPO')) && (

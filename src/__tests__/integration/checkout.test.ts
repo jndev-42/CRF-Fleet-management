@@ -145,7 +145,8 @@ describe('POST /api/trips (checkout)', () => {
     });
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
 
-    const { conditionOut, ...bodyWithoutCondition } = validCheckOutBody;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { conditionOut: _conditionOut, ...bodyWithoutCondition } = validCheckOutBody;
     const response = await POST(makeRequest(bodyWithoutCondition));
     expect(response.status).toBe(400);
   });

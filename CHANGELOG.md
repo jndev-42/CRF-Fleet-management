@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.15.0] — 12 mars 2026
+
+### Ajouté
+- **Utilitaire `getErrorMessage`** — Nouvelle fonction `src/lib/utils/error.ts` pour extraire de façon sûre le message d'une erreur inconnue, avec tests unitaires associés.
+- **Hook pre-commit (Husky + lint-staged)** — Chaque commit exécute automatiquement ESLint avec `--max-warnings=0` sur les fichiers `.ts`/`.tsx` stagés. Tout lint non conforme bloque le commit.
+
+### Modifié
+- **Zéro erreur/avertissement ESLint** — Toutes les violations existantes corrigées (91 → 0) : remplacement des `any` par des types stricts, utilisation de `catch {}` pour les erreurs ignorées, commentaires `eslint-disable-next-line` avec justification sur les exceptions légitimes (`react-hooks/exhaustive-deps`, `@next/next/no-img-element`).
+- **Composants Next.js** — `Navbar.tsx` utilise désormais `<Link>` et `<Image>` au lieu de `<a>` et `<img>`.
+- **`CLAUDE.md`** — Règles de lint documentées : politique zéro tolérance, conventions pour les `any` résiduels, règles React hooks et Next.js.
+
+---
+
 ## [1.14.0] — 12 mars 2026
 
 ### Ajouté

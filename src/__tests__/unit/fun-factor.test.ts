@@ -12,7 +12,8 @@ import { describe, it, expect } from 'vitest';
 import { StatsData } from '@/components/stats/types';
 
 // Reproduction locale des types internes pour les helpers de test
-type ByVehicleEntry = StatsData['byDriver'][number]['byVehicle'][number];
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type _ByVehicleEntry = StatsData['byDriver'][number]['byVehicle'][number];
 type DriverEntry = StatsData['byDriver'][number];
 
 function getFirstName(fullName: string): string {

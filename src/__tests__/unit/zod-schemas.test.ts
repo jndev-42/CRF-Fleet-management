@@ -65,7 +65,8 @@ describe('checkOutSchema', () => {
   });
 
   it('fails when vehicleId is missing', () => {
-    const { vehicleId, ...rest } = validCheckOut;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { vehicleId: _vehicleId, ...rest } = validCheckOut;
     const result = checkOutSchema.safeParse(rest);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -75,7 +76,8 @@ describe('checkOutSchema', () => {
   });
 
   it('fails when missionType is missing', () => {
-    const { missionType, ...rest } = validCheckOut;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { missionType: _missionType, ...rest } = validCheckOut;
     const result = checkOutSchema.safeParse(rest);
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -123,7 +125,8 @@ describe('checkInSchema', () => {
   });
 
   it('fails when conditionIn is missing', () => {
-    const { conditionIn, ...rest } = validCheckIn;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { conditionIn: _conditionIn, ...rest } = validCheckIn;
     const result = checkInSchema.safeParse(rest);
     expect(result.success).toBe(false);
     if (!result.success) {

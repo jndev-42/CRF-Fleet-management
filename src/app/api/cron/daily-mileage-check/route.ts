@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
-import { sendEmailViaWebhook } from '@/lib/email';
 
 // Route sécurisée par Vercel Cron. On n'associe pas d'auth NextAuth ici.
 export async function GET(request: Request) {

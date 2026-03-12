@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import { isConnected, formatDate } from '@/app/vehicles/[id]/utils';
 import FuelBar from '@/components/vehicle/FuelBar';
-import { useSession } from 'next-auth/react';
 import ChecklistItems from '../ChecklistItems';
 
 interface CheckInModalProps {
@@ -32,7 +31,6 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     });
     const [checklistIn, setChecklistIn] = useState<Record<string, boolean>>({});
     const [submitting, setSubmitting] = useState(false);
-    const [parkingPhoto, setParkingPhoto] = useState<File | null>(null);
     const [photos, setPhotos] = useState<File[]>([]);
 
     async function handleSubmit(e: React.FormEvent) {
@@ -212,7 +210,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {isConnected(vehicle.vin) && (
                             <div style={{ marginBottom: 20, padding: 12, background: 'rgba(59, 130, 246, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.2)', fontSize: 13, color: '#1E40AF' }}>
-                                ℹ️ <strong>Données connectées :</strong> Le kilométrage et le niveau de {vehicle.fuelType === 'Électrique' ? 'batterie' : 'carburant'} remontent automatiquement depuis le véhicule. Il n'est pas nécessaire de les saisir.
+                                ℹ️ <strong>Données connectées :</strong> Le kilométrage et le niveau de {vehicle.fuelType === 'Électrique' ? 'batterie' : 'carburant'} remontent automatiquement depuis le véhicule. Il n&apos;est pas nécessaire de les saisir.
                             </div>
                         )}
 

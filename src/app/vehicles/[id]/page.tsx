@@ -544,7 +544,7 @@ export default function VehicleDetailPage() {
                                             const body = await res.json();
                                             alert(body.error || "Erreur de suppression");
                                         }
-                                    } catch (e) {
+                                    } catch {
                                         alert("Erreur de connexion");
                                     }
                                 }
@@ -588,7 +588,7 @@ export default function VehicleDetailPage() {
                                                         const body = await res.json();
                                                         alert(body.error || "Erreur de suppression");
                                                     }
-                                                } catch (e) {
+                                                } catch {
                                                     alert("Erreur de connexion");
                                                 }
                                             }

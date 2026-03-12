@@ -24,7 +24,7 @@ export async function POST(request: Request) {
         const vehicleName = formData.get('vehicleName') as string;
         const dateStr = formData.get('date') as string;
         const stage = formData.get('stage') as string; // 'emprunt' or 'rendu'
-        let existingFolderId = formData.get('existingFolderId') as string | null;
+        const existingFolderId = formData.get('existingFolderId') as string | null;
 
         const files = formData.getAll('files') as File[];
 
@@ -130,8 +130,9 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ success: true, folderId: parentFolderId });
 
-    } catch (error: any) {
-        console.error('Google Drive Upload Error:', error?.response?.data || error.message);
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: unknown }; message?: string };
+        console.error('Google Drive Upload Error:', err?.response?.data ?? err?.message);
 
         return NextResponse.json(
             { error: 'Erreur lors de la création du dossier ou de l\'envoi des photos.' },

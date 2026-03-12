@@ -30,6 +30,7 @@ async function run() {
         try {
             await db.execute(migration.sql);
             console.log('✓', migration.name);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- libSQL error shape
         } catch (e: any) {
             if (e?.message?.includes('duplicate column') || e?.message?.includes('already exists')) {
                 console.log('~', migration.name, '(déjà présent)');

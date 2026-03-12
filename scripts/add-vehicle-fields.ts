@@ -13,6 +13,7 @@ async function main() {
         try {
             await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "vin" TEXT;`);
             console.log("✅ Added vin column");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- libSQL error shape
         } catch (e: any) {
             if (e.message?.includes('duplicate column name')) {
                 console.log("⚠️ vin column already exists");
@@ -25,6 +26,7 @@ async function main() {
         try {
             await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "fuelType" TEXT;`);
             console.log("✅ Added fuelType column");
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- libSQL error shape
         } catch (e: any) {
             if (e.message?.includes('duplicate column name')) {
                 console.log("⚠️ fuelType column already exists");
@@ -59,6 +61,7 @@ async function main() {
         });
 
         console.log("🎉 Migration backfill finished successfully.");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- libSQL error shape
     } catch (error: any) {
         console.error("❌ Migration failed:", error);
     }

@@ -40,14 +40,13 @@ export function OneSignalProvider({ appId, roles }: { appId: string, roles: stri
                 await OneSignal.init({
                     appId: appId,
                     allowLocalhostAsSecureOrigin: true,
-                    // Specify the worker path explicitly to ensure SDK finds it correctly
                     path: "/"
-                } as any);
+                } as Parameters<typeof OneSignal.init>[0] & { path?: string });
 
                 // Show the prompt push right away
                 try {
                     await OneSignal.Slidedown.promptPush();
-                } catch (e) { /* ignore */ }
+                } catch { /* ignore prompt push errors — non-blocking */ }
 
                 // Set tags so we can target users by roles
                 if (roles.length > 0) {
@@ -59,9 +58,8 @@ export function OneSignalProvider({ appId, roles }: { appId: string, roles: stri
                     // v16 API format
                     if (OneSignal.User && OneSignal.User.addTags) {
                         OneSignal.User.addTags(roleTags);
-                    } else if ((OneSignal as any).sendTags) {
-                        // older API format fallback
-                        (OneSignal as any).sendTags(roleTags);
+                    } else if ((OneSignal as unknown as { sendTags?: (tags: Record<string, string>) => void }).sendTags) {
+                        (OneSignal as unknown as { sendTags: (tags: Record<string, string>) => void }).sendTags(roleTags);
                     }
                 }
             } catch (error) {

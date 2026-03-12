@@ -45,8 +45,8 @@ export default function EditMetricsModal({ vehicle, onClose, onSuccess }: EditMe
 
             const updatedVehicle = await res.json();
             onSuccess(updatedVehicle);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : 'Erreur lors de la mise à jour');
             setLoading(false);
         }
     };

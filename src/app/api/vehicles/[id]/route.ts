@@ -74,7 +74,7 @@ export async function GET(
             fuelType: row.fuelType,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
-            trips: tripsResult.rows.map((tRow: any) => ({
+            trips: tripsResult.rows.map((tRow) => ({
                 id: tRow.id,
                 vehicleId: tRow.vehicleId,
                 driverId: tRow.driverId,

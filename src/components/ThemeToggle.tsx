@@ -8,8 +8,10 @@ export function ThemeToggle() {
     const [mounted, setMounted] = useState(false);
     const { theme, setTheme } = useTheme();
 
-    // useEffect only runs on the client, so now we can safely show the UI
+    // useEffect only runs on the client — this is an intentional SSR hydration guard:
+    // we defer rendering until after mount to avoid a theme mismatch between server and client.
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMounted(true);
     }, []);
 

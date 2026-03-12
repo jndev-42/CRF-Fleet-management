@@ -47,7 +47,7 @@ export default function QRCodeModal({ onClose, vehicleName }: { onClose: () => v
                 <h3 style={{ marginBottom: 12, marginTop: 0 }}>QR Code</h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 24, lineHeight: 1.4 }}>
                     Ce QR Code mène à la page de <strong>{vehicleName}</strong>.<br />
-                    Vous pouvez l'imprimer et le coller dans le véhicule.
+                    Vous pouvez l&apos;imprimer et le coller dans le véhicule.
                 </p>
                 <div style={{ background: 'white', padding: 16, borderRadius: 8, display: 'inline-block', marginBottom: 24 }}>
                     <QRCodeCanvas

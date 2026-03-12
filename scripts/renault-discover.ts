@@ -45,9 +45,11 @@ async function discover() {
     const personUrl = new URL(KamereonApi.PERSON_URL(personId));
     personUrl.searchParams.set('country', 'FR');
     const personRes = await fetch(personUrl, { headers }).then(r => r.json());
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Renault API response shape
     const myAccount = personRes.accounts.find((a: any) => a.accountType === 'MYRENAULT');
     if (!myAccount) {
         console.error('No MYRENAULT account found');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Renault API response shape
         console.log('Accounts:', personRes.accounts?.map((a: any) => ({ type: a.accountType, id: a.accountId })));
         return;
     }
@@ -84,6 +86,7 @@ async function discover() {
                 console.log('🔌 Plug Status:', battRes.data?.attributes?.plugStatus);
                 console.log('⚡ Charging Status:', battRes.data?.attributes?.chargingStatus);
                 console.log('🔋 Remaining Time:', battRes.data?.attributes?.chargingRemainingTime, 'min');
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- script error shape
             } catch (e: any) {
                 console.log('Battery error:', e.message);
             }
@@ -97,6 +100,7 @@ async function discover() {
             console.log('📊 Total Mileage:', cockRes.data?.attributes?.totalMileage, 'km');
             console.log('⛽ Fuel Quantity:', cockRes.data?.attributes?.fuelQuantity, 'L');
             console.log('⛽ Fuel Autonomy:', cockRes.data?.attributes?.fuelAutonomy, 'km');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- script error shape
         } catch (e: any) {
             console.log('Cockpit error:', e.message);
         }
@@ -107,6 +111,7 @@ async function discover() {
             lockUrl.searchParams.set('country', 'FR');
             const lockRes = await fetch(lockUrl, { headers }).then(r => r.json());
             console.log('🔒 Lock Status:', lockRes.data?.attributes?.lockStatus);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- script error shape
         } catch (e: any) {
             console.log('Lock error:', e.message);
         }

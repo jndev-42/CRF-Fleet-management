@@ -8,7 +8,7 @@ const inter = Inter({
   display: 'swap',
   variable: '--font-inter',
 });
-import { auth, signOut } from "@/auth";
+import { auth } from "@/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SessionProvider } from "next-auth/react";
 import FooterChangelog from "@/components/FooterChangelog";
@@ -48,7 +48,7 @@ export default async function RootLayout({
   const roles = session?.user?.roles || [];
 
   return (
-    <html lang="fr" className={inter.variable}>
+    <html lang="fr" className={inter.variable} data-scroll-behavior="smooth">
       <body suppressHydrationWarning>
         {/*
           NOTE: We do NOT register a custom sw.js here because OneSignal already

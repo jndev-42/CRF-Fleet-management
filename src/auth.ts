@@ -50,7 +50,8 @@ const providers = [
                 const user = DEV_USERS[role];
                 if (!user) return null;
                 // devRoles est stocké dans le JWT → aucune requête DB nécessaire
-                return { id: user.email, email: user.email, name: user.name, devRoles: user.roles } as any;
+                // devRoles is a custom field carried through to the jwt callback
+                return { id: user.email, email: user.email, name: user.name, devRoles: user.roles } as Record<string, unknown>;
             },
         }),
     ] : []),
@@ -114,7 +115,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             }
 
             if (!email || !email.toLowerCase().endsWith("@croix-rouge.fr")) {
-                return { ...session, error: "Unauthorized" } as any;
+                // Casting needed: NextAuth Session type does not include error field by default
+                return { ...session, error: "Unauthorized" } as typeof session & { error: string };
             }
 
             session.user.roles = (token.roles as string[]) || [];
@@ -124,7 +126,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         async jwt({ token, user }) {
             // Première connexion dev : stocker les rôles dans le JWT (évite toute requête DB)
             if (user && 'devRoles' in user) {
-                token.devRoles = (user as any).devRoles;
+                // devRoles is set by the dev-credentials authorize() return value
+                token.devRoles = (user as Record<string, unknown>).devRoles;
             }
 
             // Dev users : rôles depuis le JWT uniquement; userId = email (dev DB convention)

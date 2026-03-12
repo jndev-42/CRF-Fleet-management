@@ -8,7 +8,7 @@ function supportsModernRegex(): boolean {
     try {
         new RegExp('(?<test>a)');
         return true;
-    } catch (e) {
+    } catch {
         return false;
     }
 }
@@ -44,7 +44,9 @@ export default function FooterChangelog() {
     const [content, setContent] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- react-markdown ComponentType has no stable generic signature compatible with dynamic import
     const [ReactMarkdown, setReactMarkdown] = useState<ComponentType<any> | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- remark-gfm plugin type is opaque
     const [remarkGfm, setRemarkGfm] = useState<any>(null);
 
     // Charge react-markdown dynamiquement seulement sur les navigateurs compatibles
@@ -70,7 +72,7 @@ export default function FooterChangelog() {
                 if (!res.ok) throw new Error('Failed to fetch changelog');
                 const text = await res.text();
                 setContent(text);
-            } catch (err: any) {
+            } catch (err: unknown) {
                 console.error(err);
                 setError('Impossible de charger le changelog.');
             } finally {

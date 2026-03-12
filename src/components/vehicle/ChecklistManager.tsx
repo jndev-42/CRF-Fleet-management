@@ -70,7 +70,7 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
             setNewItemLabel('');
             setNewItemRequired(false);
             await fetchItems();
-        } catch (error) {
+        } catch {
             alert("Erreur lors de l'ajout de l'item");
         } finally {
             setSubmitting(false);
@@ -83,7 +83,7 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
             const res = await fetch(`/api/checklist/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error();
             setItems(prev => prev.filter(i => i.id !== id));
-        } catch (error) {
+        } catch {
             alert('Erreur lors de la suppression');
         }
     }
@@ -99,7 +99,7 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
                 body: JSON.stringify({ required: newVal })
             });
             if (!res.ok) throw new Error();
-        } catch (error) {
+        } catch {
             setItems(prev => prev.map(i => i.id === item.id ? { ...i, required: !newVal } : i));
             alert('Erreur lors de la modification');
         }

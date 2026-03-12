@@ -7,9 +7,11 @@ interface PhotoViewerProps {
     onClose: () => void;
 }
 
+type DrivePhoto = { id: string; name: string };
+
 export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps) {
     const [loading, setLoading] = useState(true);
-    const [photos, setPhotos] = useState<{ emprunt: any[], rendu: any[] }>({ emprunt: [], rendu: [] });
+    const [photos, setPhotos] = useState<{ emprunt: DrivePhoto[]; rendu: DrivePhoto[] }>({ emprunt: [], rendu: [] });
     const [error, setError] = useState<string | null>(null);
     const [activePhoto, setActivePhoto] = useState<string | null>(null);
 
@@ -25,8 +27,8 @@ export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps
                 }
                 const data = await res.json();
                 setPhotos(data);
-            } catch (e: any) {
-                setError(e.message || 'Erreur inconnue');
+            } catch (e: unknown) {
+                setError(e instanceof Error ? e.message : 'Erreur inconnue');
             } finally {
                 setLoading(false);
             }
@@ -34,7 +36,7 @@ export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps
         fetchPhotos();
     }, [driveFolderId]);
 
-    function renderPhotoSection(title: string, list: any[]) {
+    function renderPhotoSection(title: string, list: DrivePhoto[]) {
         if (list.length === 0) return null;
         return (
             <div style={{ marginBottom: 24 }}>
@@ -46,6 +48,9 @@ export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps
                             style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-primary)', background: '#000', height: 150, cursor: 'pointer' }}
                             onClick={() => setActivePhoto(`/api/drive/photos/${photo.id}`)}
                         >
+                            {/* eslint-disable-next-line @next/next/no-img-element -- images are
+                                served through a dynamic proxy API route; next/image cannot
+                                statically optimize these URLs */}
                             <img
                                 src={`/api/drive/photos/${photo.id}`}
                                 alt={photo.name}
@@ -126,6 +131,7 @@ export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps
                     >
                         ✕
                     </button>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- proxy URL, see above */}
                     <img
                         src={activePhoto}
                         alt="Vue en plein écran"

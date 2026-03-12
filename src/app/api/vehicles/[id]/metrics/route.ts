@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { sendPushNotification } from '@/lib/onesignal';
-import crypto from 'crypto';
 
 const updateMetricsSchema = z.object({
     mileage: z.number().min(0).optional(),

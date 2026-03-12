@@ -259,6 +259,7 @@ export default function GuidedTour({ roles = [] }: { roles?: string[] }) {
         }
 
         setTargetHidden(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- activeSteps is derived from roles prop on every render; including it would cause infinite loops. step/isActive are the true triggers.
     }, [isActive, step]);
 
     // ── Position the tooltip relative to the target element ──
@@ -326,6 +327,7 @@ export default function GuidedTour({ roles = [] }: { roles?: string[] }) {
             });
             setArrowClass(arrowPos);
         });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- activeSteps is derived from roles prop on every render; including it would cause infinite re-positioning. step is the real trigger.
     }, [step]);
 
     useEffect(() => {

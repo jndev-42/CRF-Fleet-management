@@ -34,7 +34,7 @@ function diffDays(from: string, to: string): number {
 }
 
 export default function StatsPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
 
   const defaults = getDefaultDates();

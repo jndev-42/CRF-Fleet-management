@@ -31,7 +31,7 @@ async function main() {
                     sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
                     args: [roleId, role]
                 });
-            } catch (e) {
+            } catch {
                 console.log(`Role ${role} might already exist`);
             }
         }
@@ -110,7 +110,7 @@ async function main() {
         try {
             await db.execute(`DROP TABLE "Admin"`);
             console.log("Dropped Admin table.");
-        } catch (e) {
+        } catch {
             console.log("Could not drop Admin table. Maybe it doesn't exist.");
         }
 

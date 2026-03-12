@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import styles from './Reservation.module.css';
 
 interface Reservation {
@@ -38,7 +38,7 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
     const isRespo = userRoles.includes('RESPO');
     const canValidate = isAdmin || isRespo;
 
-    const fetchReservations = async () => {
+    const fetchReservations = useCallback(async () => {
         try {
             const res = await fetch(`/api/vehicles/${vehicleId}/reservations`);
             if (res.ok) {
@@ -61,11 +61,11 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
         } finally {
             setLoading(false);
         }
-    };
+    }, [vehicleId, currentUserEmail, onActiveReservationChange]);
 
     useEffect(() => {
         fetchReservations();
-    }, [vehicleId]);
+    }, [fetchReservations]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -88,7 +88,7 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
                 const data = await res.json();
                 alert(data.error || 'Erreur lors de la réservation');
             }
-        } catch (e) {
+        } catch {
             alert('Erreur réseau');
         } finally {
             setSubmitting(false);
@@ -104,7 +104,7 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
             } else {
                 alert('Erreur lors de la suppression');
             }
-        } catch (e) {
+        } catch {
             alert('Erreur réseau');
         }
     };
@@ -119,7 +119,7 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
                 const data = await res.json();
                 alert(data.error || 'Erreur lors de la validation');
             }
-        } catch (e) {
+        } catch {
             alert('Erreur réseau');
         } finally {
             setValidating(null);

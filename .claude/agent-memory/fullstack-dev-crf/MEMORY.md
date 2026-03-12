@@ -1,7 +1,7 @@
 # Agent Memory — cr-chauffeur
 
 ## Current Version
-- package.json + CHANGELOG.md: **v1.13.0** (as of 2026-03-12)
+- package.json + CHANGELOG.md: **v1.15.0** (as of 2026-03-12)
 - Footer version: uses `process.env.NEXT_PUBLIC_APP_VERSION` injected from `package.json` via `next.config.ts` — NOT hardcoded
 
 ## Project Structure
@@ -18,7 +18,7 @@
 - DB client: `src/lib/db.ts`
 - Stats logic: `src/lib/stats.ts` (shared between GET and PDF routes)
 - Next config: `next.config.ts`
-- Footer version string: `src/components/FooterChangelog.tsx` (hardcoded, must match CHANGELOG)
+- Footer version string: auto-injected from `package.json` via `NEXT_PUBLIC_APP_VERSION` in `next.config.ts` — update only `package.json`
 
 ## Auth Patterns
 - Server route auth check: `const session = await auth();` at the very top before any body parsing or DB queries
@@ -109,6 +109,15 @@
 - `vi.mock('@/lib/db', () => ({ db }))` — `db` in the factory is `undefined` (hoisted before imports)
 - Fix: `vi.mock('@/lib/db', async () => { const { db } = await import('./setup'); return { db }; })`
 - Import test helpers (`db`, `seedVehicle`, etc.) AFTER the `vi.mock` declarations
+
+## ESLint Enforcement (as of v1.15.0)
+- **Zero tolerance**: `npm run lint` must produce 0 errors AND 0 warnings
+- **Pre-commit**: Husky + lint-staged runs `eslint --max-warnings=0` on staged `*.ts`/`*.tsx` files
+- **`eslint-disable-next-line` must be on the line immediately before the offending line** — a comment on a subsequent comment line does NOT work (the disable applies to that comment line, not the code)
+- **Multi-line disable comments don't work**: `// eslint-disable-next-line rule\n// more comment\ncode` — the disable covers the comment, not the code. Always single-line.
+- **`react-hooks/set-state-in-effect`** is NOT a recognized rule in this ESLint config — don't add disable comments for it
+- **Unused catch variables**: use `catch { }` (empty catch) instead of `catch (_e) { }` when the variable is not referenced
+- **Underscore prefix** (`_varName`) is NOT always sufficient to suppress `no-unused-vars` in this config — prefer empty catch or eslint-disable
 
 ## Known Patterns / Gotchas
 - `vehicles/page.tsx` has its own `isElectric()` helper (name-based, legacy) — `page.tsx` uses `v.vin` to detect connected vehicles

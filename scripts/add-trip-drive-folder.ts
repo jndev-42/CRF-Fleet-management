@@ -12,6 +12,7 @@ async function main() {
     try {
         await db.execute('ALTER TABLE "Trip" ADD COLUMN driveFolderId TEXT;');
         console.log("✅ Added driveFolderId column to Trip table");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- libSQL error shape
     } catch (e: any) {
         if (e.message && e.message.includes("duplicate column name")) {
             console.log("⚠️ driveFolderId column already exists.");

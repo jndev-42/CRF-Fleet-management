@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
 
@@ -42,8 +41,9 @@ export async function GET(
             },
         });
 
-    } catch (error: any) {
-        console.error('Drive Image Proxy Error:', error?.message);
+    } catch (error: unknown) {
+        const err = error as { message?: string };
+        console.error('Drive Image Proxy Error:', err?.message);
         return new Response('Failed to load image', { status: 500 });
     }
 }

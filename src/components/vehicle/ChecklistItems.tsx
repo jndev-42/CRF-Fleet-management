@@ -44,7 +44,8 @@ export default function ChecklistItems({ vehicleId, type, responses, onChange }:
         }
         fetchItems();
         return () => { mounted = false; };
-    }, [vehicleId, type]); // Intentionally omitting responses/onChange to avoid loops
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- responses/onChange omitted intentionally: including them causes infinite re-fetch loop since onChange updates responses on every render
+    }, [vehicleId, type]);
 
     if (loading || items.length === 0) return null;
 

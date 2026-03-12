@@ -315,6 +315,7 @@ export default function StatsPdfDocument({
         {/* Header */}
         <View style={styles.header} fixed>
           <View style={styles.headerLeft}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer Image does not support alt prop */}
             <Image src={logoSrc} style={{ width: 48, height: 48 }} />
             <View style={styles.headerLogoText}>
               <Text style={styles.headerTitle}>CR-Chauffeur</Text>

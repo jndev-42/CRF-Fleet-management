@@ -88,7 +88,7 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
 
             {!isDev && (
                 <p style={{ maxWidth: 400, margin: '0 auto', marginBottom: 24, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
-                    L'accès à cette application est strictement réservé aux membres de la Croix-Rouge française.
+                    L&apos;accès à cette application est strictement réservé aux membres de la Croix-Rouge française.
                     Veuillez vous connecter avec votre adresse e-mail <strong>@croix-rouge.fr</strong>.
                 </p>
             )}

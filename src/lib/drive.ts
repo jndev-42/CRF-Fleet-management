@@ -29,10 +29,11 @@ export async function deleteDriveFolder(folderId: string) {
             fileId: folderId,
         });
         return true;
-    } catch (e: any) {
-        // Ignore 404s if already deleted
-        if (e.code === 404 || e.status === 404) return true;
-        console.error(`Failed to delete Google Drive folder ${folderId}:`, e?.message || e);
+    } catch (e: unknown) {
+        // Ignore 404s if already deleted — Drive API returns status/code 404 on the error object
+        const err = e as { code?: number; status?: number; message?: string };
+        if (err.code === 404 || err.status === 404) return true;
+        console.error(`Failed to delete Google Drive folder ${folderId}:`, err.message ?? e);
         return false;
     }
 }

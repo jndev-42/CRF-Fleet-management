@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 
 // Fetch all notifications for the authenticated user
-export async function GET(request: Request) {
+export async function GET() {
     try {
         const session = await auth();
         if (!session?.user?.email) {
@@ -54,7 +54,7 @@ export async function GET(request: Request) {
 }
 
 // Clear all notifications for the authenticated user
-export async function DELETE(request: Request) {
+export async function DELETE() {
     try {
         const session = await auth();
         if (!session?.user?.email) {

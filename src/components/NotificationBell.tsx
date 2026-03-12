@@ -13,6 +13,19 @@ type Notification = {
     createdAt: string;
 };
 
+// OneSignal SDK is injected as a runtime global — no official @types covers this browser API
+type OneSignalWindow = Window & {
+    OneSignal?: {
+        User?: {
+            PushSubscription?: {
+                optedIn?: boolean;
+                optOut: () => Promise<void>;
+                optIn: () => Promise<void>;
+            };
+        };
+    };
+};
+
 export function NotificationBell() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -100,14 +113,14 @@ export function NotificationBell() {
     // Sync push opt-in state when dropdown opens
     useEffect(() => {
         if (!isOpen) return;
-        const sub = (window as any).OneSignal?.User?.PushSubscription;
+        const sub = (window as OneSignalWindow).OneSignal?.User?.PushSubscription;
         if (sub) {
             setPushEnabled(!!sub.optedIn);
         }
     }, [isOpen]);
 
     const handlePushToggle = async () => {
-        const sub = (window as any).OneSignal?.User?.PushSubscription;
+        const sub = (window as OneSignalWindow).OneSignal?.User?.PushSubscription;
         if (!sub) return;
 
         if (pushEnabled) {

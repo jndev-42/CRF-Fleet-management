@@ -149,6 +149,8 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
 
             {trip.parkingPhoto && (
                 <div style={{ marginTop: 12 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- legacy data URL from upload;
+                        not a static asset, cannot be optimized by next/image */}
                     <img
                         src={trip.parkingPhoto}
                         alt="Photo stationnement"

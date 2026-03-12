@@ -21,6 +21,7 @@ async function main() {
         console.log("Added secondDriverEmail column");
 
         console.log("Migration finished successfully.");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- libSQL error shape
     } catch (error: any) {
         if (error.message?.includes('duplicate column name')) {
             console.log("Columns already exist.");

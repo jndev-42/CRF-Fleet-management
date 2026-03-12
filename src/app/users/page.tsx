@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
 interface User {
     id: string;
@@ -36,6 +35,7 @@ export default function UsersPage() {
         if (status === 'authenticated' && session?.user?.roles?.includes('ADMIN')) {
             fetchUsers();
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchUsers is defined outside the effect; including it would require useCallback for no practical benefit on this simple admin page
     }, [status, session]);
 
     async function fetchUsers() {
@@ -82,7 +82,7 @@ export default function UsersPage() {
                 setUsers(previousUsers); // Revert on failure
                 throw new Error('Failed to update roles');
             }
-        } catch (error) {
+        } catch {
             setUsers(previousUsers); // Revert on failure
             showToast('Erreur lors de la mise à jour', 'error');
         }
@@ -295,8 +295,8 @@ export default function UsersPage() {
                             await createUser(email, name, roles);
                             setShowAddModal(false);
                             showToast(`Utilisateur ${email} ajouté avec succès !`);
-                        } catch (err: any) {
-                            showToast(err.message || 'Erreur lors de la création', 'error');
+                        } catch (err: unknown) {
+                            showToast(err instanceof Error ? err.message : 'Erreur lors de la création', 'error');
                         }
                     }}
                 />

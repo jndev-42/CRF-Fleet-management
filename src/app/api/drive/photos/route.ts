@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
+import type { drive_v3 } from 'googleapis';
 
 export async function GET(request: Request) {
     try {
@@ -39,17 +40,25 @@ export async function GET(request: Request) {
                 fields: 'files(id, name)',
             });
 
+            const fileList = (filesRes.data.files || []) as drive_v3.Schema$File[];
+            const mapped = fileList
+                .filter((f): f is drive_v3.Schema$File & { id: string; name: string } =>
+                    typeof f.id === 'string' && typeof f.name === 'string'
+                )
+                .map(f => ({ id: f.id, name: f.name }));
+
             if (folder.name?.toLowerCase() === 'emprunt') {
-                photoData.emprunt = (filesRes.data.files || []) as any;
+                photoData.emprunt = mapped;
             } else if (folder.name?.toLowerCase() === 'rendu') {
-                photoData.rendu = (filesRes.data.files || []) as any;
+                photoData.rendu = mapped;
             }
         }));
 
         return NextResponse.json(photoData);
 
-    } catch (error: any) {
-        console.error('Google Drive Photos Fetch Error:', error?.response?.data || error.message);
+    } catch (error: unknown) {
+        const err = error as { response?: { data?: unknown }; message?: string };
+        console.error('Google Drive Photos Fetch Error:', err?.response?.data ?? err?.message);
 
         return NextResponse.json({ error: 'Erreur lors de la récupération des photos' }, { status: 500 });
     }

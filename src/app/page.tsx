@@ -42,6 +42,7 @@ const statusClass: Record<string, string> = {
   MAINTENANCE: 'maintenance',
 };
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for future use (vehicle type icons)
 const vehicleIcons: Record<string, string> = {
   VL: '🚗',
   VPSP: '🚑',
