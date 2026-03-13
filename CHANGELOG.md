@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.17.0] — 13 mars 2026
+
+### Ajouté
+- **Capacité batterie (`maxBatteryCapacityKwh`)** — Nouveau champ `INTEGER` nullable sur la table `Vehicle`. Permet de stocker la capacité de la batterie en kWh pour les véhicules électriques (ex : 52 kWh pour le VL186 Renault Zoé). Configurable depuis la modale d'ajout de véhicule (affiché uniquement pour le type d'énergie "Électrique", mutuellement exclusif avec la capacité réservoir).
+- **KPI kWh/100km réel** — Nouvelle carte sur la page Statistiques affichant la consommation moyenne en kWh/100km pour les VE, calculée via `(delta% × capacité_batterie) / km × 100`. Affiche "—" si aucun véhicule électrique configuré.
+- **KPI kWh consommés** — Nouvelle carte affichant le total de kWh consommés sur la période (véhicules électriques uniquement).
+- **Tableau chauffeurs enrichi** — Nouvelle colonne `kWh/100km` (affiche "—" pour les chauffeurs n'ayant conduit que des véhicules thermiques).
+- **Tableau véhicules** — Colonne renommée `Conso/100km` ; la valeur affiche `L` pour les véhicules thermiques, `kWh` pour les électriques, et `%` de delta en repli.
+- **PDF** — Deux nouvelles cases KPI (kWh/100km réel, kWh consommés) dans les rangées 1 et 2 ; colonne `kWh/100` ajoutée dans le tableau chauffeurs ; colonne véhicule renommée `Conso/100km` avec logique kWh intégrée.
+- **Tests** — Nouveaux tests de validation Zod (`maxBatteryCapacityKwh: 0` → 400), happy path EV, mise à jour PATCH, et trois scénarios de consommation kWh (VE avec capacité, VE sans capacité, flotte mixte).
+
+### Modifié
+- **`scripts/setup-dev.ts`** — Migration idempotente pour `maxBatteryCapacityKwh` ; donnée de démo : 52 kWh pour VL186 Renault Zoé.
+- **`src/lib/stats.ts`** — Trois nouvelles expressions SQL CASE (`avgKwhPer100km` global, par chauffeur et par véhicule ; `totalKwhConsumed` global), gardées par `maxBatteryCapacityKwh IS NOT NULL AND > 0`.
+- **`src/__tests__/unit/stats-lib.test.ts`** — Correction des tests `buildTripWhere` pour utiliser `driverIds` (tableau) au lieu de `driverId` (singulier), conformément à la signature réelle de `StatsFilters`.
+
+---
+
 ## [1.16.0] — 13 mars 2026
 
 ### Ajouté

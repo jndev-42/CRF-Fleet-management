@@ -34,6 +34,7 @@ export default function DriverBreakdown({ byDriver }: DriverBreakdownProps) {
             <th scope="col">Incidents</th>
             <th scope="col">% retour</th>
             <th scope="col">L/100km</th>
+            <th scope="col">kWh/100km</th>
           </tr>
         </thead>
         <tbody>
@@ -76,6 +77,9 @@ export default function DriverBreakdown({ byDriver }: DriverBreakdownProps) {
                   <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
                     {driver.avgLPer100km > 0 ? `${driver.avgLPer100km.toFixed(1)}` : '—'}
                   </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    {driver.avgKwhPer100km > 0 ? `${driver.avgKwhPer100km.toFixed(1)}` : '—'}
+                  </td>
                 </tr>
                 {isExpanded && driver.byVehicle.map((veh) => (
                   <tr key={`${driver.driverEmail}-${veh.vehicleId}`} style={{ background: 'rgba(255,255,255,0.015)' }}>
@@ -84,7 +88,7 @@ export default function DriverBreakdown({ byDriver }: DriverBreakdownProps) {
                       ↳ {veh.vehicleName}
                     </td>
                     <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{veh.tripCount} sorties</td>
-                    <td colSpan={4}>
+                    <td colSpan={5}>
                       <span className={getPctBadgeClass(veh.percentOfVehicleTotal)} style={{ fontSize: 10 }}>
                         {veh.percentOfVehicleTotal}% du véhicule
                       </span>
@@ -96,7 +100,7 @@ export default function DriverBreakdown({ byDriver }: DriverBreakdownProps) {
           })}
           {byDriver.length === 0 && (
             <tr>
-              <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 8px' }}>
+              <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 8px' }}>
                 Aucune sortie sur cette période
               </td>
             </tr>

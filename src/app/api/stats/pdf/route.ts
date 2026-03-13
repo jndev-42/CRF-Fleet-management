@@ -84,11 +84,18 @@ async function generatePdf(dateFrom: string, dateTo: string): Promise<Buffer> {
   return Buffer.from(buffer);
 }
 
+const STATS_ALLOWED_ROLES = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP'];
+
 export async function POST(request: Request) {
   try {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
+    }
+
+    const roles = (session.user.roles || ['GUEST']) as string[];
+    if (!roles.some((r) => STATS_ALLOWED_ROLES.includes(r))) {
+      return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 
     const body = await request.json();
@@ -118,6 +125,11 @@ export async function GET(request: Request) {
     const session = await auth();
     if (!session?.user) {
       return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
+    }
+
+    const roles = (session.user.roles || ['GUEST']) as string[];
+    if (!roles.some((r) => STATS_ALLOWED_ROLES.includes(r))) {
+      return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);

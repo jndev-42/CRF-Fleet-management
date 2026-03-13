@@ -76,6 +76,8 @@ describe('GET /api/stats — no filters (happy path)', () => {
     expect(typeof json.data.global.avgFuelAtReturn).toBe('number');
     expect(typeof json.data.global.fleetUtilizationRate).toBe('number');
     expect(typeof json.data.global.incidentRate).toBe('number');
+    expect(typeof json.data.global.avgKwhPer100km).toBe('number');
+    expect(typeof json.data.global.totalKwhConsumed).toBe('number');
   });
 });
 
@@ -154,6 +156,7 @@ describe('GET /api/stats — byDriver new fields', () => {
     const driver = json.data.byDriver[0];
     expect(typeof driver.avgFuelAtReturn).toBe('number');
     expect(typeof driver.avgLPer100km).toBe('number');
+    expect(typeof driver.avgKwhPer100km).toBe('number');
   });
 });
 
@@ -164,5 +167,6 @@ describe('GET /api/stats — byVehicle new fields', () => {
     const json = await res.json();
     const vehicle = json.data.byVehicle[0];
     expect(typeof vehicle.avgLPer100km).toBe('number');
+    expect(typeof vehicle.avgKwhPer100km).toBe('number');
   });
 });

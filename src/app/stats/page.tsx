@@ -47,7 +47,7 @@ function diffDays(from: string, to: string): number {
 const MISSION_TYPES = ['Opération', 'Formation', 'Logistique', 'Autre'];
 
 export default function StatsPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   const defaults = getDefaultDates();
@@ -76,8 +76,14 @@ export default function StatsPage() {
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
+    } else if (status === 'authenticated') {
+      const roles = (session?.user?.roles || ['GUEST']) as string[];
+      const allowed = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP'];
+      if (!roles.some((r) => allowed.includes(r))) {
+        router.push('/');
+      }
     }
-  }, [status, router]);
+  }, [status, session, router]);
 
   // Fetch vehicles and drivers for filter dropdowns
   useEffect(() => {
@@ -85,7 +91,7 @@ export default function StatsPage() {
 
     Promise.all([
       fetch('/api/vehicles').then((r) => r.json()),
-      fetch('/api/users').then((r) => r.json()),
+      fetch('/api/users?drivers=true').then((r) => r.json()),
     ]).then(([vehiclesJson, usersJson]) => {
       if (Array.isArray(vehiclesJson)) {
         setVehicles(

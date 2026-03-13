@@ -1,4 +1,4 @@
-import { Car, CheckCircle, MapPin, Gauge, AlertTriangle, Fuel, BarChart2 } from 'lucide-react';
+import { Car, CheckCircle, MapPin, Gauge, AlertTriangle, Fuel, BarChart2, Zap } from 'lucide-react';
 import { StatsData } from './types';
 
 interface KPICardsProps {
@@ -73,6 +73,20 @@ export default function KPICards({ data }: KPICardsProps) {
       label: 'Carburant moy. retour',
       value: data.avgFuelAtReturn > 0 ? `${data.avgFuelAtReturn}%` : '—',
       sub: 'niveau moyen au retour',
+    },
+    {
+      icon: <Zap size={18} />,
+      iconClass: 'blue',
+      label: 'kWh/100km réel',
+      value: data.avgKwhPer100km > 0 ? `${data.avgKwhPer100km.toFixed(1)} kWh` : '—',
+      sub: 'consommation moyenne (EV)',
+    },
+    {
+      icon: <Zap size={18} />,
+      iconClass: 'green',
+      label: 'kWh consommés',
+      value: data.totalKwhConsumed > 0 ? `${data.totalKwhConsumed.toFixed(0)} kWh` : '—',
+      sub: 'total période (EV)',
     },
   ];
 

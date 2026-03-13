@@ -22,8 +22,8 @@ describe('buildTripWhere', () => {
   });
 
   it('appends driverId clause when provided', () => {
-    const { whereSql, args } = buildTripWhere('2026-01-01', '2026-01-31', { driverId: 'user-1' });
-    expect(whereSql).toContain('t.driverId = ?');
+    const { whereSql, args } = buildTripWhere('2026-01-01', '2026-01-31', { driverIds: ['user-1'] });
+    expect(whereSql).toContain('t.driverId IN (?)');
     expect(args).toContain('user-1');
     expect(args.length).toBe(3);
   });
@@ -38,11 +38,11 @@ describe('buildTripWhere', () => {
   it('appends all three filter clauses when all provided', () => {
     const { whereSql, args } = buildTripWhere('2026-01-01', '2026-01-31', {
       vehicleId: 'VL001',
-      driverId: 'user-1',
+      driverIds: ['user-1'],
       missionType: 'Formation',
     });
     expect(whereSql).toContain('t.vehicleId = ?');
-    expect(whereSql).toContain('t.driverId = ?');
+    expect(whereSql).toContain('t.driverId IN (?)');
     expect(whereSql).toContain('t.missionType = ?');
     expect(args).toEqual(['2026-01-01', '2026-01-31', 'VL001', 'user-1', 'Formation']);
   });

@@ -20,6 +20,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
         hasDSA: false,
         notes: '',
         maxFuelCapacity: '',
+        maxBatteryCapacityKwh: '',
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -49,6 +50,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                     hasDSA: form.hasDSA,
                     notes: form.notes || undefined,
                     maxFuelCapacity: form.maxFuelCapacity ? parseInt(form.maxFuelCapacity) || undefined : undefined,
+                    maxBatteryCapacityKwh: form.maxBatteryCapacityKwh ? parseInt(form.maxBatteryCapacityKwh) || undefined : undefined,
                 }),
             });
             if (res.ok) {
@@ -136,7 +138,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                 <select
                                     className="form-select"
                                     value={form.fuelType}
-                                    onChange={(e) => setForm({ ...form, fuelType: e.target.value, maxFuelCapacity: '' })}
+                                    onChange={(e) => setForm({ ...form, fuelType: e.target.value, maxFuelCapacity: '', maxBatteryCapacityKwh: '' })}
                                 >
                                     <option value="Essence">Essence</option>
                                     <option value="Diesel">Diesel</option>
@@ -196,6 +198,22 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                         placeholder="ex: 50"
                                         value={form.maxFuelCapacity}
                                         onChange={(e) => setForm({ ...form, maxFuelCapacity: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        {form.fuelType === 'Électrique' && (
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Capacité batterie (kWh) — Optionnel</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="200"
+                                        className="form-input"
+                                        placeholder="ex: 52"
+                                        value={form.maxBatteryCapacityKwh}
+                                        onChange={(e) => setForm({ ...form, maxBatteryCapacityKwh: e.target.value })}
                                     />
                                 </div>
                             </div>

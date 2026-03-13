@@ -391,6 +391,16 @@ export default function StatsPdfDocument({
             </Text>
             <Text style={styles.kpiSub}>consommation moyenne</Text>
           </View>
+          {/* kWh/100km réel */}
+          <View style={styles.kpiBox}>
+            <Text style={styles.kpiLabel}>kWh/100km réel</Text>
+            <Text style={data.global.avgKwhPer100km > 0 ? styles.kpiValueBlue : styles.kpiValue}>
+              {data.global.avgKwhPer100km > 0
+                ? `${data.global.avgKwhPer100km.toFixed(1)} kWh`
+                : '—'}
+            </Text>
+            <Text style={styles.kpiSub}>consommation moyenne (EV)</Text>
+          </View>
         </View>
         {/* Row 2 */}
         <View style={[styles.kpiRow, { marginBottom: 14 }]}>
@@ -432,9 +442,19 @@ export default function StatsPdfDocument({
             </Text>
             <Text style={styles.kpiSub}>inc./100 km</Text>
           </View>
+          {/* kWh consommés */}
+          <View style={styles.kpiBox}>
+            <Text style={styles.kpiLabel}>kWh consommés</Text>
+            <Text style={data.global.totalKwhConsumed > 0 ? styles.kpiValueGreen : styles.kpiValue}>
+              {data.global.totalKwhConsumed > 0
+                ? `${data.global.totalKwhConsumed.toFixed(0)} kWh`
+                : '—'}
+            </Text>
+            <Text style={styles.kpiSub}>total période (EV)</Text>
+          </View>
         </View>
 
-        {/* Section 2: By driver — 7 columns */}
+        {/* Section 2: By driver — 8 columns */}
         <SectionTitle>2  Détail par chauffeur</SectionTitle>
         <TableHeaderRow
           cols={[
@@ -445,6 +465,7 @@ export default function StatsPdfDocument({
             { label: 'Incidents', flex: 1 },
             { label: '% retour', flex: 1 },
             { label: 'L/100km', flex: 1 },
+            { label: 'kWh/100', flex: 1 },
           ]}
         />
         {data.byDriver.map((driver, idx) => {
@@ -453,6 +474,7 @@ export default function StatsPdfDocument({
           const incStr = driver.incidents > 0 ? `${driver.incidents} (!)` : '--';
           const fuelReturnStr = driver.avgFuelAtReturn > 0 ? `${driver.avgFuelAtReturn}%` : '--';
           const lPer100Str = driver.avgLPer100km > 0 ? `${driver.avgLPer100km.toFixed(1)}` : '--';
+          const kwhPer100Str = driver.avgKwhPer100km > 0 ? `${driver.avgKwhPer100km.toFixed(1)}` : '--';
 
           return (
             <View
@@ -485,6 +507,9 @@ export default function StatsPdfDocument({
               <Text style={[styles.tableCell, { flex: 1, color: AMBER }]}>
                 {lPer100Str}
               </Text>
+              <Text style={[styles.tableCell, { flex: 1, color: BLUE }]}>
+                {kwhPer100Str}
+              </Text>
             </View>
           );
         })}
@@ -497,7 +522,7 @@ export default function StatsPdfDocument({
             { label: 'Emprunts', flex: 1 },
             { label: '% du total', flex: 1 },
             { label: 'Km totaux', flex: 1 },
-            { label: 'L/100km', flex: 1 },
+            { label: 'Conso/100km', flex: 1 },
           ]}
         />
         {data.byVehicle.map((vehicle, idx) => {
@@ -506,6 +531,8 @@ export default function StatsPdfDocument({
           const fuelStr =
             vehicle.avgLPer100km > 0
               ? `${vehicle.avgLPer100km.toFixed(1)} L`
+              : vehicle.avgKwhPer100km > 0
+              ? `${vehicle.avgKwhPer100km.toFixed(1)} kWh`
               : vehicle.avgFuelDelta > 0
               ? `-${Math.round(vehicle.avgFuelDelta)}%`
               : '--';

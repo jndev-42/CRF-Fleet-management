@@ -18,7 +18,8 @@ export default function VehicleBreakdown({ byVehicle }: VehicleBreakdownProps) {
   }
 
   function getFuelDisplay(vehicle: StatsData['byVehicle'][0]): string {
-    if (vehicle.avgLPer100km > 0) return `${vehicle.avgLPer100km.toFixed(1)} L/100`;
+    if (vehicle.avgLPer100km > 0) return `${vehicle.avgLPer100km.toFixed(1)} L`;
+    if (vehicle.avgKwhPer100km > 0) return `${vehicle.avgKwhPer100km.toFixed(1)} kWh`;
     if (vehicle.avgFuelDelta > 0) return `−${Math.round(vehicle.avgFuelDelta)}%`;
     return '—';
   }
@@ -36,7 +37,7 @@ export default function VehicleBreakdown({ byVehicle }: VehicleBreakdownProps) {
             <th scope="col">Emprunts</th>
             <th scope="col">% total</th>
             <th scope="col">Km totaux</th>
-            <th scope="col">L/100km</th>
+            <th scope="col">Conso/100km</th>
           </tr>
         </thead>
         <tbody>

@@ -50,6 +50,8 @@ export interface StatsDataResult {
     avgFuelAtReturn: number;
     fleetUtilizationRate: number;
     incidentRate: number;
+    avgKwhPer100km: number;
+    totalKwhConsumed: number;
   };
   byDriver: Array<{
     driverId: string;
@@ -61,6 +63,7 @@ export interface StatsDataResult {
     incidents: number;
     avgFuelAtReturn: number;
     avgLPer100km: number;
+    avgKwhPer100km: number;
     byVehicle: Array<{
       vehicleId: string;
       vehicleName: string;
@@ -75,6 +78,7 @@ export interface StatsDataResult {
     totalKm: number;
     avgFuelDelta: number;
     avgLPer100km: number;
+    avgKwhPer100km: number;
     percentOfTotal: number;
   }>;
   byMissionType: Array<{ missionType: string; count: number }>;
@@ -117,7 +121,28 @@ export async function fetchStatsData(
           ELSE 0
         END
       ) as totalFuelLiters,
-      AVG(CASE WHEN t.checkInAt IS NOT NULL AND t.fuelIn IS NOT NULL THEN t.fuelIn ELSE NULL END) as avgFuelAtReturn
+      AVG(CASE WHEN t.checkInAt IS NOT NULL AND t.fuelIn IS NOT NULL THEN t.fuelIn ELSE NULL END) as avgFuelAtReturn,
+      AVG(
+        CASE
+          WHEN t.mileageIn IS NOT NULL
+            AND t.mileageIn > t.mileageOut
+            AND t.fuelOut > t.fuelIn
+            AND v.maxBatteryCapacityKwh IS NOT NULL
+            AND v.maxBatteryCapacityKwh > 0
+          THEN CAST((t.fuelOut - t.fuelIn) AS REAL) * v.maxBatteryCapacityKwh / 100.0
+               / (t.mileageIn - t.mileageOut) * 100.0
+          ELSE NULL
+        END
+      ) as avgKwhPer100km,
+      SUM(
+        CASE
+          WHEN t.fuelOut > t.fuelIn
+            AND v.maxBatteryCapacityKwh IS NOT NULL
+            AND v.maxBatteryCapacityKwh > 0
+          THEN CAST((t.fuelOut - t.fuelIn) AS REAL) * v.maxBatteryCapacityKwh / 100.0
+          ELSE 0
+        END
+      ) as totalKwhConsumed
     FROM Trip t
     LEFT JOIN Vehicle v ON v.id = t.vehicleId
     WHERE ${whereSql}`,
@@ -133,6 +158,8 @@ export async function fetchStatsData(
   const avgLPer100km = globalRow.avgLPer100km != null ? Number(globalRow.avgLPer100km) : 0;
   const totalFuelLiters = Number(globalRow.totalFuelLiters ?? 0);
   const avgFuelAtReturn = globalRow.avgFuelAtReturn != null ? Math.round(Number(globalRow.avgFuelAtReturn)) : 0;
+  const avgKwhPer100km = globalRow.avgKwhPer100km != null ? Number(globalRow.avgKwhPer100km) : 0;
+  const totalKwhConsumed = Number(globalRow.totalKwhConsumed ?? 0);
   const avgKmPerTrip = completedTrips > 0 ? Math.round(totalKm / completedTrips) : 0;
   const incidentRate = totalKm > 0 ? (totalIncidents / totalKm) * 100 : 0;
 
@@ -171,7 +198,19 @@ export async function fetchStatsData(
                / (t.mileageIn - t.mileageOut) * 100.0
           ELSE NULL
         END
-      ) as avgLPer100km
+      ) as avgLPer100km,
+      AVG(
+        CASE
+          WHEN t.mileageIn IS NOT NULL
+            AND t.mileageIn > t.mileageOut
+            AND t.fuelOut > t.fuelIn
+            AND v.maxBatteryCapacityKwh IS NOT NULL
+            AND v.maxBatteryCapacityKwh > 0
+          THEN CAST((t.fuelOut - t.fuelIn) AS REAL) * v.maxBatteryCapacityKwh / 100.0
+               / (t.mileageIn - t.mileageOut) * 100.0
+          ELSE NULL
+        END
+      ) as avgKwhPer100km
     FROM Trip t
     JOIN "User" u ON u.id = t.driverId
     LEFT JOIN Vehicle v ON v.id = t.vehicleId
@@ -198,7 +237,19 @@ export async function fetchStatsData(
                / (t.mileageIn - t.mileageOut) * 100.0
           ELSE NULL
         END
-      ) as avgLPer100km
+      ) as avgLPer100km,
+      AVG(
+        CASE
+          WHEN t.mileageIn IS NOT NULL
+            AND t.mileageIn > t.mileageOut
+            AND t.fuelOut > t.fuelIn
+            AND v.maxBatteryCapacityKwh IS NOT NULL
+            AND v.maxBatteryCapacityKwh > 0
+          THEN CAST((t.fuelOut - t.fuelIn) AS REAL) * v.maxBatteryCapacityKwh / 100.0
+               / (t.mileageIn - t.mileageOut) * 100.0
+          ELSE NULL
+        END
+      ) as avgKwhPer100km
     FROM Trip t
     JOIN Vehicle v ON v.id = t.vehicleId
     WHERE ${whereSql}
@@ -289,6 +340,7 @@ export async function fetchStatsData(
       incidents: Number(r.incidents ?? 0),
       avgFuelAtReturn: r.avgFuelAtReturn != null ? Math.round(Number(r.avgFuelAtReturn)) : 0,
       avgLPer100km: r.avgLPer100km != null ? Number(r.avgLPer100km) : 0,
+      avgKwhPer100km: r.avgKwhPer100km != null ? Number(r.avgKwhPer100km) : 0,
       byVehicle: driverVehicleMap[driverId] ?? [],
     };
   });
@@ -302,6 +354,7 @@ export async function fetchStatsData(
       totalKm: Number(r.totalKm ?? 0),
       avgFuelDelta: r.avgFuelDelta != null ? Number(r.avgFuelDelta) : 0,
       avgLPer100km: r.avgLPer100km != null ? Number(r.avgLPer100km) : 0,
+      avgKwhPer100km: r.avgKwhPer100km != null ? Number(r.avgKwhPer100km) : 0,
       percentOfTotal: totalTrips > 0 ? Math.round((vehicleTripCount / totalTrips) * 100) : 0,
     };
   });
@@ -331,6 +384,8 @@ export async function fetchStatsData(
       avgFuelAtReturn,
       fleetUtilizationRate,
       incidentRate,
+      avgKwhPer100km,
+      totalKwhConsumed,
     },
     byDriver,
     byVehicle,

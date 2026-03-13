@@ -15,6 +15,7 @@ const createVehicleSchema = z.object({
     vin: z.string().optional().nullable(),
     fuelType: z.string().optional().nullable(),
     maxFuelCapacity: z.number().int().min(1).optional().nullable(),
+    maxBatteryCapacityKwh: z.number().int().min(1).optional().nullable(),
 });
 
 export async function GET() {
@@ -55,6 +56,7 @@ export async function GET() {
                     vin: row.vin,
                     fuelType: row.fuelType,
                     maxFuelCapacity: row.maxFuelCapacity as number | null,
+                    maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
                     createdAt: new Date(row.createdAt as string),
                     updatedAt: new Date(row.updatedAt as string),
                     trips: []
@@ -96,8 +98,8 @@ export async function POST(request: Request) {
         const timestamp = new Date().toISOString();
 
         await db.execute({
-            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, notes, vin, fuelType, maxFuelCapacity, createdAt, updatedAt)
-                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, notes, vin, fuelType, maxFuelCapacity, maxBatteryCapacityKwh, createdAt, updatedAt)
+                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 id,
                 data.name,
@@ -111,6 +113,7 @@ export async function POST(request: Request) {
                 data.vin ?? null,
                 data.fuelType ?? null,
                 data.maxFuelCapacity ?? null,
+                data.maxBatteryCapacityKwh ?? null,
                 timestamp,
                 timestamp
             ]
@@ -129,6 +132,7 @@ export async function POST(request: Request) {
             hasDSA: data.hasDSA,
             notes: data.notes || null,
             maxFuelCapacity: data.maxFuelCapacity ?? null,
+            maxBatteryCapacityKwh: data.maxBatteryCapacityKwh ?? null,
             createdAt: timestamp,
             updatedAt: timestamp
         };

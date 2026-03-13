@@ -32,6 +32,7 @@ async function createTables() {
     vin TEXT,
     fuelType TEXT DEFAULT 'Essence',
     maxFuelCapacity INTEGER,
+    maxBatteryCapacityKwh INTEGER,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -130,6 +131,7 @@ export async function seedVehicle(overrides: Partial<{
   vin: string | null;
   parkingSpot: string | null;
   maxFuelCapacity: number | null;
+  maxBatteryCapacityKwh: number | null;
 }> = {}) {
   const v = {
     id: 'VL001',
@@ -141,12 +143,13 @@ export async function seedVehicle(overrides: Partial<{
     vin: null,
     parkingSpot: 'Baigneur',
     maxFuelCapacity: null,
+    maxBatteryCapacityKwh: null,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT INTO "Vehicle" (id, name, type, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity)
-          VALUES (?,?,?,?,?,?,?,?,?)`,
-    args: [v.id, v.name, v.type, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity],
+    sql: `INSERT INTO "Vehicle" (id, name, type, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh)
+          VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    args: [v.id, v.name, v.type, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh],
   });
   return v;
 }

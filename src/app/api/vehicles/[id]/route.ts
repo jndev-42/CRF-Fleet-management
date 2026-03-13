@@ -16,6 +16,7 @@ const updateVehicleSchema = z.object({
     vin: z.string().optional().nullable(),
     fuelType: z.string().optional().nullable(),
     maxFuelCapacity: z.number().int().min(1).optional().nullable(),
+    maxBatteryCapacityKwh: z.number().int().min(1).optional().nullable(),
 });
 
 export async function GET(
@@ -74,6 +75,7 @@ export async function GET(
             vin: row.vin,
             fuelType: row.fuelType,
             maxFuelCapacity: row.maxFuelCapacity as number | null,
+            maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
             trips: tripsResult.rows.map((tRow) => ({

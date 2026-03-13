@@ -10,27 +10,53 @@ const createUserSchema = z.object({
     roles: z.array(z.string()).optional().default([]),
 });
 
-/** GET /api/users — Admin: list all users with their roles */
-export async function GET() {
+/** GET /api/users — Admin: list all users with their roles.
+ *  ?drivers=true  → returns only users who have at least the CHVL or CHVPSP role */
+export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
         }
 
-        const usersRes = await db.execute(`
-            SELECT 
-                u.id, 
-                u.email, 
-                u.name, 
-                u.createdAt,
-                GROUP_CONCAT(r.name) as roles
-            FROM "User" u
-            LEFT JOIN "UserRole" ur ON u.id = ur.userId
-            LEFT JOIN "Role" r ON ur.roleId = r.id
-            GROUP BY u.id
-            ORDER BY u.email ASC
-        `);
+        const { searchParams } = new URL(request.url);
+        const driversOnly = searchParams.get('drivers') === 'true';
+
+        const usersRes = await db.execute(
+            driversOnly
+                ? `
+                    SELECT
+                        u.id,
+                        u.email,
+                        u.name,
+                        u.createdAt,
+                        GROUP_CONCAT(r.name) as roles
+                    FROM "User" u
+                    LEFT JOIN "UserRole" ur ON u.id = ur.userId
+                    LEFT JOIN "Role" r ON ur.roleId = r.id
+                    WHERE u.id IN (
+                        SELECT DISTINCT ur2.userId
+                        FROM "UserRole" ur2
+                        JOIN "Role" r2 ON ur2.roleId = r2.id
+                        WHERE r2.name IN ('CHVL', 'CHVPSP')
+                    )
+                    GROUP BY u.id
+                    ORDER BY u.email ASC
+                `
+                : `
+                    SELECT
+                        u.id,
+                        u.email,
+                        u.name,
+                        u.createdAt,
+                        GROUP_CONCAT(r.name) as roles
+                    FROM "User" u
+                    LEFT JOIN "UserRole" ur ON u.id = ur.userId
+                    LEFT JOIN "Role" r ON ur.roleId = r.id
+                    GROUP BY u.id
+                    ORDER BY u.email ASC
+                `
+        );
 
         const rolesRes = await db.execute(`SELECT name FROM "Role"`);
         const availableRoles = rolesRes.rows.map(r => r.name);

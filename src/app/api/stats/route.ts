@@ -18,6 +18,12 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
     }
 
+    const roles = (session.user.roles || ['GUEST']) as string[];
+    const allowed = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP'];
+    if (!roles.some((r) => allowed.includes(r))) {
+      return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const parsed = querySchema.safeParse({
       dateFrom: searchParams.get('dateFrom'),

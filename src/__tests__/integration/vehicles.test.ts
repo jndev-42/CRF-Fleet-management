@@ -12,9 +12,12 @@
  *   3. 400 Zod — maxFuelCapacity: 0 (min(1))
  *   4. Happy path avec capacité (maxFuelCapacity enregistré en DB)
  *   5. Happy path sans capacité (maxFuelCapacity NULL en DB)
+ *   6. 400 Zod — maxBatteryCapacityKwh: 0 (min(1))
+ *   7. Happy path EV avec maxBatteryCapacityKwh: 52 enregistré en DB
  *
  *  PATCH /api/vehicles/[id]
- *   6. Mise à jour de maxFuelCapacity 56 → 80 vérifiée en DB
+ *   8. Mise à jour de maxFuelCapacity 56 → 80 vérifiée en DB
+ *   9. Mise à jour de maxBatteryCapacityKwh vérifiée en DB
  */
 import { describe, it, expect, vi } from 'vitest';
 
@@ -117,6 +120,34 @@ describe('POST /api/vehicles — happy path', () => {
   });
 });
 
+describe('POST /api/vehicles — validation Zod maxBatteryCapacityKwh', () => {
+  it('retourne 400 si maxBatteryCapacityKwh vaut 0 (min 1)', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+    const res = await POST(makePostRequest({ ...validVehicleBody, fuelType: 'Électrique', maxBatteryCapacityKwh: 0 }));
+    expect(res.status).toBe(400);
+    const data = await res.json() as { error: string };
+    expect(data.error).toBe('Données invalides');
+  });
+});
+
+describe('POST /api/vehicles — happy path EV avec maxBatteryCapacityKwh', () => {
+  it('crée un VE avec maxBatteryCapacityKwh: 52 et le persiste en DB', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+
+    const res = await POST(makePostRequest({ ...validVehicleBody, fuelType: 'Électrique', maxBatteryCapacityKwh: 52 }));
+    expect(res.status).toBe(201);
+
+    const body = await res.json() as { maxBatteryCapacityKwh: number | null };
+    expect(body.maxBatteryCapacityKwh).toBe(52);
+
+    const row = await db.execute({
+      sql: `SELECT maxBatteryCapacityKwh FROM "Vehicle" WHERE name = ?`,
+      args: ['VL 486'],
+    });
+    expect(row.rows[0].maxBatteryCapacityKwh).toBe(52);
+  });
+});
+
 describe('PATCH /api/vehicles/[id] — mise à jour maxFuelCapacity', () => {
   it('met à jour maxFuelCapacity de 56 vers 80 et vérifie en DB', async () => {
     mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
@@ -135,6 +166,26 @@ describe('PATCH /api/vehicles/[id] — mise à jour maxFuelCapacity', () => {
       args: ['VL186'],
     });
     expect(row.rows[0].maxFuelCapacity).toBe(80);
+  });
+});
+
+describe('PATCH /api/vehicles/[id] — mise à jour maxBatteryCapacityKwh', () => {
+  it('met à jour maxBatteryCapacityKwh et vérifie en DB', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+
+    await seedVehicle({ id: 'VL001', name: 'VL186', maxBatteryCapacityKwh: 40 });
+
+    const res = await PATCH(
+      makePatchRequest({ maxBatteryCapacityKwh: 52 }),
+      { params: Promise.resolve({ id: 'VL186' }) }
+    );
+    expect(res.status).toBe(200);
+
+    const row = await db.execute({
+      sql: `SELECT maxBatteryCapacityKwh FROM "Vehicle" WHERE name = ?`,
+      args: ['VL186'],
+    });
+    expect(row.rows[0].maxBatteryCapacityKwh).toBe(52);
   });
 });
 
