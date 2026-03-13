@@ -78,21 +78,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         args: [email],
                     });
                     if (resUser.rows.length === 0) {
-                        const guestRes = await db.execute(`SELECT id FROM "Role" WHERE name = 'GUEST'`);
-                        if (guestRes.rows.length > 0) {
-                            const userId = crypto.randomUUID();
-                            await db.execute({
-                                sql: 'INSERT INTO "User" (id, email, name) VALUES (?, ?, ?)',
-                                args: [userId, email, user?.name || profile?.name || null],
-                            });
-                            await db.execute({
-                                sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
-                                args: [userId, guestRes.rows[0].id],
-                            });
-                        }
+                        return "/login?error=AccessDenied";
                     }
                 } catch (e) {
-                    console.error("Failed to auto-register user:", e);
+                    console.error("Failed to verify user:", e);
                 }
                 return true;
             }

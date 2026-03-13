@@ -61,9 +61,19 @@ export default function UsersPage() {
     }
 
     async function toggleRole(email: string, roleName: string, currentRoles: string[]) {
-        const newRoles = currentRoles.includes(roleName)
-            ? currentRoles.filter(r => r !== roleName)
-            : [...currentRoles, roleName];
+        const isAdding = !currentRoles.includes(roleName);
+        let newRoles = isAdding
+            ? [...currentRoles, roleName]
+            : currentRoles.filter(r => r !== roleName);
+
+        // Mutual exclusivity: GUEST cannot coexist with other roles
+        if (isAdding) {
+            if (roleName === 'GUEST') {
+                newRoles = ['GUEST'];
+            } else {
+                newRoles = newRoles.filter(r => r !== 'GUEST');
+            }
+        }
 
         // Optimistic UI update
         const previousUsers = [...users];

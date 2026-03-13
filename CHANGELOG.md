@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.17.1] — 13 mars 2026
+
+### Sécurité
+- **Connexion Google OAuth restreinte aux comptes pré-enregistrés** — La création automatique de compte GUEST à la première connexion a été supprimée. Un utilisateur inconnu (non présent en base) est désormais redirigé vers `/login?error=AccessDenied` au lieu de se voir attribuer un accès GUEST automatique.
+
+### Ajouté
+- **Exclusivité mutuelle du rôle GUEST** — GUEST est désormais incompatible avec tous les autres rôles. Assigner GUEST à un utilisateur retire automatiquement tous ses autres rôles ; à l'inverse, assigner un rôle non-GUEST retire GUEST. Cette règle s'applique à la création d'utilisateur (`POST /api/users`) et à la modification des rôles (`PATCH /api/users/[email]`).
+- **Tests d'intégration — gestion des utilisateurs** — Nouveaux tests couvrant : résolution des rôles (POST et PATCH), gardes 401/403/404, et tous les cas d'exclusivité GUEST.
+
+---
+
 ## [1.17.0] — 13 mars 2026
 
 ### Ajouté

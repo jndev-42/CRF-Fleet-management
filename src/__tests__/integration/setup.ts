@@ -89,13 +89,28 @@ async function createTables() {
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vehicleId) REFERENCES Vehicle(id)
   )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "Role" (
+    id TEXT PRIMARY KEY,
+    name TEXT UNIQUE NOT NULL
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "UserRole" (
+    userId TEXT NOT NULL,
+    roleId TEXT NOT NULL,
+    PRIMARY KEY (userId, roleId),
+    FOREIGN KEY (userId) REFERENCES "User"(id),
+    FOREIGN KEY (roleId) REFERENCES "Role"(id)
+  )`);
 }
 
 async function truncateTables() {
+  await db.execute(`DELETE FROM "UserRole"`);
   await db.execute(`DELETE FROM "Trip"`);
   await db.execute(`DELETE FROM "Reservation"`);
   await db.execute(`DELETE FROM "Vehicle"`);
   await db.execute(`DELETE FROM "User"`);
+  await db.execute(`DELETE FROM "Role"`);
 }
 
 // Create tables once on first import
@@ -170,6 +185,28 @@ export async function seedUser(overrides: Partial<{
     args: [u.id, u.email, u.name],
   });
   return u;
+}
+
+export async function seedRoles(names: string[] = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST']) {
+  for (const name of names) {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
+      args: [name.toLowerCase(), name],
+    });
+  }
+}
+
+export async function seedUserRole(userId: string, roleName: string) {
+  const roleRes = await db.execute({
+    sql: `SELECT id FROM "Role" WHERE name = ?`,
+    args: [roleName],
+  });
+  if (roleRes.rows.length > 0) {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO "UserRole" (userId, roleId) VALUES (?, ?)`,
+      args: [userId, roleRes.rows[0].id],
+    });
+  }
 }
 
 export async function seedTrip(overrides: Partial<{

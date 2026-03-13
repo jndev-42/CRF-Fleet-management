@@ -3,6 +3,11 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 
+function resolveRoles(roles: string[]): string[] {
+    const nonGuest = roles.filter(r => r !== 'GUEST');
+    return nonGuest.length > 0 ? nonGuest : (roles.includes('GUEST') ? ['GUEST'] : []);
+}
+
 /** Zod schema for creating a new user */
 const createUserSchema = z.object({
     email: z.string().email('Email invalide'),
@@ -119,7 +124,8 @@ export async function POST(request: Request) {
             });
 
             // Assign initial roles
-            for (const roleName of data.roles) {
+            const resolvedRoles = resolveRoles(data.roles);
+            for (const roleName of resolvedRoles) {
                 const roleRes = await tx.execute({
                     sql: 'SELECT id FROM "Role" WHERE name = ?',
                     args: [roleName]

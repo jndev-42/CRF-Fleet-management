@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 
+function resolveRoles(roles: string[]): string[] {
+    const nonGuest = roles.filter(r => r !== 'GUEST');
+    return nonGuest.length > 0 ? nonGuest : (roles.includes('GUEST') ? ['GUEST'] : []);
+}
+
 export async function PATCH(
     request: Request,
     { params }: { params: Promise<{ email: string }> }
@@ -44,7 +49,8 @@ export async function PATCH(
             });
 
             // Insert new roles
-            for (const roleName of roles) {
+            const resolvedRoles = resolveRoles(roles);
+            for (const roleName of resolvedRoles) {
                 const roleRes = await tx.execute({
                     sql: 'SELECT id FROM "Role" WHERE name = ?',
                     args: [roleName]
