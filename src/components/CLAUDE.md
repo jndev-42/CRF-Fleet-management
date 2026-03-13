@@ -1,5 +1,18 @@
 # Components
 
+## Carpaccio rule — slice thin, extract early
+**Any distinct UI section must live in its own component file.** Never leave large inline JSX blocks inside page files or parent components.
+
+When a piece of UI has a clear identity (a legend, a toolbar, a card, a panel, a table, a stat block…), extract it immediately — even if it's currently small. This keeps pages readable and components reusable.
+
+Page files should read like an outline:
+```tsx
+<PageHeader ... />
+<RoleLegend />
+<UsersTable ... />
+```
+Not like a wall of JSX.
+
 ## Component size rule
 **Target: under 150 lines per component file.**
 If a component exceeds this, evaluate whether it contains distinct concerns (data fetching, separate UI sections, reusable logic). Split at those natural boundaries — not to hit a number.

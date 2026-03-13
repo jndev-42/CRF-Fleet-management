@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import RoleLegend from '@/components/users/RoleLegend';
 
 interface User {
     id: string;
@@ -181,6 +182,8 @@ export default function UsersPage() {
                     </button>
                 </div>
             </div>
+
+            <RoleLegend />
 
             <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
                 <div style={{ overflowX: 'auto' }}>

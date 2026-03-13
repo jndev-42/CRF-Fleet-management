@@ -7,6 +7,7 @@
 
 ### Ajouté
 - **Exclusivité mutuelle du rôle GUEST** — GUEST est désormais incompatible avec tous les autres rôles. Assigner GUEST à un utilisateur retire automatiquement tous ses autres rôles ; à l'inverse, assigner un rôle non-GUEST retire GUEST. Cette règle s'applique à la création d'utilisateur (`POST /api/users`) et à la modification des rôles (`PATCH /api/users/[email]`).
+- **Légende des roles** — Ajout d'une légende sur l'interface de gestion utilisateurs pour expliquer à quoi servent les rôles.
 - **Tests d'intégration — gestion des utilisateurs** — Nouveaux tests couvrant : résolution des rôles (POST et PATCH), gardes 401/403/404, et tous les cas d'exclusivité GUEST.
 
 ---
