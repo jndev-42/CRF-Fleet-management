@@ -55,7 +55,7 @@ export default function VehicleDetailPage() {
     const [viewingPhotosFolderId, setViewingPhotosFolderId] = useState<string | null>(null);
     const [tripsPage, setTripsPage] = useState(1);
     const TRIPS_PER_PAGE = 3;
-    const [users, setUsers] = useState<{ name: string, email: string }[]>([]);
+    const [users, setUsers] = useState<{ id: string, name: string, email: string }[]>([]);
     const [showAddSecondDriver, setShowAddSecondDriver] = useState(false);
     const [secondDriverEmail, setSecondDriverEmail] = useState('');
     const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
