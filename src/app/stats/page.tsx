@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { Download, FileText, AlertCircle } from 'lucide-react';
 
 import { StatsData } from '@/components/stats/types';
+import MultiSelectDropdown from '@/components/stats/MultiSelectDropdown';
 import KPICards from '@/components/stats/KPICards';
 import DriverBreakdown from '@/components/stats/DriverBreakdown';
 import VehicleBreakdown from '@/components/stats/VehicleBreakdown';
@@ -16,6 +17,16 @@ import ExportReadyModal from '@/components/stats/ExportReadyModal';
 
 // Recharts uses browser APIs — SSR disabled
 const ChartsSection = dynamic(() => import('@/components/stats/ChartsSection'), { ssr: false });
+
+interface VehicleOption {
+  id: string;
+  name: string;
+}
+
+interface DriverOption {
+  id: string;
+  name: string;
+}
 
 function getDefaultDates(): { from: string; to: string } {
   const to = new Date();
@@ -33,6 +44,8 @@ function diffDays(from: string, to: string): number {
   return (t - f) / (1000 * 60 * 60 * 24);
 }
 
+const MISSION_TYPES = ['Opération', 'Formation', 'Logistique', 'Autre'];
+
 export default function StatsPage() {
   const { status } = useSession();
   const router = useRouter();
@@ -40,6 +53,11 @@ export default function StatsPage() {
   const defaults = getDefaultDates();
   const [dateFrom, setDateFrom] = useState(defaults.from);
   const [dateTo, setDateTo] = useState(defaults.to);
+  const [vehicleId, setVehicleId] = useState('');
+  const [driverIds, setDriverIds] = useState<string[]>([]);
+  const [missionType, setMissionType] = useState('');
+  const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
+  const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [data, setData] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,14 +79,47 @@ export default function StatsPage() {
     }
   }, [status, router]);
 
+  // Fetch vehicles and drivers for filter dropdowns
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+
+    Promise.all([
+      fetch('/api/vehicles').then((r) => r.json()),
+      fetch('/api/users').then((r) => r.json()),
+    ]).then(([vehiclesJson, usersJson]) => {
+      if (Array.isArray(vehiclesJson)) {
+        setVehicles(
+          (vehiclesJson as Array<{ id: string; name: string }>).map((v) => ({
+            id: v.id,
+            name: v.name,
+          }))
+        );
+      }
+      if (usersJson.users) {
+        setDrivers(
+          (usersJson.users as Array<{ id: string; name: string }>).map((u) => ({
+            id: u.id,
+            name: u.name,
+          }))
+        );
+      }
+    }).catch((err) => console.error('Failed to load filter options', err));
+  }, [status]);
+
   const fetchStats = useCallback(async () => {
     if (rangeError) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/stats?dateFrom=${encodeURIComponent(dateFrom)}&dateTo=${encodeURIComponent(dateTo)}`
-      );
+      const params = new URLSearchParams({
+        dateFrom,
+        dateTo,
+      });
+      if (vehicleId) params.set('vehicleId', vehicleId);
+      if (driverIds.length > 0) params.set('driverId', driverIds.join(','));
+      if (missionType) params.set('missionType', missionType);
+
+      const res = await fetch(`/api/stats?${params.toString()}`);
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? 'Erreur lors du chargement des statistiques');
@@ -83,7 +134,7 @@ export default function StatsPage() {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, rangeError]);
+  }, [dateFrom, dateTo, vehicleId, driverIds, missionType, rangeError]);
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -190,6 +241,38 @@ export default function StatsPage() {
             onChange={(e) => setDateTo(e.target.value)}
           />
         </div>
+
+        <select
+          className="stats-date-input"
+          value={vehicleId}
+          onChange={(e) => setVehicleId(e.target.value)}
+          aria-label="Filtrer par véhicule"
+        >
+          <option value="">Tous les véhicules</option>
+          {vehicles.map((v) => (
+            <option key={v.id} value={v.id}>{v.name}</option>
+          ))}
+        </select>
+
+        <MultiSelectDropdown
+          options={drivers.map((d) => ({ id: d.id, label: d.name }))}
+          value={driverIds}
+          onChange={setDriverIds}
+          placeholder="Tous les chauffeurs"
+        />
+
+        <select
+          className="stats-date-input"
+          value={missionType}
+          onChange={(e) => setMissionType(e.target.value)}
+          aria-label="Filtrer par type de mission"
+        >
+          <option value="">Tous types</option>
+          {MISSION_TYPES.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+
         {rangeError ? (
           <div className="stats-date-error">
             <AlertCircle size={13} />
@@ -206,7 +289,7 @@ export default function StatsPage() {
       {(loading || status === 'loading') && !rangeError && (
         <>
           <div className="stats-skeleton-grid">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="kpi-card">
                 <div className="skel" style={{ width: 36, height: 36, borderRadius: 8 }} />
                 <div className="skel" style={{ width: '60%', height: 10 }} />
@@ -257,11 +340,7 @@ export default function StatsPage() {
           />
 
           <div className="breakdown-grid">
-            <DriverBreakdown
-              byDriver={data.byDriver}
-              totalKm={data.global.totalKm}
-              completedTrips={data.global.completedTrips}
-            />
+            <DriverBreakdown byDriver={data.byDriver} />
             <VehicleBreakdown byVehicle={data.byVehicle} />
           </div>
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.16.0] — 13 mars 2026
+
+### Ajouté
+- **Filtres sur la page Statistiques** — Trois nouveaux sélecteurs dans la barre de filtres : véhicule, chauffeur et type de mission. Les filtres s'appliquent en temps réel et s'ajoutent aux paramètres de la requête `GET /api/stats` (nouveaux champs Zod : `vehicleId`, `driverId`, `missionType`). La logique SQL est centralisée dans le nouveau helper `buildTripWhere` (safe via args paramétrés).
+- **Nouveau KPI "L/100km réel"** — Remplace "Conso. moy." sur les cartes KPI et dans le tableau des véhicules. Calculé à partir de `maxFuelCapacity` et de la variation de carburant ; affiche "—" si les données sont insuffisantes.
+- **Nouveau KPI "Taux d'utilisation"** — Nombre de jours avec au moins une sortie sur la période, exprimé en % ; plafonné à 100 % pour les périodes avec chevauchements.
+- **Nouveau KPI "Carburant moyen retour"** — Niveau de carburant moyen à la restitution (champ `fuelIn`), global et par chauffeur.
+- **Taux d'incidents en inc./100 km** — La sous-ligne de la carte Incidents affiche désormais `X,X inc./100 km` quand `totalKm > 0`, plus précis que le pourcentage.
+- **Tableau des chauffeurs enrichi** — Deux nouvelles colonnes : "% retour" (`avgFuelAtReturn`) et "L/100km" (`avgLPer100km`) ; la colonne "vs. moy." km est retirée.
+- **PDF — double rangée de KPIs** — La section 1 du rapport PDF passe de 4 à 8 indicateurs sur 2 lignes (L/100km réel, taux d'utilisation, litres consommés, taux d'incidents). Tableau chauffeurs enrichi de "% retour" et "L/100km" (7 colonnes). Tableau véhicules : colonne "Conso. moy." remplacée par "L/100km".
+- **Tests** — Nouveaux tests unitaires pour `buildTripWhere`, `incidentRate` et `fleetUtilizationRate` ; nouveaux tests d'intégration pour les filtres `vehicleId`, `driverId` et `missionType` sur `GET /api/stats`.
+
+### Modifié
+- **`src/lib/stats.ts`** — `fetchStatsData` accepte désormais un troisième paramètre optionnel `filters?: StatsFilters` ; toutes les requêtes SQL sont refactorisées pour utiliser le préfixe `t.` et le helper `buildTripWhere`.
+- **`src/components/stats/DriverBreakdown.tsx`** — Les props `totalKm` et `completedTrips` sont supprimées (elles n'étaient utilisées que pour le calcul "vs. moy." désormais retiré).
+
+---
+
 ## [1.15.3] — 13 mars 2026
 
 ### Ajouté

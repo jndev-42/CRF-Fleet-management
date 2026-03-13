@@ -17,6 +17,12 @@ export default function VehicleBreakdown({ byVehicle }: VehicleBreakdownProps) {
     return 'var(--status-available)';
   }
 
+  function getFuelDisplay(vehicle: StatsData['byVehicle'][0]): string {
+    if (vehicle.avgLPer100km > 0) return `${vehicle.avgLPer100km.toFixed(1)} L/100`;
+    if (vehicle.avgFuelDelta > 0) return `−${Math.round(vehicle.avgFuelDelta)}%`;
+    return '—';
+  }
+
   return (
     <div className="breakdown-card">
       <div className="breakdown-title">
@@ -30,7 +36,7 @@ export default function VehicleBreakdown({ byVehicle }: VehicleBreakdownProps) {
             <th scope="col">Emprunts</th>
             <th scope="col">% total</th>
             <th scope="col">Km totaux</th>
-            <th scope="col">Conso. moy.</th>
+            <th scope="col">L/100km</th>
           </tr>
         </thead>
         <tbody>
@@ -55,7 +61,7 @@ export default function VehicleBreakdown({ byVehicle }: VehicleBreakdownProps) {
                 </div>
               </td>
               <td>{vehicle.totalKm.toLocaleString('fr-FR')} km</td>
-              <td>{vehicle.avgFuelDelta > 0 ? `−${Math.round(vehicle.avgFuelDelta)}%` : '—'}</td>
+              <td>{getFuelDisplay(vehicle)}</td>
             </tr>
           ))}
           {byVehicle.length === 0 && (

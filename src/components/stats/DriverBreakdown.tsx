@@ -6,13 +6,10 @@ import { StatsData } from './types';
 
 interface DriverBreakdownProps {
   byDriver: StatsData['byDriver'];
-  totalKm: number;
-  completedTrips: number;
 }
 
-export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: DriverBreakdownProps) {
+export default function DriverBreakdown({ byDriver }: DriverBreakdownProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const globalAvgKm = completedTrips > 0 ? totalKm / completedTrips : 0;
 
   function getPctBadgeClass(pct: number): string {
     if (pct > 30) return 'pct-badge pct-high';
@@ -20,17 +17,11 @@ export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: D
     return 'pct-badge pct-low';
   }
 
-  function getVsStyle(vsAvg: number): { color: string } {
-    if (vsAvg > 20) return { color: 'var(--status-maintenance)' };
-    if (vsAvg < -20) return { color: 'var(--status-available)' };
-    return { color: 'var(--text-muted)' };
-  }
-
   return (
     <div className="breakdown-card">
       <div className="breakdown-title">
         Par chauffeur
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>vs. moyenne globale</span>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>détail par conducteur</span>
       </div>
       <table>
         <thead>
@@ -40,15 +31,13 @@ export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: D
             <th scope="col">Emprunts</th>
             <th scope="col">% total</th>
             <th scope="col">Km</th>
-            <th scope="col">vs. moy.</th>
             <th scope="col">Incidents</th>
+            <th scope="col">% retour</th>
+            <th scope="col">L/100km</th>
           </tr>
         </thead>
         <tbody>
           {byDriver.map((driver) => {
-            const driverAvgKm = driver.tripCount > 0 ? driver.totalKm / driver.tripCount : 0;
-            const vsAvg = globalAvgKm > 0 ? Math.round(((driverAvgKm / globalAvgKm) - 1) * 100) : 0;
-            const vsStr = vsAvg >= 0 ? `+${vsAvg}%` : `${vsAvg}%`;
             const isExpanded = expanded === driver.driverEmail;
 
             return (
@@ -72,7 +61,6 @@ export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: D
                     </span>
                   </td>
                   <td>{driver.totalKm.toLocaleString('fr-FR')} km</td>
-                  <td className="vs-avg" style={getVsStyle(vsAvg)}>{vsStr}</td>
                   <td>
                     {driver.incidents > 0 ? (
                       <>
@@ -82,6 +70,12 @@ export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: D
                       </>
                     ) : '0'}
                   </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    {driver.avgFuelAtReturn > 0 ? `${driver.avgFuelAtReturn}%` : '—'}
+                  </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>
+                    {driver.avgLPer100km > 0 ? `${driver.avgLPer100km.toFixed(1)}` : '—'}
+                  </td>
                 </tr>
                 {isExpanded && driver.byVehicle.map((veh) => (
                   <tr key={`${driver.driverEmail}-${veh.vehicleId}`} style={{ background: 'rgba(255,255,255,0.015)' }}>
@@ -90,7 +84,7 @@ export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: D
                       ↳ {veh.vehicleName}
                     </td>
                     <td style={{ fontSize: 11, color: 'var(--text-muted)' }}>{veh.tripCount} sorties</td>
-                    <td colSpan={3}>
+                    <td colSpan={4}>
                       <span className={getPctBadgeClass(veh.percentOfVehicleTotal)} style={{ fontSize: 10 }}>
                         {veh.percentOfVehicleTotal}% du véhicule
                       </span>
@@ -102,7 +96,7 @@ export default function DriverBreakdown({ byDriver, totalKm, completedTrips }: D
           })}
           {byDriver.length === 0 && (
             <tr>
-              <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 8px' }}>
+              <td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px 8px' }}>
                 Aucune sortie sur cette période
               </td>
             </tr>

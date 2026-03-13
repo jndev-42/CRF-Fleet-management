@@ -6,6 +6,9 @@ import { z } from 'zod';
 const querySchema = z.object({
   dateFrom: z.string().min(1),
   dateTo: z.string().min(1),
+  vehicleId: z.string().optional(),
+  driverId: z.string().optional(),
+  missionType: z.string().optional(),
 });
 
 export async function GET(request: Request) {
@@ -19,13 +22,16 @@ export async function GET(request: Request) {
     const parsed = querySchema.safeParse({
       dateFrom: searchParams.get('dateFrom'),
       dateTo: searchParams.get('dateTo'),
+      vehicleId: searchParams.get('vehicleId') ?? undefined,
+      driverId: searchParams.get('driverId') ?? undefined,
+      missionType: searchParams.get('missionType') ?? undefined,
     });
 
     if (!parsed.success) {
       return NextResponse.json({ success: false, error: 'Paramètres invalides' }, { status: 400 });
     }
 
-    const { dateFrom, dateTo } = parsed.data;
+    const { dateFrom, dateTo, vehicleId, driverId, missionType } = parsed.data;
 
     const fromDate = new Date(dateFrom);
     const toDate = new Date(dateTo);
@@ -45,7 +51,15 @@ export async function GET(request: Request) {
       );
     }
 
-    const data = await fetchStatsData(dateFrom, dateTo);
+    const driverIds = driverId ? driverId.split(',').filter(Boolean) : [];
+
+    const filters = {
+      ...(vehicleId ? { vehicleId } : {}),
+      ...(driverIds.length > 0 ? { driverIds } : {}),
+      ...(missionType ? { missionType } : {}),
+    };
+
+    const data = await fetchStatsData(dateFrom, dateTo, Object.keys(filters).length > 0 ? filters : undefined);
 
     return NextResponse.json({ success: true, data });
   } catch (error) {

@@ -1,4 +1,4 @@
-import { Car, CheckCircle, MapPin, Gauge, AlertTriangle, Fuel } from 'lucide-react';
+import { Car, CheckCircle, MapPin, Gauge, AlertTriangle, Fuel, BarChart2 } from 'lucide-react';
 import { StatsData } from './types';
 
 interface KPICardsProps {
@@ -48,15 +48,31 @@ export default function KPICards({ data }: KPICardsProps) {
       iconClass: 'amber',
       label: 'Incidents signalés',
       value: data.totalIncidents.toLocaleString('fr-FR'),
-      sub: `${incidentPct}% des sorties`,
+      sub: data.totalKm > 0
+        ? `${data.incidentRate.toFixed(1)} inc./100 km`
+        : `${incidentPct}% des sorties`,
       valueClass: data.totalIncidents > 0 ? 'text-amber' : undefined,
     },
     {
       icon: <Fuel size={18} />,
       iconClass: 'amber',
-      label: 'Conso. moy.',
-      value: data.avgFuelConsumption > 0 ? `−${Math.round(data.avgFuelConsumption)}%` : '—',
-      sub: 'par trajet',
+      label: 'L/100km réel',
+      value: data.avgLPer100km > 0 ? `${data.avgLPer100km.toFixed(1)} L` : '—',
+      sub: 'consommation moyenne',
+    },
+    {
+      icon: <BarChart2 size={18} />,
+      iconClass: 'blue',
+      label: 'Taux d\'utilisation',
+      value: `${data.fleetUtilizationRate}%`,
+      sub: 'jours avec sortie / période',
+    },
+    {
+      icon: <Fuel size={18} />,
+      iconClass: 'green',
+      label: 'Carburant moy. retour',
+      value: data.avgFuelAtReturn > 0 ? `${data.avgFuelAtReturn}%` : '—',
+      sub: 'niveau moyen au retour',
     },
   ];
 

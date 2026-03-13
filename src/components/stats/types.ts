@@ -7,6 +7,11 @@ export interface StatsData {
     avgKmPerTrip: number;
     totalIncidents: number;
     avgFuelConsumption: number;
+    avgLPer100km: number;
+    totalFuelLiters: number;
+    avgFuelAtReturn: number;
+    fleetUtilizationRate: number;
+    incidentRate: number;
   };
   byDriver: Array<{
     driverId: string;
@@ -16,6 +21,8 @@ export interface StatsData {
     totalKm: number;
     percentOfTotal: number;
     incidents: number;
+    avgFuelAtReturn: number;
+    avgLPer100km: number;
     byVehicle: Array<{
       vehicleId: string;
       vehicleName: string;
@@ -29,6 +36,7 @@ export interface StatsData {
     tripCount: number;
     totalKm: number;
     avgFuelDelta: number;
+    avgLPer100km: number;
     percentOfTotal: number;
   }>;
   byMissionType: Array<{ missionType: string; count: number }>;

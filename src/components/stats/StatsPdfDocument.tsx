@@ -19,6 +19,7 @@ const BG = '#F9FAFB';
 const BORDER = '#E5E7EB';
 const GREEN = '#16A34A';
 const AMBER = '#D97706';
+const BLUE = '#1D4ED8';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 export interface StatsPdfProps {
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
   kpiRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 14,
+    marginBottom: 8,
   },
   kpiBox: {
     flex: 1,
@@ -148,6 +149,24 @@ const styles = StyleSheet.create({
     fontFamily: 'Helvetica-Bold',
     fontSize: 18,
     color: RED,
+    marginBottom: 4,
+  },
+  kpiValueBlue: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 18,
+    color: BLUE,
+    marginBottom: 4,
+  },
+  kpiValueGreen: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 18,
+    color: GREEN,
+    marginBottom: 4,
+  },
+  kpiValueAmber: {
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 18,
+    color: AMBER,
     marginBottom: 4,
   },
   kpiSub: {
@@ -253,7 +272,6 @@ function fmtDateShort(dateStr: string): string {
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-
 function SectionTitle({ children }: { children: string }) {
   return (
     <View style={styles.sectionTitleContainer}>
@@ -305,8 +323,6 @@ export default function StatsPdfDocument({
   generatedAt,
   logoSrc,
 }: StatsPdfProps) {
-  const globalAvgKm =
-    data.global.completedTrips > 0 ? data.global.totalKm / data.global.completedTrips : 0;
   const totalMissions = data.byMissionType.reduce((acc, m) => acc + m.count, 0);
 
   return (
@@ -331,8 +347,9 @@ export default function StatsPdfDocument({
           </View>
         </View>
 
-        {/* Section 1: KPIs */}
+        {/* Section 1: KPIs — 2 rows of 4 */}
         <SectionTitle>1  Indicateurs globaux</SectionTitle>
+        {/* Row 1 */}
         <View style={styles.kpiRow}>
           {/* Total emprunts */}
           <View style={styles.kpiBox}>
@@ -357,45 +374,85 @@ export default function StatsPdfDocument({
               {String(data.global.totalIncidents)}
             </Text>
             <Text style={styles.kpiSub}>
-              {data.global.totalTrips > 0
-                ? Math.round((data.global.totalIncidents / data.global.totalTrips) * 100)
-                : 0}
-              % des sorties
+              {data.global.totalKm > 0
+                ? `${data.global.incidentRate.toFixed(2)} inc./100 km`
+                : `${data.global.totalTrips > 0
+                  ? Math.round((data.global.totalIncidents / data.global.totalTrips) * 100)
+                  : 0}% des sorties`}
             </Text>
           </View>
-          {/* Conso. moy. */}
+          {/* L/100km réel */}
           <View style={styles.kpiBox}>
-            <Text style={styles.kpiLabel}>Conso. moy. carbu.</Text>
-            <Text style={styles.kpiValue}>
-              {data.global.avgFuelConsumption > 0
-                ? `-${Math.round(data.global.avgFuelConsumption)}%`
-                : '--'}
+            <Text style={styles.kpiLabel}>L/100km réel</Text>
+            <Text style={data.global.avgLPer100km > 0 ? styles.kpiValueAmber : styles.kpiValue}>
+              {data.global.avgLPer100km > 0
+                ? `${data.global.avgLPer100km.toFixed(1)} L`
+                : '—'}
             </Text>
-            <Text style={styles.kpiSub}>de carburant / trajet</Text>
+            <Text style={styles.kpiSub}>consommation moyenne</Text>
+          </View>
+        </View>
+        {/* Row 2 */}
+        <View style={[styles.kpiRow, { marginBottom: 14 }]}>
+          {/* Taux utilisation */}
+          <View style={styles.kpiBox}>
+            <Text style={styles.kpiLabel}>Taux utilisation</Text>
+            <Text style={styles.kpiValueBlue}>
+              {String(data.global.fleetUtilizationRate)}%
+            </Text>
+            <Text style={styles.kpiSub}>jours avec sortie / période</Text>
+          </View>
+          {/* Litres consommés */}
+          <View style={styles.kpiBox}>
+            <Text style={styles.kpiLabel}>Litres consommés</Text>
+            <Text style={styles.kpiValueAmber}>
+              {data.global.totalFuelLiters > 0
+                ? `${data.global.totalFuelLiters.toFixed(0)} L`
+                : '—'}
+            </Text>
+            <Text style={styles.kpiSub}>total période</Text>
+          </View>
+          {/* Carburant moy. retour */}
+          <View style={styles.kpiBox}>
+            <Text style={styles.kpiLabel}>Carburant moy. retour</Text>
+            <Text style={data.global.avgFuelAtReturn > 0 ? styles.kpiValueGreen : styles.kpiValue}>
+              {data.global.avgFuelAtReturn > 0
+                ? `${data.global.avgFuelAtReturn}%`
+                : '—'}
+            </Text>
+            <Text style={styles.kpiSub}>niveau moyen au retour</Text>
+          </View>
+          {/* Taux d'incidents */}
+          <View style={styles.kpiBox}>
+            <Text style={styles.kpiLabel}>Taux d&apos;incidents</Text>
+            <Text style={data.global.incidentRate > 0 ? styles.kpiValueRed : styles.kpiValue}>
+              {data.global.incidentRate > 0
+                ? `${data.global.incidentRate.toFixed(2)}`
+                : '—'}
+            </Text>
+            <Text style={styles.kpiSub}>inc./100 km</Text>
           </View>
         </View>
 
-        {/* Section 2: By driver */}
+        {/* Section 2: By driver — 7 columns */}
         <SectionTitle>2  Détail par chauffeur</SectionTitle>
         <TableHeaderRow
           cols={[
             { label: 'Chauffeur', flex: 2 },
             { label: 'Emprunts', flex: 1 },
-            { label: '% du total', flex: 1 },
+            { label: '% total', flex: 1 },
             { label: 'Km totaux', flex: 1 },
-            { label: 'vs. moyenne', flex: 1 },
             { label: 'Incidents', flex: 1 },
+            { label: '% retour', flex: 1 },
+            { label: 'L/100km', flex: 1 },
           ]}
         />
         {data.byDriver.map((driver, idx) => {
-          const driverAvgKm = driver.tripCount > 0 ? driver.totalKm / driver.tripCount : 0;
-          const vsAvg =
-            globalAvgKm > 0 ? Math.round(((driverAvgKm / globalAvgKm) - 1) * 100) : 0;
-          const vsAvgStr = vsAvg >= 0 ? `+${vsAvg}%` : `${vsAvg}%`;
-          const vsColor = vsAvg > 20 ? RED : vsAvg < -20 ? GREEN : LIGHT;
           const pctColor =
             driver.percentOfTotal > 30 ? RED : driver.percentOfTotal > 15 ? AMBER : GREEN;
           const incStr = driver.incidents > 0 ? `${driver.incidents} (!)` : '--';
+          const fuelReturnStr = driver.avgFuelAtReturn > 0 ? `${driver.avgFuelAtReturn}%` : '--';
+          const lPer100Str = driver.avgLPer100km > 0 ? `${driver.avgLPer100km.toFixed(1)}` : '--';
 
           return (
             <View
@@ -414,9 +471,6 @@ export default function StatsPdfDocument({
               <Text style={[styles.tableCell, { flex: 1 }]}>
                 {driver.totalKm.toLocaleString('fr-FR')} km
               </Text>
-              <Text style={[styles.tableCell, { flex: 1, color: vsColor, fontFamily: 'Helvetica-Bold' }]}>
-                {vsAvgStr}
-              </Text>
               <Text
                 style={[
                   styles.tableCell,
@@ -424,6 +478,12 @@ export default function StatsPdfDocument({
                 ]}
               >
                 {incStr}
+              </Text>
+              <Text style={[styles.tableCell, { flex: 1, color: GREEN }]}>
+                {fuelReturnStr}
+              </Text>
+              <Text style={[styles.tableCell, { flex: 1, color: AMBER }]}>
+                {lPer100Str}
               </Text>
             </View>
           );
@@ -437,14 +497,18 @@ export default function StatsPdfDocument({
             { label: 'Emprunts', flex: 1 },
             { label: '% du total', flex: 1 },
             { label: 'Km totaux', flex: 1 },
-            { label: 'Conso. moy.', flex: 1 },
+            { label: 'L/100km', flex: 1 },
           ]}
         />
         {data.byVehicle.map((vehicle, idx) => {
           const pctColor =
             vehicle.percentOfTotal > 30 ? RED : vehicle.percentOfTotal > 15 ? AMBER : GREEN;
           const fuelStr =
-            vehicle.avgFuelDelta > 0 ? `-${Math.round(vehicle.avgFuelDelta)}%` : '--';
+            vehicle.avgLPer100km > 0
+              ? `${vehicle.avgLPer100km.toFixed(1)} L`
+              : vehicle.avgFuelDelta > 0
+              ? `-${Math.round(vehicle.avgFuelDelta)}%`
+              : '--';
 
           return (
             <View
@@ -463,7 +527,7 @@ export default function StatsPdfDocument({
               <Text style={[styles.tableCell, { flex: 1 }]}>
                 {vehicle.totalKm.toLocaleString('fr-FR')} km
               </Text>
-              <Text style={[styles.tableCell, { flex: 1 }]}>{fuelStr}</Text>
+              <Text style={[styles.tableCell, { flex: 1, color: AMBER }]}>{fuelStr}</Text>
             </View>
           );
         })}
