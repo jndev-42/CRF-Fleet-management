@@ -120,15 +120,18 @@ export default function VehicleDetailPage() {
         if (!activeTrip || !secondDriverEmail) return;
 
         setSubmittingSecondDriver(true);
-        let secondDriverName = '';
         const match = users.find(u => u.email === secondDriverEmail);
-        secondDriverName = match?.name || secondDriverEmail;
+        if (!match) {
+            alert('Utilisateur introuvable');
+            setSubmittingSecondDriver(false);
+            return;
+        }
 
         try {
             const res = await fetch(`/api/trips/${activeTrip.id}/second-driver`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ secondDriverName, secondDriverEmail }),
+                body: JSON.stringify({ secondDriverId: match.id }),
             });
 
             if (res.ok) {

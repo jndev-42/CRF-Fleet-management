@@ -1,5 +1,7 @@
 # API Routes
 
+For full boilerplate (auth → role → Zod → DB skeleton, transactions, cron, dynamic params), invoke the `/api-route-template` skill.
+
 ## Mandatory order (never deviate)
 ```
 1. await auth()          → 401 if null
@@ -18,35 +20,6 @@ const roles = session.user.roles || ['GUEST'];
 if (!roles.includes('ADMIN')) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 ```
 
-## Zod — catch separately
-```ts
-try {
-  const data = Schema.parse(await request.json());
-} catch (e) {
-  if (e instanceof z.ZodError)
-    return NextResponse.json({ error: 'Données invalides', details: e.issues }, { status: 400 });
-  return NextResponse.json({ error: 'Corps invalide' }, { status: 400 });
-}
-```
-
-## Dynamic params — always await
-```ts
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-```
-
-## Transactions — explicit commit/rollback
-```ts
-const tx = await db.transaction('write');
-try {
-  await tx.execute({ sql: '...', args: [...] });
-  await tx.commit();
-} catch (e) {
-  await tx.rollback();
-  throw e;
-}
-```
-
 ## Response format
 - Success: `{ success: true }` / `{ success: true, id }` / `{ items: [...] }`
 - Error: `{ error: 'French message' }` — never expose stack traces
@@ -56,10 +29,3 @@ try {
 ```ts
 const { sendPushNotification } = await import('@/lib/onesignal');
 ```
-
-## Cron routes — protect with CRON_SECRET
-```ts
-if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`)
-  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-```
-Add `export const maxDuration = 30;` for long-running routes.
