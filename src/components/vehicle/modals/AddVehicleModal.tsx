@@ -19,6 +19,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
         vin: '',
         hasDSA: false,
         notes: '',
+        maxFuelCapacity: '',
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -47,6 +48,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                     vin: form.vin.trim() || undefined,
                     hasDSA: form.hasDSA,
                     notes: form.notes || undefined,
+                    maxFuelCapacity: form.maxFuelCapacity ? parseInt(form.maxFuelCapacity) || undefined : undefined,
                 }),
             });
             if (res.ok) {
@@ -134,7 +136,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                 <select
                                     className="form-select"
                                     value={form.fuelType}
-                                    onChange={(e) => setForm({ ...form, fuelType: e.target.value })}
+                                    onChange={(e) => setForm({ ...form, fuelType: e.target.value, maxFuelCapacity: '' })}
                                 >
                                     <option value="Essence">Essence</option>
                                     <option value="Diesel">Diesel</option>
@@ -182,6 +184,22 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                 />
                             </div>
                         </div>
+                        {form.fuelType !== 'Électrique' && form.fuelType !== 'Non applicable' && (
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Capacité du réservoir (L) — Optionnel</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="300"
+                                        className="form-input"
+                                        placeholder="ex: 50"
+                                        value={form.maxFuelCapacity}
+                                        onChange={(e) => setForm({ ...form, maxFuelCapacity: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
                         <div className="form-group">
                             <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)' }}>
                                 <input

@@ -21,6 +21,7 @@ interface Vehicle {
     notes: string | null;
     vin: string | null;
     fuelType: string | null;
+    maxFuelCapacity: number | null;
     trips: { id: string; driverName: string; missionType: string; checkOutAt: string }[];
 }
 
@@ -213,8 +214,9 @@ export default function VehiclesPage() {
                                     const val = isElec ? rData.batteryLevel : rData.fuelQuantity;
                                     const label = isElec ? '🔋 Batterie (live)' : '⛽ Essence (live)';
                                     const displayVal = isElec ? `${val}%` : `${val} L`;
-                                    // For fuel quantity we map it roughly to percentage for the bar (assuming 50L tank roughly)
-                                    const fillPct = isElec ? (val || 0) : Math.min(((val || 0) / 50) * 100, 100);
+                                    // Map fuel quantity to percentage using actual tank capacity (fallback to 50L)
+                                    const capacity = vehicle.maxFuelCapacity ?? 50;
+                                    const fillPct = isElec ? (val || 0) : Math.min(((val || 0) / capacity) * 100, 100);
 
                                     return (
                                         <div className="fuel-bar-container">

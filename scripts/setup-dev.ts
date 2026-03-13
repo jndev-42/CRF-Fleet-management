@@ -70,9 +70,10 @@ async function main() {
             "mileage"     INTEGER DEFAULT 0,
             "hasDSA"      INTEGER DEFAULT 0,
             "notes"       TEXT,
-            "vin"         TEXT,
-            "fuelType"    TEXT DEFAULT 'Essence',
-            "createdAt"   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "vin"              TEXT,
+            "fuelType"         TEXT DEFAULT 'Essence',
+            "maxFuelCapacity"  INTEGER,
+            "createdAt"        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt"   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     `);
@@ -113,6 +114,13 @@ async function main() {
             FOREIGN KEY ("vehicleId") REFERENCES "Vehicle" ("id") ON DELETE CASCADE
         )
     `);
+
+    // Migrations idempotentes Vehicle pour DBs existantes
+    const vehicleCols = await db.execute(`PRAGMA table_info("Vehicle")`);
+    if (!vehicleCols.rows.some(r => r.name === 'maxFuelCapacity')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "maxFuelCapacity" INTEGER`);
+        console.log('  ↳ Migration : colonne Vehicle.maxFuelCapacity ajoutée');
+    }
 
     // Migrations idempotentes pour DBs existantes
     const tripCols = await db.execute(`PRAGMA table_info("Trip")`);
@@ -284,16 +292,16 @@ async function main() {
     const count = await db.execute(`SELECT COUNT(*) as n FROM "Vehicle"`);
     if ((count.rows[0].n as number) === 0) {
         const vehicles = [
-            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur' },
-            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur' },
-            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur' },
-            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur' },
+            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur', maxFuelCapacity: null },
+            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur', maxFuelCapacity: 60 },
+            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur', maxFuelCapacity: 50 },
+            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur', maxFuelCapacity: 80 },
         ];
         for (const v of vehicles) {
             await db.execute({
-                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, parkingSpot, status, createdAt, updatedAt)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage, v.parkingSpot],
+                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, parkingSpot, maxFuelCapacity, status, createdAt, updatedAt)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage, v.parkingSpot, v.maxFuelCapacity],
             });
         }
         console.log('\n🚗 4 véhicules de démo créés');

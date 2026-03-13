@@ -47,5 +47,6 @@ export interface Vehicle {
     notes: string | null;
     vin: string | null;
     fuelType: string | null;
+    maxFuelCapacity: number | null;
     trips: Trip[];
 }

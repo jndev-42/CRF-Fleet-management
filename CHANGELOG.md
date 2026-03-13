@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.15.3] — 13 mars 2026
+
+### Ajouté
+- **Capacité réservoir par véhicule (`maxFuelCapacity`)** — Nouveau champ nullable `INTEGER` sur la table `Vehicle`. Permet de stocker la capacité réelle du réservoir en litres (ex : 56 L pour le VL 486, 80 L pour le VPSP 182). Configurable depuis la modale d'ajout de véhicule (affiché uniquement pour les énergies Essence/Diesel). Un script de migration `scripts/add-max-fuel-capacity.ts` initialise les valeurs pour les véhicules de production connus.
+
+### Corrigé
+- **Calcul du niveau de carburant en pourcentage** — Les pages liste et détail véhicule utilisaient une capacité fixe de 50 L pour convertir les données live Renault en pourcentage. Ce calcul utilise désormais `vehicle.maxFuelCapacity ?? 50` afin de refléter la capacité réelle du réservoir.
+
+---
+
 ## [1.15.2] — 12 mars 2026
 
 ### Corrigé

@@ -1,7 +1,7 @@
 # Agent Memory — cr-chauffeur
 
 ## Current Version
-- package.json + CHANGELOG.md: **v1.15.0** (as of 2026-03-12)
+- package.json + CHANGELOG.md: **v1.15.3** (as of 2026-03-13)
 - Footer version: uses `process.env.NEXT_PUBLIC_APP_VERSION` injected from `package.json` via `next.config.ts` — NOT hardcoded
 
 ## Project Structure
@@ -24,6 +24,7 @@
 - Server route auth check: `const session = await auth();` at the very top before any body parsing or DB queries
 - 401 for unauthenticated: `!session?.user`
 - 403 for insufficient role: `!session?.user?.roles?.includes('ADMIN')`
+- **Exception**: `POST /api/vehicles` uses a **single 403 guard** (`!session?.user?.roles?.includes('ADMIN')`) — no separate 401. A null session also returns 403 on this route.
 - Vehicle [id] route uses vehicle **name** as the URL param (not UUID)
 - **Exception**: checkin route (`trips/[id]/checkin`) checks auth AFTER the trip lookup — 404 before 401
 - `session.user.id` is available (populated from `User.id` via JWT `userId` claim in `src/auth.ts`)

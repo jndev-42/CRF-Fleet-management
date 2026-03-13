@@ -476,7 +476,7 @@ export default function VehicleDetailPage() {
                                 : `${vehicle.fuelLevel}%`;
                         }
                         if (renaultData?.fuelQuantity !== null && renaultData?.fuelQuantity !== undefined) {
-                            return `${Math.min(Math.round((renaultData.fuelQuantity / 50) * 100), 100)}%`;
+                            return `${Math.min(Math.round((renaultData.fuelQuantity / (vehicle.maxFuelCapacity ?? 50)) * 100), 100)}%`;
                         }
                         return `${vehicle.fuelLevel}%`;
                     })()}
@@ -490,7 +490,7 @@ export default function VehicleDetailPage() {
                                     : vehicle.fuelLevel;
                             }
                             if (renaultData?.fuelQuantity !== null && renaultData?.fuelQuantity !== undefined) {
-                                return Math.min(Math.round((renaultData.fuelQuantity / 50) * 100), 100);
+                                return Math.min(Math.round((renaultData.fuelQuantity / (vehicle.maxFuelCapacity ?? 50)) * 100), 100);
                             }
                             return vehicle.fuelLevel;
                         })()}
