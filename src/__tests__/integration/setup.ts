@@ -102,9 +102,21 @@ async function createTables() {
     FOREIGN KEY (userId) REFERENCES "User"(id),
     FOREIGN KEY (roleId) REFERENCES "Role"(id)
   )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "Notification" (
+    id TEXT PRIMARY KEY,
+    userId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    url TEXT,
+    isRead INTEGER NOT NULL DEFAULT 0,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES "User"(id) ON DELETE CASCADE
+  )`);
 }
 
 async function truncateTables() {
+  await db.execute(`DELETE FROM "Notification"`);
   await db.execute(`DELETE FROM "UserRole"`);
   await db.execute(`DELETE FROM "Trip"`);
   await db.execute(`DELETE FROM "Reservation"`);

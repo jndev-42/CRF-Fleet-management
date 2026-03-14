@@ -8,6 +8,7 @@ const createReservationSchema = z.object({
     startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }),
     endTime: z.string().datetime({ message: 'endTime doit être une date ISO valide' }),
     reason: z.string().max(500).optional(),
+    onBehalfOfUserId: z.string().min(1).optional(),
 }).refine(data => new Date(data.endTime) > new Date(data.startTime), {
     message: 'endTime doit être après startTime',
     path: ['endTime'],
@@ -66,7 +67,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         const vehicleId = params.id;
         const body = await request.json();
 
-        let data: { startTime: string; endTime: string; reason?: string };
+        let data: z.infer<typeof createReservationSchema>;
         try {
             data = createReservationSchema.parse(body);
         } catch (zodErr) {
@@ -76,13 +77,17 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
             throw zodErr;
         }
 
-        const start = new Date(data.startTime);
-        const end = new Date(data.endTime);
-
         // ADMIN et RESPO voient leurs réservations auto-validées
         const userRoles: string[] = session.user.roles || [];
         const isValidator = userRoles.includes('ADMIN') || userRoles.includes('RESPO');
         const status = isValidator ? 'VALIDATED' : 'PENDING';
+
+        if (data.onBehalfOfUserId && !userRoles.includes('ADMIN')) {
+            return NextResponse.json({ error: 'Seul un ADMIN peut créer une réservation pour quelqu\'un d\'autre.' }, { status: 403 });
+        }
+
+        const start = new Date(data.startTime);
+        const end = new Date(data.endTime);
 
         // Vérification de chevauchement uniquement sur les réservations VALIDÉES
         const conflictCheck = await db.execute({
@@ -100,6 +105,21 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
             return NextResponse.json({ error: 'Ce créneau chevauche une réservation déjà validée.' }, { status: 409 });
         }
 
+        let userEmail = session.user.email as string;
+        let userName = session.user.name || session.user.email as string;
+
+        if (data.onBehalfOfUserId) {
+            const targetResult = await db.execute({
+                sql: `SELECT id, name, email FROM "User" WHERE id = ?`,
+                args: [data.onBehalfOfUserId]
+            });
+            if (targetResult.rows.length === 0) {
+                return NextResponse.json({ error: 'Utilisateur introuvable.' }, { status: 404 });
+            }
+            userEmail = targetResult.rows[0].email as string;
+            userName = (targetResult.rows[0].name as string) || userEmail;
+        }
+
         const id = crypto.randomUUID();
 
         await db.execute({
@@ -110,8 +130,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
             args: [
                 id,
                 vehicleId,
-                session.user.email as string,
-                session.user.name || session.user.email as string,
+                userEmail,
+                userName,
                 start.toISOString(),
                 end.toISOString(),
                 data.reason || null,

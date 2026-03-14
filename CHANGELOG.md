@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.18.0] — 14 mars 2026
+
+### Ajouté
+- **Réservation au nom d'un autre (ADMIN)** — Un administrateur peut désormais créer une réservation pour le compte d'un autre utilisateur directement depuis la fiche véhicule. Le champ "Pour" (combobox avec recherche) s'affiche uniquement pour les ADMIN dans la modale de réservation. La réservation est automatiquement validée, et l'utilisateur ciblé reçoit une notification in-app.
+- **Guard 403 sur `onBehalfOfUserId`** — Seuls les ADMIN peuvent utiliser `onBehalfOfUserId` dans le corps de la requête `POST /api/vehicles/[id]/reservations`. Les rôles CHVL et RESPO reçoivent un 403 s'ils tentent de l'utiliser.
+- **Notification in-app pour la réservation déléguée** — Insertion automatique d'une ligne dans la table `Notification` pour avertir l'utilisateur ciblé qu'une réservation a été créée en son nom.
+- **Tests d'intégration — réservations** — 9 nouveaux cas couvrant : 401, 403 (CHVL et RESPO), 400 Zod, 404 utilisateur inconnu, happy paths CHVL/ADMIN/délégué, et 409 conflit.
+
+---
+
 ## [1.17.1] — 13 mars 2026
 
 ### Sécurité

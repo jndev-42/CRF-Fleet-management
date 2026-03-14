@@ -3,6 +3,7 @@ import { Vehicle } from '@/app/vehicles/[id]/types';
 
 import ChecklistItems from '../ChecklistItems';
 import FuelBar from '@/components/vehicle/FuelBar';
+import UserCombobox from '@/components/ui/UserCombobox';
 
 interface CheckOutModalProps {
     vehicle: Vehicle;
@@ -299,18 +300,14 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
                         {/* 2nd Conducteur */}
                         <div className="form-group" style={{ marginBottom: 16 }}>
-                            <label className="form-label" htmlFor="checkout-second-driver">2ème Conducteur (Optionnel)</label>
-                            <select
-                                id="checkout-second-driver"
-                                className="form-select"
+                            <label className="form-label">2ème Conducteur (Optionnel)</label>
+                            <UserCombobox
+                                users={users}
                                 value={form.secondDriverId}
-                                onChange={(e) => setForm({ ...form, secondDriverId: e.target.value })}
-                            >
-                                <option value="">— Aucun —</option>
-                                {users.map(u => (
-                                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
-                                ))}
-                            </select>
+                                onChange={id => setForm({ ...form, secondDriverId: id })}
+                                defaultLabel="— Aucun —"
+                                placeholder="Rechercher..."
+                            />
                         </div>
 
                         {/* Mission */}

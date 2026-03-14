@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './Reservation.module.css';
+import UserCombobox from '@/components/ui/UserCombobox';
 
 interface Reservation {
     id: string;
@@ -34,6 +35,10 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
     const [reason, setReason] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
+    // On-behalf fields (ADMIN only)
+    const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
+    const [onBehalfOfUserId, setOnBehalfOfUserId] = useState('');
+
     const isAdmin = userRoles.includes('ADMIN');
     const isRespo = userRoles.includes('RESPO');
     const canValidate = isAdmin || isRespo;
@@ -67,6 +72,14 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
         fetchReservations();
     }, [fetchReservations]);
 
+    useEffect(() => {
+        if (!isAdmin) return;
+        fetch('/api/users')
+            .then(res => res.json())
+            .then(data => { if (data.users) setUsers(data.users); })
+            .catch(console.error);
+    }, [isAdmin]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSubmitting(true);
@@ -77,12 +90,18 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
             const res = await fetch(`/api/vehicles/${vehicleId}/reservations`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ startTime: startISO, endTime: endISO, reason })
+                body: JSON.stringify({
+                    startTime: startISO,
+                    endTime: endISO,
+                    reason,
+                    ...(onBehalfOfUserId ? { onBehalfOfUserId } : {})
+                })
             });
 
             if (res.ok) {
                 setShowModal(false);
                 setStartDate(''); setStartTime(''); setEndDate(''); setEndTime(''); setReason('');
+                setOnBehalfOfUserId('');
                 fetchReservations();
             } else {
                 const data = await res.json();
@@ -199,6 +218,22 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
                             </p>
                         )}
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                            {isAdmin && (
+                                <div className={styles.formGroup}>
+                                    <label>Pour</label>
+                                    <UserCombobox
+                                        users={users}
+                                        value={onBehalfOfUserId}
+                                        onChange={setOnBehalfOfUserId}
+                                        excludeEmail={currentUserEmail ?? undefined}
+                                    />
+                                    {onBehalfOfUserId && (
+                                        <p className={styles.pendingNotice} style={{ marginTop: 4 }}>
+                                            Cette réservation sera validée automatiquement et l&apos;utilisateur en sera notifié.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                             <div className={styles.formRow}>
                                 <div className={styles.formGroup}>
                                     <label>Date de début</label>
@@ -227,7 +262,10 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
                                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
                                     {submitting ? '...' : canValidate ? 'Valider' : 'Soumettre la demande'}
                                 </button>
-                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowModal(false)}>
+                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
+                                    setShowModal(false);
+                                    setOnBehalfOfUserId('');
+                                }}>
                                     Annuler
                                 </button>
                             </div>

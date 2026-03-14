@@ -1,0 +1,69 @@
+.userDropdownWrapper {
+    position: relative;
+}
+
+.userDropdownTrigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+}
+
+.dropdownChevron {
+    font-size: 10px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.userDropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    z-index: 100;
+}
+
+.userDropdownSearch {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid var(--border-primary);
+    border-radius: 6px 6px 0 0;
+    background: transparent;
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.userDropdownSearch::placeholder {
+    color: var(--text-tertiary);
+}
+
+.userDropdownList {
+    max-height: 160px;
+    overflow-y: auto;
+}
+
+.userDropdownItem {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.userDropdownItem:hover {
+    background: var(--bg-hover, var(--bg-primary));
+}
+
+.userDropdownItemSelected {
+    background: var(--bg-hover, var(--bg-primary));
+    font-weight: 500;
+}
