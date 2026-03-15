@@ -61,7 +61,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
             .catch(console.error)
             .finally(() => setSessionLoading(false));
 
-        fetch('/api/users')
+        fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
             .then(res => res.json())
             .then(data => {
                 if (data.users) setUsers(data.users);
@@ -92,7 +92,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                 setForm(f => ({ ...f, missionName: closest.reason! }));
             }
         });
-    }, [vehicle.id]);
+    }, [vehicle.id, vehicle.type]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();

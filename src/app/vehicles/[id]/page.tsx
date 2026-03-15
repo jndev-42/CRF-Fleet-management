@@ -75,13 +75,6 @@ export default function VehicleDetailPage() {
             })
             .catch(console.error);
 
-        // Fetch user list so that it can be used for assigning the second driver dropdown
-        fetch('/api/users')
-            .then(res => res.json())
-            .then(data => {
-                if (data.users) setUsers(data.users);
-            })
-            .catch(console.error);
     }, []);
 
     /**
@@ -103,6 +96,14 @@ export default function VehicleDetailPage() {
     useEffect(() => {
         fetchVehicle();
     }, [fetchVehicle]);
+
+    useEffect(() => {
+        if (!vehicle?.type) return;
+        fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
+            .then(res => res.json())
+            .then(data => { if (data.users) setUsers(data.users); })
+            .catch(console.error);
+    }, [vehicle?.type]);
 
     /**
      * Reusable toast notification triggered from child components or modal callbacks
@@ -451,6 +452,7 @@ export default function VehicleDetailPage() {
             {vehicle && (
                 <ReservationBlock
                     vehicleId={vehicle.id}
+                    vehicleType={vehicle.type}
                     currentUserEmail={currentUserEmail}
                     userRoles={userRoles}
                     onActiveReservationChange={setIsReservedByOther}

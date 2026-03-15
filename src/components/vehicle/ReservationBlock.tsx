@@ -16,12 +16,13 @@ interface Reservation {
 
 interface ReservationBlockProps {
     vehicleId: string;
+    vehicleType: string;
     currentUserEmail: string | null;
     userRoles: string[];
     onActiveReservationChange?: (isReservedByOther: boolean) => void;
 }
 
-export default function ReservationBlock({ vehicleId, currentUserEmail, userRoles, onActiveReservationChange }: ReservationBlockProps) {
+export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange }: ReservationBlockProps) {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -74,11 +75,11 @@ export default function ReservationBlock({ vehicleId, currentUserEmail, userRole
 
     useEffect(() => {
         if (!isAdmin) return;
-        fetch('/api/users')
+        fetch(`/api/users?vehicleType=${encodeURIComponent(vehicleType)}`)
             .then(res => res.json())
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
-    }, [isAdmin]);
+    }, [isAdmin, vehicleType]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

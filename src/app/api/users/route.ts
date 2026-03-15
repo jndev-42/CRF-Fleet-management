@@ -26,28 +26,36 @@ export async function GET(request: Request) {
 
         const { searchParams } = new URL(request.url);
         const driversOnly = searchParams.get('drivers') === 'true';
+        const vehicleType = searchParams.get('vehicleType')?.toUpperCase();
+
+        let roleFilter: string[] | null = null;
+        if (vehicleType === 'VPSP') roleFilter = ['CHVPSP'];
+        else if (vehicleType === 'VL' || driversOnly) roleFilter = ['CHVL', 'CHVPSP'];
 
         const usersRes = await db.execute(
-            driversOnly
-                ? `
-                    SELECT
-                        u.id,
-                        u.email,
-                        u.name,
-                        u.createdAt,
-                        GROUP_CONCAT(r.name) as roles
-                    FROM "User" u
-                    LEFT JOIN "UserRole" ur ON u.id = ur.userId
-                    LEFT JOIN "Role" r ON ur.roleId = r.id
-                    WHERE u.id IN (
-                        SELECT DISTINCT ur2.userId
-                        FROM "UserRole" ur2
-                        JOIN "Role" r2 ON ur2.roleId = r2.id
-                        WHERE r2.name IN ('CHVL', 'CHVPSP')
-                    )
-                    GROUP BY u.id
-                    ORDER BY u.email ASC
-                `
+            roleFilter
+                ? {
+                    sql: `
+                        SELECT
+                            u.id,
+                            u.email,
+                            u.name,
+                            u.createdAt,
+                            GROUP_CONCAT(r.name) as roles
+                        FROM "User" u
+                        LEFT JOIN "UserRole" ur ON u.id = ur.userId
+                        LEFT JOIN "Role" r ON ur.roleId = r.id
+                        WHERE u.id IN (
+                            SELECT DISTINCT ur2.userId
+                            FROM "UserRole" ur2
+                            JOIN "Role" r2 ON ur2.roleId = r2.id
+                            WHERE r2.name IN (${roleFilter.map(() => '?').join(', ')})
+                        )
+                        GROUP BY u.id
+                        ORDER BY u.email ASC
+                    `,
+                    args: roleFilter,
+                }
                 : `
                     SELECT
                         u.id,

@@ -45,3 +45,4 @@ next-env.d.ts
 dev.db
 prisma/dev.db
 DO_NOT_COMMIT
+.grepai/

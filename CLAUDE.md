@@ -52,3 +52,7 @@ See `/dev-setup` skill or run `npm run dev:setup` then `npm run dev`.
 ## M-4 (deferred)
 
 Pages are Client Components with `useEffect` data fetching — Server Component migration planned but not started. Don't convert yet.
+
+## Tools
+
+Prefer `mcp__grepai__grepai_search` instead of standard `grep`.
