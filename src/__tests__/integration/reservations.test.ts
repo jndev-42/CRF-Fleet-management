@@ -15,6 +15,7 @@
  *  7. 201 — ADMIN réserve pour lui-même → status VALIDATED
  *  8. 201 — ADMIN réserve pour un autre → status VALIDATED, userEmail = cible
  *  9. 409 — conflit avec une réservation VALIDATED existante
+ * 10. cross-vehicle : même utilisateur peut réserver VL002 en overlap avec VL001 → 201
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -172,5 +173,25 @@ describe('POST /api/vehicles/[id]/reservations — conflits', () => {
         expect(res.status).toBe(409);
         const body = await res.json();
         expect(body.error).toContain('chevauche');
+    });
+
+    it('10. cross-vehicle : même utilisateur peut réserver VL002 en overlap avec VL001 → 201', async () => {
+        await seedVehicle({ id: 'VL002', name: 'VL187' });
+
+        const { startTime, endTime } = futureWindow(20, 4);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-vl001-chvl', 'VL001', 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        const req = new Request('http://localhost/api/vehicles/VL002/reservations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ startTime, endTime }),
+        });
+        const res = await POST(req, { params: Promise.resolve({ id: 'VL002' }) });
+        expect(res.status).toBe(201);
     });
 });
