@@ -8,8 +8,6 @@
 - **Main courante des désinfections** — Nouveau endpoint `GET /api/vehicles/[id]/desinfections` qui retourne l'historique des missions Désinfection complétées pour un véhicule VPSP, trié par date décroissante.
 - **Carte "Prochaine désinf." sur la fiche véhicule** — Pour les VPSP uniquement, une 5ème carte est affichée dans la grille de métriques avec un décompte en jours jusqu'à la prochaine désinfection obligatoire. Couleur verte si > 14 jours, orange entre 1 et 14 jours, rouge si dépassé. "Non planifiée" si aucune désinfection n'a encore eu lieu.
 - **Modal DesinfHistoryModal** — Un clic sur la carte "Prochaine désinf." ouvre une modale affichant la main courante : date, responsable, numéro de lot, conducteur.
-- **Migration `scripts/add-desinf.ts`** — Script de migration autonome idempotent pour ajouter les 4 nouvelles colonnes sur des bases existantes.
-- **Tests d'intégration — désinfection** — 10 cas couvrant : rejet checkout non-VPSP, mise à jour des dates véhicule, validation des champs checkin, sauvegarde des données, et historique GET.
 
 ---
 
@@ -38,7 +36,7 @@
 ## [1.17.0] — 13 mars 2026
 
 ### Ajouté
-- **Capacité batterie (`maxBatteryCapacityKwh`)** — Nouveau champ `INTEGER` nullable sur la table `Vehicle`. Permet de stocker la capacité de la batterie en kWh pour les véhicules électriques (ex : 52 kWh pour le VL186 Renault Zoé). Configurable depuis la modale d'ajout de véhicule (affiché uniquement pour le type d'énergie "Électrique", mutuellement exclusif avec la capacité réservoir).
+- **Capacité batterie (`maxBatteryCapacityKwh`)** — Nouveau champ `INTEGER` nullable sur la table `Vehicle`. Permet de stocker la capacité de la batterie en kWh pour les véhicules électriques. Configurable depuis la modale d'ajout de véhicule (affiché uniquement pour le type d'énergie "Électrique", mutuellement exclusif avec la capacité réservoir).
 - **KPI kWh/100km réel** — Nouvelle carte sur la page Statistiques affichant la consommation moyenne en kWh/100km pour les VE, calculée via `(delta% × capacité_batterie) / km × 100`. Affiche "—" si aucun véhicule électrique configuré.
 - **KPI kWh consommés** — Nouvelle carte affichant le total de kWh consommés sur la période (véhicules électriques uniquement).
 - **Tableau chauffeurs enrichi** — Nouvelle colonne `kWh/100km` (affiche "—" pour les chauffeurs n'ayant conduit que des véhicules thermiques).
