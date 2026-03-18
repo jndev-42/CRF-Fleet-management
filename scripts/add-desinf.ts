@@ -12,10 +12,10 @@
  */
 import { createClient } from '@libsql/client';
 
-const db = createClient({
-    url: ('file:./dev.db').trim(),
-    authToken: ('').trim(),
-});
+    const db = createClient({
+        url: process.env.TURSO_DATABASE_URL!,
+        authToken: process.env.TURSO_AUTH_TOKEN,
+    });
 
 async function main() {
     console.log('🔧 Migration : ajout des colonnes de désinfection...\n');

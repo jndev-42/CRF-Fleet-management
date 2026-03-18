@@ -542,6 +542,8 @@ export default function VehicleDetailPage() {
                             borderColor = 'rgba(16, 185, 129, 0.3)';
                             valueColor = '#059669';
                         }
+                    } else {
+                        desinfValue = 'Non planifiée';
                     }
 
                     return (
