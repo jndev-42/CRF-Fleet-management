@@ -1,0 +1,105 @@
+import React, { useState, useEffect } from 'react';
+import UserCombobox from '@/components/ui/UserCombobox';
+
+interface DesinfPreCheckinModalProps {
+    onClose: () => void;
+    onConfirm: (data: { responsableId: string; responsableName: string; lotNumber: string }) => void;
+}
+
+/**
+ * Modal allowing an ADMIN to pre-fill disinfection info (responsable + lot number)
+ * before the actual vehicle check-in.
+ */
+export default function DesinfPreCheckinModal({ onClose, onConfirm }: DesinfPreCheckinModalProps) {
+    const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+    const [responsableId, setResponsableId] = useState('');
+    const [lotNumber, setLotNumber] = useState('');
+
+    useEffect(() => {
+        fetch('/api/users')
+            .then(res => res.json())
+            .then(data => { if (data.users) setUsers(data.users); })
+            .catch(console.error);
+    }, []);
+
+    function handleSubmit(e: React.FormEvent) {
+        e.preventDefault();
+        const user = users.find(u => u.id === responsableId);
+        const responsableName = user?.name || user?.email || '';
+        onConfirm({ responsableId, responsableName, lotNumber: lotNumber.trim() });
+    }
+
+    return (
+        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+            <div
+                className="modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="modal-desinf-pre-title"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="modal-header">
+                    <h2 id="modal-desinf-pre-title" className="modal-title">🧴 Informations de désinfection</h2>
+                    <button className="modal-close" onClick={onClose} aria-label="Fermer la modale">✕</button>
+                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="modal-body">
+                        <div
+                            style={{
+                                padding: '14px 16px',
+                                background: 'rgba(16, 185, 129, 0.05)',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                marginBottom: 20,
+                                fontSize: 13,
+                                color: 'var(--text-secondary)',
+                            }}
+                        >
+                            Saisissez les informations de désinfection avant le retour du véhicule. Elles seront pré-remplies lors du check-in.
+                        </div>
+
+                        <div className="form-group" style={{ marginBottom: 16 }}>
+                            <label className="form-label" htmlFor="pre-desinf-responsable">
+                                Responsable de la désinf. *
+                            </label>
+                            <UserCombobox
+                                users={users}
+                                value={responsableId}
+                                onChange={setResponsableId}
+                                defaultLabel="— Sélectionner un responsable —"
+                                placeholder="Rechercher..."
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="pre-desinf-lot">
+                                Numéro de lot de désinf. *
+                            </label>
+                            <input
+                                id="pre-desinf-lot"
+                                className="form-input"
+                                type="text"
+                                placeholder="Ex : LOT-2026-001"
+                                value={lotNumber}
+                                onChange={e => setLotNumber(e.target.value)}
+                                required
+                            />
+                        </div>
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>
+                            Annuler
+                        </button>
+                        <button
+                            type="submit"
+                            className="btn btn-primary"
+                            disabled={!responsableId || !lotNumber.trim()}
+                        >
+                            ✅ Valider
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}

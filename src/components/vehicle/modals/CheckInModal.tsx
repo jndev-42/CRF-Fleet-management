@@ -13,13 +13,17 @@ interface CheckInModalProps {
     onSuccess: () => void;
     /** Called after the API request completes successfully (triggers data refetch) */
     onRefetch?: () => void;
+    /** Pre-filled disinfection responsable ID (from DesinfPreCheckinModal) */
+    initialDesinfResponsableId?: string;
+    /** Pre-filled disinfection lot number (from DesinfPreCheckinModal) */
+    initialDesinfLotNumber?: string;
 }
 
 /**
  * Modal shown when a user is returning a vehicle.
  * Collects returning mileage, condition, issues, and photos.
  */
-export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch }: CheckInModalProps) {
+export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch, initialDesinfResponsableId = '', initialDesinfLotNumber = '' }: CheckInModalProps) {
     const [form, setForm] = useState<{
         mileageIn: number | '';
         fuelIn: number;
@@ -42,8 +46,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [checklistIn, setChecklistIn] = useState<Record<string, boolean>>({});
     const [submitting, setSubmitting] = useState(false);
     const [photos, setPhotos] = useState<File[]>([]);
-    const [desinfResponsableId, setDesinfResponsableId] = useState('');
-    const [desinfLotNumber, setDesinfLotNumber] = useState('');
+    const [desinfResponsableId, setDesinfResponsableId] = useState(initialDesinfResponsableId);
+    const [desinfLotNumber, setDesinfLotNumber] = useState(initialDesinfLotNumber);
     const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
 
     const isDesinf = trip.missionType === 'Désinfection';

@@ -31,8 +31,13 @@ vi.mock('@/lib/onesignal', () => ({
   notifyRoles: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/drive', () => ({
+  deleteDriveFolder: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { POST } from '@/app/api/trips/route';
 import { PATCH } from '@/app/api/trips/[id]/checkin/route';
+import { DELETE } from '@/app/api/trips/[id]/route';
 import { GET as GET_DESINF } from '@/app/api/vehicles/[id]/desinfections/route';
 import { auth } from '@/auth';
 import { db, seedVehicle, seedUser, seedTrip } from './setup';
@@ -254,6 +259,96 @@ describe('Désinfection — checkin (PATCH /api/trips/[id]/checkin)', () => {
       { params: Promise.resolve({ id: 'trip-1' }) }
     );
     expect(res.status).toBe(200);
+  });
+});
+
+describe('Désinfection — suppression trip (DELETE /api/trips/[id])', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeDeleteRequest(): Request {
+    return new Request('http://localhost/api/trips/trip-1', { method: 'DELETE' });
+  }
+
+  it('resets desinf dates to NULL when the only completed Désinfection trip is deleted', async () => {
+    await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin' });
+    await seedVehicle({ id: 'VPSP001', name: 'VPSP01', type: 'VPSP', status: 'AVAILABLE' });
+
+    // Insert a completed désinfection trip directly
+    await db.execute({
+      sql: `INSERT INTO "Trip" (id, vehicleId, driverId, missionType, checkOutAt, checkInAt, mileageOut, mileageIn, fuelOut, fuelIn, conditionOut, conditionIn)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      args: ['trip-1', 'VPSP001', 'user-admin', 'Désinfection',
+        '2026-03-01T10:00:00.000Z', '2026-03-01T11:00:00.000Z',
+        10000, 10050, 70, 68, 'Bon état', 'Bon état'],
+    });
+    // Set vehicle desinf dates as if checkin already happened
+    await db.execute({
+      sql: `UPDATE "Vehicle" SET lastDesinfDate = '2026-03-01', nextDesinfMaxDate = '2026-04-12' WHERE id = 'VPSP001'`,
+      args: [],
+    });
+
+    mockedAuth.mockResolvedValue({
+      // @ts-expect-error — partial session for test
+      user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'] },
+    });
+
+    const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ id: 'trip-1' }) });
+    expect(res.status).toBe(200);
+
+    const vehicleRes = await db.execute({
+      sql: `SELECT lastDesinfDate, nextDesinfMaxDate FROM "Vehicle" WHERE id = 'VPSP001'`,
+      args: [],
+    });
+    expect(vehicleRes.rows[0].lastDesinfDate).toBeNull();
+    expect(vehicleRes.rows[0].nextDesinfMaxDate).toBeNull();
+  });
+
+  it('rolls back desinf dates to previous Désinfection when one of multiple is deleted', async () => {
+    await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin' });
+    await seedVehicle({ id: 'VPSP001', name: 'VPSP01', type: 'VPSP', status: 'AVAILABLE' });
+
+    // Insert two completed désinfection trips — older first
+    await db.execute({
+      sql: `INSERT INTO "Trip" (id, vehicleId, driverId, missionType, checkOutAt, checkInAt, mileageOut, mileageIn, fuelOut, fuelIn, conditionOut, conditionIn)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      args: ['trip-old', 'VPSP001', 'user-admin', 'Désinfection',
+        '2026-02-01T10:00:00.000Z', '2026-02-01T11:00:00.000Z',
+        10000, 10050, 70, 68, 'Bon état', 'Bon état'],
+    });
+    await db.execute({
+      sql: `INSERT INTO "Trip" (id, vehicleId, driverId, missionType, checkOutAt, checkInAt, mileageOut, mileageIn, fuelOut, fuelIn, conditionOut, conditionIn)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+      args: ['trip-1', 'VPSP001', 'user-admin', 'Désinfection',
+        '2026-03-01T10:00:00.000Z', '2026-03-01T11:00:00.000Z',
+        10050, 10100, 68, 65, 'Bon état', 'Bon état'],
+    });
+    await db.execute({
+      sql: `UPDATE "Vehicle" SET lastDesinfDate = '2026-03-01', nextDesinfMaxDate = '2026-04-12' WHERE id = 'VPSP001'`,
+      args: [],
+    });
+
+    mockedAuth.mockResolvedValue({
+      // @ts-expect-error — partial session for test
+      user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'] },
+    });
+
+    const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ id: 'trip-1' }) });
+    expect(res.status).toBe(200);
+
+    const vehicleRes = await db.execute({
+      sql: `SELECT lastDesinfDate, nextDesinfMaxDate FROM "Vehicle" WHERE id = 'VPSP001'`,
+      args: [],
+    });
+    // Should roll back to the older trip's checkin date
+    expect(vehicleRes.rows[0].lastDesinfDate).toBe('2026-02-01');
+    const diffDays = Math.round(
+      (new Date(vehicleRes.rows[0].nextDesinfMaxDate as string).getTime() -
+        new Date(vehicleRes.rows[0].lastDesinfDate as string).getTime()) /
+      (1000 * 60 * 60 * 24)
+    );
+    expect(diffDays).toBe(42);
   });
 });
 

@@ -23,6 +23,7 @@ import ReservationBlock from '@/components/vehicle/ReservationBlock';
 import ChecklistManager from '@/components/vehicle/ChecklistManager';
 import EditMetricsModal from '@/components/vehicle/modals/EditMetricsModal';
 import DesinfHistoryModal from '@/components/vehicle/modals/DesinfHistoryModal';
+import DesinfPreCheckinModal from '@/components/vehicle/modals/DesinfPreCheckinModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
@@ -61,6 +62,8 @@ export default function VehicleDetailPage() {
     const [showAddSecondDriver, setShowAddSecondDriver] = useState(false);
     const [secondDriverEmail, setSecondDriverEmail] = useState('');
     const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
+    const [showDesinfPre, setShowDesinfPre] = useState(false);
+    const [desinfPreData, setDesinfPreData] = useState<{ responsableId: string; responsableName: string; lotNumber: string } | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -401,6 +404,18 @@ export default function VehicleDetailPage() {
                             {activeTrip.missionName && ` : ${activeTrip.missionName}`}
                         </div>
 
+                        {activeTrip.missionType === 'Désinfection' && userRoles.includes('ADMIN') && (
+                            <div style={{ marginTop: 12 }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    style={{ fontSize: 13, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6, borderColor: 'rgba(16, 185, 129, 0.4)', color: '#059669' }}
+                                    onClick={() => setShowDesinfPre(true)}
+                                >
+                                    🧴 {desinfPreData ? '✅ Infos désinf. saisies' : 'Saisir infos désinf.'}
+                                </button>
+                            </div>
+                        )}
+
                         {!activeTrip.secondDriverName && (currentUserEmail === activeTrip.driverEmail || userRoles.includes('ADMIN')) && (
                             <div style={{ marginTop: 12 }}>
                                 {!showAddSecondDriver ? (
@@ -712,9 +727,22 @@ export default function VehicleDetailPage() {
                     onClose={() => setShowCheckIn(false)}
                     onSuccess={() => {
                         setShowCheckIn(false);
+                        setDesinfPreData(null);
                         showToast('Véhicule rendu avec succès !');
                     }}
                     onRefetch={fetchVehicle}
+                    initialDesinfResponsableId={desinfPreData?.responsableId}
+                    initialDesinfLotNumber={desinfPreData?.lotNumber}
+                />
+            )}
+
+            {showDesinfPre && (
+                <DesinfPreCheckinModal
+                    onClose={() => setShowDesinfPre(false)}
+                    onConfirm={(data) => {
+                        setDesinfPreData(data);
+                        setShowDesinfPre(false);
+                    }}
                 />
             )}
 
