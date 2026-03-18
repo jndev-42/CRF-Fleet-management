@@ -119,6 +119,12 @@ export async function POST(request: Request) {
             ]
         });
 
+        // Crée le lieu inventaire pour ce véhicule
+        await db.execute({
+            sql: `INSERT OR IGNORE INTO "InvLocation" (id, type, name, vehicleId) VALUES (?, 'VEHICLE', ?, ?)`,
+            args: [`loc-veh-${id}`, data.name, id],
+        });
+
         // Match the Prisma return format
         const vehicle = {
             id,

@@ -23,6 +23,7 @@ import ReservationBlock from '@/components/vehicle/ReservationBlock';
 import ChecklistManager from '@/components/vehicle/ChecklistManager';
 import EditMetricsModal from '@/components/vehicle/modals/EditMetricsModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
+import InventoryVehicleTab from '@/components/inventory/InventoryVehicleTab';
 /**
  * VehicleDetailPage Component
  * 
@@ -52,6 +53,7 @@ export default function VehicleDetailPage() {
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [activeTab, setActiveTab] = useState<'details' | 'inventory'>('details');
     const [viewingPhotosFolderId, setViewingPhotosFolderId] = useState<string | null>(null);
     const [tripsPage, setTripsPage] = useState(1);
     const TRIPS_PER_PAGE = 3;
@@ -449,6 +451,31 @@ export default function VehicleDetailPage() {
                 </div>
             )}
 
+            <div className="tab-bar" role="tablist">
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'details'}
+                    className={`tab-btn${activeTab === 'details' ? ' active' : ''}`}
+                    onClick={() => setActiveTab('details')}
+                >
+                    Détails
+                </button>
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'inventory'}
+                    className={`tab-btn${activeTab === 'inventory' ? ' active' : ''}`}
+                    onClick={() => setActiveTab('inventory')}
+                >
+                    Inventaire
+                </button>
+            </div>
+
+            {activeTab === 'inventory' && vehicle && (
+                <InventoryVehicleTab vehicleId={vehicle.id} userRoles={userRoles} />
+            )}
+
+            {activeTab === 'details' && (
+            <>
             {vehicle && (
                 <ReservationBlock
                     vehicleId={vehicle.id}
@@ -644,6 +671,8 @@ export default function VehicleDetailPage() {
                     driveFolderId={viewingPhotosFolderId}
                     onClose={() => setViewingPhotosFolderId(null)}
                 />
+            )}
+            </>
             )}
 
             {showCheckOut && (

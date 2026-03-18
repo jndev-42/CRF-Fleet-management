@@ -1,5 +1,68 @@
 # Changelog
 
+## [1.21.0] — 18 mars 2026
+
+### Ajouté
+- **Modèles de contenu de sac réutilisables** — Nouvelles tables `InvBagTemplate` et `InvBagTemplateItem` permettant de définir des dotations cibles nommées (ex. "PSE1 Standard") indépendamment des sacs. Gestion complète via GET/POST `/api/inventory/bag-templates` et GET/PUT/DELETE `/api/inventory/bag-templates/[id]`.
+- **Association modèle ↔ sac** — Nouvelle colonne `templateId` sur `InvLocation` : les sacs peuvent être rattachés à un modèle lors de leur création (POST `/api/inventory/sacs`) ou mis à jour (PATCH `/api/inventory/sacs/[id]`, ADMIN uniquement).
+- **Modale "Gérer modèles"** — Bouton ADMIN dans l'en-tête de la page inventaire ouvrant `BagTemplateListModal` (liste, création, modification, suppression de modèles). `BagTemplateModal` permet la création/édition d'un modèle nommé avec sélection d'articles depuis le catalogue.
+- **Affichage template vs stock réel dans `SacCard`** — Quand un modèle est attaché, le corps expansé affiche chaque article du template avec la quantité réelle vs cible, colorée en vert/orange/rouge selon le niveau. Les articles hors modèle sont affichés ensuite.
+- **KPI `fleetCompleteness` rebasé** — Le calcul utilise désormais `InvBagTemplateItem` via `InvLocation.templateId` au lieu de l'ancienne table `InvTemplate`.
+- **Données de démonstration** — Deux modèles créés en seed : "PSE1 Standard" (couverture ×2, gants ×1, pansements ×10) et "Oxygénothérapie" (masque adulte ×3, masque pédiatrique ×2), rattachés respectivement au Sac PSE1 et au Sac O2.
+
+### Modifié
+- **`AddSacModal` et `EditSacModal`** — Ajout d'un sélecteur de modèle (visible ADMIN uniquement) permettant d'attacher ou de détacher un modèle lors de la création/modification d'un sac.
+- **`SacCard`** — Suppression du bouton "Dotation" et de la prop `onEditTemplate`. Bouton renommé "Modifier" (englobe nom + modèle).
+- **`InventoryVehicleTab`** — Nettoyage des imports et états liés à `TemplateModal` ; le template data provient désormais de l'API enrichie.
+- **API `GET /api/inventory/vehicle/[vehicleId]`** — Remplace la jointure `InvTemplate` par `InvBagTemplateItem` via `templateId` du sac.
+- **API `GET /api/inventory`** — Les sacs sont enrichis avec `templateId` et `templateEntries`.
+
+### Supprimé
+- **`TemplateModal`** — Composant supprimé, remplacé par le système de modèles globaux.
+- **API `GET/PUT /api/inventory/templates/[locationId]`** — Route supprimée, remplacée par les nouvelles routes `bag-templates`.
+
+## [1.20.0] — 16 mars 2026
+
+### Ajouté
+- **Refonte architecturale du module inventaire** — Remplacement complet du schéma de base de données et des API par un nouveau modèle normalisé : `InvItem` (catalogue d'articles), `InvLocation` (emplacements typés : STOCK_CENTRAL, PHARMA_TAMPON, VEHICLE, SAC), `InvStock` (quantité d'un article dans un emplacement), `InvTemplate` (dotation cible par emplacement), `InvGroupe` / `InvGroupeMember` (regroupements logiques de sacs), `InvTransfer` (journal d'audit).
+- **Sacs comme emplacements de premier classe** — Les sacs sont désormais des `InvLocation` de type SAC, enfants d'un VEHICLE ou de la PHARMA_TAMPON. Création via POST `/api/inventory/sacs`, modification et suppression via `/api/inventory/sacs/[id]`.
+- **Groupes de sacs** — Nouveau concept de groupe logique (ex. "Lot PSE1") regroupant plusieurs sacs via `/api/inventory/lots` (création) et `/api/inventory/lots/[id]/members` (ajout/suppression de membres).
+- **Dotations cibles (templates)** — Chaque emplacement peut définir une quantité cible par article via GET/PUT `/api/inventory/templates/[locationId]`. Une nouvelle modale `TemplateModal` permet d'éditer ces dotations depuis l'interface.
+- **Transferts discriminés** — L'API `/api/inventory/transfer` accepte deux types : `transferType: 'item'` (transfert d'articles entre emplacements) et `transferType: 'sac'` (déplacement d'un sac entier avec ses articles).
+- **API véhicule réécrite** — GET `/api/inventory/vehicle/[vehicleId]` retourne `{ vehicleLocation, sacs: [{ id, name, isSealed, stock, template }], directStock }`.
+- **KPIs enrichis** — `fleetCompleteness` calculé depuis les templates (% d'articles atteignant leur dotation cible), `pharmaAlerts` basé sur la Pharmacie Tampon.
+- **Création automatique d'InvLocation** — À la création d'un véhicule (POST `/api/vehicles`), une `InvLocation` de type VEHICLE est automatiquement créée.
+
+### Modifié
+- **Composants mis à jour** — `InventoryItemRow`, `SacCard`, `InventoryVehicleTab`, `AddItemModal`, `TransferModal`, `ResupplyModal`, `CheckupModal` utilisent désormais les types `InvStock` et `InvLocation`.
+- **`AddItemModal`** — Prend désormais `locations: LocationOption[]` (pas `vehicles`). Intègre un catalogue d'articles existants (GET `/api/inventory/items`) pour éviter les doublons.
+- **`CheckupModal`** — Accepte `sacs: SacWithStock[]` et `directStock: InvStock[]` ; les sacs manquants sont descellés via PATCH `/api/inventory/sacs/[id]`.
+- **Suppression de l'ancien système** — Les tables `InventoryLot`, `InventoryItem` et `InventoryTransfer` sont supprimées de `setup-dev.ts` et des tests d'intégration. Les seed helpers `seedInventoryLot` et `seedInventoryItem` sont retirés.
+
+---
+
+## [1.19.1] — 16 mars 2026
+
+### Corrigé
+- **Réapprovisionnement inventaire** — Les articles transférés depuis la Pharmacie Tampon vers un véhicule sont désormais obligatoirement affectés à un sac (lot) du véhicule. L'utilisateur choisit le sac cible via un menu déroulant dans la modale de réapprovisionnement ; si le véhicule n'a aucun sac, un message d'avertissement est affiché. L'API accepte un nouveau paramètre `toLotId` et vérifie que le lot appartient bien au véhicule de destination.
+
+---
+
+## [1.19.0] — 16 mars 2026
+
+### Ajouté
+- **Module gestion d'inventaire médical** — Nouveau module complet de gestion du matériel médical et logistique de la flotte. Inclut trois types de localisation : Stock Central (ADMIN uniquement), Pharmacie Tampon et Véhicules.
+- **Nouveau rôle `SECOURISTE`** — Les secouristes peuvent créer/modifier des articles et des lots, transférer depuis la Pharmacie Tampon, et effectuer des check-ups de garde. Seul l'ADMIN peut toucher le Stock Central ou supprimer des éléments.
+- **Trois nouvelles tables DB** — `InventoryLot` (sacs/malettes pouvant être scellés), `InventoryItem` (articles individuels avec quantité, date de péremption, seuil critique, statut OK/HORS_SERVICE/MANQUANT) et `InventoryTransfer` (journal d'audit des transferts).
+- **9 routes API** sous `/api/inventory/` — GET global avec KPIs, POST/PATCH/DELETE articles et lots, POST transfert (avec cascade vers items si lot déplacé), GET inventaire par véhicule.
+- **KPIs inventaire** — Péremptions < 30 jours, articles hors service, alertes Pharmacie Tampon (quantité < seuil critique), complétude de la flotte (% des véhicules avec au moins un article).
+- **Page `/inventory`** — Tableau de bord avec KPIs, bannière d'alerte rouge si seuils critiques dépassés, recherche par nom/référence, onglets de filtrage par localisation, liste des lots (avec expansion) et articles, modales d'ajout et de transfert.
+- **Onglet "Inventaire" sur la fiche véhicule** — Intégration dans `/vehicles/[id]` avec deux onglets (Détails / Inventaire). Affiche les lots et le matériel nu assignés au véhicule. Boutons "Mode Check-up de garde" (liste de vérification, marque les manquants) et "Réapprovisionner depuis Tampon".
+- **Lien de navigation** — "Inventaire" ajouté dans la Navbar pour tous les utilisateurs authentifiés non-GUEST.
+- **13 tests d'intégration** — Couverture : 401/403, validations Zod, happy paths pour GET, POST item, POST transfert (SECOURISTE vs ADMIN depuis STOCK_CENTRAL), PATCH lot (scellage), GET inventaire véhicule.
+
+---
+
 ## [1.18.0] — 14 mars 2026
 
 ### Ajouté
