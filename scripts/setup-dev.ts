@@ -74,6 +74,8 @@ async function main() {
             "fuelType"              TEXT DEFAULT 'Essence',
             "maxFuelCapacity"       INTEGER,
             "maxBatteryCapacityKwh" INTEGER,
+            "lastDesinfDate"        TEXT,
+            "nextDesinfMaxDate"     TEXT,
             "createdAt"             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt"   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
@@ -111,6 +113,8 @@ async function main() {
             "parkingPhoto"           TEXT,
             "renaultDataValidated"   INTEGER DEFAULT NULL,
             "renaultLastCheckedAt"   TEXT DEFAULT NULL,
+            "desinfResponsable"      TEXT,
+            "desinfLotNumber"        TEXT,
             "createdAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY ("vehicleId") REFERENCES "Vehicle" ("id") ON DELETE CASCADE
         )
@@ -126,6 +130,14 @@ async function main() {
         await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "maxBatteryCapacityKwh" INTEGER`);
         console.log('  ↳ Migration : colonne Vehicle.maxBatteryCapacityKwh ajoutée');
     }
+    if (!vehicleCols.rows.some(r => r.name === 'lastDesinfDate')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "lastDesinfDate" TEXT`);
+        console.log('  ↳ Migration : colonne Vehicle.lastDesinfDate ajoutée');
+    }
+    if (!vehicleCols.rows.some(r => r.name === 'nextDesinfMaxDate')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "nextDesinfMaxDate" TEXT`);
+        console.log('  ↳ Migration : colonne Vehicle.nextDesinfMaxDate ajoutée');
+    }
 
     // Migrations idempotentes pour DBs existantes
     const tripCols = await db.execute(`PRAGMA table_info("Trip")`);
@@ -139,6 +151,8 @@ async function main() {
         ['renaultLastCheckedAt',   'TEXT DEFAULT NULL'],
         ['driverId',               'TEXT REFERENCES "User" ("id")'],
         ['secondDriverId',         'TEXT REFERENCES "User" ("id")'],
+        ['desinfResponsable',      'TEXT'],
+        ['desinfLotNumber',        'TEXT'],
     ];
     for (const [col, def] of migrations) {
         if (!existingCols.has(col)) {
@@ -297,16 +311,16 @@ async function main() {
     const count = await db.execute(`SELECT COUNT(*) as n FROM "Vehicle"`);
     if ((count.rows[0].n as number) === 0) {
         const vehicles = [
-            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur', maxFuelCapacity: null, maxBatteryCapacityKwh: 52 },
-            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur', maxFuelCapacity: 60, maxBatteryCapacityKwh: null },
-            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur', maxFuelCapacity: 50, maxBatteryCapacityKwh: null },
-            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur', maxFuelCapacity: 80, maxBatteryCapacityKwh: null },
+            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur', maxFuelCapacity: null, maxBatteryCapacityKwh: 52, lastDesinfDate: null, nextDesinfMaxDate: null },
+            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur', maxFuelCapacity: 60, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null },
+            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur', maxFuelCapacity: 50, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null },
+            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur', maxFuelCapacity: 80, maxBatteryCapacityKwh: null, lastDesinfDate: '2026-02-04', nextDesinfMaxDate: '2026-03-18' },
         ];
         for (const v of vehicles) {
             await db.execute({
-                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, status, createdAt, updatedAt)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh],
+                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, status, createdAt, updatedAt)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate],
             });
         }
         console.log('\n🚗 4 véhicules de démo créés');

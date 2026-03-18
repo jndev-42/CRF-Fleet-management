@@ -33,6 +33,8 @@ async function createTables() {
     fuelType TEXT DEFAULT 'Essence',
     maxFuelCapacity INTEGER,
     maxBatteryCapacityKwh INTEGER,
+    lastDesinfDate TEXT,
+    nextDesinfMaxDate TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -73,6 +75,8 @@ async function createTables() {
     parkingPhoto TEXT,
     renaultDataValidated INTEGER DEFAULT NULL,
     renaultLastCheckedAt TEXT DEFAULT NULL,
+    desinfResponsable TEXT,
+    desinfLotNumber TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vehicleId) REFERENCES Vehicle(id)
   )`);
@@ -159,6 +163,8 @@ export async function seedVehicle(overrides: Partial<{
   parkingSpot: string | null;
   maxFuelCapacity: number | null;
   maxBatteryCapacityKwh: number | null;
+  lastDesinfDate: string | null;
+  nextDesinfMaxDate: string | null;
 }> = {}) {
   const v = {
     id: 'VL001',
@@ -171,12 +177,14 @@ export async function seedVehicle(overrides: Partial<{
     parkingSpot: 'Baigneur',
     maxFuelCapacity: null,
     maxBatteryCapacityKwh: null,
+    lastDesinfDate: null,
+    nextDesinfMaxDate: null,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT INTO "Vehicle" (id, name, type, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh)
-          VALUES (?,?,?,?,?,?,?,?,?,?)`,
-    args: [v.id, v.name, v.type, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh],
+    sql: `INSERT INTO "Vehicle" (id, name, type, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [v.id, v.name, v.type, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate],
   });
   return v;
 }

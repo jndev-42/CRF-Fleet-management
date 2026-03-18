@@ -18,6 +18,8 @@ const checkInSchema = z.object({
     parkingPhoto: z.string().optional(),
     driveFolderId: z.string().optional(),
     checklistIn: z.record(z.string(), z.boolean()).optional(),
+    desinfResponsable: z.string().optional(),
+    desinfLotNumber: z.string().optional(),
 });
 
 export async function PATCH(
@@ -114,6 +116,16 @@ export async function PATCH(
             );
         }
 
+        // Pour les missions Désinfection, le responsable et le numéro de lot sont obligatoires
+        if (trip.missionType === 'Désinfection') {
+            if (!data.desinfResponsable || !data.desinfLotNumber) {
+                return NextResponse.json(
+                    { error: 'Le responsable de la désinfection et le numéro de lot sont requis pour une mission Désinfection' },
+                    { status: 400 }
+                );
+            }
+        }
+
         // Mettre à jour le trip et le véhicule en transaction
         const tx = await db.transaction('write');
         const timestamp = new Date().toISOString();
@@ -135,7 +147,8 @@ export async function PATCH(
                         checkInAt = ?, mileageIn = ?, fuelIn = ?, parkingIn = ?, conditionIn = ?, cleanlinessIn = ?,
                         incident = ?,
                         commentsIn = ?, parkingPhoto = ?, driveFolderId = ?, checklistIn = ?,
-                        renaultDataValidated = ?, renaultLastCheckedAt = ?
+                        renaultDataValidated = ?, renaultLastCheckedAt = ?,
+                        desinfResponsable = ?, desinfLotNumber = ?
                       WHERE id = ?`,
                 args: [
                     timestamp,
@@ -151,13 +164,15 @@ export async function PATCH(
                     data.checklistIn ? JSON.stringify(data.checklistIn) : null,
                     renaultDataValidated,
                     renaultDataValidated !== null ? timestamp : null,
+                    data.desinfResponsable || null,
+                    data.desinfLotNumber || null,
                     id
                 ]
             });
 
             await tx.execute({
-                sql: `UPDATE Vehicle SET 
-                        status = 'AVAILABLE', mileage = ?, fuelLevel = ?, parkingSpot = ?, updatedAt = ? 
+                sql: `UPDATE Vehicle SET
+                        status = 'AVAILABLE', mileage = ?, fuelLevel = ?, parkingSpot = ?, updatedAt = ?
                       WHERE id = ?`,
                 args: [
                     finalMileageIn,
@@ -167,6 +182,14 @@ export async function PATCH(
                     trip.vehicleId
                 ]
             });
+
+            // Pour les missions Désinfection : mise à jour des dates de désinf. du véhicule au retour
+            if (trip.missionType === 'Désinfection') {
+                await tx.execute({
+                    sql: `UPDATE Vehicle SET lastDesinfDate = date('now'), nextDesinfMaxDate = date('now', '+42 days') WHERE id = ?`,
+                    args: [trip.vehicleId]
+                });
+            }
 
             await tx.commit();
 

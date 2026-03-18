@@ -9,6 +9,8 @@ export interface DetailCardProps {
     titleColor?: string;
     valueStyle?: React.CSSProperties;
     onEdit?: () => void;
+    /** Called when the card itself is clicked (makes the card interactive) */
+    onClick?: () => void;
     children?: React.ReactNode; // For additional elements like fuel bars
 }
 
@@ -24,6 +26,7 @@ export default function DetailCard({
     titleColor,
     valueStyle,
     onEdit,
+    onClick,
     children
 }: DetailCardProps) {
     return (
@@ -31,8 +34,13 @@ export default function DetailCard({
             className="detail-card"
             style={{
                 background: backgroundColor || 'var(--bg-card)',
-                border: borderColor ? `1px solid ${borderColor}` : '1px solid var(--border-primary)'
+                border: borderColor ? `1px solid ${borderColor}` : '1px solid var(--border-primary)',
+                cursor: onClick ? 'pointer' : undefined,
             }}
+            onClick={onClick}
+            role={onClick ? 'button' : undefined}
+            tabIndex={onClick ? 0 : undefined}
+            onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
         >
             <div className="detail-card-title" style={{ color: titleColor, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 {title}

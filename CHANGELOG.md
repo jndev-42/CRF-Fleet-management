@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.19.0] — 18 mars 2026
+
+### Ajouté
+- **Désinfection VPSP** — Nouveau type de mission "Désinfection" accessible uniquement sur les véhicules de type VPSP. Au checkout, les dates `lastDesinfDate` et `nextDesinfMaxDate` (lastDesinfDate + 42 jours) sont automatiquement enregistrées sur le véhicule. Tout checkout d'un véhicule non-VPSP avec ce type de mission est rejeté avec une 400.
+- **Checkin Désinfection** — Lors du retour d'une mission Désinfection, deux champs obligatoires apparaissent : le responsable de la désinfection (sélecteur `UserCombobox`) et le numéro de lot du produit désinfectant. Le checkin est refusé avec un 400 si l'un des deux est manquant. Les valeurs sont persistées dans les colonnes `Trip.desinfResponsable` et `Trip.desinfLotNumber`.
+- **Main courante des désinfections** — Nouveau endpoint `GET /api/vehicles/[id]/desinfections` qui retourne l'historique des missions Désinfection complétées pour un véhicule VPSP, trié par date décroissante.
+- **Carte "Prochaine désinf." sur la fiche véhicule** — Pour les VPSP uniquement, une 5ème carte est affichée dans la grille de métriques avec un décompte en jours jusqu'à la prochaine désinfection obligatoire. Couleur verte si > 14 jours, orange entre 1 et 14 jours, rouge si dépassé. "Non planifiée" si aucune désinfection n'a encore eu lieu.
+- **Modal DesinfHistoryModal** — Un clic sur la carte "Prochaine désinf." ouvre une modale affichant la main courante : date, responsable, numéro de lot, conducteur.
+- **Migration `scripts/add-desinf.ts`** — Script de migration autonome idempotent pour ajouter les 4 nouvelles colonnes sur des bases existantes.
+- **Tests d'intégration — désinfection** — 10 cas couvrant : rejet checkout non-VPSP, mise à jour des dates véhicule, validation des champs checkin, sauvegarde des données, et historique GET.
+
+---
+
 ## [1.18.0] — 14 mars 2026
 
 ### Ajouté

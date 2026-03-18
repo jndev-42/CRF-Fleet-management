@@ -76,6 +76,8 @@ export async function GET(
             fuelType: row.fuelType,
             maxFuelCapacity: row.maxFuelCapacity as number | null,
             maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
+            lastDesinfDate: row.lastDesinfDate as string | null,
+            nextDesinfMaxDate: row.nextDesinfMaxDate as string | null,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
             trips: tripsResult.rows.map((tRow) => ({
@@ -109,6 +111,8 @@ export async function GET(
                 driveFolderId: tRow.driveFolderId || null,
                 renaultDataValidated: tRow.renaultDataValidated ?? null,
                 renaultLastCheckedAt: tRow.renaultLastCheckedAt || null,
+                desinfResponsable: tRow.desinfResponsable as string | null ?? null,
+                desinfLotNumber: tRow.desinfLotNumber as string | null ?? null,
                 createdAt: new Date(tRow.createdAt as string),
             }))
         };

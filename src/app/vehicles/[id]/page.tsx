@@ -22,6 +22,7 @@ import QRCodeModal from '@/components/vehicle/modals/QRCodeModal';
 import ReservationBlock from '@/components/vehicle/ReservationBlock';
 import ChecklistManager from '@/components/vehicle/ChecklistManager';
 import EditMetricsModal from '@/components/vehicle/modals/EditMetricsModal';
+import DesinfHistoryModal from '@/components/vehicle/modals/DesinfHistoryModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
@@ -46,6 +47,7 @@ export default function VehicleDetailPage() {
     const [showQRModal, setShowQRModal] = useState(false);
     const [showChecklistManager, setShowChecklistManager] = useState(false);
     const [showEditMetricsModal, setShowEditMetricsModal] = useState(false);
+    const [showDesinfHistoryModal, setShowDesinfHistoryModal] = useState(false);
     const [isReservedByOther, setIsReservedByOther] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [userRoles, setUserRoles] = useState<string[]>([]);
@@ -511,6 +513,49 @@ export default function VehicleDetailPage() {
                     title="Nombre de sorties"
                     value={vehicle.trips.length}
                 />
+                {vehicle.type.toUpperCase().includes('VPSP') && (() => {
+                    let desinfValue: React.ReactNode = 'Non planifiée';
+                    let bgColor: string | undefined;
+                    let borderColor: string | undefined;
+                    let valueColor: string | undefined;
+
+                    if (vehicle.nextDesinfMaxDate) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const deadline = new Date(vehicle.nextDesinfMaxDate);
+                        deadline.setHours(0, 0, 0, 0);
+                        const diffDays = Math.round((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                        if (diffDays < 0) {
+                            desinfValue = `En retard (${Math.abs(diffDays)}j)`;
+                            bgColor = 'rgba(239, 68, 68, 0.07)';
+                            borderColor = 'rgba(239, 68, 68, 0.4)';
+                            valueColor = '#DC2626';
+                        } else if (diffDays <= 14) {
+                            desinfValue = `dans ${diffDays}j`;
+                            bgColor = 'rgba(245, 158, 11, 0.07)';
+                            borderColor = 'rgba(245, 158, 11, 0.4)';
+                            valueColor = '#D97706';
+                        } else {
+                            desinfValue = `dans ${diffDays}j`;
+                            bgColor = 'rgba(16, 185, 129, 0.07)';
+                            borderColor = 'rgba(16, 185, 129, 0.3)';
+                            valueColor = '#059669';
+                        }
+                    }
+
+                    return (
+                        <DetailCard
+                            title="Prochaine désinf."
+                            value={desinfValue}
+                            subtitle="Voir l'historique"
+                            backgroundColor={bgColor}
+                            borderColor={borderColor}
+                            valueStyle={valueColor ? { color: valueColor } : undefined}
+                            onClick={() => setShowDesinfHistoryModal(true)}
+                        />
+                    );
+                })()}
             </div>
 
             <VehicleNotes
@@ -705,6 +750,14 @@ export default function VehicleDetailPage() {
                         setShowEditMetricsModal(false);
                         showToast('Métriques mises à jour avec succès !');
                     }}
+                />
+            )}
+
+            {showDesinfHistoryModal && vehicle && (
+                <DesinfHistoryModal
+                    vehicleId={vehicle.id}
+                    vehicleName={vehicle.name}
+                    onClose={() => setShowDesinfHistoryModal(false)}
                 />
             )}
 
