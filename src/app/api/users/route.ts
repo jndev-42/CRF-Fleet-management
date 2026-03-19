@@ -15,13 +15,19 @@ const createUserSchema = z.object({
     roles: z.array(z.string()).optional().default([]),
 });
 
-/** GET /api/users — Admin: list all users with their roles.
- *  ?drivers=true  → returns only users who have at least the CHVL or CHVPSP role */
+/** GET /api/users — ADMIN ou RESPO : liste tous les utilisateurs avec leurs rôles.
+ *  ?drivers=true  → retourne uniquement les utilisateurs ayant le rôle CHVL ou CHVPSP */
 export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+        }
+
+        const roles = session.user.roles || [];
+        const canView = roles.includes('ADMIN') || roles.includes('RESPO');
+        if (!canView) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
         const { searchParams } = new URL(request.url);
@@ -41,6 +47,9 @@ export async function GET(request: Request) {
                             u.email,
                             u.name,
                             u.createdAt,
+                            u.papiers_valides,
+                            u.last_validation,
+                            u.start_date_invalidation_process,
                             GROUP_CONCAT(r.name) as roles
                         FROM "User" u
                         LEFT JOIN "UserRole" ur ON u.id = ur.userId
@@ -62,6 +71,9 @@ export async function GET(request: Request) {
                         u.email,
                         u.name,
                         u.createdAt,
+                        u.papiers_valides,
+                        u.last_validation,
+                        u.start_date_invalidation_process,
                         GROUP_CONCAT(r.name) as roles
                     FROM "User" u
                     LEFT JOIN "UserRole" ur ON u.id = ur.userId
@@ -79,6 +91,9 @@ export async function GET(request: Request) {
             email: row.email,
             name: row.name,
             createdAt: row.createdAt,
+            papiers_valides: row.papiers_valides !== null ? Number(row.papiers_valides) : 1,
+            last_validation: row.last_validation ?? null,
+            start_date_invalidation_process: row.start_date_invalidation_process ?? null,
             roles: row.roles ? (row.roles as string).split(',') : []
         }));
 

@@ -69,6 +69,7 @@ export default function VehicleDetailPage() {
     const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
     const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
     const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
+    const [licenseBlocked, setLicenseBlocked] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -85,6 +86,11 @@ export default function VehicleDetailPage() {
             })
             .catch(console.error);
 
+        // Check license validity for drivers
+        fetch('/api/me/license-check')
+            .then(res => res.json())
+            .then(data => { if (data.blocked) setLicenseBlocked(true); })
+            .catch(console.error);
     }, []);
 
     /**
@@ -147,7 +153,7 @@ export default function VehicleDetailPage() {
     /**
      * Add a second driver dynamically to the currently active checkout trip
      */
-    async function handleAddSecondDriver(e: React.FormEvent) {
+    async function handleAddSecondDriver(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         if (!activeTrip || !secondDriverEmail) return;
 
@@ -353,9 +359,15 @@ export default function VehicleDetailPage() {
                             canBorrow = false; // Block if there is an active reservation by another user, unless ADMIN
                         }
 
+                        if (canBorrow && licenseBlocked && !isAdmin) {
+                            canBorrow = false; // Block if license papers are not validated within grace period
+                        }
+
                         let titleAttr = "";
                         if (!canBorrow) {
-                            if (isReservedByOther && !isAdmin) {
+                            if (licenseBlocked && !isAdmin) {
+                                titleAttr = "Vos papiers n'ont pas été validés — emprunt bloqué.";
+                            } else if (isReservedByOther && !isAdmin) {
                                 titleAttr = "Ce véhicule est actuellement réservé par quelqu'un d'autre.";
                             } else {
                                 titleAttr = "Vous n'avez pas les droits pour emprunter ce véhicule";
@@ -499,6 +511,7 @@ export default function VehicleDetailPage() {
                     currentUserEmail={currentUserEmail}
                     userRoles={userRoles}
                     onActiveReservationChange={setIsReservedByOther}
+                    licenseBlocked={licenseBlocked}
                 />
             )}
 

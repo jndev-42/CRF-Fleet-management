@@ -1,7 +1,7 @@
 # Agent Memory — cr-chauffeur
 
 ## Current Version
-- package.json + CHANGELOG.md: **v1.20.0** (as of 2026-03-19)
+- package.json + CHANGELOG.md: **v1.21.0** (as of 2026-03-19)
 - Footer version: uses `process.env.NEXT_PUBLIC_APP_VERSION` injected from `package.json` via `next.config.ts` — NOT hardcoded
 
 ## Project Structure
@@ -119,6 +119,15 @@
 - **`react-hooks/set-state-in-effect`** is NOT a recognized rule in this ESLint config — don't add disable comments for it
 - **Unused catch variables**: use `catch { }` (empty catch) instead of `catch (_e) { }` when the variable is not referenced
 - **Underscore prefix** (`_varName`) is NOT always sufficient to suppress `no-unused-vars` in this config — prefer empty catch or eslint-disable
+
+## User Schema (papiers chauffeurs)
+- `User` table has 3 license columns: `papiers_valides INTEGER DEFAULT 1`, `last_validation TEXT`, `start_date_invalidation_process TEXT`
+- Driver roles: `['CHVL', 'CHVPSP']` — only these are subject to license validation
+- Business logic lives in `GET /api/me/license-check` — returns `{ validated, daysLeft, blocked }`
+- Validation action: `PATCH /api/users/[id]/validate-papers` — accessible to ADMIN and RESPO
+- `GET /api/users` now accessible to RESPO (not just ADMIN) — includes license columns in response
+- `LicenseBanner` component in `src/components/LicenseBanner.tsx` — sticky banner, mounted in layout
+- Vehicle borrowing (`canBorrow`) and reservation button both check `licenseBlocked` state
 
 ## Known Patterns / Gotchas
 - `vehicles/page.tsx` has its own `isElectric()` helper (name-based, legacy) — `page.tsx` uses `v.vin` to detect connected vehicles

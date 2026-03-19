@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.21.0] — 19 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Validation des papiers** — Les chauffeurs (CHVL et CHVPSP) doivent faire valider leur permis de conduire (et attestation préfectorale pour les CHVPSP) une fois par an auprès de leur DLUS/DLAS.
+- **Bannière d'alerte** — Lorsque les papiers ne sont pas validés, une bannière rouge apparaît en haut de l'écran avec le nombre de jours restants avant blocage.
+- **Blocage automatique** — Si les papiers n'ont pas été validés dans les 14 jours suivant l'échéance, l'emprunt de véhicules et les réservations sont désactivés.
+- **Validation depuis la gestion des utilisateurs** — Les administrateurs et responsables peuvent marquer les papiers d'un chauffeur comme validés depuis la page Utilisateurs.
+- **Accès RESPO à la gestion des utilisateurs** — Les responsables (RESPO) peuvent désormais accéder à la page Utilisateurs pour valider les papiers des chauffeurs.
+
+### 🔧 Changements
+
+- La colonne "Papiers" est affichée sur la fiche utilisateur avec la date de dernière validation et le statut courant.
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
 ## [1.20.0] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités

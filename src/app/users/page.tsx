@@ -11,7 +11,12 @@ interface User {
     name: string | null;
     createdAt: string;
     roles: string[];
+    papiers_valides: number;
+    last_validation: string | null;
+    start_date_invalidation_process: string | null;
 }
+
+const DRIVER_ROLES = ['CHVL', 'CHVPSP'];
 
 export default function UsersPage() {
     const [users, setUsers] = useState<User[]>([]);
@@ -26,14 +31,19 @@ export default function UsersPage() {
     const usersPerPage = 6;
     const [showAddModal, setShowAddModal] = useState(false);
 
-    useEffect(() => {
-        if (status === 'unauthenticated' || (status === 'authenticated' && !session?.user?.roles?.includes('ADMIN'))) {
-            router.push('/');  // non-admins shouldn't even be here
-        }
-    }, [status, session, router]);
+    const sessionRoles = (session?.user?.roles || []) as string[];
+    const isAdmin = sessionRoles.includes('ADMIN');
+    const isRespo = sessionRoles.includes('RESPO');
+    const canAccess = isAdmin || isRespo;
 
     useEffect(() => {
-        if (status === 'authenticated' && session?.user?.roles?.includes('ADMIN')) {
+        if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {
+            router.push('/');
+        }
+    }, [status, canAccess, router]);
+
+    useEffect(() => {
+        if (status === 'authenticated' && canAccess) {
             fetchUsers();
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchUsers is defined outside the effect; including it would require useCallback for no practical benefit on this simple admin page
@@ -47,8 +57,8 @@ export default function UsersPage() {
                 return;
             }
             const data = await res.json();
-            setUsers(data.users);
-            setAvailableRoles(data.availableRoles);
+            setUsers(data.users ?? []);
+            setAvailableRoles(data.availableRoles ?? []);
         } catch (error) {
             console.error('Erreur:', error);
         } finally {
@@ -99,6 +109,30 @@ export default function UsersPage() {
         }
     }
 
+    async function validatePapers(userId: string, userName: string | null) {
+        try {
+            const res = await fetch(`/api/users/${encodeURIComponent(userId)}/validate-papers`, {
+                method: 'PATCH',
+            });
+
+            if (res.ok) {
+                const today = new Date().toISOString().slice(0, 10);
+                setUsers(prev => prev.map(u =>
+                    u.id === userId
+                        ? { ...u, papiers_valides: 1, last_validation: today, start_date_invalidation_process: null }
+                        : u
+                ));
+                window.dispatchEvent(new CustomEvent('license-validated'));
+                showToast(`Papiers validés pour ${userName || userId}`);
+            } else {
+                const data = await res.json();
+                showToast(data.error || 'Erreur lors de la validation', 'error');
+            }
+        } catch {
+            showToast('Erreur lors de la validation des papiers', 'error');
+        }
+    }
+
     async function createUser(email: string, name: string, roles: string[]) {
         const res = await fetch('/api/users', {
             method: 'POST',
@@ -107,8 +141,16 @@ export default function UsersPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erreur');
-        // Optimistically add to list
-        const newUser: User = { id: data.id, email, name, createdAt: new Date().toISOString(), roles };
+        const newUser: User = {
+            id: data.id,
+            email,
+            name,
+            createdAt: new Date().toISOString(),
+            roles,
+            papiers_valides: 1,
+            last_validation: null,
+            start_date_invalidation_process: null,
+        };
         setUsers(prev => [...prev, newUser].sort((a, b) => a.email.localeCompare(b.email)));
     }
 
@@ -127,7 +169,6 @@ export default function UsersPage() {
     const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
 
     useEffect(() => {
-        // Reset to first page when search changes
         setCurrentPage(1);
     }, [searchQuery]);
 
@@ -139,7 +180,7 @@ export default function UsersPage() {
         );
     }
 
-    if (status === 'unauthenticated' || !session?.user?.roles?.includes('ADMIN')) return null;
+    if (status === 'unauthenticated' || !canAccess) return null;
 
     return (
         <div className="page-container" style={{ padding: '0px 24px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -152,7 +193,11 @@ export default function UsersPage() {
             <div className="page-header" style={{ marginBottom: '24px', display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h1 className="page-title">Gestion des Utilisateurs</h1>
-                    <p className="page-description">Définissez les rôles et permissions des utilisateurs.</p>
+                    <p className="page-description">
+                        {isAdmin
+                            ? 'Définissez les rôles et permissions des utilisateurs.'
+                            : 'Validez les papiers des chauffeurs.'}
+                    </p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <div style={{ position: 'relative', minWidth: '250px', maxWidth: '350px' }}>
@@ -174,16 +219,18 @@ export default function UsersPage() {
                             }}
                         />
                     </div>
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => setShowAddModal(true)}
-                    >
-                        ➕ Ajouter un utilisateur
-                    </button>
+                    {isAdmin && (
+                        <button
+                            className="btn btn-primary"
+                            onClick={() => setShowAddModal(true)}
+                        >
+                            ➕ Ajouter un utilisateur
+                        </button>
+                    )}
                 </div>
             </div>
 
-            <RoleLegend />
+            {isAdmin && <RoleLegend />}
 
             <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
                 <div style={{ overflowX: 'auto' }}>
@@ -192,54 +239,91 @@ export default function UsersPage() {
                             <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--border-primary)' }}>
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Email</th>
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Nom</th>
-                                <th style={{ padding: '16px', fontWeight: 600 }}>Rôles</th>
+                                {isAdmin && <th style={{ padding: '16px', fontWeight: 600 }}>Rôles</th>}
+                                <th style={{ padding: '16px', fontWeight: 600 }}>Papiers</th>
+                                <th style={{ padding: '16px', fontWeight: 600 }}>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {currentUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={3} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan={isAdmin ? 5 : 4} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Aucun utilisateur trouvé.
                                     </td>
                                 </tr>
                             ) : (
-                                currentUsers.map(user => (
-                                    <tr key={user.id} style={{ borderBottom: '1px solid var(--border-primary)' }}>
-                                        <td style={{ padding: '16px' }}>{user.email}</td>
-                                        <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{user.name || '—'}</td>
-                                        <td style={{ padding: '16px' }}>
-                                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                                {availableRoles.map(role => {
-                                                    const hasRole = user.roles.includes(role);
-                                                    return (
-                                                        <label key={role} style={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '6px',
-                                                            background: hasRole ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.05)',
-                                                            border: `1px solid ${hasRole ? '#3B82F6' : 'var(--border-primary)'}`,
-                                                            borderRadius: '100px',
-                                                            padding: '4px 10px',
-                                                            fontSize: '13px',
-                                                            cursor: 'pointer',
-                                                            color: hasRole ? '#60A5FA' : 'var(--text-secondary)',
-                                                            transition: 'all 0.2s',
-                                                            userSelect: 'none'
-                                                        }}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={hasRole}
-                                                                onChange={() => toggleRole(user.email, role, user.roles)}
-                                                                style={{ display: 'none' }}
-                                                            />
-                                                            {role}
-                                                        </label>
-                                                    );
-                                                })}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                currentUsers.map(user => {
+                                    const isDriver = user.roles.some(r => DRIVER_ROLES.includes(r));
+                                    const papersValid = user.papiers_valides === 1;
+
+                                    return (
+                                        <tr key={user.id} style={{ borderBottom: '1px solid var(--border-primary)' }}>
+                                            <td style={{ padding: '16px' }}>{user.email}</td>
+                                            <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{user.name || '—'}</td>
+                                            {isAdmin && (
+                                                <td style={{ padding: '16px' }}>
+                                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                        {availableRoles.map(role => {
+                                                            const hasRole = user.roles.includes(role);
+                                                            return (
+                                                                <label key={role} style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    background: hasRole ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.05)',
+                                                                    border: `1px solid ${hasRole ? '#3B82F6' : 'var(--border-primary)'}`,
+                                                                    borderRadius: '100px',
+                                                                    padding: '4px 10px',
+                                                                    fontSize: '13px',
+                                                                    cursor: 'pointer',
+                                                                    color: hasRole ? '#60A5FA' : 'var(--text-secondary)',
+                                                                    transition: 'all 0.2s',
+                                                                    userSelect: 'none'
+                                                                }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={hasRole}
+                                                                        onChange={() => toggleRole(user.email, role, user.roles)}
+                                                                        style={{ display: 'none' }}
+                                                                    />
+                                                                    {role}
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </td>
+                                            )}
+                                            <td style={{ padding: '16px' }}>
+                                                {!isDriver ? (
+                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>—</span>
+                                                ) : papersValid ? (
+                                                    <span style={{ color: '#22C55E', fontSize: '13px', fontWeight: 600 }}>
+                                                        ✅ Valides{user.last_validation ? ` (${user.last_validation})` : ''}
+                                                    </span>
+                                                ) : (
+                                                    <span style={{ color: '#EF4444', fontSize: '13px', fontWeight: 600 }}>
+                                                        ❌ Non validés
+                                                        {user.start_date_invalidation_process
+                                                            ? ` — depuis ${user.start_date_invalidation_process}`
+                                                            : ''}
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td style={{ padding: '16px' }}>
+                                                {isDriver && !papersValid && (
+                                                    <button
+                                                        className="btn btn-secondary"
+                                                        style={{ fontSize: '13px', padding: '6px 12px' }}
+                                                        onClick={() => validatePapers(user.id, user.name)}
+                                                        title="Marquer les papiers comme validés"
+                                                    >
+                                                        🪪 Valider les papiers
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
@@ -299,7 +383,7 @@ export default function UsersPage() {
                 </div>
             </div>
 
-            {showAddModal && (
+            {isAdmin && showAddModal && (
                 <AddUserModal
                     availableRoles={availableRoles}
                     onClose={() => setShowAddModal(false)}
@@ -338,7 +422,7 @@ function AddUserModal({
         );
     }
 
-    async function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         setSubmitting(true);
         try {

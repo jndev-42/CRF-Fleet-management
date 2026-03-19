@@ -46,7 +46,10 @@ async function createTables() {
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
     name TEXT,
-    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    papiers_valides INTEGER NOT NULL DEFAULT 1,
+    last_validation TEXT,
+    start_date_invalidation_process TEXT
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "Trip" (
@@ -212,16 +215,22 @@ export async function seedUser(overrides: Partial<{
   id: string;
   email: string;
   name: string;
+  papiers_valides: number;
+  last_validation: string | null;
+  start_date_invalidation_process: string | null;
 }> = {}) {
   const u = {
     id: 'user-driver',
     email: 'driver@test.com',
     name: 'Test Driver',
+    papiers_valides: 1,
+    last_validation: null,
+    start_date_invalidation_process: null,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT OR IGNORE INTO "User" (id, email, name) VALUES (?,?,?)`,
-    args: [u.id, u.email, u.name],
+    sql: `INSERT OR IGNORE INTO "User" (id, email, name, papiers_valides, last_validation, start_date_invalidation_process) VALUES (?,?,?,?,?,?)`,
+    args: [u.id, u.email, u.name, u.papiers_valides, u.last_validation, u.start_date_invalidation_process],
   });
   return u;
 }

@@ -20,9 +20,10 @@ interface ReservationBlockProps {
     currentUserEmail: string | null;
     userRoles: string[];
     onActiveReservationChange?: (isReservedByOther: boolean) => void;
+    licenseBlocked?: boolean;
 }
 
-export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange }: ReservationBlockProps) {
+export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange, licenseBlocked = false }: ReservationBlockProps) {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -81,7 +82,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             .catch(console.error);
     }, [isAdmin, vehicleType]);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setSubmitting(true);
         try {
@@ -153,7 +154,12 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         <div className={styles.container}>
             <div className={styles.header}>
                 <h2 className={styles.title}>Réservations prévues</h2>
-                <button className={`btn btn-secondary ${styles.addBtn}`} onClick={() => setShowModal(true)}>
+                <button
+                    className={`btn btn-secondary ${styles.addBtn}`}
+                    onClick={() => { if (!licenseBlocked || isAdmin) setShowModal(true); }}
+                    disabled={licenseBlocked && !isAdmin}
+                    title={licenseBlocked && !isAdmin ? "Vos papiers n'ont pas été validés — réservation bloquée." : undefined}
+                >
                     + Réserver
                 </button>
             </div>

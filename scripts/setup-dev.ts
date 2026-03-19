@@ -33,6 +33,19 @@ async function main() {
         )
     `);
 
+    // Idempotent: add license validation columns if they don't exist yet
+    const userCols = await db.execute('PRAGMA table_info("User")');
+    const colNames = userCols.rows.map(r => r.name as string);
+    if (!colNames.includes('papiers_valides')) {
+        await db.execute(`ALTER TABLE "User" ADD COLUMN "papiers_valides" INTEGER NOT NULL DEFAULT 1`);
+    }
+    if (!colNames.includes('last_validation')) {
+        await db.execute(`ALTER TABLE "User" ADD COLUMN "last_validation" TEXT`);
+    }
+    if (!colNames.includes('start_date_invalidation_process')) {
+        await db.execute(`ALTER TABLE "User" ADD COLUMN "start_date_invalidation_process" TEXT`);
+    }
+
     await db.execute(`
         CREATE TABLE IF NOT EXISTS "UserRole" (
             "userId" TEXT NOT NULL,
@@ -294,11 +307,12 @@ async function main() {
 
     // ── Utilisateurs de test ──────────────────────────────────────
 
+    const today = new Date().toISOString().slice(0, 10);
     const devUsers = [
-        { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'] },
-        { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'] },
-        { email: 'chvl@dev.local', name: 'Chauffeur Dev', roles: ['CHVL'] },
-        { email: 'guest@dev.local', name: 'Invité Dev', roles: ['GUEST'] },
+        { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
+        { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
+        { email: 'chvl@dev.local', name: 'Chauffeur Dev', roles: ['CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
+        { email: 'guest@dev.local', name: 'Invité Dev', roles: ['GUEST'], papiers_valides: 1, start_date_invalidation_process: null },
     ];
 
     for (const devUser of devUsers) {
@@ -310,12 +324,17 @@ async function main() {
 
         if (existing.rows.length > 0) {
             userId = existing.rows[0].id as string;
+            // Idempotent: update license columns in case they were just added
+            await db.execute({
+                sql: `UPDATE "User" SET papiers_valides = ?, start_date_invalidation_process = ? WHERE id = ?`,
+                args: [devUser.papiers_valides, devUser.start_date_invalidation_process, userId],
+            });
             console.log(`↩  ${devUser.email} déjà existant`);
         } else {
             userId = crypto.randomUUID();
             await db.execute({
-                sql: `INSERT INTO "User" (id, email, name) VALUES (?, ?, ?)`,
-                args: [userId, devUser.email, devUser.name],
+                sql: `INSERT INTO "User" (id, email, name, papiers_valides, start_date_invalidation_process) VALUES (?, ?, ?, ?, ?)`,
+                args: [userId, devUser.email, devUser.name, devUser.papiers_valides, devUser.start_date_invalidation_process],
             });
         }
 
