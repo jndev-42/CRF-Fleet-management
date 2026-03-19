@@ -65,6 +65,20 @@ export async function PATCH(
                 }
             }
 
+            // Si le nouvel ensemble de rôles contient CHVL ou CHVPSP,
+            // invalider les papiers s'ils n'ont jamais été validés (last_validation NULL).
+            const isNowDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
+            if (isNowDriver) {
+                const today = new Date().toISOString().slice(0, 10);
+                await tx.execute({
+                    sql: `UPDATE "User"
+                          SET papiers_valides = 0,
+                              start_date_invalidation_process = COALESCE(start_date_invalidation_process, ?)
+                          WHERE id = ? AND last_validation IS NULL`,
+                    args: [today, userId],
+                });
+            }
+
             await tx.commit();
             return NextResponse.json({ success: true });
         } catch (e) {
