@@ -91,7 +91,7 @@ export default function MissionsPage() {
                 >
                     Tous ({total})
                 </button>
-                {(['RESEAU', 'PAPS', 'AUTRE'] as const).map(type => (
+                {(['RESEAU', 'DPS', 'PAPS'] as const).map(type => (
                     <button
                         key={type}
                         className={`filter-btn${typeFilter === type ? ' active' : ''}`}
