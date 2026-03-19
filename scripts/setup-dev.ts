@@ -138,6 +138,18 @@ async function main() {
         await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "nextDesinfMaxDate" TEXT`);
         console.log('  ↳ Migration : colonne Vehicle.nextDesinfMaxDate ajoutée');
     }
+    if (!vehicleCols.rows.some(r => r.name === 'firstRegistrationDate')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "firstRegistrationDate" TEXT`);
+        console.log('  ↳ Migration : colonne Vehicle.firstRegistrationDate ajoutée');
+    }
+    if (!vehicleCols.rows.some(r => r.name === 'revisionKmInterval')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "revisionKmInterval" INTEGER`);
+        console.log('  ↳ Migration : colonne Vehicle.revisionKmInterval ajoutée');
+    }
+    if (!vehicleCols.rows.some(r => r.name === 'revisionYearInterval')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "revisionYearInterval" INTEGER`);
+        console.log('  ↳ Migration : colonne Vehicle.revisionYearInterval ajoutée');
+    }
 
     // Migrations idempotentes pour DBs existantes
     const tripCols = await db.execute(`PRAGMA table_info("Trip")`);
@@ -254,6 +266,19 @@ async function main() {
     // Make DSA checkout checklist items non-required
     await db.execute({ sql: `UPDATE "VehicleChecklistItem" SET required = 0 WHERE id LIKE 'dsa-checkout-%'`, args: [] });
 
+    // ── Contrôle technique & Révisions ───────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
+            "id"        TEXT NOT NULL PRIMARY KEY,
+            "vehicleId" TEXT NOT NULL REFERENCES "Vehicle"(id),
+            "date"      TEXT NOT NULL,
+            "type"      TEXT NOT NULL,
+            "mileage"   INTEGER,
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
     // ── Session Renault ───────────────────────────────────────────
 
     await db.execute(`
@@ -311,21 +336,69 @@ async function main() {
     const count = await db.execute(`SELECT COUNT(*) as n FROM "Vehicle"`);
     if ((count.rows[0].n as number) === 0) {
         const vehicles = [
-            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur', maxFuelCapacity: null, maxBatteryCapacityKwh: 52, lastDesinfDate: null, nextDesinfMaxDate: null },
-            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur', maxFuelCapacity: 60, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null },
-            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur', maxFuelCapacity: 50, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null },
-            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur', maxFuelCapacity: 80, maxBatteryCapacityKwh: null, lastDesinfDate: '2026-02-04', nextDesinfMaxDate: '2026-03-18' },
+            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur', maxFuelCapacity: null, maxBatteryCapacityKwh: 52, lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2018-03-20', revisionKmInterval: 40000, revisionYearInterval: 2 },
+            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur', maxFuelCapacity: 60, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2020-06-15', revisionKmInterval: 15000, revisionYearInterval: 1 },
+            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur', maxFuelCapacity: 50, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2019-11-08', revisionKmInterval: 40000, revisionYearInterval: 2 },
+            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur', maxFuelCapacity: 80, maxBatteryCapacityKwh: null, lastDesinfDate: '2026-02-04', nextDesinfMaxDate: '2026-03-18', firstRegistrationDate: '2021-09-01', revisionKmInterval: null, revisionYearInterval: null },
         ];
         for (const v of vehicles) {
             await db.execute({
-                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, status, createdAt, updatedAt)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate],
+                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval, status, createdAt, updatedAt)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval],
             });
         }
         console.log('\n🚗 4 véhicules de démo créés');
     } else {
-        console.log('\n🚗 Véhicules déjà présents, skip');
+        // Idempotent update of maintenance fields for existing vehicles
+        await db.execute({
+            sql: `UPDATE "Vehicle" SET firstRegistrationDate = '2020-06-15', revisionKmInterval = 15000, revisionYearInterval = 1
+                  WHERE name LIKE 'VL188%' AND (firstRegistrationDate IS NULL OR firstRegistrationDate = '')`,
+            args: [],
+        });
+        await db.execute({
+            sql: `UPDATE "Vehicle" SET firstRegistrationDate = '2018-03-20', revisionKmInterval = 40000, revisionYearInterval = 2
+                  WHERE name LIKE 'VL186%' AND (firstRegistrationDate IS NULL OR firstRegistrationDate = '')`,
+            args: [],
+        });
+        await db.execute({
+            sql: `UPDATE "Vehicle" SET firstRegistrationDate = '2019-11-08', revisionKmInterval = 40000, revisionYearInterval = 2
+                  WHERE name LIKE 'VL182%' AND (firstRegistrationDate IS NULL OR firstRegistrationDate = '')`,
+            args: [],
+        });
+        await db.execute({
+            sql: `UPDATE "Vehicle" SET firstRegistrationDate = '2021-09-01'
+                  WHERE name LIKE 'VPSP01%' AND (firstRegistrationDate IS NULL OR firstRegistrationDate = '')`,
+            args: [],
+        });
+        console.log('\n🚗 Véhicules déjà présents, données maintenance mises à jour');
+    }
+
+    // ── MaintenanceRecords de démonstration ──────────────────────
+
+    const maintCount = await db.execute(`SELECT COUNT(*) as n FROM "VehicleMaintenanceRecord"`);
+    if ((maintCount.rows[0].n as number) === 0) {
+        const vl188Row = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE name LIKE 'VL188%' LIMIT 1`, args: [] });
+        const vl186Row = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE name LIKE 'VL186%' LIMIT 1`, args: [] });
+        const vpsp01Row = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE name LIKE 'VPSP01%' LIMIT 1`, args: [] });
+
+        if (vl188Row.rows.length > 0) {
+            const vid = vl188Row.rows[0].id as string;
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2024-01-15', 'CT', null] });
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2024-01-15', 'REVISION', 62000] });
+        }
+        if (vl186Row.rows.length > 0) {
+            const vid = vl186Row.rows[0].id as string;
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2023-06-10', 'CT', null] });
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2021-06-10', 'CT', null] });
+        }
+        if (vpsp01Row.rows.length > 0) {
+            const vid = vpsp01Row.rows[0].id as string;
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2025-02-20', 'CT', null] });
+        }
+        console.log('🔧 MaintenanceRecords de démo créés');
+    } else {
+        console.log('🔧 MaintenanceRecords déjà présents, skip');
     }
 
     // ── Trips de démonstration ────────────────────────────────────

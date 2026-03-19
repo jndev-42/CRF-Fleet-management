@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.20.0] — 19 mars 2026
+
+### Ajouté
+- **Contrôles Techniques & Révisions** — Nouveau module de suivi de l'entretien des véhicules. Chaque véhicule dispose désormais de champs `firstRegistrationDate`, `revisionKmInterval` et `revisionYearInterval` pour configurer les intervalles d'entretien.
+- **Table `VehicleMaintenanceRecord`** — Nouvelle table en base de données pour enregistrer les contrôles techniques et révisions, liée à un véhicule via `vehicleId`.
+- **API `/api/vehicles/[id]/maintenance`** — GET paginé (5 entrées/page) pour tous les utilisateurs authentifiés ; POST réservé aux admins pour créer un enregistrement (`CT`, `REVISION`, ou `CT_REVISION`).
+- **API `/api/vehicles/[id]/maintenance/[recordId]`** — DELETE réservé aux admins pour supprimer un enregistrement.
+- **Carte "Entretien" sur la fiche véhicule** — Affichée pour tout véhicule ayant une date de première immatriculation. Présente le délai avant le prochain CT (rouge si dépassé, orange si < 30 jours, vert sinon) et, si configurée, la révision en jours et km restants.
+- **Modal `MaintenanceHistoryModal`** — Accessible au clic sur la carte Entretien. Affiche l'historique paginé des CT et révisions. Les admins peuvent ajouter une entrée (date, type, kilométrage) et supprimer des lignes.
+- **Formulaire d'ajout de véhicule enrichi** — Trois nouveaux champs : date de 1ère immatriculation (obligatoire), intervalle révision en km (optionnel), intervalle révision en années (optionnel).
+- **`src/lib/maintenanceUtils.ts`** — Fonctions pures `getNextCtDate`, `getNextRevision` et `formatDuration` encapsulant toute la logique métier CT/révision.
+
+### Modifié
+- Migration idempotente du schéma `Vehicle` : ajout des colonnes `firstRegistrationDate`, `revisionKmInterval`, `revisionYearInterval` via `PRAGMA table_info` dans `setup-dev.ts`.
+- Les données seed des véhicules de démonstration incluent désormais les intervalles d'entretien et des enregistrements de CT/révision.
+
 ## [1.19.0] — 18 mars 2026
 
 ### Ajouté

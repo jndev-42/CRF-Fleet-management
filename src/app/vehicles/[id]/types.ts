@@ -66,5 +66,21 @@ export interface Vehicle {
     lastDesinfDate: string | null;
     /** Date (YYYY-MM-DD) max avant la prochaine désinfection = lastDesinfDate + 42 jours */
     nextDesinfMaxDate: string | null;
+    /** Date (YYYY-MM-DD) de la première immatriculation */
+    firstRegistrationDate: string | null;
+    /** Intervalle en km entre deux révisions */
+    revisionKmInterval: number | null;
+    /** Intervalle en années entre deux révisions */
+    revisionYearInterval: number | null;
     trips: Trip[];
+}
+
+export interface MaintenanceRecord {
+    id: string;
+    vehicleId: string;
+    /** Date de l'opération — format YYYY-MM-DD */
+    date: string;
+    type: 'CT' | 'REVISION' | 'CT_REVISION';
+    mileage: number | null;
+    createdAt: string;
 }

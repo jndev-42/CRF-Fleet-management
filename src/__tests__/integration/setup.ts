@@ -35,6 +35,9 @@ async function createTables() {
     maxBatteryCapacityKwh INTEGER,
     lastDesinfDate TEXT,
     nextDesinfMaxDate TEXT,
+    firstRegistrationDate TEXT,
+    revisionKmInterval INTEGER,
+    revisionYearInterval INTEGER,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -117,6 +120,15 @@ async function createTables() {
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (userId) REFERENCES "User"(id) ON DELETE CASCADE
   )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
+    id TEXT PRIMARY KEY,
+    vehicleId TEXT NOT NULL REFERENCES "Vehicle"(id),
+    date TEXT NOT NULL,
+    type TEXT NOT NULL,
+    mileage INTEGER,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 }
 
 async function truncateTables() {
@@ -124,6 +136,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "UserRole"`);
   await db.execute(`DELETE FROM "Trip"`);
   await db.execute(`DELETE FROM "Reservation"`);
+  await db.execute(`DELETE FROM "VehicleMaintenanceRecord"`);
   await db.execute(`DELETE FROM "Vehicle"`);
   await db.execute(`DELETE FROM "User"`);
   await db.execute(`DELETE FROM "Role"`);
@@ -165,6 +178,9 @@ export async function seedVehicle(overrides: Partial<{
   maxBatteryCapacityKwh: number | null;
   lastDesinfDate: string | null;
   nextDesinfMaxDate: string | null;
+  firstRegistrationDate: string | null;
+  revisionKmInterval: number | null;
+  revisionYearInterval: number | null;
 }> = {}) {
   const v = {
     id: 'VL001',
@@ -179,12 +195,15 @@ export async function seedVehicle(overrides: Partial<{
     maxBatteryCapacityKwh: null,
     lastDesinfDate: null,
     nextDesinfMaxDate: null,
+    firstRegistrationDate: null,
+    revisionKmInterval: null,
+    revisionYearInterval: null,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT INTO "Vehicle" (id, name, type, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-    args: [v.id, v.name, v.type, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate],
+    sql: `INSERT INTO "Vehicle" (id, name, type, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [v.id, v.name, v.type, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval],
   });
   return v;
 }

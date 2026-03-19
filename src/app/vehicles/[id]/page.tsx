@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
 import PhotoViewer from '@/components/PhotoViewer';
 
-import { Vehicle } from './types';
+import { Vehicle, MaintenanceRecord } from './types';
 import { formatDate } from './utils';
 import FuelBar from '@/components/vehicle/FuelBar';
 import VehicleBadges from '@/components/vehicle/VehicleBadges';
@@ -24,6 +24,8 @@ import ChecklistManager from '@/components/vehicle/ChecklistManager';
 import EditMetricsModal from '@/components/vehicle/modals/EditMetricsModal';
 import DesinfHistoryModal from '@/components/vehicle/modals/DesinfHistoryModal';
 import DesinfPreCheckinModal from '@/components/vehicle/modals/DesinfPreCheckinModal';
+import MaintenanceCard from '@/components/vehicle/MaintenanceCard';
+import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHistoryModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
@@ -64,6 +66,9 @@ export default function VehicleDetailPage() {
     const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
     const [showDesinfPre, setShowDesinfPre] = useState(false);
     const [desinfPreData, setDesinfPreData] = useState<{ responsableId: string; responsableName: string; lotNumber: string } | null>(null);
+    const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
+    const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+    const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
     const router = useRouter();
 
     useEffect(() => {
@@ -109,6 +114,27 @@ export default function VehicleDetailPage() {
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
     }, [vehicle?.type]);
+
+    // Fetch all maintenance records for the vehicle (used for CT/revision calculations)
+    const fetchAllMaintenanceRecords = useCallback(async () => {
+        const allRecords: MaintenanceRecord[] = [];
+        const fetchPage = async (p: number): Promise<void> => {
+            const res = await fetch(`/api/vehicles/${id}/maintenance?page=${p}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            allRecords.push(...data.records);
+            if (p < data.totalPages) {
+                await fetchPage(p + 1);
+            }
+        };
+        await fetchPage(1);
+        setMaintenanceRecords(allRecords);
+    }, [id]);
+
+    useEffect(() => {
+        if (!vehicle?.firstRegistrationDate) return;
+        fetchAllMaintenanceRecords().catch(console.error);
+    }, [fetchAllMaintenanceRecords, vehicle?.firstRegistrationDate, maintenanceRefreshKey]);
 
     /**
      * Reusable toast notification triggered from child components or modal callbacks
@@ -528,6 +554,13 @@ export default function VehicleDetailPage() {
                     title="Nombre de sorties"
                     value={vehicle.trips.length}
                 />
+                {vehicle.firstRegistrationDate && (
+                    <MaintenanceCard
+                        vehicle={vehicle}
+                        records={maintenanceRecords}
+                        onClick={() => setShowMaintenanceModal(true)}
+                    />
+                )}
                 {vehicle.type.toUpperCase().includes('VPSP') && (() => {
                     let desinfValue: React.ReactNode = 'Non planifiée';
                     let bgColor: string | undefined;
@@ -788,6 +821,18 @@ export default function VehicleDetailPage() {
                     vehicleId={vehicle.id}
                     vehicleName={vehicle.name}
                     onClose={() => setShowDesinfHistoryModal(false)}
+                />
+            )}
+
+            {showMaintenanceModal && vehicle && (
+                <MaintenanceHistoryModal
+                    vehicle={vehicle}
+                    isAdmin={userRoles.includes('ADMIN')}
+                    onClose={() => {
+                        setShowMaintenanceModal(false);
+                        setMaintenanceRefreshKey(k => k + 1);
+                    }}
+                    onSuccess={() => setMaintenanceRefreshKey(k => k + 1)}
                 />
             )}
 

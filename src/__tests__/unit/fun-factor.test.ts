@@ -12,8 +12,6 @@ import { describe, it, expect } from 'vitest';
 import { StatsData } from '@/components/stats/types';
 
 // Reproduction locale des types internes pour les helpers de test
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type _ByVehicleEntry = StatsData['byDriver'][number]['byVehicle'][number];
 type DriverEntry = StatsData['byDriver'][number];
 
 function getFirstName(fullName: string): string {
@@ -93,12 +91,16 @@ function computeDominanceItems(byDriver: StatsData['byDriver']): DominanceItem[]
 // Helper : construit un DriverEntry minimal avec un seul véhicule dominé à `pct`%
 function makeDriver(name: string, pct: number, tripCount: number): DriverEntry {
   return {
+    driverId: `id-${name.toLowerCase().replace(' ', '-')}`,
     driverName: name,
     driverEmail: `${name.toLowerCase().replace(' ', '.')}@test.com`,
     tripCount,
     totalKm: 100,
     percentOfTotal: 50,
     incidents: 0,
+    avgFuelAtReturn: 80,
+    avgLPer100km: 7.5,
+    avgKwhPer100km: 0,
     byVehicle: [
       {
         vehicleId: 'VL001',
