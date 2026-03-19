@@ -1,5 +1,10 @@
 
 :root {
+  /* Error / Incident Colors */
+  --error-bg: #fff5f5;
+  --error-border: #fca5a5;
+  --error-text: #991b1b;
+
   /* Croix-Rouge Colors */
   --crf-red: #E30613;
   --crf-red-dark: #B8050F;
@@ -32,6 +37,11 @@
 }
 
 .dark {
+  /* Error / Incident Colors */
+  --error-bg: rgba(239, 68, 68, 0.1);
+  --error-border: rgba(239, 68, 68, 0.35);
+  --error-text: #fca5a5;
+
   /* Dark Theme Neutrals */
   --bg-primary: #0A0B0E;
   --bg-secondary: #12141A;

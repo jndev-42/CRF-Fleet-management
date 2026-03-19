@@ -303,6 +303,48 @@ async function main() {
         )
     `);
 
+    // ── Comptes Rendus de Mission ─────────────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "mission_reports" (
+            "id"                    TEXT PRIMARY KEY,
+            "submitted_by"          TEXT NOT NULL REFERENCES "User"(id),
+            "submitted_at"          TEXT NOT NULL,
+            "mission_type"          TEXT NOT NULL,
+            "mission_name"          TEXT NOT NULL,
+            "mission_date"          TEXT NOT NULL,
+            "location"              TEXT NOT NULL,
+            "volunteers"            TEXT NOT NULL,
+            "pegass_ok"             INTEGER NOT NULL DEFAULT 1,
+            "vehicle_id"            TEXT REFERENCES "Vehicle"(id),
+            "driver_id"             TEXT REFERENCES "User"(id),
+            "victim_count"          INTEGER NOT NULL DEFAULT 0,
+            "ul18_present"          INTEGER,
+            "team_dynamics"         TEXT,
+            "all_found_place"       INTEGER,
+            "member_difficulties"   INTEGER,
+            "free_comment"          TEXT,
+            "had_acr"               INTEGER NOT NULL DEFAULT 0,
+            "had_hemorrhage"        INTEGER NOT NULL DEFAULT 0,
+            "had_complex_care"      INTEGER NOT NULL DEFAULT 0,
+            "needs_followup"        INTEGER NOT NULL DEFAULT 0
+        )
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "mission_report_supplies" (
+            "id"            TEXT PRIMARY KEY,
+            "report_id"     TEXT NOT NULL REFERENCES "mission_reports"(id) ON DELETE CASCADE,
+            "category"      TEXT NOT NULL,
+            "item_name"     TEXT NOT NULL,
+            "quantity_used" INTEGER NOT NULL DEFAULT 0
+        )
+    `);
+
+    await db.execute(`CREATE INDEX IF NOT EXISTS "mission_reports_submitted_by_idx" ON "mission_reports"("submitted_by")`);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "mission_reports_mission_date_idx" ON "mission_reports"("mission_date")`);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_supplies_report_id_idx" ON "mission_report_supplies"("report_id")`);
+
     console.log('✅ Tables créées\n');
 
     // ── Utilisateurs de test ──────────────────────────────────────
@@ -547,6 +589,63 @@ async function main() {
         console.log(`\n📊 ${tripsToCreate} trips de démo créés`);
     } else {
         console.log('\n📊 Trips déjà présents, skip');
+    }
+
+    // ── Comptes Rendus de Mission de démonstration ────────────────
+
+    const missionCount = await db.execute(`SELECT COUNT(*) as n FROM "mission_reports"`);
+    if ((missionCount.rows[0].n as number) === 0) {
+        const adminRow = await db.execute({ sql: `SELECT id FROM "User" WHERE email = 'admin@dev.local' LIMIT 1`, args: [] });
+        const chvlRow = await db.execute({ sql: `SELECT id FROM "User" WHERE email = 'chvl@dev.local' LIMIT 1`, args: [] });
+        const vpspRow = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE type = 'VPSP' LIMIT 1`, args: [] });
+        const vlRow = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE type = 'VL' LIMIT 1`, args: [] });
+
+        if (adminRow.rows.length > 0 && chvlRow.rows.length > 0) {
+            const adminId = adminRow.rows[0].id as string;
+            const chvlId = chvlRow.rows[0].id as string;
+            const vpspId = vpspRow.rows.length > 0 ? vpspRow.rows[0].id as string : null;
+            const vlId = vlRow.rows.length > 0 ? vlRow.rows[0].id as string : null;
+
+            const report1Id = crypto.randomUUID();
+            await db.execute({
+                sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [report1Id, adminId, '2026-03-10T18:30:00.000Z', 'RESEAU', 'Poste Secours Fête de Quartier', '2026-03-10', 'Salle des fêtes Paris 18', 'Marie Dupont, Jean Martin', 1, vpspId, adminId, 3, 1, 'BIEN', 1, 0, 'Bonne ambiance, équipe soudée.', 0, 0, 0, 0],
+            });
+            for (const [cat, item, qty] of [
+                ['SAC_PRIMAIRE', "Gants d'examen (paire)", 4],
+                ['SAC_PRIMAIRE', 'Compresses stériles 10x10', 6],
+                ['HYGIENE', 'Masque chirurgical', 3],
+            ] as Array<[string, string, number]>) {
+                await db.execute({ sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), report1Id, cat, item, qty] });
+            }
+
+            const report2Id = crypto.randomUUID();
+            await db.execute({
+                sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [report2Id, chvlId, '2026-03-15T20:00:00.000Z', 'PAPS', 'PAPS Montmartre', '2026-03-15', 'Place du Tertre, Paris 18', 'Moi', 1, vlId, chvlId, 1, 0, null, null, null, null, 0, 1, 0, 1],
+            });
+            for (const [cat, item, qty] of [
+                ['HEMORRHAGIE', 'Garrot tourniquet CAT', 1],
+                ['SAC_PRIMAIRE', "Gants d'examen (paire)", 2],
+                ['OXYGENE', 'Masque haute concentration adulte', 1],
+            ] as Array<[string, string, number]>) {
+                await db.execute({ sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), report2Id, cat, item, qty] });
+            }
+
+            const report3Id = crypto.randomUUID();
+            await db.execute({
+                sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [report3Id, adminId, '2026-03-18T14:00:00.000Z', 'AUTRE', 'Formation premiers secours lycée', '2026-03-18', 'Lycée Jacques Decour, Paris 9', 'Sophie Leroy, Paul Remy, Anne Dumont', 1, null, adminId, 0, 1, 'PLUTOT_BIEN', 1, 1, 'Un bénévole en difficulté sur les gestes techniques, accompagnement prévu.', 0, 0, 0, 0],
+            });
+            await db.execute({ sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), report3Id, 'SAC_PRIMAIRE', 'Masque de bouche-à-bouche', 5] });
+
+            console.log('\n📋 3 comptes rendus de mission de démo créés');
+        }
+    } else {
+        console.log('\n📋 Comptes rendus de mission déjà présents, skip');
     }
 
     console.log('\n✅ Setup terminé ! Lance maintenant : npm run dev');

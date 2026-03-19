@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.0] — 19 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Compte Rendu de Mission (CRM)** — Les CI/Chefs de PAPS peuvent désormais soumettre un compte rendu directement dans cr-chauffeur via un formulaire wizard en 6 étapes, sans passer par Google Forms.
+- **Formulaire en 6 étapes** — Informations générales (type, nom, date, lieu, victimes), équipage (véhicule, chauffeur, bénévoles, PEGASS), matériel consommé par catégorie (sac primaire, brûlures, hémorragies, kit DSA, hygiène), oxygène (section VPSP conditionnelle selon le véhicule), dynamique d'équipe (conditionnelle si UL<18 présents), et incidents critiques (ACR, hémorragie grave, prise en charge complexe).
+- **Liste des comptes rendus** — Tableau filtrable par type de mission ; les RESPO et ADMIN voient tous les comptes rendus, les chauffeurs voient uniquement les leurs.
+- **Détail d'un compte rendu** — Affichage complet par sections avec tableau du matériel consommé (quantités > 0 uniquement) et badges incidents.
+- **Suppression** — Les administrateurs peuvent supprimer un compte rendu (avec suppression en cascade des lignes matériel).
+
+### 🔧 Changements
+
+- Nouveau lien « Missions » dans la barre de navigation (visible pour tous sauf GUEST).
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
 ## [1.21.1] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités

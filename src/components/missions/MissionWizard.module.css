@@ -1,0 +1,299 @@
+/* ── Wizard shell ─────────────────────────────── */
+.wizard {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.progressBar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 2rem;
+    overflow: hidden;
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+}
+
+.progressStep {
+    flex: 1;
+    padding: 0.6rem 0.25rem;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    cursor: default;
+    transition: background 0.15s, color 0.15s;
+}
+
+.progressStepActive {
+    background: var(--crf-red, #c0122c);
+    color: #fff;
+}
+
+.progressStepDone {
+    background: var(--success-bg, #dcfce7);
+    color: var(--success-text, #166534);
+}
+
+/* ── Step content ─────────────────────────────── */
+.stepContent {
+    padding: 0.25rem 0 1rem;
+}
+
+.stepTitle {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 1.25rem;
+}
+
+.stepSubtitle {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin: -0.75rem 0 1.25rem;
+}
+
+/* ── Navigation buttons ───────────────────────── */
+.wizardNav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-primary);
+    gap: 0.75rem;
+}
+
+.wizardNavRight {
+    display: flex;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+/* ── Radio / Toggle ───────────────────────────── */
+.radioGroup {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.radioLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.radioLabel:has(input:checked) {
+    border-color: var(--crf-red, #c0122c);
+    background: color-mix(in srgb, var(--crf-red, #c0122c) 8%, transparent);
+}
+
+.radioLabel input {
+    accent-color: var(--crf-red, #c0122c);
+}
+
+.toggleRow {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.toggleBtn {
+    padding: 0.4rem 1.25rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.toggleBtn:hover {
+    border-color: var(--crf-red, #c0122c);
+}
+
+.toggleBtnActive {
+    background: var(--crf-red, #c0122c);
+    border-color: var(--crf-red, #c0122c);
+    color: #fff;
+    font-weight: 600;
+}
+
+/* ── Accordion ────────────────────────────────── */
+.accordion {
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.accordionHeader {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.accordionHeader:hover {
+    background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.accordionTitle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.accordionBadge {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    background: var(--crf-red, #c0122c);
+    color: #fff;
+    border-radius: 12px;
+    font-weight: 600;
+}
+
+.accordionBody {
+    padding: 1rem;
+    background: var(--bg-primary);
+}
+
+/* ── Supply grid ──────────────────────────────── */
+.itemGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+}
+
+.supplyItem {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.supplyLabel {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    flex: 1;
+    min-width: 0;
+}
+
+.supplyInput {
+    width: 4rem;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    text-align: center;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    flex-shrink: 0;
+}
+
+/* ── Oxygen sections ──────────────────────────── */
+.oxygenSection {
+    margin-bottom: 1.5rem;
+}
+
+.oxygenSectionTitle {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+/* ── Checkbox group ───────────────────────────── */
+.checkboxGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: var(--bg-primary);
+    transition: border-color 0.15s;
+}
+
+.checkboxLabel:has(input:checked) {
+    border-color: var(--crf-red, #c0122c);
+    background: color-mix(in srgb, var(--crf-red, #c0122c) 6%, transparent);
+}
+
+.checkboxLabel input {
+    accent-color: var(--crf-red, #c0122c);
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
+}
+
+/* ── Misc ─────────────────────────────────────── */
+.fieldHint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    display: block;
+}
+
+.noSupplyNote,
+.noIncidentNote {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-style: italic;
+    margin: 0;
+}
+
+.sacQuestion {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+}
+
+.sacQuestion p {
+    margin: 0 0 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.errorBox {
+    padding: 0.75rem 1rem;
+    background: var(--error-bg, #fee2e2);
+    color: var(--error-text, #991b1b);
+    border: 1px solid var(--error-border, #fca5a5);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
