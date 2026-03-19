@@ -40,17 +40,19 @@ export async function PATCH(
         }
 
         const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+        const validatedBy = session.user.name ?? session.user.email ?? null;
 
         await db.execute({
             sql: `UPDATE "User"
                   SET papiers_valides = 1,
                       last_validation = ?,
-                      start_date_invalidation_process = NULL
+                      start_date_invalidation_process = NULL,
+                      validated_by = ?
                   WHERE id = ?`,
-            args: [today, userId],
+            args: [today, validatedBy, userId],
         });
 
-        return NextResponse.json({ success: true, last_validation: today });
+        return NextResponse.json({ success: true, last_validation: today, validated_by: validatedBy });
     } catch (error) {
         console.error('Error validating papers:', error);
         return NextResponse.json(

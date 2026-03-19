@@ -14,6 +14,7 @@ interface User {
     papiers_valides: number;
     last_validation: string | null;
     start_date_invalidation_process: string | null;
+    validated_by: string | null;
 }
 
 const DRIVER_ROLES = ['CHVL', 'CHVPSP'];
@@ -116,10 +117,12 @@ export default function UsersPage() {
             });
 
             if (res.ok) {
-                const today = new Date().toISOString().slice(0, 10);
+                const body = await res.json();
+                const today = body.last_validation ?? new Date().toISOString().slice(0, 10);
+                const validatedBy = body.validated_by ?? null;
                 setUsers(prev => prev.map(u =>
                     u.id === userId
-                        ? { ...u, papiers_valides: 1, last_validation: today, start_date_invalidation_process: null }
+                        ? { ...u, papiers_valides: 1, last_validation: today, start_date_invalidation_process: null, validated_by: validatedBy }
                         : u
                 ));
                 window.dispatchEvent(new CustomEvent('license-validated'));
@@ -150,6 +153,7 @@ export default function UsersPage() {
             papiers_valides: 1,
             last_validation: null,
             start_date_invalidation_process: null,
+            validated_by: null,
         };
         setUsers(prev => [...prev, newUser].sort((a, b) => a.email.localeCompare(b.email)));
     }
@@ -297,8 +301,15 @@ export default function UsersPage() {
                                                 {!isDriver ? (
                                                     <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>—</span>
                                                 ) : papersValid ? (
-                                                    <span style={{ color: '#22C55E', fontSize: '13px', fontWeight: 600 }}>
-                                                        ✅ Valides{user.last_validation ? ` (${user.last_validation})` : ''}
+                                                    <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                        <span style={{ color: '#22C55E', fontSize: '13px', fontWeight: 600 }}>
+                                                            ✅ Valides{user.last_validation ? ` (${user.last_validation})` : ''}
+                                                        </span>
+                                                        {user.validated_by && (
+                                                            <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                                                                par {user.validated_by}
+                                                            </span>
+                                                        )}
                                                     </span>
                                                 ) : (
                                                     <span style={{ color: '#EF4444', fontSize: '13px', fontWeight: 600 }}>

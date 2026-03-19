@@ -49,7 +49,8 @@ async function createTables() {
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     papiers_valides INTEGER NOT NULL DEFAULT 1,
     last_validation TEXT,
-    start_date_invalidation_process TEXT
+    start_date_invalidation_process TEXT,
+    validated_by TEXT
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "Trip" (
@@ -218,6 +219,7 @@ export async function seedUser(overrides: Partial<{
   papiers_valides: number;
   last_validation: string | null;
   start_date_invalidation_process: string | null;
+  validated_by: string | null;
 }> = {}) {
   const u = {
     id: 'user-driver',
@@ -226,11 +228,12 @@ export async function seedUser(overrides: Partial<{
     papiers_valides: 1,
     last_validation: null,
     start_date_invalidation_process: null,
+    validated_by: null,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT OR IGNORE INTO "User" (id, email, name, papiers_valides, last_validation, start_date_invalidation_process) VALUES (?,?,?,?,?,?)`,
-    args: [u.id, u.email, u.name, u.papiers_valides, u.last_validation, u.start_date_invalidation_process],
+    sql: `INSERT OR IGNORE INTO "User" (id, email, name, papiers_valides, last_validation, start_date_invalidation_process, validated_by) VALUES (?,?,?,?,?,?,?)`,
+    args: [u.id, u.email, u.name, u.papiers_valides, u.last_validation, u.start_date_invalidation_process, u.validated_by],
   });
   return u;
 }

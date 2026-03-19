@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.2] — 19 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Qui a validé les papiers ?** — Lors de la validation des papiers d'un chauffeur, le nom du validateur (ou son email en l'absence de nom) est désormais enregistré et affiché sous la date de validation dans la colonne "Papiers" de la page utilisateurs.
+
+### 🔧 Changements
+
+_Aucun changement._
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
 ## [2.0.1] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités

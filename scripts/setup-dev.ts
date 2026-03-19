@@ -45,6 +45,9 @@ async function main() {
     if (!colNames.includes('start_date_invalidation_process')) {
         await db.execute(`ALTER TABLE "User" ADD COLUMN "start_date_invalidation_process" TEXT`);
     }
+    if (!colNames.includes('validated_by')) {
+        await db.execute(`ALTER TABLE "User" ADD COLUMN "validated_by" TEXT`);
+    }
 
     await db.execute(`
         CREATE TABLE IF NOT EXISTS "UserRole" (

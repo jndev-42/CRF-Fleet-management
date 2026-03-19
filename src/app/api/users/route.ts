@@ -50,6 +50,7 @@ export async function GET(request: Request) {
                             u.papiers_valides,
                             u.last_validation,
                             u.start_date_invalidation_process,
+                            u.validated_by,
                             GROUP_CONCAT(r.name) as roles
                         FROM "User" u
                         LEFT JOIN "UserRole" ur ON u.id = ur.userId
@@ -74,6 +75,7 @@ export async function GET(request: Request) {
                         u.papiers_valides,
                         u.last_validation,
                         u.start_date_invalidation_process,
+                        u.validated_by,
                         GROUP_CONCAT(r.name) as roles
                     FROM "User" u
                     LEFT JOIN "UserRole" ur ON u.id = ur.userId
@@ -94,6 +96,7 @@ export async function GET(request: Request) {
             papiers_valides: row.papiers_valides !== null ? Number(row.papiers_valides) : 1,
             last_validation: row.last_validation ?? null,
             start_date_invalidation_process: row.start_date_invalidation_process ?? null,
+            validated_by: row.validated_by ?? null,
             roles: row.roles ? (row.roles as string).split(',') : []
         }));
 

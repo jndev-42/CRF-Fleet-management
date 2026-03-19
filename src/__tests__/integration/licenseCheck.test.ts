@@ -38,9 +38,9 @@ function makePatchRequest(id: string): Request {
     });
 }
 
-const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'] } };
-const respoSession = { user: { id: 'respo-id', email: 'respo@test.com', roles: ['RESPO'] } };
-const chvlSession  = { user: { id: 'chvl-id',  email: 'chvl@test.com',  roles: ['CHVL'] } };
+const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', name: 'Admin Test', roles: ['ADMIN'] } };
+const respoSession = { user: { id: 'respo-id', email: 'respo@test.com', name: null,         roles: ['RESPO'] } };
+const chvlSession  = { user: { id: 'chvl-id',  email: 'chvl@test.com',  name: null,         roles: ['CHVL'] } };
 
 describe('GET /api/me/license-check', () => {
     it('1. 401 sans session', async () => {
@@ -189,7 +189,7 @@ describe('PATCH /api/users/[id]/validate-papers', () => {
         expect(res.status).toBe(404);
     });
 
-    it('10. Happy path ADMIN → papiers_valides=1 en DB', async () => {
+    it('10. Happy path ADMIN → papiers_valides=1 et validated_by sauvegardé', async () => {
         const user = await seedUser({
             id: 'validate-target',
             email: 'target@test.com',
@@ -207,15 +207,18 @@ describe('PATCH /api/users/[id]/validate-papers', () => {
         const body = await res.json();
         expect(body.success).toBe(true);
         expect(body.last_validation).toBeTruthy();
+        // validated_by should be the admin's name
+        expect(body.validated_by).toBe('Admin Test');
 
         // Verify DB
-        const dbRow = await db.execute({ sql: `SELECT papiers_valides, last_validation, start_date_invalidation_process FROM "User" WHERE id = ?`, args: [user.id] });
+        const dbRow = await db.execute({ sql: `SELECT papiers_valides, last_validation, start_date_invalidation_process, validated_by FROM "User" WHERE id = ?`, args: [user.id] });
         expect(Number(dbRow.rows[0].papiers_valides)).toBe(1);
         expect(dbRow.rows[0].last_validation).toBeTruthy();
         expect(dbRow.rows[0].start_date_invalidation_process).toBeNull();
+        expect(dbRow.rows[0].validated_by).toBe('Admin Test');
     });
 
-    it('11. Happy path RESPO → papiers_valides=1 en DB', async () => {
+    it('11. Happy path RESPO → papiers_valides=1 et validated_by = email (pas de name)', async () => {
         const user = await seedUser({
             id: 'validate-target-respo',
             email: 'target-respo@test.com',
@@ -230,10 +233,14 @@ describe('PATCH /api/users/[id]/validate-papers', () => {
             { params: Promise.resolve({ email: user.id }) }
         );
         expect(res.status).toBe(200);
+        const body = await res.json();
+        // name is null on respoSession → falls back to email
+        expect(body.validated_by).toBe('respo@test.com');
 
         // Verify DB
-        const dbRow = await db.execute({ sql: `SELECT papiers_valides FROM "User" WHERE id = ?`, args: [user.id] });
+        const dbRow = await db.execute({ sql: `SELECT papiers_valides, validated_by FROM "User" WHERE id = ?`, args: [user.id] });
         expect(Number(dbRow.rows[0].papiers_valides)).toBe(1);
+        expect(dbRow.rows[0].validated_by).toBe('respo@test.com');
     });
 });
 
