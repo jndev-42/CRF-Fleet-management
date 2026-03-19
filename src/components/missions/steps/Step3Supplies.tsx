@@ -33,7 +33,7 @@ export default function Step3Supplies({ supplies, onSupplyChange }: Step3Props) 
 
     return (
         <div className={styles.stepContent}>
-            <h2 className={styles.stepTitle}>Matériel utilisé</h2>
+            <h2 className={styles.stepTitle}>Matériel utilisé et non réassorti</h2>
             <p className={styles.stepSubtitle}>Indiquez les quantités consommées (laissez à 0 si non utilisé).</p>
 
             {STEP3_CATEGORIES.map(cat => {
@@ -72,7 +72,11 @@ export default function Step3Supplies({ supplies, onSupplyChange }: Step3Props) 
                                                     className={styles.supplyInput}
                                                     min={0}
                                                     value={qty}
-                                                    onChange={e => onSupplyChange(key, Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                                    onChange={e => {
+                                                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                                                        e.target.value = String(val);
+                                                        onSupplyChange(key, val);
+                                                    }}
                                                 />
                                             </div>
                                         );

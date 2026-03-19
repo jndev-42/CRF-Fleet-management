@@ -14,6 +14,7 @@ interface Driver {
     id: string;
     name: string | null;
     email: string;
+    roles: string[];
 }
 
 interface Step2Props {
@@ -51,6 +52,16 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
 
     const volunteersRequired = !data.pegass_ok;
 
+    const selectedVehicle = vehicles.find(v => v.id === data.vehicle_id) ?? null;
+    const isVPSP = selectedVehicle?.type?.toUpperCase() === 'VPSP';
+
+    const currentUserIsVPSP = drivers.find(d => d.id === currentUserId)?.roles.includes('CHVPSP') ?? false;
+    const showCurrentUserOption = currentUserId && (!isVPSP || currentUserIsVPSP);
+
+    const visibleDrivers = drivers
+        .filter(d => d.id !== currentUserId)
+        .filter(d => !isVPSP || d.roles.includes('CHVPSP'));
+
     return (
         <div className={styles.stepContent}>
             <h2 className={styles.stepTitle}>Véhicule et équipage</h2>
@@ -61,7 +72,7 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
                     id="vehicle_id"
                     className="form-input"
                     value={data.vehicle_id ?? ''}
-                    onChange={e => onChange({ vehicle_id: e.target.value || null })}
+                    onChange={e => onChange({ vehicle_id: e.target.value || null, driver_id: null })}
                 >
                     <option value="">— Aucun / non renseigné —</option>
                     {vehicles.map(v => (
@@ -79,14 +90,12 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
                     onChange={e => onChange({ driver_id: e.target.value || null })}
                 >
                     <option value="">— Non renseigné —</option>
-                    {currentUserId && (
+                    {showCurrentUserOption && (
                         <option value={currentUserId}>Moi ({currentUserName ?? 'moi'})</option>
                     )}
-                    {drivers
-                        .filter(d => d.id !== currentUserId)
-                        .map(d => (
-                            <option key={d.id} value={d.id}>{d.name ?? d.email}</option>
-                        ))}
+                    {visibleDrivers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name ?? d.email}</option>
+                    ))}
                 </select>
             </div>
 
