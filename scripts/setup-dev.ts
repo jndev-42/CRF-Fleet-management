@@ -57,7 +57,7 @@ async function main() {
     `);
 
     // Seed des rôles
-    const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST'];
+    const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST', 'SECOURISTE'];
     for (const role of roles) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
@@ -355,6 +355,7 @@ async function main() {
         { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'chvl@dev.local', name: 'Chauffeur Dev', roles: ['CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'guest@dev.local', name: 'Invité Dev', roles: ['GUEST'], papiers_valides: 1, start_date_invalidation_process: null },
+        { email: 'secouriste@dev.local', name: 'Secouriste Dev', roles: ['SECOURISTE'], papiers_valides: 1, start_date_invalidation_process: null },
     ];
 
     for (const devUser of devUsers) {

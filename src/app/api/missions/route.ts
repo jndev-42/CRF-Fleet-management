@@ -39,7 +39,7 @@ const createMissionReportSchema = z.object({
     }
 });
 
-const ALLOWED_ROLES = ['CHVL', 'CHVPSP', 'RESPO', 'ADMIN'];
+const ALLOWED_ROLES = ['CHVL', 'CHVPSP', 'RESPO', 'ADMIN', 'SECOURISTE'];
 
 /** GET /api/missions — Liste paginée des comptes rendus.
  *  RESPO/ADMIN : tous. CHVL/CHVPSP : les siens uniquement.

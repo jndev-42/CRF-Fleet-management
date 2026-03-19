@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.1] — 19 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Rôle Secouriste** — Nouveau rôle `SECOURISTE` pour les bénévoles secouristes non chauffeurs. Ils peuvent soumettre et consulter leurs propres comptes rendus de mission, sans accès aux véhicules, aux statistiques ni à la gestion des utilisateurs.
+
+### 🔧 Changements
+
+- La légende des rôles (page utilisateurs) affiche désormais le rôle Secouriste avec sa couleur verte distinctive et la liste de ses permissions.
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
 ## [2.0.0] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités

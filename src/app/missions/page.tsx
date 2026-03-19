@@ -25,7 +25,7 @@ interface MissionReport {
     vehicle_name: string | null;
 }
 
-const ALLOWED_ROLES = ['CHVL', 'CHVPSP', 'RESPO', 'ADMIN'];
+const ALLOWED_ROLES = ['CHVL', 'CHVPSP', 'RESPO', 'ADMIN', 'SECOURISTE'];
 
 export default function MissionsPage() {
     const { data: session, status } = useSession();
