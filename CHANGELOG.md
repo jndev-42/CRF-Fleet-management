@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.21.1] — 19 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Modification des intervalles de révision** — Les administrateurs peuvent modifier la date de première immatriculation, l'intervalle de révision en km et en années directement depuis la fiche véhicule, sans avoir à recréer le véhicule.
+
+### 🔧 Changements
+
+_Aucun changement._
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
 ## [1.21.0] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités

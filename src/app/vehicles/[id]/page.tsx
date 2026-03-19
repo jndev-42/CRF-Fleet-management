@@ -26,6 +26,7 @@ import DesinfHistoryModal from '@/components/vehicle/modals/DesinfHistoryModal';
 import DesinfPreCheckinModal from '@/components/vehicle/modals/DesinfPreCheckinModal';
 import MaintenanceCard from '@/components/vehicle/MaintenanceCard';
 import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHistoryModal';
+import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
@@ -69,6 +70,7 @@ export default function VehicleDetailPage() {
     const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
     const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
     const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
+    const [showEditRevisionModal, setShowEditRevisionModal] = useState(false);
     const [licenseBlocked, setLicenseBlocked] = useState(false);
     const router = useRouter();
 
@@ -572,6 +574,7 @@ export default function VehicleDetailPage() {
                         vehicle={vehicle}
                         records={maintenanceRecords}
                         onClick={() => setShowMaintenanceModal(true)}
+                        onEdit={userRoles.includes('ADMIN') ? () => setShowEditRevisionModal(true) : undefined}
                     />
                 )}
                 {vehicle.type.toUpperCase().includes('VPSP') && (() => {
@@ -846,6 +849,18 @@ export default function VehicleDetailPage() {
                         setMaintenanceRefreshKey(k => k + 1);
                     }}
                     onSuccess={() => setMaintenanceRefreshKey(k => k + 1)}
+                />
+            )}
+
+            {showEditRevisionModal && vehicle && (
+                <EditRevisionIntervalsModal
+                    vehicle={vehicle}
+                    onClose={() => setShowEditRevisionModal(false)}
+                    onSuccess={(updatedVehicle) => {
+                        setVehicle(prev => prev ? { ...prev, ...updatedVehicle } : updatedVehicle);
+                        setShowEditRevisionModal(false);
+                        showToast('Intervalles de révision mis à jour !');
+                    }}
                 />
             )}
 

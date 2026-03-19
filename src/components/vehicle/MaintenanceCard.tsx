@@ -6,6 +6,7 @@ interface MaintenanceCardProps {
     vehicle: Vehicle;
     records: MaintenanceRecord[];
     onClick: () => void;
+    onEdit?: () => void;
 }
 
 function diffDays(target: Date): number {
@@ -38,7 +39,7 @@ function ctColor(days: number): { bg: string; border: string; value: string } {
     };
 }
 
-export default function MaintenanceCard({ vehicle, records, onClick }: MaintenanceCardProps) {
+export default function MaintenanceCard({ vehicle, records, onClick, onEdit }: MaintenanceCardProps) {
     const nextCt = getNextCtDate(vehicle, records);
     const nextRevision = getNextRevision(vehicle, records);
 
@@ -66,6 +67,7 @@ export default function MaintenanceCard({ vehicle, records, onClick }: Maintenan
             backgroundColor={colors?.bg}
             borderColor={colors?.border}
             valueStyle={colors?.value ? { color: colors.value } : undefined}
+            onEdit={onEdit}
             onClick={onClick}
         >
             {hasRevision && nextRevision && (

@@ -46,7 +46,7 @@ export default function DetailCard({
                 {title}
                 {onEdit && (
                     <button
-                        onClick={onEdit}
+                        onClick={(e) => { e.stopPropagation(); onEdit(); }}
                         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         title="Modifier manuellement"
                         aria-label="Modifier manuellement"
