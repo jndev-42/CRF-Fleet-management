@@ -28,6 +28,12 @@ const ROLE_DESCRIPTIONS = [
         permissions: ['Statistiques & exports', 'Réservations VL uniquement', 'Pas de notifications', 'Pas de gestion des utilisateurs'],
     },
     {
+        key: 'SECOURISTE', label: 'Secouriste', color: '#10b981',
+        bgColor: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)',
+        description: 'Bénévole secouriste (non chauffeur).',
+        permissions: ['Comptes rendus de mission (les siens)', 'Pas de véhicules', 'Pas de statistiques', 'Pas de gestion des utilisateurs'],
+    },
+    {
         key: 'GUEST', label: 'Invité', color: '#6b7280',
         bgColor: 'rgba(107, 114, 128, 0.08)', borderColor: 'rgba(107, 114, 128, 0.25)',
         description: 'Accès lecture seule. Exclusif : incompatible avec tout autre rôle.',
