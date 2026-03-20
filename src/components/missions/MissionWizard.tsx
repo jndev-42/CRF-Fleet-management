@@ -8,6 +8,7 @@ import Step3Supplies from './steps/Step3Supplies';
 import Step4Oxygen from './steps/Step4Oxygen';
 import Step5Team from './steps/Step5Team';
 import Step6Incidents from './steps/Step6Incidents';
+import Step7Photos from './steps/Step7Photos';
 import styles from './MissionWizard.module.css';
 
 export interface MissionFormData {
@@ -38,6 +39,7 @@ const STEPS = [
     'Oxygène',
     'Équipe',
     'Incidents',
+    'Photos',
 ];
 
 const INITIAL_FORM: MissionFormData = {
@@ -61,6 +63,8 @@ const INITIAL_FORM: MissionFormData = {
     needs_followup: false,
 };
 
+const MISSION_COMM_FOLDER_ID = '19ILEUHsq2pLZDwEeJDnhQcumFM9ztDJ3';
+
 interface MissionWizardProps {
     currentUserId?: string;
     currentUserName?: string;
@@ -71,6 +75,8 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<MissionFormData>(INITIAL_FORM);
     const [supplies, setSupplies] = useState<Record<string, number>>({});
+    const [photos, setPhotos] = useState<File[]>([]);
+    const [uploadError, setUploadError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -110,6 +116,7 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
     async function handleSubmit() {
         setSubmitting(true);
         setError(null);
+        setUploadError(null);
 
         // Build supplies array from the flat supplies map
         const suppliesArr = SUPPLY_CATEGORIES.flatMap((cat: SupplyCategory) =>
@@ -122,11 +129,37 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
                 }))
         );
 
+        // Upload photos to Drive if any were selected
+        let driveFolderId: string | null = null;
+        if (photos.length > 0) {
+            try {
+                const fd = new FormData();
+                fd.append('missionName', formData.mission_name);
+                fd.append('date', formData.mission_date);
+                fd.append('rootFolderId', MISSION_COMM_FOLDER_ID);
+                photos.forEach(f => fd.append('files', f));
+
+                const uploadRes = await fetch('/api/drive/upload', { method: 'POST', body: fd });
+                if (!uploadRes.ok) {
+                    const d = await uploadRes.json();
+                    setUploadError(d.error || 'Erreur lors de l\'upload des photos.');
+                    setSubmitting(false);
+                    return;
+                }
+                const uploadData = await uploadRes.json();
+                driveFolderId = uploadData.folderId ?? null;
+            } catch {
+                setUploadError('Erreur réseau lors de l\'upload des photos.');
+                setSubmitting(false);
+                return;
+            }
+        }
+
         try {
             const res = await fetch('/api/missions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, supplies: suppliesArr }),
+                body: JSON.stringify({ ...formData, supplies: suppliesArr, drive_folder_id: driveFolderId }),
             });
 
             if (!res.ok) {
@@ -143,6 +176,8 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
             setSubmitting(false);
         }
     }
+
+    const isLastStep = step === STEPS.length;
 
     return (
         <div className={styles.wizard}>
@@ -174,6 +209,7 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
             {step === 4 && <Step4Oxygen supplies={supplies} onSupplyChange={handleSupplyChange} />}
             {step === 5 && <Step5Team data={formData} onChange={patchFormData} />}
             {step === 6 && <Step6Incidents data={formData} onChange={patchFormData} />}
+            {step === 7 && <Step7Photos photos={photos} onPhotosChange={setPhotos} uploadError={uploadError} />}
 
             {/* Navigation */}
             <div className={styles.wizardNav}>
@@ -184,19 +220,33 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
                 ) : <span />}
 
                 <div className={styles.wizardNavRight}>
-                    {step < STEPS.length ? (
+                    {!isLastStep ? (
                         <button type="button" className="btn btn-primary" onClick={handleNext}>
                             Suivant
                         </button>
                     ) : (
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={handleSubmit}
-                            disabled={submitting}
-                        >
-                            {submitting ? 'Envoi...' : 'Soumettre le compte rendu'}
-                        </button>
+                        <>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={handleSubmit}
+                                disabled={submitting}
+                            >
+                                Passer
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={handleSubmit}
+                                disabled={submitting}
+                            >
+                                {submitting
+                                    ? 'Envoi...'
+                                    : photos.length > 0
+                                        ? `Soumettre (${photos.length} photo${photos.length > 1 ? 's' : ''})`
+                                        : 'Soumettre le compte rendu'}
+                            </button>
+                        </>
                     )}
                 </div>
             </div>

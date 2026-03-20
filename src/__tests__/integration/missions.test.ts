@@ -115,7 +115,8 @@ async function createMissionReportTable() {
             "had_acr"               INTEGER NOT NULL DEFAULT 0,
             "had_hemorrhage"        INTEGER NOT NULL DEFAULT 0,
             "had_complex_care"      INTEGER NOT NULL DEFAULT 0,
-            "needs_followup"        INTEGER NOT NULL DEFAULT 0
+            "needs_followup"        INTEGER NOT NULL DEFAULT 0,
+            "drive_folder_id"       TEXT
         )
     `);
     await db.execute(`
@@ -210,6 +211,40 @@ describe('POST /api/missions', () => {
         expect(sRes.rows).toHaveLength(1);
         expect(sRes.rows[0].item_name).toBe("Gants d'examen (paire)");
         expect(sRes.rows[0].quantity_used).toBe(4);
+    });
+
+    it('returns 201 and persists drive_folder_id when provided', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(chvlSession);
+
+        const payload = { ...validPayload, drive_folder_id: 'drive-folder-abc123' };
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(201);
+
+        const body = await res.json();
+        expect(body.success).toBe(true);
+
+        const mRes = await db.execute({
+            sql: `SELECT drive_folder_id FROM "mission_reports" WHERE id = ?`,
+            args: [body.id],
+        });
+        expect(mRes.rows).toHaveLength(1);
+        expect(mRes.rows[0].drive_folder_id).toBe('drive-folder-abc123');
+    });
+
+    it('returns 201 with null drive_folder_id when not provided', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(chvlSession);
+
+        const res = await postCreate(makePostRequest(validPayload));
+        expect(res.status).toBe(201);
+
+        const body = await res.json();
+        const mRes = await db.execute({
+            sql: `SELECT drive_folder_id FROM "mission_reports" WHERE id = ?`,
+            args: [body.id],
+        });
+        expect(mRes.rows[0].drive_folder_id).toBeNull();
     });
 });
 
@@ -323,6 +358,34 @@ describe('GET /api/missions/[id] (detail)', () => {
 
         const res = await getDetail(makeDetailRequest('nonexistent'), { params: Promise.resolve({ id: 'nonexistent' }) });
         expect(res.status).toBe(404);
+    });
+
+    it('returns drive_folder_id in response when set', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(chvlSession);
+
+        // Update report-1 with a drive_folder_id
+        await db.execute({
+            sql: `UPDATE "mission_reports" SET drive_folder_id = ? WHERE id = 'report-1'`,
+            args: ['drive-folder-xyz'],
+        });
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.drive_folder_id).toBe('drive-folder-xyz');
+    });
+
+    it('returns null drive_folder_id when not set', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(chvlSession);
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.drive_folder_id).toBeNull();
     });
 });
 

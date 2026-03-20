@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.1.0] — 20 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Photos de communication dans le CR Mission** — Étape 7 (optionnelle) ajoutée au wizard de compte rendu de mission. Les bénévoles peuvent uploader jusqu'à 10 photos du poste, de l'équipe ou du terrain directement vers un dossier Google Drive dédié à la communication.
+- **Galerie de photos sur le détail d'un CR Mission** — La page de détail d'un compte rendu affiche désormais les photos de communication uploadées lors de la saisie, si elles existent.
+
+### 🔧 Changements
+
+- Le wizard CR Mission passe de 6 à 7 étapes. L'étape "Photos" est entièrement optionnelle : les deux boutons "Passer" et "Soumettre" permettent de terminer avec ou sans photos.
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
 ## [2.0.2] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités

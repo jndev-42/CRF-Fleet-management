@@ -6,7 +6,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 /** GET /api/missions/[id] — Détail d'un compte rendu.
  *  CHVL/CHVPSP : uniquement le leur. RESPO/ADMIN : tous. */
-export async function GET(request: Request, { params }: RouteContext) {
+export async function GET(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -93,6 +93,7 @@ export async function GET(request: Request, { params }: RouteContext) {
             had_hemorrhage: Boolean(Number(row.had_hemorrhage)),
             had_complex_care: Boolean(Number(row.had_complex_care)),
             needs_followup: Boolean(Number(row.needs_followup)),
+            drive_folder_id: (row.drive_folder_id as string | null) ?? null,
             supplies: suppliesByCategory,
         };
 
@@ -105,7 +106,7 @@ export async function GET(request: Request, { params }: RouteContext) {
 
 /** DELETE /api/missions/[id] — Suppression (ADMIN seulement).
  *  La suppression en cascade sur mission_report_supplies est gérée par la DB. */
-export async function DELETE(request: Request, { params }: RouteContext) {
+export async function DELETE(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) {

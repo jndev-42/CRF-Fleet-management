@@ -433,7 +433,7 @@ function AddUserModal({
         );
     }
 
-    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
         e.preventDefault();
         setSubmitting(true);
         try {

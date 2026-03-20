@@ -330,9 +330,17 @@ async function main() {
             "had_acr"               INTEGER NOT NULL DEFAULT 0,
             "had_hemorrhage"        INTEGER NOT NULL DEFAULT 0,
             "had_complex_care"      INTEGER NOT NULL DEFAULT 0,
-            "needs_followup"        INTEGER NOT NULL DEFAULT 0
+            "needs_followup"        INTEGER NOT NULL DEFAULT 0,
+            "drive_folder_id"       TEXT
         )
     `);
+
+    // Idempotent: add drive_folder_id column for existing DBs
+    const missionCols = await db.execute('PRAGMA table_info("mission_reports")');
+    if (!missionCols.rows.some(r => r.name === 'drive_folder_id')) {
+        await db.execute(`ALTER TABLE "mission_reports" ADD COLUMN "drive_folder_id" TEXT`);
+        console.log('  ↳ Migration : colonne mission_reports.drive_folder_id ajoutée');
+    }
 
     await db.execute(`
         CREATE TABLE IF NOT EXISTS "mission_report_supplies" (

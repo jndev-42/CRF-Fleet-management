@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, ArrowLeft, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Camera, Trash2 } from 'lucide-react';
 import { SUPPLIES_BY_CATEGORY, MISSION_TYPE_LABELS, TEAM_DYNAMICS_LABELS } from '@/lib/mission-supplies';
 import type { SupplyCategory } from '@/lib/mission-supplies';
+import MissionPhotosModal from '@/components/missions/MissionPhotosModal';
 import styles from './mission-detail.module.css';
 
 interface SupplyEntry {
@@ -43,6 +44,7 @@ interface MissionDetail {
     had_hemorrhage: boolean;
     had_complex_care: boolean;
     needs_followup: boolean;
+    drive_folder_id: string | null;
     supplies: Record<string, SupplyEntry[]>;
 }
 
@@ -59,6 +61,7 @@ export default function MissionDetailPage() {
     const [report, setReport] = useState<MissionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
+    const [photosOpen, setPhotosOpen] = useState(false);
 
     const roles = (session?.user?.roles || ['GUEST']) as string[];
     const isAdmin = roles.includes('ADMIN');
@@ -111,17 +114,29 @@ export default function MissionDetailPage() {
                     </Link>
                     <h1 className="page-title">{report.mission_name}</h1>
                 </div>
-                {isAdmin && (
-                    <button
-                        className="btn btn-danger"
-                        onClick={handleDelete}
-                        disabled={deleting}
-                        aria-label="Supprimer ce compte rendu"
-                    >
-                        <Trash2 size={15} />
-                        {deleting ? 'Suppression...' : 'Supprimer'}
-                    </button>
-                )}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {report.drive_folder_id && (
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => setPhotosOpen(true)}
+                            aria-label="Voir les photos de communication"
+                        >
+                            <Camera size={15} />
+                            Photos
+                        </button>
+                    )}
+                    {isAdmin && (
+                        <button
+                            className="btn btn-danger"
+                            onClick={handleDelete}
+                            disabled={deleting}
+                            aria-label="Supprimer ce compte rendu"
+                        >
+                            <Trash2 size={15} />
+                            {deleting ? 'Suppression...' : 'Supprimer'}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Meta info */}
@@ -209,6 +224,10 @@ export default function MissionDetailPage() {
                         })}
                     </div>
                 </section>
+            )}
+
+            {photosOpen && report.drive_folder_id && (
+                <MissionPhotosModal folderId={report.drive_folder_id} onClose={() => setPhotosOpen(false)} />
             )}
         </main>
     );

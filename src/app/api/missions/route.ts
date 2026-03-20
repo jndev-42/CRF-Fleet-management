@@ -12,7 +12,7 @@ const supplySchema = z.object({
 const createMissionReportSchema = z.object({
     mission_type: z.enum(['RESEAU', 'DPS', 'PAPS']),
     mission_name: z.string().min(1, 'Le nom de la mission est requis'),
-    mission_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Format de date invalide (YYYY-MM-DD)'),
+    mission_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Format de date invalide (YYYY-MM-DD)' }),
     location: z.string().min(1, 'Le lieu est requis'),
     volunteers: z.string(),
     pegass_ok: z.boolean(),
@@ -29,6 +29,7 @@ const createMissionReportSchema = z.object({
     had_complex_care: z.boolean(),
     needs_followup: z.boolean(),
     supplies: z.array(supplySchema),
+    drive_folder_id: z.string().nullable().optional(),
 }).superRefine((data, ctx) => {
     if (!data.pegass_ok && !data.volunteers.trim()) {
         ctx.addIssue({
@@ -194,8 +195,8 @@ export async function POST(request: Request) {
                     id, submitted_by, submitted_at, mission_type, mission_name, mission_date,
                     location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count,
                     ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment,
-                    had_acr, had_hemorrhage, had_complex_care, needs_followup
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    had_acr, had_hemorrhage, had_complex_care, needs_followup, drive_folder_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     reportId,
                     submittedBy ?? null,
@@ -218,6 +219,7 @@ export async function POST(request: Request) {
                     data.had_hemorrhage ? 1 : 0,
                     data.had_complex_care ? 1 : 0,
                     data.needs_followup ? 1 : 0,
+                    data.drive_folder_id ?? null,
                 ],
             });
 
