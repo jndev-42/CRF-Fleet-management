@@ -10,7 +10,7 @@
 import { createClient } from '@libsql/client';
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env' });
 
 const db = createClient({
     url: process.env.TURSO_DATABASE_URL!,
