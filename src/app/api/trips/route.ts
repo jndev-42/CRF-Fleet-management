@@ -57,30 +57,30 @@ export async function POST(request: Request) {
         }
 
         // Verify Roles
-        const roles = session?.user?.roles || ['GUEST'];
+        const roles = session?.user?.roles || ['INACTIF'];
         const isAdmin = roles.includes('ADMIN');
         const isCHVL = roles.includes('CHVL');
         const isCHVPSP = roles.includes('CHVPSP');
         const vehicleType = String(vehicle.type || '');
         const isVPSP = vehicleType.toUpperCase().includes('VPSP');
 
+        // Désinfection n'est disponible que pour les véhicules VPSP (validation véhicule indépendante du rôle)
+        if (data.missionType === 'Désinfection' && !isVPSP) {
+            return NextResponse.json(
+                { error: 'Le type de mission Désinfection est réservé aux véhicules VPSP' },
+                { status: 400 }
+            );
+        }
+
         let canBorrow = false;
         if (isAdmin) canBorrow = true;
-        else if (isCHVPSP) canBorrow = true;
+        else if (isCHVPSP && isVPSP) canBorrow = true;
         else if (isCHVL && !isVPSP) canBorrow = true;
 
         if (!canBorrow) {
             return NextResponse.json(
                 { error: 'Vous n\'avez pas les droits pour emprunter ce véhicule' },
                 { status: 403 }
-            );
-        }
-
-        // Désinfection n'est disponible que pour les véhicules VPSP
-        if (data.missionType === 'Désinfection' && !isVPSP) {
-            return NextResponse.json(
-                { error: 'Le type de mission Désinfection est réservé aux véhicules VPSP' },
-                { status: 400 }
             );
         }
 

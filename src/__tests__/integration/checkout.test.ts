@@ -61,13 +61,19 @@ const validCheckOutBody = {
   dsaChecked: false,
 };
 
+// Session objects for mocking — kept as constants so @ts-expect-error applies to a single line
+const guestSession = { user: { id: 'guest-id', email: 'guest@test.com', roles: ['GUEST'] } };
+const driverSession = { user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] } };
+const driverWithNameSession = { user: { id: 'user-driver', email: 'driver@test.com', name: 'Test Driver', roles: ['CHVL'] } };
+const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'] } };
+
 describe('POST /api/trips (checkout)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('returns 401 when not authenticated', async () => {
-    // @ts-expect-error — auth returns null in test
+    // @ts-expect-error — null session for test
     mockedAuth.mockResolvedValue(null);
 
     const response = await POST(makeRequest(validCheckOutBody));
@@ -79,9 +85,7 @@ describe('POST /api/trips (checkout)', () => {
 
   it('returns 403 when user has only GUEST role', async () => {
     // @ts-expect-error — partial session object for testing
-    mockedAuth.mockResolvedValue({
-      user: { id: 'guest-id', email: 'guest@test.com', roles: ['GUEST'] },
-    });
+    mockedAuth.mockResolvedValue(guestSession);
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
 
     const response = await POST(makeRequest(validCheckOutBody));
@@ -90,9 +94,7 @@ describe('POST /api/trips (checkout)', () => {
 
   it('returns 404 when vehicle does not exist', async () => {
     // @ts-expect-error — partial session object for testing
-    mockedAuth.mockResolvedValue({
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
-    });
+    mockedAuth.mockResolvedValue(driverSession);
 
     const response = await POST(makeRequest({ ...validCheckOutBody, vehicleId: 'NONEXISTENT' }));
     expect(response.status).toBe(404);
@@ -100,9 +102,7 @@ describe('POST /api/trips (checkout)', () => {
 
   it('returns 400 when vehicle is not AVAILABLE', async () => {
     // @ts-expect-error — partial session object for testing
-    mockedAuth.mockResolvedValue({
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
-    });
+    mockedAuth.mockResolvedValue(driverSession);
     await seedVehicle({ id: 'VL001', status: 'IN_USE' });
 
     const response = await POST(makeRequest(validCheckOutBody));
@@ -114,9 +114,7 @@ describe('POST /api/trips (checkout)', () => {
 
   it('returns 201 and sets vehicle to IN_USE on successful checkout', async () => {
     // @ts-expect-error — partial session object for testing
-    mockedAuth.mockResolvedValue({
-      user: { id: 'user-driver', email: 'driver@test.com', name: 'Test Driver', roles: ['CHVL'] },
-    });
+    mockedAuth.mockResolvedValue(driverWithNameSession);
     await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE', mileage: 10000, fuelLevel: 75 });
 
@@ -140,9 +138,7 @@ describe('POST /api/trips (checkout)', () => {
 
   it('returns 400 for invalid Zod body (missing conditionOut)', async () => {
     // @ts-expect-error — partial session object for testing
-    mockedAuth.mockResolvedValue({
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
-    });
+    mockedAuth.mockResolvedValue(driverSession);
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -153,9 +149,7 @@ describe('POST /api/trips (checkout)', () => {
 
   it('allows ADMIN role to checkout any vehicle type', async () => {
     // @ts-expect-error — partial session object for testing
-    mockedAuth.mockResolvedValue({
-      user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'] },
-    });
+    mockedAuth.mockResolvedValue(adminSession);
     await seedUser({ id: 'admin-id', email: 'admin@test.com', name: 'Admin Test' });
     // Les véhicules VPSP sont normalement réservés aux rôles CHVPSP et ADMIN
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE', type: 'VPSP' });
@@ -166,9 +160,7 @@ describe('POST /api/trips (checkout)', () => {
 
   it('returns 403 when CHVL tries to checkout a VPSP vehicle', async () => {
     // @ts-expect-error — partial session object for testing
-    mockedAuth.mockResolvedValue({
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
-    });
+    mockedAuth.mockResolvedValue(driverSession);
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE', type: 'VPSP' });
 
     const response = await POST(makeRequest(validCheckOutBody));

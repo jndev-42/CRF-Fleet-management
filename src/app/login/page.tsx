@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 const isDev = process.env.NODE_ENV === 'development';
 
 const DEV_ROLES = [
-    { key: 'admin',  label: 'Admin',      badge: 'ADMIN',  color: '#ef4444' },
-    { key: 'respo',  label: 'Responsable', badge: 'RESPO',  color: '#f97316' },
-    { key: 'chvl',   label: 'Chauffeur',   badge: 'CHVL',   color: '#3b82f6' },
-    { key: 'guest',  label: 'Invité',      badge: 'GUEST',  color: '#6b7280' },
+    { key: 'admin',      label: 'Admin',      badge: 'ADMIN',     color: '#ef4444' },
+    { key: 'respo',      label: 'Responsable', badge: 'RESPO',     color: '#f97316' },
+    { key: 'chvl',       label: 'Chauffeur',  badge: 'CHVL',      color: '#3b82f6' },
+    { key: 'ci',         label: 'CI/RPAPS',   badge: 'CI/RPAPS',  color: '#8b5cf6' },
+    { key: 'secouriste', label: 'Secouriste', badge: 'SECOUR.',   color: '#10b981' },
+    { key: 'guest',      label: 'Inactif',    badge: 'INACTIF',   color: '#6b7280' },
 ] as const;
 
 export default async function LoginPage(props: { searchParams: Promise<{ error?: string, callbackUrl?: string }> }) {

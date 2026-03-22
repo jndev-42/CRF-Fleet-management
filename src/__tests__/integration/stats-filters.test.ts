@@ -56,6 +56,7 @@ beforeEach(async () => {
 
 describe('GET /api/stats — auth', () => {
   it('returns 401 when unauthenticated', async () => {
+    // @ts-expect-error — null session for test
     mockedAuth.mockResolvedValue(null);
     const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY }));
     expect(res.status).toBe(401);
@@ -64,7 +65,7 @@ describe('GET /api/stats — auth', () => {
 
 describe('GET /api/stats — no filters (happy path)', () => {
   it('returns all 3 trips with no filter', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } });
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
     const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY }));
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -83,7 +84,7 @@ describe('GET /api/stats — no filters (happy path)', () => {
 
 describe('GET /api/stats — vehicleId filter', () => {
   it('scopes results to VL001 only (2 trips)', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } });
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
     const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY, vehicleId: 'VL001' }));
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -94,7 +95,7 @@ describe('GET /api/stats — vehicleId filter', () => {
   });
 
   it('returns 0 trips for an unknown vehicleId', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } });
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
     const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY, vehicleId: 'UNKNOWN' }));
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -104,7 +105,7 @@ describe('GET /api/stats — vehicleId filter', () => {
 
 describe('GET /api/stats — driverId filter', () => {
   it('scopes results to user-b only (2 trips)', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } });
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
     const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY, driverId: 'user-b' }));
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -116,7 +117,7 @@ describe('GET /api/stats — driverId filter', () => {
 
 describe('GET /api/stats — missionType filter', () => {
   it('scopes results to Opération only (2 trips)', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } });
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
     const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY, missionType: 'Opération' }));
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -124,7 +125,7 @@ describe('GET /api/stats — missionType filter', () => {
   });
 
   it('scopes results to Formation only (1 trip)', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } });
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
     const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY, missionType: 'Formation' }));
     expect(res.status).toBe(200);
     const json = await res.json();
@@ -134,7 +135,7 @@ describe('GET /api/stats — missionType filter', () => {
 
 describe('GET /api/stats — combined filters', () => {
   it('vehicle + driver combined returns only matching trip', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } });
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
     const res = await GET(makeRequest({
       dateFrom: TODAY,
       dateTo: TODAY,
@@ -150,7 +151,7 @@ describe('GET /api/stats — combined filters', () => {
 
 describe('GET /api/stats — byDriver new fields', () => {
   it('includes avgFuelAtReturn and avgLPer100km in byDriver entries', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } });
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
     const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY }));
     const json = await res.json();
     const driver = json.data.byDriver[0];
@@ -162,7 +163,7 @@ describe('GET /api/stats — byDriver new fields', () => {
 
 describe('GET /api/stats — byVehicle new fields', () => {
   it('includes avgLPer100km in byVehicle entries', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } });
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
     const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY }));
     const json = await res.json();
     const vehicle = json.data.byVehicle[0];

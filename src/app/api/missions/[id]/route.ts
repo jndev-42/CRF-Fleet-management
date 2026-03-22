@@ -40,10 +40,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
         const row = reportResult.rows[0];
 
-        // Access control: CHVL/CHVPSP can only read their own reports
-        const roles = (session.user.roles || ['GUEST']) as string[];
-        const isPrivileged = roles.includes('ADMIN') || roles.includes('RESPO');
-        if (!isPrivileged && row.submitted_by !== session.user.id) {
+        // Access control: only ADMIN and CI/RPAPS can access missions
+        const roles = (session.user.roles || ['INACTIF']) as string[];
+        const isAllowed = roles.includes('ADMIN') || roles.includes('CI/RPAPS');
+        if (!isAllowed) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
@@ -113,7 +113,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        const roles = (session.user.roles || ['GUEST']) as string[];
+        const roles = (session.user.roles || ['INACTIF']) as string[];
         if (!roles.includes('ADMIN')) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }

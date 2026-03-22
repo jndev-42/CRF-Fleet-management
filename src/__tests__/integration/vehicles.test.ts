@@ -63,6 +63,7 @@ const validVehicleBody = {
 
 describe('POST /api/vehicles — auth & authorization', () => {
   it('retourne 403 sans session (route protégée par rôle ADMIN uniquement)', async () => {
+    // @ts-expect-error — null session for test
     mockedAuth.mockResolvedValue(null);
     const res = await POST(makePostRequest(validVehicleBody));
     expect(res.status).toBe(403);

@@ -60,7 +60,7 @@ async function main() {
     `);
 
     // Seed des rôles
-    const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST', 'SECOURISTE'];
+    const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'INACTIF', 'SECOURISTE', 'CI/RPAPS'];
     for (const role of roles) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
@@ -306,6 +306,122 @@ async function main() {
         )
     `);
 
+    // ── Inventaire ────────────────────────────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvItem" (
+            "id"        TEXT NOT NULL PRIMARY KEY,
+            "name"      TEXT NOT NULL,
+            "sku"       TEXT UNIQUE,
+            "category"  TEXT,
+            "unit"      TEXT NOT NULL DEFAULT 'unité',
+            "notes"     TEXT,
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvLocation" (
+            "id"        TEXT NOT NULL PRIMARY KEY,
+            "type"      TEXT NOT NULL CHECK (type IN ('STOCK_CENTRAL', 'PHARMA_TAMPON', 'VEHICLE', 'SAC')),
+            "name"      TEXT NOT NULL,
+            "vehicleId" TEXT REFERENCES "Vehicle"("id") ON DELETE CASCADE,
+            "parentId"  TEXT REFERENCES "InvLocation"("id") ON DELETE CASCADE,
+            "isSealed"  INTEGER NOT NULL DEFAULT 0,
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "InvLocation_singleton"
+        ON "InvLocation"("type") WHERE type IN ('STOCK_CENTRAL', 'PHARMA_TAMPON')
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvStock" (
+            "id"                TEXT NOT NULL PRIMARY KEY,
+            "locationId"        TEXT NOT NULL REFERENCES "InvLocation"("id") ON DELETE CASCADE,
+            "itemId"            TEXT NOT NULL REFERENCES "InvItem"("id") ON DELETE RESTRICT,
+            "quantity"          INTEGER NOT NULL DEFAULT 0,
+            "expiryDate"        TEXT,
+            "status"            TEXT NOT NULL DEFAULT 'OK',
+            "criticalThreshold" INTEGER,
+            "createdAt"         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt"         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE ("locationId", "itemId")
+        )
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvTemplate" (
+            "id"         TEXT NOT NULL PRIMARY KEY,
+            "locationId" TEXT NOT NULL REFERENCES "InvLocation"("id") ON DELETE CASCADE,
+            "itemId"     TEXT NOT NULL REFERENCES "InvItem"("id") ON DELETE CASCADE,
+            "targetQty"  INTEGER NOT NULL DEFAULT 1,
+            "createdAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE ("locationId", "itemId")
+        )
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvGroupe" (
+            "id"          TEXT NOT NULL PRIMARY KEY,
+            "name"        TEXT NOT NULL,
+            "description" TEXT,
+            "createdAt"   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt"   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvGroupeMember" (
+            "groupeId"   TEXT NOT NULL REFERENCES "InvGroupe"("id") ON DELETE CASCADE,
+            "locationId" TEXT NOT NULL REFERENCES "InvLocation"("id") ON DELETE CASCADE,
+            PRIMARY KEY ("groupeId", "locationId")
+        )
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvTransfer" (
+            "id"             TEXT NOT NULL PRIMARY KEY,
+            "itemId"         TEXT NOT NULL REFERENCES "InvItem"("id") ON DELETE RESTRICT,
+            "fromLocationId" TEXT REFERENCES "InvLocation"("id") ON DELETE SET NULL,
+            "toLocationId"   TEXT NOT NULL REFERENCES "InvLocation"("id") ON DELETE RESTRICT,
+            "qty"            INTEGER NOT NULL,
+            "movedBy"        TEXT NOT NULL,
+            "movedAt"        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "note"           TEXT
+        )
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvBagTemplate" (
+            "id"        TEXT NOT NULL PRIMARY KEY,
+            "name"      TEXT NOT NULL UNIQUE,
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvBagTemplateItem" (
+            "id"         TEXT NOT NULL PRIMARY KEY,
+            "templateId" TEXT NOT NULL REFERENCES "InvBagTemplate"("id") ON DELETE CASCADE,
+            "itemId"     TEXT NOT NULL REFERENCES "InvItem"("id") ON DELETE CASCADE,
+            "targetQty"  INTEGER NOT NULL DEFAULT 1,
+            UNIQUE ("templateId", "itemId")
+        )
+    `);
+
+    // Migration idempotente : ajout de templateId sur InvLocation
+    const invLocCols = await db.execute(`PRAGMA table_info("InvLocation")`);
+    if (!invLocCols.rows.some(r => r.name === 'templateId')) {
+        await db.execute(`ALTER TABLE "InvLocation" ADD COLUMN "templateId" TEXT REFERENCES "InvBagTemplate"("id") ON DELETE SET NULL`);
+        console.log('  ↳ Migration : colonne InvLocation.templateId ajoutée');
+    }
+
     // ── Comptes Rendus de Mission ─────────────────────────────────
 
     await db.execute(`
@@ -356,6 +472,21 @@ async function main() {
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_reports_mission_date_idx" ON "mission_reports"("mission_date")`);
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_supplies_report_id_idx" ON "mission_report_supplies"("report_id")`);
 
+    // ── MenuSetting ───────────────────────────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "MenuSetting" (
+            "menu_key"   TEXT NOT NULL PRIMARY KEY,
+            "visibility" TEXT NOT NULL DEFAULT 'available'
+                         CHECK (visibility IN ('available', 'admin_only', 'disabled')),
+            "updatedAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['stats', 'available'] });
+    await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['inventory', 'available'] });
+    await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['missions', 'available'] });
+
     console.log('✅ Tables créées\n');
 
     // ── Utilisateurs de test ──────────────────────────────────────
@@ -365,7 +496,7 @@ async function main() {
         { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'chvl@dev.local', name: 'Chauffeur Dev', roles: ['CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
-        { email: 'guest@dev.local', name: 'Invité Dev', roles: ['GUEST'], papiers_valides: 1, start_date_invalidation_process: null },
+        { email: 'guest@dev.local', name: 'Inactif Dev', roles: ['INACTIF'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'secouriste@dev.local', name: 'Secouriste Dev', roles: ['SECOURISTE'], papiers_valides: 1, start_date_invalidation_process: null },
     ];
 
@@ -402,6 +533,40 @@ async function main() {
             }
         }
         console.log(`👤 ${devUser.email.padEnd(24)} roles: ${devUser.roles.join(', ')}`);
+    }
+
+    // ── Backfill SECOURISTE pour tous les non-INACTIF ────────────────
+    {
+        const secouristeRow = await db.execute({ sql: `SELECT id FROM "Role" WHERE name = ?`, args: ['SECOURISTE'] });
+        const inactifRow = await db.execute({ sql: `SELECT id FROM "Role" WHERE name = ?`, args: ['INACTIF'] });
+        if (secouristeRow.rows.length > 0 && inactifRow.rows.length > 0) {
+            const secouristeId = secouristeRow.rows[0].id as string;
+            const inactifRoleId = inactifRow.rows[0].id as string;
+            // Tous les utilisateurs qui ont au moins un rôle non-INACTIF et qui n'ont pas encore SECOURISTE
+            const usersToBackfill = await db.execute({
+                sql: `SELECT DISTINCT ur.userId FROM "UserRole" ur
+                      JOIN "Role" r ON ur.roleId = r.id
+                      WHERE r.name != 'INACTIF'
+                        AND ur.userId NOT IN (
+                            SELECT userId FROM "UserRole" WHERE roleId = ?
+                        )
+                        AND ur.userId NOT IN (
+                            SELECT DISTINCT ur2.userId FROM "UserRole" ur2 WHERE ur2.roleId = ?
+                            EXCEPT
+                            SELECT DISTINCT ur3.userId FROM "UserRole" ur3 JOIN "Role" r3 ON ur3.roleId = r3.id WHERE r3.name != 'INACTIF'
+                        )`,
+                args: [secouristeId, inactifRoleId],
+            });
+            for (const row of usersToBackfill.rows) {
+                await db.execute({
+                    sql: `INSERT OR IGNORE INTO "UserRole" (userId, roleId) VALUES (?, ?)`,
+                    args: [row.userId, secouristeId],
+                });
+            }
+            if (usersToBackfill.rows.length > 0) {
+                console.log(`🔄 Backfill SECOURISTE : ${usersToBackfill.rows.length} utilisateur(s) mis à jour`);
+            }
+        }
     }
 
     // ── Véhicules de démonstration ────────────────────────────────
@@ -603,6 +768,195 @@ async function main() {
         console.log('\n📊 Trips déjà présents, skip');
     }
 
+    // ── Rôle SECOURISTE pour tous les non-INACTIF ───────────────────
+
+    const secouristeRoleId = roleIds['SECOURISTE'];
+    if (secouristeRoleId) {
+        await db.execute({
+            sql: `INSERT OR IGNORE INTO "UserRole" ("userId", "roleId")
+                  SELECT u.id, ?
+                  FROM "User" u
+                  WHERE u.id NOT IN (
+                    SELECT ur.userId FROM "UserRole" ur
+                    JOIN "Role" r ON r.id = ur.roleId
+                    WHERE r.name = 'INACTIF'
+                  )`,
+            args: [secouristeRoleId],
+        });
+        console.log('\n🚑 Rôle SECOURISTE assigné aux utilisateurs non-INACTIF');
+    }
+
+    // ── Inventaire de démonstration ───────────────────────────────
+
+    const invLocationCount = await db.execute(`SELECT COUNT(*) as n FROM "InvLocation"`);
+    if ((invLocationCount.rows[0].n as number) === 0) {
+        // Lieux singletons
+        await db.execute({ sql: `INSERT OR IGNORE INTO "InvLocation" (id, type, name) VALUES ('loc-stock-central', 'STOCK_CENTRAL', 'Stock Central')`, args: [] });
+        await db.execute({ sql: `INSERT OR IGNORE INTO "InvLocation" (id, type, name) VALUES ('loc-pharma-tampon', 'PHARMA_TAMPON', 'Pharmacie Tampon')`, args: [] });
+
+        // Lieux véhicules (récupère les IDs réels)
+        const vehRows = await db.execute(`SELECT id, name FROM "Vehicle"`);
+        for (const vr of vehRows.rows) {
+            const vId = vr.id as string;
+            const vName = vr.name as string;
+            const shortName = vName.split(' ')[0]; // ex: "VL186"
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvLocation" (id, type, name, vehicleId) VALUES (?, 'VEHICLE', ?, ?)`,
+                args: [`loc-veh-${shortName}`, shortName, vId],
+            });
+        }
+
+        // Articles catalogue
+        const catalogItems = [
+            { id: 'item-couverture',      name: 'Couverture de survie',         category: 'Matériel',          unit: 'unité' },
+            { id: 'item-gants',           name: 'Gants nitrile',                category: 'Protection',        unit: 'boîte' },
+            { id: 'item-pansements',      name: 'Pansements stériles',          category: 'Pansements',        unit: 'unité' },
+            { id: 'item-masque-o2-adulte',name: 'Masque O2 adulte',             category: 'Oxygénothérapie',   unit: 'unité' },
+            { id: 'item-masque-o2-ped',   name: 'Masque O2 pédiatrique',        category: 'Oxygénothérapie',   unit: 'unité' },
+            { id: 'item-dsa',             name: 'Défibrillateur DSA',           category: 'Réanimation',       unit: 'unité' },
+            { id: 'item-colliers',        name: 'Colliers cervicaux',           category: 'Immobilisation',    unit: 'set' },
+            { id: 'item-aspirateur',      name: 'Aspirateur de mucosités',      category: 'Réanimation',       unit: 'unité' },
+            { id: 'item-serum',           name: 'Sérum physiologique 500ml',    category: 'Pharmacie',         unit: 'flacon' },
+            { id: 'item-compresses',      name: 'Compresses stériles 10x10',    category: 'Pansements',        unit: 'sachet' },
+            { id: 'item-trousse-vl',      name: 'Trousse de secours VL',        category: 'Matériel',          unit: 'unité' },
+        ];
+        for (const item of catalogItems) {
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, unit) VALUES (?, ?, ?, ?)`,
+                args: [item.id, item.name, item.category, item.unit],
+            });
+        }
+
+        // Sacs enfants de VPSP01
+        const vpsp01LocRes = await db.execute(`SELECT id FROM "InvLocation" WHERE name = 'VPSP01' AND type = 'VEHICLE'`);
+        const vpsp01LocId = vpsp01LocRes.rows.length > 0 ? vpsp01LocRes.rows[0].id as string : null;
+
+        if (vpsp01LocId) {
+            // Récupère vehicleId réel pour VPSP01
+            const vpsp01VehRes = await db.execute({ sql: `SELECT vehicleId FROM "InvLocation" WHERE id = ?`, args: [vpsp01LocId] });
+            const vpsp01VehId = vpsp01VehRes.rows.length > 0 ? vpsp01VehRes.rows[0].vehicleId as string : null;
+
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvLocation" (id, type, name, vehicleId, parentId, isSealed) VALUES ('loc-sac-pse1', 'SAC', 'Sac PSE1', ?, ?, 1)`,
+                args: [vpsp01VehId, vpsp01LocId],
+            });
+        }
+
+        // Sac O2 (dans Pharmacie Tampon)
+        await db.execute({
+            sql: `INSERT OR IGNORE INTO "InvLocation" (id, type, name, vehicleId, parentId, isSealed) VALUES ('loc-sac-o2', 'SAC', 'Sac O2', NULL, 'loc-pharma-tampon', 0)`,
+            args: [],
+        });
+
+        // Stocks — Sac PSE1
+        const sacPse1Stocks = [
+            { item: 'item-gants',      qty: 1,  expiry: null,         threshold: null, status: 'OK' },
+            { item: 'item-pansements', qty: 10, expiry: '2026-12-31', threshold: 5,    status: 'OK' },
+            { item: 'item-couverture', qty: 2,  expiry: null,         threshold: 1,    status: 'OK' },
+        ];
+        for (const s of sacPse1Stocks) {
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvStock" (id, locationId, itemId, quantity, expiryDate, criticalThreshold, status) VALUES (?, 'loc-sac-pse1', ?, ?, ?, ?, ?)`,
+                args: [crypto.randomUUID(), s.item, s.qty, s.expiry, s.threshold, s.status],
+            });
+        }
+
+        // Stocks — Sac O2
+        const sacO2Stocks = [
+            { item: 'item-masque-o2-adulte', qty: 3, expiry: null, threshold: 2, status: 'OK' },
+            { item: 'item-masque-o2-ped',    qty: 2, expiry: null, threshold: 1, status: 'OK' },
+        ];
+        for (const s of sacO2Stocks) {
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvStock" (id, locationId, itemId, quantity, expiryDate, criticalThreshold, status) VALUES (?, 'loc-sac-o2', ?, ?, ?, ?, ?)`,
+                args: [crypto.randomUUID(), s.item, s.qty, s.expiry, s.threshold, s.status],
+            });
+        }
+
+        // Stocks — Stock Central
+        const centralStocks = [
+            { item: 'item-dsa',       qty: 2, expiry: null, threshold: null, status: 'OK' },
+            { item: 'item-colliers',  qty: 3, expiry: null, threshold: 1,    status: 'OK' },
+            { item: 'item-aspirateur',qty: 1, expiry: null, threshold: 1,    status: 'OK' },
+        ];
+        for (const s of centralStocks) {
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvStock" (id, locationId, itemId, quantity, expiryDate, criticalThreshold, status) VALUES (?, 'loc-stock-central', ?, ?, ?, ?, ?)`,
+                args: [crypto.randomUUID(), s.item, s.qty, s.expiry, s.threshold, s.status],
+            });
+        }
+
+        // Stocks — Pharmacie Tampon
+        const pharmaStocks = [
+            { item: 'item-serum',      qty: 1, expiry: '2026-04-15', threshold: 3, status: 'MANQUANT' },
+            { item: 'item-compresses', qty: 5, expiry: '2026-06-30', threshold: 3, status: 'OK' },
+        ];
+        for (const s of pharmaStocks) {
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvStock" (id, locationId, itemId, quantity, expiryDate, criticalThreshold, status) VALUES (?, 'loc-pharma-tampon', ?, ?, ?, ?, ?)`,
+                args: [crypto.randomUUID(), s.item, s.qty, s.expiry, s.threshold, s.status],
+            });
+        }
+
+        // Stock sur VL186 directement
+        const vl186LocRes = await db.execute(`SELECT id FROM "InvLocation" WHERE name = 'VL186' AND type = 'VEHICLE'`);
+        if (vl186LocRes.rows.length > 0) {
+            const vl186LocId = vl186LocRes.rows[0].id as string;
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvStock" (id, locationId, itemId, quantity, status) VALUES (?, ?, 'item-trousse-vl', 1, 'OK')`,
+                args: [crypto.randomUUID(), vl186LocId],
+            });
+        }
+
+        // Groupe PSE1
+        await db.execute({ sql: `INSERT OR IGNORE INTO "InvGroupe" (id, name, description) VALUES ('groupe-pse1', 'Lot PSE1', 'Matériel PSE1 complet')`, args: [] });
+        await db.execute({ sql: `INSERT OR IGNORE INTO "InvGroupeMember" (groupeId, locationId) VALUES ('groupe-pse1', 'loc-sac-pse1')`, args: [] });
+
+        // Modèles de contenu de sac réutilisables (InvBagTemplate)
+        await db.execute({
+            sql: `INSERT OR IGNORE INTO "InvBagTemplate" (id, name) VALUES ('tpl-pse1', 'PSE1 Standard')`,
+            args: [],
+        });
+        const pse1Items = [
+            { item: 'item-couverture', targetQty: 2 },
+            { item: 'item-gants',      targetQty: 1 },
+            { item: 'item-pansements', targetQty: 10 },
+        ];
+        for (const t of pse1Items) {
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvBagTemplateItem" (id, templateId, itemId, targetQty) VALUES (?, 'tpl-pse1', ?, ?)`,
+                args: [crypto.randomUUID(), t.item, t.targetQty],
+            });
+        }
+
+        await db.execute({
+            sql: `INSERT OR IGNORE INTO "InvBagTemplate" (id, name) VALUES ('tpl-o2', 'Oxygénothérapie')`,
+            args: [],
+        });
+        const o2Items = [
+            { item: 'item-masque-o2-adulte', targetQty: 3 },
+            { item: 'item-masque-o2-ped',    targetQty: 2 },
+        ];
+        for (const t of o2Items) {
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "InvBagTemplateItem" (id, templateId, itemId, targetQty) VALUES (?, 'tpl-o2', ?, ?)`,
+                args: [crypto.randomUUID(), t.item, t.targetQty],
+            });
+        }
+
+        // Attacher les modèles aux sacs
+        await db.execute({
+            sql: `UPDATE "InvLocation" SET templateId = 'tpl-pse1' WHERE id = 'loc-sac-pse1'`,
+            args: [],
+        });
+        await db.execute({
+            sql: `UPDATE "InvLocation" SET templateId = 'tpl-o2' WHERE id = 'loc-sac-o2'`,
+            args: [],
+        });
+
+        console.log('\n📦 Inventaire de démonstration créé');
+    } else {
+        console.log('\n📦 Inventaire déjà présent, skip');
     // ── Comptes Rendus de Mission de démonstration ────────────────
 
     const missionCount = await db.execute(`SELECT COUNT(*) as n FROM "mission_reports"`);
@@ -666,6 +1020,7 @@ async function main() {
     console.log('  Respo    → respo@dev.local');
     console.log('  Chauffeur→ chvl@dev.local');
     console.log('  Invité   → guest@dev.local');
+    }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });

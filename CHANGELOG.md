@@ -1,5 +1,46 @@
 # Changelog
 
+## [2.3.0] — 22 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Compte inactif** — Les utilisateurs dont le compte est désactivé (rôle INACTIF) sont automatiquement redirigés vers une page dédiée leur indiquant de contacter un administrateur. Un bouton de déconnexion est disponible.
+- **Statistiques accessibles à tous** — La section Statistiques & exports est désormais accessible à tous les rôles actifs (CHVL, CHVPSP, SECOURISTE, CI/RPAPS, RESPO, ADMIN). Seuls les comptes INACTIF en sont exclus.
+
+### 🔧 Changements
+
+- **Renommage GUEST → INACTIF** — Le rôle "Invité" est renommé "Inactif" dans toute l'interface et les API. La migration de base de données est réalisée via le script `scripts/rename-guest-to-inactif.ts`.
+- **Permissions CHVPSP** — Un chauffeur CHVPSP ne peut désormais emprunter que des véhicules VPSP. Pour emprunter les deux types, les rôles CHVL et CHVPSP sont requis simultanément.
+- **Permissions CHVL** — Un chauffeur CHVL ne peut emprunter que des véhicules VL. La liste des chauffeurs filtrée par type de véhicule VL ne renvoie plus les CHVPSP.
+- **Légende des rôles mise à jour** — Les descriptions de CHVL, CHVPSP, SECOURISTE, CI/RPAPS et RESPO reflètent désormais les permissions réelles (statistiques, type de véhicule, niveau d'accès inventaire).
+- **Administration des menus** — L'accès à la liste des paramètres de menu (GET) est désormais réservé aux administrateurs.
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
+## [2.2.0] — 22 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Nouveau rôle CI/RPAPS** — Un rôle dédié aux responsables CI et RPAPS donne accès à la section Missions (création, consultation et gestion des comptes rendus). Les rôles RESPO, CHVL et CHVPSP n'ont plus accès à cette section.
+- **Paramétrage des menus** — Les administrateurs peuvent désormais contrôler la visibilité de chaque menu de la navbar (Statistiques, Inventaire, Missions) depuis un nouvel onglet "Menus" dans la page Administration. Trois niveaux disponibles : Activé, Admin uniquement, Désactivé.
+- **Page Administration** — La page "Utilisateurs" est renommée "Administration" et inclut deux onglets : "Utilisateurs" (gestion des rôles et des papiers) et "Menus" (paramétrage de la navigation, visible ADMIN uniquement).
+
+### 🔧 Changements
+
+- **Rôle SECOURISTE auto-assigné** — Lors de l'attribution de tout rôle non-GUEST à un utilisateur, le rôle SECOURISTE lui est automatiquement accordé s'il ne l'a pas déjà.
+- **Inventaire réservé aux SECOURISTE** — L'accès à la page Inventaire et à l'onglet Inventaire sur la fiche véhicule nécessite désormais explicitement le rôle SECOURISTE (plutôt qu'une liste de rôles compatibles).
+- La navbar affiche désormais "Administration" à la place de "Utilisateurs" pour le lien de gestion des utilisateurs.
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
 ## [2.1.0] — 20 mars 2026
 
 ### ✨ Nouvelles fonctionnalités

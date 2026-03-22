@@ -125,6 +125,97 @@ async function createTables() {
     FOREIGN KEY (userId) REFERENCES "User"(id) ON DELETE CASCADE
   )`);
 
+  // ── Nouveau système d'inventaire ────────────────────────────────────────────
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvItem" (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    sku TEXT UNIQUE,
+    category TEXT,
+    unit TEXT NOT NULL DEFAULT 'unité',
+    notes TEXT,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvLocation" (
+    id TEXT NOT NULL PRIMARY KEY,
+    type TEXT NOT NULL CHECK (type IN ('STOCK_CENTRAL', 'PHARMA_TAMPON', 'VEHICLE', 'SAC')),
+    name TEXT NOT NULL,
+    vehicleId TEXT REFERENCES "Vehicle"(id) ON DELETE CASCADE,
+    parentId TEXT REFERENCES "InvLocation"(id) ON DELETE CASCADE,
+    isSealed INTEGER NOT NULL DEFAULT 0,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvStock" (
+    id TEXT NOT NULL PRIMARY KEY,
+    locationId TEXT NOT NULL REFERENCES "InvLocation"(id) ON DELETE CASCADE,
+    itemId TEXT NOT NULL REFERENCES "InvItem"(id) ON DELETE RESTRICT,
+    quantity INTEGER NOT NULL DEFAULT 0,
+    expiryDate TEXT,
+    status TEXT NOT NULL DEFAULT 'OK',
+    criticalThreshold INTEGER,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (locationId, itemId)
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvTemplate" (
+    id TEXT NOT NULL PRIMARY KEY,
+    locationId TEXT NOT NULL REFERENCES "InvLocation"(id) ON DELETE CASCADE,
+    itemId TEXT NOT NULL REFERENCES "InvItem"(id) ON DELETE CASCADE,
+    targetQty INTEGER NOT NULL DEFAULT 1,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (locationId, itemId)
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvGroupe" (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvGroupeMember" (
+    groupeId TEXT NOT NULL REFERENCES "InvGroupe"(id) ON DELETE CASCADE,
+    locationId TEXT NOT NULL REFERENCES "InvLocation"(id) ON DELETE CASCADE,
+    PRIMARY KEY (groupeId, locationId)
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvTransfer" (
+    id TEXT NOT NULL PRIMARY KEY,
+    itemId TEXT NOT NULL REFERENCES "InvItem"(id) ON DELETE RESTRICT,
+    fromLocationId TEXT REFERENCES "InvLocation"(id) ON DELETE SET NULL,
+    toLocationId TEXT NOT NULL REFERENCES "InvLocation"(id) ON DELETE RESTRICT,
+    qty INTEGER NOT NULL,
+    movedBy TEXT NOT NULL,
+    movedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    note TEXT
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvBagTemplate" (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvBagTemplateItem" (
+    id TEXT NOT NULL PRIMARY KEY,
+    templateId TEXT NOT NULL REFERENCES "InvBagTemplate"(id) ON DELETE CASCADE,
+    itemId TEXT NOT NULL REFERENCES "InvItem"(id) ON DELETE CASCADE,
+    targetQty INTEGER NOT NULL DEFAULT 1,
+    UNIQUE (templateId, itemId)
+  )`);
+
+  // templateId sur InvLocation (ajouté après la création de la table)
+  const cols = await db.execute(`PRAGMA table_info("InvLocation")`);
+  if (!cols.rows.some((r: Record<string, unknown>) => r.name === 'templateId')) {
+    await db.execute(`ALTER TABLE "InvLocation" ADD COLUMN templateId TEXT REFERENCES "InvBagTemplate"(id) ON DELETE SET NULL`);
+  }
   await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
     id TEXT PRIMARY KEY,
     vehicleId TEXT NOT NULL REFERENCES "Vehicle"(id),
@@ -133,9 +224,26 @@ async function createTables() {
     mileage INTEGER,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "MenuSetting" (
+    menu_key TEXT NOT NULL PRIMARY KEY,
+    visibility TEXT NOT NULL DEFAULT 'available'
+               CHECK (visibility IN ('available', 'admin_only', 'disabled')),
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 }
 
 async function truncateTables() {
+  // Nouveau système inventaire (ordre FK-safe)
+  await db.execute(`DELETE FROM "InvTransfer"`);
+  await db.execute(`DELETE FROM "InvGroupeMember"`);
+  await db.execute(`DELETE FROM "InvStock"`);
+  await db.execute(`DELETE FROM "InvTemplate"`);
+  await db.execute(`DELETE FROM "InvBagTemplateItem"`);
+  await db.execute(`DELETE FROM "InvLocation"`);
+  await db.execute(`DELETE FROM "InvBagTemplate"`);
+  await db.execute(`DELETE FROM "InvItem"`);
+  await db.execute(`DELETE FROM "InvGroupe"`);
   await db.execute(`DELETE FROM "Notification"`);
   await db.execute(`DELETE FROM "UserRole"`);
   await db.execute(`DELETE FROM "Trip"`);
@@ -144,6 +252,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "Vehicle"`);
   await db.execute(`DELETE FROM "User"`);
   await db.execute(`DELETE FROM "Role"`);
+  await db.execute(`DELETE FROM "MenuSetting"`);
 }
 
 // Create tables once on first import
@@ -238,11 +347,26 @@ export async function seedUser(overrides: Partial<{
   return u;
 }
 
-export async function seedRoles(names: string[] = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST']) {
+export async function seedRoles(names: string[] = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST', 'SECOURISTE', 'CI/RPAPS']) {
   for (const name of names) {
     await db.execute({
       sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
-      args: [name.toLowerCase(), name],
+      args: [name.toLowerCase().replace('/', '-'), name],
+    });
+  }
+}
+
+export async function seedMenuSettings(overrides: Partial<Record<string, string>> = {}) {
+  const defaults: Record<string, string> = {
+    stats: 'available',
+    inventory: 'available',
+    missions: 'available',
+    ...overrides,
+  };
+  for (const [key, visibility] of Object.entries(defaults)) {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`,
+      args: [key, visibility],
     });
   }
 }
@@ -304,4 +428,116 @@ export async function seedTrip(overrides: Partial<{
     ],
   });
   return t;
+}
+
+// ── Seed helpers pour le système d'inventaire ────────────────────────────────
+
+export async function seedInvItem(overrides: Partial<{
+  id: string;
+  name: string;
+  sku: string | null;
+  category: string | null;
+  unit: string;
+  notes: string | null;
+}> = {}) {
+  const item = {
+    id: 'inv-item-1',
+    name: 'Article catalogue test',
+    sku: null,
+    category: 'Test',
+    unit: 'unité',
+    notes: null,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, sku, category, unit, notes) VALUES (?,?,?,?,?,?)`,
+    args: [item.id, item.name, item.sku, item.category, item.unit, item.notes],
+  });
+  return item;
+}
+
+export async function seedInvLocation(overrides: Partial<{
+  id: string;
+  type: 'STOCK_CENTRAL' | 'PHARMA_TAMPON' | 'VEHICLE' | 'SAC';
+  name: string;
+  vehicleId: string | null;
+  parentId: string | null;
+  isSealed: number;
+}> = {}) {
+  const loc = {
+    id: 'inv-loc-1',
+    type: 'STOCK_CENTRAL' as const,
+    name: 'Stock Central Test',
+    vehicleId: null,
+    parentId: null,
+    isSealed: 0,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO "InvLocation" (id, type, name, vehicleId, parentId, isSealed) VALUES (?,?,?,?,?,?)`,
+    args: [loc.id, loc.type, loc.name, loc.vehicleId, loc.parentId, loc.isSealed],
+  });
+  return loc;
+}
+
+export async function seedBagTemplate(overrides: Partial<{
+  id: string;
+  name: string;
+}> = {}) {
+  const tpl = {
+    id: 'bag-tpl-1',
+    name: 'Modèle test',
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO "InvBagTemplate" (id, name) VALUES (?, ?)`,
+    args: [tpl.id, tpl.name],
+  });
+  return tpl;
+}
+
+export async function seedBagTemplateItem(overrides: Partial<{
+  id: string;
+  templateId: string;
+  itemId: string;
+  targetQty: number;
+}> = {}) {
+  const item = {
+    id: 'bag-tpl-item-1',
+    templateId: 'bag-tpl-1',
+    itemId: 'inv-item-1',
+    targetQty: 2,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO "InvBagTemplateItem" (id, templateId, itemId, targetQty) VALUES (?, ?, ?, ?)`,
+    args: [item.id, item.templateId, item.itemId, item.targetQty],
+  });
+  return item;
+}
+
+export async function seedInvStock(overrides: Partial<{
+  id: string;
+  locationId: string;
+  itemId: string;
+  quantity: number;
+  status: string;
+  expiryDate: string | null;
+  criticalThreshold: number | null;
+}> = {}) {
+  const stock = {
+    id: 'inv-stock-1',
+    locationId: 'inv-loc-1',
+    itemId: 'inv-item-1',
+    quantity: 5,
+    status: 'OK',
+    expiryDate: null,
+    criticalThreshold: null,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO "InvStock" (id, locationId, itemId, quantity, status, expiryDate, criticalThreshold) VALUES (?,?,?,?,?,?,?)`,
+    args: [stock.id, stock.locationId, stock.itemId, stock.quantity, stock.status, stock.expiryDate, stock.criticalThreshold],
+  });
+  return stock;
 }

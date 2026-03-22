@@ -60,6 +60,7 @@ beforeEach(async () => {
 
 describe('POST /api/vehicles/[id]/reservations — authentification', () => {
     it('1. retourne 401 sans session', async () => {
+        // @ts-expect-error — null session for test
         mockedAuth.mockResolvedValue(null);
         const { startTime, endTime } = futureWindow();
         const res = await POST(makeRequest({ startTime, endTime }), { params: Promise.resolve({ id: VEHICLE_ID }) });

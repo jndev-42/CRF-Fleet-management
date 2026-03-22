@@ -35,7 +35,6 @@ const postSchema = z.object({
   dateTo: z.string().min(1),
 });
 
-const STATS_ALLOWED_ROLES = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP'];
 
 export async function POST(request: Request) {
   try {
@@ -44,8 +43,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const roles = (session.user.roles || ['GUEST']) as string[];
-    if (!roles.some((r) => STATS_ALLOWED_ROLES.includes(r))) {
+    const roles = (session.user.roles || ['INACTIF']) as string[];
+    if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
       return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
     }
 
@@ -146,8 +145,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const roles = (session.user.roles || ['GUEST']) as string[];
-    if (!roles.some((r) => STATS_ALLOWED_ROLES.includes(r))) {
+    const roles = (session.user.roles || ['INACTIF']) as string[];
+    if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
       return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
     }
 
