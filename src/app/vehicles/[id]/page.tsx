@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
 import PhotoViewer from '@/components/PhotoViewer';
 
-import { Vehicle } from './types';
+import { Vehicle, MaintenanceRecord } from './types';
 import { formatDate } from './utils';
 import FuelBar from '@/components/vehicle/FuelBar';
 import VehicleBadges from '@/components/vehicle/VehicleBadges';
@@ -22,6 +22,11 @@ import QRCodeModal from '@/components/vehicle/modals/QRCodeModal';
 import ReservationBlock from '@/components/vehicle/ReservationBlock';
 import ChecklistManager from '@/components/vehicle/ChecklistManager';
 import EditMetricsModal from '@/components/vehicle/modals/EditMetricsModal';
+import DesinfHistoryModal from '@/components/vehicle/modals/DesinfHistoryModal';
+import DesinfPreCheckinModal from '@/components/vehicle/modals/DesinfPreCheckinModal';
+import MaintenanceCard from '@/components/vehicle/MaintenanceCard';
+import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHistoryModal';
+import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 import InventoryVehicleTab from '@/components/inventory/InventoryVehicleTab';
 /**
@@ -47,6 +52,7 @@ export default function VehicleDetailPage() {
     const [showQRModal, setShowQRModal] = useState(false);
     const [showChecklistManager, setShowChecklistManager] = useState(false);
     const [showEditMetricsModal, setShowEditMetricsModal] = useState(false);
+    const [showDesinfHistoryModal, setShowDesinfHistoryModal] = useState(false);
     const [isReservedByOther, setIsReservedByOther] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [userRoles, setUserRoles] = useState<string[]>([]);
@@ -61,6 +67,13 @@ export default function VehicleDetailPage() {
     const [showAddSecondDriver, setShowAddSecondDriver] = useState(false);
     const [secondDriverEmail, setSecondDriverEmail] = useState('');
     const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
+    const [showDesinfPre, setShowDesinfPre] = useState(false);
+    const [desinfPreData, setDesinfPreData] = useState<{ responsableId: string; responsableName: string; lotNumber: string } | null>(null);
+    const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
+    const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+    const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
+    const [showEditRevisionModal, setShowEditRevisionModal] = useState(false);
+    const [licenseBlocked, setLicenseBlocked] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -77,6 +90,11 @@ export default function VehicleDetailPage() {
             })
             .catch(console.error);
 
+        // Check license validity for drivers
+        fetch('/api/me/license-check')
+            .then(res => res.json())
+            .then(data => { if (data.blocked) setLicenseBlocked(true); })
+            .catch(console.error);
     }, []);
 
     /**
@@ -107,6 +125,27 @@ export default function VehicleDetailPage() {
             .catch(console.error);
     }, [vehicle?.type]);
 
+    // Fetch all maintenance records for the vehicle (used for CT/revision calculations)
+    const fetchAllMaintenanceRecords = useCallback(async () => {
+        const allRecords: MaintenanceRecord[] = [];
+        const fetchPage = async (p: number): Promise<void> => {
+            const res = await fetch(`/api/vehicles/${id}/maintenance?page=${p}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            allRecords.push(...data.records);
+            if (p < data.totalPages) {
+                await fetchPage(p + 1);
+            }
+        };
+        await fetchPage(1);
+        setMaintenanceRecords(allRecords);
+    }, [id]);
+
+    useEffect(() => {
+        if (!vehicle?.firstRegistrationDate) return;
+        fetchAllMaintenanceRecords().catch(console.error);
+    }, [fetchAllMaintenanceRecords, vehicle?.firstRegistrationDate, maintenanceRefreshKey]);
+
     /**
      * Reusable toast notification triggered from child components or modal callbacks
      */
@@ -118,7 +157,7 @@ export default function VehicleDetailPage() {
     /**
      * Add a second driver dynamically to the currently active checkout trip
      */
-    async function handleAddSecondDriver(e: React.FormEvent) {
+    async function handleAddSecondDriver(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         if (!activeTrip || !secondDriverEmail) return;
 
@@ -324,9 +363,15 @@ export default function VehicleDetailPage() {
                             canBorrow = false; // Block if there is an active reservation by another user, unless ADMIN
                         }
 
+                        if (canBorrow && licenseBlocked && !isAdmin) {
+                            canBorrow = false; // Block if license papers are not validated within grace period
+                        }
+
                         let titleAttr = "";
                         if (!canBorrow) {
-                            if (isReservedByOther && !isAdmin) {
+                            if (licenseBlocked && !isAdmin) {
+                                titleAttr = "Vos papiers n'ont pas été validés — emprunt bloqué.";
+                            } else if (isReservedByOther && !isAdmin) {
                                 titleAttr = "Ce véhicule est actuellement réservé par quelqu'un d'autre.";
                             } else {
                                 titleAttr = "Vous n'avez pas les droits pour emprunter ce véhicule";
@@ -400,6 +445,18 @@ export default function VehicleDetailPage() {
                             {' — '}{activeTrip.missionType}
                             {activeTrip.missionName && ` : ${activeTrip.missionName}`}
                         </div>
+
+                        {activeTrip.missionType === 'Désinfection' && userRoles.includes('ADMIN') && (
+                            <div style={{ marginTop: 12 }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    style={{ fontSize: 13, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6, borderColor: 'rgba(16, 185, 129, 0.4)', color: '#059669' }}
+                                    onClick={() => setShowDesinfPre(true)}
+                                >
+                                    🧴 {desinfPreData ? '✅ Infos désinf. saisies' : 'Saisir infos désinf.'}
+                                </button>
+                            </div>
+                        )}
 
                         {!activeTrip.secondDriverName && (currentUserEmail === activeTrip.driverEmail || userRoles.includes('ADMIN')) && (
                             <div style={{ marginTop: 12 }}>
@@ -483,6 +540,7 @@ export default function VehicleDetailPage() {
                     currentUserEmail={currentUserEmail}
                     userRoles={userRoles}
                     onActiveReservationChange={setIsReservedByOther}
+                    licenseBlocked={licenseBlocked}
                 />
             )}
 
@@ -538,6 +596,59 @@ export default function VehicleDetailPage() {
                     title="Nombre de sorties"
                     value={vehicle.trips.length}
                 />
+                {vehicle.firstRegistrationDate && (
+                    <MaintenanceCard
+                        vehicle={vehicle}
+                        records={maintenanceRecords}
+                        onClick={() => setShowMaintenanceModal(true)}
+                        onEdit={userRoles.includes('ADMIN') ? () => setShowEditRevisionModal(true) : undefined}
+                    />
+                )}
+                {vehicle.type.toUpperCase().includes('VPSP') && (() => {
+                    let desinfValue: React.ReactNode = 'Non planifiée';
+                    let bgColor: string | undefined;
+                    let borderColor: string | undefined;
+                    let valueColor: string | undefined;
+
+                    if (vehicle.nextDesinfMaxDate) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const deadline = new Date(vehicle.nextDesinfMaxDate);
+                        deadline.setHours(0, 0, 0, 0);
+                        const diffDays = Math.round((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                        if (diffDays < 0) {
+                            desinfValue = `En retard (${Math.abs(diffDays)}j)`;
+                            bgColor = 'rgba(239, 68, 68, 0.07)';
+                            borderColor = 'rgba(239, 68, 68, 0.4)';
+                            valueColor = '#DC2626';
+                        } else if (diffDays <= 14) {
+                            desinfValue = `dans ${diffDays}j`;
+                            bgColor = 'rgba(245, 158, 11, 0.07)';
+                            borderColor = 'rgba(245, 158, 11, 0.4)';
+                            valueColor = '#D97706';
+                        } else {
+                            desinfValue = `dans ${diffDays}j`;
+                            bgColor = 'rgba(16, 185, 129, 0.07)';
+                            borderColor = 'rgba(16, 185, 129, 0.3)';
+                            valueColor = '#059669';
+                        }
+                    } else {
+                        desinfValue = 'Non planifiée';
+                    }
+
+                    return (
+                        <DetailCard
+                            title="Prochaine désinf."
+                            value={desinfValue}
+                            subtitle="Voir l'historique"
+                            backgroundColor={bgColor}
+                            borderColor={borderColor}
+                            valueStyle={valueColor ? { color: valueColor } : undefined}
+                            onClick={() => setShowDesinfHistoryModal(true)}
+                        />
+                    );
+                })()}
             </div>
 
             <VehicleNotes
@@ -694,9 +805,22 @@ export default function VehicleDetailPage() {
                     onClose={() => setShowCheckIn(false)}
                     onSuccess={() => {
                         setShowCheckIn(false);
+                        setDesinfPreData(null);
                         showToast('Véhicule rendu avec succès !');
                     }}
                     onRefetch={fetchVehicle}
+                    initialDesinfResponsableId={desinfPreData?.responsableId}
+                    initialDesinfLotNumber={desinfPreData?.lotNumber}
+                />
+            )}
+
+            {showDesinfPre && (
+                <DesinfPreCheckinModal
+                    onClose={() => setShowDesinfPre(false)}
+                    onConfirm={(data) => {
+                        setDesinfPreData(data);
+                        setShowDesinfPre(false);
+                    }}
                 />
             )}
 
@@ -733,6 +857,38 @@ export default function VehicleDetailPage() {
                         setVehicle(prev => prev ? { ...prev, ...updatedVehicle } : updatedVehicle);
                         setShowEditMetricsModal(false);
                         showToast('Métriques mises à jour avec succès !');
+                    }}
+                />
+            )}
+
+            {showDesinfHistoryModal && vehicle && (
+                <DesinfHistoryModal
+                    vehicleId={vehicle.id}
+                    vehicleName={vehicle.name}
+                    onClose={() => setShowDesinfHistoryModal(false)}
+                />
+            )}
+
+            {showMaintenanceModal && vehicle && (
+                <MaintenanceHistoryModal
+                    vehicle={vehicle}
+                    isAdmin={userRoles.includes('ADMIN')}
+                    onClose={() => {
+                        setShowMaintenanceModal(false);
+                        setMaintenanceRefreshKey(k => k + 1);
+                    }}
+                    onSuccess={() => setMaintenanceRefreshKey(k => k + 1)}
+                />
+            )}
+
+            {showEditRevisionModal && vehicle && (
+                <EditRevisionIntervalsModal
+                    vehicle={vehicle}
+                    onClose={() => setShowEditRevisionModal(false)}
+                    onSuccess={(updatedVehicle) => {
+                        setVehicle(prev => prev ? { ...prev, ...updatedVehicle } : updatedVehicle);
+                        setShowEditRevisionModal(false);
+                        showToast('Intervalles de révision mis à jour !');
                     }}
                 />
             )}

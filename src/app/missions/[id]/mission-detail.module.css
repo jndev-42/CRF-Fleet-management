@@ -1,0 +1,154 @@
+.headerLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.backLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    margin-bottom: 0.25rem;
+}
+
+.backLink:hover {
+    color: var(--text-primary);
+}
+
+.metaBar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.metaItem {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Type badges */
+.typeBadge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.typeRESEAU { background: #dbeafe; color: #1e40af; }
+.typePAPS   { background: #dcfce7; color: #166534; }
+.typeAUTRE  { background: var(--bg-secondary); color: var(--text-secondary); }
+
+/* Grid */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.cardTitle {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+/* Definition list */
+.dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.35rem 1rem;
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+.dl dt {
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dl dd {
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* Incidents */
+.incidentCard {
+    border-color: var(--error-border) !important;
+    background: var(--error-bg) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 1.25rem !important;
+}
+
+.incidentIcon {
+    color: var(--error-text, #991b1b);
+}
+
+.incidentList {
+    margin: 0;
+    padding: 0 0 0 1.25rem;
+    font-size: 0.875rem;
+    color: var(--error-text, #991b1b);
+}
+
+.incidentList li {
+    margin-bottom: 0.25rem;
+}
+
+.followupNote {
+    margin: 0.75rem 0 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--error-text, #991b1b);
+}
+
+/* Supplies */
+.suppliesSection {
+    margin-top: 0.5rem;
+}
+
+.sectionTitle {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 1rem;
+}
+
+.suppliesGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 1rem;
+}
+
+.supplyTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.supplyTable td {
+    padding: 0.3rem 0;
+    border-bottom: 1px solid var(--border-primary);
+    color: var(--text-primary);
+}
+
+.supplyTable tr:last-child td {
+    border-bottom: none;
+}
+
+.qtyCell {
+    text-align: right;
+    font-weight: 600;
+    color: var(--crf-red, #c0122c);
+    width: 3rem;
+}

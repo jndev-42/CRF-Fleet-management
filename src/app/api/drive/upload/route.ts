@@ -21,10 +21,12 @@ export async function POST(request: Request) {
         }
 
         const formData = await request.formData();
-        const vehicleName = formData.get('vehicleName') as string;
+        const vehicleName = formData.get('vehicleName') as string | null;
         const dateStr = formData.get('date') as string;
-        const stage = formData.get('stage') as string; // 'emprunt' or 'rendu'
+        const stage = formData.get('stage') as string | null; // 'emprunt' or 'rendu' — optional for mission flow
         const existingFolderId = formData.get('existingFolderId') as string | null;
+        const missionName = formData.get('missionName') as string | null; // used when stage is absent
+        const rootFolderId = (formData.get('rootFolderId') as string | null) ?? SHARED_FOLDER_ID;
 
         const files = formData.getAll('files') as File[];
 
@@ -32,8 +34,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ success: true, folderId: existingFolderId });
         }
 
-        if (!vehicleName || !dateStr || !stage) {
-            return NextResponse.json({ error: 'Données manquantes (vehicleName, date, stage)' }, { status: 400 });
+        // Validation: vehicle flow requires vehicleName + stage; mission flow requires missionName
+        if (stage) {
+            if (!vehicleName || !dateStr) {
+                return NextResponse.json({ error: 'Données manquantes (vehicleName, date, stage)' }, { status: 400 });
+            }
+        } else {
+            if (!missionName || !dateStr) {
+                return NextResponse.json({ error: 'Données manquantes (missionName, date)' }, { status: 400 });
+            }
         }
 
         // Server-side file validation
@@ -61,15 +70,19 @@ export async function POST(request: Request) {
         // Initialize Google Drive API client using Service Account
         const drive = getDriveClient();
 
-        // 1. Get or Create Parent Folder: "[Véhicule]-[Date]"
+        // 1. Get or Create Parent Folder
         let parentFolderId = existingFolderId;
 
         if (!parentFolderId || parentFolderId === 'null') {
-            const folderName = `${vehicleName}-${dateStr}`;
+            const folderName = stage
+                ? `${vehicleName}-${dateStr}`
+                : `${missionName}-${dateStr}`;
+
+            const effectiveRootFolder = stage ? SHARED_FOLDER_ID : rootFolderId;
 
             // Try to find if it already exists just in case
             const searchRes = await drive.files.list({
-                q: `name='${folderName}' and '${SHARED_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+                q: `name='${folderName}' and '${effectiveRootFolder}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
                 fields: 'files(id)',
                 spaces: 'drive',
             });
@@ -81,7 +94,7 @@ export async function POST(request: Request) {
                 const folderMetadata = {
                     name: folderName,
                     mimeType: 'application/vnd.google-apps.folder',
-                    parents: [SHARED_FOLDER_ID],
+                    parents: [effectiveRootFolder],
                 };
                 const folderRes = await drive.files.create({
                     requestBody: folderMetadata,
@@ -91,19 +104,26 @@ export async function POST(request: Request) {
             }
         }
 
-        // 2. Create the Stage Subfolder: "emprunt" or "rendu"
-        const subfolderMetadata = {
-            name: stage,
-            mimeType: 'application/vnd.google-apps.folder',
-            parents: [parentFolderId],
-        };
-        const subfolderRes = await drive.files.create({
-            requestBody: subfolderMetadata,
-            fields: 'id',
-        });
-        const subfolderId = subfolderRes.data.id!;
+        // 2. For vehicle flow: create stage subfolder and upload into it.
+        //    For mission flow: upload directly into the parent folder.
+        let uploadTargetId: string;
 
-        // 3. Upload all files into the Stage Subfolder
+        if (stage) {
+            const subfolderMetadata = {
+                name: stage,
+                mimeType: 'application/vnd.google-apps.folder',
+                parents: [parentFolderId],
+            };
+            const subfolderRes = await drive.files.create({
+                requestBody: subfolderMetadata,
+                fields: 'id',
+            });
+            uploadTargetId = subfolderRes.data.id!;
+        } else {
+            uploadTargetId = parentFolderId;
+        }
+
+        // 3. Upload all files into the target folder
         const uploadPromises = files.map(async (file) => {
             const buffer = Buffer.from(await file.arrayBuffer());
             const stream = new Readable();
@@ -112,7 +132,7 @@ export async function POST(request: Request) {
 
             const fileMetadata = {
                 name: file.name,
-                parents: [subfolderId],
+                parents: [uploadTargetId],
             };
             const media = {
                 mimeType: file.type,

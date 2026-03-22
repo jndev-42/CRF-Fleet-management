@@ -17,6 +17,7 @@ import Navbar from "@/components/Navbar";
 import GuidedTour from "@/components/GuidedTour";
 import KonamiEasterEgg from "@/components/KonamiEasterEgg";
 import BugReportButton from "@/components/BugReportButton";
+import LicenseBanner from "@/components/LicenseBanner";
 
 export const metadata: Metadata = {
   title: "Gestion de flotte | Croix-Rouge Paris 18",
@@ -61,6 +62,7 @@ export default async function RootLayout({
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
             <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
               <Navbar user={session?.user} />
+              {session?.user && <LicenseBanner />}
               <main id="main-content" className="main-content" role="main" style={{ flexGrow: 1 }}>
                 {children}
               </main>

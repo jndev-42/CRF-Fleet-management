@@ -1,0 +1,33 @@
+.banner {
+  position: sticky;
+  top: 64px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #7f1d1d;
+  color: #fecaca;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 2px solid #ef4444;
+}
+
+.bannerBlocked {
+  background: #450a0a;
+  border-bottom-color: #dc2626;
+}
+
+.icon {
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.text {
+  flex: 1;
+}
+
+.strong {
+  font-weight: 700;
+  color: #fca5a5;
+}

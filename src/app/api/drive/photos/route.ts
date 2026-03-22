@@ -19,6 +19,21 @@ export async function GET(request: Request) {
 
         const drive = getDriveClient();
 
+        // Flat mode: list images directly in the folder (no subfolders), used for mission photos
+        const flat = searchParams.get('flat') === 'true';
+        if (flat) {
+            const res = await drive.files.list({
+                q: `'${folderId}' in parents and mimeType contains 'image/' and trashed=false`,
+                fields: 'files(id, name)',
+            });
+            const photos = (res.data.files ?? [])
+                .filter((f): f is { id: string; name: string } =>
+                    typeof f.id === 'string' && typeof f.name === 'string'
+                )
+                .map(f => ({ id: f.id, name: f.name }));
+            return NextResponse.json({ photos });
+        }
+
         // 1. Fetch subfolders inside parent `[Vehicule]-[Date]` folder (e.g. "emprunt", "rendu")
         const subfoldersRes = await drive.files.list({
             q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import { isConnected, formatDate } from '@/app/vehicles/[id]/utils';
 import FuelBar from '@/components/vehicle/FuelBar';
 import ChecklistItems from '../ChecklistItems';
+import UserCombobox from '@/components/ui/UserCombobox';
 
 interface CheckInModalProps {
     vehicle: Vehicle;
@@ -12,15 +13,28 @@ interface CheckInModalProps {
     onSuccess: () => void;
     /** Called after the API request completes successfully (triggers data refetch) */
     onRefetch?: () => void;
+    /** Pre-filled disinfection responsable ID (from DesinfPreCheckinModal) */
+    initialDesinfResponsableId?: string;
+    /** Pre-filled disinfection lot number (from DesinfPreCheckinModal) */
+    initialDesinfLotNumber?: string;
 }
 
 /**
  * Modal shown when a user is returning a vehicle.
  * Collects returning mileage, condition, issues, and photos.
  */
-export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch }: CheckInModalProps) {
-    const [form, setForm] = useState({
-        mileageIn: vehicle.mileage,
+export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch, initialDesinfResponsableId = '', initialDesinfLotNumber = '' }: CheckInModalProps) {
+    const [form, setForm] = useState<{
+        mileageIn: number | '';
+        fuelIn: number;
+        parkingInSelection: string;
+        parkingInCustom: string;
+        conditionIn: string;
+        cleanlinessIn: string;
+        incident: string;
+        commentsIn: string;
+    }>({
+        mileageIn: isConnected(vehicle.vin) ? vehicle.mileage : '',
         fuelIn: vehicle.fuelLevel,
         parkingInSelection: trip.parkingOut === "Baigneur (devant l’UL)" || trip.parkingOut === "Parking Aubervillers" ? trip.parkingOut : (trip.parkingOut ? "Autre" : "Baigneur (devant l’UL)"),
         parkingInCustom: trip.parkingOut && trip.parkingOut !== "Baigneur (devant l'UL)" && trip.parkingOut !== "Parking Aubervillers" ? trip.parkingOut : '',
@@ -32,9 +46,28 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [checklistIn, setChecklistIn] = useState<Record<string, boolean>>({});
     const [submitting, setSubmitting] = useState(false);
     const [photos, setPhotos] = useState<File[]>([]);
+    const [desinfResponsableId, setDesinfResponsableId] = useState(initialDesinfResponsableId);
+    const [desinfLotNumber, setDesinfLotNumber] = useState(initialDesinfLotNumber);
+    const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+
+    const isDesinf = trip.missionType === 'Désinfection';
+
+    useEffect(() => {
+        if (!isDesinf) return;
+        fetch('/api/users')
+            .then(res => res.json())
+            .then(data => { if (data.users) setUsers(data.users); })
+            .catch(console.error);
+    }, [isDesinf, vehicle.type]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
+
+        if (isDesinf && (!desinfResponsableId || !desinfLotNumber.trim())) {
+            alert('Le responsable de la désinfection et le numéro de lot sont obligatoires.');
+            return;
+        }
+
         setSubmitting(true);
 
         try {
@@ -80,6 +113,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 }
             }
 
+            const desinfResponsableUser = users.find(u => u.id === desinfResponsableId);
+            const desinfResponsableName = desinfResponsableUser?.name || desinfResponsableUser?.email || undefined;
+
             const res = await fetch(`/api/trips/${trip.id}/checkin`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -93,6 +129,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     commentsIn: form.commentsIn,
                     checklistIn: Object.keys(checklistIn).length > 0 ? checklistIn : undefined,
                     driveFolderId,
+                    desinfResponsable: isDesinf ? desinfResponsableName : undefined,
+                    desinfLotNumber: isDesinf ? desinfLotNumber.trim() : undefined,
                 }),
             });
 
@@ -154,7 +192,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                         type="number"
                                         min={trip.mileageOut}
                                         value={form.mileageIn}
-                                        onChange={(e) => setForm({ ...form, mileageIn: Number(e.target.value) })}
+                                        onChange={(e) => setForm({ ...form, mileageIn: e.target.value === '' ? '' : Number(e.target.value) })}
                                         required
                                     />
                                     <div className="form-hint">
@@ -255,6 +293,49 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                 onChange={setChecklistIn}
                             />
                         </div>
+
+                        {/* Champs Désinfection */}
+                        {isDesinf && (
+                            <div
+                                style={{
+                                    marginBottom: 20,
+                                    padding: '14px 16px',
+                                    background: 'rgba(16, 185, 129, 0.05)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                }}
+                            >
+                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: '#059669' }}>
+                                    🧴 Informations de désinfection
+                                </div>
+                                <div className="form-group" style={{ marginBottom: 12 }}>
+                                    <label className="form-label" htmlFor="checkin-desinf-responsable">
+                                        Responsable de la désinf. *
+                                    </label>
+                                    <UserCombobox
+                                        users={users}
+                                        value={desinfResponsableId}
+                                        onChange={setDesinfResponsableId}
+                                        defaultLabel="— Sélectionner un responsable —"
+                                        placeholder="Rechercher..."
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label" htmlFor="checkin-desinf-lot">
+                                        Numéro de lot de désinf. *
+                                    </label>
+                                    <input
+                                        id="checkin-desinf-lot"
+                                        className="form-input"
+                                        type="text"
+                                        placeholder="Ex : LOT-2026-001"
+                                        value={desinfLotNumber}
+                                        onChange={e => setDesinfLotNumber(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        )}
 
                         {/* Incident */}
                         <div className="form-group">

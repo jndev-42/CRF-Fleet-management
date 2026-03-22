@@ -32,6 +32,19 @@ export interface Trip {
     driveFolderId: string | null;
     renaultDataValidated: number | null;
     renaultLastCheckedAt: string | null;
+    /** Nom du responsable de la désinfection (renseigné au check-in pour les missions Désinfection) */
+    desinfResponsable: string | null;
+    /** Numéro de lot du produit désinfectant (renseigné au check-in pour les missions Désinfection) */
+    desinfLotNumber: string | null;
+}
+
+export interface DesinfectionRecord {
+    id: string;
+    checkOutAt: string;
+    checkInAt: string;
+    desinfResponsable: string | null;
+    desinfLotNumber: string | null;
+    driverName: string | null;
 }
 
 export interface Vehicle {
@@ -49,5 +62,25 @@ export interface Vehicle {
     fuelType: string | null;
     maxFuelCapacity: number | null;
     maxBatteryCapacityKwh: number | null;
+    /** Date (YYYY-MM-DD) de la dernière désinfection — uniquement pour les VPSP */
+    lastDesinfDate: string | null;
+    /** Date (YYYY-MM-DD) max avant la prochaine désinfection = lastDesinfDate + 42 jours */
+    nextDesinfMaxDate: string | null;
+    /** Date (YYYY-MM-DD) de la première immatriculation */
+    firstRegistrationDate: string | null;
+    /** Intervalle en km entre deux révisions */
+    revisionKmInterval: number | null;
+    /** Intervalle en années entre deux révisions */
+    revisionYearInterval: number | null;
     trips: Trip[];
+}
+
+export interface MaintenanceRecord {
+    id: string;
+    vehicleId: string;
+    /** Date de l'opération — format YYYY-MM-DD */
+    date: string;
+    type: 'CT' | 'REVISION' | 'CT_REVISION';
+    mileage: number | null;
+    createdAt: string;
 }

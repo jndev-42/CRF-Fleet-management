@@ -84,6 +84,7 @@ export default function DashboardPage() {
     try {
       const res = await fetch('/api/vehicles');
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erreur lors de la récupération');
       setVehicles(data);
 
       // Fetch Renault data for supported vehicles

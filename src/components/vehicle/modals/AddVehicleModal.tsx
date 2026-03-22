@@ -21,6 +21,9 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
         notes: '',
         maxFuelCapacity: '',
         maxBatteryCapacityKwh: '',
+        firstRegistrationDate: '',
+        revisionKmInterval: '',
+        revisionYearInterval: '',
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -51,6 +54,9 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                     notes: form.notes || undefined,
                     maxFuelCapacity: form.maxFuelCapacity ? parseInt(form.maxFuelCapacity) || undefined : undefined,
                     maxBatteryCapacityKwh: form.maxBatteryCapacityKwh ? parseInt(form.maxBatteryCapacityKwh) || undefined : undefined,
+                    firstRegistrationDate: form.firstRegistrationDate || undefined,
+                    revisionKmInterval: form.revisionKmInterval ? parseInt(form.revisionKmInterval) || undefined : undefined,
+                    revisionYearInterval: form.revisionYearInterval ? parseInt(form.revisionYearInterval) || undefined : undefined,
                 }),
             });
             if (res.ok) {
@@ -228,6 +234,45 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                 />
                                 <span style={{ fontSize: 14, fontWeight: 500 }}>🫀 Le véhicule est équipé d&apos;un DSA</span>
                             </label>
+                        </div>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Date de 1ère immatriculation *</label>
+                                <input
+                                    type="date"
+                                    className="form-input"
+                                    value={form.firstRegistrationDate}
+                                    onChange={(e) => setForm({ ...form, firstRegistrationDate: e.target.value })}
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Intervalle révision (km) *</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    className="form-input"
+                                    placeholder="ex: 15000"
+                                    value={form.revisionKmInterval}
+                                    onChange={(e) => setForm({ ...form, revisionKmInterval: e.target.value })}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label className="form-label">Intervalle révision (années) *</label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    className="form-input"
+                                    placeholder="ex: 1"
+                                    value={form.revisionYearInterval}
+                                    onChange={(e) => setForm({ ...form, revisionYearInterval: e.target.value })}
+                                    required
+                                />
+                            </div>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Notes (Optionnel)</label>

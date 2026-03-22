@@ -16,6 +16,9 @@ const createVehicleSchema = z.object({
     fuelType: z.string().optional().nullable(),
     maxFuelCapacity: z.number().int().min(1).optional().nullable(),
     maxBatteryCapacityKwh: z.number().int().min(1).optional().nullable(),
+    firstRegistrationDate: z.string().optional().nullable(),
+    revisionKmInterval: z.number().int().positive().optional().nullable(),
+    revisionYearInterval: z.number().int().positive().optional().nullable(),
 });
 
 export async function GET() {
@@ -98,8 +101,8 @@ export async function POST(request: Request) {
         const timestamp = new Date().toISOString();
 
         await db.execute({
-            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, notes, vin, fuelType, maxFuelCapacity, maxBatteryCapacityKwh, createdAt, updatedAt)
-                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, notes, vin, fuelType, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, createdAt, updatedAt)
+                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 id,
                 data.name,
@@ -114,6 +117,9 @@ export async function POST(request: Request) {
                 data.fuelType ?? null,
                 data.maxFuelCapacity ?? null,
                 data.maxBatteryCapacityKwh ?? null,
+                data.firstRegistrationDate ?? null,
+                data.revisionKmInterval ?? null,
+                data.revisionYearInterval ?? null,
                 timestamp,
                 timestamp
             ]

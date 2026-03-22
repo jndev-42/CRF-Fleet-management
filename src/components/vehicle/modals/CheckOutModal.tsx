@@ -326,6 +326,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                     <option value="Urgence">Urgence</option>
                                     <option value="Logistique">Logistique</option>
                                     <option value="Maraude">Maraude</option>
+                                    {vehicle.type.toUpperCase().includes('VPSP') && (
+                                        <option value="Désinfection">🧴 Désinfection</option>
+                                    )}
                                 </select>
                             </div>
                             <div className="form-group">

@@ -1,346 +1,620 @@
 # Changelog
 
-## [1.21.0] — 18 mars 2026
+## [2.1.0] — 20 mars 2026
 
-### Ajouté
-- **Modèles de contenu de sac réutilisables** — Nouvelles tables `InvBagTemplate` et `InvBagTemplateItem` permettant de définir des dotations cibles nommées (ex. "PSE1 Standard") indépendamment des sacs. Gestion complète via GET/POST `/api/inventory/bag-templates` et GET/PUT/DELETE `/api/inventory/bag-templates/[id]`.
-- **Association modèle ↔ sac** — Nouvelle colonne `templateId` sur `InvLocation` : les sacs peuvent être rattachés à un modèle lors de leur création (POST `/api/inventory/sacs`) ou mis à jour (PATCH `/api/inventory/sacs/[id]`, ADMIN uniquement).
-- **Modale "Gérer modèles"** — Bouton ADMIN dans l'en-tête de la page inventaire ouvrant `BagTemplateListModal` (liste, création, modification, suppression de modèles). `BagTemplateModal` permet la création/édition d'un modèle nommé avec sélection d'articles depuis le catalogue.
-- **Affichage template vs stock réel dans `SacCard`** — Quand un modèle est attaché, le corps expansé affiche chaque article du template avec la quantité réelle vs cible, colorée en vert/orange/rouge selon le niveau. Les articles hors modèle sont affichés ensuite.
-- **KPI `fleetCompleteness` rebasé** — Le calcul utilise désormais `InvBagTemplateItem` via `InvLocation.templateId` au lieu de l'ancienne table `InvTemplate`.
-- **Données de démonstration** — Deux modèles créés en seed : "PSE1 Standard" (couverture ×2, gants ×1, pansements ×10) et "Oxygénothérapie" (masque adulte ×3, masque pédiatrique ×2), rattachés respectivement au Sac PSE1 et au Sac O2.
+### ✨ Nouvelles fonctionnalités
 
-### Modifié
-- **`AddSacModal` et `EditSacModal`** — Ajout d'un sélecteur de modèle (visible ADMIN uniquement) permettant d'attacher ou de détacher un modèle lors de la création/modification d'un sac.
-- **`SacCard`** — Suppression du bouton "Dotation" et de la prop `onEditTemplate`. Bouton renommé "Modifier" (englobe nom + modèle).
-- **`InventoryVehicleTab`** — Nettoyage des imports et états liés à `TemplateModal` ; le template data provient désormais de l'API enrichie.
-- **API `GET /api/inventory/vehicle/[vehicleId]`** — Remplace la jointure `InvTemplate` par `InvBagTemplateItem` via `templateId` du sac.
-- **API `GET /api/inventory`** — Les sacs sont enrichis avec `templateId` et `templateEntries`.
+- **Photos de communication dans le CR Mission** — Étape 7 (optionnelle) ajoutée au wizard de compte rendu de mission. Les bénévoles peuvent uploader jusqu'à 10 photos du poste, de l'équipe ou du terrain directement vers un dossier Google Drive dédié à la communication.
+- **Galerie de photos sur le détail d'un CR Mission** — La page de détail d'un compte rendu affiche désormais les photos de communication uploadées lors de la saisie, si elles existent.
 
-### Supprimé
-- **`TemplateModal`** — Composant supprimé, remplacé par le système de modèles globaux.
-- **API `GET/PUT /api/inventory/templates/[locationId]`** — Route supprimée, remplacée par les nouvelles routes `bag-templates`.
+### 🔧 Changements
 
-## [1.20.0] — 16 mars 2026
+- Le wizard CR Mission passe de 6 à 7 étapes. L'étape "Photos" est entièrement optionnelle : les deux boutons "Passer" et "Soumettre" permettent de terminer avec ou sans photos.
 
-### Ajouté
-- **Refonte architecturale du module inventaire** — Remplacement complet du schéma de base de données et des API par un nouveau modèle normalisé : `InvItem` (catalogue d'articles), `InvLocation` (emplacements typés : STOCK_CENTRAL, PHARMA_TAMPON, VEHICLE, SAC), `InvStock` (quantité d'un article dans un emplacement), `InvTemplate` (dotation cible par emplacement), `InvGroupe` / `InvGroupeMember` (regroupements logiques de sacs), `InvTransfer` (journal d'audit).
-- **Sacs comme emplacements de premier classe** — Les sacs sont désormais des `InvLocation` de type SAC, enfants d'un VEHICLE ou de la PHARMA_TAMPON. Création via POST `/api/inventory/sacs`, modification et suppression via `/api/inventory/sacs/[id]`.
-- **Groupes de sacs** — Nouveau concept de groupe logique (ex. "Lot PSE1") regroupant plusieurs sacs via `/api/inventory/lots` (création) et `/api/inventory/lots/[id]/members` (ajout/suppression de membres).
-- **Dotations cibles (templates)** — Chaque emplacement peut définir une quantité cible par article via GET/PUT `/api/inventory/templates/[locationId]`. Une nouvelle modale `TemplateModal` permet d'éditer ces dotations depuis l'interface.
-- **Transferts discriminés** — L'API `/api/inventory/transfer` accepte deux types : `transferType: 'item'` (transfert d'articles entre emplacements) et `transferType: 'sac'` (déplacement d'un sac entier avec ses articles).
-- **API véhicule réécrite** — GET `/api/inventory/vehicle/[vehicleId]` retourne `{ vehicleLocation, sacs: [{ id, name, isSealed, stock, template }], directStock }`.
-- **KPIs enrichis** — `fleetCompleteness` calculé depuis les templates (% d'articles atteignant leur dotation cible), `pharmaAlerts` basé sur la Pharmacie Tampon.
-- **Création automatique d'InvLocation** — À la création d'un véhicule (POST `/api/vehicles`), une `InvLocation` de type VEHICLE est automatiquement créée.
+### 🐛 Corrections
 
-### Modifié
-- **Composants mis à jour** — `InventoryItemRow`, `SacCard`, `InventoryVehicleTab`, `AddItemModal`, `TransferModal`, `ResupplyModal`, `CheckupModal` utilisent désormais les types `InvStock` et `InvLocation`.
-- **`AddItemModal`** — Prend désormais `locations: LocationOption[]` (pas `vehicles`). Intègre un catalogue d'articles existants (GET `/api/inventory/items`) pour éviter les doublons.
-- **`CheckupModal`** — Accepte `sacs: SacWithStock[]` et `directStock: InvStock[]` ; les sacs manquants sont descellés via PATCH `/api/inventory/sacs/[id]`.
-- **Suppression de l'ancien système** — Les tables `InventoryLot`, `InventoryItem` et `InventoryTransfer` sont supprimées de `setup-dev.ts` et des tests d'intégration. Les seed helpers `seedInventoryLot` et `seedInventoryItem` sont retirés.
+_Aucune correction._
 
 ---
 
-## [1.19.1] — 16 mars 2026
+## [2.0.2] — 19 mars 2026
 
-### Corrigé
-- **Réapprovisionnement inventaire** — Les articles transférés depuis la Pharmacie Tampon vers un véhicule sont désormais obligatoirement affectés à un sac (lot) du véhicule. L'utilisateur choisit le sac cible via un menu déroulant dans la modale de réapprovisionnement ; si le véhicule n'a aucun sac, un message d'avertissement est affiché. L'API accepte un nouveau paramètre `toLotId` et vérifie que le lot appartient bien au véhicule de destination.
+### ✨ Nouvelles fonctionnalités
+
+- **Qui a validé les papiers ?** — Lors de la validation des papiers d'un chauffeur, le nom du validateur (ou son email en l'absence de nom) est désormais enregistré et affiché sous la date de validation dans la colonne "Papiers" de la page utilisateurs.
+
+### 🔧 Changements
+
+_Aucun changement._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
-## [1.19.0] — 16 mars 2026
+## [2.0.1] — 19 mars 2026
 
-### Ajouté
-- **Module gestion d'inventaire médical** — Nouveau module complet de gestion du matériel médical et logistique de la flotte. Inclut trois types de localisation : Stock Central (ADMIN uniquement), Pharmacie Tampon et Véhicules.
-- **Nouveau rôle `SECOURISTE`** — Les secouristes peuvent créer/modifier des articles et des lots, transférer depuis la Pharmacie Tampon, et effectuer des check-ups de garde. Seul l'ADMIN peut toucher le Stock Central ou supprimer des éléments.
-- **Trois nouvelles tables DB** — `InventoryLot` (sacs/malettes pouvant être scellés), `InventoryItem` (articles individuels avec quantité, date de péremption, seuil critique, statut OK/HORS_SERVICE/MANQUANT) et `InventoryTransfer` (journal d'audit des transferts).
-- **9 routes API** sous `/api/inventory/` — GET global avec KPIs, POST/PATCH/DELETE articles et lots, POST transfert (avec cascade vers items si lot déplacé), GET inventaire par véhicule.
-- **KPIs inventaire** — Péremptions < 30 jours, articles hors service, alertes Pharmacie Tampon (quantité < seuil critique), complétude de la flotte (% des véhicules avec au moins un article).
-- **Page `/inventory`** — Tableau de bord avec KPIs, bannière d'alerte rouge si seuils critiques dépassés, recherche par nom/référence, onglets de filtrage par localisation, liste des lots (avec expansion) et articles, modales d'ajout et de transfert.
-- **Onglet "Inventaire" sur la fiche véhicule** — Intégration dans `/vehicles/[id]` avec deux onglets (Détails / Inventaire). Affiche les lots et le matériel nu assignés au véhicule. Boutons "Mode Check-up de garde" (liste de vérification, marque les manquants) et "Réapprovisionner depuis Tampon".
-- **Lien de navigation** — "Inventaire" ajouté dans la Navbar pour tous les utilisateurs authentifiés non-GUEST.
-- **13 tests d'intégration** — Couverture : 401/403, validations Zod, happy paths pour GET, POST item, POST transfert (SECOURISTE vs ADMIN depuis STOCK_CENTRAL), PATCH lot (scellage), GET inventaire véhicule.
+### ✨ Nouvelles fonctionnalités
+
+- **Rôle Secouriste** — Nouveau rôle `SECOURISTE` pour les bénévoles secouristes non chauffeurs. Ils peuvent soumettre et consulter leurs propres comptes rendus de mission, sans accès aux véhicules, aux statistiques ni à la gestion des utilisateurs.
+
+### 🔧 Changements
+
+- La légende des rôles (page utilisateurs) affiche désormais le rôle Secouriste avec sa couleur verte distinctive et la liste de ses permissions.
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
+## [2.0.0] — 19 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Compte Rendu de Mission (CRM)** — Les CI/Chefs de PAPS peuvent désormais soumettre un compte rendu directement dans cr-chauffeur via un formulaire wizard en 6 étapes, sans passer par Google Forms.
+- **Formulaire en 6 étapes** — Informations générales (type, nom, date, lieu, victimes), équipage (véhicule, chauffeur, bénévoles, PEGASS), matériel consommé par catégorie (sac primaire, brûlures, hémorragies, kit DSA, hygiène), oxygène (section VPSP conditionnelle selon le véhicule), dynamique d'équipe (conditionnelle si UL<18 présents), et incidents critiques (ACR, hémorragie grave, prise en charge complexe).
+- **Liste des comptes rendus** — Tableau filtrable par type de mission ; les RESPO et ADMIN voient tous les comptes rendus, les chauffeurs voient uniquement les leurs.
+- **Détail d'un compte rendu** — Affichage complet par sections avec tableau du matériel consommé (quantités > 0 uniquement) et badges incidents.
+- **Suppression** — Les administrateurs peuvent supprimer un compte rendu (avec suppression en cascade des lignes matériel).
+
+### 🔧 Changements
+
+- Nouveau lien « Missions » dans la barre de navigation (visible pour tous sauf GUEST).
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
+## [1.21.1] — 19 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Modification des intervalles de révision** — Les administrateurs peuvent modifier la date de première immatriculation, l'intervalle de révision en km et en années directement depuis la fiche véhicule, sans avoir à recréer le véhicule.
+
+### 🔧 Changements
+
+_Aucun changement._
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
+## [1.21.0] — 19 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Validation des papiers** — Les chauffeurs (CHVL et CHVPSP) doivent faire valider leur permis de conduire (et attestation préfectorale pour les CHVPSP) une fois par an auprès de leur DLUS/DLAS.
+- **Bannière d'alerte** — Lorsque les papiers ne sont pas validés, une bannière rouge apparaît en haut de l'écran avec le nombre de jours restants avant blocage.
+- **Blocage automatique** — Si les papiers n'ont pas été validés dans les 14 jours suivant l'échéance, l'emprunt de véhicules et les réservations sont désactivés.
+- **Validation depuis la gestion des utilisateurs** — Les administrateurs et responsables peuvent marquer les papiers d'un chauffeur comme validés depuis la page Utilisateurs.
+- **Accès RESPO à la gestion des utilisateurs** — Les responsables (RESPO) peuvent désormais accéder à la page Utilisateurs pour valider les papiers des chauffeurs.
+
+### 🔧 Changements
+
+- La colonne "Papiers" est affichée sur la fiche utilisateur avec la date de dernière validation et le statut courant.
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
+## [1.20.0] — 19 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Suivi de l'entretien des véhicules** — Une nouvelle carte sur la fiche véhicule affiche le délai avant le prochain contrôle technique et la prochaine révision, avec code couleur (🟢 OK · 🟠 Bientôt · 🔴 Dépassé).
+- **Historique CT & révisions** — Un clic sur la carte ouvre l'historique complet. Les administrateurs peuvent ajouter une entrée (date, type, kilométrage) ou en supprimer.
+- **Nouveaux champs à l'ajout de véhicule** — Date de première immatriculation, intervalle de révision en km et en années.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
+
+---
+
+## [1.19.0] — 18 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Mission Désinfection (VPSP)** — Nouveau type de mission disponible sur les véhicules VPSP. Les dates de désinfection sont automatiquement enregistrées à chaque sortie.
+- **Suivi de la prochaine désinfection** — Une carte dédiée sur la fiche VPSP affiche le décompte en jours jusqu'à la prochaine désinfection obligatoire (42 jours), avec code couleur.
+- **Formulaire de retour enrichi** — Pour une mission Désinfection, les champs "Responsable" et "Numéro de lot du produit" sont obligatoires au retour.
+- **Historique des désinfections** — Un clic sur la carte ouvre la main courante complète : date, responsable, numéro de lot, conducteur.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.18.0] — 14 mars 2026
 
-### Ajouté
-- **Réservation au nom d'un autre (ADMIN)** — Un administrateur peut désormais créer une réservation pour le compte d'un autre utilisateur directement depuis la fiche véhicule. Le champ "Pour" (combobox avec recherche) s'affiche uniquement pour les ADMIN dans la modale de réservation. La réservation est automatiquement validée, et l'utilisateur ciblé reçoit une notification in-app.
-- **Guard 403 sur `onBehalfOfUserId`** — Seuls les ADMIN peuvent utiliser `onBehalfOfUserId` dans le corps de la requête `POST /api/vehicles/[id]/reservations`. Les rôles CHVL et RESPO reçoivent un 403 s'ils tentent de l'utiliser.
-- **Notification in-app pour la réservation déléguée** — Insertion automatique d'une ligne dans la table `Notification` pour avertir l'utilisateur ciblé qu'une réservation a été créée en son nom.
-- **Tests d'intégration — réservations** — 9 nouveaux cas couvrant : 401, 403 (CHVL et RESPO), 400 Zod, 404 utilisateur inconnu, happy paths CHVL/ADMIN/délégué, et 409 conflit.
+### ✨ Nouvelles fonctionnalités
+
+- **Réservation pour un autre utilisateur (Admin)** — Les administrateurs peuvent créer une réservation au nom d'un autre chauffeur directement depuis la fiche véhicule. La réservation est automatiquement validée et l'utilisateur concerné reçoit une notification.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.17.1] — 13 mars 2026
 
-### Sécurité
-- **Connexion Google OAuth restreinte aux comptes pré-enregistrés** — La création automatique de compte GUEST à la première connexion a été supprimée. Un utilisateur inconnu (non présent en base) est désormais redirigé vers `/login?error=AccessDenied` au lieu de se voir attribuer un accès GUEST automatique.
+### ✨ Nouvelles fonctionnalités
 
-### Ajouté
-- **Exclusivité mutuelle du rôle GUEST** — GUEST est désormais incompatible avec tous les autres rôles. Assigner GUEST à un utilisateur retire automatiquement tous ses autres rôles ; à l'inverse, assigner un rôle non-GUEST retire GUEST. Cette règle s'applique à la création d'utilisateur (`POST /api/users`) et à la modification des rôles (`PATCH /api/users/[email]`).
-- **Légende des roles** — Ajout d'une légende sur l'interface de gestion utilisateurs pour expliquer à quoi servent les rôles.
-- **Tests d'intégration — gestion des utilisateurs** — Nouveaux tests couvrant : résolution des rôles (POST et PATCH), gardes 401/403/404, et tous les cas d'exclusivité GUEST.
+- **Légende des rôles** — Une légende expliquant chaque niveau d'accès est maintenant affichée dans le panel de gestion des utilisateurs.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🔒 Sécurité
+
+- **Accès sur invitation uniquement** — La création automatique de compte à la première connexion Google est supprimée. Seuls les utilisateurs pré-enregistrés peuvent se connecter.
+- **Rôle Invité exclusif** — Un utilisateur Invité ne peut pas cumuler d'autres rôles, et vice-versa.
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.17.0] — 13 mars 2026
 
-### Ajouté
-- **Capacité batterie (`maxBatteryCapacityKwh`)** — Nouveau champ `INTEGER` nullable sur la table `Vehicle`. Permet de stocker la capacité de la batterie en kWh pour les véhicules électriques (ex : 52 kWh pour le VL186 Renault Zoé). Configurable depuis la modale d'ajout de véhicule (affiché uniquement pour le type d'énergie "Électrique", mutuellement exclusif avec la capacité réservoir).
-- **KPI kWh/100km réel** — Nouvelle carte sur la page Statistiques affichant la consommation moyenne en kWh/100km pour les VE, calculée via `(delta% × capacité_batterie) / km × 100`. Affiche "—" si aucun véhicule électrique configuré.
-- **KPI kWh consommés** — Nouvelle carte affichant le total de kWh consommés sur la période (véhicules électriques uniquement).
-- **Tableau chauffeurs enrichi** — Nouvelle colonne `kWh/100km` (affiche "—" pour les chauffeurs n'ayant conduit que des véhicules thermiques).
-- **Tableau véhicules** — Colonne renommée `Conso/100km` ; la valeur affiche `L` pour les véhicules thermiques, `kWh` pour les électriques, et `%` de delta en repli.
-- **PDF** — Deux nouvelles cases KPI (kWh/100km réel, kWh consommés) dans les rangées 1 et 2 ; colonne `kWh/100` ajoutée dans le tableau chauffeurs ; colonne véhicule renommée `Conso/100km` avec logique kWh intégrée.
-- **Tests** — Nouveaux tests de validation Zod (`maxBatteryCapacityKwh: 0` → 400), happy path EV, mise à jour PATCH, et trois scénarios de consommation kWh (VE avec capacité, VE sans capacité, flotte mixte).
+### ✨ Nouvelles fonctionnalités
 
-### Modifié
-- **`scripts/setup-dev.ts`** — Migration idempotente pour `maxBatteryCapacityKwh` ; donnée de démo : 52 kWh pour VL186 Renault Zoé.
-- **`src/lib/stats.ts`** — Trois nouvelles expressions SQL CASE (`avgKwhPer100km` global, par chauffeur et par véhicule ; `totalKwhConsumed` global), gardées par `maxBatteryCapacityKwh IS NOT NULL AND > 0`.
-- **`src/__tests__/unit/stats-lib.test.ts`** — Correction des tests `buildTripWhere` pour utiliser `driverIds` (tableau) au lieu de `driverId` (singulier), conformément à la signature réelle de `StatsFilters`.
+- **Capacité batterie (véhicules électriques)** — Configurable sur la fiche véhicule pour des statistiques de consommation plus précises.
+- **Statistiques véhicules électriques** — Deux nouveaux indicateurs : consommation moyenne en kWh/100km et total kWh consommés sur la période.
+- **Tableau chauffeurs enrichi** — Nouvelle colonne kWh/100km pour les trajets en véhicule électrique.
+
+### 🔧 Changements
+
+- **Colonne "Conso/100km"** — Affiche désormais "L" pour les thermiques et "kWh" pour les électriques.
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.16.0] — 13 mars 2026
 
-### Ajouté
-- **Filtres sur la page Statistiques** — Trois nouveaux sélecteurs dans la barre de filtres : véhicule, chauffeur et type de mission. Les filtres s'appliquent en temps réel et s'ajoutent aux paramètres de la requête `GET /api/stats` (nouveaux champs Zod : `vehicleId`, `driverId`, `missionType`). La logique SQL est centralisée dans le nouveau helper `buildTripWhere` (safe via args paramétrés).
-- **Nouveau KPI "L/100km réel"** — Remplace "Conso. moy." sur les cartes KPI et dans le tableau des véhicules. Calculé à partir de `maxFuelCapacity` et de la variation de carburant ; affiche "—" si les données sont insuffisantes.
-- **Nouveau KPI "Taux d'utilisation"** — Nombre de jours avec au moins une sortie sur la période, exprimé en % ; plafonné à 100 % pour les périodes avec chevauchements.
-- **Nouveau KPI "Carburant moyen retour"** — Niveau de carburant moyen à la restitution (champ `fuelIn`), global et par chauffeur.
-- **Taux d'incidents en inc./100 km** — La sous-ligne de la carte Incidents affiche désormais `X,X inc./100 km` quand `totalKm > 0`, plus précis que le pourcentage.
-- **Tableau des chauffeurs enrichi** — Deux nouvelles colonnes : "% retour" (`avgFuelAtReturn`) et "L/100km" (`avgLPer100km`) ; la colonne "vs. moy." km est retirée.
-- **PDF — double rangée de KPIs** — La section 1 du rapport PDF passe de 4 à 8 indicateurs sur 2 lignes (L/100km réel, taux d'utilisation, litres consommés, taux d'incidents). Tableau chauffeurs enrichi de "% retour" et "L/100km" (7 colonnes). Tableau véhicules : colonne "Conso. moy." remplacée par "L/100km".
-- **Tests** — Nouveaux tests unitaires pour `buildTripWhere`, `incidentRate` et `fleetUtilizationRate` ; nouveaux tests d'intégration pour les filtres `vehicleId`, `driverId` et `missionType` sur `GET /api/stats`.
+### ✨ Nouvelles fonctionnalités
 
-### Modifié
-- **`src/lib/stats.ts`** — `fetchStatsData` accepte désormais un troisième paramètre optionnel `filters?: StatsFilters` ; toutes les requêtes SQL sont refactorisées pour utiliser le préfixe `t.` et le helper `buildTripWhere`.
-- **`src/components/stats/DriverBreakdown.tsx`** — Les props `totalKm` et `completedTrips` sont supprimées (elles n'étaient utilisées que pour le calcul "vs. moy." désormais retiré).
+- **Filtres sur la page Statistiques** — Trois nouveaux filtres : par véhicule, par chauffeur et par type de mission. Les résultats se mettent à jour en temps réel.
+- **KPI "L/100km réel"** — Consommation calculée à partir de la capacité réelle du réservoir, bien plus précis qu'une valeur fixe.
+- **KPI "Taux d'utilisation"** — Pourcentage de jours avec au moins une sortie sur la période sélectionnée.
+- **KPI "Carburant moyen au retour"** — Niveau moyen de carburant à la restitution des véhicules.
+- **Taux d'incidents en inc./100 km** — Indicateur plus précis et plus parlant qu'un simple pourcentage.
+- **Tableau chauffeurs enrichi** — Nouvelles colonnes "% retour" et "L/100km".
+- **PDF enrichi** — 8 indicateurs sur 2 lignes, tableau chauffeurs et véhicules mis à jour.
+
+### 🔧 Changements
+
+- **Tableau chauffeurs** — La colonne "vs. moy." km est retirée au profit de colonnes plus utiles.
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.15.3] — 13 mars 2026
 
-### Ajouté
-- **Capacité réservoir par véhicule (`maxFuelCapacity`)** — Nouveau champ nullable `INTEGER` sur la table `Vehicle`. Permet de stocker la capacité réelle du réservoir en litres (ex : 56 L pour le VL 486, 80 L pour le VPSP 182). Configurable depuis la modale d'ajout de véhicule (affiché uniquement pour les énergies Essence/Diesel). Un script de migration `scripts/add-max-fuel-capacity.ts` initialise les valeurs pour les véhicules de production connus.
+### ✨ Nouvelles fonctionnalités
 
-### Corrigé
-- **Calcul du niveau de carburant en pourcentage** — Les pages liste et détail véhicule utilisaient une capacité fixe de 50 L pour convertir les données live Renault en pourcentage. Ce calcul utilise désormais `vehicle.maxFuelCapacity ?? 50` afin de refléter la capacité réelle du réservoir.
+- **Capacité réservoir par véhicule** — Chaque véhicule peut désormais avoir sa capacité réelle de réservoir configurée (en litres), pour des calculs de consommation plus précis.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+- **Calcul du niveau de carburant** — Le pourcentage affiché utilise maintenant la capacité réelle du réservoir au lieu d'une valeur fixe de 50 L.
 
 ---
 
 ## [1.15.2] — 12 mars 2026
 
-### Corrigé
-- **Conso. Moy. — exclusion des trajets sans consommation nette** — La moyenne de carburant (`avgFuelConsumption` global et `avgFuelDelta` par véhicule) excluait déjà les trajets sans données, mais incluait à tort les trajets où le niveau a monté (recharge / plein) ou est resté stable. Le prédicat SQL a été resserré à `fuelOut > fuelIn` pour ne moyenner que les trajets à consommation nette positive.
+### ✨ Nouvelles fonctionnalités
+
+_Aucune nouvelle fonctionnalité._
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+- **Consommation moyenne** — Les trajets avec recharge ou plein d'essence ne faussaient plus le calcul de consommation.
 
 ---
 
 ## [1.15.1] — 12 mars 2026
 
-### Modifié
-- **FunFactor — messages diversifiés** — `getMessage` dans `FunFactor.tsx` utilise désormais des pools de 3 à 4 messages par palier (≥65 %, ≥75 %, ≥80 %, ≥90 %), sélectionnés de façon déterministe via un hash de `firstName + vehicle`. Chaque combinaison chauffeur/véhicule affiche un message différent, stable d'un rendu à l'autre.
+### ✨ Nouvelles fonctionnalités
+
+_Aucune nouvelle fonctionnalité._
+
+### 🔧 Changements
+
+- **Fun Fact** — Les messages humoristiques sont maintenant variés par paire chauffeur/véhicule. Chaque combinaison affiche un message différent, stable d'un affichage à l'autre.
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.15.0] — 12 mars 2026
 
-### Ajouté
-- **Utilitaire `getErrorMessage`** — Nouvelle fonction `src/lib/utils/error.ts` pour extraire de façon sûre le message d'une erreur inconnue, avec tests unitaires associés.
-- **Hook pre-commit (Husky + lint-staged)** — Chaque commit exécute automatiquement ESLint avec `--max-warnings=0` sur les fichiers `.ts`/`.tsx` stagés. Tout lint non conforme bloque le commit.
+### ✨ Nouvelles fonctionnalités
 
-### Modifié
-- **Zéro erreur/avertissement ESLint** — Toutes les violations existantes corrigées (91 → 0) : remplacement des `any` par des types stricts, utilisation de `catch {}` pour les erreurs ignorées, commentaires `eslint-disable-next-line` avec justification sur les exceptions légitimes (`react-hooks/exhaustive-deps`, `@next/next/no-img-element`).
-- **Composants Next.js** — `Navbar.tsx` utilise désormais `<Link>` et `<Image>` au lieu de `<a>` et `<img>`.
-- **`CLAUDE.md`** — Règles de lint documentées : politique zéro tolérance, conventions pour les `any` résiduels, règles React hooks et Next.js.
+_Aucune nouvelle fonctionnalité._
+
+### 🔧 Changements
+
+- **Amélioration de la stabilité** — Refonte de la qualité interne du code. L'application est plus robuste et mieux outillée pour la suite.
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.14.0] — 12 mars 2026
 
-### Ajouté
-- **Signalement de bug** — Bouton flottant accessible sur toutes les pages authentifiées (rôle CHVL et supérieur). Ouvre une modale permettant de saisir un titre et une description, avec affichage optionnel des logs techniques (console + réseau). Crée automatiquement un ticket GitHub avec le rapport complet.
-- **Tests automatisés** — Tests unitaires, d'intégration et de composants pour le module de signalement de bug (16 + 11 + 15 cas couverts). Règle : toute nouvelle fonctionnalité doit désormais embarquer ses tests.
+### ✨ Nouvelles fonctionnalités
+
+- **Signalement de bug** — Un bouton flottant accessible sur toutes les pages permet de signaler un problème directement depuis l'application, avec rapport technique automatique.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.13.0] — 12 mars 2026
 
-### Modifié
-- **Sécurité des routes checkin/second-driver** — Les vérifications d'autorisation utilisent maintenant `session.user.id` (FK stable) au lieu de `session.user.email` (donnée mutable), ce qui empêche les usurpations d'identité en cas de changement d'email.
-- **JWT** — L'identifiant `User.id` est désormais exposé dans le token JWT et disponible via `session.user.id` dans toutes les routes API.
-- **Formulaire de prise de véhicule** — `driverName` et `driverEmail` ne sont plus envoyés dans le corps de la requête POST ; le serveur résout automatiquement le chauffeur depuis la session.
-- **Stats** — Les requêtes groupées par chauffeur utilisent `GROUP BY driverId` au lieu de `GROUP BY driverEmail`, ce qui garantit la cohérence même si l'email change.
+### ✨ Nouvelles fonctionnalités
+
+_Aucune nouvelle fonctionnalité._
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🔒 Sécurité
+
+- **Identification des chauffeurs** — L'identification est maintenant basée sur un identifiant interne stable, immunisé contre un changement d'adresse e-mail.
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.12.0] — 9 mars 2026
 
-### ✨ Nouveau
-- **Pré-remplissage du nom de mission** — À l'ouverture du formulaire de prise de véhicule, le champ "Nom de mission" se remplit automatiquement avec le motif de la réservation la plus proche dans le temps. Le champ reste modifiable.
-- **Export PDF amélioré** — Le rapport PDF affiche désormais le logo CRF, les sauts de page sont automatiques et la numérotation des pages est correcte.
+### ✨ Nouvelles fonctionnalités
 
-### 🐛 Corrigé
-- **Stats — filtre de date de fin** — Les trajets du jour sélectionné comme date de fin étaient exclus des résultats. C'est corrigé.
-- **Fun Fact** — La section n'apparaît plus avec seulement 1 ou 2 trajets. Elle requiert désormais au moins 3 trajets sur le même véhicule avec ≥ 65% de domination.
+- **Pré-remplissage du nom de mission** — À l'ouverture du formulaire de prise de véhicule, le champ "Nom de mission" se remplit automatiquement avec le motif de la réservation la plus proche. Le champ reste modifiable.
+- **Export PDF amélioré** — Le rapport affiche le logo CRF, avec sauts de page automatiques et pagination correcte.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+- **Statistiques — filtre de date de fin** — Les trajets du dernier jour sélectionné n'étaient pas inclus dans les résultats.
+- **Fun Fact** — La section n'apparaît plus avec seulement 1 ou 2 trajets ; elle requiert au moins 3 sorties avec une domination nette.
 
 ---
 
 ## [1.11.0] — 9 mars 2026
 
-### ✨ Nouveau
-- **Page Statistiques** — Nouveau module accessible depuis la barre de navigation (tous les rôles sauf Invité). Affiche sur les 60 derniers jours : indicateurs globaux (emprunts, km, incidents, consommation), graphiques par chauffeur et par semaine, répartition des types de missions, et un classement des véhicules. Inclut un export CSV (données brutes) et un export PDF (rapport complet).
-- **Fun Fact** — Section humoristique sur la page Statistiques, affichée quand un chauffeur se démarque nettement sur un véhicule.
+### ✨ Nouvelles fonctionnalités
+
+- **Page Statistiques** — Nouveau module accessible depuis la navigation (tous les rôles sauf Invité). Affiche sur les 60 derniers jours : indicateurs globaux (emprunts, km, incidents, consommation), graphiques par chauffeur et par semaine, répartition des types de missions, classement des véhicules. Inclut un export CSV et un export PDF.
+- **Fun Fact** — Section humoristique affichée quand un chauffeur se démarque particulièrement sur un véhicule.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.10.0] — 9 mars 2026
 
-### ✨ Nouveau
+### ✨ Nouvelles fonctionnalités
+
 - **Données véhicule en temps réel** — Le kilométrage et le niveau de carburant/batterie sur la fiche véhicule sont désormais issus directement de Renault Connect pour les véhicules connectés.
-- **Indicateur de vérification** — Un badge "⏳ Vérification..." s'affiche sur les données de retour en attente de confirmation Renault, avec mise à jour automatique.
+- **Indicateur de vérification** — Un badge "⏳ Vérification..." s'affiche sur les données en attente de confirmation, avec mise à jour automatique.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.9.2] — 8 mars 2026
 
-### ✨ Nouveau
-- **Propreté du véhicule** — Nouveau champ au départ et au retour (Propre / Correct / Sale / Très sale). La valeur est affichée dans l'historique des sorties.
+### ✨ Nouvelles fonctionnalités
+
+- **Propreté du véhicule** — Nouveau champ au départ et au retour (Propre / Correct / Sale / Très sale), visible dans l'historique des sorties.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.9.1] — 8 mars 2026
 
-### 🔧 Amélioré
+### ✨ Nouvelles fonctionnalités
+
+_Aucune nouvelle fonctionnalité._
+
+### 🔧 Changements
+
 - **Accessibilité** — Les modales de prise/retour de véhicule et la pagination de l'historique sont conformes WCAG 2.1 AA (lecteurs d'écran, navigation clavier).
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.9.0] — 7 mars 2026
 
-### ✨ Nouveau
-- **Jauge de carburant visuelle** — La jauge affiche des jalons (E / ¼ / ½ / ¾ / F) et change de couleur selon le niveau : rouge en dessous de 25%, orange jusqu'à 50%, vert au-delà. La jauge est interactive dans tous les formulaires de saisie.
+### ✨ Nouvelles fonctionnalités
+
+- **Jauge de carburant visuelle** — Affiche des jalons (E / ¼ / ½ / ¾ / F) et change de couleur selon le niveau : 🔴 < 25%, 🟠 jusqu'à 50%, 🟢 au-delà. Interactive dans tous les formulaires de saisie.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.8.0] — 6 mars 2026
 
-### ✨ Nouveau
+### ✨ Nouvelles fonctionnalités
+
 - **Contrôle des notifications push** — Un bouton dans la cloche permet d'activer ou désactiver les notifications push sans passer par les paramètres du navigateur.
 
-### 🔧 Amélioré
+### 🔧 Changements
+
 - **Cloche de notifications** — Réservée aux rôles Responsable et Administrateur uniquement.
 
-### 🐛 Corrigé
-- **Page d'aide** — Redirige vers la page de connexion si l'utilisateur n'est pas authentifié.
+### 🐛 Corrections
+
+- **Page d'aide** — Redirige maintenant vers la connexion si l'utilisateur n'est pas authentifié.
 - **Menu de navigation** — Masqué sur la page de connexion.
-- **Tour guidé** — Ne crashait plus à la fin pour les utilisateurs sans rôle Responsable ou Admin.
+- **Tour guidé** — Ne plantait plus à la fin pour les utilisateurs sans rôle Responsable ou Admin.
 
 ---
 
 ## [1.7.0] — 6 mars 2026
 
-### ✨ Nouveau
+### ✨ Nouvelles fonctionnalités
+
 - **Signalement de données incorrectes** — Lors de la prise d'un véhicule non connecté, il est possible de signaler et corriger un kilométrage ou un niveau d'essence erroné. Les responsables et admins reçoivent une notification.
 - **Pagination de l'historique** — Les sorties sur la fiche véhicule sont paginées (3 par page).
 
-### 🐛 Corrigé
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
 - **Heure d'affichage** — Toutes les dates sont désormais affichées en heure de Paris (UTC+1).
 
 ---
 
 ## [1.6.0] — 6 mars 2026
 
-### 🔒 Sécurité
-- Renforcement de l'authentification sur l'ensemble des endpoints (véhicules, Renault, emprunts).
-- Ajout d'en-têtes de sécurité HTTP (anti-clickjacking, anti-sniffing, HSTS).
-- Validation stricte des fichiers uploadés (taille, type, nombre).
+### ✨ Nouvelles fonctionnalités
 
-### 🐛 Corrigé
-- **Modales** — La fermeture ne se déclenche plus avant confirmation du succès côté serveur.
-- **Déconnexion** — La déconnexion redirige correctement vers la page de connexion.
+_Aucune nouvelle fonctionnalité._
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🔒 Sécurité
+
+- **Renforcement de l'authentification** sur l'ensemble des accès de l'application.
+- **Protection HTTP** renforcée (anti-clickjacking, anti-sniffing, HSTS).
+- **Validation stricte des fichiers** uploadés (taille, type, nombre).
+
+### 🐛 Corrections
+
+- **Modales** — La fermeture ne se déclenche plus avant confirmation du succès.
+- **Déconnexion** — Redirige correctement vers la page de connexion.
 
 ---
 
 ## [1.5.0] — 6 mars 2026
 
-### ✨ Nouveau
-- **Validation des réservations** — Les chauffeurs soumettent une demande, les Responsables et Admins reçoivent une notification et peuvent valider. Un badge "En attente" / "Validée" s'affiche sur chaque réservation. Les réservations Admin/Respo sont auto-validées.
+### ✨ Nouvelles fonctionnalités
 
-### 🔧 Amélioré
+- **Validation des réservations** — Les chauffeurs soumettent une demande. Les Responsables et Admins reçoivent une notification et peuvent la valider. Un badge "En attente" / "Validée" s'affiche sur chaque réservation. Les réservations Admin/Respo sont auto-validées.
+
+### 🔧 Changements
+
 - **Responsivité mobile** — Les boutons d'action de la fiche véhicule s'affichent correctement sur petits écrans.
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.4.0] — 5 mars 2026
 
-### ✨ Nouveau
-- **Checklists personnalisées** — Les administrateurs peuvent configurer des checklists sur-mesure par véhicule (départ et retour), avec items obligatoires bloquant la soumission si non cochés.
-- **Création d'utilisateurs** — Les administrateurs peuvent créer des comptes utilisateurs directement depuis le panel d'administration.
+### ✨ Nouvelles fonctionnalités
 
-### 🐛 Corrigé
+- **Checklists personnalisées** — Les administrateurs peuvent configurer des checklists sur-mesure par véhicule (départ et retour), avec items obligatoires bloquant la soumission si non cochés.
+- **Création d'utilisateurs** — Les administrateurs peuvent créer des comptes directement depuis le panel d'administration.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
 - **Installation PWA** — Le bouton "Ajouter à l'écran d'accueil" réapparaît correctement sur mobile.
 
 ---
 
 ## [1.3.0] — 5 mars 2026
 
-### ✨ Nouveau
-- **Réservations** — Nouveau système de réservation de véhicule avec calendrier des créneaux à venir sur la fiche véhicule.
+### ✨ Nouvelles fonctionnalités
+
+- **Réservations** — Nouveau système de réservation avec calendrier des créneaux à venir sur la fiche véhicule.
 - **Squelettes de chargement** — Les pages affichent une structure animée pendant le chargement, sans sauts de mise en page.
-- **Application installable (PWA)** — L'application peut être installée sur mobile comme une application native (Android et iOS).
+- **Application installable (PWA)** — L'application peut être installée sur mobile comme une app native (Android et iOS).
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.2.3] — 5 mars 2026
 
-### ✨ Nouveau
-- **Export QR Code** — Chaque fiche véhicule dispose d'un bouton pour générer et télécharger un QR Code pointant directement vers son URL (pratique pour l'impression d'étiquettes).
+### ✨ Nouvelles fonctionnalités
+
+- **Export QR Code** — Chaque fiche véhicule propose un bouton pour générer et télécharger un QR Code pointant vers la fiche (pratique pour les étiquettes physiques).
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.2.2] — 4 mars 2026
 
-### ✨ Nouveau
-- **Easter egg Konami** — ↑ ↑ ↓ ↓ ← → ← → B A
+### ✨ Nouvelles fonctionnalités
 
-### 🐛 Corrigé
+- **Easter egg Konami** — ↑ ↑ ↓ ↓ ← → ← → B A 🎮
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
 - **Redirection après connexion** — L'utilisateur est redirigé vers la page qu'il tentait d'atteindre, et non vers l'accueil.
 
 ---
 
 ## [1.2.1] — 4 mars 2026
 
-### 🔧 Amélioré
-- **Gestion des utilisateurs** — Ajout d'une barre de recherche (nom ou e-mail) et d'une pagination dans la vue administrateur.
+### ✨ Nouvelles fonctionnalités
+
+_Aucune nouvelle fonctionnalité._
+
+### 🔧 Changements
+
+- **Gestion des utilisateurs** — Barre de recherche (nom ou e-mail) et pagination dans la vue administrateur.
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.2.0] — 4 mars 2026
 
-### ✨ Nouveau
+### ✨ Nouvelles fonctionnalités
+
 - **Tutoriel interactif** — Un guide étape par étape accompagne les nouveaux utilisateurs à la prise en main. Relançable depuis la page Aide.
+
+### 🔧 Changements
+
+_Aucun changement notable._
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.1.0] — 2 mars 2026
 
-### ✨ Nouveau
+### ✨ Nouvelles fonctionnalités
+
 - **Alerte mouvement suspect** — Notification push envoyée aux administrateurs si un véhicule est utilisé de manière inhabituelle.
 
-### 🔧 Amélioré
+### 🔧 Changements
+
 - **Notifications** — Passage aux notifications push (mobile et web) en remplacement des e-mails pour les alertes incidents.
-- **URLs des véhicules** — Les adresses utilisent désormais la nomenclature opérationnelle (ex. `/vehicles/VL186`).
+- **URLs des véhicules** — Les adresses utilisent la nomenclature opérationnelle (ex. `/vehicles/VL186`).
+
+### 🐛 Corrections
+
+_Aucune correction._
 
 ---
 
 ## [1.0.0] — 2 mars 2026
 
 ### 🚀 Lancement
+
 - Authentification Google sécurisée, restreinte aux adresses `@croix-rouge.fr`.
-- Gestion du parc automobile avec tableau de bord, fiches véhicules et statuts de maintenance.
+- Gestion du parc automobile : tableau de bord, fiches véhicules, statuts.
 - Cycle complet d'emprunt et de retour : état du véhicule, niveau d'énergie, DSA, type de mission, commentaires, photos.
 - Gestion des conducteurs secondaires.
 - Galerie photos connectée à Google Drive.

@@ -1,0 +1,115 @@
+.tableWrapper {
+    overflow-x: auto;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.table thead th {
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 1px solid var(--border-primary);
+    white-space: nowrap;
+}
+
+.table tbody td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-primary);
+    vertical-align: middle;
+    color: var(--text-primary);
+}
+
+.tableRow:last-child td {
+    border-bottom: none;
+}
+
+.tableRow:hover td {
+    background: var(--bg-secondary);
+}
+
+.centerCol {
+    text-align: center !important;
+}
+
+.dateCell {
+    white-space: nowrap;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+}
+
+.nameCell {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.missionName {
+    font-weight: 500;
+}
+
+.submitterName {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.locationCell {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Type badges */
+.typeBadge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.typeRESEAU {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.typePAPS {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.typeAUTRE {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+}
+
+/* Incident badge */
+.incidentBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--error-text, #991b1b);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+/* Empty state */
+.emptyState {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+    padding: 3rem 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+}

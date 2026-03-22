@@ -76,6 +76,14 @@ export async function POST(request: Request) {
             );
         }
 
+        // Désinfection n'est disponible que pour les véhicules VPSP
+        if (data.missionType === 'Désinfection' && !isVPSP) {
+            return NextResponse.json(
+                { error: 'Le type de mission Désinfection est réservé aux véhicules VPSP' },
+                { status: 400 }
+            );
+        }
+
         // Fetch live Renault data if vehicle is connected (has a VIN)
         let mileageOut = vehicle.mileage as number;
         let fuelOut = vehicle.fuelLevel as number;

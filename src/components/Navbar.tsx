@@ -75,6 +75,9 @@ export default function Navbar({ user }: NavbarProps) {
                             <Link href="/inventory" className={`nav-link${pathname === '/inventory' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/inventory' ? 'page' : undefined}>Inventaire</Link>
                         )}
                         {user.roles?.includes('ADMIN') && (
+                            <Link href="/missions" className={`nav-link${pathname.startsWith('/missions') ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/missions') ? 'page' : undefined}>Missions</Link>
+                        )}
+                        {(user.roles?.includes('ADMIN') || user.roles?.includes('RESPO')) && (
                             <Link href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Utilisateurs</Link>
                         )}
                         <Link href="/aide" className={`nav-link${pathname === '/aide' ? ' active' : ''}`} data-tour="aide" onClick={() => setIsOpen(false)} aria-current={pathname === '/aide' ? 'page' : undefined}>Aide</Link>

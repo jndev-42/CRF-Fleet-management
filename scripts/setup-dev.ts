@@ -33,6 +33,22 @@ async function main() {
         )
     `);
 
+    // Idempotent: add license validation columns if they don't exist yet
+    const userCols = await db.execute('PRAGMA table_info("User")');
+    const colNames = userCols.rows.map(r => r.name as string);
+    if (!colNames.includes('papiers_valides')) {
+        await db.execute(`ALTER TABLE "User" ADD COLUMN "papiers_valides" INTEGER NOT NULL DEFAULT 1`);
+    }
+    if (!colNames.includes('last_validation')) {
+        await db.execute(`ALTER TABLE "User" ADD COLUMN "last_validation" TEXT`);
+    }
+    if (!colNames.includes('start_date_invalidation_process')) {
+        await db.execute(`ALTER TABLE "User" ADD COLUMN "start_date_invalidation_process" TEXT`);
+    }
+    if (!colNames.includes('validated_by')) {
+        await db.execute(`ALTER TABLE "User" ADD COLUMN "validated_by" TEXT`);
+    }
+
     await db.execute(`
         CREATE TABLE IF NOT EXISTS "UserRole" (
             "userId" TEXT NOT NULL,
@@ -44,7 +60,7 @@ async function main() {
     `);
 
     // Seed des rôles
-    const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'SECOURISTE', 'GUEST'];
+    const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST', 'SECOURISTE'];
     for (const role of roles) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
@@ -74,6 +90,8 @@ async function main() {
             "fuelType"              TEXT DEFAULT 'Essence',
             "maxFuelCapacity"       INTEGER,
             "maxBatteryCapacityKwh" INTEGER,
+            "lastDesinfDate"        TEXT,
+            "nextDesinfMaxDate"     TEXT,
             "createdAt"             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt"   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
@@ -111,6 +129,8 @@ async function main() {
             "parkingPhoto"           TEXT,
             "renaultDataValidated"   INTEGER DEFAULT NULL,
             "renaultLastCheckedAt"   TEXT DEFAULT NULL,
+            "desinfResponsable"      TEXT,
+            "desinfLotNumber"        TEXT,
             "createdAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY ("vehicleId") REFERENCES "Vehicle" ("id") ON DELETE CASCADE
         )
@@ -126,6 +146,26 @@ async function main() {
         await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "maxBatteryCapacityKwh" INTEGER`);
         console.log('  ↳ Migration : colonne Vehicle.maxBatteryCapacityKwh ajoutée');
     }
+    if (!vehicleCols.rows.some(r => r.name === 'lastDesinfDate')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "lastDesinfDate" TEXT`);
+        console.log('  ↳ Migration : colonne Vehicle.lastDesinfDate ajoutée');
+    }
+    if (!vehicleCols.rows.some(r => r.name === 'nextDesinfMaxDate')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "nextDesinfMaxDate" TEXT`);
+        console.log('  ↳ Migration : colonne Vehicle.nextDesinfMaxDate ajoutée');
+    }
+    if (!vehicleCols.rows.some(r => r.name === 'firstRegistrationDate')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "firstRegistrationDate" TEXT`);
+        console.log('  ↳ Migration : colonne Vehicle.firstRegistrationDate ajoutée');
+    }
+    if (!vehicleCols.rows.some(r => r.name === 'revisionKmInterval')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "revisionKmInterval" INTEGER`);
+        console.log('  ↳ Migration : colonne Vehicle.revisionKmInterval ajoutée');
+    }
+    if (!vehicleCols.rows.some(r => r.name === 'revisionYearInterval')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "revisionYearInterval" INTEGER`);
+        console.log('  ↳ Migration : colonne Vehicle.revisionYearInterval ajoutée');
+    }
 
     // Migrations idempotentes pour DBs existantes
     const tripCols = await db.execute(`PRAGMA table_info("Trip")`);
@@ -139,6 +179,8 @@ async function main() {
         ['renaultLastCheckedAt',   'TEXT DEFAULT NULL'],
         ['driverId',               'TEXT REFERENCES "User" ("id")'],
         ['secondDriverId',         'TEXT REFERENCES "User" ("id")'],
+        ['desinfResponsable',      'TEXT'],
+        ['desinfLotNumber',        'TEXT'],
     ];
     for (const [col, def] of migrations) {
         if (!existingCols.has(col)) {
@@ -239,6 +281,19 @@ async function main() {
 
     // Make DSA checkout checklist items non-required
     await db.execute({ sql: `UPDATE "VehicleChecklistItem" SET required = 0 WHERE id LIKE 'dsa-checkout-%'`, args: [] });
+
+    // ── Contrôle technique & Révisions ───────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
+            "id"        TEXT NOT NULL PRIMARY KEY,
+            "vehicleId" TEXT NOT NULL REFERENCES "Vehicle"(id),
+            "date"      TEXT NOT NULL,
+            "type"      TEXT NOT NULL,
+            "mileage"   INTEGER,
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
 
     // ── Session Renault ───────────────────────────────────────────
 
@@ -367,15 +422,67 @@ async function main() {
         console.log('  ↳ Migration : colonne InvLocation.templateId ajoutée');
     }
 
+    // ── Comptes Rendus de Mission ─────────────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "mission_reports" (
+            "id"                    TEXT PRIMARY KEY,
+            "submitted_by"          TEXT NOT NULL REFERENCES "User"(id),
+            "submitted_at"          TEXT NOT NULL,
+            "mission_type"          TEXT NOT NULL,
+            "mission_name"          TEXT NOT NULL,
+            "mission_date"          TEXT NOT NULL,
+            "location"              TEXT NOT NULL,
+            "volunteers"            TEXT NOT NULL,
+            "pegass_ok"             INTEGER NOT NULL DEFAULT 1,
+            "vehicle_id"            TEXT REFERENCES "Vehicle"(id),
+            "driver_id"             TEXT REFERENCES "User"(id),
+            "victim_count"          INTEGER NOT NULL DEFAULT 0,
+            "ul18_present"          INTEGER,
+            "team_dynamics"         TEXT,
+            "all_found_place"       INTEGER,
+            "member_difficulties"   INTEGER,
+            "free_comment"          TEXT,
+            "had_acr"               INTEGER NOT NULL DEFAULT 0,
+            "had_hemorrhage"        INTEGER NOT NULL DEFAULT 0,
+            "had_complex_care"      INTEGER NOT NULL DEFAULT 0,
+            "needs_followup"        INTEGER NOT NULL DEFAULT 0,
+            "drive_folder_id"       TEXT
+        )
+    `);
+
+    // Idempotent: add drive_folder_id column for existing DBs
+    const missionCols = await db.execute('PRAGMA table_info("mission_reports")');
+    if (!missionCols.rows.some(r => r.name === 'drive_folder_id')) {
+        await db.execute(`ALTER TABLE "mission_reports" ADD COLUMN "drive_folder_id" TEXT`);
+        console.log('  ↳ Migration : colonne mission_reports.drive_folder_id ajoutée');
+    }
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "mission_report_supplies" (
+            "id"            TEXT PRIMARY KEY,
+            "report_id"     TEXT NOT NULL REFERENCES "mission_reports"(id) ON DELETE CASCADE,
+            "category"      TEXT NOT NULL,
+            "item_name"     TEXT NOT NULL,
+            "quantity_used" INTEGER NOT NULL DEFAULT 0
+        )
+    `);
+
+    await db.execute(`CREATE INDEX IF NOT EXISTS "mission_reports_submitted_by_idx" ON "mission_reports"("submitted_by")`);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "mission_reports_mission_date_idx" ON "mission_reports"("mission_date")`);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_supplies_report_id_idx" ON "mission_report_supplies"("report_id")`);
+
     console.log('✅ Tables créées\n');
 
     // ── Utilisateurs de test ──────────────────────────────────────
 
+    const today = new Date().toISOString().slice(0, 10);
     const devUsers = [
-        { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'] },
-        { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'] },
-        { email: 'chvl@dev.local', name: 'Chauffeur Dev', roles: ['CHVL'] },
-        { email: 'guest@dev.local', name: 'Invité Dev', roles: ['GUEST'] },
+        { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
+        { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
+        { email: 'chvl@dev.local', name: 'Chauffeur Dev', roles: ['CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
+        { email: 'guest@dev.local', name: 'Invité Dev', roles: ['GUEST'], papiers_valides: 1, start_date_invalidation_process: null },
+        { email: 'secouriste@dev.local', name: 'Secouriste Dev', roles: ['SECOURISTE'], papiers_valides: 1, start_date_invalidation_process: null },
     ];
 
     for (const devUser of devUsers) {
@@ -387,12 +494,17 @@ async function main() {
 
         if (existing.rows.length > 0) {
             userId = existing.rows[0].id as string;
+            // Idempotent: update license columns in case they were just added
+            await db.execute({
+                sql: `UPDATE "User" SET papiers_valides = ?, start_date_invalidation_process = ? WHERE id = ?`,
+                args: [devUser.papiers_valides, devUser.start_date_invalidation_process, userId],
+            });
             console.log(`↩  ${devUser.email} déjà existant`);
         } else {
             userId = crypto.randomUUID();
             await db.execute({
-                sql: `INSERT INTO "User" (id, email, name) VALUES (?, ?, ?)`,
-                args: [userId, devUser.email, devUser.name],
+                sql: `INSERT INTO "User" (id, email, name, papiers_valides, start_date_invalidation_process) VALUES (?, ?, ?, ?, ?)`,
+                args: [userId, devUser.email, devUser.name, devUser.papiers_valides, devUser.start_date_invalidation_process],
             });
         }
 
@@ -413,21 +525,69 @@ async function main() {
     const count = await db.execute(`SELECT COUNT(*) as n FROM "Vehicle"`);
     if ((count.rows[0].n as number) === 0) {
         const vehicles = [
-            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur', maxFuelCapacity: null, maxBatteryCapacityKwh: 52 },
-            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur', maxFuelCapacity: 60, maxBatteryCapacityKwh: null },
-            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur', maxFuelCapacity: 50, maxBatteryCapacityKwh: null },
-            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur', maxFuelCapacity: 80, maxBatteryCapacityKwh: null },
+            { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur', maxFuelCapacity: null, maxBatteryCapacityKwh: 52, lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2018-03-20', revisionKmInterval: 40000, revisionYearInterval: 2 },
+            { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur', maxFuelCapacity: 60, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2020-06-15', revisionKmInterval: 15000, revisionYearInterval: 1 },
+            { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur', maxFuelCapacity: 50, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2019-11-08', revisionKmInterval: 40000, revisionYearInterval: 2 },
+            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur', maxFuelCapacity: 80, maxBatteryCapacityKwh: null, lastDesinfDate: '2026-02-04', nextDesinfMaxDate: '2026-03-18', firstRegistrationDate: '2021-09-01', revisionKmInterval: null, revisionYearInterval: null },
         ];
         for (const v of vehicles) {
             await db.execute({
-                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, status, createdAt, updatedAt)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh],
+                sql: `INSERT INTO "Vehicle" (id, name, type, plate, fuelType, fuelLevel, mileage, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval, status, createdAt, updatedAt)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+                args: [crypto.randomUUID(), v.name, v.type, v.plate, v.fuelType, v.fuelLevel, v.mileage, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval],
             });
         }
         console.log('\n🚗 4 véhicules de démo créés');
     } else {
-        console.log('\n🚗 Véhicules déjà présents, skip');
+        // Idempotent update of maintenance fields for existing vehicles
+        await db.execute({
+            sql: `UPDATE "Vehicle" SET firstRegistrationDate = '2020-06-15', revisionKmInterval = 15000, revisionYearInterval = 1
+                  WHERE name LIKE 'VL188%' AND (firstRegistrationDate IS NULL OR firstRegistrationDate = '')`,
+            args: [],
+        });
+        await db.execute({
+            sql: `UPDATE "Vehicle" SET firstRegistrationDate = '2018-03-20', revisionKmInterval = 40000, revisionYearInterval = 2
+                  WHERE name LIKE 'VL186%' AND (firstRegistrationDate IS NULL OR firstRegistrationDate = '')`,
+            args: [],
+        });
+        await db.execute({
+            sql: `UPDATE "Vehicle" SET firstRegistrationDate = '2019-11-08', revisionKmInterval = 40000, revisionYearInterval = 2
+                  WHERE name LIKE 'VL182%' AND (firstRegistrationDate IS NULL OR firstRegistrationDate = '')`,
+            args: [],
+        });
+        await db.execute({
+            sql: `UPDATE "Vehicle" SET firstRegistrationDate = '2021-09-01'
+                  WHERE name LIKE 'VPSP01%' AND (firstRegistrationDate IS NULL OR firstRegistrationDate = '')`,
+            args: [],
+        });
+        console.log('\n🚗 Véhicules déjà présents, données maintenance mises à jour');
+    }
+
+    // ── MaintenanceRecords de démonstration ──────────────────────
+
+    const maintCount = await db.execute(`SELECT COUNT(*) as n FROM "VehicleMaintenanceRecord"`);
+    if ((maintCount.rows[0].n as number) === 0) {
+        const vl188Row = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE name LIKE 'VL188%' LIMIT 1`, args: [] });
+        const vl186Row = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE name LIKE 'VL186%' LIMIT 1`, args: [] });
+        const vpsp01Row = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE name LIKE 'VPSP01%' LIMIT 1`, args: [] });
+
+        if (vl188Row.rows.length > 0) {
+            const vid = vl188Row.rows[0].id as string;
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2024-01-15', 'CT', null] });
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2024-01-15', 'REVISION', 62000] });
+        }
+        if (vl186Row.rows.length > 0) {
+            const vid = vl186Row.rows[0].id as string;
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2023-06-10', 'CT', null] });
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2021-06-10', 'CT', null] });
+        }
+        if (vpsp01Row.rows.length > 0) {
+            const vid = vpsp01Row.rows[0].id as string;
+            await db.execute({ sql: `INSERT INTO "VehicleMaintenanceRecord" (id, vehicleId, date, type, mileage) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), vid, '2025-02-20', 'CT', null] });
+        }
+        console.log('🔧 MaintenanceRecords de démo créés');
+    } else {
+        console.log('🔧 MaintenanceRecords déjà présents, skip');
     }
 
     // ── Trips de démonstration ────────────────────────────────────
@@ -748,6 +908,61 @@ async function main() {
         console.log('\n📦 Inventaire de démonstration créé');
     } else {
         console.log('\n📦 Inventaire déjà présent, skip');
+    // ── Comptes Rendus de Mission de démonstration ────────────────
+
+    const missionCount = await db.execute(`SELECT COUNT(*) as n FROM "mission_reports"`);
+    if ((missionCount.rows[0].n as number) === 0) {
+        const adminRow = await db.execute({ sql: `SELECT id FROM "User" WHERE email = 'admin@dev.local' LIMIT 1`, args: [] });
+        const chvlRow = await db.execute({ sql: `SELECT id FROM "User" WHERE email = 'chvl@dev.local' LIMIT 1`, args: [] });
+        const vpspRow = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE type = 'VPSP' LIMIT 1`, args: [] });
+        const vlRow = await db.execute({ sql: `SELECT id FROM "Vehicle" WHERE type = 'VL' LIMIT 1`, args: [] });
+
+        if (adminRow.rows.length > 0 && chvlRow.rows.length > 0) {
+            const adminId = adminRow.rows[0].id as string;
+            const chvlId = chvlRow.rows[0].id as string;
+            const vpspId = vpspRow.rows.length > 0 ? vpspRow.rows[0].id as string : null;
+            const vlId = vlRow.rows.length > 0 ? vlRow.rows[0].id as string : null;
+
+            const report1Id = crypto.randomUUID();
+            await db.execute({
+                sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [report1Id, adminId, '2026-03-10T18:30:00.000Z', 'RESEAU', 'Poste Secours Fête de Quartier', '2026-03-10', 'Salle des fêtes Paris 18', 'Marie Dupont, Jean Martin', 1, vpspId, adminId, 3, 1, 'BIEN', 1, 0, 'Bonne ambiance, équipe soudée.', 0, 0, 0, 0],
+            });
+            for (const [cat, item, qty] of [
+                ['SAC_PRIMAIRE', "Gants d'examen (paire)", 4],
+                ['SAC_PRIMAIRE', 'Compresses stériles 10x10', 6],
+                ['HYGIENE', 'Masque chirurgical', 3],
+            ] as Array<[string, string, number]>) {
+                await db.execute({ sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), report1Id, cat, item, qty] });
+            }
+
+            const report2Id = crypto.randomUUID();
+            await db.execute({
+                sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [report2Id, chvlId, '2026-03-15T20:00:00.000Z', 'PAPS', 'PAPS Montmartre', '2026-03-15', 'Place du Tertre, Paris 18', 'Moi', 1, vlId, chvlId, 1, 0, null, null, null, null, 0, 1, 0, 1],
+            });
+            for (const [cat, item, qty] of [
+                ['HEMORRHAGIE', 'Garrot tourniquet CAT', 1],
+                ['SAC_PRIMAIRE', "Gants d'examen (paire)", 2],
+                ['OXYGENE', 'Masque haute concentration adulte', 1],
+            ] as Array<[string, string, number]>) {
+                await db.execute({ sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), report2Id, cat, item, qty] });
+            }
+
+            const report3Id = crypto.randomUUID();
+            await db.execute({
+                sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [report3Id, adminId, '2026-03-18T14:00:00.000Z', 'AUTRE', 'Formation premiers secours lycée', '2026-03-18', 'Lycée Jacques Decour, Paris 9', 'Sophie Leroy, Paul Remy, Anne Dumont', 1, null, adminId, 0, 1, 'PLUTOT_BIEN', 1, 1, 'Un bénévole en difficulté sur les gestes techniques, accompagnement prévu.', 0, 0, 0, 0],
+            });
+            await db.execute({ sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), report3Id, 'SAC_PRIMAIRE', 'Masque de bouche-à-bouche', 5] });
+
+            console.log('\n📋 3 comptes rendus de mission de démo créés');
+        }
+    } else {
+        console.log('\n📋 Comptes rendus de mission déjà présents, skip');
     }
 
     console.log('\n✅ Setup terminé ! Lance maintenant : npm run dev');
@@ -756,6 +971,7 @@ async function main() {
     console.log('  Respo    → respo@dev.local');
     console.log('  Chauffeur→ chvl@dev.local');
     console.log('  Invité   → guest@dev.local');
+    }
 }
 
 main().catch(e => { console.error(e); process.exit(1); });
