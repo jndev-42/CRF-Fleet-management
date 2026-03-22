@@ -625,119 +625,117 @@
   <div class="dashboard" id="dash-ci">
     <div class="page-header">
       <h1 class="page-title">Bonjour, Kevin 👋</h1>
-      <p class="page-desc">Tableau de bord Chef d'Intervention / RPAPS</p>
+      <p class="page-desc">Tableau de bord CI / RPAPS</p>
     </div>
 
-    <!-- Alerte si mission PSP en cours sans CI désigné -->
-    <div class="alert-banner" style="background:rgba(20,184,166,0.07);border-color:rgba(20,184,166,0.2);margin-bottom:20px">
-      <span style="font-size:13px;font-weight:600;color:#14B8A6;margin-right:4px">🛡️</span>
-      <a href="#" class="alert-tag" style="background:rgba(20,184,166,0.15);color:#14B8A6">1 mission PSP active</a>
-      <a href="#" class="alert-tag green">✅ VPSP02 disponible</a>
-      <a href="#" class="alert-tag" style="background:rgba(245,158,11,0.15);color:#F59E0B">3 secouristes disponibles ce soir</a>
-    </div>
-
+    <!-- Stats issues de /api/stats (60 derniers jours) -->
     <div class="stats-grid sg-4 wf-annotated">
-      <span class="wf-badge" style="background:#14B8A6;top:-4px;right:-4px" title="KPIs CI/RPAPS centrés sur les opérations PSP et l'équipe secouriste">CI</span>
+      <span class="wf-badge" style="background:#14B8A6;top:-4px;right:-4px" title="KPIs depuis /api/stats — même endpoint que la page Stats, période 60j">1</span>
+      <div class="stat-card red">
+        <div class="stat-label">Missions ce mois</div>
+        <div class="stat-value">18</div>
+        <div class="stat-sub">comptes rendus soumis</div>
+      </div>
       <div class="stat-card teal">
-        <div class="stat-label">VPSP disponibles</div>
-        <div class="stat-value" style="color:#14B8A6">1</div>
-        <div class="stat-sub">Sur 2 VPSP</div>
+        <div class="stat-label">Km parcourus</div>
+        <div class="stat-value" style="color:#14B8A6">1 240</div>
+        <div class="stat-sub">30 derniers jours</div>
       </div>
       <div class="stat-card amber">
-        <div class="stat-label">Missions PSP en cours</div>
-        <div class="stat-value" style="color:var(--status-inuse)">1</div>
-        <div class="stat-sub">Amina B. · VPSP01</div>
-      </div>
-      <div class="stat-card blue">
-        <div class="stat-label">Secouristes dispos</div>
-        <div class="stat-value" style="color:#60A5FA">3</div>
-        <div class="stat-sub">Disponibles ce soir</div>
+        <div class="stat-label">Véhicules en mission</div>
+        <div class="stat-value" style="color:var(--status-inuse)">2</div>
+        <div class="stat-sub">En ce moment</div>
       </div>
       <div class="stat-card green">
-        <div class="stat-label">Interventions ce mois</div>
-        <div class="stat-value" style="color:var(--status-available)">12</div>
-        <div class="stat-sub">dont 4 PSP</div>
+        <div class="stat-label">Disponibles</div>
+        <div class="stat-value" style="color:var(--status-available)">5</div>
+        <div class="stat-sub">Sur 8 véhicules</div>
       </div>
     </div>
 
     <div class="two-col">
-      <!-- Missions PSP en cours -->
+      <!-- Derniers comptes rendus de mission — CI/RPAPS voit TOUT -->
       <div class="section-card wf-annotated">
-        <span class="wf-badge" style="background:#14B8A6" title="Vue missions PSP uniquement — le CI/RPAPS ne voit pas les missions VL standards">CI1</span>
-        <div class="sc-title">Missions PSP en cours <a href="/missions?type=PSP">Voir →</a></div>
+        <span class="wf-badge" style="background:#14B8A6" title="CI/RPAPS voit tous les CRs (pas seulement les siens) — GET /api/missions sans filtre userId">2</span>
+        <div class="sc-title">Comptes rendus récents <a href="/missions">Voir tout →</a></div>
         <div class="list-item">
-          <div class="list-icon amber">🚑</div>
+          <div class="list-icon" style="background:rgba(20,184,166,0.12)">📋</div>
           <div class="list-body">
-            <div class="list-title">Amina Benali</div>
-            <div class="list-meta">VPSP01 · PSP Marché des Batignolles · Parti 09h00</div>
+            <div class="list-title">DPS — Match foot Porte de la Chapelle</div>
+            <div class="list-meta">22 mars · VL186 · Marc L. · 0 victime</div>
           </div>
-          <div class="list-end"><span class="badge inuse">Active</span></div>
+          <div class="list-end">
+            <span class="badge" style="background:rgba(20,184,166,0.15);color:#14B8A6">DPS</span>
+          </div>
         </div>
-        <div class="empty" style="padding:16px">Aucune autre mission PSP en cours</div>
-
-        <div class="sc-title" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-primary)">VPSP disponibles</div>
-        <a href="#" class="vehicle-mini" style="margin-bottom:0">
-          <div class="vm-icon">🚑</div>
-          <div style="flex:1">
-            <div class="vm-name">VPSP02 <span class="badge available" style="font-size:10px;margin-left:6px">Dispo</span></div>
-            <div class="vm-plate">TU-852-VW · Box C1 · Diesel</div>
-            <div class="fuel-wrap"><div class="fuel-label"><span>Diesel</span><span>71%</span></div><div class="fuel-bar"><div class="fuel-fill full" style="width:71%"></div></div></div>
+        <div class="list-item">
+          <div class="list-icon amber">📋</div>
+          <div class="list-body">
+            <div class="list-title">PAPS — Marché des Batignolles</div>
+            <div class="list-meta">20 mars · VPSP01 · Amina B. · 2 victimes</div>
           </div>
-        </a>
+          <div class="list-end">
+            <span class="badge" style="background:rgba(245,158,11,0.15);color:#F59E0B">PAPS</span>
+          </div>
+        </div>
+        <div class="list-item">
+          <div class="list-icon blue">📋</div>
+          <div class="list-body">
+            <div class="list-title">RESEAU — Distribution alimentaire</div>
+            <div class="list-meta">18 mars · VL192 · Julie M. · —</div>
+          </div>
+          <div class="list-end">
+            <span class="badge" style="background:rgba(59,130,246,0.15);color:#60A5FA">RESEAU</span>
+          </div>
+        </div>
+        <div class="list-item">
+          <div class="list-icon" style="background:rgba(239,68,68,0.12)">⚠️</div>
+          <div class="list-body">
+            <div class="list-title">DPS — Suivi nécessaire</div>
+            <div class="list-meta">15 mars · VPSP02 · Kevin R. · 1 victime · ACR</div>
+          </div>
+          <div class="list-end">
+            <span class="badge maintenance">Suivi</span>
+          </div>
+        </div>
+        <div class="anno">📌 GET /api/missions — CI/RPAPS : rows sans filtre userId. Badge "Suivi" = followup_needed=1</div>
       </div>
 
-      <!-- Équipe secouristes + ma prochaine intervention -->
+      <!-- Flotte + actions -->
       <div>
-        <div class="hero-card teal wf-annotated" style="margin-bottom:16px">
-          <span class="wf-badge" style="background:#14B8A6;top:-9px;right:8px" title="Prochaine intervention CI — missions où le user est désigné comme CI">Int</span>
-          <div class="hero-tag" style="color:#14B8A6">🛡️ Ma prochaine intervention</div>
-          <div class="hero-title">PSP — Marché Batignolles</div>
-          <div class="hero-sub">Dimanche 30 mars · 09h00–13h00</div>
-          <div class="hero-row" style="border-top-color:rgba(20,184,166,0.2)">
-            <div class="hero-info"><div class="hero-info-lbl">VPSP assigné</div><div class="hero-info-val">VPSP02</div></div>
-            <div class="hero-info"><div class="hero-info-lbl">Équipe</div><div class="hero-info-val">3 secouristes</div></div>
-            <div class="hero-info"><div class="hero-info-lbl">Statut</div><div class="hero-info-val"><span class="badge approved">✅ Confirmée</span></div></div>
+        <div class="section-card" style="margin-bottom:16px">
+          <div class="sc-title">Flotte — état actuel <a href="/vehicles">Voir →</a></div>
+          <div class="list-item">
+            <div class="list-icon green">🚗</div>
+            <div class="list-body"><div class="list-title">VL186</div><div class="list-meta">VL · Disponible · Box A2</div></div>
+            <span class="badge available">Dispo</span>
           </div>
+          <div class="list-item">
+            <div class="list-icon amber">🚗</div>
+            <div class="list-body"><div class="list-title">VL192</div><div class="list-meta">VL · En mission · Marc L.</div></div>
+            <span class="badge inuse">En mission</span>
+          </div>
+          <div class="list-item">
+            <div class="list-icon amber">🚑</div>
+            <div class="list-body"><div class="list-title">VPSP01</div><div class="list-meta">VPSP · En mission · Amina B.</div></div>
+            <span class="badge inuse">En mission</span>
+          </div>
+          <div class="list-item">
+            <div class="list-icon green">🚑</div>
+            <div class="list-body"><div class="list-title">VPSP02</div><div class="list-meta">VPSP · Disponible · Box C1</div></div>
+            <span class="badge available">Dispo</span>
+          </div>
+          <div class="anno">📌 Lecture seule — pas de checkout/checkin pour CI/RPAPS sans rôle CHVL/CHVPSP</div>
         </div>
 
-        <div class="section-card wf-annotated">
-          <span class="wf-badge" style="background:#14B8A6" title="Tableau équipe — secouristes disponibles pour les prochaines interventions">Eq</span>
-          <div class="sc-title">Équipe disponible ce soir</div>
-          <div class="list-item">
-            <div class="list-icon teal">🩺</div>
-            <div class="list-body"><div class="list-title">Lucie Bernard</div><div class="list-meta">SECOURISTE · PSC1 valide</div></div>
-            <div class="list-end"><span class="badge available">Dispo</span></div>
+        <div class="section-card">
+          <div class="sc-title">Actions</div>
+          <div class="qa-grid">
+            <a href="#" class="qa-btn primary qa-btn full"><span class="qa-icon">📋</span>Nouveau compte rendu de mission</a>
+            <a href="#" class="qa-btn"><span class="qa-icon">📂</span>Tous les comptes rendus</a>
+            <a href="#" class="qa-btn"><span class="qa-icon">📊</span>Statistiques</a>
+            <a href="#" class="qa-btn"><span class="qa-icon">❓</span>Aide &amp; contacts</a>
           </div>
-          <div class="list-item">
-            <div class="list-icon teal">🩺</div>
-            <div class="list-body"><div class="list-title">Romain Petit</div><div class="list-meta">SECOURISTE · PSC1 valide</div></div>
-            <div class="list-end"><span class="badge available">Dispo</span></div>
-          </div>
-          <div class="list-item">
-            <div class="list-icon teal">🩺</div>
-            <div class="list-body"><div class="list-title">Fatima Zahra</div><div class="list-meta">SECOURISTE · PSC1 valide</div></div>
-            <div class="list-end"><span class="badge available">Dispo</span></div>
-          </div>
-          <div class="anno">📌 "Disponible" = pas de mission planifiée sur ce créneau. Données venant de /api/missions</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Mes docs CI + actions -->
-    <div class="two-col">
-      <div class="section-card">
-        <div class="sc-title">Mes certifications</div>
-        <div class="doc-row"><div><div class="doc-label">PSC1 / BNSSA</div><div class="doc-meta">Expire le 10/12/2027</div></div><span class="badge approved">✅ Valide</span></div>
-        <div class="doc-row"><div><div class="doc-label">Formation CI interne CRF</div><div class="doc-meta">Validée le 05/09/2025</div></div><span class="badge approved">✅ Valide</span></div>
-        <div class="doc-row"><div><div class="doc-label">Recyclage premiers secours</div><div class="doc-meta">Expire le 05/09/2026</div></div><span class="badge approved">✅ Valide</span></div>
-      </div>
-      <div class="section-card">
-        <div class="sc-title">Actions</div>
-        <div class="qa-grid">
-          <a href="#" class="qa-btn primary"><span class="qa-icon">🚑</span>Réserver un VPSP</a>
-          <a href="#" class="qa-btn"><span class="qa-icon">🗓️</span>Mes interventions</a>
-          <a href="#" class="qa-btn"><span class="qa-icon">👥</span>Voir l'équipe</a>
-          <a href="#" class="qa-btn"><span class="qa-icon">📄</span>Mes certifications</a>
         </div>
       </div>
     </div>
@@ -753,93 +751,101 @@
       <p class="page-desc">Tableau de bord bénévole secouriste</p>
     </div>
 
-    <!-- Ma prochaine intervention (hero) -->
-    <div class="hero-card blue wf-annotated">
-      <span class="wf-badge" style="background:#3B82F6;top:-9px;right:8px" title="Prochaine intervention assignée au secouriste. Masqué si aucune intervention prévue.">S</span>
-      <div class="hero-tag" style="color:#60A5FA">🩺 Ma prochaine intervention</div>
-      <div class="hero-title">PSP — Marché des Batignolles</div>
-      <div class="hero-sub">Dimanche 30 mars · 09h00–13h00</div>
-      <div class="hero-row" style="border-top-color:rgba(59,130,246,0.2)">
-        <div class="hero-info"><div class="hero-info-lbl">CI désigné</div><div class="hero-info-val">Kevin Rousseau</div></div>
-        <div class="hero-info"><div class="hero-info-lbl">VPSP</div><div class="hero-info-val">VPSP02</div></div>
-        <div class="hero-info"><div class="hero-info-lbl">Équipe</div><div class="hero-info-val">3 secouristes</div></div>
-        <div class="hero-info"><div class="hero-info-lbl">Statut</div><div class="hero-info-val"><span class="badge approved">✅ Confirmée</span></div></div>
+    <!-- KPIs inventaire — depuis /api/inventory -->
+    <div class="stats-grid sg-4 wf-annotated">
+      <span class="wf-badge blue" style="top:-4px;right:-4px" title="KPIs depuis GET /api/inventory — même données que la page Inventaire">1</span>
+      <div class="stat-card amber">
+        <div class="stat-label">Expirent bientôt</div>
+        <div class="stat-value" style="color:var(--status-inuse)">4</div>
+        <div class="stat-sub">dans les 30 prochains jours</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-label">Hors service</div>
+        <div class="stat-value" style="color:var(--status-maintenance)">2</div>
+        <div class="stat-sub">articles à remplacer</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Alertes pharma</div>
+        <div class="stat-value" style="color:#60A5FA">1</div>
+        <div class="stat-sub">sous seuil critique</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Complétude flotte</div>
+        <div class="stat-value" style="color:var(--status-available)">87%</div>
+        <div class="stat-sub">vs. templates sacs</div>
       </div>
     </div>
 
     <div class="two-col">
-      <!-- Véhicules — lecture seule -->
+      <!-- Articles critiques inventaire -->
       <div class="section-card wf-annotated">
-        <span class="wf-badge green" title="Lecture seule — le SECOURISTE voit la disponibilité mais pas le carburant, km, ni plaque complète">RO</span>
-        <div class="sc-title">Flotte — disponibilité <a href="/vehicles">→</a></div>
+        <span class="wf-badge blue" title="Articles nécessitant attention — filtre sur status=HORS_SERVICE ou expiry < 30j. Données de /api/inventory">2</span>
+        <div class="sc-title">Inventaire — points d'attention <a href="/inventory">Gérer →</a></div>
         <div class="list-item">
-          <div class="list-icon green">🚗</div>
-          <div class="list-body"><div class="list-title">VL186</div><div class="list-meta">VL · Électrique</div></div>
-          <span class="badge available">Disponible</span>
+          <div class="list-icon" style="background:rgba(239,68,68,0.12)">⚠️</div>
+          <div class="list-body">
+            <div class="list-title">Gants latex T.M — SAC_PRIMAIRE 01</div>
+            <div class="list-meta">Hors service · Qté : 0/10</div>
+          </div>
+          <div class="list-end"><span class="badge maintenance">Hors service</span></div>
         </div>
         <div class="list-item">
-          <div class="list-icon amber">🚗</div>
-          <div class="list-body"><div class="list-title">VL192</div><div class="list-meta">VL · Essence</div></div>
-          <span class="badge inuse">En mission</span>
+          <div class="list-icon amber">⏰</div>
+          <div class="list-body">
+            <div class="list-title">Compresses stériles — PHARMA_TAMPON</div>
+            <div class="list-meta">Expire le 15/04/2026 · Qté : 8</div>
+          </div>
+          <div class="list-end"><span class="badge soon">12 jours</span></div>
         </div>
         <div class="list-item">
-          <div class="list-icon amber">🚑</div>
-          <div class="list-body"><div class="list-title">VPSP01</div><div class="list-meta">VPSP · Diesel</div></div>
-          <span class="badge inuse">En mission</span>
+          <div class="list-icon amber">⏰</div>
+          <div class="list-body">
+            <div class="list-title">Bande de crêpe — VPSP01</div>
+            <div class="list-meta">Expire le 28/04/2026 · Qté : 4</div>
+          </div>
+          <div class="list-end"><span class="badge soon">25 jours</span></div>
         </div>
         <div class="list-item">
-          <div class="list-icon green">🚑</div>
-          <div class="list-body"><div class="list-title">VPSP02</div><div class="list-meta">VPSP · Diesel</div></div>
-          <span class="badge available">Disponible</span>
+          <div class="list-icon" style="background:rgba(239,68,68,0.12)">📉</div>
+          <div class="list-body">
+            <div class="list-title">Sérum physiologique — PHARMA_TAMPON</div>
+            <div class="list-meta">Qté : 2 · Seuil critique : 5</div>
+          </div>
+          <div class="list-end"><span class="badge maintenance">Critique</span></div>
         </div>
-        <div class="anno">📌 Données masquées : km, carburant, plaques, stationnement</div>
+        <div class="anno">📌 Données issues de /api/inventory — même contenu que la page Inventaire, filtrée sur les alertes</div>
       </div>
 
-      <!-- Mes certifications + interventions récentes -->
+      <!-- Flotte + actions -->
       <div>
-        <div class="section-card wf-annotated" style="margin-bottom:16px">
-          <span class="wf-badge purple" title="Certifications secouriste — alerte si PSC1 expire dans moins de 60j (délai recyclage)">C</span>
-          <div class="sc-title">Mes certifications</div>
-          <div class="doc-row"><div><div class="doc-label">PSC1</div><div class="doc-meta">Expire le 14/09/2027</div></div><span class="badge approved">✅ Valide</span></div>
-          <div class="doc-row"><div><div class="doc-label">Attestation bénévole CRF</div><div class="doc-meta">Expire le 01/04/2026</div></div><span class="badge soon">⚠️ Bientôt</span></div>
-          <div class="doc-row"><div><div class="doc-label">Formation initiale CRF</div><div class="doc-meta">Validée le 10/03/2025</div></div><span class="badge approved">✅ Validée</span></div>
-          <div class="anno">📌 Alerte "Bientôt" = &lt; 60 jours (PSC1 recyclage long)</div>
+        <div class="section-card" style="margin-bottom:16px">
+          <div class="sc-title">Flotte — état actuel <a href="/vehicles">Voir →</a></div>
+          <div class="list-item">
+            <div class="list-icon green">🚗</div>
+            <div class="list-body"><div class="list-title">VL186</div><div class="list-meta">VL · Électrique · Disponible</div></div>
+            <span class="badge available">Dispo</span>
+          </div>
+          <div class="list-item">
+            <div class="list-icon amber">🚗</div>
+            <div class="list-body"><div class="list-title">VL192</div><div class="list-meta">VL · Essence · En mission</div></div>
+            <span class="badge inuse">En mission</span>
+          </div>
+          <div class="list-item">
+            <div class="list-icon green">🚑</div>
+            <div class="list-body"><div class="list-title">VPSP02</div><div class="list-meta">VPSP · Diesel · Disponible</div></div>
+            <span class="badge available">Dispo</span>
+          </div>
+          <div class="anno">📌 Lecture seule — pas de checkout/checkin sans rôle CHVL/CHVPSP</div>
         </div>
 
         <div class="section-card">
-          <div class="sc-title">Mes dernières interventions</div>
-          <div class="timeline-item"><div class="tl-dot teal"></div><div class="tl-body"><div class="tl-title">PSP · Marché Batignolles</div><div class="tl-meta">16 mars · 09h00–13h00</div></div></div>
-          <div class="timeline-item"><div class="tl-dot teal"></div><div class="tl-body"><div class="tl-title">PSP · Match foot Porte de la Chapelle</div><div class="tl-meta">08 mars · 14h00–18h00</div></div></div>
-          <div class="timeline-item"><div class="tl-dot teal"></div><div class="tl-body"><div class="tl-title">Maraude + secours · VL186</div><div class="tl-meta">01 mars · 20h00–23h30</div></div></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Fonctionnalités verrouillées + contact CI -->
-    <div class="two-col">
-      <div class="restrict">
-        <div class="restrict-icon">🔒</div>
-        <div class="restrict-title">Fonctionnalités non disponibles</div>
-        <div style="font-size:13px;color:var(--text-secondary);margin-top:8px;text-align:left">
-          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Réserver un véhicule</span></div>
-          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Check-out / Check-in</span></div>
-          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Statistiques</span></div>
-          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Inventaire</span></div>
-          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Gestion utilisateurs</span></div>
-        </div>
-        <div class="anno" style="text-align:left;margin-top:12px">📌 Pour conduire un véhicule, un ADMIN/RESPO doit attribuer le rôle CHVL ou CHVPSP</div>
-      </div>
-
-      <div class="section-card">
-        <div class="sc-title">Actions</div>
-        <div class="qa-grid">
-          <a href="#" class="qa-btn primary qa-btn full"><span class="qa-icon">🗓️</span>Voir mes interventions</a>
-          <a href="#" class="qa-btn"><span class="qa-icon">📄</span>Mes certifications</a>
-          <a href="#" class="qa-btn"><span class="qa-icon">👤</span>Mon profil</a>
-        </div>
-        <div style="margin-top:14px;padding:14px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);border-radius:var(--radius-md)">
-          <div style="font-size:12px;font-weight:600;color:#60A5FA;margin-bottom:6px">📬 Besoin d'un rôle chauffeur ?</div>
-          <div style="font-size:12px;color:var(--text-secondary)">Contactez votre responsable ou un admin CRF pour faire ajouter le rôle CHVL ou CHVPSP à votre compte.</div>
+          <div class="sc-title">Actions</div>
+          <div class="qa-grid">
+            <a href="#" class="qa-btn primary qa-btn full"><span class="qa-icon">📦</span>Gérer l'inventaire</a>
+            <a href="#" class="qa-btn"><span class="qa-icon">🚗</span>Voir les véhicules</a>
+            <a href="#" class="qa-btn"><span class="qa-icon">📊</span>Statistiques</a>
+            <a href="#" class="qa-btn"><span class="qa-icon">❓</span>Aide &amp; contacts</a>
+          </div>
         </div>
       </div>
     </div>
@@ -905,11 +911,19 @@ const top = PRIORITY.find(r =>
   </div>
   <div class="wf-legend-item">
     <span class="wf-num teal">CI</span>
-    <div><div class="wf-legend-text" style="font-weight:600;color:#F0F1F5">CI/RPAPS</div><div class="wf-legend-text">KPIs PSP + missions PSP en cours + VPSP dispo + ma prochaine intervention + équipe secouristes dispos</div></div>
+    <div>
+      <div class="wf-legend-text" style="font-weight:600;color:#F0F1F5">CI/RPAPS</div>
+      <div class="wf-legend-text">KPIs stats (GET /api/stats) + tous les comptes rendus de mission (GET /api/missions sans filtre) + flotte read-only + créer un nouveau CR</div>
+      <div class="wf-legend-text" style="margin-top:4px;color:#5C6070">❌ Pas de checkout · ❌ Pas d'inventaire (sans SECOURISTE)</div>
+    </div>
   </div>
   <div class="wf-legend-item">
     <span class="wf-num blue">Se</span>
-    <div><div class="wf-legend-text" style="font-weight:600;color:#F0F1F5">SECOURISTE</div><div class="wf-legend-text">Ma prochaine intervention + flotte read-only (sans données sensibles) + certifications + interventions passées</div></div>
+    <div>
+      <div class="wf-legend-text" style="font-weight:600;color:#F0F1F5">SECOURISTE</div>
+      <div class="wf-legend-text">KPIs inventaire (GET /api/inventory) + alertes articles critiques/expirants + flotte read-only + accès stats + lien vers page Inventaire</div>
+      <div class="wf-legend-text" style="margin-top:4px;color:#5C6070">❌ Pas de checkout · ❌ Pas de comptes rendus mission</div>
+    </div>
   </div>
 
   <hr class="wf-legend-sep" />
@@ -918,8 +932,7 @@ const top = PRIORITY.find(r =>
     ⛽ Carburant critique : <strong style="color:#EF4444">&lt; 20%</strong><br>
     ⚠️ Carburant bas : <strong style="color:#F59E0B">&lt; 30%</strong><br>
     📄 Doc bientôt expiré : <strong style="color:#F59E0B">&lt; 30 jours</strong><br>
-    🩺 Certif secouriste : <strong style="color:#F59E0B">&lt; 60 jours</strong><br>
-    📄 Doc expiré : <strong style="color:#EF4444">date dépassée</strong>
+    📦 Inventaire expirant : <strong style="color:#F59E0B">&lt; 30 jours</strong>
   </div>
 
   <hr class="wf-legend-sep" />
