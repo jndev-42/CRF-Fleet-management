@@ -18,6 +18,7 @@ import GuidedTour from "@/components/GuidedTour";
 import KonamiEasterEgg from "@/components/KonamiEasterEgg";
 import BugReportButton from "@/components/BugReportButton";
 import LicenseBanner from "@/components/LicenseBanner";
+import { MenuSettingsProvider } from "@/lib/contexts/MenuSettingsContext";
 
 export const metadata: Metadata = {
   title: "Gestion de flotte | Croix-Rouge Paris 18",
@@ -60,27 +61,29 @@ export default async function RootLayout({
         <OneSignalProvider appId={onesignalId} roles={roles} />
         <SessionProvider session={session}>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-            <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-              <Navbar user={session?.user} />
-              {session?.user && <LicenseBanner />}
-              <main id="main-content" className="main-content" role="main" style={{ flexGrow: 1 }}>
-                {children}
-              </main>
-              {session?.user && <GuidedTour roles={roles} />}
-              {session?.user && <KonamiEasterEgg />}
-              {session?.user && <BugReportButton />}
-              <footer role="contentinfo" style={{
-                textAlign: 'center',
-                padding: '24px 16px',
-                fontSize: '12px',
-                color: 'var(--text-tertiary)',
-                borderTop: '1px solid var(--border-primary)',
-                marginTop: 'auto'
-              }}>
-                <div>© 2026 - Jean-Noël DURAND pour le compte de la Croix Rouge (unité locale de Paris 18). Tous droits réservés.</div>
-                <FooterChangelog />
-              </footer>
-            </div>
+            <MenuSettingsProvider>
+              <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+                <Navbar user={session?.user} />
+                {session?.user && <LicenseBanner />}
+                <main id="main-content" className="main-content" role="main" style={{ flexGrow: 1 }}>
+                  {children}
+                </main>
+                {session?.user && <GuidedTour roles={roles} />}
+                {session?.user && <KonamiEasterEgg />}
+                {session?.user && <BugReportButton />}
+                <footer role="contentinfo" style={{
+                  textAlign: 'center',
+                  padding: '24px 16px',
+                  fontSize: '12px',
+                  color: 'var(--text-tertiary)',
+                  borderTop: '1px solid var(--border-primary)',
+                  marginTop: 'auto'
+                }}>
+                  <div>© 2026 - Jean-Noël DURAND pour le compte de la Croix Rouge (unité locale de Paris 18). Tous droits réservés.</div>
+                  <FooterChangelog />
+                </footer>
+              </div>
+            </MenuSettingsProvider>
           </ThemeProvider>
         </SessionProvider>
       </body>

@@ -4,8 +4,19 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 
 function resolveRoles(roles: string[]): string[] {
-    const nonGuest = roles.filter(r => r !== 'GUEST');
-    return nonGuest.length > 0 ? nonGuest : (roles.includes('GUEST') ? ['GUEST'] : []);
+    // 'INACTIF' is the current inactive role; 'GUEST' is the legacy alias (DB backfill pending)
+    const isInactiveRole = (r: string) => r === 'INACTIF' || r === 'GUEST';
+    const activeRoles = roles.filter(r => !isInactiveRole(r));
+    if (activeRoles.length === 0) {
+        // Preserve whatever inactive role was passed (GUEST or INACTIF) — DB backfill handles normalization
+        const inactiveRole = roles.find(isInactiveRole);
+        return inactiveRole ? [inactiveRole] : [];
+    }
+    // Auto-assign SECOURISTE to any user with at least one active role
+    if (!activeRoles.includes('SECOURISTE')) {
+        activeRoles.push('SECOURISTE');
+    }
+    return activeRoles;
 }
 
 /** Zod schema for creating a new user */
@@ -36,7 +47,8 @@ export async function GET(request: Request) {
 
         let roleFilter: string[] | null = null;
         if (vehicleType === 'VPSP') roleFilter = ['CHVPSP'];
-        else if (vehicleType === 'VL' || driversOnly) roleFilter = ['CHVL', 'CHVPSP'];
+        else if (vehicleType === 'VL') roleFilter = ['CHVL'];
+        else if (driversOnly) roleFilter = ['CHVL', 'CHVPSP'];
 
         const usersRes = await db.execute(
             roleFilter

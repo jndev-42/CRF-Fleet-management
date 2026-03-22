@@ -49,8 +49,6 @@ interface InvLocationOption {
     type: string;
 }
 
-const SECOURISTE_ROLES = ['SECOURISTE', 'CHVL', 'CHVPSP', 'RESPO', 'ADMIN'];
-
 export default function InventoryPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -77,7 +75,7 @@ export default function InventoryPage() {
     }, [status, router]);
 
     const userRoles = (session?.user?.roles ?? ['GUEST']) as string[];
-    const canWrite = userRoles.some(r => SECOURISTE_ROLES.includes(r));
+    const canWrite = userRoles.includes('SECOURISTE');
     const isAdmin = userRoles.includes('ADMIN');
 
     const fetchInventory = useCallback(async () => {

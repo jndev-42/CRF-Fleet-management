@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 
@@ -11,14 +11,15 @@ const reportSchema = z.object({
   pageUrl: z.string().optional(),
 });
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
   }
 
-  const roles = session.user.roles || ['GUEST'];
-  if (roles.length === 1 && roles[0] === 'GUEST') {
+  const roles = session.user.roles || ['INACTIF'];
+  const isInactive = (r: string) => r === 'INACTIF' || r === 'GUEST';
+  if (roles.length > 0 && roles.every(isInactive)) {
     return NextResponse.json({ error: 'Interdit' }, { status: 403 });
   }
 

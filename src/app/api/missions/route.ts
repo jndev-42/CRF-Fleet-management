@@ -40,7 +40,7 @@ const createMissionReportSchema = z.object({
     }
 });
 
-const ALLOWED_ROLES = ['CHVL', 'CHVPSP', 'RESPO', 'ADMIN', 'SECOURISTE'];
+const ALLOWED_ROLES = ['ADMIN', 'CI/RPAPS'];
 
 /** GET /api/missions — Liste paginée des comptes rendus.
  *  RESPO/ADMIN : tous. CHVL/CHVPSP : les siens uniquement.
@@ -52,13 +52,13 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        const roles = (session.user.roles || ['GUEST']) as string[];
+        const roles = (session.user.roles || ['INACTIF']) as string[];
         const canView = ALLOWED_ROLES.some(r => roles.includes(r));
         if (!canView) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
-        const isAdmin = roles.includes('ADMIN') || roles.includes('RESPO');
+        const isAdmin = roles.includes('ADMIN') || roles.includes('CI/RPAPS');
         const userId = session.user.id;
 
         const { searchParams } = new URL(request.url);
@@ -149,7 +149,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        const roles = (session.user.roles || ['GUEST']) as string[];
+        const roles = (session.user.roles || ['INACTIF']) as string[];
         const canSubmit = ALLOWED_ROLES.some(r => roles.includes(r));
         if (!canSubmit) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });

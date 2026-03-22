@@ -28,6 +28,9 @@ function makeByDriver(name: string, pct: number, tripCount: number): ByDriver {
       totalKm: 500,
       percentOfTotal: 50,
       incidents: 0,
+      avgFuelAtReturn: 0,
+      avgLPer100km: 0,
+      avgKwhPer100km: 0,
       byVehicle: [
         {
           vehicleId: 'VL001',
@@ -74,13 +77,13 @@ describe('FunFactor component', () => {
     render(<FunFactor byDriver={makeByDriver('Alice Martin', 90, 5)} />);
     // 90% tier: one of the pool emojis must appear
     const emoji = screen.getByText((_, el) =>
-      el?.classList.contains('fun-emoji') &&
-      ['🪥', '🛖', '🔐', '🏷️'].includes(el.textContent ?? '')
+      (el?.classList.contains('fun-emoji') ?? false) &&
+      ['🪥', '🛖', '🔐', '🏷️'].includes(el?.textContent ?? '')
     );
     expect(emoji).toBeTruthy();
     // The message must include the driver's first name
     const message = screen.getByText((_, el) =>
-      el?.classList.contains('fun-message') === true
+      el?.classList.contains('fun-message') ?? false
     );
     expect(message.textContent).toContain('Alice');
   });
@@ -100,6 +103,9 @@ describe('FunFactor component', () => {
         totalKm: 300,
         percentOfTotal: 40,
         incidents: 0,
+        avgFuelAtReturn: 0,
+        avgLPer100km: 0,
+        avgKwhPer100km: 0,
         // 75% → "bureau mobile" tier
         byVehicle: [{ vehicleId: 'VL001', vehicleName: 'VL186', tripCount: 5, percentOfVehicleTotal: 75 }],
       },
@@ -111,6 +117,9 @@ describe('FunFactor component', () => {
         totalKm: 500,
         percentOfTotal: 60,
         incidents: 0,
+        avgFuelAtReturn: 0,
+        avgLPer100km: 0,
+        avgKwhPer100km: 0,
         // 90% → "brosse à dents" tier
         byVehicle: [{ vehicleId: 'VL002', vehicleName: 'VL188', tripCount: 8, percentOfVehicleTotal: 90 }],
       },

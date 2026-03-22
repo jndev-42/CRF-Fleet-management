@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wireframe 07 — Dashboard par rôle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --crf-red: #E30613; --crf-red-glow: rgba(227,6,19,0.2);
+      --bg-primary: #0A0B0E; --bg-secondary: #12141A; --bg-card: #181B23;
+      --bg-card-hover: #1E2230; --bg-header: rgba(18,20,26,0.92); --bg-input: #1A1D27;
+      --border-primary: rgba(255,255,255,0.06); --border-hover: rgba(255,255,255,0.12);
+      --text-primary: #F0F1F5; --text-secondary: #9398A7; --text-muted: #5C6070;
+      --status-available: #22C55E; --status-available-bg: rgba(34,197,94,0.12);
+      --status-inuse: #F59E0B; --status-inuse-bg: rgba(245,158,11,0.12);
+      --status-maintenance: #EF4444; --status-maintenance-bg: rgba(239,68,68,0.12);
+      --fuel-full: #22C55E; --fuel-mid: #F59E0B; --fuel-low: #EF4444;
+      --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--bg-primary); color: var(--text-primary);
+      line-height: 1.6; margin-right: 320px;
+    }
+
+    /* ===== ANNOTATIONS ===== */
+    .wf-annotated { position: relative; }
+    .wf-badge {
+      position: absolute; top: -9px; right: -9px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #3B82F6; color: #fff;
+      font-size: 9px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 100; box-shadow: 0 2px 6px rgba(0,0,0,0.6); cursor: help;
+    }
+    .wf-badge.orange { background: #F97316; }
+    .wf-badge.green  { background: #22C55E; color: #111; }
+    .wf-badge.purple { background: #A855F7; }
+    .wf-highlight { outline: 1.5px dashed rgba(59,130,246,0.45); outline-offset: 2px; border-radius: 4px; }
+    .wf-highlight.orange { outline-color: rgba(249,115,22,0.55); }
+    .wf-highlight.green  { outline-color: rgba(34,197,94,0.55); }
+    .wf-highlight.purple { outline-color: rgba(168,85,247,0.55); }
+
+    /* ===== LEGEND ===== */
+    .wf-legend {
+      position: fixed; right: 0; top: 0; bottom: 0; width: 320px;
+      background: #12141A; border-left: 1px solid rgba(255,255,255,0.07);
+      overflow-y: auto; padding: 20px 16px; z-index: 9999; font-size: 11.5px;
+    }
+    .wf-legend-title    { font-size: 13px; font-weight: 700; color: #F0F1F5; margin-bottom: 4px; }
+    .wf-legend-subtitle { font-size: 11px; color: #5C6070; margin-bottom: 12px; line-height: 1.5; }
+    .wf-legend-section  { font-size: 10px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #5C6070; margin: 14px 0 8px; }
+    .wf-legend-item     { display: flex; gap: 8px; margin-bottom: 10px; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.03); }
+    .wf-num  { width: 18px; height: 18px; border-radius: 50%; font-size: 9px; font-weight: 800; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .wf-num.blue   { background: #3B82F6; color: #fff; }
+    .wf-num.orange { background: #F97316; color: #fff; }
+    .wf-num.green  { background: #22C55E; color: #111; }
+    .wf-num.purple { background: #A855F7; color: #fff; }
+    .wf-num.teal   { background: #14B8A6; color: #fff; }
+    .wf-legend-text { color: #9398A7; line-height: 1.5; font-size: 11px; }
+    .wf-legend-code { font-family: 'SF Mono', monospace; font-size: 10px; color: #93C5FD; display: block; margin-top: 3px; word-break: break-all; }
+    .wf-legend-sep  { border: none; border-top: 1px solid rgba(255,255,255,0.06); margin: 12px 0; }
+    .wf-screen-label { background: rgba(227,6,19,0.1); color: #E30613; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; padding: 4px 10px; border-radius: 20px; display: inline-block; margin-bottom: 14px; text-transform: uppercase; }
+
+    /* ===== APP CHROME ===== */
+    header {
+      background: var(--bg-header); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-primary);
+      height: 64px; display: flex; align-items: center;
+      padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 50;
+    }
+    .header-logo { width: 36px; height: 36px; background: var(--crf-red); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px var(--crf-red-glow); flex-shrink: 0; }
+    .header-logo svg { width: 20px; height: 20px; }
+    .header-title    { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+    .header-subtitle { font-size: 11px; color: var(--text-secondary); }
+    nav { display: flex; gap: 4px; align-items: center; flex: 1; margin-left: 16px; }
+    .nav-link { font-size: 14px; font-weight: 500; padding: 6px 12px; border-radius: var(--radius-sm); color: var(--text-secondary); text-decoration: none; }
+    .nav-link.active { color: var(--crf-red); background: rgba(227,6,19,0.1); }
+    .header-user { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: rgba(227,6,19,0.2); border: 2px solid rgba(227,6,19,0.3); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #E30613; }
+    .user-name   { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+
+    main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+    /* ===== ROLE SWITCHER ===== */
+    .role-switcher {
+      display: flex; gap: 6px; flex-wrap: wrap;
+      background: var(--bg-card); border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg); padding: 8px; margin-bottom: 32px;
+    }
+    .role-btn {
+      flex: 1; min-width: 110px; padding: 10px 12px; border-radius: var(--radius-md);
+      border: none; background: transparent; color: var(--text-secondary);
+      font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: all 150ms; text-align: center; white-space: nowrap;
+    }
+    .role-btn:hover { background: rgba(255,255,255,0.04); color: var(--text-primary); }
+    .role-btn.active { background: var(--crf-red); color: #fff; box-shadow: 0 0 12px var(--crf-red-glow); }
+    .role-btn .role-label { display: block; font-size: 10px; font-weight: 400; opacity: 0.75; margin-top: 2px; }
+    .hierarchy-row { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    .hier-pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+    .hier-arrow { color: var(--text-muted); font-size: 14px; }
+
+    /* ===== DASHBOARD PANELS ===== */
+    .dashboard { display: none; }
+    .dashboard.active { display: block; }
+
+    /* Page header */
+    .page-header { margin-bottom: 28px; }
+    .page-title   { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+    .page-desc    { font-size: 14px; color: var(--text-secondary); margin-top: 4px; }
+
+    /* Alert banner */
+    .alert-banner {
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 22px;
+      padding: 12px 16px; background: rgba(245,158,11,0.08);
+      border: 1px solid rgba(245,158,11,0.2); border-radius: var(--radius-md);
+    }
+    .alert-tag {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+      background: rgba(245,158,11,0.15); color: #F59E0B; cursor: pointer; text-decoration: none;
+    }
+    .alert-tag.red   { background: rgba(239,68,68,0.15);  color: #EF4444; }
+    .alert-tag.green { background: rgba(34,197,94,0.15);  color: #22C55E; }
+    .alert-tag.blue  { background: rgba(59,130,246,0.15); color: #60A5FA; }
+
+    /* Stats */
+    .stats-grid   { display: grid; gap: 16px; margin-bottom: 24px; }
+    .sg-5 { grid-template-columns: repeat(5,1fr); }
+    .sg-4 { grid-template-columns: repeat(4,1fr); }
+    .sg-3 { grid-template-columns: repeat(3,1fr); }
+    .sg-2 { grid-template-columns: repeat(2,1fr); }
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg); padding: 20px; border-top: 3px solid;
+    }
+    .stat-card.red    { border-top-color: var(--crf-red); }
+    .stat-card.green  { border-top-color: var(--status-available); }
+    .stat-card.amber  { border-top-color: var(--status-inuse); }
+    .stat-card.danger { border-top-color: var(--status-maintenance); }
+    .stat-card.blue   { border-top-color: #3B82F6; }
+    .stat-card.purple { border-top-color: #A855F7; }
+    .stat-card.teal   { border-top-color: #14B8A6; }
+    .stat-label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 8px; }
+    .stat-value { font-size: 34px; font-weight: 800; letter-spacing: -1px; }
+    .stat-sub   { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Layouts */
+    .two-col   { display: grid; grid-template-columns: 1fr 1fr;    gap: 16px; margin-bottom: 16px; }
+    .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    /* Section card */
+    .section-card { background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); padding: 20px; }
+    .sc-title { font-size: 14px; font-weight: 700; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+    .sc-title a { font-size: 12px; color: var(--crf-red); font-weight: 500; text-decoration: none; }
+
+    /* List */
+    .list-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-primary); }
+    .list-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .list-icon  { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; background: rgba(227,6,19,0.1); }
+    .list-icon.amber  { background: rgba(245,158,11,0.12); }
+    .list-icon.green  { background: rgba(34,197,94,0.12); }
+    .list-icon.blue   { background: rgba(59,130,246,0.12); }
+    .list-icon.purple { background: rgba(168,85,247,0.12); }
+    .list-icon.red    { background: rgba(239,68,68,0.12); }
+    .list-icon.teal   { background: rgba(20,184,166,0.12); }
+    .list-body  { flex: 1; min-width: 0; }
+    .list-title { font-size: 13px; font-weight: 600; }
+    .list-meta  { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+    .list-end   { text-align: right; flex-shrink: 0; }
+
+    /* Quick actions */
+    .qa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .qa-btn {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border-primary); border-radius: var(--radius-md);
+      font-size: 13px; font-weight: 500; color: var(--text-primary);
+      cursor: pointer; text-decoration: none; transition: all 150ms; font-family: inherit;
+    }
+    .qa-btn:hover { background: rgba(255,255,255,0.06); }
+    .qa-btn.primary { background: rgba(227,6,19,0.1); border-color: rgba(227,6,19,0.2); color: #FF4040; }
+    .qa-btn.full    { grid-column: span 2; }
+    .qa-icon { font-size: 18px; flex-shrink: 0; }
+
+    /* Badge */
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+    .badge.available  { background: rgba(34,197,94,0.15);  color: #22C55E; }
+    .badge.inuse      { background: rgba(245,158,11,0.15);  color: #F59E0B; }
+    .badge.maintenance{ background: rgba(239,68,68,0.15);   color: #EF4444; }
+    .badge.pending    { background: rgba(168,85,247,0.15);  color: #A855F7; }
+    .badge.approved   { background: rgba(34,197,94,0.15);   color: #22C55E; }
+    .badge.expired    { background: rgba(239,68,68,0.15);   color: #EF4444; }
+    .badge.soon       { background: rgba(245,158,11,0.15);  color: #F59E0B; }
+    .badge.readonly   { background: rgba(100,116,139,0.15); color: #94A3B8; }
+
+    /* Fuel bar */
+    .fuel-wrap { margin-top: 6px; }
+    .fuel-bar  { width: 100%; height: 5px; background: var(--bg-input); border-radius: 3px; overflow: hidden; margin-top: 3px; }
+    .fuel-fill { height: 100%; border-radius: 3px; }
+    .fuel-fill.full { background: var(--fuel-full); }
+    .fuel-fill.mid  { background: var(--fuel-mid); }
+    .fuel-fill.low  { background: var(--fuel-low); }
+    .fuel-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); }
+
+    /* Vehicle mini */
+    .vehicle-mini { background: rgba(255,255,255,0.02); border: 1px solid var(--border-primary); border-radius: var(--radius-md); padding: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+    .vehicle-mini:last-child { margin-bottom: 0; }
+    .vm-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(227,6,19,0.1); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .vm-name  { font-size: 14px; font-weight: 700; }
+    .vm-plate { font-size: 11px; color: var(--text-secondary); font-family: monospace; }
+
+    /* Mission hero card */
+    .hero-card {
+      border-radius: var(--radius-lg); padding: 20px; margin-bottom: 16px;
+      background: linear-gradient(135deg, rgba(227,6,19,0.08), rgba(227,6,19,0.03));
+      border: 1px solid rgba(227,6,19,0.2);
+    }
+    .hero-card.amber {
+      background: linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.03));
+      border-color: rgba(245,158,11,0.25);
+    }
+    .hero-card.teal {
+      background: linear-gradient(135deg, rgba(20,184,166,0.09), rgba(20,184,166,0.03));
+      border-color: rgba(20,184,166,0.22);
+    }
+    .hero-card.blue {
+      background: linear-gradient(135deg, rgba(59,130,246,0.09), rgba(59,130,246,0.03));
+      border-color: rgba(59,130,246,0.22);
+    }
+    .hero-tag   { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+    .hero-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+    .hero-sub   { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+    .hero-row   { display: flex; gap: 24px; margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.06); flex-wrap: wrap; }
+    .hero-info  { flex: 1; min-width: 80px; }
+    .hero-info-lbl { font-size: 10px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; }
+    .hero-info-val { font-size: 14px; font-weight: 600; margin-top: 2px; }
+
+    /* Timeline */
+    .timeline-item { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--border-primary); }
+    .timeline-item:last-child { border-bottom: none; }
+    .tl-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; margin-top: 6px; }
+    .tl-dot.green  { background: #22C55E; }
+    .tl-dot.amber  { background: #F59E0B; }
+    .tl-dot.red    { background: #EF4444; }
+    .tl-dot.blue   { background: #3B82F6; }
+    .tl-dot.teal   { background: #14B8A6; }
+    .tl-body { flex: 1; }
+    .tl-title { font-size: 12px; font-weight: 600; }
+    .tl-meta  { font-size: 11px; color: var(--text-secondary); }
+
+    /* Docs */
+    .doc-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border-primary); }
+    .doc-row:last-child { border-bottom: none; }
+    .doc-label { font-size: 13px; font-weight: 500; }
+    .doc-meta  { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+
+    /* Checklist */
+    .checklist-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border-primary); font-size: 13px; }
+    .checklist-item:last-child { border-bottom: none; }
+    .check-box { width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--border-hover); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+    .check-box.done { background: #22C55E; border-color: #22C55E; color: #fff; }
+    .check-box.locked { border-color: rgba(239,68,68,0.3); }
+
+    /* Anno */
+    .anno { background: rgba(59,130,246,0.07); border: 1px dashed rgba(59,130,246,0.3); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 11px; color: #93C5FD; margin-top: 8px; }
+
+    /* Restriction card */
+    .restrict { text-align: center; padding: 28px 20px; background: rgba(100,116,139,0.06); border: 1px dashed rgba(100,116,139,0.25); border-radius: var(--radius-lg); color: var(--text-secondary); }
+    .restrict-icon  { font-size: 28px; margin-bottom: 8px; }
+    .restrict-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+
+    /* Empty */
+    .empty { text-align: center; padding: 24px; color: var(--text-secondary); font-size: 13px; }
+
+    /* Inline approve buttons */
+    .approve-btns { display: flex; gap: 6px; }
+    .btn-approve { padding: 4px 10px; background: #22C55E; color: #fff; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600; font-family: inherit; }
+    .btn-reject  { padding: 4px 10px; background: #EF4444; color: #fff; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 600; font-family: inherit; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<header>
+  <div class="header-logo">
+    <svg viewBox="0 0 24 24" fill="white"><path d="M12 2L2 7v10l10 5 10-5V7L12 2z"/></svg>
+  </div>
+  <div>
+    <div class="header-title">CR Chauffeur</div>
+    <div class="header-subtitle">Croix-Rouge Paris 18</div>
+  </div>
+  <nav>
+    <a href="#" class="nav-link active">Tableau de bord</a>
+    <a href="#" class="nav-link">Véhicules</a>
+    <a href="#" class="nav-link">Missions</a>
+    <a href="#" class="nav-link">Statistiques</a>
+  </nav>
+  <div class="header-user">
+    <div class="user-avatar">JD</div>
+    <div class="user-name" id="user-name-display">Admin CRF</div>
+  </div>
+</header>
+
+<main>
+
+  <!-- HIERARCHY + ROLE SWITCHER -->
+  <div style="margin-bottom:28px">
+    <div class="hierarchy-row">
+      <span style="font-size:11px;color:var(--text-muted);margin-right:4px">Hiérarchie :</span>
+      <span class="hier-pill" style="background:rgba(227,6,19,0.15);color:#E30613">👑 ADMIN</span>
+      <span class="hier-arrow">›</span>
+      <span class="hier-pill" style="background:rgba(168,85,247,0.15);color:#A855F7">🗂️ RESPO</span>
+      <span class="hier-arrow">›</span>
+      <span class="hier-pill" style="background:rgba(34,197,94,0.15);color:#22C55E">🚗 Chauffeur</span>
+      <span class="hier-arrow">›</span>
+      <span class="hier-pill" style="background:rgba(20,184,166,0.15);color:#14B8A6">🛡️ CI/RPAPS</span>
+      <span class="hier-arrow">›</span>
+      <span class="hier-pill" style="background:rgba(59,130,246,0.15);color:#60A5FA">🩺 SECOURISTE</span>
+    </div>
+    <div class="role-switcher wf-annotated wf-highlight">
+      <span class="wf-badge" title="Switcher wireframe uniquement — en prod: dashboard résolu depuis session.user.roles (rôle le plus fort)">W</span>
+      <button class="role-btn active" onclick="switchRole('admin',this)"  data-user="Admin CRF">
+        👑 ADMIN<span class="role-label">Vue complète</span>
+      </button>
+      <button class="role-btn" onclick="switchRole('respo',this)"  data-user="Sophie Martin">
+        🗂️ RESPO<span class="role-label">Responsable opérationnel</span>
+      </button>
+      <button class="role-btn" onclick="switchRole('chauf',this)"  data-user="Marc Lefebvre (CHVL)">
+        🚗 Chauffeur<span class="role-label">CHVL / CHVPSP</span>
+      </button>
+      <button class="role-btn" onclick="switchRole('ci',this)"     data-user="Kevin Rousseau (CI/RPAPS)">
+        🛡️ CI/RPAPS<span class="role-label">Chef d'intervention</span>
+      </button>
+      <button class="role-btn" onclick="switchRole('secou',this)"  data-user="Lucie Bernard (SECOURISTE)">
+        🩺 SECOURISTE<span class="role-label">Bénévole secouriste</span>
+      </button>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════════════
+       ADMIN
+  ══════════════════════════════════════════════════════ -->
+  <div class="dashboard active" id="dash-admin">
+    <div class="page-header">
+      <h1 class="page-title">Tableau de bord</h1>
+      <p class="page-desc">Vue d'ensemble de la flotte — Croix-Rouge Paris 18</p>
+    </div>
+
+    <div class="alert-banner wf-annotated wf-highlight orange" style="margin-bottom:20px">
+      <span class="wf-badge orange" title="Barre d'alertes cliquables → redirige vers la section concernée">A</span>
+      <span style="font-size:13px;font-weight:600;color:#F59E0B;margin-right:4px">⚠️ Alertes</span>
+      <a href="#" class="alert-tag red">🔴 2 docs à valider</a>
+      <a href="#" class="alert-tag">⛽ 1 carburant critique</a>
+      <a href="#" class="alert-tag red">🔧 1 maintenance planifiée</a>
+      <a href="#" class="alert-tag blue">📋 3 réservations en attente</a>
+    </div>
+
+    <div class="stats-grid sg-5 wf-annotated">
+      <span class="wf-badge green" style="top:-4px;right:-4px" title="5 KPIs — ajout Utilisateurs actifs vs ADMIN standard">1</span>
+      <div class="stat-card red">
+        <div class="stat-label">Total véhicules</div>
+        <div class="stat-value">8</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Disponibles</div>
+        <div class="stat-value" style="color:var(--status-available)">5</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-label">En mission</div>
+        <div class="stat-value" style="color:var(--status-inuse)">2</div>
+      </div>
+      <div class="stat-card danger">
+        <div class="stat-label">Maintenance</div>
+        <div class="stat-value" style="color:var(--status-maintenance)">1</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Utilisateurs actifs</div>
+        <div class="stat-value" style="color:#60A5FA">24</div>
+        <div class="stat-sub">3 INACTIF en attente</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="section-card wf-annotated">
+        <span class="wf-badge blue" title="Missions en cours — trips actifs (status=IN_USE) avec chauffeur + type">2</span>
+        <div class="sc-title">Missions en cours <a href="/missions">Voir tout →</a></div>
+        <div class="list-item">
+          <div class="list-icon amber">🧑‍✈️</div>
+          <div class="list-body"><div class="list-title">Marc Lefebvre</div><div class="list-meta">VL186 · Maraude · Parti à 08h30</div></div>
+          <div class="list-end"><span class="badge inuse">En cours</span></div>
+        </div>
+        <div class="list-item">
+          <div class="list-icon amber">🚑</div>
+          <div class="list-body"><div class="list-title">Amina Benali</div><div class="list-meta">VPSP01 · PSP · Parti à 09h00</div></div>
+          <div class="list-end"><span class="badge inuse">En cours</span></div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <div class="sc-title">Actions rapides</div>
+        <div class="qa-grid">
+          <a href="#" class="qa-btn primary"><span class="qa-icon">🚗</span>Ajouter un véhicule</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">👥</span>Gérer utilisateurs</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">📊</span>Statistiques</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">📦</span>Inventaire</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">🔧</span>Maintenance</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">📋</span>Réservations</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="section-card wf-annotated">
+        <span class="wf-badge orange" title="Docs à valider — utilisateurs ayant soumis des docs sans validation">3</span>
+        <div class="sc-title">Documents à valider <a href="/users?filter=pending">Voir tout →</a></div>
+        <div class="list-item">
+          <div class="list-icon red">📄</div>
+          <div class="list-body"><div class="list-title">Thomas Girard</div><div class="list-meta">Permis + casier · soumis il y a 2j</div></div>
+          <div class="list-end"><span class="badge expired">À valider</span></div>
+        </div>
+        <div class="list-item">
+          <div class="list-icon red">📄</div>
+          <div class="list-body"><div class="list-title">Claire Fontaine</div><div class="list-meta">Permis uniquement · soumis il y a 5j</div></div>
+          <div class="list-end"><span class="badge expired">À valider</span></div>
+        </div>
+        <div class="anno">📌 Clic → fiche utilisateur avec onglet Documents</div>
+      </div>
+
+      <div class="section-card wf-annotated">
+        <span class="wf-badge blue" title="Activité récente — derniers check-in/out, changements de statut, réservations">4</span>
+        <div class="sc-title">Activité récente</div>
+        <div class="timeline-item"><div class="tl-dot green"></div><div class="tl-body"><div class="tl-title">Check-in · VL186 · Marc L.</div><div class="tl-meta">Retour Maraude · il y a 23 min</div></div></div>
+        <div class="timeline-item"><div class="tl-dot amber"></div><div class="tl-body"><div class="tl-title">Check-out · VPSP01 · Amina B.</div><div class="tl-meta">Départ PSP · il y a 1h12</div></div></div>
+        <div class="timeline-item"><div class="tl-dot blue"></div><div class="tl-body"><div class="tl-title">Réservation · VL192 · Julie M.</div><div class="tl-meta">Sam 29/03 09h00 · en attente</div></div></div>
+        <div class="timeline-item"><div class="tl-dot red"></div><div class="tl-body"><div class="tl-title">Statut VL205 → MAINTENANCE</div><div class="tl-meta">par Sophie M. · 14h05</div></div></div>
+      </div>
+    </div>
+
+    <div class="section-card wf-annotated">
+      <span class="wf-badge orange" title="Alerte carburant — fuelLevel < 25% ou batteryLevel < 20% — cron quotidien">5</span>
+      <div class="sc-title">Alertes carburant / batterie <a href="/vehicles?filter=lowfuel">Voir tous →</a></div>
+      <div class="vehicle-mini">
+        <div class="vm-icon">🚗</div>
+        <div style="flex:1">
+          <div class="vm-name">VL205 <span class="badge maintenance" style="margin-left:6px">⚠️ Critique</span></div>
+          <div class="vm-plate">GH-789-IJ · Essence · Box D1</div>
+          <div class="fuel-wrap">
+            <div class="fuel-label"><span>Carburant</span><span style="color:#EF4444;font-weight:600">18%</span></div>
+            <div class="fuel-bar"><div class="fuel-fill low" style="width:18%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /admin -->
+
+
+  <!-- ══════════════════════════════════════════════════════
+       RESPO
+  ══════════════════════════════════════════════════════ -->
+  <div class="dashboard" id="dash-respo">
+    <div class="page-header">
+      <h1 class="page-title">Tableau de bord</h1>
+      <p class="page-desc">Bonjour, <strong style="color:var(--text-primary)">Sophie</strong> 👋 — vue responsable opérationnel</p>
+    </div>
+
+    <div class="alert-banner" style="margin-bottom:20px">
+      <span style="font-size:13px;font-weight:600;color:#F59E0B;margin-right:4px">⚠️</span>
+      <a href="#" class="alert-tag red">🔴 2 docs à valider</a>
+      <a href="#" class="alert-tag blue">📋 3 réservations en attente</a>
+      <a href="#" class="alert-tag green">✅ Flotte opérationnelle</a>
+    </div>
+
+    <div class="stats-grid sg-4">
+      <div class="stat-card green"><div class="stat-label">Disponibles</div><div class="stat-value" style="color:var(--status-available)">5</div><div class="stat-sub">Sur 8 véhicules</div></div>
+      <div class="stat-card amber"><div class="stat-label">En mission</div><div class="stat-value" style="color:var(--status-inuse)">2</div><div class="stat-sub">2 chauffeurs actifs</div></div>
+      <div class="stat-card purple"><div class="stat-label">Réservations en attente</div><div class="stat-value" style="color:#A855F7">3</div><div class="stat-sub">À valider</div></div>
+      <div class="stat-card red"><div class="stat-label">Docs à valider</div><div class="stat-value" style="color:#EF4444">2</div><div class="stat-sub">Chauffeurs bloqués</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="section-card wf-annotated">
+        <span class="wf-badge purple" title="Validation inline — RESPO approuve/refuse directement sans naviguer vers Réservations">R1</span>
+        <div class="sc-title">Réservations à valider <a href="/reservations">Voir tout →</a></div>
+        <div class="list-item">
+          <div class="list-icon purple">📋</div>
+          <div class="list-body"><div class="list-title">Julie Martin — VL192</div><div class="list-meta">Sam 29/03 09h00–12h00 · Maraude</div></div>
+          <div class="list-end"><div class="approve-btns"><button class="btn-approve">✓</button><button class="btn-reject">✗</button></div></div>
+        </div>
+        <div class="list-item">
+          <div class="list-icon purple">📋</div>
+          <div class="list-body"><div class="list-title">Pierre Durand — VL186</div><div class="list-meta">Lun 31/03 14h00–17h00 · Formation</div></div>
+          <div class="list-end"><div class="approve-btns"><button class="btn-approve">✓</button><button class="btn-reject">✗</button></div></div>
+        </div>
+        <div class="list-item">
+          <div class="list-icon purple">📋</div>
+          <div class="list-body"><div class="list-title">Sarah Cohen — VPSP01</div><div class="list-meta">Mar 01/04 08h00–13h00 · PSP</div></div>
+          <div class="list-end"><div class="approve-btns"><button class="btn-approve">✓</button><button class="btn-reject">✗</button></div></div>
+        </div>
+        <div class="anno">📌 PATCH /api/reservations/:id → {status:'approved'|'rejected'} + mise à jour optimiste</div>
+      </div>
+
+      <div class="section-card">
+        <div class="sc-title">Chauffeurs en mission <a href="/missions">→</a></div>
+        <div class="list-item">
+          <div class="list-icon amber">🧑‍✈️</div>
+          <div class="list-body"><div class="list-title">Marc Lefebvre</div><div class="list-meta">VL186 · Maraude · 08h30</div></div>
+          <div class="list-end"><span class="badge inuse">Actif</span></div>
+        </div>
+        <div class="list-item">
+          <div class="list-icon amber">🚑</div>
+          <div class="list-body"><div class="list-title">Amina Benali</div><div class="list-meta">VPSP01 · PSP · 09h00</div></div>
+          <div class="list-end"><span class="badge inuse">Actif</span></div>
+        </div>
+        <div class="sc-title" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-primary)">Documents à valider</div>
+        <div class="list-item">
+          <div class="list-icon red">📄</div>
+          <div class="list-body"><div class="list-title">Thomas Girard</div><div class="list-meta">Permis + casier · 2 jours</div></div>
+          <div class="list-end"><a href="/users" style="font-size:12px;color:var(--crf-red)">Valider →</a></div>
+        </div>
+        <div class="list-item">
+          <div class="list-icon red">📄</div>
+          <div class="list-body"><div class="list-title">Claire Fontaine</div><div class="list-meta">Permis uniquement · 5 jours</div></div>
+          <div class="list-end"><a href="/users" style="font-size:12px;color:var(--crf-red)">Valider →</a></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">Actions rapides</div>
+      <div class="qa-grid">
+        <a href="#" class="qa-btn primary"><span class="qa-icon">📋</span>Valider réservations</a>
+        <a href="#" class="qa-btn"><span class="qa-icon">👥</span>Valider documents</a>
+        <a href="#" class="qa-btn"><span class="qa-icon">📊</span>Statistiques</a>
+        <a href="#" class="qa-btn"><span class="qa-icon">🔧</span>Signaler maintenance</a>
+      </div>
+    </div>
+  </div><!-- /respo -->
+
+
+  <!-- ══════════════════════════════════════════════════════
+       CHAUFFEUR (CHVL + CHVPSP)
+  ══════════════════════════════════════════════════════ -->
+  <div class="dashboard" id="dash-chauf">
+    <div class="page-header">
+      <h1 class="page-title">Bonjour, Marc 👋</h1>
+      <p class="page-desc">Tableau de bord chauffeur</p>
+    </div>
+
+    <div class="hero-card wf-annotated">
+      <span class="wf-badge orange" style="top:-9px;right:8px" title="Affiché uniquement si réservation approuvée à venir. Masqué si aucune réservation.">M</span>
+      <div class="hero-tag" style="color:var(--crf-red)">🗓️ Ma prochaine réservation</div>
+      <div class="hero-title">VL192 — Peugeot 208</div>
+      <div class="hero-sub">Samedi 29 mars · 09h00–12h00 · Maraude</div>
+      <div class="hero-row">
+        <div class="hero-info"><div class="hero-info-lbl">Statut</div><div class="hero-info-val"><span class="badge approved">✅ Approuvée</span></div></div>
+        <div class="hero-info"><div class="hero-info-lbl">Kilométrage</div><div class="hero-info-val">34 120 km</div></div>
+        <div class="hero-info"><div class="hero-info-lbl">Stationnement</div><div class="hero-info-val">Box B1</div></div>
+        <div class="hero-info"><div class="hero-info-lbl">Carburant</div><div class="hero-info-val" style="color:#F59E0B">42%</div></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="section-card wf-annotated">
+        <span class="wf-badge green" title="Filtre auto par type : CHVL → type VL+Utilitaire, CHVPSP → type VPSP. Status=AVAILABLE uniquement.">V</span>
+        <div class="sc-title">Véhicules disponibles <a href="/vehicles">Voir tous →</a></div>
+        <a href="#" class="vehicle-mini">
+          <div class="vm-icon">🚗</div>
+          <div style="flex:1">
+            <div class="vm-name">VL186 <span class="badge available" style="font-size:10px;margin-left:6px">Dispo</span></div>
+            <div class="vm-plate">AB-123-CD · Box A2 · Électrique</div>
+            <div class="fuel-wrap"><div class="fuel-label"><span>Batterie</span><span>78%</span></div><div class="fuel-bar"><div class="fuel-fill full" style="width:78%"></div></div></div>
+          </div>
+        </a>
+        <a href="#" class="vehicle-mini">
+          <div class="vm-icon">🚗</div>
+          <div style="flex:1">
+            <div class="vm-name">VL200 <span class="badge available" style="font-size:10px;margin-left:6px">Dispo</span></div>
+            <div class="vm-plate">KL-321-MN · Box A3 · Essence</div>
+            <div class="fuel-wrap"><div class="fuel-label"><span>Essence</span><span>65%</span></div><div class="fuel-bar"><div class="fuel-fill full" style="width:65%"></div></div></div>
+          </div>
+        </a>
+      </div>
+
+      <div>
+        <div class="section-card" style="margin-bottom:16px">
+          <div class="sc-title">Mes missions récentes <a href="/missions?me=1">→</a></div>
+          <div class="timeline-item"><div class="tl-dot green"></div><div class="tl-body"><div class="tl-title">Maraude · VL186</div><div class="tl-meta">22 mars · 08h30–12h15 · 47 km</div></div></div>
+          <div class="timeline-item"><div class="tl-dot green"></div><div class="tl-body"><div class="tl-title">Formation · VL192</div><div class="tl-meta">18 mars · 14h00–17h30 · 23 km</div></div></div>
+          <div class="timeline-item"><div class="tl-dot green"></div><div class="tl-body"><div class="tl-title">Maraude · VL186</div><div class="tl-meta">15 mars · 09h00–13h00 · 51 km</div></div></div>
+        </div>
+
+        <div class="section-card wf-annotated">
+          <span class="wf-badge purple" title="Statut documents du chauffeur — alerte si expiration < 30j ou doc non validé">D</span>
+          <div class="sc-title">Mes documents</div>
+          <div class="doc-row"><div><div class="doc-label">Permis de conduire</div><div class="doc-meta">Expire le 15/08/2028</div></div><span class="badge approved">✅ Validé</span></div>
+          <div class="doc-row"><div><div class="doc-label">Extrait de casier</div><div class="doc-meta">Validé le 12/01/2026</div></div><span class="badge approved">✅ Validé</span></div>
+          <div class="doc-row"><div><div class="doc-label">Attestation bénévole</div><div class="doc-meta">Expire le 01/04/2026</div></div><span class="badge soon">⚠️ Bientôt</span></div>
+          <div class="anno">📌 "Bientôt" = expiration dans &lt; 30 jours</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-card">
+      <div class="sc-title">Actions</div>
+      <div class="qa-grid">
+        <a href="#" class="qa-btn primary"><span class="qa-icon">📋</span>Faire une réservation</a>
+        <a href="#" class="qa-btn"><span class="qa-icon">🚗</span>Voir les véhicules</a>
+        <a href="#" class="qa-btn"><span class="qa-icon">🗓️</span>Mes réservations</a>
+        <a href="#" class="qa-btn"><span class="qa-icon">📄</span>Mes documents</a>
+      </div>
+    </div>
+  </div><!-- /chauffeur -->
+
+
+  <!-- ══════════════════════════════════════════════════════
+       CI/RPAPS
+  ══════════════════════════════════════════════════════ -->
+  <div class="dashboard" id="dash-ci">
+    <div class="page-header">
+      <h1 class="page-title">Bonjour, Kevin 👋</h1>
+      <p class="page-desc">Tableau de bord Chef d'Intervention / RPAPS</p>
+    </div>
+
+    <!-- Alerte si mission PSP en cours sans CI désigné -->
+    <div class="alert-banner" style="background:rgba(20,184,166,0.07);border-color:rgba(20,184,166,0.2);margin-bottom:20px">
+      <span style="font-size:13px;font-weight:600;color:#14B8A6;margin-right:4px">🛡️</span>
+      <a href="#" class="alert-tag" style="background:rgba(20,184,166,0.15);color:#14B8A6">1 mission PSP active</a>
+      <a href="#" class="alert-tag green">✅ VPSP02 disponible</a>
+      <a href="#" class="alert-tag" style="background:rgba(245,158,11,0.15);color:#F59E0B">3 secouristes disponibles ce soir</a>
+    </div>
+
+    <div class="stats-grid sg-4 wf-annotated">
+      <span class="wf-badge" style="background:#14B8A6;top:-4px;right:-4px" title="KPIs CI/RPAPS centrés sur les opérations PSP et l'équipe secouriste">CI</span>
+      <div class="stat-card teal">
+        <div class="stat-label">VPSP disponibles</div>
+        <div class="stat-value" style="color:#14B8A6">1</div>
+        <div class="stat-sub">Sur 2 VPSP</div>
+      </div>
+      <div class="stat-card amber">
+        <div class="stat-label">Missions PSP en cours</div>
+        <div class="stat-value" style="color:var(--status-inuse)">1</div>
+        <div class="stat-sub">Amina B. · VPSP01</div>
+      </div>
+      <div class="stat-card blue">
+        <div class="stat-label">Secouristes dispos</div>
+        <div class="stat-value" style="color:#60A5FA">3</div>
+        <div class="stat-sub">Disponibles ce soir</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">Interventions ce mois</div>
+        <div class="stat-value" style="color:var(--status-available)">12</div>
+        <div class="stat-sub">dont 4 PSP</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- Missions PSP en cours -->
+      <div class="section-card wf-annotated">
+        <span class="wf-badge" style="background:#14B8A6" title="Vue missions PSP uniquement — le CI/RPAPS ne voit pas les missions VL standards">CI1</span>
+        <div class="sc-title">Missions PSP en cours <a href="/missions?type=PSP">Voir →</a></div>
+        <div class="list-item">
+          <div class="list-icon amber">🚑</div>
+          <div class="list-body">
+            <div class="list-title">Amina Benali</div>
+            <div class="list-meta">VPSP01 · PSP Marché des Batignolles · Parti 09h00</div>
+          </div>
+          <div class="list-end"><span class="badge inuse">Active</span></div>
+        </div>
+        <div class="empty" style="padding:16px">Aucune autre mission PSP en cours</div>
+
+        <div class="sc-title" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-primary)">VPSP disponibles</div>
+        <a href="#" class="vehicle-mini" style="margin-bottom:0">
+          <div class="vm-icon">🚑</div>
+          <div style="flex:1">
+            <div class="vm-name">VPSP02 <span class="badge available" style="font-size:10px;margin-left:6px">Dispo</span></div>
+            <div class="vm-plate">TU-852-VW · Box C1 · Diesel</div>
+            <div class="fuel-wrap"><div class="fuel-label"><span>Diesel</span><span>71%</span></div><div class="fuel-bar"><div class="fuel-fill full" style="width:71%"></div></div></div>
+          </div>
+        </a>
+      </div>
+
+      <!-- Équipe secouristes + ma prochaine intervention -->
+      <div>
+        <div class="hero-card teal wf-annotated" style="margin-bottom:16px">
+          <span class="wf-badge" style="background:#14B8A6;top:-9px;right:8px" title="Prochaine intervention CI — missions où le user est désigné comme CI">Int</span>
+          <div class="hero-tag" style="color:#14B8A6">🛡️ Ma prochaine intervention</div>
+          <div class="hero-title">PSP — Marché Batignolles</div>
+          <div class="hero-sub">Dimanche 30 mars · 09h00–13h00</div>
+          <div class="hero-row" style="border-top-color:rgba(20,184,166,0.2)">
+            <div class="hero-info"><div class="hero-info-lbl">VPSP assigné</div><div class="hero-info-val">VPSP02</div></div>
+            <div class="hero-info"><div class="hero-info-lbl">Équipe</div><div class="hero-info-val">3 secouristes</div></div>
+            <div class="hero-info"><div class="hero-info-lbl">Statut</div><div class="hero-info-val"><span class="badge approved">✅ Confirmée</span></div></div>
+          </div>
+        </div>
+
+        <div class="section-card wf-annotated">
+          <span class="wf-badge" style="background:#14B8A6" title="Tableau équipe — secouristes disponibles pour les prochaines interventions">Eq</span>
+          <div class="sc-title">Équipe disponible ce soir</div>
+          <div class="list-item">
+            <div class="list-icon teal">🩺</div>
+            <div class="list-body"><div class="list-title">Lucie Bernard</div><div class="list-meta">SECOURISTE · PSC1 valide</div></div>
+            <div class="list-end"><span class="badge available">Dispo</span></div>
+          </div>
+          <div class="list-item">
+            <div class="list-icon teal">🩺</div>
+            <div class="list-body"><div class="list-title">Romain Petit</div><div class="list-meta">SECOURISTE · PSC1 valide</div></div>
+            <div class="list-end"><span class="badge available">Dispo</span></div>
+          </div>
+          <div class="list-item">
+            <div class="list-icon teal">🩺</div>
+            <div class="list-body"><div class="list-title">Fatima Zahra</div><div class="list-meta">SECOURISTE · PSC1 valide</div></div>
+            <div class="list-end"><span class="badge available">Dispo</span></div>
+          </div>
+          <div class="anno">📌 "Disponible" = pas de mission planifiée sur ce créneau. Données venant de /api/missions</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mes docs CI + actions -->
+    <div class="two-col">
+      <div class="section-card">
+        <div class="sc-title">Mes certifications</div>
+        <div class="doc-row"><div><div class="doc-label">PSC1 / BNSSA</div><div class="doc-meta">Expire le 10/12/2027</div></div><span class="badge approved">✅ Valide</span></div>
+        <div class="doc-row"><div><div class="doc-label">Formation CI interne CRF</div><div class="doc-meta">Validée le 05/09/2025</div></div><span class="badge approved">✅ Valide</span></div>
+        <div class="doc-row"><div><div class="doc-label">Recyclage premiers secours</div><div class="doc-meta">Expire le 05/09/2026</div></div><span class="badge approved">✅ Valide</span></div>
+      </div>
+      <div class="section-card">
+        <div class="sc-title">Actions</div>
+        <div class="qa-grid">
+          <a href="#" class="qa-btn primary"><span class="qa-icon">🚑</span>Réserver un VPSP</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">🗓️</span>Mes interventions</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">👥</span>Voir l'équipe</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">📄</span>Mes certifications</a>
+        </div>
+      </div>
+    </div>
+  </div><!-- /ci -->
+
+
+  <!-- ══════════════════════════════════════════════════════
+       SECOURISTE
+  ══════════════════════════════════════════════════════ -->
+  <div class="dashboard" id="dash-secou">
+    <div class="page-header">
+      <h1 class="page-title">Bonjour, Lucie 👋</h1>
+      <p class="page-desc">Tableau de bord bénévole secouriste</p>
+    </div>
+
+    <!-- Ma prochaine intervention (hero) -->
+    <div class="hero-card blue wf-annotated">
+      <span class="wf-badge" style="background:#3B82F6;top:-9px;right:8px" title="Prochaine intervention assignée au secouriste. Masqué si aucune intervention prévue.">S</span>
+      <div class="hero-tag" style="color:#60A5FA">🩺 Ma prochaine intervention</div>
+      <div class="hero-title">PSP — Marché des Batignolles</div>
+      <div class="hero-sub">Dimanche 30 mars · 09h00–13h00</div>
+      <div class="hero-row" style="border-top-color:rgba(59,130,246,0.2)">
+        <div class="hero-info"><div class="hero-info-lbl">CI désigné</div><div class="hero-info-val">Kevin Rousseau</div></div>
+        <div class="hero-info"><div class="hero-info-lbl">VPSP</div><div class="hero-info-val">VPSP02</div></div>
+        <div class="hero-info"><div class="hero-info-lbl">Équipe</div><div class="hero-info-val">3 secouristes</div></div>
+        <div class="hero-info"><div class="hero-info-lbl">Statut</div><div class="hero-info-val"><span class="badge approved">✅ Confirmée</span></div></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <!-- Véhicules — lecture seule -->
+      <div class="section-card wf-annotated">
+        <span class="wf-badge green" title="Lecture seule — le SECOURISTE voit la disponibilité mais pas le carburant, km, ni plaque complète">RO</span>
+        <div class="sc-title">Flotte — disponibilité <a href="/vehicles">→</a></div>
+        <div class="list-item">
+          <div class="list-icon green">🚗</div>
+          <div class="list-body"><div class="list-title">VL186</div><div class="list-meta">VL · Électrique</div></div>
+          <span class="badge available">Disponible</span>
+        </div>
+        <div class="list-item">
+          <div class="list-icon amber">🚗</div>
+          <div class="list-body"><div class="list-title">VL192</div><div class="list-meta">VL · Essence</div></div>
+          <span class="badge inuse">En mission</span>
+        </div>
+        <div class="list-item">
+          <div class="list-icon amber">🚑</div>
+          <div class="list-body"><div class="list-title">VPSP01</div><div class="list-meta">VPSP · Diesel</div></div>
+          <span class="badge inuse">En mission</span>
+        </div>
+        <div class="list-item">
+          <div class="list-icon green">🚑</div>
+          <div class="list-body"><div class="list-title">VPSP02</div><div class="list-meta">VPSP · Diesel</div></div>
+          <span class="badge available">Disponible</span>
+        </div>
+        <div class="anno">📌 Données masquées : km, carburant, plaques, stationnement</div>
+      </div>
+
+      <!-- Mes certifications + interventions récentes -->
+      <div>
+        <div class="section-card wf-annotated" style="margin-bottom:16px">
+          <span class="wf-badge purple" title="Certifications secouriste — alerte si PSC1 expire dans moins de 60j (délai recyclage)">C</span>
+          <div class="sc-title">Mes certifications</div>
+          <div class="doc-row"><div><div class="doc-label">PSC1</div><div class="doc-meta">Expire le 14/09/2027</div></div><span class="badge approved">✅ Valide</span></div>
+          <div class="doc-row"><div><div class="doc-label">Attestation bénévole CRF</div><div class="doc-meta">Expire le 01/04/2026</div></div><span class="badge soon">⚠️ Bientôt</span></div>
+          <div class="doc-row"><div><div class="doc-label">Formation initiale CRF</div><div class="doc-meta">Validée le 10/03/2025</div></div><span class="badge approved">✅ Validée</span></div>
+          <div class="anno">📌 Alerte "Bientôt" = &lt; 60 jours (PSC1 recyclage long)</div>
+        </div>
+
+        <div class="section-card">
+          <div class="sc-title">Mes dernières interventions</div>
+          <div class="timeline-item"><div class="tl-dot teal"></div><div class="tl-body"><div class="tl-title">PSP · Marché Batignolles</div><div class="tl-meta">16 mars · 09h00–13h00</div></div></div>
+          <div class="timeline-item"><div class="tl-dot teal"></div><div class="tl-body"><div class="tl-title">PSP · Match foot Porte de la Chapelle</div><div class="tl-meta">08 mars · 14h00–18h00</div></div></div>
+          <div class="timeline-item"><div class="tl-dot teal"></div><div class="tl-body"><div class="tl-title">Maraude + secours · VL186</div><div class="tl-meta">01 mars · 20h00–23h30</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fonctionnalités verrouillées + contact CI -->
+    <div class="two-col">
+      <div class="restrict">
+        <div class="restrict-icon">🔒</div>
+        <div class="restrict-title">Fonctionnalités non disponibles</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:8px;text-align:left">
+          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Réserver un véhicule</span></div>
+          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Check-out / Check-in</span></div>
+          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Statistiques</span></div>
+          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Inventaire</span></div>
+          <div class="checklist-item"><div class="check-box locked">🔒</div><span>Gestion utilisateurs</span></div>
+        </div>
+        <div class="anno" style="text-align:left;margin-top:12px">📌 Pour conduire un véhicule, un ADMIN/RESPO doit attribuer le rôle CHVL ou CHVPSP</div>
+      </div>
+
+      <div class="section-card">
+        <div class="sc-title">Actions</div>
+        <div class="qa-grid">
+          <a href="#" class="qa-btn primary qa-btn full"><span class="qa-icon">🗓️</span>Voir mes interventions</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">📄</span>Mes certifications</a>
+          <a href="#" class="qa-btn"><span class="qa-icon">👤</span>Mon profil</a>
+        </div>
+        <div style="margin-top:14px;padding:14px;background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.15);border-radius:var(--radius-md)">
+          <div style="font-size:12px;font-weight:600;color:#60A5FA;margin-bottom:6px">📬 Besoin d'un rôle chauffeur ?</div>
+          <div style="font-size:12px;color:var(--text-secondary)">Contactez votre responsable ou un admin CRF pour faire ajouter le rôle CHVL ou CHVPSP à votre compte.</div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /secouriste -->
+
+</main>
+
+<!-- ===== LEGEND ===== -->
+<aside class="wf-legend" role="complementary" aria-label="Légende">
+  <div class="wf-screen-label">Wireframe 07 / 07</div>
+  <div class="wf-legend-title">Dashboard par rôle</div>
+  <div class="wf-legend-subtitle">5 dashboards. Rôle le plus fort affiché. INACTIF → pas de dashboard.</div>
+
+  <hr class="wf-legend-sep" />
+  <div class="wf-legend-section">Hiérarchie des rôles</div>
+  <div style="font-size:11px;color:var(--text-secondary);line-height:2.2;padding:4px 0">
+    <span style="color:#E30613;font-weight:700">👑 ADMIN</span> &nbsp;›&nbsp;
+    <span style="color:#A855F7;font-weight:700">🗂️ RESPO</span> &nbsp;›&nbsp;
+    <span style="color:#22C55E;font-weight:700">🚗 CHVL/CHVPSP</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;›&nbsp;
+    <span style="color:#14B8A6;font-weight:700">🛡️ CI/RPAPS</span> &nbsp;›&nbsp;
+    <span style="color:#60A5FA;font-weight:700">🩺 SECOURISTE</span>
+  </div>
+
+  <hr class="wf-legend-sep" />
+  <div class="wf-legend-section">Logique de résolution</div>
+  <div class="wf-legend-item">
+    <span class="wf-num blue">1</span>
+    <div>
+      <div class="wf-legend-text">Rôle le plus fort</div>
+      <code class="wf-legend-code">const PRIORITY = ['ADMIN','RESPO',
+  'CHVL','CHVPSP','CI/RPAPS',
+  'SECOURISTE'];
+const top = PRIORITY.find(r =>
+  roles.includes(r));
+// → affiche le dashboard correspondant</code>
+    </div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num blue">2</span>
+    <div>
+      <div class="wf-legend-text">CHVL + CHVPSP = même dashboard</div>
+      <code class="wf-legend-code">// Filtre véhicules différent :
+// CHVL → type IN ('VL','Utilitaire')
+// CHVPSP → type = 'VPSP'
+// Détecter via roles pour le filtre</code>
+    </div>
+  </div>
+
+  <hr class="wf-legend-sep" />
+  <div class="wf-legend-section">Contenu par rôle</div>
+  <div class="wf-legend-item">
+    <span class="wf-num" style="background:#E30613;color:#fff">Ad</span>
+    <div><div class="wf-legend-text" style="font-weight:600;color:#F0F1F5">ADMIN</div><div class="wf-legend-text">5 KPIs + alertes globales + missions + docs à valider + activité récente + alerte carburant</div></div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num purple">Re</span>
+    <div><div class="wf-legend-text" style="font-weight:600;color:#F0F1F5">RESPO</div><div class="wf-legend-text">4 KPIs + réservations à valider inline (✓/✗) + chauffeurs actifs + docs à valider</div></div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num green">Ch</span>
+    <div><div class="wf-legend-text" style="font-weight:600;color:#F0F1F5">Chauffeur</div><div class="wf-legend-text">Ma prochaine réservation + véhicules filtrés par type + mes missions + mes documents</div></div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num teal">CI</span>
+    <div><div class="wf-legend-text" style="font-weight:600;color:#F0F1F5">CI/RPAPS</div><div class="wf-legend-text">KPIs PSP + missions PSP en cours + VPSP dispo + ma prochaine intervention + équipe secouristes dispos</div></div>
+  </div>
+  <div class="wf-legend-item">
+    <span class="wf-num blue">Se</span>
+    <div><div class="wf-legend-text" style="font-weight:600;color:#F0F1F5">SECOURISTE</div><div class="wf-legend-text">Ma prochaine intervention + flotte read-only (sans données sensibles) + certifications + interventions passées</div></div>
+  </div>
+
+  <hr class="wf-legend-sep" />
+  <div class="wf-legend-section">Seuils d'alerte</div>
+  <div style="font-size:11px;color:var(--text-secondary);line-height:2">
+    ⛽ Carburant critique : <strong style="color:#EF4444">&lt; 20%</strong><br>
+    ⚠️ Carburant bas : <strong style="color:#F59E0B">&lt; 30%</strong><br>
+    📄 Doc bientôt expiré : <strong style="color:#F59E0B">&lt; 30 jours</strong><br>
+    🩺 Certif secouriste : <strong style="color:#F59E0B">&lt; 60 jours</strong><br>
+    📄 Doc expiré : <strong style="color:#EF4444">date dépassée</strong>
+  </div>
+
+  <hr class="wf-legend-sep" />
+  <div style="font-size:10px;color:var(--text-muted);line-height:1.6">
+    INACTIF → redirigé vers /inactif. Aucun dashboard affiché.
+  </div>
+</aside>
+
+<script>
+  function switchRole(role, btn) {
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.dashboard').forEach(d => d.classList.remove('active'));
+    document.getElementById('dash-' + role).classList.add('active');
+    document.getElementById('user-name-display').textContent = btn.dataset.user || '';
+  }
+</script>
+</body>
+</html>

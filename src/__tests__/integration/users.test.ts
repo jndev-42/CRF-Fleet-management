@@ -71,6 +71,7 @@ async function getUserRoles(userId: string): Promise<string[]> {
 
 describe('POST /api/users', () => {
     it('1. 401 sans session', async () => {
+        // @ts-expect-error — null session for test
         mockedAuth.mockResolvedValue(null);
         const res = await POST(makePostRequest({ email: 'x@test.com', name: 'X' }));
         expect(res.status).toBe(403); // route checks roles not just session presence
@@ -101,7 +102,9 @@ describe('POST /api/users', () => {
         expect(body.id).toBeTruthy();
 
         const roles = await getUserRoles(body.id);
-        expect(roles).toEqual(['CHVL']);
+        // SECOURISTE is auto-assigned to any non-GUEST user
+        expect(roles).toContain('CHVL');
+        expect(roles).toContain('SECOURISTE');
     });
 
     it('5. GUEST seul — seul GUEST assigné', async () => {
@@ -149,6 +152,7 @@ describe('POST /api/users', () => {
 
 describe('PATCH /api/users/[email]', () => {
     it('8. 401 sans session', async () => {
+        // @ts-expect-error — null session for test
         mockedAuth.mockResolvedValue(null);
         const res = await PATCH(
             makePatchRequest('user@test.com', { roles: ['CHVL'] }),
@@ -255,6 +259,7 @@ describe('PATCH /api/users/[email]', () => {
 
 describe('GET /api/users', () => {
     it('401 sans session', async () => {
+        // @ts-expect-error — null session for test
         mockedAuth.mockResolvedValue(null);
         const res = await GET(makeGetRequest());
         expect(res.status).toBe(401);

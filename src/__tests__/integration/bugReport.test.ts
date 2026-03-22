@@ -55,6 +55,7 @@ afterEach(() => {
 
 describe('POST /api/bugs/report — auth & authorization', () => {
   it('retourne 401 sans session', async () => {
+    // @ts-expect-error — null session for test
     mockedAuth.mockResolvedValue(null);
     const res = await POST(makeRequest(validBody));
     expect(res.status).toBe(401);

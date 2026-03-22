@@ -31,6 +31,10 @@ const adminSession = {
     user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'] },
 };
 
+const ciRpapsSession = {
+    user: { id: 'user-ci', email: 'ci@test.com', roles: ['CI/RPAPS'] },
+};
+
 const respoSession = {
     user: { id: 'user-respo', email: 'respo@test.com', roles: ['RESPO'] },
 };
@@ -143,7 +147,8 @@ describe('POST /api/missions', () => {
         await createMissionReportTable();
         await truncateMissions();
         await seedRoles();
-        await seedUser({ id: 'user-chvl', email: 'chvl@test.com', name: 'CHVL Test' });
+        await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin Test' });
+        await seedUser({ id: 'user-ci', email: 'ci@test.com', name: 'CI/RPAPS Test' });
     });
 
     it('returns 401 when not authenticated', async () => {
@@ -162,9 +167,17 @@ describe('POST /api/missions', () => {
         expect(res.status).toBe(403);
     });
 
-    it('returns 400 when mission_type is missing', async () => {
+    it('returns 403 when role is CHVL (no longer allowed)', async () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(chvlSession);
+
+        const res = await postCreate(makePostRequest(validPayload));
+        expect(res.status).toBe(403);
+    });
+
+    it('returns 400 when mission_type is missing', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars -- intentionally omitting mission_type to test validation
         const { mission_type, ...withoutType } = validPayload;
@@ -176,7 +189,7 @@ describe('POST /api/missions', () => {
 
     it('returns 400 when mission_type is invalid', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(chvlSession);
+        mockedAuth.mockResolvedValue(adminSession);
 
         const res = await postCreate(makePostRequest({ ...validPayload, mission_type: 'INVALID' }));
         expect(res.status).toBe(400);
@@ -184,7 +197,7 @@ describe('POST /api/missions', () => {
 
     it('returns 201 and persists report + supplies (happy path)', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(chvlSession);
+        mockedAuth.mockResolvedValue(adminSession);
 
         const res = await postCreate(makePostRequest(validPayload));
         expect(res.status).toBe(201);
@@ -201,7 +214,7 @@ describe('POST /api/missions', () => {
         expect(mRes.rows).toHaveLength(1);
         expect(mRes.rows[0].mission_name).toBe('Poste Secours Test');
         expect(mRes.rows[0].victim_count).toBe(2);
-        expect(mRes.rows[0].submitted_by).toBe('user-chvl');
+        expect(mRes.rows[0].submitted_by).toBe('user-admin');
 
         // Verify only supplies with qty > 0 were inserted (1 of 2)
         const sRes = await db.execute({
@@ -215,7 +228,7 @@ describe('POST /api/missions', () => {
 
     it('returns 201 and persists drive_folder_id when provided', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(chvlSession);
+        mockedAuth.mockResolvedValue(adminSession);
 
         const payload = { ...validPayload, drive_folder_id: 'drive-folder-abc123' };
         const res = await postCreate(makePostRequest(payload));
@@ -234,7 +247,7 @@ describe('POST /api/missions', () => {
 
     it('returns 201 with null drive_folder_id when not provided', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(chvlSession);
+        mockedAuth.mockResolvedValue(adminSession);
 
         const res = await postCreate(makePostRequest(validPayload));
         expect(res.status).toBe(201);
@@ -256,19 +269,19 @@ describe('GET /api/missions (list)', () => {
         await createMissionReportTable();
         await truncateMissions();
         await seedRoles();
-        await seedUser({ id: 'user-chvl', email: 'chvl@test.com', name: 'CHVL Test' });
-        await seedUser({ id: 'user-respo', email: 'respo@test.com', name: 'Respo Test' });
+        await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin Test' });
+        await seedUser({ id: 'user-ci', email: 'ci@test.com', name: 'CI/RPAPS Test' });
 
-        // Insert 2 reports: 1 by CHVL, 1 by RESPO
+        // Insert 2 reports: 1 by admin, 1 by ci
         await db.execute({
             sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            args: ['report-1', 'user-chvl', '2026-03-01T12:00:00.000Z', 'RESEAU', 'Mission CHVL', '2026-03-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0],
+            args: ['report-1', 'user-admin', '2026-03-01T12:00:00.000Z', 'RESEAU', 'Mission Admin', '2026-03-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0],
         });
         await db.execute({
             sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            args: ['report-2', 'user-respo', '2026-03-05T12:00:00.000Z', 'PAPS', 'Mission RESPO', '2026-03-05', 'Lyon', 'Sophie', 1, 1, 0, 0, 0, 0],
+            args: ['report-2', 'user-ci', '2026-03-05T12:00:00.000Z', 'PAPS', 'Mission CI/RPAPS', '2026-03-05', 'Lyon', 'Sophie', 1, 1, 0, 0, 0, 0],
         });
     });
 
@@ -280,9 +293,17 @@ describe('GET /api/missions (list)', () => {
         expect(res.status).toBe(401);
     });
 
-    it('returns 200 with all reports for RESPO', async () => {
+    it('returns 403 when role is CHVL (no longer allowed)', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(respoSession);
+        mockedAuth.mockResolvedValue(chvlSession);
+
+        const res = await getList(makeListRequest());
+        expect(res.status).toBe(403);
+    });
+
+    it('returns 200 with all reports for ADMIN', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
 
         const res = await getList(makeListRequest());
         expect(res.status).toBe(200);
@@ -291,20 +312,20 @@ describe('GET /api/missions (list)', () => {
         expect(body.total).toBe(2);
     });
 
-    it('returns 200 with only own reports for CHVL', async () => {
+    it('returns 200 with all reports for CI/RPAPS (sees all)', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(chvlSession);
+        mockedAuth.mockResolvedValue(ciRpapsSession);
 
         const res = await getList(makeListRequest());
         expect(res.status).toBe(200);
         const body = await res.json();
-        expect(body.reports).toHaveLength(1);
-        expect(body.reports[0].id).toBe('report-1');
+        expect(body.reports).toHaveLength(2);
+        expect(body.total).toBe(2);
     });
 
     it('filters by type correctly', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(respoSession);
+        mockedAuth.mockResolvedValue(adminSession);
 
         const res = await getList(makeListRequest('?type=PAPS'));
         expect(res.status).toBe(200);
@@ -322,13 +343,14 @@ describe('GET /api/missions/[id] (detail)', () => {
         await createMissionReportTable();
         await truncateMissions();
         await seedRoles();
-        await seedUser({ id: 'user-chvl', email: 'chvl@test.com', name: 'CHVL Test' });
+        await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin Test' });
+        await seedUser({ id: 'user-ci', email: 'ci@test.com', name: 'CI/RPAPS Test' });
         await seedVehicle({ id: 'VL001', name: 'VL186', type: 'VL' });
 
         await db.execute({
             sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            args: ['report-1', 'user-chvl', '2026-03-01T12:00:00.000Z', 'RESEAU', 'Mission Test', '2026-03-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0],
+            args: ['report-1', 'user-admin', '2026-03-01T12:00:00.000Z', 'RESEAU', 'Mission Test', '2026-03-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0],
         });
         await db.execute({
             sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`,
@@ -338,7 +360,7 @@ describe('GET /api/missions/[id] (detail)', () => {
 
     it('returns 200 with correct structure including supplies grouped by category', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(chvlSession);
+        mockedAuth.mockResolvedValue(adminSession);
 
         const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
         expect(res.status).toBe(200);
@@ -354,7 +376,7 @@ describe('GET /api/missions/[id] (detail)', () => {
 
     it('returns 404 for unknown report', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(chvlSession);
+        mockedAuth.mockResolvedValue(adminSession);
 
         const res = await getDetail(makeDetailRequest('nonexistent'), { params: Promise.resolve({ id: 'nonexistent' }) });
         expect(res.status).toBe(404);
@@ -362,7 +384,7 @@ describe('GET /api/missions/[id] (detail)', () => {
 
     it('returns drive_folder_id in response when set', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(chvlSession);
+        mockedAuth.mockResolvedValue(ciRpapsSession);
 
         // Update report-1 with a drive_folder_id
         await db.execute({
@@ -379,7 +401,7 @@ describe('GET /api/missions/[id] (detail)', () => {
 
     it('returns null drive_folder_id when not set', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(chvlSession);
+        mockedAuth.mockResolvedValue(ciRpapsSession);
 
         const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
         expect(res.status).toBe(200);

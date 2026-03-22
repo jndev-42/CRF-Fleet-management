@@ -224,6 +224,13 @@ async function createTables() {
     mileage INTEGER,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "MenuSetting" (
+    menu_key TEXT NOT NULL PRIMARY KEY,
+    visibility TEXT NOT NULL DEFAULT 'available'
+               CHECK (visibility IN ('available', 'admin_only', 'disabled')),
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
 }
 
 async function truncateTables() {
@@ -245,6 +252,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "Vehicle"`);
   await db.execute(`DELETE FROM "User"`);
   await db.execute(`DELETE FROM "Role"`);
+  await db.execute(`DELETE FROM "MenuSetting"`);
 }
 
 // Create tables once on first import
@@ -339,11 +347,26 @@ export async function seedUser(overrides: Partial<{
   return u;
 }
 
-export async function seedRoles(names: string[] = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST']) {
+export async function seedRoles(names: string[] = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST', 'SECOURISTE', 'CI/RPAPS']) {
   for (const name of names) {
     await db.execute({
       sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
-      args: [name.toLowerCase(), name],
+      args: [name.toLowerCase().replace('/', '-'), name],
+    });
+  }
+}
+
+export async function seedMenuSettings(overrides: Partial<Record<string, string>> = {}) {
+  const defaults: Record<string, string> = {
+    stats: 'available',
+    inventory: 'available',
+    missions: 'available',
+    ...overrides,
+  };
+  for (const [key, visibility] of Object.entries(defaults)) {
+    await db.execute({
+      sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`,
+      args: [key, visibility],
     });
   }
 }

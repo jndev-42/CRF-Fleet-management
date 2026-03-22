@@ -29,6 +29,7 @@ import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHist
 import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 import InventoryVehicleTab from '@/components/inventory/InventoryVehicleTab';
+import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
 /**
  * VehicleDetailPage Component
  * 
@@ -75,6 +76,7 @@ export default function VehicleDetailPage() {
     const [showEditRevisionModal, setShowEditRevisionModal] = useState(false);
     const [licenseBlocked, setLicenseBlocked] = useState(false);
     const router = useRouter();
+    const { getVisibility } = useMenuSettings();
 
     useEffect(() => {
         // Fetch the current session to determine if the user has specific roles (e.g., ADMIN)
@@ -96,6 +98,17 @@ export default function VehicleDetailPage() {
             .then(data => { if (data.blocked) setLicenseBlocked(true); })
             .catch(console.error);
     }, []);
+
+    const invVis = getVisibility('inventory');
+    const hasInventoryRole = userRoles.includes('SECOURISTE') || userRoles.includes('ADMIN');
+    const canSeeInventoryTab = invVis !== 'disabled' && hasInventoryRole && (
+        invVis === 'available' ||
+        (invVis === 'admin_only' && userRoles.includes('ADMIN'))
+    );
+
+    useEffect(() => {
+        if (!canSeeInventoryTab && activeTab === 'inventory') setActiveTab('details');
+    }, [canSeeInventoryTab, activeTab]);
 
     /**
      * Fetches the detailed vehicle data from the database.
@@ -517,17 +530,19 @@ export default function VehicleDetailPage() {
                 >
                     Détails
                 </button>
-                <button
-                    role="tab"
-                    aria-selected={activeTab === 'inventory'}
-                    className={`tab-btn${activeTab === 'inventory' ? ' active' : ''}`}
-                    onClick={() => setActiveTab('inventory')}
-                >
-                    Inventaire
-                </button>
+                {canSeeInventoryTab && (
+                    <button
+                        role="tab"
+                        aria-selected={activeTab === 'inventory'}
+                        className={`tab-btn${activeTab === 'inventory' ? ' active' : ''}`}
+                        onClick={() => setActiveTab('inventory')}
+                    >
+                        Inventaire
+                    </button>
+                )}
             </div>
 
-            {activeTab === 'inventory' && vehicle && (
+            {activeTab === 'inventory' && canSeeInventoryTab && vehicle && (
                 <InventoryVehicleTab vehicleId={vehicle.id} userRoles={userRoles} />
             )}
 

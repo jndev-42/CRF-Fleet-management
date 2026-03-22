@@ -18,9 +18,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
     }
 
-    const roles = (session.user.roles || ['GUEST']) as string[];
-    const allowed = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP'];
-    if (!roles.some((r) => allowed.includes(r))) {
+    const roles = (session.user.roles || ['INACTIF']) as string[];
+    if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
       return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 

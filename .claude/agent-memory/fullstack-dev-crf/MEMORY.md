@@ -1,14 +1,15 @@
 # Agent Memory — cr-chauffeur
 
 ## Current Version
-- package.json + CHANGELOG.md: **v2.1.0** (as of 2026-03-20)
+- package.json + CHANGELOG.md: **v2.3.0** (as of 2026-03-22)
 - Footer version: uses `process.env.NEXT_PUBLIC_APP_VERSION` injected from `package.json` via `next.config.ts` — NOT hardcoded
 
 ## Project Structure
-- Next.js 16 App Router, React 19, Tailwind CSS, libSQL (`@libsql/client`)
+- Next.js 16 App Router, React 19, TypeScript, libSQL (`@libsql/client`)
 - Auth: `import { auth } from '@/auth'` (server-side), `useSession` / `signOut` from `next-auth/react` (client-side)
 - DB: raw SQL via `db.execute()` from `@/lib/db` — no Prisma
 - Zod for all API validation
+- Middleware: `src/middleware.ts` — handles INACTIF redirect
 
 ## Key File Paths
 - API routes: `src/app/api/`
@@ -16,121 +17,83 @@
 - Renault integration: `src/lib/renault.ts`
 - Auth config: `src/auth.ts`
 - DB client: `src/lib/db.ts`
-- Stats logic: `src/lib/stats.ts` (shared between GET and PDF routes)
+- Stats logic: `src/lib/stats.ts`
 - Next config: `next.config.ts`
-- Footer version string: auto-injected from `package.json` via `NEXT_PUBLIC_APP_VERSION` in `next.config.ts` — update only `package.json`
+- Footer version: auto-injected from `package.json` via `NEXT_PUBLIC_APP_VERSION`
 
 ## Auth Patterns
-- Server route auth check: `const session = await auth();` at the very top before any body parsing or DB queries
+- Server route auth check: `const session = await auth();` at the very top
 - 401 for unauthenticated: `!session?.user`
 - 403 for insufficient role: `!session?.user?.roles?.includes('ADMIN')`
-- **Exception**: `POST /api/vehicles` uses a **single 403 guard** (`!session?.user?.roles?.includes('ADMIN')`) — no separate 401. A null session also returns 403 on this route.
-- Vehicle [id] route uses vehicle **name** as the URL param (not UUID)
-- **Exception**: checkin route (`trips/[id]/checkin`) checks auth AFTER the trip lookup — 404 before 401
-- `session.user.id` is available (populated from `User.id` via JWT `userId` claim in `src/auth.ts`)
-- Auth checks for trip ownership use `session.user.id === trip.driverId` (not email)
+- **Exception**: `POST /api/vehicles` uses a **single 403 guard** — no separate 401
+- Vehicle [id] route uses vehicle **name** as URL param (not UUID)
+- **Exception**: checkin route checks auth AFTER trip lookup — 404 before 401
+- `session.user.id` available (from `User.id` via JWT `userId` claim)
+- Auth checks for trip ownership use `session.user.id === trip.driverId`
 
 ## DB Conventions
-- Vehicle lookup by name: `WHERE name = ?` (URL param `[id]` is actually the vehicle name)
-- Vehicle UUID is stored in `Vehicle.id`, needed for checklist/trip foreign keys
-- Checklist DSA item IDs follow pattern: `dsa-checkout-{vehicleUuid}` and `dsa-checkin-{vehicleUuid}`
+- Vehicle lookup by name: `WHERE name = ?`
+- Vehicle UUID in `Vehicle.id`, needed for checklist/trip FKs
 - Booleans stored as 0/1 integers in SQLite
-- **Trip table** uses FK columns `driverId`/`secondDriverId` → `User.id` (no denormalized name/email columns)
-- Always JOIN User when fetching trips for display: `JOIN "User" u ON u.id = t.driverId LEFT JOIN "User" u2 ON u2.id = t.secondDriverId`
-- Stats queries group by `t.driverId` not by email
+- Trip table uses FK columns `driverId`/`secondDriverId` → `User.id`
+- Always JOIN User when fetching trips for display
 
-## Renault Integration
-- `getVinFromName()` is **async** — queries `Vehicle.vin` from DB first, falls back to env vars
-- Callers must `await getVinFromName(name)`
-- No hardcoded VIN fallback strings — use `RENAULT_VIN_VL186` / `RENAULT_VIN_VL188` env vars only
-- `authenticate()` uses DB-backed session cache (`RenaultSession` table, singleton row `id=1`) instead of in-memory variable — survives cold starts across Vercel serverless instances
-- DB read/write errors in `authenticate()` are non-fatal: read failure triggers re-auth, write failure is logged and ignored
+## Roles (as of v2.3.0)
+- Full role list: `ADMIN`, `RESPO`, `CHVL`, `CHVPSP`, `INACTIF` (ex-GUEST), `SECOURISTE`, `CI/RPAPS`
+- **INACTIF** (ex-GUEST): completely blocked — middleware redirects to `/inactif` page
+- **SECOURISTE** is auto-assigned by `resolveRoles()` to any user with at least one non-INACTIF role
+- **CI/RPAPS** gives access to Missions only
+- Stats access: all roles EXCEPT INACTIF
+- Inventory access: requires `SECOURISTE` role
+- Menu API: `GET /api/settings/menus` + `PATCH /api/settings/menus/[key]` — ADMIN only (both methods)
 
-## Notification URLs
-- Always use `encodeURIComponent(vehicleName)` when building URLs with vehicle names
-- libSQL row values have type `string | number | bigint | ArrayBuffer` — cast with `String(val)` before `encodeURIComponent`
+## Vehicle Borrowing Rules (as of v2.3.0)
+- ADMIN: can borrow all vehicle types
+- CHVPSP only: VPSP vehicles only
+- CHVL only: VL vehicles only
+- CHVL + CHVPSP together: both types
+- `vehicleType=VL` filter in GET /api/users returns CHVL only (not CHVPSP)
+- `vehicleType=VPSP` returns CHVPSP only; `drivers=true` returns both
+- **Désinfection check order**: mission-type vs vehicle-type check (400) happens BEFORE canBorrow permission check (403) in `POST /api/trips`
 
-## Modal Pattern
-- Shared modals in `src/components/vehicle/modals/` accept `isOpen`, `onClose`, `onSuccess` props
-- `onSuccess` must only be called inside `if (res.ok)` — never optimistically before the API call completes
-- `AddVehicleModal` is now a shared component (extracted from page.tsx and vehicles/page.tsx)
+## INACTIF Redirect
+- `src/middleware.ts` uses NextAuth v5 `auth()` wrapper — redirects INACTIF users to `/inactif`
+- Exempt paths: `/inactif`, `/login`, `/api/auth`
+- `/inactif` page: `src/app/inactif/page.tsx` — client component, shows signOut button
+- Migration script: `scripts/rename-guest-to-inactif.ts` — renames GUEST→INACTIF in Turso
 
-## Security Headers
-- All 5 headers set in `next.config.ts` via `async headers()` on source `/(.*)`
-- No `outputFileTracingIncludes` (project does not use Prisma)
+## resolveRoles Transition Pattern
+- `resolveRoles()` in `api/users/route.ts` and `api/users/[email]/route.ts` handles both `'GUEST'` and `'INACTIF'` as inactive roles
+- `'GUEST'` is preserved as-is when stored (not normalized to INACTIF) — DB migration script handles bulk rename
+- Once DB migration runs, `'GUEST'` no longer appears in DB
 
-## GuidedTour
-- `TourStep.body` is `React.ReactNode` (not `string`) — use JSX, not HTML strings
-- No `dangerouslySetInnerHTML` — render `{step.body}` directly
+## Test Infrastructure
+- **Unit tests**: Vitest + jsdom + @testing-library/react
+- **Integration tests**: real SQLite file DB (NOT in-memory) — see integration/setup.ts
+- **E2E tests**: Playwright (`npm run test:e2e`, separate from vitest)
+- `seedRoles()` defaults include all roles (SECOURISTE, CI/RPAPS, INACTIF/GUEST kept in tests)
 
-## Next.js Route File Rules
-- **Never export non-handler functions from route.ts files** — Next.js only allows `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` exports
-- Shared server-side logic must live in `src/lib/*.ts` and be imported by routes
+### Critical: libSQL `file::memory:` + transactions
+- `db.transaction('write')` needs file DB — integration tests use temp file via `mkdtemp`
 
-## NextResponse + Binary Data
-- `NextResponse` body must be `BodyInit`-compatible — convert Node.js `Buffer` to `Uint8Array`:
-  `new NextResponse(new Uint8Array(buffer), { headers: { 'Content-Type': 'application/pdf' } })`
+### Vitest `vi.mock` hoisting
+- Factory `() => ({ db })` — `db` undefined at hoist time
+- Fix: `async () => { const { db } = await import('./setup'); return { db }; }`
 
-## @react-pdf/renderer (PDF generation)
-- Replaced pdfkit as of v1.11.0 — no pdfkit in the project anymore
-- Add `@react-pdf/renderer` to `serverExternalPackages` in `next.config.ts`
-- PDF document: `src/components/stats/StatsPdfDocument.tsx` — React component using `Document`, `Page`, `View`, `Text`, `Svg` primitives
-- Route calls `renderToBuffer(element)` — requires double cast: `as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>`
-- Use built-in fonts `Helvetica` and `Helvetica-Bold` — no font registration needed
-- `border` shorthand not supported — use `borderBottomWidth`, `borderBottomColor`, `borderBottomStyle`
-- Fixed footer: `<View fixed>` with `<Text render={({ pageNumber, totalPages }) => ...} />` for page numbers
-- `wrap={false}` on `<View>` prevents it from breaking across pages
-
-## Recharts
-- `Defs`, `LinearGradient`, `Stop` are NOT exported from recharts — use inline SVG `<defs>` in JSX instead
-- Recharts uses browser APIs — wrap with `dynamic(() => import(...), { ssr: false })` to avoid SSR errors
-
-## Test Infrastructure (added 2026-03-10)
-- **Unit tests**: Vitest + jsdom + @testing-library/react + @testing-library/dom
-- **Integration tests**: Vitest with file-based temp SQLite DB (NOT in-memory) — see below
-- **E2E tests**: Playwright (separate `npm run test:e2e` command, NOT picked up by vitest)
-- Config: `vitest.config.ts` excludes `e2e/` folder; `playwright.config.ts` for E2E
-- Scripts: `npm test` (vitest run), `npm run test:watch`, `npm run test:e2e`
-- Test dirs: `src/__tests__/unit/`, `src/__tests__/components/`, `src/__tests__/integration/`, `e2e/`
-- Unit/component setup: `src/__tests__/setup.ts` (in-memory DB, beforeEach drop/recreate)
-- Integration setup: `src/__tests__/integration/setup.ts` (temp file DB, beforeEach truncate)
-
-### Trip seed requires User seed first
-- `seedTrip` inserts `driverId` FK — libSQL enforces FKs, so a matching User row must exist first
-- Always call `seedUser(...)` before `seedTrip(...)` in test `beforeEach` blocks
-- Default `seedTrip` uses `driverId: 'user-1'` (unit setup) or `driverId: 'user-driver'` (integration setup)
-
-### Critical: libSQL `file::memory:` does NOT work with `db.transaction('write')`
-- `db.transaction('write')` internally opens a second connection
-- With `file::memory:`, that second connection sees an **empty database** (separate in-memory instance)
-- Integration tests hitting routes that use transactions MUST use a temp file DB (`mkdtemp`)
-- Unit/component tests that don't trigger transactions can safely use `file::memory:`
-
-### Vitest `vi.mock` hoisting gotcha
-- `vi.mock('@/lib/db', () => ({ db }))` — `db` in the factory is `undefined` (hoisted before imports)
-- Fix: `vi.mock('@/lib/db', async () => { const { db } = await import('./setup'); return { db }; })`
-- Import test helpers (`db`, `seedVehicle`, etc.) AFTER the `vi.mock` declarations
-
-## ESLint Enforcement (as of v1.15.0)
-- **Zero tolerance**: `npm run lint` must produce 0 errors AND 0 warnings
-- **Pre-commit**: Husky + lint-staged runs `eslint --max-warnings=0` on staged `*.ts`/`*.tsx` files
-- **`eslint-disable-next-line` must be on the line immediately before the offending line** — a comment on a subsequent comment line does NOT work (the disable applies to that comment line, not the code)
-- **Multi-line disable comments don't work**: `// eslint-disable-next-line rule\n// more comment\ncode` — the disable covers the comment, not the code. Always single-line.
-- **`react-hooks/set-state-in-effect`** is NOT a recognized rule in this ESLint config — don't add disable comments for it
-- **Unused catch variables**: use `catch { }` (empty catch) instead of `catch (_e) { }` when the variable is not referenced
-- **Underscore prefix** (`_varName`) is NOT always sufficient to suppress `no-unused-vars` in this config — prefer empty catch or eslint-disable
+## ESLint Enforcement
+- Zero tolerance: `npm run lint` must produce 0 errors AND 0 warnings
+- Unused catch: use `catch { }` (empty) instead of `catch (_e) { }`
+- `eslint-disable-next-line` must be on the line immediately before the offending code
 
 ## User Schema (papiers chauffeurs)
-- `User` table has 3 license columns: `papiers_valides INTEGER DEFAULT 1`, `last_validation TEXT`, `start_date_invalidation_process TEXT`
-- Driver roles: `['CHVL', 'CHVPSP']` — only these are subject to license validation
-- Business logic lives in `GET /api/me/license-check` — returns `{ validated, daysLeft, blocked }`
-- Validation action: `PATCH /api/users/[id]/validate-papers` — accessible to ADMIN and RESPO
-- `GET /api/users` now accessible to RESPO (not just ADMIN) — includes license columns in response
-- `LicenseBanner` component in `src/components/LicenseBanner.tsx` — sticky banner, mounted in layout
-- Vehicle borrowing (`canBorrow`) and reservation button both check `licenseBlocked` state
+- `papiers_valides INTEGER DEFAULT 1`, `last_validation TEXT`, `start_date_invalidation_process TEXT`
+- Driver roles CHVL/CHVPSP subject to license validation
+- `GET /api/me/license-check` → `{ validated, daysLeft, blocked }`
+- `LicenseBanner` in layout; reservation button checks `licenseBlocked`
 
 ## Known Patterns / Gotchas
-- `vehicles/page.tsx` has its own `isElectric()` helper (name-based, legacy) — `page.tsx` uses `v.vin` to detect connected vehicles
-- Push notification `sendPushNotification` is imported dynamically inside try blocks in trips route
+- Push notification `sendPushNotification` is imported dynamically inside try blocks
 - DSA checklist sync belongs in PATCH `/api/vehicles/[id]`, not in GET `/api/vehicles/[id]/checklist`
-- Login page `callbackUrl` must be validated: only relative paths starting with `/` but not `//`
+- Login `callbackUrl` validated: only relative paths starting with `/` but not `//`
+- `seedRoles()` in integration tests uses `'GUEST'` (not `'INACTIF'`) — do not change test files
+- `GET /api/settings/menus` is ADMIN-only (added role check in v2.3.0 to match test expectations)

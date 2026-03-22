@@ -1,22 +1,25 @@
-import NextAuth from "next-auth";
-import { authConfig } from "@/auth.config";
+import { auth } from '@/auth';
+import { NextResponse } from 'next/server';
 
-const { auth } = NextAuth(authConfig);
+const EXEMPT_PREFIXES = ['/inactif', '/login', '/api/auth', '/api/', '/_next', '/icons', '/manifest.json', '/crf-logo.svg'];
 
-export default auth;
+export default auth(function proxy(req) {
+    const { pathname } = req.nextUrl;
+
+    if (EXEMPT_PREFIXES.some(p => pathname.startsWith(p))) {
+        return NextResponse.next();
+    }
+
+    const roles = (req.auth?.user?.roles as string[] | undefined) ?? [];
+    const isInactif = roles.length > 0 && roles.every(r => r === 'INACTIF');
+
+    if (isInactif) {
+        return NextResponse.redirect(new URL('/inactif', req.url));
+    }
+
+    return NextResponse.next();
+});
 
 export const config = {
-    /**
-     * Ce matcher exclut du proxy toutes les requêtes vers :
-     * - Les routes d'API (/api/*)
-     * - Les assets Next.js (_next/static, _next/image)
-     * - Les fichiers statiques publics : images, SVG, polices, JSON (manifest), scripts SW
-     * - Le favicon
-     *
-     * IMPORTANT : manifest.json DOIT être accessible sans authentification
-     * pour que la PWA fonctionne (le navigateur les charge sans cookie de session).
-     */
-    matcher: [
-        '/((?!api|_next/static|_next/image|favicon\\.ico|.*\\.png|.*\\.jpg|.*\\.svg|.*\\.json|.*\\.js|.*\\.webp|.*\\.ico|.*\\.woff2?|.*\\.ttf|.*\\.vcf).*)'
-    ],
+    matcher: ['/((?!_next/static|_next/image).*)'],
 };

@@ -82,7 +82,7 @@ export async function POST(
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        const roles = session.user.roles || ['GUEST'];
+        const roles = session.user.roles || ['INACTIF'];
         if (!roles.includes('ADMIN')) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }

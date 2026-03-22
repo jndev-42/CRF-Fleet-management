@@ -84,8 +84,6 @@ async function generatePdf(dateFrom: string, dateTo: string): Promise<Buffer> {
   return Buffer.from(buffer);
 }
 
-const STATS_ALLOWED_ROLES = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP'];
-
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -93,8 +91,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
     }
 
-    const roles = (session.user.roles || ['GUEST']) as string[];
-    if (!roles.some((r) => STATS_ALLOWED_ROLES.includes(r))) {
+    const roles = (session.user.roles || ['INACTIF']) as string[];
+    if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
       return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 
@@ -127,8 +125,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
     }
 
-    const roles = (session.user.roles || ['GUEST']) as string[];
-    if (!roles.some((r) => STATS_ALLOWED_ROLES.includes(r))) {
+    const roles = (session.user.roles || ['INACTIF']) as string[];
+    if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
       return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 

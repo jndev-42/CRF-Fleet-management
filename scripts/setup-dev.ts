@@ -60,7 +60,7 @@ async function main() {
     `);
 
     // Seed des rôles
-    const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST', 'SECOURISTE'];
+    const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'INACTIF', 'SECOURISTE', 'CI/RPAPS'];
     for (const role of roles) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
@@ -472,6 +472,21 @@ async function main() {
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_reports_mission_date_idx" ON "mission_reports"("mission_date")`);
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_supplies_report_id_idx" ON "mission_report_supplies"("report_id")`);
 
+    // ── MenuSetting ───────────────────────────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "MenuSetting" (
+            "menu_key"   TEXT NOT NULL PRIMARY KEY,
+            "visibility" TEXT NOT NULL DEFAULT 'available'
+                         CHECK (visibility IN ('available', 'admin_only', 'disabled')),
+            "updatedAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['stats', 'available'] });
+    await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['inventory', 'available'] });
+    await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['missions', 'available'] });
+
     console.log('✅ Tables créées\n');
 
     // ── Utilisateurs de test ──────────────────────────────────────
@@ -481,7 +496,7 @@ async function main() {
         { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'chvl@dev.local', name: 'Chauffeur Dev', roles: ['CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
-        { email: 'guest@dev.local', name: 'Invité Dev', roles: ['GUEST'], papiers_valides: 1, start_date_invalidation_process: null },
+        { email: 'guest@dev.local', name: 'Inactif Dev', roles: ['INACTIF'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'secouriste@dev.local', name: 'Secouriste Dev', roles: ['SECOURISTE'], papiers_valides: 1, start_date_invalidation_process: null },
     ];
 
@@ -518,6 +533,40 @@ async function main() {
             }
         }
         console.log(`👤 ${devUser.email.padEnd(24)} roles: ${devUser.roles.join(', ')}`);
+    }
+
+    // ── Backfill SECOURISTE pour tous les non-INACTIF ────────────────
+    {
+        const secouristeRow = await db.execute({ sql: `SELECT id FROM "Role" WHERE name = ?`, args: ['SECOURISTE'] });
+        const inactifRow = await db.execute({ sql: `SELECT id FROM "Role" WHERE name = ?`, args: ['INACTIF'] });
+        if (secouristeRow.rows.length > 0 && inactifRow.rows.length > 0) {
+            const secouristeId = secouristeRow.rows[0].id as string;
+            const inactifRoleId = inactifRow.rows[0].id as string;
+            // Tous les utilisateurs qui ont au moins un rôle non-INACTIF et qui n'ont pas encore SECOURISTE
+            const usersToBackfill = await db.execute({
+                sql: `SELECT DISTINCT ur.userId FROM "UserRole" ur
+                      JOIN "Role" r ON ur.roleId = r.id
+                      WHERE r.name != 'INACTIF'
+                        AND ur.userId NOT IN (
+                            SELECT userId FROM "UserRole" WHERE roleId = ?
+                        )
+                        AND ur.userId NOT IN (
+                            SELECT DISTINCT ur2.userId FROM "UserRole" ur2 WHERE ur2.roleId = ?
+                            EXCEPT
+                            SELECT DISTINCT ur3.userId FROM "UserRole" ur3 JOIN "Role" r3 ON ur3.roleId = r3.id WHERE r3.name != 'INACTIF'
+                        )`,
+                args: [secouristeId, inactifRoleId],
+            });
+            for (const row of usersToBackfill.rows) {
+                await db.execute({
+                    sql: `INSERT OR IGNORE INTO "UserRole" (userId, roleId) VALUES (?, ?)`,
+                    args: [row.userId, secouristeId],
+                });
+            }
+            if (usersToBackfill.rows.length > 0) {
+                console.log(`🔄 Backfill SECOURISTE : ${usersToBackfill.rows.length} utilisateur(s) mis à jour`);
+            }
+        }
     }
 
     // ── Véhicules de démonstration ────────────────────────────────
@@ -719,7 +768,7 @@ async function main() {
         console.log('\n📊 Trips déjà présents, skip');
     }
 
-    // ── Rôle SECOURISTE pour tous les non-GUEST ───────────────────
+    // ── Rôle SECOURISTE pour tous les non-INACTIF ───────────────────
 
     const secouristeRoleId = roleIds['SECOURISTE'];
     if (secouristeRoleId) {
@@ -730,11 +779,11 @@ async function main() {
                   WHERE u.id NOT IN (
                     SELECT ur.userId FROM "UserRole" ur
                     JOIN "Role" r ON r.id = ur.roleId
-                    WHERE r.name = 'GUEST'
+                    WHERE r.name = 'INACTIF'
                   )`,
             args: [secouristeRoleId],
         });
-        console.log('\n🚑 Rôle SECOURISTE assigné aux utilisateurs non-GUEST');
+        console.log('\n🚑 Rôle SECOURISTE assigné aux utilisateurs non-INACTIF');
     }
 
     // ── Inventaire de démonstration ───────────────────────────────

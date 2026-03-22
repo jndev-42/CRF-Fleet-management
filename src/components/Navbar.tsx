@@ -8,14 +8,24 @@ import { signOut } from 'next-auth/react';
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
 import { User } from 'next-auth';
+import { useMenuSettings, MenuVisibility } from '@/lib/contexts/MenuSettingsContext';
 
 type NavbarProps = {
     user?: User & { roles?: string[] };
 };
 
+function canSeeMenu(key: string, visibility: MenuVisibility, userRoles: string[]): boolean {
+    if (visibility === 'disabled') return false;
+    if (visibility === 'admin_only') return userRoles.includes('ADMIN');
+    return true;
+}
+
 export default function Navbar({ user }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
+    const { getVisibility } = useMenuSettings();
+
+    const userRoles = user?.roles ?? [];
 
     return (
         <header className="header" role="banner">
@@ -68,22 +78,22 @@ export default function Navbar({ user }: NavbarProps) {
                         </div>
                         <Link href="/" className={`nav-link${pathname === '/' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</Link>
                         <Link href="/vehicles" className={`nav-link${pathname === '/vehicles' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</Link>
-                        {!user.roles?.includes('GUEST') && (
+                        {!userRoles.includes('INACTIF') && canSeeMenu('stats', getVisibility('stats'), userRoles) && (
                             <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
                         )}
-                        {!user.roles?.includes('GUEST') && (
+                        {(userRoles.includes('ADMIN') || userRoles.includes('SECOURISTE')) && canSeeMenu('inventory', getVisibility('inventory'), userRoles) && (
                             <Link href="/inventory" className={`nav-link${pathname === '/inventory' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/inventory' ? 'page' : undefined}>Inventaire</Link>
                         )}
-                        {user.roles?.includes('ADMIN') && (
+                        {(userRoles.includes('ADMIN') || userRoles.includes('CI/RPAPS')) && canSeeMenu('missions', getVisibility('missions'), userRoles) && (
                             <Link href="/missions" className={`nav-link${pathname.startsWith('/missions') ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/missions') ? 'page' : undefined}>Missions</Link>
                         )}
-                        {(user.roles?.includes('ADMIN') || user.roles?.includes('RESPO')) && (
-                            <Link href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Utilisateurs</Link>
+                        {(userRoles.includes('ADMIN') || userRoles.includes('RESPO')) && (
+                            <Link href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Administration</Link>
                         )}
                         <Link href="/aide" className={`nav-link${pathname === '/aide' ? ' active' : ''}`} data-tour="aide" onClick={() => setIsOpen(false)} aria-current={pathname === '/aide' ? 'page' : undefined}>Aide</Link>
 
                         <div className="nav-actions">
-                            {(user.roles?.includes('ADMIN') || user.roles?.includes('RESPO')) && (
+                            {(userRoles.includes('ADMIN') || userRoles.includes('RESPO')) && (
                                 <span data-tour="notifications"><NotificationBell /></span>
                             )}
                             <ThemeToggle />
