@@ -1,7 +1,7 @@
 # Agent Memory — cr-chauffeur
 
 ## Current Version
-- package.json + CHANGELOG.md: **v2.3.0** (as of 2026-03-22)
+- package.json + CHANGELOG.md: **v2.3.1** (as of 2026-03-25)
 - Footer version: uses `process.env.NEXT_PUBLIC_APP_VERSION` injected from `package.json` via `next.config.ts` — NOT hardcoded
 
 ## Project Structure

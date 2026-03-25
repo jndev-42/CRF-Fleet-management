@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.3.1] — 25 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Infos de désinfection persistées** — Les informations de désinfection saisies par un administrateur avant le retour d'un véhicule (responsable + numéro de lot) sont maintenant enregistrées en base de données. Elles survivent à un rechargement de page et pré-remplissent automatiquement le formulaire de check-in.
+
+### 🔧 Changements
+
+- **Bouton "Saisir infos désinf."** — L'indicateur visuel "✅ Infos désinf. saisies" reflète désormais les données enregistrées en base, et non plus un état local perdu au rafraîchissement.
+
+### 🐛 Corrections
+
+_Aucune correction._
+
 ## [2.3.0] — 22 mars 2026
 
 ### ✨ Nouvelles fonctionnalités

@@ -23,7 +23,7 @@ const updateVehicleSchema = z.object({
 });
 
 export async function GET(
-    request: Request,
+    _request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
@@ -119,6 +119,7 @@ export async function GET(
                 renaultLastCheckedAt: tRow.renaultLastCheckedAt || null,
                 desinfResponsable: tRow.desinfResponsable as string | null ?? null,
                 desinfLotNumber: tRow.desinfLotNumber as string | null ?? null,
+                desinfResponsableId: tRow.desinfResponsableId as string | null ?? null,
                 createdAt: new Date(tRow.createdAt as string),
             }))
         };
@@ -225,7 +226,7 @@ export async function PATCH(
 import { deleteDriveFolder } from '@/lib/drive';
 
 export async function DELETE(
-    request: Request,
+    _request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {

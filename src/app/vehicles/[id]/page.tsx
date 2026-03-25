@@ -69,7 +69,6 @@ export default function VehicleDetailPage() {
     const [secondDriverEmail, setSecondDriverEmail] = useState('');
     const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
     const [showDesinfPre, setShowDesinfPre] = useState(false);
-    const [desinfPreData, setDesinfPreData] = useState<{ responsableId: string; responsableName: string; lotNumber: string } | null>(null);
     const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
     const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
     const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
@@ -466,7 +465,7 @@ export default function VehicleDetailPage() {
                                     style={{ fontSize: 13, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6, borderColor: 'rgba(16, 185, 129, 0.4)', color: '#059669' }}
                                     onClick={() => setShowDesinfPre(true)}
                                 >
-                                    🧴 {desinfPreData ? '✅ Infos désinf. saisies' : 'Saisir infos désinf.'}
+                                    🧴 {activeTrip.desinfResponsable ? '✅ Infos désinf. saisies' : 'Saisir infos désinf.'}
                                 </button>
                             </div>
                         )}
@@ -820,21 +819,21 @@ export default function VehicleDetailPage() {
                     onClose={() => setShowCheckIn(false)}
                     onSuccess={() => {
                         setShowCheckIn(false);
-                        setDesinfPreData(null);
                         showToast('Véhicule rendu avec succès !');
                     }}
                     onRefetch={fetchVehicle}
-                    initialDesinfResponsableId={desinfPreData?.responsableId}
-                    initialDesinfLotNumber={desinfPreData?.lotNumber}
+                    initialDesinfResponsableId={activeTrip.desinfResponsableId ?? undefined}
+                    initialDesinfLotNumber={activeTrip.desinfLotNumber ?? undefined}
                 />
             )}
 
-            {showDesinfPre && (
+            {showDesinfPre && activeTrip && (
                 <DesinfPreCheckinModal
+                    tripId={activeTrip.id}
                     onClose={() => setShowDesinfPre(false)}
-                    onConfirm={(data) => {
-                        setDesinfPreData(data);
+                    onConfirm={() => {
                         setShowDesinfPre(false);
+                        fetchVehicle();
                     }}
                 />
             )}

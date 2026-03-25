@@ -36,6 +36,8 @@ export interface Trip {
     desinfResponsable: string | null;
     /** Numéro de lot du produit désinfectant (renseigné au check-in pour les missions Désinfection) */
     desinfLotNumber: string | null;
+    /** ID de l'utilisateur pré-renseigné comme responsable désinf. (avant check-in) */
+    desinfResponsableId: string | null;
 }
 
 export interface DesinfectionRecord {

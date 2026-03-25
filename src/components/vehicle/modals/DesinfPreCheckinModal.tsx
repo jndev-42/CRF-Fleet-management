@@ -2,18 +2,21 @@ import React, { useState, useEffect } from 'react';
 import UserCombobox from '@/components/ui/UserCombobox';
 
 interface DesinfPreCheckinModalProps {
+    tripId: string;
     onClose: () => void;
-    onConfirm: (data: { responsableId: string; responsableName: string; lotNumber: string }) => void;
+    onConfirm: () => void;
 }
 
 /**
  * Modal allowing an ADMIN to pre-fill disinfection info (responsable + lot number)
- * before the actual vehicle check-in.
+ * before the actual vehicle check-in. Persists data to DB via API.
  */
-export default function DesinfPreCheckinModal({ onClose, onConfirm }: DesinfPreCheckinModalProps) {
+export default function DesinfPreCheckinModal({ tripId, onClose, onConfirm }: DesinfPreCheckinModalProps) {
     const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
     const [responsableId, setResponsableId] = useState('');
     const [lotNumber, setLotNumber] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetch('/api/users')
@@ -22,11 +25,29 @@ export default function DesinfPreCheckinModal({ onClose, onConfirm }: DesinfPreC
             .catch(console.error);
     }, []);
 
-    function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         const user = users.find(u => u.id === responsableId);
         const responsableName = user?.name || user?.email || '';
-        onConfirm({ responsableId, responsableName, lotNumber: lotNumber.trim() });
+        setSubmitting(true);
+        setError(null);
+        try {
+            const res = await fetch(`/api/trips/${tripId}/desinf-pre`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ desinfResponsableId: responsableId, desinfResponsable: responsableName, desinfLotNumber: lotNumber.trim() }),
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                setError(d.error || 'Erreur lors de la sauvegarde');
+                return;
+            }
+            onConfirm();
+        } catch {
+            setError('Erreur de connexion');
+        } finally {
+            setSubmitting(false);
+        }
     }
 
     return (
@@ -57,6 +78,22 @@ export default function DesinfPreCheckinModal({ onClose, onConfirm }: DesinfPreC
                         >
                             Saisissez les informations de désinfection avant le retour du véhicule. Elles seront pré-remplies lors du check-in.
                         </div>
+
+                        {error && (
+                            <div
+                                style={{
+                                    padding: '10px 14px',
+                                    background: 'rgba(239, 68, 68, 0.08)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    marginBottom: 16,
+                                    fontSize: 13,
+                                    color: '#DC2626',
+                                }}
+                            >
+                                {error}
+                            </div>
+                        )}
 
                         <div className="form-group" style={{ marginBottom: 16 }}>
                             <label className="form-label" htmlFor="pre-desinf-responsable">
@@ -93,9 +130,9 @@ export default function DesinfPreCheckinModal({ onClose, onConfirm }: DesinfPreC
                         <button
                             type="submit"
                             className="btn btn-primary"
-                            disabled={!responsableId || !lotNumber.trim()}
+                            disabled={!responsableId || !lotNumber.trim() || submitting}
                         >
-                            ✅ Valider
+                            {submitting ? '...' : '✅ Valider'}
                         </button>
                     </div>
                 </form>

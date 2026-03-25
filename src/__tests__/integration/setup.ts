@@ -84,6 +84,7 @@ async function createTables() {
     renaultLastCheckedAt TEXT DEFAULT NULL,
     desinfResponsable TEXT,
     desinfLotNumber TEXT,
+    desinfResponsableId TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vehicleId) REFERENCES Vehicle(id)
   )`);
@@ -398,6 +399,7 @@ export async function seedTrip(overrides: Partial<{
   secondDriverId: string | null;
   mileageIn: number | null;
   fuelIn: number | null;
+  desinfResponsableId: string | null;
 }> = {}) {
   const t = {
     id: 'trip-1',
@@ -413,18 +415,21 @@ export async function seedTrip(overrides: Partial<{
     secondDriverId: null,
     mileageIn: null,
     fuelIn: null,
+    desinfResponsableId: null,
     ...overrides,
   };
   await db.execute({
     sql: `INSERT INTO "Trip" (
             id, vehicleId, driverId, missionType,
             checkOutAt, conditionOut, mileageOut, fuelOut,
-            checkInAt, conditionIn, mileageIn, fuelIn, secondDriverId
-          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            checkInAt, conditionIn, mileageIn, fuelIn, secondDriverId,
+            desinfResponsableId
+          ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     args: [
       t.id, t.vehicleId, t.driverId, t.missionType,
       t.checkOutAt, t.conditionOut, t.mileageOut, t.fuelOut,
       t.checkInAt, t.conditionIn, t.mileageIn, t.fuelIn, t.secondDriverId,
+      t.desinfResponsableId,
     ],
   });
   return t;
