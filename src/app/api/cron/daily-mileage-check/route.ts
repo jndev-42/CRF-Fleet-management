@@ -11,6 +11,14 @@ export async function GET(request: Request) {
     }
 
     try {
+        // Supprimer les réservations dont la date de fin est antérieure à maintenant
+        const now = new Date().toISOString();
+        const deleted = await db.execute({
+            sql: `DELETE FROM Reservation WHERE endTime < ?`,
+            args: [now]
+        });
+        console.log(`Cron: ${deleted.rowsAffected} réservation(s) expirée(s) supprimée(s)`);
+
         const adminUsersObj = await db.execute(`
             SELECT u.email 
             FROM User u 
@@ -105,7 +113,7 @@ export async function GET(request: Request) {
             }
         }
 
-        return NextResponse.json({ success: true, alertsSent });
+        return NextResponse.json({ success: true, alertsSent, reservationsDeleted: deleted.rowsAffected });
 
     } catch (error) {
         console.error('Error daily mileage checking:', error);
