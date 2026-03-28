@@ -19,7 +19,7 @@ const ROLE_DESCRIPTIONS = [
         key: 'CI/RPAPS', label: 'CI / RPAPS', color: '#0ea5e9',
         bgColor: 'rgba(14, 165, 233, 0.08)', borderColor: 'rgba(14, 165, 233, 0.25)',
         description: 'Chargé d\'intervention / Responsable poste de secours.',
-        permissions: ['Gestion des missions', 'Statistiques & exports'],
+        permissions: ['Dépôt et consultation de ses comptes rendus', 'Statistiques & exports'],
     },
     {
         key: 'CHVPSP', label: 'Chauffeur VPSP', color: '#8b5cf6',

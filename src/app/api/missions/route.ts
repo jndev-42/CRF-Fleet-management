@@ -58,7 +58,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
-        const isAdmin = roles.includes('ADMIN') || roles.includes('CI/RPAPS');
+        const isAdmin = roles.includes('ADMIN');
         const userId = session.user.id;
 
         const { searchParams } = new URL(request.url);
