@@ -40,11 +40,14 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
         const row = reportResult.rows[0];
 
-        // Access control: only ADMIN and CI/RPAPS can access missions
+        // Access control: ADMIN voit tout ; les autres n'accèdent qu'à leurs propres CRs
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        const isAllowed = roles.includes('ADMIN') || roles.includes('CI/RPAPS');
-        if (!isAllowed) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+        const isAdmin = roles.includes('ADMIN');
+        if (!isAdmin) {
+            const userId = session.user.id;
+            if (!userId || row.submitted_by !== userId) {
+                return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            }
         }
 
         // Fetch supplies

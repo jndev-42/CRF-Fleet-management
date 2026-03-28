@@ -312,15 +312,16 @@ describe('GET /api/missions (list)', () => {
         expect(body.total).toBe(2);
     });
 
-    it('returns 200 with all reports for CI/RPAPS (sees all)', async () => {
+    it('returns 200 with only own reports for CI/RPAPS (auteur uniquement)', async () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(ciRpapsSession);
 
         const res = await getList(makeListRequest());
         expect(res.status).toBe(200);
         const body = await res.json();
-        expect(body.reports).toHaveLength(2);
-        expect(body.total).toBe(2);
+        expect(body.reports).toHaveLength(1);
+        expect(body.total).toBe(1);
+        expect(body.reports[0].mission_name).toBe('Mission CI/RPAPS');
     });
 
     it('filters by type correctly', async () => {
@@ -384,7 +385,7 @@ describe('GET /api/missions/[id] (detail)', () => {
 
     it('returns drive_folder_id in response when set', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(ciRpapsSession);
+        mockedAuth.mockResolvedValue(adminSession);
 
         // Update report-1 with a drive_folder_id
         await db.execute({
@@ -401,13 +402,37 @@ describe('GET /api/missions/[id] (detail)', () => {
 
     it('returns null drive_folder_id when not set', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(ciRpapsSession);
+        mockedAuth.mockResolvedValue(adminSession);
 
         const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
         expect(res.status).toBe(200);
 
         const body = await res.json();
         expect(body.drive_folder_id).toBeNull();
+    });
+
+    it('returns 200 for CI/RPAPS accessing their own report', async () => {
+        // report-1 is submitted by user-admin; create a report by user-ci
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-ci', 'user-ci', '2026-03-10T12:00:00.000Z', 'DPS', 'Mission CI', '2026-03-10', 'Lyon', 'Moi', 1, 0, 0, 0, 0, 0],
+        });
+
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(ciRpapsSession);
+
+        const res = await getDetail(makeDetailRequest('report-ci'), { params: Promise.resolve({ id: 'report-ci' }) });
+        expect(res.status).toBe(200);
+    });
+
+    it('returns 403 for CI/RPAPS accessing another user\'s report', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(ciRpapsSession);
+
+        // report-1 belongs to user-admin, not user-ci
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(403);
     });
 });
 
