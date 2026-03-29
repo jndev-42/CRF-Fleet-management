@@ -89,20 +89,28 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         const start = new Date(data.startTime);
         const end = new Date(data.endTime);
 
-        // Vérification de chevauchement uniquement sur les réservations VALIDÉES
-        const conflictCheck = await db.execute({
+        // Vérification de chevauchement : une seule requête pour VALIDATED et PENDING
+        const conflicts = await db.execute({
             sql: `
-                SELECT id
+                SELECT id, status
                 FROM "Reservation"
                 WHERE vehicleId = ?
-                AND status = 'VALIDATED'
+                AND status IN ('VALIDATED', 'PENDING')
                 AND (startTime < ? AND endTime > ?)
             `,
             args: [vehicleId, end.toISOString(), start.toISOString()]
         });
 
-        if (conflictCheck.rows.length > 0) {
+        const hasValidated = conflicts.rows.some(r => r.status === 'VALIDATED');
+        const hasPending   = conflicts.rows.some(r => r.status === 'PENDING');
+
+        // Tout le monde est bloqué par une réservation VALIDÉE
+        if (hasValidated) {
             return NextResponse.json({ error: 'Ce créneau chevauche une réservation déjà validée.' }, { status: 409 });
+        }
+        // Tout le monde est bloqué par une réservation EN ATTENTE
+        if (hasPending) {
+            return NextResponse.json({ error: 'Ce créneau chevauche une demande de réservation déjà en attente.' }, { status: 409 });
         }
 
         let userEmail = session.user.email as string;

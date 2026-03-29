@@ -16,6 +16,8 @@
  *  8. 201 — ADMIN réserve pour un autre → status VALIDATED, userEmail = cible
  *  9. 409 — conflit avec une réservation VALIDATED existante
  * 10. cross-vehicle : même utilisateur peut réserver VL002 en overlap avec VL001 → 201
+ * 11. 409 — CHVL chevauche une réservation PENDING existante
+ * 12. 409 — ADMIN bloqué par un overlap PENDING (pas de bypass)
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -194,5 +196,45 @@ describe('POST /api/vehicles/[id]/reservations — conflits', () => {
         });
         const res = await POST(req, { params: Promise.resolve({ id: 'VL002' }) });
         expect(res.status).toBe(201);
+    });
+
+    it('11. retourne 409 si CHVL chevauche une réservation PENDING existante', async () => {
+        const { startTime, endTime } = futureWindow(30, 4);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-pending', VEHICLE_ID, 'other@dev.local', 'Other User', startTime, endTime, 'PENDING']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        const overlapStart = new Date(Date.now() + 31 * 60 * 60 * 1000);
+        const overlapEnd = new Date(Date.now() + 32 * 60 * 60 * 1000);
+        const res = await POST(
+            makeRequest({ startTime: overlapStart.toISOString(), endTime: overlapEnd.toISOString() }),
+            { params: Promise.resolve({ id: VEHICLE_ID }) }
+        );
+        expect(res.status).toBe(409);
+        const body = await res.json();
+        expect(body.error).toContain('en attente');
+    });
+
+    it('12. ADMIN est bloqué par un overlap PENDING → 409', async () => {
+        const { startTime, endTime } = futureWindow(35, 4);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-pending-2', VEHICLE_ID, 'other@dev.local', 'Other User', startTime, endTime, 'PENDING']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'] } } as never);
+        const overlapStart = new Date(Date.now() + 36 * 60 * 60 * 1000);
+        const overlapEnd = new Date(Date.now() + 37 * 60 * 60 * 1000);
+        const res = await POST(
+            makeRequest({ startTime: overlapStart.toISOString(), endTime: overlapEnd.toISOString() }),
+            { params: Promise.resolve({ id: VEHICLE_ID }) }
+        );
+        expect(res.status).toBe(409);
+        const body = await res.json();
+        expect(body.error).toContain('en attente');
     });
 });
