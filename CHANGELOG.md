@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.3.2] — 29 mars 2026
+
+### Corrections
+
+- Blocage des conflits de réservation PENDING pour tous les rôles, y compris les administrateurs
+
 ## [2.3.1] — 25 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
