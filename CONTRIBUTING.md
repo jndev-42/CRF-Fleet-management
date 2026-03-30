@@ -29,7 +29,16 @@ cd cr-chauffeur
 npm install
 ```
 
-### 3. Configurer les variables d'environnement
+### 3. Prérequis : Apple Container
+
+Le mode développement utilise un conteneur **sqld** (serveur libSQL) pour la base de données. Installez [Apple Container](https://developer.apple.com/documentation/virtualization) (macOS uniquement) :
+
+```bash
+# Vérifier que Apple Container est disponible
+container --version
+```
+
+### 4. Configurer les variables d'environnement
 
 Créez un fichier `.env.local` à la racine avec le minimum requis :
 
@@ -37,22 +46,12 @@ Créez un fichier `.env.local` à la racine avec le minimum requis :
 # NextAuth
 AUTH_SECRET=une_valeur_aleatoire_longue   # npx auth secret
 
-# Base de données locale (SQLite fichier)
-TURSO_DATABASE_URL=file:./dev.db
-TURSO_AUTH_TOKEN=                         # laisser vide pour un fichier local
+# Base de données dev — conteneur sqld local (géré automatiquement par npm run dev)
+TURSO_DATABASE_URL=http://localhost:8080
+TURSO_AUTH_TOKEN=                         # laisser vide pour sqld local
 ```
 
 Les variables Google OAuth, OneSignal et Renault Connect sont **optionnelles en développement** — l'app fonctionne sans elles.
-
-### 4. Initialiser la base de données locale
-
-Un seul script crée toutes les tables et insère 4 utilisateurs de test + 4 véhicules de démo :
-
-```bash
-npm run dev:setup
-```
-
-Ce script est **idempotent** — vous pouvez le relancer sans risque.
 
 ### 5. Lancer le serveur de développement
 
@@ -60,7 +59,30 @@ Ce script est **idempotent** — vous pouvez le relancer sans risque.
 npm run dev
 ```
 
+Au premier lancement, le script `predev` :
+1. Crée le conteneur `crf-dev-db` (image `ghcr.io/libsql/sqld`) sur le port 8080
+2. Attend que sqld soit prêt
+3. Initialise la base avec les données de test (4 utilisateurs, 4 véhicules, inventaire…)
+
+Les relances suivantes détectent le conteneur existant et démarrent directement.
+
 L'application est accessible sur [http://localhost:3000](http://localhost:3000).
+
+#### Mode données de prod
+
+```bash
+npm run dev:prod
+```
+
+Même chose, mais initialise la base en clonant les données depuis la base Turso de production.
+Requiert `TURSO_DATABASE_URL=libsql://...` et `TURSO_AUTH_TOKEN` dans `.env.local`.
+
+#### Commandes utiles
+
+```bash
+npm run db:reset   # Détruit le conteneur + les données — réinitialise au prochain npm run dev
+npm run db:stop    # Arrête le conteneur (les données persistent)
+```
 
 ### 6. Se connecter (sans OAuth)
 

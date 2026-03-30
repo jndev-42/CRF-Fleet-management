@@ -7,8 +7,10 @@
 import { createClient } from '@libsql/client';
 import crypto from 'crypto';
 
+// DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
+// Defaults to file:./dev.db when run directly via npm run dev:setup.
 const db = createClient({
-    url: ('file:./dev.db').trim(),
+    url: (process.env.DEV_DB_URL ?? 'file:./dev.db').trim(),
     authToken: ('').trim(),
 });
 

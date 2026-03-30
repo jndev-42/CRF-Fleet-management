@@ -1,9 +1,14 @@
 {
   "name": "cr-chauffeur",
-  "version": "2.3.2",
+  "version": "2.4.0",
   "private": true,
   "scripts": {
+    "predev": "tsx scripts/dev-db.ts",
     "dev": "next dev --webpack",
+    "predev:prod": "INIT_MODE=prod-datas tsx scripts/dev-db.ts",
+    "dev:prod": "INIT_MODE=prod-datas next dev --webpack",
+    "db:reset": "tsx scripts/dev-db.ts --reset",
+    "db:stop": "container stop crf-dev-db || true",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
@@ -17,6 +22,7 @@
   },
   "dependencies": {
     "@libsql/client": "^0.5.6",
+    "@opentelemetry/api": "^1.9.1",
     "@react-pdf/renderer": "^4.3.2",
     "@remscodes/renault-api": "^2.0.0",
     "@remscodes/renault-api-client": "^2.0.0",

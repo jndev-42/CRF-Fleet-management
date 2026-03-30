@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.0] — 29 mars 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Base de données dev en conteneur** — `npm run dev` démarre automatiquement un serveur sqld (libSQL) dans Apple Container. Les données persistent entre les redémarrages dans `.dev-db/`.
+- **Mode données de prod** — `npm run dev:prod` initialise la base de développement avec les données réelles de la base Turso de production (via `@libsql/client`).
+- **Commandes de gestion** — `npm run db:reset` recrée la base de zéro ; `npm run db:stop` arrête le conteneur sans effacer les données.
+
+### 🔧 Changements
+
+- `scripts/setup-dev.ts` respecte la variable d'environnement `DEV_DB_URL` pour cibler le conteneur sqld au lieu de `file:./dev.db` (rétrocompatible — `npm run dev:setup` fonctionne toujours).
+- `CONTRIBUTING.md` mis à jour avec le nouveau flux de démarrage.
+
 ## [2.3.2] — 29 mars 2026
 
 ### Corrections

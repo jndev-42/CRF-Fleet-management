@@ -44,6 +44,7 @@ next-env.d.ts
 /src/generated/prisma
 dev.db
 prisma/dev.db
+.dev-db/
 DO_NOT_COMMIT
 .grepai/
 .omc/

@@ -5,11 +5,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev          # Start dev server (http://localhost:3000)
+npm run dev          # Start dev server — auto-starts container DB, seeds with fixture data
+npm run dev:prod     # Start dev server — auto-starts container DB, clones prod data
 npm run build        # Production build
 npm run lint         # ESLint + TypeScript check — must produce 0 errors AND 0 warnings
-npm run dev:setup    # Initialize local SQLite DB with seed data (idempotent)
+npm run dev:setup    # Legacy: init local SQLite file (file:./dev.db) with seed data
 npm run test         # Run full test suite (Vitest)
+npm run db:reset     # Destroy container + data dir — fresh init on next npm run dev
+npm run db:stop      # Stop the dev DB container (data persists)
 
 # Useful scripts (run via npx tsx scripts/<name>.ts)
 npx tsx scripts/show-schema.ts          # Inspect DB schema
