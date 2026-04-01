@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, ArrowLeft, Camera, Trash2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Camera, FileText, Trash2, ZoomIn } from 'lucide-react';
 import { SUPPLIES_BY_CATEGORY, MISSION_TYPE_LABELS, TEAM_DYNAMICS_LABELS } from '@/lib/mission-supplies';
 import type { SupplyCategory } from '@/lib/mission-supplies';
 import MissionPhotosModal from '@/components/missions/MissionPhotosModal';
+import SignedReportLightbox from '@/components/missions/SignedReportLightbox';
 import styles from './mission-detail.module.css';
 
 interface SupplyEntry {
@@ -63,6 +64,8 @@ export default function MissionDetailPage() {
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
     const [photosOpen, setPhotosOpen] = useState(false);
+    const [signedReportOpen, setSignedReportOpen] = useState(false);
+    const [signedReportIsPdf, setSignedReportIsPdf] = useState(false);
 
     const roles = (session?.user?.roles || ['GUEST']) as string[];
     const isAdmin = roles.includes('ADMIN');
@@ -186,19 +189,35 @@ export default function MissionDetailPage() {
 
                 {/* Rapport signé */}
                 {report.signed_report_drive_id && (
-                    <div className="card">
-                        <h2 className={styles.cardTitle}>Rapport signé</h2>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={`/api/drive/photos/${report.signed_report_drive_id}`}
-                            alt="Rapport de mission signé"
-                            style={{
-                                width: '100%',
-                                borderRadius: 6,
-                                border: '1px solid var(--border-primary)',
-                                marginTop: '0.5rem',
-                            }}
-                        />
+                    <div
+                        className="card"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => setSignedReportOpen(true)}
+                        title="Cliquer pour agrandir"
+                    >
+                        <h2 className={styles.cardTitle} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            Rapport signé
+                            <ZoomIn size={15} style={{ color: 'var(--text-secondary)', marginLeft: 'auto' }} />
+                        </h2>
+                        {signedReportIsPdf ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.75rem', color: 'var(--text-secondary)' }}>
+                                <FileText size={36} />
+                                <span style={{ fontSize: '0.875rem' }}>Document PDF — cliquer pour ouvrir</span>
+                            </div>
+                        ) : (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                                src={`/api/drive/photos/${report.signed_report_drive_id}`}
+                                alt="Rapport de mission signé"
+                                onError={() => setSignedReportIsPdf(true)}
+                                style={{
+                                    width: '100%',
+                                    borderRadius: 6,
+                                    border: '1px solid var(--border-primary)',
+                                    marginTop: '0.5rem',
+                                }}
+                            />
+                        )}
                     </div>
                 )}
 
@@ -247,6 +266,9 @@ export default function MissionDetailPage() {
 
             {photosOpen && report.drive_folder_id && (
                 <MissionPhotosModal folderId={report.drive_folder_id} onClose={() => setPhotosOpen(false)} />
+            )}
+            {signedReportOpen && report.signed_report_drive_id && (
+                <SignedReportLightbox driveId={report.signed_report_drive_id} onClose={() => setSignedReportOpen(false)} />
             )}
         </main>
     );
