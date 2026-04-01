@@ -97,6 +97,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
             had_complex_care: Boolean(Number(row.had_complex_care)),
             needs_followup: Boolean(Number(row.needs_followup)),
             drive_folder_id: (row.drive_folder_id as string | null) ?? null,
+            signed_report_drive_id: (row.signed_report_drive_id as string | null) ?? null,
             supplies: suppliesByCategory,
         };
 

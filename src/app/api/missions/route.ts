@@ -30,6 +30,7 @@ const createMissionReportSchema = z.object({
     needs_followup: z.boolean(),
     supplies: z.array(supplySchema),
     drive_folder_id: z.string().nullable().optional(),
+    signed_report_drive_id: z.string().nullable().optional(),
 }).superRefine((data, ctx) => {
     if (!data.pegass_ok && !data.volunteers.trim()) {
         ctx.addIssue({
@@ -195,8 +196,9 @@ export async function POST(request: Request) {
                     id, submitted_by, submitted_at, mission_type, mission_name, mission_date,
                     location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count,
                     ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment,
-                    had_acr, had_hemorrhage, had_complex_care, needs_followup, drive_folder_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    had_acr, had_hemorrhage, had_complex_care, needs_followup, drive_folder_id,
+                    signed_report_drive_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     reportId,
                     submittedBy ?? null,
@@ -220,6 +222,7 @@ export async function POST(request: Request) {
                     data.had_complex_care ? 1 : 0,
                     data.needs_followup ? 1 : 0,
                     data.drive_folder_id ?? null,
+                    data.signed_report_drive_id ?? null,
                 ],
             });
 

@@ -6,13 +6,13 @@ import styles from '../MissionWizard.module.css';
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-export interface Step7PhotosProps {
+export interface Step8PhotosProps {
     photos: File[];
     onPhotosChange: (files: File[]) => void;
     uploadError: string | null;
 }
 
-export default function Step7Photos({ photos, onPhotosChange, uploadError }: Step7PhotosProps) {
+export default function Step8Photos({ photos, onPhotosChange, uploadError }: Step8PhotosProps) {
     const inputRef = useRef<HTMLInputElement>(null);
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {

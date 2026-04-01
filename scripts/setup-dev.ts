@@ -459,6 +459,10 @@ async function main() {
         await db.execute(`ALTER TABLE "mission_reports" ADD COLUMN "drive_folder_id" TEXT`);
         console.log('  ↳ Migration : colonne mission_reports.drive_folder_id ajoutée');
     }
+    if (!missionCols.rows.some(r => r.name === 'signed_report_drive_id')) {
+        await db.execute(`ALTER TABLE "mission_reports" ADD COLUMN "signed_report_drive_id" TEXT`);
+        console.log('  ↳ Migration : colonne mission_reports.signed_report_drive_id ajoutée');
+    }
 
     await db.execute(`
         CREATE TABLE IF NOT EXISTS "mission_report_supplies" (

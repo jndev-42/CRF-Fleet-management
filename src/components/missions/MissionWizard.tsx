@@ -8,7 +8,8 @@ import Step3Supplies from './steps/Step3Supplies';
 import Step4Oxygen from './steps/Step4Oxygen';
 import Step5Team from './steps/Step5Team';
 import Step6Incidents from './steps/Step6Incidents';
-import Step7Photos from './steps/Step7Photos';
+import Step7SignedReport from './steps/Step7SignedReport';
+import Step8Photos from './steps/Step8Photos';
 import styles from './MissionWizard.module.css';
 
 export interface MissionFormData {
@@ -39,6 +40,7 @@ const STEPS = [
     'Oxygène',
     'Équipe',
     'Incidents',
+    'Rapport signé',
     'Photos',
 ];
 
@@ -64,6 +66,7 @@ const INITIAL_FORM: MissionFormData = {
 };
 
 const MISSION_COMM_FOLDER_ID = '19ILEUHsq2pLZDwEeJDnhQcumFM9ztDJ3';
+const SIGNED_REPORTS_FOLDER_ID = '1UQ0TxOLUCmL09m6evy1Ofoeuo2RaD2ki';
 
 interface MissionWizardProps {
     currentUserId?: string;
@@ -75,6 +78,7 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<MissionFormData>(INITIAL_FORM);
     const [supplies, setSupplies] = useState<Record<string, number>>({});
+    const [signedReportFile, setSignedReportFile] = useState<File | null>(null);
     const [photos, setPhotos] = useState<File[]>([]);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -97,6 +101,9 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
         }
         if (s === 2) {
             if (!formData.pegass_ok && !formData.volunteers.trim()) return 'Veuillez renseigner les bénévoles présents (requis si inscriptions Pegass non à jour).';
+        }
+        if (s === 7) {
+            if (!signedReportFile) return 'Le rapport signé est obligatoire. Veuillez photographier ou importer le document.';
         }
         return null;
     }
@@ -129,7 +136,34 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
                 }))
         );
 
-        // Upload photos to Drive if any were selected
+        // Upload the signed report (mandatory)
+        let signedReportDriveId: string | null = null;
+        if (signedReportFile) {
+            try {
+                const fd = new FormData();
+                fd.append('missionName', formData.mission_name);
+                fd.append('date', formData.mission_date);
+                fd.append('rootFolderId', SIGNED_REPORTS_FOLDER_ID);
+                fd.append('allowPdf', 'true');
+                fd.append('files', signedReportFile);
+
+                const uploadRes = await fetch('/api/drive/upload', { method: 'POST', body: fd });
+                if (!uploadRes.ok) {
+                    const d = await uploadRes.json();
+                    setUploadError(d.error || 'Erreur lors de l\'upload du rapport signé.');
+                    setSubmitting(false);
+                    return;
+                }
+                const uploadData = await uploadRes.json();
+                signedReportDriveId = uploadData.fileIds?.[0] ?? null;
+            } catch {
+                setUploadError('Erreur réseau lors de l\'upload du rapport signé.');
+                setSubmitting(false);
+                return;
+            }
+        }
+
+        // Upload communication photos to Drive if any were selected
         let driveFolderId: string | null = null;
         if (photos.length > 0) {
             try {
@@ -159,7 +193,12 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
             const res = await fetch('/api/missions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, supplies: suppliesArr, drive_folder_id: driveFolderId }),
+                body: JSON.stringify({
+                    ...formData,
+                    supplies: suppliesArr,
+                    drive_folder_id: driveFolderId,
+                    signed_report_drive_id: signedReportDriveId,
+                }),
             });
 
             if (!res.ok) {
@@ -209,7 +248,8 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
             {step === 4 && <Step4Oxygen supplies={supplies} onSupplyChange={handleSupplyChange} />}
             {step === 5 && <Step5Team data={formData} onChange={patchFormData} />}
             {step === 6 && <Step6Incidents data={formData} onChange={patchFormData} />}
-            {step === 7 && <Step7Photos photos={photos} onPhotosChange={setPhotos} uploadError={uploadError} />}
+            {step === 7 && <Step7SignedReport file={signedReportFile} onChange={setSignedReportFile} />}
+            {step === 8 && <Step8Photos photos={photos} onPhotosChange={setPhotos} uploadError={uploadError} />}
 
             {/* Navigation */}
             <div className={styles.wizardNav}>

@@ -27,6 +27,7 @@ export async function POST(request: Request) {
         const existingFolderId = formData.get('existingFolderId') as string | null;
         const missionName = formData.get('missionName') as string | null; // used when stage is absent
         const rootFolderId = (formData.get('rootFolderId') as string | null) ?? SHARED_FOLDER_ID;
+        const allowPdf = formData.get('allowPdf') === 'true';
 
         const files = formData.getAll('files') as File[];
 
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
                     { status: 400 }
                 );
             }
-            if (!file.type.startsWith(ALLOWED_MIME_PREFIX)) {
+            if (!file.type.startsWith(ALLOWED_MIME_PREFIX) && !(allowPdf && file.type === 'application/pdf')) {
                 return NextResponse.json(
                     { error: `Le fichier "${file.name}" n'est pas une image valide.` },
                     { status: 400 }
@@ -146,9 +147,10 @@ export async function POST(request: Request) {
             });
         });
 
-        await Promise.all(uploadPromises);
+        const uploadResults = await Promise.all(uploadPromises);
+        const fileIds = uploadResults.map(r => r.data.id as string);
 
-        return NextResponse.json({ success: true, folderId: parentFolderId });
+        return NextResponse.json({ success: true, folderId: parentFolderId, fileIds });
 
     } catch (error: unknown) {
         const err = error as { response?: { data?: unknown }; message?: string };

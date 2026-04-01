@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.4.1] — 1 avril 2026
+
+### Ajouté
+
+- **Étape "Rapport signé" (Step 7)** — Nouvelle étape obligatoire dans le wizard du CR de mission : l'utilisateur doit photographier ou importer le rapport de mission papier signé par l'organisateur.
+- **Deux modes de capture** — Prise de photo directe via l'appareil photo (mode scanner) ou import depuis la galerie / les documents.
+- **Upload automatique vers Google Drive** — Le fichier est déposé dans le dossier dédié `{missionName}-{date}` (id parent `1UQ0TxOLUCmL09m6evy1Ofoeuo2RaD2ki`).
+- **Colonne `signed_report_drive_id`** — Nouvel champ dans `mission_reports` pour stocker l'identifiant Drive du rapport signé (migration via `scripts/add-signed-report.ts`).
+- **Affichage sur la page de détail** — La page du CR de mission affiche le rapport signé dans une card dédiée.
+
+### Modifié
+
+- **Renumérotation des étapes** — L'ancienne Step 7 "Photos de communication" devient Step 8 ; le composant est renommé `Step8Photos.tsx`.
+
 ## [2.4.0] — 29 mars 2026
 
 ### ✨ Nouvelles fonctionnalités

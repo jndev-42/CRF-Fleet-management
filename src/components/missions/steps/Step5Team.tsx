@@ -87,7 +87,7 @@ export default function Step5Team({ data, onChange }: Step5Props) {
                             className="form-input"
                             value={data.free_comment ?? ''}
                             onChange={e => onChange({ free_comment: e.target.value || null })}
-                            rows={3}
+                            rows={5}
                             placeholder="Observations, points d'amélioration..."
                         />
                     </div>

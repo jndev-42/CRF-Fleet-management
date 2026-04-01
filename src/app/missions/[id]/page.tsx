@@ -45,6 +45,7 @@ interface MissionDetail {
     had_complex_care: boolean;
     needs_followup: boolean;
     drive_folder_id: string | null;
+    signed_report_drive_id: string | null;
     supplies: Record<string, SupplyEntry[]>;
 }
 
@@ -180,6 +181,24 @@ export default function MissionDetailPage() {
                         {report.needs_followup && (
                             <p className={styles.followupNote}>Suivi nécessaire signalé.</p>
                         )}
+                    </div>
+                )}
+
+                {/* Rapport signé */}
+                {report.signed_report_drive_id && (
+                    <div className="card">
+                        <h2 className={styles.cardTitle}>Rapport signé</h2>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={`/api/drive/photos/${report.signed_report_drive_id}`}
+                            alt="Rapport de mission signé"
+                            style={{
+                                width: '100%',
+                                borderRadius: 6,
+                                border: '1px solid var(--border-primary)',
+                                marginTop: '0.5rem',
+                            }}
+                        />
                     </div>
                 )}
 
