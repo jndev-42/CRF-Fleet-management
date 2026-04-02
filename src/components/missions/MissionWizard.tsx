@@ -33,17 +33,6 @@ export interface MissionFormData {
     needs_followup: boolean;
 }
 
-const STEPS = [
-    'Général',
-    'Équipage',
-    'Matériel',
-    'Oxygène',
-    'Équipe',
-    'Incidents',
-    'Rapport signé',
-    'Photos',
-];
-
 const INITIAL_FORM: MissionFormData = {
     mission_type: 'RESEAU',
     mission_name: '',
@@ -84,6 +73,23 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const showReportStep = formData.mission_type === 'DPS' || formData.mission_type === 'PAPS';
+    
+    const activeSteps = [
+        'Général',
+        'Équipage',
+        'Matériel',
+        'Oxygène',
+        'Équipe',
+        'Incidents',
+        ...(showReportStep ? ['Rapport signé'] : []),
+        'Photos',
+    ];
+
+    // Ensure step index is not out of bounds if activeSteps length decreases
+    const currentStepIndex = Math.min(step, activeSteps.length);
+    const currentStepLabel = activeSteps[currentStepIndex - 1];
+
     function patchFormData(patch: Partial<MissionFormData>) {
         setFormData(prev => ({ ...prev, ...patch }));
     }
@@ -93,26 +99,27 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
     }
 
     function validateStep(s: number): string | null {
-        if (s === 1) {
+        const label = activeSteps[s - 1];
+        if (label === 'Général') {
             if (!formData.mission_type) return 'Veuillez sélectionner un type de mission.';
             if (!formData.mission_name.trim()) return 'Le nom de la mission est requis.';
             if (!formData.mission_date) return 'La date est requise.';
             if (!formData.location.trim()) return 'Le lieu est requis.';
         }
-        if (s === 2) {
+        if (label === 'Équipage') {
             if (!formData.pegass_ok && !formData.volunteers.trim()) return 'Veuillez renseigner les bénévoles présents (requis si inscriptions Pegass non à jour).';
         }
-        if (s === 7) {
+        if (label === 'Rapport signé') {
             if (!signedReportFile) return 'Le rapport signé est obligatoire. Veuillez photographier ou importer le document.';
         }
         return null;
     }
 
     function handleNext() {
-        const err = validateStep(step);
+        const err = validateStep(currentStepIndex);
         if (err) { setError(err); return; }
         setError(null);
-        setStep(s => Math.min(STEPS.length, s + 1));
+        setStep(s => Math.min(activeSteps.length, s + 1));
     }
 
     function handleBack() {
@@ -136,9 +143,9 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
                 }))
         );
 
-        // Upload the signed report (mandatory)
+        // Upload the signed report (mandatory for DPS/PAPS)
         let signedReportDriveId: string | null = null;
-        if (signedReportFile) {
+        if (showReportStep && signedReportFile) {
             try {
                 const fd = new FormData();
                 fd.append('missionName', formData.mission_name);
@@ -216,16 +223,16 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
         }
     }
 
-    const isLastStep = step === STEPS.length;
+    const isLastStep = currentStepIndex === activeSteps.length;
 
     return (
         <div className={styles.wizard}>
             {/* Progress bar */}
             <div className={styles.progressBar} role="list" aria-label="Étapes du formulaire">
-                {STEPS.map((label, idx) => {
+                {activeSteps.map((label, idx) => {
                     const stepNum = idx + 1;
-                    const isActive = stepNum === step;
-                    const isDone = stepNum < step;
+                    const isActive = stepNum === currentStepIndex;
+                    const isDone = stepNum < currentStepIndex;
                     return (
                         <div
                             key={label}
@@ -242,18 +249,18 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
             {error && <div className={styles.errorBox} role="alert">{error}</div>}
 
             {/* Step content */}
-            {step === 1 && <Step1General data={formData} onChange={patchFormData} />}
-            {step === 2 && <Step2Vehicle data={formData} onChange={patchFormData} currentUserId={currentUserId} currentUserName={currentUserName} />}
-            {step === 3 && <Step3Supplies supplies={supplies} onSupplyChange={handleSupplyChange} />}
-            {step === 4 && <Step4Oxygen supplies={supplies} onSupplyChange={handleSupplyChange} />}
-            {step === 5 && <Step5Team data={formData} onChange={patchFormData} />}
-            {step === 6 && <Step6Incidents data={formData} onChange={patchFormData} />}
-            {step === 7 && <Step7SignedReport file={signedReportFile} onChange={setSignedReportFile} />}
-            {step === 8 && <Step8Photos photos={photos} onPhotosChange={setPhotos} uploadError={uploadError} />}
+            {currentStepLabel === 'Général' && <Step1General data={formData} onChange={patchFormData} />}
+            {currentStepLabel === 'Équipage' && <Step2Vehicle data={formData} onChange={patchFormData} currentUserId={currentUserId} currentUserName={currentUserName} />}
+            {currentStepLabel === 'Matériel' && <Step3Supplies supplies={supplies} onSupplyChange={handleSupplyChange} />}
+            {currentStepLabel === 'Oxygène' && <Step4Oxygen supplies={supplies} onSupplyChange={handleSupplyChange} />}
+            {currentStepLabel === 'Équipe' && <Step5Team data={formData} onChange={patchFormData} />}
+            {currentStepLabel === 'Incidents' && <Step6Incidents data={formData} onChange={patchFormData} />}
+            {currentStepLabel === 'Rapport signé' && <Step7SignedReport file={signedReportFile} onChange={setSignedReportFile} />}
+            {currentStepLabel === 'Photos' && <Step8Photos photos={photos} onPhotosChange={setPhotos} uploadError={uploadError} />}
 
             {/* Navigation */}
             <div className={styles.wizardNav}>
-                {step > 1 ? (
+                {currentStepIndex > 1 ? (
                     <button type="button" className="btn btn-secondary" onClick={handleBack} disabled={submitting}>
                         Précédent
                     </button>

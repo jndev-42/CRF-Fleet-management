@@ -2,635 +2,551 @@
 
 ## [2.4.1] — 1 avril 2026
 
-### Ajouté
+### ✨ Nouvelles fonctionnalités
 
-- **Étape "Rapport signé" (Step 7)** — Nouvelle étape obligatoire dans le wizard du CR de mission : l'utilisateur doit photographier ou importer le rapport de mission papier signé par l'organisateur.
-- **Deux modes de capture** — Prise de photo directe via l'appareil photo (mode scanner) ou import depuis la galerie / les documents.
-- **Upload automatique vers Google Drive** — Le fichier est déposé dans le dossier dédié `{missionName}-{date}` (id parent `1UQ0TxOLUCmL09m6evy1Ofoeuo2RaD2ki`).
-- **Colonne `signed_report_drive_id`** — Nouvel champ dans `mission_reports` pour stocker l'identifiant Drive du rapport signé (migration via `scripts/add-signed-report.ts`).
-- **Affichage sur la page de détail** — La page du CR de mission affiche le rapport signé dans une card dédiée.
+- **Signature du rapport de mission** — Nouvelle étape obligatoire lors de la saisie d'un compte rendu : l'utilisateur doit désormais joindre une photo du rapport papier signé par l'organisateur.
+- **Capture simplifiée** — Prise de photo directe (mode scanner) ou import d'un document existant depuis la galerie.
+- **Sauvegarde sécurisée** — Archivage automatique des rapports signés dans un espace de stockage partagé sécurisé.
+- **Consultation immédiate** — Le rapport signé est désormais visible directement sur la fiche détaillée du compte rendu de mission.
 
-### Modifié
+### 🔧 Changements
 
-- **Renumérotation des étapes** — L'ancienne Step 7 "Photos de communication" devient Step 8 ; le composant est renommé `Step8Photos.tsx`.
+- **Parcours utilisateur fluidifié** — Réorganisation des étapes du formulaire de mission pour intégrer la signature du rapport de manière intuitive.
 
 ## [2.4.0] — 29 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Base de données dev en conteneur** — `npm run dev` démarre automatiquement un serveur sqld (libSQL) dans Apple Container. Les données persistent entre les redémarrages dans `.dev-db/`.
-- **Mode données de prod** — `npm run dev:prod` initialise la base de développement avec les données réelles de la base Turso de production (via `@libsql/client`).
-- **Commandes de gestion** — `npm run db:reset` recrée la base de zéro ; `npm run db:stop` arrête le conteneur sans effacer les données.
+- **Environnement de développement modernisé** — Lancement automatique d'une base de données locale isolée et performante pour les tests.
+- **Mode test avec données réelles** — Possibilité d'initialiser l'environnement de travail avec une copie sécurisée des données réelles pour des tests plus fiables.
+- **Outils de gestion simplifiés** — Nouvelles commandes pour réinitialiser ou arrêter l'environnement de travail en toute simplicité.
 
 ### 🔧 Changements
 
-- `scripts/setup-dev.ts` respecte la variable d'environnement `DEV_DB_URL` pour cibler le conteneur sqld au lieu de `file:./dev.db` (rétrocompatible — `npm run dev:setup` fonctionne toujours).
-- `CONTRIBUTING.md` mis à jour avec le nouveau flux de démarrage.
+- **Configuration adaptative** — L'environnement s'adapte désormais automatiquement au mode de travail sélectionné.
+- **Documentation à jour** — Guide de contribution mis à jour avec les nouveaux outils de démarrage.
 
 ## [2.3.2] — 29 mars 2026
 
-### Corrections
+### 🐛 Corrections
 
-- Blocage des conflits de réservation PENDING pour tous les rôles, y compris les administrateurs
+- **Gestion des réservations** — Correction d'un problème permettant des conflits de réservation pour certains profils, y compris les administrateurs.
 
 ## [2.3.1] — 25 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Infos de désinfection persistées** — Les informations de désinfection saisies par un administrateur avant le retour d'un véhicule (responsable + numéro de lot) sont maintenant enregistrées en base de données. Elles survivent à un rechargement de page et pré-remplissent automatiquement le formulaire de check-in.
+- **Infos de désinfection persistantes** — Les informations de désinfection (responsable et numéro de lot) sont désormais sauvegardées et survivent au rechargement de la page pour pré-remplir le formulaire de retour.
 
 ### 🔧 Changements
 
-- **Bouton "Saisir infos désinf."** — L'indicateur visuel "✅ Infos désinf. saisies" reflète désormais les données enregistrées en base, et non plus un état local perdu au rafraîchissement.
+- **Indicateur de saisie** — L'indicateur visuel des informations de désinfection reflète désormais l'état réel des données enregistrées en base.
 
 ### 🐛 Corrections
 
-_Aucune correction._
+- _Aucune correction._
 
 ## [2.3.0] — 22 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Compte inactif** — Les utilisateurs dont le compte est désactivé (rôle INACTIF) sont automatiquement redirigés vers une page dédiée leur indiquant de contacter un administrateur. Un bouton de déconnexion est disponible.
-- **Statistiques accessibles à tous** — La section Statistiques & exports est désormais accessible à tous les rôles actifs (CHVL, CHVPSP, SECOURISTE, CI/RPAPS, RESPO, ADMIN). Seuls les comptes INACTIF en sont exclus.
+- **Gestion des comptes inactifs** — Les utilisateurs dont le compte est désactivé sont désormais redirigés vers une page d'information dédiée.
+- **Statistiques pour tous** — La section Statistiques & exports est désormais accessible à tous les membres actifs de l'organisation.
 
 ### 🔧 Changements
 
-- **Renommage GUEST → INACTIF** — Le rôle "Invité" est renommé "Inactif" dans toute l'interface et les API. La migration de base de données est réalisée via le script `scripts/rename-guest-to-inactif.ts`.
-- **Permissions CHVPSP** — Un chauffeur CHVPSP ne peut désormais emprunter que des véhicules VPSP. Pour emprunter les deux types, les rôles CHVL et CHVPSP sont requis simultanément.
-- **Permissions CHVL** — Un chauffeur CHVL ne peut emprunter que des véhicules VL. La liste des chauffeurs filtrée par type de véhicule VL ne renvoie plus les CHVPSP.
-- **Légende des rôles mise à jour** — Les descriptions de CHVL, CHVPSP, SECOURISTE, CI/RPAPS et RESPO reflètent désormais les permissions réelles (statistiques, type de véhicule, niveau d'accès inventaire).
-- **Administration des menus** — L'accès à la liste des paramètres de menu (GET) est désormais réservé aux administrateurs.
+- **Clarification des rôles** — Le rôle "Invité" est renommé en "Inactif" pour plus de clarté.
+- **Spécialisation des permis** — Les chauffeurs sont désormais restreints aux types de véhicules (VL ou VPSP) correspondant à leurs habilitations.
+- **Légende des permissions** — Mise à jour des descriptions pour mieux refléter les accès réels aux statistiques et à l'inventaire.
+- **Sécurité des réglages** — L'accès à la configuration avancée des menus est désormais réservé aux administrateurs.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [2.2.0] — 22 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Nouveau rôle CI/RPAPS** — Un rôle dédié aux responsables CI et RPAPS donne accès à la section Missions (création, consultation et gestion des comptes rendus). Les rôles RESPO, CHVL et CHVPSP n'ont plus accès à cette section.
-- **Paramétrage des menus** — Les administrateurs peuvent désormais contrôler la visibilité de chaque menu de la navbar (Statistiques, Inventaire, Missions) depuis un nouvel onglet "Menus" dans la page Administration. Trois niveaux disponibles : Activé, Admin uniquement, Désactivé.
-- **Page Administration** — La page "Utilisateurs" est renommée "Administration" et inclut deux onglets : "Utilisateurs" (gestion des rôles et des papiers) et "Menus" (paramétrage de la navigation, visible ADMIN uniquement).
+- **Accès dédié aux missions** — Nouveau rôle permettant aux responsables de gérer les comptes rendus de mission de manière isolée.
+- **Contrôle d'affichage des menus** — Les administrateurs peuvent désormais activer ou masquer chaque menu de la navigation pour les utilisateurs.
+- **Page Administration unifiée** — Refonte de la page de gestion regroupant désormais les utilisateurs et le paramétrage des menus.
 
 ### 🔧 Changements
 
-- **Rôle SECOURISTE auto-assigné** — Lors de l'attribution de tout rôle non-GUEST à un utilisateur, le rôle SECOURISTE lui est automatiquement accordé s'il ne l'a pas déjà.
-- **Inventaire réservé aux SECOURISTE** — L'accès à la page Inventaire et à l'onglet Inventaire sur la fiche véhicule nécessite désormais explicitement le rôle SECOURISTE (plutôt qu'une liste de rôles compatibles).
-- La navbar affiche désormais "Administration" à la place de "Utilisateurs" pour le lien de gestion des utilisateurs.
+- **Attribution automatique du rôle Secouriste** — Simplification de la gestion des droits avec l'attribution automatique du rôle de base lors de la création d'un compte.
+- **Accès Inventaire** — L'accès aux fiches d'inventaire nécessite désormais explicitement le rôle correspondant pour plus de sécurité.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [2.1.0] — 20 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Photos de communication dans le CR Mission** — Étape 7 (optionnelle) ajoutée au wizard de compte rendu de mission. Les bénévoles peuvent uploader jusqu'à 10 photos du poste, de l'équipe ou du terrain directement vers un dossier Google Drive dédié à la communication.
-- **Galerie de photos sur le détail d'un CR Mission** — La page de détail d'un compte rendu affiche désormais les photos de communication uploadées lors de la saisie, si elles existent.
+- **Photos de communication** — Possibilité d'ajouter des photos du poste ou de l'équipe (jusqu'à 10) lors de la saisie d'un compte rendu de mission.
+- **Galerie photos intégrée** — Visualisation directe des photos de communication sur la page de détail du compte rendu.
 
 ### 🔧 Changements
 
-- Le wizard CR Mission passe de 6 à 7 étapes. L'étape "Photos" est entièrement optionnelle : les deux boutons "Passer" et "Soumettre" permettent de terminer avec ou sans photos.
+- **Formulaire de mission enrichi** — Ajout d'une étape optionnelle dédiée aux photos en fin de saisie.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [2.0.2] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Qui a validé les papiers ?** — Lors de la validation des papiers d'un chauffeur, le nom du validateur (ou son email en l'absence de nom) est désormais enregistré et affiché sous la date de validation dans la colonne "Papiers" de la page utilisateurs.
+- **Traçabilité des validations** — Affichage du nom du validateur lors de la vérification des papiers d'un chauffeur.
 
 ### 🔧 Changements
 
-_Aucun changement._
+- _Aucun changement._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [2.0.1] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Rôle Secouriste** — Nouveau rôle `SECOURISTE` pour les bénévoles secouristes non chauffeurs. Ils peuvent soumettre et consulter leurs propres comptes rendus de mission, sans accès aux véhicules, aux statistiques ni à la gestion des utilisateurs.
+- **Nouveau rôle Secouriste** — Création d'un profil dédié pour les bénévoles effectuant des missions sans conduite de véhicule.
 
 ### 🔧 Changements
 
-- La légende des rôles (page utilisateurs) affiche désormais le rôle Secouriste avec sa couleur verte distinctive et la liste de ses permissions.
+- **Légende visuelle** — Mise à jour des couleurs et descriptions dans la gestion des utilisateurs.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [2.0.0] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Compte Rendu de Mission (CRM)** — Les CI/Chefs de PAPS peuvent désormais soumettre un compte rendu directement dans cr-chauffeur via un formulaire wizard en 6 étapes, sans passer par Google Forms.
-- **Formulaire en 6 étapes** — Informations générales (type, nom, date, lieu, victimes), équipage (véhicule, chauffeur, bénévoles, PEGASS), matériel consommé par catégorie (sac primaire, brûlures, hémorragies, kit DSA, hygiène), oxygène (section VPSP conditionnelle selon le véhicule), dynamique d'équipe (conditionnelle si UL<18 présents), et incidents critiques (ACR, hémorragie grave, prise en charge complexe).
-- **Liste des comptes rendus** — Tableau filtrable par type de mission ; les RESPO et ADMIN voient tous les comptes rendus, les chauffeurs voient uniquement les leurs.
-- **Détail d'un compte rendu** — Affichage complet par sections avec tableau du matériel consommé (quantités > 0 uniquement) et badges incidents.
-- **Suppression** — Les administrateurs peuvent supprimer un compte rendu (avec suppression en cascade des lignes matériel).
+- **Module Comptes Rendus de Mission (CRM)** — Saisie directe des rapports de mission dans l'application via un formulaire guidé.
+- **Formulaire complet en 6 étapes** — Saisie détaillée de l'équipage, du matériel consommé, de l'oxygène et des incidents.
+- **Tableau de bord des missions** — Liste filtrable des rapports pour les chauffeurs et les responsables.
+- **Gestion simplifiée** — Possibilité pour les administrateurs de supprimer ou modifier les rapports erronés.
 
 ### 🔧 Changements
 
-- Nouveau lien « Missions » dans la barre de navigation (visible pour tous sauf GUEST).
+- **Navigation enrichie** — Ajout d'un lien direct "Missions" dans la barre de navigation.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.21.1] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Modification des intervalles de révision** — Les administrateurs peuvent modifier la date de première immatriculation, l'intervalle de révision en km et en années directement depuis la fiche véhicule, sans avoir à recréer le véhicule.
+- **Flexibilité des révisions** — Possibilité de modifier les dates d'immatriculation et les intervalles de maintenance sans recréer le véhicule.
 
 ### 🔧 Changements
 
-_Aucun changement._
+- _Aucun changement._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.21.0] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Validation des papiers** — Les chauffeurs (CHVL et CHVPSP) doivent faire valider leur permis de conduire (et attestation préfectorale pour les CHVPSP) une fois par an auprès de leur DLUS/DLAS.
-- **Bannière d'alerte** — Lorsque les papiers ne sont pas validés, une bannière rouge apparaît en haut de l'écran avec le nombre de jours restants avant blocage.
-- **Blocage automatique** — Si les papiers n'ont pas été validés dans les 14 jours suivant l'échéance, l'emprunt de véhicules et les réservations sont désactivés.
-- **Validation depuis la gestion des utilisateurs** — Les administrateurs et responsables peuvent marquer les papiers d'un chauffeur comme validés depuis la page Utilisateurs.
-- **Accès RESPO à la gestion des utilisateurs** — Les responsables (RESPO) peuvent désormais accéder à la page Utilisateurs pour valider les papiers des chauffeurs.
+- **Validation annuelle des papiers** — Mise en place d'un contrôle obligatoire de la validité du permis de conduire.
+- **Alertes visuelles** — Bannière d'information indiquant le délai restant avant le blocage pour non-validation.
+- **Blocage de sécurité** — Désactivation automatique des réservations si les papiers ne sont pas validés à temps.
+- **Gestion déléguée** — Les responsables peuvent désormais valider les papiers des chauffeurs directement.
 
 ### 🔧 Changements
 
-- La colonne "Papiers" est affichée sur la fiche utilisateur avec la date de dernière validation et le statut courant.
+- **Suivi administratif** — Ajout d'un statut clair sur la validité des documents dans la fiche utilisateur.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.20.0] — 19 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Suivi de l'entretien des véhicules** — Une nouvelle carte sur la fiche véhicule affiche le délai avant le prochain contrôle technique et la prochaine révision, avec code couleur (🟢 OK · 🟠 Bientôt · 🔴 Dépassé).
-- **Historique CT & révisions** — Un clic sur la carte ouvre l'historique complet. Les administrateurs peuvent ajouter une entrée (date, type, kilométrage) ou en supprimer.
-- **Nouveaux champs à l'ajout de véhicule** — Date de première immatriculation, intervalle de révision en km et en années.
+- **Suivi d'entretien visuel** — Indicateurs colorés pour le contrôle technique et les révisions à venir.
+- **Historique de maintenance** — Journal complet des interventions effectuées sur chaque véhicule.
+- **Configuration précise** — Paramétrage des intervalles de révision lors de l'ajout d'un véhicule.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.19.0] — 18 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Mission Désinfection (VPSP)** — Nouveau type de mission disponible sur les véhicules VPSP. Les dates de désinfection sont automatiquement enregistrées à chaque sortie.
-- **Suivi de la prochaine désinfection** — Une carte dédiée sur la fiche VPSP affiche le décompte en jours jusqu'à la prochaine désinfection obligatoire (42 jours), avec code couleur.
-- **Formulaire de retour enrichi** — Pour une mission Désinfection, les champs "Responsable" et "Numéro de lot du produit" sont obligatoires au retour.
-- **Historique des désinfections** — Un clic sur la carte ouvre la main courante complète : date, responsable, numéro de lot, conducteur.
+- **Gestion de la désinfection** — Suivi automatique de la désinfection périodique obligatoire pour les véhicules sanitaires (VPSP).
+- **Indicateur de validité** — Décompte visuel en jours jusqu'à la prochaine désinfection obligatoire.
+- **Formulaire de retour renforcé** — Saisie obligatoire des informations de désinfection lors des missions sanitaires.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.18.0] — 14 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Réservation pour un autre utilisateur (Admin)** — Les administrateurs peuvent créer une réservation au nom d'un autre chauffeur directement depuis la fiche véhicule. La réservation est automatiquement validée et l'utilisateur concerné reçoit une notification.
+- **Réservation pour tiers** — Les administrateurs peuvent désormais réserver un véhicule au nom d'un autre chauffeur.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.17.1] — 13 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Légende des rôles** — Une légende expliquant chaque niveau d'accès est maintenant affichée dans le panel de gestion des utilisateurs.
+- **Aide à la gestion** — Ajout d'une légende détaillée des rôles et des niveaux d'accès.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🔒 Sécurité
 
-- **Accès sur invitation uniquement** — La création automatique de compte à la première connexion Google est supprimée. Seuls les utilisateurs pré-enregistrés peuvent se connecter.
-- **Rôle Invité exclusif** — Un utilisateur Invité ne peut pas cumuler d'autres rôles, et vice-versa.
+- **Accès restreint** — Suppression de la création automatique de compte ; seuls les utilisateurs invités peuvent se connecter.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.17.0] — 13 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Capacité batterie (véhicules électriques)** — Configurable sur la fiche véhicule pour des statistiques de consommation plus précises.
-- **Statistiques véhicules électriques** — Deux nouveaux indicateurs : consommation moyenne en kWh/100km et total kWh consommés sur la période.
-- **Tableau chauffeurs enrichi** — Nouvelle colonne kWh/100km pour les trajets en véhicule électrique.
+- **Suivi électrique** — Gestion de la capacité batterie et statistiques de consommation en kWh/100km pour les véhicules électriques.
 
 ### 🔧 Changements
 
-- **Colonne "Conso/100km"** — Affiche désormais "L" pour les thermiques et "kWh" pour les électriques.
+- **Unités adaptatives** — Affichage dynamique des consommations en Litres ou en kWh selon le type de moteur.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.16.0] — 13 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Filtres sur la page Statistiques** — Trois nouveaux filtres : par véhicule, par chauffeur et par type de mission. Les résultats se mettent à jour en temps réel.
-- **KPI "L/100km réel"** — Consommation calculée à partir de la capacité réelle du réservoir, bien plus précis qu'une valeur fixe.
-- **KPI "Taux d'utilisation"** — Pourcentage de jours avec au moins une sortie sur la période sélectionnée.
-- **KPI "Carburant moyen au retour"** — Niveau moyen de carburant à la restitution des véhicules.
-- **Taux d'incidents en inc./100 km** — Indicateur plus précis et plus parlant qu'un simple pourcentage.
-- **Tableau chauffeurs enrichi** — Nouvelles colonnes "% retour" et "L/100km".
-- **PDF enrichi** — 8 indicateurs sur 2 lignes, tableau chauffeurs et véhicules mis à jour.
+- **Filtres de statistiques** — Nouveaux filtres par véhicule, chauffeur et type de mission.
+- **Indicateurs de performance** — Taux d'utilisation, niveau moyen de carburant au retour et taux d'incidents précis.
+- **Export PDF complet** — Rapport d'activité enrichi pour le partage des statistiques.
 
 ### 🔧 Changements
 
-- **Tableau chauffeurs** — La colonne "vs. moy." km est retirée au profit de colonnes plus utiles.
+- **Tableaux enrichis** — Ajout de colonnes de performance dans le classement des chauffeurs.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.15.3] — 13 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Capacité réservoir par véhicule** — Chaque véhicule peut désormais avoir sa capacité réelle de réservoir configurée (en litres), pour des calculs de consommation plus précis.
+- **Capacité de réservoir personnalisée** — Paramétrage précis pour chaque véhicule afin d'améliorer la fiabilité des calculs de consommation.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-- **Calcul du niveau de carburant** — Le pourcentage affiché utilise maintenant la capacité réelle du réservoir au lieu d'une valeur fixe de 50 L.
-
----
+- **Précision du carburant** — Correction du calcul du pourcentage restant basé sur la capacité réelle.
 
 ## [1.15.2] — 12 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-_Aucune nouvelle fonctionnalité._
+- _Aucune nouvelle fonctionnalité._
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-- **Consommation moyenne** — Les trajets avec recharge ou plein d'essence ne faussaient plus le calcul de consommation.
-
----
+- **Calcul de consommation** — Les pleins de carburant et recharges ne faussent plus la moyenne de consommation.
 
 ## [1.15.1] — 12 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-_Aucune nouvelle fonctionnalité._
+- _Aucune nouvelle fonctionnalité._
 
 ### 🔧 Changements
 
-- **Fun Fact** — Les messages humoristiques sont maintenant variés par paire chauffeur/véhicule. Chaque combinaison affiche un message différent, stable d'un affichage à l'autre.
+- **Messages personnalisés** — Diversification des messages humoristiques selon les habitudes des chauffeurs.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.15.0] — 12 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-_Aucune nouvelle fonctionnalité._
+- _Aucune nouvelle fonctionnalité._
 
 ### 🔧 Changements
 
-- **Amélioration de la stabilité** — Refonte de la qualité interne du code. L'application est plus robuste et mieux outillée pour la suite.
+- **Amélioration de la stabilité** — Optimisation interne du code pour une application plus fluide.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.14.0] — 12 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Signalement de bug** — Un bouton flottant accessible sur toutes les pages permet de signaler un problème directement depuis l'application, avec rapport technique automatique.
+- **Signalement de bug** — Bouton direct pour signaler un problème technique aux administrateurs.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.13.0] — 12 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-_Aucune nouvelle fonctionnalité._
+- _Aucune nouvelle fonctionnalité._
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🔒 Sécurité
 
-- **Identification des chauffeurs** — L'identification est maintenant basée sur un identifiant interne stable, immunisé contre un changement d'adresse e-mail.
+- **Protection des profils** — Renforcement de l'identification des utilisateurs contre les changements d'adresse email.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.12.0] — 9 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Pré-remplissage du nom de mission** — À l'ouverture du formulaire de prise de véhicule, le champ "Nom de mission" se remplit automatiquement avec le motif de la réservation la plus proche. Le champ reste modifiable.
-- **Export PDF amélioré** — Le rapport affiche le logo CRF, avec sauts de page automatiques et pagination correcte.
+- **Saisie prédictive** — Pré-remplissage automatique du nom de la mission basé sur la réservation en cours.
+- **Rapports PDF officiels** — Intégration du logo et mise en page professionnelle pour les exports.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-- **Statistiques — filtre de date de fin** — Les trajets du dernier jour sélectionné n'étaient pas inclus dans les résultats.
-- **Fun Fact** — La section n'apparaît plus avec seulement 1 ou 2 trajets ; elle requiert au moins 3 sorties avec une domination nette.
-
----
+- **Filtres de dates** — Correction de l'inclusion du dernier jour dans les statistiques.
+- **Affichage des faits marquants** — Ajustement du seuil d'apparition des anecdotes sur les chauffeurs.
 
 ## [1.11.0] — 9 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Page Statistiques** — Nouveau module accessible depuis la navigation (tous les rôles sauf Invité). Affiche sur les 60 derniers jours : indicateurs globaux (emprunts, km, incidents, consommation), graphiques par chauffeur et par semaine, répartition des types de missions, classement des véhicules. Inclut un export CSV et un export PDF.
-- **Fun Fact** — Section humoristique affichée quand un chauffeur se démarque particulièrement sur un véhicule.
+- **Tableau de bord Statistiques** — Analyse visuelle de l'activité sur les 60 derniers jours (emprunts, kilomètres, incidents).
+- **Anecdotes chauffeurs** — Section humoristique mettant en avant les habitudes marquantes des utilisateurs.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.10.0] — 9 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Données véhicule en temps réel** — Le kilométrage et le niveau de carburant/batterie sur la fiche véhicule sont désormais issus directement de Renault Connect pour les véhicules connectés.
-- **Indicateur de vérification** — Un badge "⏳ Vérification..." s'affiche sur les données en attente de confirmation, avec mise à jour automatique.
+- **Véhicules connectés** — Récupération automatique et en temps réel du kilométrage et de l'énergie.
+- **Badge de vérification** — Indicateur visuel lorsque les données sont en cours de mise à jour.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.9.2] — 8 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Propreté du véhicule** — Nouveau champ au départ et au retour (Propre / Correct / Sale / Très sale), visible dans l'historique des sorties.
+- **Contrôle de propreté** — Nouveau critère d'état du véhicule lors du départ et du retour.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.9.1] — 8 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-_Aucune nouvelle fonctionnalité._
+- _Aucune nouvelle fonctionnalité._
 
 ### 🔧 Changements
 
-- **Accessibilité** — Les modales de prise/retour de véhicule et la pagination de l'historique sont conformes WCAG 2.1 AA (lecteurs d'écran, navigation clavier).
+- **Accessibilité améliorée** — Interface optimisée pour la navigation au clavier et les lecteurs d'écran.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.9.0] — 7 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Jauge de carburant visuelle** — Affiche des jalons (E / ¼ / ½ / ¾ / F) et change de couleur selon le niveau : 🔴 < 25%, 🟠 jusqu'à 50%, 🟢 au-delà. Interactive dans tous les formulaires de saisie.
+- **Jauge d'énergie visuelle** — Indicateur graphique interactif avec code couleur pour le carburant et la batterie.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.8.0] — 6 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Contrôle des notifications push** — Un bouton dans la cloche permet d'activer ou désactiver les notifications push sans passer par les paramètres du navigateur.
+- **Gestion des notifications push** — Contrôle simplifié de l'activation des alertes en temps réel.
 
 ### 🔧 Changements
 
-- **Cloche de notifications** — Réservée aux rôles Responsable et Administrateur uniquement.
+- **Sécurité des alertes** — Notifications push réservées aux administrateurs et responsables.
 
 ### 🐛 Corrections
 
-- **Page d'aide** — Redirige maintenant vers la connexion si l'utilisateur n'est pas authentifié.
-- **Menu de navigation** — Masqué sur la page de connexion.
-- **Tour guidé** — Ne plantait plus à la fin pour les utilisateurs sans rôle Responsable ou Admin.
-
----
+- **Navigation de secours** — Correction des redirections et du fonctionnement du tour guidé.
 
 ## [1.7.0] — 6 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Signalement de données incorrectes** — Lors de la prise d'un véhicule non connecté, il est possible de signaler et corriger un kilométrage ou un niveau d'essence erroné. Les responsables et admins reçoivent une notification.
-- **Pagination de l'historique** — Les sorties sur la fiche véhicule sont paginées (3 par page).
+- **Correction de données** — Possibilité de signaler une erreur de kilométrage ou de carburant lors de la prise d'un véhicule.
+- **Historique paginé** — Navigation fluide dans les sorties passées du véhicule.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-- **Heure d'affichage** — Toutes les dates sont désormais affichées en heure de Paris (UTC+1).
-
----
+- **Fuseau horaire** — Toutes les heures sont désormais calées sur l'heure de Paris.
 
 ## [1.6.0] — 6 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-_Aucune nouvelle fonctionnalité._
+- _Aucune nouvelle fonctionnalité._
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🔒 Sécurité
 
-- **Renforcement de l'authentification** sur l'ensemble des accès de l'application.
-- **Protection HTTP** renforcée (anti-clickjacking, anti-sniffing, HSTS).
-- **Validation stricte des fichiers** uploadés (taille, type, nombre).
+- **Protection renforcée** — Mise en place de mesures anti-piratage et validation stricte des documents uploadés.
 
 ### 🐛 Corrections
 
-- **Modales** — La fermeture ne se déclenche plus avant confirmation du succès.
-- **Déconnexion** — Redirige correctement vers la page de connexion.
-
----
+- **Validation des formulaires** — Amélioration de la fiabilité des fenêtres de saisie.
 
 ## [1.5.0] — 6 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Validation des réservations** — Les chauffeurs soumettent une demande. Les Responsables et Admins reçoivent une notification et peuvent la valider. Un badge "En attente" / "Validée" s'affiche sur chaque réservation. Les réservations Admin/Respo sont auto-validées.
+- **Validation des réservations** — Nouveau flux de demande d'emprunt avec approbation par les responsables.
 
 ### 🔧 Changements
 
-- **Responsivité mobile** — Les boutons d'action de la fiche véhicule s'affichent correctement sur petits écrans.
+- **Optimisation mobile** — Amélioration de l'affichage sur les petits écrans.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.4.0] — 5 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Checklists personnalisées** — Les administrateurs peuvent configurer des checklists sur-mesure par véhicule (départ et retour), avec items obligatoires bloquant la soumission si non cochés.
-- **Création d'utilisateurs** — Les administrateurs peuvent créer des comptes directement depuis le panel d'administration.
+- **Checklists personnalisées** — Listes de contrôle sur-mesure obligatoires au départ et au retour de chaque véhicule.
+- **Gestion simplifiée des comptes** — Création directe d'utilisateurs par les administrateurs.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-- **Installation PWA** — Le bouton "Ajouter à l'écran d'accueil" réapparaît correctement sur mobile.
-
----
+- **Installation mobile** — Correction de l'affichage du bouton d'installation sur smartphone.
 
 ## [1.3.0] — 5 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Réservations** — Nouveau système de réservation avec calendrier des créneaux à venir sur la fiche véhicule.
-- **Squelettes de chargement** — Les pages affichent une structure animée pendant le chargement, sans sauts de mise en page.
-- **Application installable (PWA)** — L'application peut être installée sur mobile comme une app native (Android et iOS).
+- **Système de réservation** — Calendrier complet pour planifier les utilisations futures.
+- **Fluidité d'affichage** — Mise en place de structures animées pendant le chargement des pages.
+- **Application mobile (PWA)** — Possibilité d'installer l'outil comme une application native sur Android et iPhone.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.2.3] — 5 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Export QR Code** — Chaque fiche véhicule propose un bouton pour générer et télécharger un QR Code pointant vers la fiche (pratique pour les étiquettes physiques).
+- **QR Codes véhicules** — Génération de codes à flasher pour accéder directement à la fiche d'un véhicule.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.2.2] — 4 mars 2026
 
@@ -640,72 +556,61 @@ _Aucune correction._
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-- **Redirection après connexion** — L'utilisateur est redirigé vers la page qu'il tentait d'atteindre, et non vers l'accueil.
-
----
+- **Reprise de navigation** — Redirection automatique vers la page demandée après la connexion.
 
 ## [1.2.1] — 4 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-_Aucune nouvelle fonctionnalité._
+- _Aucune nouvelle fonctionnalité._
 
 ### 🔧 Changements
 
-- **Gestion des utilisateurs** — Barre de recherche (nom ou e-mail) et pagination dans la vue administrateur.
+- **Recherche utilisateurs** — Ajout d'une barre de recherche et d'une pagination dans la gestion des comptes.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.2.0] — 4 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Tutoriel interactif** — Un guide étape par étape accompagne les nouveaux utilisateurs à la prise en main. Relançable depuis la page Aide.
+- **Guide de bienvenue** — Tutoriel interactif pour faciliter la première prise en main de l'application.
 
 ### 🔧 Changements
 
-_Aucun changement notable._
+- _Aucun changement notable._
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.1.0] — 2 mars 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Alerte mouvement suspect** — Notification push envoyée aux administrateurs si un véhicule est utilisé de manière inhabituelle.
+- **Détection de mouvements suspects** — Alertes automatiques en cas d'utilisation inhabituelle hors planning.
 
 ### 🔧 Changements
 
-- **Notifications** — Passage aux notifications push (mobile et web) en remplacement des e-mails pour les alertes incidents.
-- **URLs des véhicules** — Les adresses utilisent la nomenclature opérationnelle (ex. `/vehicles/VL186`).
+- **Notifications push** — Abandon des e-mails au profit des alertes directes sur smartphone.
 
 ### 🐛 Corrections
 
-_Aucune correction._
-
----
+- _Aucune correction._
 
 ## [1.0.0] — 2 mars 2026
 
 ### 🚀 Lancement
 
-- Authentification Google sécurisée, restreinte aux adresses `@croix-rouge.fr`.
-- Gestion du parc automobile : tableau de bord, fiches véhicules, statuts.
-- Cycle complet d'emprunt et de retour : état du véhicule, niveau d'énergie, DSA, type de mission, commentaires, photos.
-- Gestion des conducteurs secondaires.
-- Galerie photos connectée à Google Drive.
-- Intégration Renault Connect (kilométrage et batterie en direct).
-- Panel administrateur : gestion des rôles, historiques, notes.
-- Mode sombre natif, design responsive.
+- Connexion sécurisée avec les adresses Croix-Rouge française.
+- Gestion complète du parc automobile et fiches d'état.
+- Cycle d'emprunt et de retour guidé (photos, énergie, commentaires).
+- Historique complet des sorties et gestion des conducteurs secondaires.
+- Synchronisation automatique avec les données constructeur.
+- Interface moderne avec mode sombre et design mobile.

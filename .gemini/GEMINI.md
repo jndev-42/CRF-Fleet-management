@@ -1,0 +1,86 @@
+# >>> oh-my-gemini (managed) >>>
+This section is managed by oh-my-gemini setup.
+
+- Active setup scope: project
+- Scope precedence: CLI flag > persisted (.omg/setup-scope.json) > default (project)
+- Run `oh-my-gemini doctor` (alias: `omg doctor`) after setup to validate dependencies.
+- Run `oh-my-gemini verify` (alias: `omg verify`) to execute typecheck/smoke/integration/reliability checks.
+# <<< oh-my-gemini (managed) <<<
+
+---
+
+# Project Context
+
+This file provides guidance to Gemini CLI when working with code in this repository.
+
+## Commands
+
+```bash
+npm run dev          # Start dev server — auto-starts container DB, seeds with fixture data
+npm run dev:prod     # Start dev server — auto-starts container DB, clones prod data
+npm run build        # Production build
+npm run lint         # ESLint + TypeScript check — must produce 0 errors AND 0 warnings
+npm run dev:setup    # Legacy: init local SQLite file (file:./dev.db) with seed data
+npm run test         # Run full test suite (Vitest)
+npm run db:reset     # Destroy container + data dir — fresh init on next npm run dev
+npm run db:stop      # Stop the dev DB container (data persists)
+
+# Useful scripts (run via npx tsx scripts/<name>.ts)
+npx tsx scripts/show-schema.ts          # Inspect DB schema
+npx tsx scripts/setup-admin.ts <email>  # Promote user to ADMIN
+npx tsx scripts/renault-login-test.ts   # Test Renault Connect auth
+```
+
+## Stack & Key Paths
+
+**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Turso (libSQL/SQLite cloud) · NextAuth v5 · Vercel serverless
+
+- `src/app/` — pages and API routes; `src/app/api/` — REST endpoints
+- `src/components/` — shared UI; `src/components/vehicle/` — vehicle-specific
+- `src/lib/` — singletons (db, renault, onesignal, drive, email)
+- `src/auth.ts` — full auth config; `src/middleware.ts` — route protection
+
+**Database:** Direct SQL via `@libsql/client` — no ORM. Always parameterized: `{ sql: "... WHERE id = ?", args: [id] }`.
+
+**Auth:** Production = Google OAuth2 (`@croix-rouge.fr`). Dev = credentials (`@dev.local`). Roles in JWT.
+
+**Roles & access:** ADMIN > RESPO > CHVL > CHVPSP > GUEST. Enforced in API routes and UI via `session.user.roles`.
+
+**Styling:** CSS Modules per component + global CSS variables in `app/globals.css`. `next-themes` for dark/light.
+
+**Deployment:** Vercel (auto-deploy on `main`). DB: Turso cloud. Uses `--webpack` (not Turbopack).
+
+## Testing
+
+**Rule: every new feature must ship with tests.**
+- New API route → integration test: 401, 403, 400 (Zod), happy path
+- New lib module → unit tests for all exported functions
+- New React component with state/logic → React Testing Library component test
+
+See `src/__tests__/CLAUDE.md` for mocking patterns and request factory.
+
+## Local dev setup
+
+See `.gemini/templates/dev-setup.md` or run `npm run dev:setup` then `npm run dev`.
+
+## M-4 (deferred)
+
+Pages are Client Components with `useEffect` data fetching — Server Component migration planned but not started. Don't convert yet.
+
+## Tools
+
+Prefer native `grep_search` tool instead of standard `grep`.
+
+---
+
+## References & Templates
+
+When working on specific tasks, read the corresponding rules and templates:
+
+- **Linting Rules**: Read `.gemini/rules/lint.md`
+- **Page Template**: Read `.gemini/templates/page-template.md`
+- **Component Template**: Read `.gemini/templates/component-templates.md`
+- **API Route Template**: Read `.gemini/templates/api-route-template.md`
+- **Trigger Page Template**: Read `.gemini/rules/trigger-page-template.md`
+- **Trigger API Template**: Read `.gemini/rules/trigger-api-template.md`
+- **Trigger Component Template**: Read `.gemini/rules/trigger-component-template.md`
