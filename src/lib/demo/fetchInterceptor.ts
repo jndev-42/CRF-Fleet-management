@@ -29,7 +29,8 @@ export function setupFetchInterceptor() {
                 if (url.match(/\/api\/vehicles$/)) {
                     if (!init || init.method === 'GET') {
                         const vehicles = DemoDB.getVehicles();
-                        return mockResponse({ vehicles });
+                        // Real API returns an array directly
+                        return mockResponse(vehicles);
                     }
                 }
 
@@ -90,7 +91,13 @@ export function setupFetchInterceptor() {
                 if (url.match(/\/api\/missions$/)) {
                     if (!init || init.method === 'GET') {
                         const missions = DemoDB.getMissions();
-                        return mockResponse({ missions });
+                        // Real API returns { reports, total, page, limit }
+                        return mockResponse({ 
+                            reports: missions, 
+                            total: missions.length, 
+                            page: 1, 
+                            limit: 20 
+                        });
                     }
                     if (init.method === 'POST') {
                         const body = JSON.parse(init.body as string);
@@ -136,20 +143,25 @@ export function setupFetchInterceptor() {
                 // --- RENAULT TELEMETRY ---
                 const renaultMatch = url.match(/\/api\/renault\/([^\/]+)$/);
                 if (renaultMatch && (!init || init.method === 'GET')) {
+                    const id = decodeURIComponent(renaultMatch[1]);
                     return mockResponse({
-                        vin: renaultMatch[1],
+                        vin: id,
                         totalMileage: 45200 + Math.floor(Math.random() * 100),
                         fuelQuantity: 60,
                         batteryLevel: 85,
                         lastUpdate: new Date().toISOString(),
-                        isElectric: !renaultMatch[1].includes('Diesel')
+                        isElectric: !id.includes('Diesel')
                     });
                 }
 
                 // --- USERS ---
                 if (url.match(/\/api\/users/) && (!init || init.method === 'GET')) {
                     const users = DemoDB.getUsers();
-                    return mockResponse({ users });
+                    // Real API returns { users, availableRoles }
+                    return mockResponse({ 
+                        users, 
+                        availableRoles: ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'SECOURISTE', 'CI/RPAPS', 'GUEST', 'INACTIF'] 
+                    });
                 }
 
                 // --- RESERVATIONS ---
@@ -161,8 +173,24 @@ export function setupFetchInterceptor() {
                 // --- STATS ---
                 if (url.match(/\/api\/stats/) && (!init || init.method === 'GET')) {
                     return mockResponse({
+                        success: true,
                         data: {
-                            global: { totalTrips: 0, totalKm: 0, totalFuel: 0, totalHours: 0, avgKmPerTrip: 0 },
+                            period: { from: '2026-01-01', to: '2026-12-31' },
+                            global: { 
+                                totalTrips: 0, 
+                                completedTrips: 0, 
+                                totalKm: 0, 
+                                avgKmPerTrip: 0, 
+                                totalIncidents: 0,
+                                avgFuelConsumption: 0,
+                                avgLPer100km: 0,
+                                totalFuelLiters: 0,
+                                avgFuelAtReturn: 0,
+                                fleetUtilizationRate: 0,
+                                incidentRate: 0,
+                                avgKwhPer100km: 0,
+                                totalKwhConsumed: 0
+                            },
                             byDriver: [],
                             byVehicle: [],
                             kmOverTime: [],

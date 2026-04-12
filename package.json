@@ -1,6 +1,6 @@
 {
   "name": "cr-chauffeur",
-  "version": "2.4.6",
+  "version": "2.4.8",
   "private": true,
   "scripts": {
     "predev": "tsx scripts/dev-db.ts",

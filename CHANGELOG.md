@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.8] — 12 avril 2026
+
+### 🐛 Corrections
+
+- **Statistiques en mode démo** — Correction d'un crash sur la page statistiques dû à des champs manquants dans le mock global (`completedTrips`, `totalIncidents`, etc.).
+
+## [2.4.7] — 12 avril 2026
+
+### 🐛 Corrections
+
+- **Stabilité du Mode Démo** — Correction des erreurs `filter is not a function` dues à des formats de réponse API incorrects. Le mode démo respecte désormais strictement les structures de données attendues par le frontend (tableaux vs objets).
+- **Réinitialisation des données** — Ajout d'un bouton "Réinitialiser" dans la bannière démo pour effacer le stockage local et repartir sur une base propre en cas de corruption de données.
+
 ## [2.4.6] — 12 avril 2026
 
 ### 🔧 Changements
