@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.4.4] — 12 avril 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Mode Démo (Bac à sable)** — Ajout d'un mode démo accessible depuis la page Aide. Il permet de tester toutes les fonctionnalités (emprunt, rendu, missions) sans impacter la base de données réelle.
+- **Isolation totale** — Les données du mode démo sont stockées uniquement dans le navigateur de l'utilisateur (LocalStorage). Les modifications faites par un utilisateur ne sont pas visibles par les autres.
+- **Indicateur visuel** — Une bannière orange persistante s'affiche en mode démo pour éviter toute confusion avec l'environnement réel.
+- **Moteur d'interception** — Utilisation d'un proxy `fetch` transparent pour simuler les réponses API sans changer le code métier.
+
 ## [2.4.3] — 12 avril 2026
 
 ### ✨ Nouvelles fonctionnalités

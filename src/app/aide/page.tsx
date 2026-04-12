@@ -1,9 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useDemoMode } from '@/lib/contexts/DemoContext';
 
 export default function AidePage() {
     const router = useRouter();
+    const { isDemoMode, toggleDemoMode } = useDemoMode();
 
     function handleRestartTour() {
         localStorage.removeItem('tour-completed');
@@ -43,6 +45,25 @@ export default function AidePage() {
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                     <span style={{ fontSize: '16px' }}>🚀</span> Lancer le tutoriel
+                </button>
+            </div>
+
+            {/* Mode Démo */}
+            <div className="detail-card" style={{ marginBottom: 24, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, border: isDemoMode ? '1px solid #ff9800' : '1px solid var(--border-primary)' }}>
+                <div>
+                    <h2 className="section-title" style={{ fontSize: 16, marginBottom: 4 }}>🛠️ Mode Démo</h2>
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
+                        {isDemoMode 
+                            ? "Vous êtes actuellement en mode démo. Les données sont fictives." 
+                            : "Testez l'application librement sans impacter les données réelles."}
+                    </p>
+                </div>
+                <button
+                    className={isDemoMode ? "btn btn-secondary" : "btn btn-primary"}
+                    onClick={toggleDemoMode}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', background: isDemoMode ? 'transparent' : '#ff9800', borderColor: '#ff9800', color: isDemoMode ? '#ff9800' : '#000' }}
+                >
+                    <span style={{ fontSize: '16px' }}>{isDemoMode ? '🚫' : '🧪'}</span> {isDemoMode ? 'Quitter le mode démo' : 'Activer le mode démo'}
                 </button>
             </div>
 
