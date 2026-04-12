@@ -1,10 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
 import { FileText } from 'lucide-react';
 import styles from '../MissionWizard.module.css';
-
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 Mo
+import PhotoPicker from '@/components/ui/PhotoPicker';
 
 export interface Step7SignedReportProps {
     file: File | null;
@@ -12,25 +10,6 @@ export interface Step7SignedReportProps {
 }
 
 export default function Step7SignedReport({ file, onChange }: Step7SignedReportProps) {
-    const cameraInputRef = useRef<HTMLInputElement>(null);
-    const galleryInputRef = useRef<HTMLInputElement>(null);
-
-    function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-        const selected = e.target.files?.[0] ?? null;
-        if (!selected) return;
-        if (selected.size > MAX_FILE_SIZE) {
-            alert('Le fichier dépasse la taille maximale de 20 Mo.');
-            e.target.value = '';
-            return;
-        }
-        onChange(selected);
-        e.target.value = '';
-    }
-
-    function handleRemove() {
-        onChange(null);
-    }
-
     const isImage = file && file.type.startsWith('image/');
 
     return (
@@ -42,46 +21,13 @@ export default function Step7SignedReport({ file, onChange }: Step7SignedReportP
             </p>
 
             {!file && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.25rem' }}>
-                    {/* Bouton appareil photo — ouvre directement la caméra */}
-                    <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => cameraInputRef.current?.click()}
-                        style={{ justifyContent: 'center' }}
-                    >
-                        Photographier avec l&apos;appareil photo
-                    </button>
-                    <input
-                        ref={cameraInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleFileSelect}
-                        style={{ display: 'none' }}
-                    />
-
-                    {/* Bouton galerie/documents — ouvre le picker système */}
-                    <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => galleryInputRef.current?.click()}
-                        style={{ justifyContent: 'center' }}
-                    >
-                        Importer depuis la galerie ou les documents
-                    </button>
-                    <input
-                        ref={galleryInputRef}
-                        type="file"
-                        accept="image/*,application/pdf"
-                        onChange={handleFileSelect}
-                        style={{ display: 'none' }}
-                    />
-
-                    <span className={styles.fieldHint}>
-                        Formats acceptés : JPEG, PNG, WEBP, PDF · Maximum 20 Mo
-                    </span>
-                </div>
+                <PhotoPicker
+                    file={file}
+                    onFileChange={onChange}
+                    maxSizeMB={20}
+                    accept="image/*,application/pdf"
+                    hint="Formats acceptés : JPEG, PNG, WEBP, PDF · Maximum 20 Mo"
+                />
             )}
 
             {file && (
@@ -140,7 +86,7 @@ export default function Step7SignedReport({ file, onChange }: Step7SignedReportP
                         <button
                             type="button"
                             className="btn btn-secondary"
-                            onClick={handleRemove}
+                            onClick={() => onChange(null)}
                             aria-label="Supprimer le fichier"
                             style={{ flexShrink: 0 }}
                         >

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.3] — 12 avril 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Nouveau sélecteur de photos unifié** — Introduction d'un composant dédié proposant deux boutons distincts : "Appareil photo" et "Galerie". Cette approche garantit que l'utilisateur a toujours le choix, quel que soit son appareil ou son navigateur.
+- **Interface cohérente** — Déploiement du nouveau sélecteur sur tous les points d'entrée : prise de véhicule, retour de véhicule, photos de mission et rapport signé.
+
 ## [2.4.2] — 12 avril 2026
 
 ### 🔧 Changements

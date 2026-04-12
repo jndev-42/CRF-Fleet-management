@@ -4,6 +4,7 @@ import { Vehicle } from '@/app/vehicles/[id]/types';
 import ChecklistItems from '../ChecklistItems';
 import FuelBar from '@/components/vehicle/FuelBar';
 import UserCombobox from '@/components/ui/UserCombobox';
+import PhotoPicker from '@/components/ui/PhotoPicker';
 
 interface CheckOutModalProps {
     vehicle: Vehicle;
@@ -402,64 +403,14 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
                         {/* Photos (Optionnel) */}
                         <div className="form-group" style={{ marginTop: 16 }}>
-                            <label className="form-label" htmlFor="checkout-photos" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                📸 Photos avant départ (Optionnel)
-                                <span title="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo." style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>?</span>
-                            </label>
-                            <input
-                                id="checkout-photos"
-                                type="file"
-                                accept="image/*"
-                                multiple
-                                onChange={(e) => {
-                                    if (e.target.files) {
-                                        const newFiles = Array.from(e.target.files);
-                                        const validFiles = newFiles.filter(f => {
-                                            if (f.size > 10 * 1024 * 1024) {
-                                                alert(`Le fichier ${f.name} dépasse 10 Mo et ne sera pas ajouté.`);
-                                                return false;
-                                            }
-                                            return true;
-                                        });
-                                        setPhotos(prev => [...prev, ...validFiles]);
-                                    }
-                                }}
-                                style={{
-                                    width: '100%',
-                                    padding: '10px 14px',
-                                    background: 'var(--bg-input)',
-                                    border: '1px solid var(--border-primary)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    color: 'var(--text-primary)',
-                                    fontSize: 14,
-                                }}
+                            <PhotoPicker
+                                label="📸 Photos avant départ (Optionnel)"
+                                hint="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo."
+                                photos={photos}
+                                onPhotosChange={setPhotos}
+                                maxFiles={10}
+                                maxSizeMB={10}
                             />
-                            {photos.length > 0 && (
-                                <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    {photos.map((photo, i) => (
-                                        <div key={i} style={{ position: 'relative', width: 80, height: 80, borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
-                                                src={URL.createObjectURL(photo)}
-                                                alt="Aperçu"
-                                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => setPhotos(prev => prev.filter((_, idx) => idx !== i))}
-                                                style={{
-                                                    position: 'absolute', top: 4, right: 4,
-                                                    background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none',
-                                                    borderRadius: '50%', width: 20, height: 20, cursor: 'pointer',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
-                                                }}
-                                            >
-                                                ✕
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
                         </div>
                     </div>
                     <div className="modal-footer">
