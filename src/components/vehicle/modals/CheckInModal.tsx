@@ -374,7 +374,6 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                 type="file"
                                 accept="image/*"
                                 multiple
-                                capture="environment"
                                 onChange={(e) => {
                                     if (e.target.files) {
                                         const newFiles = Array.from(e.target.files);

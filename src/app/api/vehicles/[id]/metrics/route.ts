@@ -15,8 +15,11 @@ export async function PATCH(
 ) {
     try {
         const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+        const roles = session?.user?.roles || [];
+        const isAuthorized = roles.includes('ADMIN') || roles.includes('RESPO');
+
+        if (!session?.user || !isAuthorized) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
         const { id: vehicleId } = await params;

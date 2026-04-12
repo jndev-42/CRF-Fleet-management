@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.4.2] — 12 avril 2026
+
+### 🔧 Changements
+
+- **Sélecteur de photos flexible** — Suppression de la contrainte d'appareil photo forcé sur mobile. Les utilisateurs peuvent désormais choisir entre prendre une photo en direct ou sélectionner des images depuis leur galerie.
+
 ## [2.4.1] — 1 avril 2026
 
 ### ✨ Nouvelles fonctionnalités

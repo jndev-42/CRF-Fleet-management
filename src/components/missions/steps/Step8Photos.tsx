@@ -64,7 +64,6 @@ export default function Step8Photos({ photos, onPhotosChange, uploadError }: Ste
                         type="file"
                         accept="image/*"
                         multiple
-                        capture="environment"
                         onChange={handleFileChange}
                         style={{ display: 'block', marginTop: '0.5rem' }}
                     />

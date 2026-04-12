@@ -411,7 +411,6 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                 type="file"
                                 accept="image/*"
                                 multiple
-                                capture="environment"
                                 onChange={(e) => {
                                     if (e.target.files) {
                                         const newFiles = Array.from(e.target.files);
