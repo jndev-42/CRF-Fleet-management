@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.4.6] — 12 avril 2026
+
+### 🔧 Changements
+
+- **Validation automatique des permis en démo** — En mode démo, le contrôle des permis de conduire renvoie désormais systématiquement un statut valide. Cela évite l'affichage de bannières d'alerte ou le blocage des fonctionnalités d'emprunt pour les utilisateurs dont les papiers réels seraient en attente de validation.
+
+## [2.4.5] — 12 avril 2026
+
+### 🐛 Corrections
+
+- **Mode Démo Robuste** — Correction du crash lors de la consultation des détails d'un véhicule en mode démo (gestion correcte des identifiants par nom).
+- **Parité Fonctionnelle** — Ajout de la gestion complète des missions, de l'historique de maintenance, des statistiques et de la télémétrie Renault simulée dans le mode démo.
+- **Isolation Totale** — Simulation du contrôle des permis pour garantir une expérience fluide même pour les utilisateurs ayant des papiers à régulariser dans le monde réel.
+
 ## [2.4.4] — 12 avril 2026
 
 ### ✨ Nouvelles fonctionnalités

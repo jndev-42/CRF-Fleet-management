@@ -12,46 +12,49 @@ export function setupFetchInterceptor() {
 
         // Only intercept /api/ calls if demo mode is active
         if (isDemo && url.includes('/api/')) {
-            // Exceptions: Auth and essential system routes must hit the real server
-            if (url.includes('/api/auth/') || url.includes('/api/me/license-check')) {
+            // Exceptions: Essential auth routes must hit the real server
+            if (url.includes('/api/auth/')) {
                 return originalFetch(input, init);
             }
 
             console.log(`[DemoMode] Intercepting ${url}`, init);
 
             try {
-                // GET Vehicles
-                if (url.match(/\/api\/vehicles$/) && (!init || init.method === 'GET')) {
-                    const vehicles = DemoDB.getVehicles();
-                    return mockResponse({ vehicles });
+                // --- LICENSE CHECK ---
+                if (url.includes('/api/me/license-check')) {
+                    return mockResponse({ validated: true, daysLeft: null, blocked: false });
                 }
 
-                // GET Vehicle Detail
-                const vehicleDetailMatch = url.match(/\/api\/vehicles\/([^\/?]+)$/);
-                if (vehicleDetailMatch && (!init || init.method === 'GET')) {
-                    const vehicle = DemoDB.getVehicle(vehicleDetailMatch[1]);
-                    return vehicle ? mockResponse(vehicle) : mockResponse({ error: 'Not found' }, 404);
+                // --- VEHICLES ---
+                if (url.match(/\/api\/vehicles$/)) {
+                    if (!init || init.method === 'GET') {
+                        const vehicles = DemoDB.getVehicles();
+                        return mockResponse({ vehicles });
+                    }
                 }
 
-                // GET Users
-                if (url.match(/\/api\/users/) && (!init || init.method === 'GET')) {
-                    const users = DemoDB.getUsers();
-                    return mockResponse({ users });
+                // Match /api/vehicles/[id] but NOT /api/vehicles/[id]/...
+                const vehicleDetailMatch = url.match(/\/api\/vehicles\/([^\/]+)$/);
+                if (vehicleDetailMatch && !url.includes('/trips') && !url.includes('/maintenance') && !url.includes('/reservations')) {
+                    const id = vehicleDetailMatch[1];
+                    if (!init || init.method === 'GET') {
+                        const vehicle = DemoDB.getVehicle(id);
+                        return vehicle ? mockResponse(vehicle) : mockResponse({ error: 'Not found' }, 404);
+                    }
+                    if (init.method === 'PATCH') {
+                        const body = JSON.parse(init.body as string);
+                        const vehicle = DemoDB.updateVehicle(id, body);
+                        return mockResponse(vehicle);
+                    }
                 }
 
-                // GET Reservations
-                if (url.match(/\/api\/vehicles\/([^\/]+)\/reservations/) && (!init || init.method === 'GET')) {
-                    return mockResponse([]);
-                }
-
-                // POST Trips (Check-out)
+                // --- TRIPS ---
                 if (url.match(/\/api\/trips$/) && init?.method === 'POST') {
                     const body = JSON.parse(init.body as string);
                     const trip = DemoDB.createTrip(body);
                     return mockResponse(trip);
                 }
 
-                // PATCH Trip (Check-in)
                 const checkinMatch = url.match(/\/api\/trips\/([^\/]+)\/checkin$/);
                 if (checkinMatch && init?.method === 'PATCH') {
                     const body = JSON.parse(init.body as string);
@@ -59,9 +62,123 @@ export function setupFetchInterceptor() {
                     return mockResponse(trip);
                 }
 
-                // POST Drive Upload
+                const secondDriverMatch = url.match(/\/api\/trips\/([^\/]+)\/second-driver$/);
+                if (secondDriverMatch && init?.method === 'PATCH') {
+                    const body = JSON.parse(init.body as string);
+                    const trip = DemoDB.patchTrip(secondDriverMatch[1], body);
+                    return mockResponse(trip);
+                }
+
+                const refreshRenaultMatch = url.match(/\/api\/trips\/([^\/]+)\/refresh-renault$/);
+                if (refreshRenaultMatch && init?.method === 'PATCH') {
+                    return mockResponse({ validated: true });
+                }
+
+                const tripDeleteMatch = url.match(/\/api\/trips\/([^\/]+)$/);
+                if (tripDeleteMatch && init?.method === 'DELETE') {
+                    DemoDB.deleteTrip(tripDeleteMatch[1]);
+                    return mockResponse({ success: true });
+                }
+
+                const vehicleTripsDeleteMatch = url.match(/\/api\/vehicles\/([^\/]+)\/trips$/);
+                if (vehicleTripsDeleteMatch && init?.method === 'DELETE') {
+                    DemoDB.deleteVehicleTrips(vehicleTripsDeleteMatch[1]);
+                    return mockResponse({ success: true });
+                }
+
+                // --- MISSIONS ---
+                if (url.match(/\/api\/missions$/)) {
+                    if (!init || init.method === 'GET') {
+                        const missions = DemoDB.getMissions();
+                        return mockResponse({ missions });
+                    }
+                    if (init.method === 'POST') {
+                        const body = JSON.parse(init.body as string);
+                        const mission = DemoDB.createMission(body);
+                        return mockResponse(mission);
+                    }
+                }
+
+                const missionDetailMatch = url.match(/\/api\/missions\/([^\/?]+)$/);
+                if (missionDetailMatch) {
+                    const id = missionDetailMatch[1];
+                    if (!init || init.method === 'GET') {
+                        const mission = DemoDB.getMission(id);
+                        return mission ? mockResponse(mission) : mockResponse({ error: 'Not found' }, 404);
+                    }
+                    if (init.method === 'DELETE') {
+                        DemoDB.deleteMission(id);
+                        return mockResponse({ success: true });
+                    }
+                }
+
+                // --- MAINTENANCE ---
+                const maintenanceMatch = url.match(/\/api\/vehicles\/([^\/]+)\/maintenance/);
+                if (maintenanceMatch) {
+                    const id = maintenanceMatch[1];
+                    if (!init || init.method === 'GET') {
+                        const records = DemoDB.getMaintenanceRecords(id);
+                        return mockResponse({ records, totalPages: 1, totalCount: records.length });
+                    }
+                    if (init.method === 'POST') {
+                        const body = JSON.parse(init.body as string);
+                        const record = DemoDB.createMaintenanceRecord({ ...body, vehicleId: id });
+                        return mockResponse(record);
+                    }
+                }
+
+                const maintenanceDeleteMatch = url.match(/\/api\/maintenance\/([^\/]+)$/);
+                if (maintenanceDeleteMatch && init?.method === 'DELETE') {
+                    DemoDB.deleteMaintenanceRecord(maintenanceDeleteMatch[1]);
+                    return mockResponse({ success: true });
+                }
+
+                // --- RENAULT TELEMETRY ---
+                const renaultMatch = url.match(/\/api\/renault\/([^\/]+)$/);
+                if (renaultMatch && (!init || init.method === 'GET')) {
+                    return mockResponse({
+                        vin: renaultMatch[1],
+                        totalMileage: 45200 + Math.floor(Math.random() * 100),
+                        fuelQuantity: 60,
+                        batteryLevel: 85,
+                        lastUpdate: new Date().toISOString(),
+                        isElectric: !renaultMatch[1].includes('Diesel')
+                    });
+                }
+
+                // --- USERS ---
+                if (url.match(/\/api\/users/) && (!init || init.method === 'GET')) {
+                    const users = DemoDB.getUsers();
+                    return mockResponse({ users });
+                }
+
+                // --- RESERVATIONS ---
+                const reservationsMatch = url.match(/\/api\/vehicles\/([^\/]+)\/reservations/);
+                if (reservationsMatch && (!init || init.method === 'GET')) {
+                    return mockResponse([]);
+                }
+
+                // --- STATS ---
+                if (url.match(/\/api\/stats/) && (!init || init.method === 'GET')) {
+                    return mockResponse({
+                        data: {
+                            global: { totalTrips: 0, totalKm: 0, totalFuel: 0, totalHours: 0, avgKmPerTrip: 0 },
+                            byDriver: [],
+                            byVehicle: [],
+                            kmOverTime: [],
+                            byMissionType: []
+                        }
+                    });
+                }
+
+                // --- DRIVE UPLOAD ---
                 if (url.match(/\/api\/drive\/upload$/) && init?.method === 'POST') {
                     return mockResponse({ folderId: 'demo-folder-' + Date.now() });
+                }
+
+                // --- INVENTORY ---
+                if (url.match(/\/api\/inventory\/vehicle\/([^\/]+)$/) && (!init || init.method === 'GET')) {
+                    return mockResponse({ categories: [] });
                 }
 
                 // Default mock for other /api/ routes to prevent data leakage

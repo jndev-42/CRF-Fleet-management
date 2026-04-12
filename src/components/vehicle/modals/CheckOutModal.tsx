@@ -21,6 +21,9 @@ interface CheckOutModalProps {
  * onSuccess is called only after the API request completes successfully.
  */
 export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }: CheckOutModalProps) {
+    // Find the last completed trip to pre-fill condition and cleanliness
+    const lastTrip = vehicle.trips?.find(t => t.checkInAt);
+
     const [form, setForm] = useState({
         // driverName and driverEmail are display-only; the API resolves the driver from session server-side
         driverName: '',
@@ -28,8 +31,8 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         secondDriverId: '',
         missionType: 'DPS',
         missionName: '',
-        conditionOut: 'Bon état',
-        cleanlinessOut: 'Propre',
+        conditionOut: lastTrip?.conditionIn || 'Bon état',
+        cleanlinessOut: lastTrip?.cleanlinessIn || 'Propre',
         parkingOut: vehicle.parkingSpot as string,
         commentsOut: '',
     });

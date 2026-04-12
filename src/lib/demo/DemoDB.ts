@@ -1,20 +1,20 @@
-import { Vehicle, Trip } from '@/app/vehicles/[id]/types';
+import { Vehicle, Trip, MaintenanceRecord } from '@/app/vehicles/[id]/types';
 
 const DEMO_DB_KEY = 'crf_demo_db';
 
 const INITIAL_VEHICLES: Vehicle[] = [
     {
-        id: 'demo-vpsp-1',
+        id: 'VPSP - 18-01',
         name: 'VPSP - 18-01',
         type: 'VPSP (Ambulance)',
         plate: 'AA-123-BB',
-        status: 'Disponible',
+        status: 'AVAILABLE',
         parkingSpot: 'Baigneur (devant l’UL)',
         fuelLevel: 85,
         mileage: 45200,
         hasDSA: true,
         notes: 'Véhicule de démo',
-        vin: null,
+        vin: 'DEMOVIN123456789',
         fuelType: 'Diesel',
         maxFuelCapacity: 70,
         maxBatteryCapacityKwh: null,
@@ -26,11 +26,11 @@ const INITIAL_VEHICLES: Vehicle[] = [
         trips: []
     },
     {
-        id: 'demo-vl-1',
+        id: 'VL - 18-10',
         name: 'VL - 18-10',
         type: 'VL (Léger)',
         plate: 'CC-456-DD',
-        status: 'Disponible',
+        status: 'AVAILABLE',
         parkingSpot: 'Parking Aubervillers',
         fuelLevel: 100,
         mileage: 12500,
@@ -50,26 +50,63 @@ const INITIAL_VEHICLES: Vehicle[] = [
 ];
 
 const INITIAL_USERS = [
-    { id: 'demo-user-1', name: 'Jean Démo', email: 'jean.demo@croix-rouge.fr' },
-    { id: 'demo-user-2', name: 'Marie Test', email: 'marie.test@croix-rouge.fr' }
+    { id: 'demo-user-1', name: 'Jean Démo', email: 'jean.demo@croix-rouge.fr', roles: ['ADMIN', 'CHVPSP', 'RESPO', 'SECOURISTE'] },
+    { id: 'demo-user-2', name: 'Marie Test', email: 'marie.test@croix-rouge.fr', roles: ['CHVL'] }
 ];
+
+interface MissionDetail {
+    id: string;
+    submitted_by: string;
+    submitted_at: string;
+    submitter_name: string | null;
+    submitter_email: string | null;
+    mission_type: string;
+    mission_name: string;
+    mission_date: string;
+    location: string;
+    volunteers: string;
+    pegass_ok: boolean;
+    vehicle_id: string | null;
+    vehicle_name: string | null;
+    vehicle_type: string | null;
+    driver_id: string | null;
+    driver_name: string | null;
+    driver_email: string | null;
+    victim_count: number;
+    ul18_present: boolean | null;
+    team_dynamics: string | null;
+    all_found_place: boolean | null;
+    member_difficulties: boolean | null;
+    free_comment: string | null;
+    had_acr: boolean;
+    had_hemorrhage: boolean;
+    had_complex_care: boolean;
+    needs_followup: boolean;
+    drive_folder_id: string | null;
+    signed_report_drive_id: string | null;
+    supplies: Record<string, unknown[]>;
+}
 
 interface DemoData {
     vehicles: Vehicle[];
     trips: Trip[];
     users: typeof INITIAL_USERS;
+    missions: MissionDetail[];
+    maintenance: MaintenanceRecord[];
 }
 
 export class DemoDB {
     private static getData(): DemoData {
-        if (typeof window === 'undefined') return { vehicles: [], trips: [], users: [] };
+        if (typeof window === 'undefined') return { vehicles: [], trips: [], users: [], missions: [], maintenance: [] };
         const stored = localStorage.getItem(DEMO_DB_KEY);
         if (stored) return JSON.parse(stored);
         
         const initial: DemoData = {
             vehicles: INITIAL_VEHICLES,
             trips: [],
-            users: INITIAL_USERS
+            users: INITIAL_USERS,
+            missions: [],
+            maintenance: []
         };
         this.saveData(initial);
         return initial;
@@ -79,33 +116,48 @@ export class DemoDB {
         localStorage.setItem(DEMO_DB_KEY, JSON.stringify(data));
     }
 
+    static reset() {
+        localStorage.removeItem(DEMO_DB_KEY);
+    }
+
+    // --- VEHICLES ---
+
     static getVehicles() {
         const data = this.getData();
         return data.vehicles.map(v => ({
             ...v,
-            trips: data.trips.filter(t => t.id === v.id)
+            trips: data.trips.filter(t => (t as unknown as { vehicleId?: string }).vehicleId === v.id)
         }));
     }
 
     static getVehicle(id: string) {
         const data = this.getData();
-        const vehicle = data.vehicles.find(v => v.id === id);
+        const decodedId = decodeURIComponent(id);
+        const vehicle = data.vehicles.find(v => v.id === decodedId || v.name === decodedId);
         if (!vehicle) return null;
         return {
             ...vehicle,
-            trips: data.trips.filter(t => (t as { vehicleId?: string }).vehicleId === id).sort((a,b) => new Date(b.checkOutAt).getTime() - new Date(a.checkOutAt).getTime())
+            trips: data.trips.filter(t => (t as unknown as { vehicleId?: string }).vehicleId === vehicle.id).sort((a,b) => new Date(b.checkOutAt).getTime() - new Date(a.checkOutAt).getTime())
         };
     }
 
-    static getUsers() {
-        return this.getData().users;
+    static updateVehicle(id: string, patch: Partial<Vehicle>) {
+        const data = this.getData();
+        const decodedId = decodeURIComponent(id);
+        const idx = data.vehicles.findIndex(v => v.id === decodedId || v.name === decodedId);
+        if (idx === -1) throw new Error('Véhicule non trouvé');
+        data.vehicles[idx] = { ...data.vehicles[idx], ...patch };
+        this.saveData(data);
+        return data.vehicles[idx];
     }
+
+    // --- TRIPS ---
 
     static getTrips(vehicleId?: string) {
         const data = this.getData();
         let trips = data.trips;
         if (vehicleId) {
-            trips = trips.filter(t => (t as { vehicleId?: string }).vehicleId === vehicleId);
+            trips = trips.filter(t => (t as unknown as { vehicleId?: string }).vehicleId === vehicleId);
         }
         return trips.sort((a,b) => new Date(b.checkOutAt).getTime() - new Date(a.checkOutAt).getTime());
     }
@@ -131,7 +183,7 @@ export class DemoDB {
 
         const newTrip: Trip = {
             id: 'trip-' + Date.now(),
-            driverId: 'demo-user-1', // Default to current demo user
+            driverId: 'demo-user-1',
             driverName: 'Jean Démo',
             driverEmail: 'jean.demo@croix-rouge.fr',
             secondDriverId: payload.secondDriverId || null,
@@ -164,9 +216,9 @@ export class DemoDB {
             desinfResponsableId: null
         };
 
-        (newTrip as { vehicleId?: string }).vehicleId = payload.vehicleId;
+        (newTrip as unknown as { vehicleId?: string }).vehicleId = vehicle.id;
 
-        vehicle.status = 'En service';
+        vehicle.status = 'IN_USE';
         if (payload.dataIncorrect) {
             if (payload.correctedMileage) vehicle.mileage = payload.correctedMileage;
             if (payload.correctedFuel) vehicle.fuelLevel = payload.correctedFuel;
@@ -192,7 +244,7 @@ export class DemoDB {
         const trip = data.trips.find(t => t.id === tripId);
         if (!trip) throw new Error('Trajet non trouvé');
 
-        const vehicle = data.vehicles.find(v => v.id === (trip as { vehicleId?: string }).vehicleId);
+        const vehicle = data.vehicles.find(v => v.id === (trip as unknown as { vehicleId?: string }).vehicleId);
         if (!vehicle) throw new Error('Véhicule non trouvé');
 
         trip.checkInAt = new Date().toISOString();
@@ -206,7 +258,7 @@ export class DemoDB {
         trip.desinfResponsable = payload.desinfResponsable || null;
         trip.desinfLotNumber = payload.desinfLotNumber || null;
 
-        vehicle.status = 'Disponible';
+        vehicle.status = 'AVAILABLE';
         vehicle.mileage = trip.mileageIn;
         vehicle.fuelLevel = trip.fuelIn;
         if (trip.parkingIn) vehicle.parkingSpot = trip.parkingIn;
@@ -221,7 +273,159 @@ export class DemoDB {
         return trip;
     }
 
-    static getReservations() {
-        return [];
+    static patchTrip(tripId: string, patch: { secondDriverId?: string } & Partial<Trip>) {
+        const data = this.getData();
+        const idx = data.trips.findIndex(t => t.id === tripId);
+        if (idx === -1) throw new Error('Trajet non trouvé');
+        
+        if (patch.secondDriverId) {
+            const user = data.users.find(u => u.id === patch.secondDriverId);
+            data.trips[idx].secondDriverId = user?.id || null;
+            data.trips[idx].secondDriverName = user?.name || null;
+            data.trips[idx].secondDriverEmail = user?.email || null;
+        }
+
+        data.trips[idx] = { ...data.trips[idx], ...patch };
+        this.saveData(data);
+        return data.trips[idx];
+    }
+
+    static deleteTrip(tripId: string) {
+        const data = this.getData();
+        data.trips = data.trips.filter(t => t.id !== tripId);
+        this.saveData(data);
+    }
+
+    static deleteVehicleTrips(vehicleId: string) {
+        const data = this.getData();
+        const decodedId = decodeURIComponent(vehicleId);
+        const vehicle = data.vehicles.find(v => v.id === decodedId || v.name === decodedId);
+        if (!vehicle) return;
+        data.trips = data.trips.filter(t => (t as unknown as { vehicleId?: string }).vehicleId !== vehicle.id);
+        this.saveData(data);
+    }
+
+    // --- MISSIONS ---
+
+    static getMissions() {
+        return this.getData().missions.sort((a,b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime());
+    }
+
+    static getMission(id: string) {
+        return this.getData().missions.find(m => m.id === id) || null;
+    }
+
+    static createMission(payload: {
+        vehicle_id: string | null;
+        driver_id: string | null;
+        mission_type: string;
+        mission_name: string;
+        mission_date: string;
+        location: string;
+        volunteers: string;
+        pegass_ok: boolean;
+        victim_count?: number;
+        ul18_present: boolean | null;
+        team_dynamics: string | null;
+        all_found_place: boolean | null;
+        member_difficulties: boolean | null;
+        free_comment: string | null;
+        had_acr?: boolean;
+        had_hemorrhage?: boolean;
+        had_complex_care?: boolean;
+        needs_followup?: boolean;
+        drive_folder_id?: string | null;
+        signed_report_drive_id?: string | null;
+    }) {
+        const data = this.getData();
+        const vehicle = data.vehicles.find(v => v.id === payload.vehicle_id);
+        const driver = data.users.find(u => u.id === payload.driver_id);
+
+        const newMission: MissionDetail = {
+            id: 'mission-' + Date.now(),
+            submitted_by: 'demo-user-1',
+            submitted_at: new Date().toISOString(),
+            submitter_name: 'Jean Démo',
+            submitter_email: 'jean.demo@croix-rouge.fr',
+            mission_type: payload.mission_type,
+            mission_name: payload.mission_name,
+            mission_date: payload.mission_date,
+            location: payload.location,
+            volunteers: payload.volunteers,
+            pegass_ok: payload.pegass_ok,
+            vehicle_id: payload.vehicle_id,
+            vehicle_name: vehicle?.name || null,
+            vehicle_type: vehicle?.type || null,
+            driver_id: payload.driver_id,
+            driver_name: driver?.name || null,
+            driver_email: driver?.email || null,
+            victim_count: payload.victim_count || 0,
+            ul18_present: payload.ul18_present,
+            team_dynamics: payload.team_dynamics,
+            all_found_place: payload.all_found_place,
+            member_difficulties: payload.member_difficulties,
+            free_comment: payload.free_comment,
+            had_acr: payload.had_acr || false,
+            had_hemorrhage: payload.had_hemorrhage || false,
+            had_complex_care: payload.had_complex_care || false,
+            needs_followup: payload.needs_followup || false,
+            drive_folder_id: payload.drive_folder_id || null,
+            signed_report_drive_id: payload.signed_report_drive_id || null,
+            supplies: {}
+        };
+
+        data.missions.push(newMission);
+        this.saveData(data);
+        return newMission;
+    }
+
+    static deleteMission(id: string) {
+        const data = this.getData();
+        data.missions = data.missions.filter(m => m.id !== id);
+        this.saveData(data);
+    }
+
+    // --- USERS ---
+
+    static getUsers() {
+        return this.getData().users;
+    }
+
+    // --- MAINTENANCE ---
+
+    static getMaintenanceRecords(vehicleId: string) {
+        const data = this.getData();
+        const decodedId = decodeURIComponent(vehicleId);
+        const vehicle = data.vehicles.find(v => v.id === decodedId || v.name === decodedId);
+        if (!vehicle) return [];
+        return data.maintenance.filter(m => m.vehicleId === vehicle.id);
+    }
+
+    static createMaintenanceRecord(payload: {
+        vehicleId: string;
+        date: string;
+        type: 'CT' | 'REVISION' | 'CT_REVISION';
+        mileage: number | null;
+    }) {
+        const data = this.getData();
+        const decodedId = decodeURIComponent(payload.vehicleId);
+        const vehicle = data.vehicles.find(v => v.id === decodedId || v.name === decodedId);
+        const newRecord: MaintenanceRecord = {
+            id: 'maint-' + Date.now(),
+            vehicleId: vehicle?.id || payload.vehicleId,
+            date: payload.date,
+            type: payload.type,
+            mileage: payload.mileage,
+            createdAt: new Date().toISOString()
+        };
+        data.maintenance.push(newRecord);
+        this.saveData(data);
+        return newRecord;
+    }
+
+    static deleteMaintenanceRecord(id: string) {
+        const data = this.getData();
+        data.maintenance = data.maintenance.filter(m => m.id !== id);
+        this.saveData(data);
     }
 }
