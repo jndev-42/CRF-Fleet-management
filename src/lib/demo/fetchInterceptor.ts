@@ -26,16 +26,16 @@ export function setupFetchInterceptor() {
                 }
 
                 // --- VEHICLES ---
-                if (url.match(/\/api\/vehicles$/)) {
+                // Matches /api/vehicles or /api/vehicles?params... but NOT /api/vehicles/[id]
+                if (url.match(/\/api\/vehicles(\?.*)?$/)) {
                     if (!init || init.method === 'GET') {
                         const vehicles = DemoDB.getVehicles();
-                        // Real API returns an array directly
                         return mockResponse(vehicles);
                     }
                 }
 
                 // Match /api/vehicles/[id] but NOT /api/vehicles/[id]/...
-                const vehicleDetailMatch = url.match(/\/api\/vehicles\/([^\/]+)$/);
+                const vehicleDetailMatch = url.match(/\/api\/vehicles\/([^\/?]+)(\?.*)?$/);
                 if (vehicleDetailMatch && !url.includes('/trips') && !url.includes('/maintenance') && !url.includes('/reservations')) {
                     const id = vehicleDetailMatch[1];
                     if (!init || init.method === 'GET') {
@@ -50,7 +50,7 @@ export function setupFetchInterceptor() {
                 }
 
                 // --- TRIPS ---
-                if (url.match(/\/api\/trips$/) && init?.method === 'POST') {
+                if (url.match(/\/api\/trips(\?.*)?$/) && init?.method === 'POST') {
                     const body = JSON.parse(init.body as string);
                     const trip = DemoDB.createTrip(body);
                     return mockResponse(trip);
@@ -88,25 +88,24 @@ export function setupFetchInterceptor() {
                 }
 
                 // --- MISSIONS ---
-                if (url.match(/\/api\/missions$/)) {
+                if (url.match(/\/api\/missions(\?.*)?$/)) {
                     if (!init || init.method === 'GET') {
                         const missions = DemoDB.getMissions();
-                        // Real API returns { reports, total, page, limit }
                         return mockResponse({ 
                             reports: missions, 
                             total: missions.length, 
                             page: 1, 
-                            limit: 20 
+                            limit: 50 
                         });
                     }
                     if (init.method === 'POST') {
                         const body = JSON.parse(init.body as string);
                         const mission = DemoDB.createMission(body);
-                        return mockResponse(mission);
+                        return mockResponse({ success: true, id: mission.id }, 201);
                     }
                 }
 
-                const missionDetailMatch = url.match(/\/api\/missions\/([^\/?]+)$/);
+                const missionDetailMatch = url.match(/\/api\/missions\/([^\/?]+)(\?.*)?$/);
                 if (missionDetailMatch) {
                     const id = missionDetailMatch[1];
                     if (!init || init.method === 'GET') {
@@ -155,9 +154,8 @@ export function setupFetchInterceptor() {
                 }
 
                 // --- USERS ---
-                if (url.match(/\/api\/users/) && (!init || init.method === 'GET')) {
+                if (url.match(/\/api\/users(\?.*)?$/) && (!init || init.method === 'GET')) {
                     const users = DemoDB.getUsers();
-                    // Real API returns { users, availableRoles }
                     return mockResponse({ 
                         users, 
                         availableRoles: ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'SECOURISTE', 'CI/RPAPS', 'GUEST', 'INACTIF'] 
@@ -171,7 +169,7 @@ export function setupFetchInterceptor() {
                 }
 
                 // --- STATS ---
-                if (url.match(/\/api\/stats/) && (!init || init.method === 'GET')) {
+                if (url.match(/\/api\/stats(\?.*)?$/) && (!init || init.method === 'GET')) {
                     return mockResponse({
                         success: true,
                         data: {

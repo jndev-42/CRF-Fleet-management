@@ -54,6 +54,41 @@ const INITIAL_USERS = [
     { id: 'demo-user-2', name: 'Marie Test', email: 'marie.test@croix-rouge.fr', roles: ['CHVL'] }
 ];
 
+const INITIAL_MISSIONS: MissionDetail[] = [
+    {
+        id: 'mission-demo-1',
+        submitted_by: 'demo-user-1',
+        submitted_at: new Date().toISOString(),
+        submitter_name: 'Jean Démo',
+        submitter_email: 'jean.demo@croix-rouge.fr',
+        mission_type: 'DPS',
+        mission_name: 'Match Foot Stade de France',
+        mission_date: new Date().toISOString().split('T')[0],
+        location: 'Stade de France',
+        volunteers: 'Jean, Marie, Pierre',
+        pegass_ok: true,
+        vehicle_id: 'VPSP - 18-01',
+        vehicle_name: 'VPSP - 18-01',
+        vehicle_type: 'VPSP (Ambulance)',
+        driver_id: 'demo-user-1',
+        driver_name: 'Jean Démo',
+        driver_email: 'jean.demo@croix-rouge.fr',
+        victim_count: 2,
+        ul18_present: true,
+        team_dynamics: 'BIEN',
+        all_found_place: true,
+        member_difficulties: false,
+        free_comment: 'RAS',
+        had_acr: false,
+        had_hemorrhage: false,
+        had_complex_care: false,
+        needs_followup: false,
+        drive_folder_id: null,
+        signed_report_drive_id: null,
+        supplies: {}
+    }
+];
+
 interface MissionDetail {
     id: string;
     submitted_by: string;
@@ -99,13 +134,19 @@ export class DemoDB {
     private static getData(): DemoData {
         if (typeof window === 'undefined') return { vehicles: [], trips: [], users: [], missions: [], maintenance: [] };
         const stored = localStorage.getItem(DEMO_DB_KEY);
-        if (stored) return JSON.parse(stored);
+        if (stored) {
+            const data = JSON.parse(stored);
+            // Ensure newly added fields exist for existing demo databases
+            if (!data.missions) data.missions = INITIAL_MISSIONS;
+            if (!data.maintenance) data.maintenance = [];
+            return data;
+        }
         
         const initial: DemoData = {
             vehicles: INITIAL_VEHICLES,
             trips: [],
             users: INITIAL_USERS,
-            missions: [],
+            missions: INITIAL_MISSIONS,
             maintenance: []
         };
         this.saveData(initial);

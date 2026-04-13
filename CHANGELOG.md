@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.4.9] — 12 avril 2026
+
+### 🐛 Corrections
+
+- **Correction des listes en mode démo** — Les listes de missions, véhicules et utilisateurs s'affichent désormais correctement même avec des paramètres de filtrage ou de pagination. L'intercepteur `fetch` a été assoupli pour supporter les query strings.
+- **Missions de test** — Ajout d'un jeu de données initial pour les missions en mode démo afin que la page ne soit pas vide à la première activation.
+
 ## [2.4.8] — 12 avril 2026
 
 ### 🐛 Corrections
