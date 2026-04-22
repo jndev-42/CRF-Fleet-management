@@ -29,7 +29,7 @@ import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHist
 import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 import InventoryVehicleTab from '@/components/inventory/InventoryVehicleTab';
-import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
+import { useModuleSettings } from '@/lib/contexts/ModuleSettingsContext';
 /**
  * VehicleDetailPage Component
  * 
@@ -75,7 +75,7 @@ export default function VehicleDetailPage() {
     const [showEditRevisionModal, setShowEditRevisionModal] = useState(false);
     const [licenseBlocked, setLicenseBlocked] = useState(false);
     const router = useRouter();
-    const { getVisibility } = useMenuSettings();
+    const { canAccess } = useModuleSettings();
 
     useEffect(() => {
         // Fetch the current session to determine if the user has specific roles (e.g., ADMIN)
@@ -98,12 +98,7 @@ export default function VehicleDetailPage() {
             .catch(console.error);
     }, []);
 
-    const invVis = getVisibility('inventory');
-    const hasInventoryRole = userRoles.includes('SECOURISTE') || userRoles.includes('ADMIN');
-    const canSeeInventoryTab = invVis !== 'disabled' && hasInventoryRole && (
-        invVis === 'available' ||
-        (invVis === 'admin_only' && userRoles.includes('ADMIN'))
-    );
+    const canSeeInventoryTab = canAccess('inventory', userRoles);
 
     useEffect(() => {
         if (!canSeeInventoryTab && activeTab === 'inventory') setActiveTab('details');

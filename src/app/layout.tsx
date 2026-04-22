@@ -19,7 +19,7 @@ import GuidedTour from "@/components/GuidedTour";
 import KonamiEasterEgg from "@/components/KonamiEasterEgg";
 import BugReportButton from "@/components/BugReportButton";
 import LicenseBanner from "@/components/LicenseBanner";
-import { MenuSettingsProvider } from "@/lib/contexts/MenuSettingsContext";
+import { ModuleSettingsProvider } from "@/lib/contexts/ModuleSettingsContext";
 import { DemoProvider } from "@/lib/contexts/DemoContext";
 
 export const metadata: Metadata = {
@@ -65,7 +65,7 @@ export default async function RootLayout({
           <OneSignalProvider appId={onesignalId} roles={roles} />
           <SessionProvider session={session}>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
-              <MenuSettingsProvider>
+              <ModuleSettingsProvider>
                 <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                   <Navbar user={session?.user} />
                   {session?.user && <LicenseBanner />}
@@ -87,7 +87,7 @@ export default async function RootLayout({
                     <FooterChangelog />
                   </footer>
                 </div>
-              </MenuSettingsProvider>
+              </ModuleSettingsProvider>
             </ThemeProvider>
           </SessionProvider>
         </DemoProvider>

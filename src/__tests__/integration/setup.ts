@@ -89,6 +89,43 @@ async function createTables() {
     FOREIGN KEY (vehicleId) REFERENCES Vehicle(id)
   )`);
 
+  await db.execute(`CREATE TABLE IF NOT EXISTS "mission_reports" (
+    id TEXT PRIMARY KEY,
+    submitted_by TEXT REFERENCES "User"(id),
+    submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    mission_type TEXT NOT NULL,
+    mission_name TEXT,
+    mission_date TEXT NOT NULL,
+    location TEXT,
+    volunteers TEXT,
+    pegass_ok INTEGER,
+    vehicle_id TEXT REFERENCES "Vehicle"(id),
+    driver_id TEXT REFERENCES "User"(id),
+    victim_count INTEGER,
+    ul18_present INTEGER,
+    team_dynamics TEXT,
+    all_found_place INTEGER,
+    member_difficulties INTEGER,
+    free_comment TEXT,
+    had_acr INTEGER,
+    had_hemorrhage INTEGER,
+    had_complex_care INTEGER,
+    needs_followup INTEGER,
+    drive_folder_id TEXT,
+    signed_report_drive_id TEXT,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "mission_report_supplies" (
+    id TEXT PRIMARY KEY,
+    report_id TEXT REFERENCES "mission_reports"(id) ON DELETE CASCADE,
+    category TEXT,
+    item_name TEXT,
+    quantity_used INTEGER,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "Reservation" (
     id TEXT PRIMARY KEY,
     vehicleId TEXT NOT NULL,
@@ -226,16 +263,14 @@ async function createTables() {
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  await db.execute(`CREATE TABLE IF NOT EXISTS "MenuSetting" (
-    menu_key TEXT NOT NULL PRIMARY KEY,
-    visibility TEXT NOT NULL DEFAULT 'available'
-               CHECK (visibility IN ('available', 'admin_only', 'disabled')),
+  await db.execute(`CREATE TABLE IF NOT EXISTS "ModuleSetting" (
+    module_key TEXT NOT NULL PRIMARY KEY,
+    allowed_roles TEXT NOT NULL,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 }
 
 async function truncateTables() {
-  // Nouveau système inventaire (ordre FK-safe)
   await db.execute(`DELETE FROM "InvTransfer"`);
   await db.execute(`DELETE FROM "InvGroupeMember"`);
   await db.execute(`DELETE FROM "InvStock"`);
@@ -247,13 +282,15 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "InvGroupe"`);
   await db.execute(`DELETE FROM "Notification"`);
   await db.execute(`DELETE FROM "UserRole"`);
+  await db.execute(`DELETE FROM "mission_report_supplies"`);
+  await db.execute(`DELETE FROM "mission_reports"`);
   await db.execute(`DELETE FROM "Trip"`);
   await db.execute(`DELETE FROM "Reservation"`);
   await db.execute(`DELETE FROM "VehicleMaintenanceRecord"`);
   await db.execute(`DELETE FROM "Vehicle"`);
   await db.execute(`DELETE FROM "User"`);
   await db.execute(`DELETE FROM "Role"`);
-  await db.execute(`DELETE FROM "MenuSetting"`);
+  await db.execute(`DELETE FROM "ModuleSetting"`);
 }
 
 // Create tables once on first import
@@ -357,17 +394,17 @@ export async function seedRoles(names: string[] = ['ADMIN', 'RESPO', 'CHVL', 'CH
   }
 }
 
-export async function seedMenuSettings(overrides: Partial<Record<string, string>> = {}) {
-  const defaults: Record<string, string> = {
-    stats: 'available',
-    inventory: 'available',
-    missions: 'available',
+export async function seedModuleSettings(overrides: Partial<Record<string, string[]>> = {}) {
+  const defaults: Record<string, string[]> = {
+    stats: ['ADMIN', 'RESPO', 'CI/RPAPS', 'CHVPSP', 'CHVL', 'SECOURISTE'],
+    inventory: ['ADMIN', 'SECOURISTE'],
+    missions: ['ADMIN', 'CI/RPAPS'],
     ...overrides,
   };
-  for (const [key, visibility] of Object.entries(defaults)) {
+  for (const [key, roles] of Object.entries(defaults)) {
     await db.execute({
-      sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`,
-      args: [key, visibility],
+      sql: `INSERT OR IGNORE INTO "ModuleSetting" (module_key, allowed_roles) VALUES (?, ?)`,
+      args: [key, JSON.stringify(roles)],
     });
   }
 }

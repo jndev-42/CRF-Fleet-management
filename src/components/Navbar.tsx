@@ -8,22 +8,16 @@ import { signOut } from 'next-auth/react';
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
 import { User } from 'next-auth';
-import { useMenuSettings, MenuVisibility } from '@/lib/contexts/MenuSettingsContext';
+import { useModuleSettings } from '@/lib/contexts/ModuleSettingsContext';
 
 type NavbarProps = {
     user?: User & { roles?: string[] };
 };
 
-function canSeeMenu(key: string, visibility: MenuVisibility, userRoles: string[]): boolean {
-    if (visibility === 'disabled') return false;
-    if (visibility === 'admin_only') return userRoles.includes('ADMIN');
-    return true;
-}
-
 export default function Navbar({ user }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
-    const { getVisibility } = useMenuSettings();
+    const { canAccess } = useModuleSettings();
 
     const userRoles = user?.roles ?? [];
 
@@ -78,13 +72,13 @@ export default function Navbar({ user }: NavbarProps) {
                         </div>
                         <Link href="/" className={`nav-link${pathname === '/' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</Link>
                         <Link href="/vehicles" className={`nav-link${pathname === '/vehicles' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</Link>
-                        {!userRoles.includes('INACTIF') && canSeeMenu('stats', getVisibility('stats'), userRoles) && (
+                        {!userRoles.includes('INACTIF') && canAccess('stats', userRoles) && (
                             <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
                         )}
-                        {(userRoles.includes('ADMIN') || userRoles.includes('SECOURISTE')) && canSeeMenu('inventory', getVisibility('inventory'), userRoles) && (
+                        {canAccess('inventory', userRoles) && (
                             <Link href="/inventory" className={`nav-link${pathname === '/inventory' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/inventory' ? 'page' : undefined}>Inventaire</Link>
                         )}
-                        {(userRoles.includes('ADMIN') || userRoles.includes('CI/RPAPS')) && canSeeMenu('missions', getVisibility('missions'), userRoles) && (
+                        {canAccess('missions', userRoles) && (
                             <Link href="/missions" className={`nav-link${pathname.startsWith('/missions') ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/missions') ? 'page' : undefined}>Missions</Link>
                         )}
                         {(userRoles.includes('ADMIN') || userRoles.includes('RESPO')) && (

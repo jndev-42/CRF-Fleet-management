@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 
-/** GET /api/settings/menus — Retourne tous les paramètres de visibilité des menus.
+/** GET /api/settings/modules — Retourne tous les paramètres de visibilité des modules.
  *  ADMIN uniquement. */
 export async function GET() {
     try {
@@ -16,16 +16,16 @@ export async function GET() {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
-        const result = await db.execute(`SELECT menu_key, visibility FROM "MenuSetting" ORDER BY menu_key`);
+        const result = await db.execute(`SELECT module_key, allowed_roles FROM "ModuleSetting" ORDER BY module_key`);
 
         const settings = result.rows.map(row => ({
-            menu_key: row.menu_key as string,
-            visibility: row.visibility as string,
+            module_key: row.module_key as string,
+            allowed_roles: JSON.parse(row.allowed_roles as string),
         }));
 
         return NextResponse.json({ settings });
     } catch (error) {
-        console.error('Error fetching menu settings:', error);
+        console.error('Error fetching module settings:', error);
         return NextResponse.json({ error: 'Erreur lors de la récupération des paramètres' }, { status: 500 });
     }
 }

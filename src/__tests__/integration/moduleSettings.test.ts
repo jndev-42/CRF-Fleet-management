@@ -7,14 +7,14 @@ vi.mock('@/lib/db', async () => {
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
 
 import { auth } from '@/auth';
-import { GET } from '@/app/api/settings/menus/route';
-import { PATCH } from '@/app/api/settings/menus/[key]/route';
-import { seedRoles, seedUser, seedUserRole, seedMenuSettings, db } from './setup';
+import { GET } from '@/app/api/settings/modules/route';
+import { PATCH } from '@/app/api/settings/modules/[key]/route';
+import { seedRoles, seedUser, seedUserRole, seedModuleSettings, db } from './setup';
 
 const mockedAuth = vi.mocked(auth);
 
 function makePatchRequest(key: string, body: Record<string, unknown>): Request {
-    return new Request(`http://localhost/api/settings/menus/${key}`, {
+    return new Request(`http://localhost/api/settings/modules/${key}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -34,10 +34,10 @@ beforeEach(async () => {
     await seedUserRole('user-respo', 'RESPO');
     await seedUser({ id: 'user-chvl', email: 'chvl@test.com' });
     await seedUserRole('user-chvl', 'CHVL');
-    await seedMenuSettings();
+    await seedModuleSettings();
 });
 
-describe('GET /api/settings/menus', () => {
+describe('GET /api/settings/modules', () => {
     it('returns 401 when unauthenticated', async () => {
         // @ts-expect-error — null session for test
         mockedAuth.mockResolvedValue(null);
@@ -57,88 +57,51 @@ describe('GET /api/settings/menus', () => {
         expect(res.status).toBe(403);
     });
 
-    it('returns 3 settings with available visibility for ADMIN', async () => {
+    it('returns settings for ADMIN', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
         const res = await GET();
         expect(res.status).toBe(200);
         const data = await res.json();
         expect(data.settings).toHaveLength(3);
-        const keys = data.settings.map((s: { menu_key: string }) => s.menu_key);
-        expect(keys).toContain('stats');
-        expect(keys).toContain('inventory');
-        expect(keys).toContain('missions');
-        for (const s of data.settings) {
-            expect(s.visibility).toBe('available');
-        }
+        const stats = data.settings.find((s: any) => s.module_key === 'stats');
+        expect(stats.allowed_roles).toContain('CHVL');
     });
 });
 
-describe('PATCH /api/settings/menus/[key]', () => {
+describe('PATCH /api/settings/modules/[key]', () => {
     it('returns 401 when unauthenticated', async () => {
         // @ts-expect-error — null session for test
         mockedAuth.mockResolvedValue(null);
-        const res = await callPatch('stats', { visibility: 'disabled' });
+        const res = await callPatch('stats', { allowed_roles: ['ADMIN'] });
         expect(res.status).toBe(401);
     });
 
     it('returns 403 for RESPO', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'respo@test.com', roles: ['RESPO'] } } as never);
-        const res = await callPatch('stats', { visibility: 'disabled' });
+        const res = await callPatch('stats', { allowed_roles: ['ADMIN'] });
         expect(res.status).toBe(403);
     });
 
     it('returns 400 for unknown key', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
-        const res = await callPatch('unknown_key', { visibility: 'available' });
+        const res = await callPatch('unknown_key', { allowed_roles: ['ADMIN'] });
         expect(res.status).toBe(400);
         const data = await res.json();
         expect(data.error).toMatch(/invalide/i);
     });
 
-    it('returns 400 for invalid visibility value (Zod)', async () => {
+    it('happy path — ADMIN can update allowed roles', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
-        const res = await callPatch('stats', { visibility: 'invalid_value' });
-        expect(res.status).toBe(400);
-        const data = await res.json();
-        expect(data.details).toBeDefined();
-    });
-
-    it('happy path — ADMIN can update visibility and DB is updated', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
-        const res = await callPatch('stats', { visibility: 'admin_only' });
+        const res = await callPatch('stats', { allowed_roles: ['ADMIN', 'RESPO'] });
         expect(res.status).toBe(200);
         const data = await res.json();
         expect(data.success).toBe(true);
 
         // Verify DB was updated
         const row = await db.execute({
-            sql: `SELECT visibility FROM "MenuSetting" WHERE menu_key = ?`,
+            sql: `SELECT allowed_roles FROM "ModuleSetting" WHERE module_key = ?`,
             args: ['stats'],
         });
-        expect(row.rows[0].visibility).toBe('admin_only');
-    });
-
-    it('ADMIN can set visibility to disabled', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
-        const res = await callPatch('inventory', { visibility: 'disabled' });
-        expect(res.status).toBe(200);
-
-        const row = await db.execute({
-            sql: `SELECT visibility FROM "MenuSetting" WHERE menu_key = ?`,
-            args: ['inventory'],
-        });
-        expect(row.rows[0].visibility).toBe('disabled');
-    });
-
-    it('ADMIN can update missions visibility', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
-        const res = await callPatch('missions', { visibility: 'admin_only' });
-        expect(res.status).toBe(200);
-
-        const row = await db.execute({
-            sql: `SELECT visibility FROM "MenuSetting" WHERE menu_key = ?`,
-            args: ['missions'],
-        });
-        expect(row.rows[0].visibility).toBe('admin_only');
+        expect(JSON.parse(row.rows[0].allowed_roles as string)).toEqual(['ADMIN', 'RESPO']);
     });
 });

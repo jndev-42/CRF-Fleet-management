@@ -6,12 +6,12 @@ import { auth } from '@/auth';
 const VALID_KEYS = ['stats', 'inventory', 'missions'] as const;
 
 const patchSchema = z.object({
-    visibility: z.enum(['available', 'admin_only', 'disabled']),
+    allowed_roles: z.array(z.string()),
 });
 
 type RouteContext = { params: Promise<{ key: string }> };
 
-/** PATCH /api/settings/menus/[key] — Modifie la visibilité d'un menu.
+/** PATCH /api/settings/modules/[key] — Modifie les rôles autorisés pour un module.
  *  ADMIN uniquement. */
 export async function PATCH(request: Request, { params }: RouteContext) {
     try {
@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         const { key } = await params;
 
         if (!(VALID_KEYS as readonly string[]).includes(key)) {
-            return NextResponse.json({ error: `Clé de menu invalide. Valeurs acceptées : ${VALID_KEYS.join(', ')}` }, { status: 400 });
+            return NextResponse.json({ error: `Clé de module invalide. Valeurs acceptées : ${VALID_KEYS.join(', ')}` }, { status: 400 });
         }
 
         const body = await request.json();
@@ -45,13 +45,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
         const now = new Date().toISOString();
         await db.execute({
-            sql: `UPDATE "MenuSetting" SET visibility = ?, updatedAt = ? WHERE menu_key = ?`,
-            args: [data.visibility, now, key],
+            sql: `UPDATE "ModuleSetting" SET allowed_roles = ?, updatedAt = ? WHERE module_key = ?`,
+            args: [JSON.stringify(data.allowed_roles), now, key],
         });
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Error updating menu setting:', error);
+        console.error('Error updating module setting:', error);
         return NextResponse.json({ error: 'Erreur lors de la mise à jour du paramètre' }, { status: 500 });
     }
 }
