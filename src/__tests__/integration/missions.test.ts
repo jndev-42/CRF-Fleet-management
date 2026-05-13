@@ -120,7 +120,8 @@ async function createMissionReportTable() {
             "had_hemorrhage"        INTEGER NOT NULL DEFAULT 0,
             "had_complex_care"      INTEGER NOT NULL DEFAULT 0,
             "needs_followup"        INTEGER NOT NULL DEFAULT 0,
-            "drive_folder_id"       TEXT
+            "drive_folder_id"       TEXT,
+            "signed_report_drive_id" TEXT
         )
     `);
     await db.execute(`

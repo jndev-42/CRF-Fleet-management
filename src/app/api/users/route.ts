@@ -176,6 +176,20 @@ export async function POST(request: Request) {
                 }
             }
 
+            // Si l'utilisateur est créé avec un rôle CHVL ou CHVPSP,
+            // invalider les papiers par défaut.
+            const isDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
+            if (isDriver) {
+                const today = new Date().toISOString().slice(0, 10);
+                await tx.execute({
+                    sql: `UPDATE "User"
+                          SET papiers_valides = 0,
+                              start_date_invalidation_process = ?
+                          WHERE id = ?`,
+                    args: [today, userId],
+                });
+            }
+
             await tx.commit();
             return NextResponse.json({ success: true, id: userId }, { status: 201 });
         } catch (e) {
