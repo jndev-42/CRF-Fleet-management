@@ -33,7 +33,7 @@ export default function Navbar({ user }: NavbarProps) {
             <Link href="/" className="header-brand">
                 <Image src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" width={40} height={40} />
                 <div>
-                    <div className="header-title">Gestion de flotte</div>
+                    <div className="header-title">Martine</div>
                     <div className="header-subtitle">Unité Locale Paris 18</div>
                 </div>
             </Link>

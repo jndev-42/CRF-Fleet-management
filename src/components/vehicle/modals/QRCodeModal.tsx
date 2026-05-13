@@ -26,13 +26,13 @@ export default function QRCodeModal({ onClose, vehicleName }: { onClose: () => v
         // Dessiner le QRCode original
         ctx.drawImage(originalCanvas, padding, padding);
 
-        // Ajouter le texte "CR Chauffeur"
+        // Ajouter le texte "Martine"
         ctx.fillStyle = "#000000";
         ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         // Position du texte (au milieu en X, et en bas en dessous du padding)
-        ctx.fillText("CR Chauffeur", canvas.width / 2, canvas.height - (padding / 2) - 10);
+        ctx.fillText("Martine", canvas.width / 2, canvas.height - (padding / 2) - 10);
 
         const pngFile = canvas.toDataURL("image/png");
         const downloadLink = document.createElement("a");

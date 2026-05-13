@@ -1,5 +1,5 @@
 /**
- * Import matériel ebrigade → inventaire cr-chauffeur.
+ * Import matériel ebrigade → inventaire martine.
  *
  * Ce script :
  *   1. Lit le fichier HAR capturé sur ebrigade.online

@@ -12,7 +12,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 
-const tmpDir = mkdtempSync(join(tmpdir(), 'cr-chauffeur-test-'));
+const tmpDir = mkdtempSync(join(tmpdir(), 'martine-test-'));
 const dbPath = join(tmpDir, 'test.db');
 
 export const db = createClient({ url: `file:${dbPath}` });

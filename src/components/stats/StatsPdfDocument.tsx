@@ -302,7 +302,7 @@ function TableHeaderRow({ cols }: { cols: Array<{ label: string; flex?: number; 
 function Footer() {
   return (
     <View style={styles.footer} fixed>
-      <Text style={styles.footerLeft}>{`CR-Chauffeur v${process.env.NEXT_PUBLIC_APP_VERSION}`}</Text>
+      <Text style={styles.footerLeft}>{`Martine v${process.env.NEXT_PUBLIC_APP_VERSION}`}</Text>
       <Text style={styles.footerCenter}>Rapport confidentiel - usage interne uniquement</Text>
       <Text
         style={styles.footerRight}
@@ -334,7 +334,7 @@ export default function StatsPdfDocument({
             {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer Image does not support alt prop */}
             <Image src={logoSrc} style={{ width: 48, height: 48 }} />
             <View style={styles.headerLogoText}>
-              <Text style={styles.headerTitle}>CR-Chauffeur</Text>
+              <Text style={styles.headerTitle}>Martine</Text>
               <Text style={styles.headerSubtitle}>Croix-Rouge Française - Gestion des véhicules</Text>
             </View>
           </View>

@@ -1,7 +1,7 @@
 {
-    "name": "CR Chauffeur — Croix-Rouge Paris 18",
-    "short_name": "CR Chauffeur",
-    "description": "Application de gestion de flotte de véhicules pour la Croix-Rouge Française, Unité Locale de Paris 18.",
+    "name": "Martine — Croix-Rouge Paris 18",
+    "short_name": "Martine",
+    "description": "Martine — Application de gestion de véhicules pour la Croix-Rouge Française, Unité Locale de Paris 18.",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#0f1117",

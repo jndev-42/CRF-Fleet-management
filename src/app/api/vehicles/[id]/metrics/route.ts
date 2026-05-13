@@ -90,7 +90,7 @@ export async function PATCH(
         const changesText = changes.join(' et le ');
         const notificationTitle = `🔧 Mise à jour du véhicule ${vName}`;
         const notificationMessage = `${userActionName} a modifié manuellement le ${changesText} pour le véhicule ${vName}.`;
-        const notificationUrl = `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(vName)}`;
+        const notificationUrl = `https://martine.vercel.app/vehicles/${encodeURIComponent(vName)}`;
 
         try {
             // Send Push Notification via OneSignal (it also creates in-app notifications automatically)
