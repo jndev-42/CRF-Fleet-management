@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -68,6 +69,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
             });
         }
 
+        const vehicleId = row.vehicle_id as string | null;
+        const vehicleName = (row.vehicle_name as string | null) || (vehicleId ? EXTERNAL_VEHICLES[vehicleId]?.name : null);
+        const vehicleType = (row.vehicle_type as string | null) || (vehicleId ? EXTERNAL_VEHICLES[vehicleId]?.type : null);
+
         const report = {
             id: row.id,
             submitted_by: row.submitted_by,
@@ -81,8 +86,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
             volunteers: row.volunteers,
             pegass_ok: Boolean(Number(row.pegass_ok)),
             vehicle_id: row.vehicle_id,
-            vehicle_name: row.vehicle_name,
-            vehicle_type: row.vehicle_type,
+            vehicle_name: vehicleName,
+            vehicle_type: vehicleType,
             driver_id: row.driver_id,
             driver_name: row.driver_name,
             driver_email: row.driver_email,

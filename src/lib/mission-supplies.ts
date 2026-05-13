@@ -123,3 +123,8 @@ export const TEAM_DYNAMICS_LABELS: Record<string, string> = {
     PEUT_MIEUX: 'Peut mieux faire',
     SUJET: 'Sujet à traiter',
 };
+
+export const EXTERNAL_VEHICLES: Record<string, { name: string, type: string }> = {
+    EXTERNAL_VL: { name: 'VL extérieure', type: 'VL' },
+    EXTERNAL_VPSP: { name: 'VPSP extérieur', type: 'VPSP' },
+};
