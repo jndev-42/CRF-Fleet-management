@@ -24,7 +24,7 @@ import { DemoProvider } from "@/lib/contexts/DemoContext";
 
 export const metadata: Metadata = {
   title: "Martine | Croix-Rouge Paris 18",
-  description: "Martine — Application de gestion de véhicules pour la Croix-Rouge Française, Unité Locale de Paris 18ème.",
+  description: "Martine - Application de compte rendus véhicules et missions pour la Croix-Rouge Française, Unité Locale de Paris 18.",
   manifest: "/manifest.json",
   icons: {
     icon: "/crf-logo.svg",

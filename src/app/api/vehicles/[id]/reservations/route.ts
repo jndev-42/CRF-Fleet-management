@@ -167,7 +167,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
                         fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,
                         en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} to ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. Pending validation.`
                     },
-                    url: `https://martine.vercel.app/vehicles/${vehicleName}`
+                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`
                 });
 
                 // Notifier les RESPO
@@ -178,7 +178,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
                         fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,
                         en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} to ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. Pending validation.`
                     },
-                    url: `https://martine.vercel.app/vehicles/${vehicleName}`
+                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`
                 });
             } catch (notifErr) {
                 console.error('Failed to send reservation notification:', notifErr);

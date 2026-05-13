@@ -87,7 +87,7 @@ export async function GET(request: Request) {
                             en: `${name} a été déplacé sans emprunt. Mouvement inexpliqué de +${gap} km.`,
                             fr: `${name} a été déplacé sans emprunt. Mouvement inexpliqué de +${gap} km.`
                         },
-                        url: `https://martine.vercel.app/vehicles/${name}`
+                        url: `https://cr-chauffeur.vercel.app/vehicles/${name}`
                     });
 
                     alertsSent.push(name);
