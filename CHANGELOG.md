@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.5.0] — 13 mai 2026
+
+### 🐛 Corrections
+
+- **Validation des permis à la création** — Correction d'un bug où les nouveaux profils de chauffeurs (CHVL/CHVPSP) avaient leurs papiers automatiquement validés. Désormais, ils sont correctement marqués comme non validés à la création, nécessitant une vérification manuelle.
+
 ## [2.4.9] — 12 avril 2026
 
 ### 🐛 Corrections
