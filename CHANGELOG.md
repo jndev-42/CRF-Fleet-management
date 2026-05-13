@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.5.0] — 7 mai 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Véhicules extérieurs** — Ajout de la possibilité de sélectionner "VL extérieure" ou "VPSP extérieur" lors de la saisie d'un compte rendu de mission.
+- **Formulaire adaptatif** — Les étapes de saisie du matériel et de l'oxygène sont automatiquement masquées lors de l'utilisation d'un véhicule extérieur.
+
 ## [2.4.9] — 12 avril 2026
 
 ### 🐛 Corrections
