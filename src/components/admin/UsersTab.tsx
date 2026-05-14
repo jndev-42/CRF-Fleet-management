@@ -22,6 +22,7 @@ interface UsersTabProps {
     onToggleRole: (email: string, roleName: string, currentRoles: string[]) => Promise<void>;
     onValidatePapers: (userId: string, userName: string | null) => Promise<void>;
     onCreateUser: (email: string, name: string, roles: string[]) => Promise<void>;
+    onDeleteUser: (email: string) => Promise<void>;
     showToast: (message: string, type?: 'success' | 'error') => void;
 }
 
@@ -34,12 +35,14 @@ export default function UsersTab({
     onToggleRole,
     onValidatePapers,
     onCreateUser,
+    onDeleteUser,
     showToast,
 }: UsersTabProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const usersPerPage = 6;
     const [showAddModal, setShowAddModal] = useState(false);
+    const [userToDelete, setUserToDelete] = useState<{ email: string; name: string | null } | null>(null);
 
     const filteredUsers = users.filter(user => {
         const searchLower = searchQuery.toLowerCase();
@@ -178,16 +181,28 @@ export default function UsersTab({
                                                 )}
                                             </td>
                                             <td style={{ padding: '16px' }}>
-                                                {isDriver && !papersValid && (
-                                                    <button
-                                                        className="btn btn-secondary"
-                                                        style={{ fontSize: '13px', padding: '6px 12px' }}
-                                                        onClick={() => onValidatePapers(user.id, user.name)}
-                                                        title="Marquer les papiers comme validés"
-                                                    >
-                                                        🪪 Valider les papiers
-                                                    </button>
-                                                )}
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    {isDriver && !papersValid && (
+                                                        <button
+                                                            className="btn btn-secondary"
+                                                            style={{ fontSize: '13px', padding: '6px 12px' }}
+                                                            onClick={() => onValidatePapers(user.id, user.name)}
+                                                            title="Marquer les papiers comme validés"
+                                                        >
+                                                            🪪 Valider les papiers
+                                                        </button>
+                                                    )}
+                                                    {isAdmin && (
+                                                        <button
+                                                            className="btn btn-danger"
+                                                            style={{ fontSize: '13px', padding: '6px 12px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                                                            onClick={() => setUserToDelete({ email: user.email, name: user.name })}
+                                                            title="Supprimer l'utilisateur"
+                                                        >
+                                                            🗑️
+                                                        </button>
+                                                    )}
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -264,6 +279,45 @@ export default function UsersTab({
                         }
                     }}
                 />
+            )}
+
+            {isAdmin && userToDelete && (
+                <div className="modal-overlay" onClick={() => setUserToDelete(null)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">⚠️ Confirmation de suppression</h2>
+                            <button className="modal-close" onClick={() => setUserToDelete(null)}>✕</button>
+                        </div>
+                        <div className="modal-body">
+                            <p style={{ marginBottom: '16px', lineHeight: '1.5' }}>
+                                Êtes-vous sûr de vouloir supprimer l&apos;utilisateur <strong>{userToDelete.name || userToDelete.email}</strong> ?
+                            </p>
+                            <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: '13px', color: '#EF4444' }}>
+                                ℹ️ Cette action est irréversible. Les données liées aux missions (conducteur) seront anonymisées mais le compte sera définitivement supprimé.
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-secondary" onClick={() => setUserToDelete(null)}>
+                                Annuler
+                            </button>
+                            <button
+                                className="btn"
+                                style={{ background: '#EF4444', color: 'white' }}
+                                onClick={async () => {
+                                    try {
+                                        await onDeleteUser(userToDelete.email);
+                                        showToast(`Utilisateur ${userToDelete.email} supprimé`);
+                                        setUserToDelete(null);
+                                    } catch (err: unknown) {
+                                        showToast(err instanceof Error ? err.message : 'Erreur lors de la suppression', 'error');
+                                    }
+                                }}
+                            >
+                                Supprimer définitivement
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     );
