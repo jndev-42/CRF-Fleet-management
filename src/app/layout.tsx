@@ -23,8 +23,8 @@ import { MenuSettingsProvider } from "@/lib/contexts/MenuSettingsContext";
 import { DemoProvider } from "@/lib/contexts/DemoContext";
 
 export const metadata: Metadata = {
-  title: "Gestion de flotte | Croix-Rouge Paris 18",
-  description: "Application de gestion de flotte de véhicules pour la Croix-Rouge Française, Unité Locale de Paris 18ème.",
+  title: "Martine | Croix-Rouge Paris 18",
+  description: "Martine - Application de compte rendus véhicules et missions pour la Croix-Rouge Française, Unité Locale de Paris 18.",
   manifest: "/manifest.json",
   icons: {
     icon: "/crf-logo.svg",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "CR Chauffeur",
+    title: "Martine",
     statusBarStyle: "black-translucent",
   },
 };

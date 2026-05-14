@@ -24,7 +24,7 @@ export async function sendEmailViaWebhook({
         });
 
         const info = await transporter.sendMail({
-            from: `"Gestion de Flotte" <${process.env.SMTP_USER}>`,
+            from: `"Martine" <${process.env.SMTP_USER}>`,
             to: to.join(', '),
             subject,
             html: body

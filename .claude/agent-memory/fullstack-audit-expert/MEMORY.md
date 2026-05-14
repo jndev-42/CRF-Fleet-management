@@ -1,7 +1,7 @@
-# CR Chauffeur — Audit Agent Memory
+# Martine — Audit Agent Memory
 
 ## Project Identity
-- App: CR Chauffeur v1.5.0 — Fleet management for Croix-Rouge Paris 18e
+- App: Martine v1.5.0 — Fleet management for Croix-Rouge Paris 18e
 - Stack: Next.js 16 (App Router), React 19, NextAuth v5 beta, Turso/libSQL (raw SQL), Zod, Tailwind CSS, Vercel
 - Roles: ADMIN, CHVL, CHVPSP, RESPO, GUEST
 - Deployment: Vercel. Cron job at /api/cron/daily-mileage-check

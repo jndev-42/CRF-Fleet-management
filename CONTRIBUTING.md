@@ -20,7 +20,7 @@ Le mode développement n'exige **ni OAuth Google ni base de données cloud**. To
 
 ```bash
 git clone <url-du-repo>
-cd cr-chauffeur
+cd martine
 ```
 
 ### 2. Installer les dépendances
@@ -162,13 +162,13 @@ npx tsx scripts/show-schema.ts
 2. Connectez-vous et créez la base :
    ```bash
    turso auth login
-   turso db create cr-chauffeur
+   turso db create martine
    ```
 
 3. Récupérez les identifiants :
    ```bash
-   turso db show cr-chauffeur --url        # → TURSO_DATABASE_URL
-   turso db tokens create cr-chauffeur     # → TURSO_AUTH_TOKEN
+   turso db show martine --url        # → TURSO_DATABASE_URL
+   turso db tokens create martine     # → TURSO_AUTH_TOKEN
    ```
 
 4. Pointez les scripts de migration vers la base cloud (`TURSO_DATABASE_URL` et `TURSO_AUTH_TOKEN` dans l'environnement) et exécutez-les dans le même ordre qu'en local.

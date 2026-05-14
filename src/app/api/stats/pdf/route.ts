@@ -149,7 +149,7 @@ export async function GET(request: Request) {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': 'attachment; filename="stats-cr-chauffeur.pdf"',
+        'Content-Disposition': 'attachment; filename="stats-martine.pdf"',
         'Content-Length': String(job.buffer.length),
       },
     });

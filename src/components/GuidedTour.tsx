@@ -26,7 +26,7 @@ const TOUR_STEPS: TourStep[] = [
     {
         target: null,
         title: 'Bienvenue ! 👋',
-        body: "Ce petit guide va vous montrer comment utiliser l'application de gestion de flotte. C'est parti !",
+        body: "Ce petit guide va vous montrer comment utiliser Martine. C'est parti !",
         icon: '🚀',
     },
     {
