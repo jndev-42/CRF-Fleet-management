@@ -2,22 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-
-function resolveRoles(roles: string[]): string[] {
-    // 'INACTIF' is the current inactive role; 'GUEST' is the legacy alias (DB backfill pending)
-    const isInactiveRole = (r: string) => r === 'INACTIF' || r === 'GUEST';
-    const activeRoles = roles.filter(r => !isInactiveRole(r));
-    if (activeRoles.length === 0) {
-        // Preserve whatever inactive role was passed (GUEST or INACTIF) — DB backfill handles normalization
-        const inactiveRole = roles.find(isInactiveRole);
-        return inactiveRole ? [inactiveRole] : [];
-    }
-    // Auto-assign SECOURISTE to any user with at least one active role
-    if (!activeRoles.includes('SECOURISTE')) {
-        activeRoles.push('SECOURISTE');
-    }
-    return activeRoles;
-}
+import { resolveRoles } from '@/lib/utils/users';
 
 /** Zod schema for creating a new user */
 const createUserSchema = z.object({
