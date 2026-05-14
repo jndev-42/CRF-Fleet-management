@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
 
 const supplySchema = z.object({
     category: z.enum(['SAC_PRIMAIRE', 'BRULURE', 'HEMORRHAGIE', 'KIT_DSA', 'HYGIENE', 'OXYGENE']),
@@ -105,6 +106,7 @@ export async function GET(request: Request) {
                     mr.submitted_at,
                     u.name   AS submitter_name,
                     u.email  AS submitter_email,
+                    mr.vehicle_id,
                     v.name   AS vehicle_name
                 FROM "mission_reports" mr
                 LEFT JOIN "User"    u ON u.id = mr.submitted_by
@@ -116,23 +118,28 @@ export async function GET(request: Request) {
             args: [...args, limit, offset],
         });
 
-        const reports = listResult.rows.map(row => ({
-            id: row.id,
-            mission_type: row.mission_type,
-            mission_name: row.mission_name,
-            mission_date: row.mission_date,
-            location: row.location,
-            victim_count: Number(row.victim_count),
-            ul18_present: row.ul18_present !== null ? Boolean(Number(row.ul18_present)) : null,
-            had_acr: Boolean(Number(row.had_acr)),
-            had_hemorrhage: Boolean(Number(row.had_hemorrhage)),
-            had_complex_care: Boolean(Number(row.had_complex_care)),
-            needs_followup: Boolean(Number(row.needs_followup)),
-            submitted_at: row.submitted_at,
-            submitter_name: row.submitter_name,
-            submitter_email: row.submitter_email,
-            vehicle_name: row.vehicle_name,
-        }));
+        const reports = listResult.rows.map(row => {
+            const vehicleId = row.vehicle_id as string | null;
+            const vehicleName = (row.vehicle_name as string | null) || (vehicleId ? EXTERNAL_VEHICLES[vehicleId]?.name : null);
+
+            return {
+                id: row.id,
+                mission_type: row.mission_type,
+                mission_name: row.mission_name,
+                mission_date: row.mission_date,
+                location: row.location,
+                victim_count: Number(row.victim_count),
+                ul18_present: row.ul18_present !== null ? Boolean(Number(row.ul18_present)) : null,
+                had_acr: Boolean(Number(row.had_acr)),
+                had_hemorrhage: Boolean(Number(row.had_hemorrhage)),
+                had_complex_care: Boolean(Number(row.had_complex_care)),
+                needs_followup: Boolean(Number(row.needs_followup)),
+                submitted_at: row.submitted_at,
+                submitter_name: row.submitter_name,
+                submitter_email: row.submitter_email,
+                vehicle_name: vehicleName,
+            };
+        });
 
         return NextResponse.json({ reports, total, page, limit });
     } catch (error) {

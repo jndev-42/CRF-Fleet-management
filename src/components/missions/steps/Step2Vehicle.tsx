@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
 import type { MissionFormData } from '../MissionWizard';
 import styles from '../MissionWizard.module.css';
 
@@ -53,7 +54,7 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
     const volunteersRequired = !data.pegass_ok;
 
     const selectedVehicle = vehicles.find(v => v.id === data.vehicle_id) ?? null;
-    const isVPSP = selectedVehicle?.type?.toUpperCase() === 'VPSP';
+    const isVPSP = selectedVehicle?.type?.toUpperCase() === 'VPSP' || data.vehicle_id === 'EXTERNAL_VPSP';
 
     const currentUserIsVPSP = drivers.find(d => d.id === currentUserId)?.roles.includes('CHVPSP') ?? false;
     const showCurrentUserOption = currentUserId && (!isVPSP || currentUserIsVPSP);
@@ -77,6 +78,9 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
                     <option value="">— Aucun / non renseigné —</option>
                     {vehicles.map(v => (
                         <option key={v.id} value={v.id}>{v.name}{v.type ? ` (${v.type})` : ''}</option>
+                    ))}
+                    {Object.entries(EXTERNAL_VEHICLES).map(([id, info]) => (
+                        <option key={id} value={id}>{info.name}</option>
                     ))}
                 </select>
             </div>

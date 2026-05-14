@@ -74,12 +74,12 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
     const [error, setError] = useState<string | null>(null);
 
     const showReportStep = formData.mission_type === 'DPS' || formData.mission_type === 'PAPS';
-    
+    const isExternalVehicle = formData.vehicle_id?.startsWith('EXTERNAL_');
+
     const activeSteps = [
         'Général',
         'Équipage',
-        'Matériel',
-        'Oxygène',
+        ...(!isExternalVehicle ? ['Matériel', 'Oxygène'] : []),
         'Équipe',
         'Incidents',
         ...(showReportStep ? ['Rapport signé'] : []),
