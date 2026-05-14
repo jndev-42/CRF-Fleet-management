@@ -1,10 +1,14 @@
 # Changelog
 
-## [2.5.0] — 7 mai 2026
+## [2.5.0] — 13 mai 2026
 
 ### ✨ Nouvelles fonctionnalités
 
 - **Véhicules extérieurs & formulaire adaptatif** — Ajout de la possibilité de sélectionner "VL extérieure" ou "VPSP extérieur" lors de la saisie d'un compte rendu de mission. Les étapes de saisie du matériel et de l'oxygène sont désormais automatiquement masquées lors de l'utilisation de ces véhicules.
+
+### 🐛 Corrections
+
+- **Validation des permis à la création** — Correction d'un bug où les nouveaux profils de chauffeurs (CHVL/CHVPSP) avaient leurs papiers automatiquement validés. Désormais, ils sont correctement marqués comme non validés à la création, nécessitant une vérification manuelle.
 
 ## [2.4.9] — 12 avril 2026
 
