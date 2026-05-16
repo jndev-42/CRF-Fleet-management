@@ -11,10 +11,6 @@ function resolveRoles(roles: string[]): string[] {
         const inactiveRole = roles.find(isInactiveRole);
         return inactiveRole ? [inactiveRole] : [];
     }
-    // Auto-assign SECOURISTE to any user with at least one active role
-    if (!activeRoles.includes('SECOURISTE')) {
-        activeRoles.push('SECOURISTE');
-    }
     return activeRoles;
 }
 

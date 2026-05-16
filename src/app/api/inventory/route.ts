@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
-        if (!userRoles.includes('SECOURISTE') && !userRoles.includes('ADMIN')) {
+        if (!userRoles.includes('ADMIN')) {
             return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
         }
 

@@ -1,0 +1,8 @@
+
+> martine@2.5.0 predev
+> tsx scripts/dev-db.ts
+
+[dev-db] Container state: missing
+[dev-db] Creating container crf-dev-db on port 8080...
+/bin/sh: 1: container: not found
+Command failed: container run -d --name crf-dev-db -p 8080:8080 -v /app/.dev-db:/var/lib/sqld ghcr.io/tursodatabase/libsql-server:latest

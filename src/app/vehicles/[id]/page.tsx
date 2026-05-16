@@ -99,7 +99,7 @@ export default function VehicleDetailPage() {
     }, []);
 
     const invVis = getVisibility('inventory');
-    const hasInventoryRole = userRoles.includes('SECOURISTE') || userRoles.includes('ADMIN');
+    const hasInventoryRole = userRoles.includes('ADMIN');
     const canSeeInventoryTab = invVis !== 'disabled' && hasInventoryRole && (
         invVis === 'available' ||
         (invVis === 'admin_only' && userRoles.includes('ADMIN'))

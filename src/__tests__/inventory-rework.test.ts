@@ -23,7 +23,7 @@ describe('Inventory Rework API', () => {
     describe('POST /api/inventory/adjust', () => {
         it('should update quantity and log the change', async () => {
             (auth as any).mockResolvedValue({
-                user: { name: 'Test User', roles: ['SECOURISTE'] },
+                user: { name: 'Test User', roles: ['ADMIN'] },
             });
 
             (db.execute as any)

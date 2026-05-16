@@ -81,7 +81,7 @@ export default function Navbar({ user }: NavbarProps) {
                         {!userRoles.includes('INACTIF') && canSeeMenu('stats', getVisibility('stats'), userRoles) && (
                             <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
                         )}
-                        {(userRoles.includes('ADMIN') || userRoles.includes('SECOURISTE')) && canSeeMenu('inventory', getVisibility('inventory'), userRoles) && (
+                        {userRoles.includes('ADMIN') && canSeeMenu('inventory', getVisibility('inventory'), userRoles) && (
                             <Link href="/inventory" className={`nav-link${pathname === '/inventory' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/inventory' ? 'page' : undefined}>Inventaire</Link>
                         )}
                         {(userRoles.includes('ADMIN') || userRoles.includes('CI/RPAPS')) && canSeeMenu('missions', getVisibility('missions'), userRoles) && (

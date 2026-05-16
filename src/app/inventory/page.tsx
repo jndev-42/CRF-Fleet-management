@@ -44,7 +44,7 @@ export default function InventoryPage() {
     }, [status, router]);
 
     const userRoles = (session?.user?.roles ?? ['GUEST']) as string[];
-    const canWrite = userRoles.includes('SECOURISTE') || userRoles.includes('ADMIN');
+    const isAdmin = userRoles.includes('ADMIN');
 
     const fetchInventory = useCallback(async () => {
         setLoading(true);
@@ -105,7 +105,7 @@ export default function InventoryPage() {
         <div className={styles.page}>
             <div className={styles.header}>
                 <h1 className={styles.title}>Inventaire du Stock</h1>
-                {canWrite && (
+                {isAdmin && (
                     <button className="btn btn-primary" onClick={() => setShowAddItem(true)}>
                         + Nouvel article
                     </button>
@@ -134,7 +134,7 @@ export default function InventoryPage() {
                             <th>Catégorie</th>
                             <th>Quantité</th>
                             <th>Unité</th>
-                            {canWrite && <th>Actions</th>}
+                            {isAdmin && <th>Actions</th>}
                         </tr>
                     </thead>
                     <tbody>
@@ -160,7 +160,7 @@ export default function InventoryPage() {
                                         {item.quantity}
                                     </td>
                                     <td style={{ color: 'var(--text-secondary)' }}>{item.unit}</td>
-                                    {canWrite && (
+                                    {isAdmin && (
                                         <td>
                                             <div style={{ display: 'flex', gap: '8px' }}>
                                                 <button
