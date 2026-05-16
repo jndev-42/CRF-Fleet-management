@@ -14,12 +14,12 @@ declare module "next-auth" {
 
 // ── Utilisateurs de test (dev uniquement) ────────────────────────────────────
 const DEV_USERS: Record<string, { email: string; name: string; roles: string[] }> = {
-    admin: { email: 'admin@dev.local',  name: 'Admin Dev',     roles: ['ADMIN', 'CHVL', 'SECOURISTE'] },
-    respo: { email: 'respo@dev.local',  name: 'Respo Dev',     roles: ['RESPO', 'CHVL', 'SECOURISTE'] },
-    chvl:  { email: 'chvl@dev.local',   name: 'Chauffeur Dev', roles: ['CHVL', 'SECOURISTE'] },
+    admin: { email: 'admin@dev.local',  name: 'Admin Dev',     roles: ['ADMIN', 'CHVL'] },
+    respo: { email: 'respo@dev.local',  name: 'Respo Dev',     roles: ['RESPO', 'CHVL'] },
+    chvl:  { email: 'chvl@dev.local',   name: 'Chauffeur Dev', roles: ['CHVL'] },
     guest: { email: 'guest@dev.local',  name: 'Inactif Dev',   roles: ['INACTIF'] },
-    secouriste: { email: 'secouriste@dev.local', name: 'Secouriste Dev', roles: ['SECOURISTE'] },
-    ci:         { email: 'ci@dev.local',          name: 'CI/RPAPS Dev',  roles: ['CI/RPAPS', 'SECOURISTE'] },
+    secouriste: { email: 'secouriste@dev.local', name: 'Secouriste Dev', roles: [] },
+    ci:         { email: 'ci@dev.local',          name: 'CI/RPAPS Dev',  roles: ['CI/RPAPS'] },
 };
 
 const isDev = process.env.NODE_ENV === 'development';

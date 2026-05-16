@@ -34,12 +34,6 @@ const ROLE_DESCRIPTIONS = [
         permissions: ['Réservations VL uniquement', 'Statistiques & exports'],
     },
     {
-        key: 'SECOURISTE', label: 'Secouriste', color: '#10b981',
-        bgColor: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)',
-        description: 'Accès inventaire. Assigné automatiquement à tout membre actif.',
-        permissions: ['Statistiques & exports', 'Inventaire véhicules'],
-    },
-    {
         key: 'INACTIF', label: 'Inactif', color: '#6b7280',
         bgColor: 'rgba(107, 114, 128, 0.08)', borderColor: 'rgba(107, 114, 128, 0.25)',
         description: 'Compte inactif. L\'utilisateur n\'a accès à aucune fonctionnalité.',

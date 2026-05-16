@@ -102,9 +102,8 @@ describe('POST /api/users', () => {
         expect(body.id).toBeTruthy();
 
         const roles = await getUserRoles(body.id);
-        // SECOURISTE is auto-assigned to any non-GUEST user
         expect(roles).toContain('CHVL');
-        expect(roles).toContain('SECOURISTE');
+
     });
 
     it('5. GUEST seul — seul GUEST assigné', async () => {
