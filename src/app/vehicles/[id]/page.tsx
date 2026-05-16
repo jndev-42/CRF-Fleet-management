@@ -28,7 +28,6 @@ import MaintenanceCard from '@/components/vehicle/MaintenanceCard';
 import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHistoryModal';
 import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
-import InventoryVehicleTab from '@/components/inventory/InventoryVehicleTab';
 import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
 /**
  * VehicleDetailPage Component
@@ -99,8 +98,7 @@ export default function VehicleDetailPage() {
     }, []);
 
     const invVis = getVisibility('inventory');
-    const hasInventoryRole = userRoles.includes('ADMIN');
-    const canSeeInventoryTab = invVis !== 'disabled' && hasInventoryRole && (
+    const canSeeInventoryTab = invVis !== 'disabled' && userRoles.includes('ADMIN') && (
         invVis === 'available' ||
         (invVis === 'admin_only' && userRoles.includes('ADMIN'))
     );
@@ -541,9 +539,6 @@ export default function VehicleDetailPage() {
                 )}
             </div>
 
-            {activeTab === 'inventory' && canSeeInventoryTab && vehicle && (
-                <InventoryVehicleTab vehicleId={vehicle.id} userRoles={userRoles} />
-            )}
 
             {activeTab === 'details' && (
             <>
