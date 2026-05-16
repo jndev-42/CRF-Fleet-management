@@ -153,6 +153,15 @@ export default function AdminPage() {
         setUsers(prev => [...prev, newUser].sort((a, b) => a.email.localeCompare(b.email)));
     }
 
+    async function deleteUser(email: string) {
+        const res = await fetch(`/api/users/${encodeURIComponent(email)}`, {
+            method: 'DELETE',
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erreur lors de la suppression');
+        setUsers(prev => prev.filter(u => u.email !== email));
+    }
+
     if (loading || status === 'loading') {
         return (
             <div className="loading-container">
@@ -209,6 +218,7 @@ export default function AdminPage() {
                     onToggleRole={toggleRole}
                     onValidatePapers={validatePapers}
                     onCreateUser={createUser}
+                    onDeleteUser={deleteUser}
                     showToast={showToast}
                 />
             )}
