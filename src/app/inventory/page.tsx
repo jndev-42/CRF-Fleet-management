@@ -10,7 +10,6 @@ import styles from './page.module.css';
 interface InvItem {
     id: string;
     name: string;
-    sku: string | null;
     category: string | null;
     quantity: number;
     updatedAt: string;
@@ -123,7 +122,7 @@ export default function InventoryPage() {
                 <input
                     className="form-input"
                     style={{ maxWidth: 400 }}
-                    placeholder="Rechercher un matériel (nom, SKU, catégorie)..."
+                    placeholder="Rechercher un matériel (nom, catégorie)..."
                     value={search}
                     onChange={e => {
                         setSearch(e.target.value);
@@ -137,7 +136,6 @@ export default function InventoryPage() {
                     <thead>
                         <tr>
                             <th>Nom</th>
-                            <th>SKU</th>
                             <th>Catégorie</th>
                             <th>Quantité</th>
                             {isAdmin && <th>Actions</th>}
@@ -145,9 +143,9 @@ export default function InventoryPage() {
                     </thead>
                     <tbody>
                         {loading && items.length === 0 ? (
-                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>Chargement...</td></tr>
+                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem' }}>Chargement...</td></tr>
                         ) : items.length === 0 ? (
-                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé</td></tr>
+                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé</td></tr>
                         ) : (
                             items.map(item => (
                                 <tr key={item.id}>
@@ -160,7 +158,6 @@ export default function InventoryPage() {
                                             Voir l&apos;historique
                                         </button>
                                     </td>
-                                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{item.sku || '—'}</td>
                                     <td><span className={styles.categoryBadge}>{item.category || 'Général'}</span></td>
                                     <td style={{ fontWeight: 700, fontSize: '1.1rem' }}>
                                         {item.quantity}

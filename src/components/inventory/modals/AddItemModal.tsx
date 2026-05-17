@@ -10,7 +10,6 @@ interface AddItemModalProps {
 
 const DEFAULT_FORM = {
     name: '',
-    sku: '',
     category: '',
     quantity: 0,
     notes: '',
@@ -70,15 +69,6 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                         </div>
 
                         <div className="form-row">
-                            <div className="form-group">
-                                <label className="form-label">SKU</label>
-                                <input
-                                    className="form-input"
-                                    value={form.sku}
-                                    onChange={e => setForm({ ...form, sku: e.target.value })}
-                                    placeholder="ex: REF123"
-                                />
-                            </div>
                             <div className="form-group">
                                 <label className="form-label">Catégorie</label>
                                 <input

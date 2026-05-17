@@ -4,7 +4,6 @@ export type StockStatus = 'OK' | 'HORS_SERVICE' | 'MANQUANT';
 export interface InvItem {
     id: string;
     name: string;
-    sku: string | null;
     category: string | null;
     notes: string | null;
     createdAt: string;
@@ -33,7 +32,6 @@ export interface InvStock {
     parentId: string | null;
     itemId: string;
     itemName: string;
-    sku: string | null;
     category: string | null;
     quantity: number;
     expiryDate: string | null;

@@ -131,7 +131,6 @@ async function createTables() {
   await db.execute(`CREATE TABLE IF NOT EXISTS "InvItem" (
     id TEXT NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
-    sku TEXT UNIQUE,
     category TEXT,
     quantity INTEGER NOT NULL DEFAULT 0,
     notes TEXT,
@@ -440,7 +439,6 @@ export async function seedTrip(overrides: Partial<{
 export async function seedInvItem(overrides: Partial<{
   id: string;
   name: string;
-  sku: string | null;
   category: string | null;
   notes: string | null;
   quantity: number;
@@ -448,15 +446,14 @@ export async function seedInvItem(overrides: Partial<{
   const item = {
     id: 'inv-item-1',
     name: 'Article catalogue test',
-    sku: null,
     category: 'Test',
     notes: null,
     quantity: 0,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, sku, category, quantity, notes) VALUES (?,?,?,?,?,?)`,
-    args: [item.id, item.name, item.sku, item.category, item.quantity, item.notes],
+    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, quantity, notes) VALUES (?,?,?,?,?)`,
+    args: [item.id, item.name, item.category, item.quantity, item.notes],
   });
   return item;
 }

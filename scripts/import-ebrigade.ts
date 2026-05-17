@@ -81,7 +81,6 @@ interface EbrigadeRow {
 interface InvItemData {
     id: string;
     name: string;
-    sku: string | null;
     category: string | null;
 }
 
@@ -176,7 +175,6 @@ async function run() {
         items.set(name, {
             id: crypto.randomUUID(),
             name,
-            sku: row.MA_NUMERO_SERIE?.trim() || null,
             category: row.S_CODE?.trim() || null,
         });
     }
@@ -223,8 +221,8 @@ async function run() {
     console.log('\n▶ Insertion des articles...');
     for (const item of items.values()) {
         await db.execute({
-            sql: `INSERT OR IGNORE INTO "InvItem" (id, name, sku, category) VALUES (?, ?, ?, ?)`,
-            args: [item.id, item.name, item.sku, item.category],
+            sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category) VALUES (?, ?, ?)`,
+            args: [item.id, item.name, item.category],
         });
     }
     console.log(`  ✓ ${items.size} articles insérés`);

@@ -21,8 +21,8 @@ export async function GET(request: Request) {
         let whereClause = '';
 
         if (search) {
-            whereClause = 'WHERE name LIKE ? OR sku LIKE ? OR category LIKE ?';
-            args.push(`%${search}%`, `%${search}%`, `%${search}%`);
+            whereClause = 'WHERE name LIKE ? OR category LIKE ?';
+            args.push(`%${search}%`, `%${search}%`);
         }
 
         const countRes = await db.execute({
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, sku, category, quantity, notes } = body;
+        const { name, category, quantity, notes } = body;
 
         if (!name) {
             return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 });
@@ -72,8 +72,8 @@ export async function POST(request: Request) {
 
         const id = crypto.randomUUID();
         await db.execute({
-            sql: `INSERT INTO "InvItem" (id, name, sku, category, quantity, notes) VALUES (?, ?, ?, ?, ?, ?)`,
-            args: [id, name, sku || null, category || null, quantity || 0, notes || null],
+            sql: `INSERT INTO "InvItem" (id, name, category, quantity, notes) VALUES (?, ?, ?, ?, ?)`,
+            args: [id, name, category || null, quantity || 0, notes || null],
         });
 
         // Log initial quantity if > 0
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
             });
         }
 
-        return NextResponse.json({ id, name, sku, category, quantity, notes }, { status: 201 });
+        return NextResponse.json({ id, name, category, quantity, notes }, { status: 201 });
     } catch (e) {
         console.error('POST /api/inventory error:', getErrorMessage(e));
         return NextResponse.json({ error: 'Erreur lors de la création de l\'article' }, { status: 500 });

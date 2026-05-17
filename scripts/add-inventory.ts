@@ -34,7 +34,6 @@ async function run() {
         CREATE TABLE IF NOT EXISTS "InvItem" (
             "id"        TEXT NOT NULL PRIMARY KEY,
             "name"      TEXT NOT NULL,
-            "sku"       TEXT UNIQUE,
             "category"  TEXT,
             "unit"      TEXT NOT NULL DEFAULT 'unité',
             "notes"     TEXT,
