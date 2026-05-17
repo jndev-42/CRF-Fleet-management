@@ -71,7 +71,7 @@ import { chromium } from 'playwright';
 })();
 
 // Helper to simulate expect if not using a test runner
-async function expect(locator: any) {
+async function expect(locator: { count: () => Promise<number> }) {
   return {
     toHaveCount: async (count: number, options: { timeout: number }) => {
       const start = Date.now();

@@ -6,7 +6,6 @@ export interface InvItem {
     name: string;
     sku: string | null;
     category: string | null;
-    unit: string;
     notes: string | null;
     createdAt: string;
     updatedAt: string;
@@ -36,7 +35,6 @@ export interface InvStock {
     itemName: string;
     sku: string | null;
     category: string | null;
-    unit: string;
     quantity: number;
     expiryDate: string | null;
     status: StockStatus;
@@ -50,7 +48,6 @@ export interface InvTemplate {
     locationId: string;
     itemId: string;
     itemName: string;
-    unit: string;
     targetQty: number;
 }
 
@@ -69,7 +66,6 @@ export interface InvBagTemplateEntry {
     id: string;
     itemId: string;
     itemName: string;
-    unit: string;
     targetQty: number;
 }
 

@@ -12,7 +12,6 @@ interface InvItem {
     name: string;
     sku: string | null;
     category: string | null;
-    unit: string;
     quantity: number;
     updatedAt: string;
 }
@@ -36,6 +35,7 @@ export default function InventoryPage() {
     const [showAddItem, setShowAddItem] = useState(false);
     const [historyItemId, setHistoryItemId] = useState<string | null>(null);
     const [adjusting, setAdjusting] = useState<Record<string, boolean>>({});
+    const [customChanges, setCustomChanges] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -75,13 +75,18 @@ export default function InventoryPage() {
 
     const handleAdjust = async (itemId: string, change: number) => {
         if (adjusting[itemId]) return;
+        if (change === 0) return;
 
         setAdjusting(prev => ({ ...prev, [itemId]: true }));
         try {
             const res = await fetch('/api/inventory/adjust', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ itemId, change, note: change > 0 ? 'Ajout manuel' : 'Retrait manuel' }),
+                body: JSON.stringify({ 
+                    itemId, 
+                    change, 
+                    note: change > 0 ? `Ajout manuel (${change})` : `Retrait manuel (${Math.abs(change)})` 
+                }),
             });
 
             if (res.ok) {
@@ -89,6 +94,8 @@ export default function InventoryPage() {
                 setItems(prev => prev.map(item =>
                     item.id === itemId ? { ...item, quantity: data.newQuantity } : item
                 ));
+                // Clear custom input
+                setCustomChanges(prev => ({ ...prev, [itemId]: '' }));
             }
         } catch (e) {
             console.error('Erreur ajustement stock:', e);
@@ -133,15 +140,14 @@ export default function InventoryPage() {
                             <th>SKU</th>
                             <th>Catégorie</th>
                             <th>Quantité</th>
-                            <th>Unité</th>
                             {isAdmin && <th>Actions</th>}
                         </tr>
                     </thead>
                     <tbody>
                         {loading && items.length === 0 ? (
-                            <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>Chargement...</td></tr>
+                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>Chargement...</td></tr>
                         ) : items.length === 0 ? (
-                            <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé</td></tr>
+                            <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé</td></tr>
                         ) : (
                             items.map(item => (
                                 <tr key={item.id}>
@@ -151,7 +157,7 @@ export default function InventoryPage() {
                                             className={styles.historyBtn}
                                             onClick={() => setHistoryItemId(item.id)}
                                         >
-                                            Voir l'historique
+                                            Voir l&apos;historique
                                         </button>
                                     </td>
                                     <td style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{item.sku || '—'}</td>
@@ -159,26 +165,47 @@ export default function InventoryPage() {
                                     <td style={{ fontWeight: 700, fontSize: '1.1rem' }}>
                                         {item.quantity}
                                     </td>
-                                    <td style={{ color: 'var(--text-secondary)' }}>{item.unit}</td>
                                     {isAdmin && (
                                         <td>
-                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                                                 <button
                                                     className="btn btn-secondary"
-                                                    style={{ minWidth: '40px', padding: '4px 8px' }}
+                                                    style={{ minWidth: '32px', padding: '4px 8px' }}
                                                     onClick={() => handleAdjust(item.id, -1)}
                                                     disabled={adjusting[item.id] || item.quantity <= 0}
                                                 >
-                                                    -
+                                                    -1
                                                 </button>
                                                 <button
                                                     className="btn btn-secondary"
-                                                    style={{ minWidth: '40px', padding: '4px 8px' }}
+                                                    style={{ minWidth: '32px', padding: '4px 8px' }}
                                                     onClick={() => handleAdjust(item.id, 1)}
                                                     disabled={adjusting[item.id]}
                                                 >
-                                                    +
+                                                    +1
                                                 </button>
+                                                
+                                                <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
+                                                    <input
+                                                        type="number"
+                                                        className="form-input"
+                                                        style={{ width: '60px', padding: '4px 8px', height: '32px' }}
+                                                        placeholder="Qté"
+                                                        value={customChanges[item.id] || ''}
+                                                        onChange={e => setCustomChanges(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                                    />
+                                                    <button
+                                                        className="btn btn-primary"
+                                                        style={{ padding: '4px 8px', height: '32px', fontSize: '0.8rem' }}
+                                                        disabled={adjusting[item.id] || !customChanges[item.id]}
+                                                        onClick={() => {
+                                                            const val = parseInt(customChanges[item.id]);
+                                                            if (!isNaN(val)) handleAdjust(item.id, val);
+                                                        }}
+                                                    >
+                                                        Ok
+                                                    </button>
+                                                </div>
                                             </div>
                                         </td>
                                     )}

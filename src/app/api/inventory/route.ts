@@ -16,7 +16,7 @@ export async function GET(request: Request) {
         const pageSize = parseInt(searchParams.get('pageSize') ?? '20', 10);
         const offset = (page - 1) * pageSize;
 
-        const args: any[] = [];
+        const args: unknown[] = [];
         let whereClause = '';
 
         if (search) {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, sku, category, unit, quantity, notes } = body;
+        const { name, sku, category, quantity, notes } = body;
 
         if (!name) {
             return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 });
@@ -71,8 +71,8 @@ export async function POST(request: Request) {
 
         const id = crypto.randomUUID();
         await db.execute({
-            sql: `INSERT INTO "InvItem" (id, name, sku, category, unit, quantity, notes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            args: [id, name, sku || null, category || null, unit || 'unité', quantity || 0, notes || null],
+            sql: `INSERT INTO "InvItem" (id, name, sku, category, quantity, notes) VALUES (?, ?, ?, ?, ?, ?)`,
+            args: [id, name, sku || null, category || null, quantity || 0, notes || null],
         });
 
         // Log initial quantity if > 0
@@ -83,7 +83,7 @@ export async function POST(request: Request) {
             });
         }
 
-        return NextResponse.json({ id, name, sku, category, unit, quantity, notes }, { status: 201 });
+        return NextResponse.json({ id, name, sku, category, quantity, notes }, { status: 201 });
     } catch (e) {
         console.error('POST /api/inventory error:', getErrorMessage(e));
         return NextResponse.json({ error: 'Erreur lors de la création de l\'article' }, { status: 500 });

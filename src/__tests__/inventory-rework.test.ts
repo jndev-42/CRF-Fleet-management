@@ -1,9 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { POST as adjustPOST } from '@/app/api/inventory/adjust/route';
-import { GET as inventoryGET, POST as inventoryPOST } from '@/app/api/inventory/route';
+import { POST as inventoryPOST } from '@/app/api/inventory/route';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { NextResponse } from 'next/server';
 
 vi.mock('@/auth', () => ({
     auth: vi.fn(),
@@ -22,11 +21,11 @@ describe('Inventory Rework API', () => {
 
     describe('POST /api/inventory/adjust', () => {
         it('should update quantity and log the change', async () => {
-            (auth as any).mockResolvedValue({
+            (auth as vi.Mock).mockResolvedValue({
                 user: { name: 'Test User', roles: ['ADMIN'] },
             });
 
-            (db.execute as any)
+            (db.execute as vi.Mock)
                 .mockResolvedValueOnce({ rowsAffected: 1 }) // UPDATE InvItem
                 .mockResolvedValueOnce({}) // INSERT InvStockLog
                 .mockResolvedValueOnce({ rows: [{ quantity: 15 }] }); // SELECT new quantity
@@ -45,7 +44,7 @@ describe('Inventory Rework API', () => {
         });
 
         it('should return 403 if user is not authorized', async () => {
-            (auth as any).mockResolvedValue({
+            (auth as vi.Mock).mockResolvedValue({
                 user: { name: 'Guest', roles: ['GUEST'] },
             });
 
@@ -61,11 +60,11 @@ describe('Inventory Rework API', () => {
 
     describe('POST /api/inventory', () => {
         it('should create a new item', async () => {
-            (auth as any).mockResolvedValue({
+            (auth as vi.Mock).mockResolvedValue({
                 user: { name: 'Admin', roles: ['ADMIN'] },
             });
 
-            (db.execute as any).mockResolvedValue({});
+            (db.execute as vi.Mock).mockResolvedValue({});
 
             const req = new Request('http://localhost/api/inventory', {
                 method: 'POST',

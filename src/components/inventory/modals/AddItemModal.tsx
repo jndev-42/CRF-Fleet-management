@@ -12,7 +12,6 @@ const DEFAULT_FORM = {
     name: '',
     sku: '',
     category: '',
-    unit: 'unité',
     quantity: 0,
     notes: '',
 };
@@ -100,15 +99,6 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                                     className="form-input"
                                     value={form.quantity}
                                     onChange={e => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label className="form-label">Unité</label>
-                                <input
-                                    className="form-input"
-                                    value={form.unit}
-                                    onChange={e => setForm({ ...form, unit: e.target.value })}
-                                    placeholder="unité"
                                 />
                             </div>
                         </div>

@@ -133,7 +133,7 @@ async function createTables() {
     name TEXT NOT NULL,
     sku TEXT UNIQUE,
     category TEXT,
-    unit TEXT NOT NULL DEFAULT 'unité',
+    quantity INTEGER NOT NULL DEFAULT 0,
     notes TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -442,21 +442,21 @@ export async function seedInvItem(overrides: Partial<{
   name: string;
   sku: string | null;
   category: string | null;
-  unit: string;
   notes: string | null;
+  quantity: number;
 }> = {}) {
   const item = {
     id: 'inv-item-1',
     name: 'Article catalogue test',
     sku: null,
     category: 'Test',
-    unit: 'unité',
     notes: null,
+    quantity: 0,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, sku, category, unit, notes) VALUES (?,?,?,?,?,?)`,
-    args: [item.id, item.name, item.sku, item.category, item.unit, item.notes],
+    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, sku, category, quantity, notes) VALUES (?,?,?,?,?,?)`,
+    args: [item.id, item.name, item.sku, item.category, item.quantity, item.notes],
   });
   return item;
 }
