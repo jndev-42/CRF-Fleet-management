@@ -10,8 +10,8 @@ async function main() {
     const items = new Set<string>();
     
     for (const line of lines) {
-        // Clean name: remove trailing semicolons and trim
-        const name = line.replace(/;+$/, '').trim();
+        // Clean name: remove all semicolons and trim
+        const name = line.replace(/;/g, '').trim();
         
         // Skip empty lines, generic headers, and duplicates
         if (!name || name === 'DÉSIGNATION' || name.includes('Fiches d’intervention')) {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
+import type { InValue } from '@libsql/client';
 
 export async function GET(request: Request) {
     try {
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
         const pageSize = parseInt(searchParams.get('pageSize') ?? '20', 10);
         const offset = (page - 1) * pageSize;
 
-        const args: unknown[] = [];
+        const args: InValue[] = [];
         let whereClause = '';
 
         if (search) {
