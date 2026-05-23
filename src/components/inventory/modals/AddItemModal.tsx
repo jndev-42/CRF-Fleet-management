@@ -12,6 +12,7 @@ const DEFAULT_FORM = {
     name: '',
     category: '',
     quantity: 0,
+    expiryDate: '',
     notes: '',
 };
 
@@ -80,8 +81,8 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                             </div>
                         </div>
 
-                        <div className="form-row">
-                            <div className="form-group">
+                        <div className="form-row" style={{ display: 'flex', gap: '12px' }}>
+                            <div className="form-group" style={{ flex: 1 }}>
                                 <label className="form-label">Quantité initiale</label>
                                 <input
                                     type="number"
@@ -89,6 +90,16 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                                     className="form-input"
                                     value={form.quantity}
                                     onChange={e => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })}
+                                />
+                            </div>
+                            <div className="form-group" style={{ flex: 1 }}>
+                                <label className="form-label">Date de péremption</label>
+                                <input
+                                    type="date"
+                                    className="form-input"
+                                    value={form.expiryDate}
+                                    onChange={e => setForm({ ...form, expiryDate: e.target.value })}
+                                    disabled={form.quantity <= 0}
                                 />
                             </div>
                         </div>

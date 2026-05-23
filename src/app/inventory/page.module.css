@@ -26,7 +26,7 @@
     background: var(--bg-card);
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow-x: auto;
     margin-bottom: 20px;
 }
 
@@ -84,4 +84,29 @@
     margin-top: 24px;
     color: var(--text-secondary);
     font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .page {
+        padding: 12px;
+    }
+
+    .title {
+        font-size: 1.5rem;
+    }
+
+    .table td, .table th {
+        padding: 12px 8px;
+    }
+
+    /* Stack buttons for adjustments on mobile */
+    .table td:last-child > div {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+
+    .table td:last-child > div > div {
+        margin-left: 0 !important;
+        margin-top: 8px;
+    }
 }
