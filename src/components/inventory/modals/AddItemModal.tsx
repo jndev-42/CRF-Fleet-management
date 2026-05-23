@@ -93,7 +93,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                                 />
                             </div>
                             <div className="form-group" style={{ flex: 1 }}>
-                                <label className="form-label">Date de péremption</label>
+                                <label className="form-label">Date de péremption (Optionnel)</label>
                                 <input
                                     type="date"
                                     className="form-input"

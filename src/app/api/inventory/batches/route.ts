@@ -24,7 +24,11 @@ export async function GET(request: Request) {
 
         return NextResponse.json({ batches: batchesRes.rows });
     } catch (e) {
-        console.error('GET /api/inventory/batches error:', getErrorMessage(e));
-        return NextResponse.json({ error: 'Erreur lors de la récupération des lots' }, { status: 500 });
+        const errorMsg = getErrorMessage(e);
+        console.error('GET /api/inventory/batches error:', errorMsg);
+        return NextResponse.json({
+            error: 'Erreur lors de la récupération des lots',
+            details: errorMsg
+        }, { status: 500 });
     }
 }

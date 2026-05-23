@@ -27,6 +27,17 @@ async function main() {
     `);
 
     await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvBatch" (
+            "id"         TEXT NOT NULL PRIMARY KEY,
+            "itemId"     TEXT NOT NULL REFERENCES "InvItem"("id") ON DELETE CASCADE,
+            "quantity"   INTEGER NOT NULL DEFAULT 0,
+            "expiryDate" TEXT, -- ISO date string YYYY-MM-DD
+            "createdAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute(`
         CREATE TABLE IF NOT EXISTS "User" (
             "id" TEXT NOT NULL PRIMARY KEY,
             "email" TEXT NOT NULL UNIQUE,

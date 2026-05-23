@@ -36,7 +36,11 @@ export async function GET(request: Request) {
 
         return NextResponse.json({ items: res.rows });
     } catch (e) {
-        console.error('GET /api/inventory/expiring-soon error:', getErrorMessage(e));
-        return NextResponse.json({ error: 'Erreur lors de la récupération des articles périmés bientôt' }, { status: 500 });
+        const errorMsg = getErrorMessage(e);
+        console.error('GET /api/inventory/expiring-soon error:', errorMsg);
+        return NextResponse.json({
+            error: 'Erreur lors de la récupération des articles périmés bientôt',
+            details: errorMsg
+        }, { status: 500 });
     }
 }
