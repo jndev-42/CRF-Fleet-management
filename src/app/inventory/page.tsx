@@ -5,6 +5,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AddItemModal from '@/components/inventory/modals/AddItemModal';
 import InventoryHistoryModal from '@/components/inventory/modals/InventoryHistoryModal';
+import ItemBatchesModal from '@/components/inventory/modals/ItemBatchesModal';
+import ExpiringSoonModal from '@/components/inventory/modals/ExpiringSoonModal';
 import styles from './page.module.css';
 
 interface InvItem {
@@ -32,7 +34,9 @@ export default function InventoryPage() {
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
     const [showAddItem, setShowAddItem] = useState(false);
+    const [showExpiringSoon, setShowExpiringSoon] = useState(false);
     const [historyItemId, setHistoryItemId] = useState<string | null>(null);
+    const [batchItemId, setBatchItemId] = useState<string | null>(null);
     const [adjusting, setAdjusting] = useState<Record<string, boolean>>({});
     const [customChanges, setCustomChanges] = useState<Record<string, string>>({});
 
@@ -111,11 +115,16 @@ export default function InventoryPage() {
         <div className={styles.page}>
             <div className={styles.header}>
                 <h1 className={styles.title}>Inventaire du Stock</h1>
-                {isAdmin && (
-                    <button className="btn btn-primary" onClick={() => setShowAddItem(true)}>
-                        + Nouvel article
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-secondary" onClick={() => setShowExpiringSoon(true)}>
+                        ⚠️ Périmé bientôt
                     </button>
-                )}
+                    {isAdmin && (
+                        <button className="btn btn-primary" onClick={() => setShowAddItem(true)}>
+                            + Nouvel article
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className={styles.toolbar}>
@@ -151,12 +160,20 @@ export default function InventoryPage() {
                                 <tr key={item.id}>
                                     <td>
                                         <div style={{ fontWeight: 600 }}>{item.name}</div>
-                                        <button
-                                            className={styles.historyBtn}
-                                            onClick={() => setHistoryItemId(item.id)}
-                                        >
-                                            Voir l&apos;historique
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '12px' }}>
+                                            <button
+                                                className={styles.historyBtn}
+                                                onClick={() => setHistoryItemId(item.id)}
+                                            >
+                                                Historique
+                                            </button>
+                                            <button
+                                                className={styles.historyBtn}
+                                                onClick={() => setBatchItemId(item.id)}
+                                            >
+                                                Péremptions
+                                            </button>
+                                        </div>
                                     </td>
                                     <td><span className={styles.categoryBadge}>{item.category || 'Général'}</span></td>
                                     <td style={{ fontWeight: 700, fontSize: '1.1rem' }}>
@@ -244,6 +261,20 @@ export default function InventoryPage() {
                     itemId={historyItemId}
                     itemName={items.find(i => i.id === historyItemId)?.name || ''}
                     onClose={() => setHistoryItemId(null)}
+                />
+            )}
+
+            {batchItemId && (
+                <ItemBatchesModal
+                    itemId={batchItemId}
+                    itemName={items.find(i => i.id === batchItemId)?.name || ''}
+                    onClose={() => setBatchItemId(null)}
+                />
+            )}
+
+            {showExpiringSoon && (
+                <ExpiringSoonModal
+                    onClose={() => setShowExpiringSoon(false)}
                 />
             )}
         </div>

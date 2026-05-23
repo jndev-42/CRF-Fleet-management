@@ -26,13 +26,15 @@ describe('Inventory Rework API', () => {
             });
 
             (db.execute as vi.Mock)
+                .mockResolvedValueOnce({ rows: [] }) // SELECT existing batch (empty)
+                .mockResolvedValueOnce({ rowsAffected: 1 }) // INSERT InvBatch
+                .mockResolvedValueOnce({ rows: [{ total: 15 }] }) // SELECT total quantity
                 .mockResolvedValueOnce({ rowsAffected: 1 }) // UPDATE InvItem
-                .mockResolvedValueOnce({}) // INSERT InvStockLog
-                .mockResolvedValueOnce({ rows: [{ quantity: 15 }] }); // SELECT new quantity
+                .mockResolvedValueOnce({}); // INSERT InvStockLog
 
             const req = new Request('http://localhost/api/inventory/adjust', {
                 method: 'POST',
-                body: JSON.stringify({ itemId: 'item-1', change: 5, note: 'Test' }),
+                body: JSON.stringify({ itemId: 'item-1', change: 15, note: 'Test' }),
             });
 
             const res = await adjustPOST(req);
@@ -40,7 +42,7 @@ describe('Inventory Rework API', () => {
 
             expect(res.status).toBe(200);
             expect(data.newQuantity).toBe(15);
-            expect(db.execute).toHaveBeenCalledTimes(3);
+            expect(db.execute).toHaveBeenCalledTimes(5);
         });
 
         it('should return 403 if user is not authorized', async () => {

@@ -64,7 +64,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, category, quantity, notes } = body;
+        const { name, category, quantity, notes, expiryDate } = body;
 
         if (!name) {
             return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 });
@@ -82,9 +82,15 @@ export async function POST(request: Request) {
                 sql: `INSERT INTO "InvStockLog" (id, itemId, "change", userName, note) VALUES (?, ?, ?, ?, ?)`,
                 args: [crypto.randomUUID(), id, quantity, session.user.name || session.user.email, 'Initialisation'],
             });
+
+            // Create initial batch
+            await db.execute({
+                sql: `INSERT INTO "InvBatch" (id, itemId, quantity, expiryDate) VALUES (?, ?, ?, ?)`,
+                args: [crypto.randomUUID(), id, quantity, expiryDate || null],
+            });
         }
 
-        return NextResponse.json({ id, name, category, quantity, notes }, { status: 201 });
+        return NextResponse.json({ id, name, category, quantity, notes, expiryDate }, { status: 201 });
     } catch (e) {
         console.error('POST /api/inventory error:', getErrorMessage(e));
         return NextResponse.json({ error: 'Erreur lors de la création de l\'article' }, { status: 500 });
