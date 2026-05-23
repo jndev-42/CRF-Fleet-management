@@ -16,13 +16,32 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { itemId, change, note, expiryDate } = body;
+        const { itemId, change, note, expiryDate, deductFromNoDate } = body;
 
         if (!itemId || typeof change !== 'number') {
             return NextResponse.json({ error: 'Données invalides' }, { status: 400 });
         }
 
         if (change > 0) {
+            // Optional: deduct from no-date batch if specified (splitting stock)
+            if (deductFromNoDate && expiryDate) {
+                const noDateBatchRes = await db.execute({
+                    sql: `SELECT id, quantity FROM "InvBatch" WHERE itemId = ? AND expiryDate IS NULL`,
+                    args: [itemId],
+                });
+
+                const noDateBatch = noDateBatchRes.rows[0];
+                if (!noDateBatch || Number(noDateBatch.quantity) < change) {
+                    return NextResponse.json({ error: 'Quantité "sans date" insuffisante pour effectuer le découpage' }, { status: 400 });
+                }
+
+                // Deduct from no-date batch
+                await db.execute({
+                    sql: `UPDATE "InvBatch" SET quantity = quantity - ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+                    args: [change, noDateBatch.id],
+                });
+            }
+
             // Addition: target specific batch or create new one
             const existingBatchRes = await db.execute({
                 sql: `SELECT id, quantity FROM "InvBatch" WHERE itemId = ? AND (expiryDate = ? OR (expiryDate IS NULL AND ? IS NULL))`,

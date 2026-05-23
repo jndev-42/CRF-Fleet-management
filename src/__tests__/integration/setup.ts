@@ -138,6 +138,15 @@ async function createTables() {
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvBatch" (
+    id TEXT NOT NULL PRIMARY KEY,
+    itemId TEXT NOT NULL REFERENCES "InvItem"("id") ON DELETE CASCADE,
+    quantity INTEGER NOT NULL DEFAULT 0,
+    expiryDate TEXT,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "InvLocation" (
     id TEXT NOT NULL PRIMARY KEY,
     type TEXT NOT NULL CHECK (type IN ('STOCK_CENTRAL', 'PHARMA_TAMPON', 'VEHICLE', 'SAC')),
@@ -242,6 +251,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "InvBagTemplateItem"`);
   await db.execute(`DELETE FROM "InvLocation"`);
   await db.execute(`DELETE FROM "InvBagTemplate"`);
+  await db.execute(`DELETE FROM "InvBatch"`);
   await db.execute(`DELETE FROM "InvItem"`);
   await db.execute(`DELETE FROM "InvGroupe"`);
   await db.execute(`DELETE FROM "Notification"`);
