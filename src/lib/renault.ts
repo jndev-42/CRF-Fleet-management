@@ -1,6 +1,8 @@
 import { GigyaApi, KamereonApi } from '@remscodes/renault-api';
 import { db } from '@/lib/db';
 
+const GIGYA_API_KEY = '3_VgdkgtIRH3AdHvJm-cjV2ug2EFE0lxt0IJzMC4MFqZjFpn_GYFXVdNZ19L7wZX0N';
+
 async function authenticate(): Promise<{ idToken: string; accountId: string }> {
     // Check DB-backed session cache (persists across serverless cold starts)
     try {
@@ -28,7 +30,7 @@ async function authenticate(): Promise<{ idToken: string; accountId: string }> {
 
     // Step 1: Login to Gigya
     const loginUrl = new URL(GigyaApi.LOGIN_URL);
-    loginUrl.searchParams.set('apikey', GigyaApi.KEY);
+    loginUrl.searchParams.set('apikey', GIGYA_API_KEY);
     loginUrl.searchParams.set('loginID', mail);
     loginUrl.searchParams.set('password', pass);
     const loginRes = await fetch(loginUrl, { method: 'POST' }).then(r => r.json());
@@ -37,7 +39,7 @@ async function authenticate(): Promise<{ idToken: string; accountId: string }> {
 
     // Step 2: Get account info (personId)
     const accountUrl = new URL(GigyaApi.GET_ACCOUNT_INFO_URL);
-    accountUrl.searchParams.set('apikey', GigyaApi.KEY);
+    accountUrl.searchParams.set('apikey', GIGYA_API_KEY);
     accountUrl.searchParams.set('login_token', loginToken);
     const accountRes = await fetch(accountUrl, { method: 'POST' }).then(r => r.json());
     const personId = accountRes.data?.personId;
@@ -45,7 +47,7 @@ async function authenticate(): Promise<{ idToken: string; accountId: string }> {
 
     // Step 3: Get JWT (15min expiry)
     const jwtUrl = new URL(GigyaApi.GET_JWT_URL);
-    jwtUrl.searchParams.set('apikey', GigyaApi.KEY);
+    jwtUrl.searchParams.set('apikey', GIGYA_API_KEY);
     jwtUrl.searchParams.set('login_token', loginToken);
     jwtUrl.searchParams.set('fields', 'data.personId,data.gigyaDataCenter');
     jwtUrl.searchParams.set('expiration', '900');
