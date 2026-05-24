@@ -60,7 +60,7 @@ export default function ExpiringSoonModal({ onClose }: ExpiringSoonModalProps) {
                         <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                 <thead>
-                                    <tr style={{ textAlign: 'left', borderBottom: '1px solid #eee' }}>
+                                    <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-primary)' }}>
                                         <th style={{ padding: '8px' }}>Article</th>
                                         <th style={{ padding: '8px' }}>Catégorie</th>
                                         <th style={{ padding: '8px' }}>Péremption</th>
@@ -69,7 +69,7 @@ export default function ExpiringSoonModal({ onClose }: ExpiringSoonModalProps) {
                                 </thead>
                                 <tbody>
                                     {items.map(item => (
-                                        <tr key={item.batchId} style={{ borderBottom: '1px solid #eee' }}>
+                                        <tr key={item.batchId} style={{ borderBottom: '1px solid var(--border-primary)' }}>
                                             <td style={{ padding: '8px', fontWeight: 500 }}>{item.itemName}</td>
                                             <td style={{ padding: '8px', fontSize: '0.85rem' }}>{item.category || '-'}</td>
                                             <td style={{
