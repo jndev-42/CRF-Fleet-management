@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { auth } from '@/auth';
+import { checkRoleOrForbidden, checkAdminOrForbidden } from '@/lib/utils/auth-server';
+import { ROLES, DRIVER_ROLES, ADMIN_OR_RESPO_ROLES } from '@/lib/constants/roles';
 
 function resolveRoles(roles: string[]): string[] {
     // 'INACTIF' is the current inactive role; 'GUEST' is the legacy alias (DB backfill pending)
-    const isInactiveRole = (r: string) => r === 'INACTIF' || r === 'GUEST';
+    const isInactiveRole = (r: string) => r === ROLES.INACTIF || r === ROLES.GUEST;
     const activeRoles = roles.filter(r => !isInactiveRole(r));
     if (activeRoles.length === 0) {
         // Preserve whatever inactive role was passed (GUEST or INACTIF) — DB backfill handles normalization
@@ -26,25 +27,17 @@ const createUserSchema = z.object({
  *  ?drivers=true  → retourne uniquement les utilisateurs ayant le rôle CHVL ou CHVPSP */
 export async function GET(request: Request) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-        }
-
-        const roles = session.user.roles || [];
-        const canView = roles.includes('ADMIN') || roles.includes('RESPO');
-        if (!canView) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
-        }
+        const { response: forbiddenResponse } = await checkRoleOrForbidden(ADMIN_OR_RESPO_ROLES);
+        if (forbiddenResponse) return forbiddenResponse;
 
         const { searchParams } = new URL(request.url);
         const driversOnly = searchParams.get('drivers') === 'true';
         const vehicleType = searchParams.get('vehicleType')?.toUpperCase();
 
         let roleFilter: string[] | null = null;
-        if (vehicleType === 'VPSP') roleFilter = ['CHVPSP'];
-        else if (vehicleType === 'VL') roleFilter = ['CHVL'];
-        else if (driversOnly) roleFilter = ['CHVL', 'CHVPSP'];
+        if (vehicleType === 'VPSP') roleFilter = [ROLES.CHVPSP];
+        else if (vehicleType === 'VL') roleFilter = [ROLES.CHVL];
+        else if (driversOnly) roleFilter = DRIVER_ROLES;
 
         const usersRes = await db.execute(
             roleFilter
@@ -121,10 +114,8 @@ export async function GET(request: Request) {
 /** POST /api/users — Admin: create a new user with optional initial roles */
 export async function POST(request: Request) {
     try {
-        const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-        }
+        const { response: forbiddenResponse } = await checkAdminOrForbidden();
+        if (forbiddenResponse) return forbiddenResponse;
 
         const body = await request.json();
 
@@ -174,7 +165,7 @@ export async function POST(request: Request) {
 
             // Si l'utilisateur est créé avec un rôle CHVL ou CHVPSP,
             // invalider les papiers par défaut.
-            const isDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
+            const isDriver = resolvedRoles.some(r => DRIVER_ROLES.includes(r));
             if (isDriver) {
                 const today = new Date().toISOString().slice(0, 10);
                 await tx.execute({

@@ -74,7 +74,7 @@ describe('POST /api/users', () => {
         // @ts-expect-error — null session for test
         mockedAuth.mockResolvedValue(null);
         const res = await POST(makePostRequest({ email: 'x@test.com', name: 'X' }));
-        expect(res.status).toBe(403); // route checks roles not just session presence
+        expect(res.status).toBe(401);
     });
 
     it('2. 403 pour un non-ADMIN (rôle CHVL)', async () => {
@@ -157,7 +157,7 @@ describe('PATCH /api/users/[email]', () => {
             makePatchRequest('user@test.com', { roles: ['CHVL'] }),
             { params: Promise.resolve({ email: 'user@test.com' }) }
         );
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(401);
     });
 
     it('9. 403 pour un non-ADMIN', async () => {

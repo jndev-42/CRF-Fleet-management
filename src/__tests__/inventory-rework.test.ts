@@ -11,12 +11,19 @@ vi.mock('@/auth', () => ({
 vi.mock('@/lib/db', () => ({
     db: {
         execute: vi.fn(),
+        transaction: vi.fn(),
     },
 }));
 
 describe('Inventory Rework API', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Setup default transaction mock
+        (db.transaction as vi.Mock).mockResolvedValue({
+            execute: vi.fn(),
+            commit: vi.fn(),
+            rollback: vi.fn(),
+        });
     });
 
     describe('POST /api/inventory/adjust', () => {
@@ -25,7 +32,14 @@ describe('Inventory Rework API', () => {
                 user: { name: 'Test User', roles: ['ADMIN'] },
             });
 
-            (db.execute as vi.Mock)
+            const tx = {
+                execute: vi.fn(),
+                commit: vi.fn(),
+                rollback: vi.fn(),
+            };
+            (db.transaction as vi.Mock).mockResolvedValue(tx);
+
+            tx.execute
                 .mockResolvedValueOnce({ rows: [] }) // SELECT existing batch (empty)
                 .mockResolvedValueOnce({ rowsAffected: 1 }) // INSERT InvBatch
                 .mockResolvedValueOnce({ rows: [{ total: 15 }] }) // SELECT total quantity
@@ -42,7 +56,8 @@ describe('Inventory Rework API', () => {
 
             expect(res.status).toBe(200);
             expect(data.newQuantity).toBe(15);
-            expect(db.execute).toHaveBeenCalledTimes(5);
+            expect(tx.execute).toHaveBeenCalledTimes(5);
+            expect(tx.commit).toHaveBeenCalled();
         });
 
         it('should return 403 if user is not authorized', async () => {
@@ -85,7 +100,14 @@ describe('Inventory Rework API', () => {
                 user: { name: 'Admin', roles: ['ADMIN'] },
             });
 
-            (db.execute as vi.Mock)
+            const tx = {
+                execute: vi.fn(),
+                commit: vi.fn(),
+                rollback: vi.fn(),
+            };
+            (db.transaction as vi.Mock).mockResolvedValue(tx);
+
+            tx.execute
                 .mockResolvedValueOnce({ rows: [{ id: 'no-date-batch-id', quantity: 20 }] }) // SELECT no-date batch
                 .mockResolvedValueOnce({ rowsAffected: 1 }) // UPDATE (deduct from no-date)
                 .mockResolvedValueOnce({ rows: [] }) // SELECT dated batch (not found)
@@ -111,10 +133,11 @@ describe('Inventory Rework API', () => {
             expect(data.newQuantity).toBe(20); // 20 - 5 + 5 = 20
 
             // Verify deduction call
-            expect(db.execute).toHaveBeenCalledWith(expect.objectContaining({
+            expect(tx.execute).toHaveBeenCalledWith(expect.objectContaining({
                 sql: expect.stringContaining('UPDATE "InvBatch" SET quantity = quantity - ?'),
                 args: [5, 'no-date-batch-id']
             }));
+            expect(tx.commit).toHaveBeenCalled();
         });
 
         it('should return 400 if no-date stock is insufficient for splitting', async () => {
@@ -122,7 +145,14 @@ describe('Inventory Rework API', () => {
                 user: { name: 'Admin', roles: ['ADMIN'] },
             });
 
-            (db.execute as vi.Mock)
+            const tx = {
+                execute: vi.fn(),
+                commit: vi.fn(),
+                rollback: vi.fn(),
+            };
+            (db.transaction as vi.Mock).mockResolvedValue(tx);
+
+            tx.execute
                 .mockResolvedValueOnce({ rows: [{ id: 'no-date-batch-id', quantity: 2 }] }); // Only 2 left
 
             const req = new Request('http://localhost/api/inventory/adjust', {

@@ -9,6 +9,8 @@ import { SUPPLIES_BY_CATEGORY, MISSION_TYPE_LABELS, TEAM_DYNAMICS_LABELS } from 
 import type { SupplyCategory } from '@/lib/mission-supplies';
 import MissionPhotosModal from '@/components/missions/MissionPhotosModal';
 import SignedReportLightbox from '@/components/missions/SignedReportLightbox';
+import { boolLabel } from '@/lib/utils/format';
+import { ROLES } from '@/lib/constants/roles';
 import styles from './mission-detail.module.css';
 
 interface SupplyEntry {
@@ -50,11 +52,6 @@ interface MissionDetail {
     supplies: Record<string, SupplyEntry[]>;
 }
 
-function boolLabel(val: boolean | null): string {
-    if (val === null) return '—';
-    return val ? 'Oui' : 'Non';
-}
-
 export default function MissionDetailPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -67,8 +64,8 @@ export default function MissionDetailPage() {
     const [signedReportOpen, setSignedReportOpen] = useState(false);
     const [signedReportIsPdf, setSignedReportIsPdf] = useState(false);
 
-    const roles = (session?.user?.roles || ['GUEST']) as string[];
-    const isAdmin = roles.includes('ADMIN');
+    const roles = (session?.user?.roles || [ROLES.GUEST]) as string[];
+    const isAdmin = roles.includes(ROLES.ADMIN);
 
     useEffect(() => {
         if (status === 'unauthenticated') { router.push('/'); return; }
