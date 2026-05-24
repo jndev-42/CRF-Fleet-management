@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { auth } from '@/auth';
 import { z } from 'zod';
+import { checkAdminOrForbidden } from '@/lib/utils/auth-server';
 
 const desinfPreSchema = z.object({
     desinfResponsableId: z.string().min(1, 'L\'identifiant du responsable est requis'),
@@ -14,15 +14,8 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-        }
-
-        const roles = session.user.roles || ['GUEST'];
-        if (!roles.includes('ADMIN')) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-        }
+        const { response: forbiddenResponse } = await checkAdminOrForbidden();
+        if (forbiddenResponse) return forbiddenResponse;
 
         const { id } = await params;
         const body = await request.json();

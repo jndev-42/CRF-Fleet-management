@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { auth } from '@/auth';
+import { checkAdminOrForbidden } from '@/lib/utils/auth-server';
 
 const VALID_KEYS = ['stats', 'inventory', 'missions'] as const;
 
@@ -15,15 +15,8 @@ type RouteContext = { params: Promise<{ key: string }> };
  *  ADMIN uniquement. */
 export async function PATCH(request: Request, { params }: RouteContext) {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-        }
-
-        const roles = (session.user.roles || ['INACTIF']) as string[];
-        if (!roles.includes('ADMIN')) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
-        }
+        const { response: forbiddenResponse } = await checkAdminOrForbidden();
+        if (forbiddenResponse) return forbiddenResponse;
 
         const { key } = await params;
 

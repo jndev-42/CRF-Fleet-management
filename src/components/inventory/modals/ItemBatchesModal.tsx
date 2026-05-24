@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 
 interface Batch {
     id: string;
@@ -23,7 +23,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
     const [newQuantity, setNewQuantity] = useState('');
     const [deductFromNoDate, setDeductFromNoDate] = useState(true);
 
-    const fetchBatches = async () => {
+    const fetchBatches = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/inventory/batches?itemId=${itemId}`);
@@ -36,7 +36,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
         } finally {
             setLoading(false);
         }
-    };
+    }, [itemId]);
 
     useEffect(() => {
         fetchBatches();

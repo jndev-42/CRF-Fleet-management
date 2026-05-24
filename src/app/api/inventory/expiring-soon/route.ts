@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 
-export async function GET(request: Request) {
+export async function GET(_request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {

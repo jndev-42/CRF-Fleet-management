@@ -62,11 +62,11 @@ const validVehicleBody = {
 };
 
 describe('POST /api/vehicles — auth & authorization', () => {
-  it('retourne 403 sans session (route protégée par rôle ADMIN uniquement)', async () => {
+  it('retourne 401 sans session', async () => {
     // @ts-expect-error — null session for test
     mockedAuth.mockResolvedValue(null);
     const res = await POST(makePostRequest(validVehicleBody));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
   });
 
   it('retourne 403 pour un utilisateur non-ADMIN (rôle CHVL)', async () => {

@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.0.1] — 24 mai 2026
+
+### 🔧 Changements
+
+- **Amélioration de la robustesse et de la lisibilité** — Refonte de l'architecture de gestion des droits et de la sécurité des routes API.
+- **Centralisation des rôles** — Utilisation de constantes partagées pour les rôles utilisateurs afin d'éliminer les erreurs de saisie.
+- **Transactions SQL** — Sécurisation des mises à jour d'inventaire via des transactions atomiques pour garantir l'intégrité des données.
+- **Nouveaux helpers d'authentification** — Simplification des vérifications de permissions côté serveur pour un code plus propre et plus sûr.
+- **Mutualisation des utilitaires** — Centralisation des fonctions de formatage et de labels pour une interface plus cohérente.
+
 ## [3.0.0] — 16 mai 2026
 
 ### ✨ Nouvelles fonctionnalités

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
-import { auth } from '@/auth';
+import { getSessionOrUnauthorized, hasRole } from '@/lib/utils/auth-server';
+import { ROLES } from '@/lib/constants/roles';
 
 const checkOutSchema = z.object({
     vehicleId: z.string().min(1),
@@ -24,13 +25,8 @@ const checkOutSchema = z.object({
 export async function POST(request: Request) {
     try {
         // Auth check must happen before any body parsing or DB queries
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json(
-                { error: 'Non authentifié' },
-                { status: 401 }
-            );
-        }
+        const { session, response: unauthorizedResponse } = await getSessionOrUnauthorized();
+        if (unauthorizedResponse) return unauthorizedResponse;
 
         const body = await request.json();
         const data = checkOutSchema.parse(body);
@@ -57,10 +53,9 @@ export async function POST(request: Request) {
         }
 
         // Verify Roles
-        const roles = session?.user?.roles || ['INACTIF'];
-        const isAdmin = roles.includes('ADMIN');
-        const isCHVL = roles.includes('CHVL');
-        const isCHVPSP = roles.includes('CHVPSP');
+        const isAdmin = hasRole(session, ROLES.ADMIN);
+        const isCHVL = hasRole(session, ROLES.CHVL);
+        const isCHVPSP = hasRole(session, ROLES.CHVPSP);
         const vehicleType = String(vehicle.type || '');
         const isVPSP = vehicleType.toUpperCase().includes('VPSP');
 
@@ -110,7 +105,7 @@ export async function POST(request: Request) {
             if (data.correctedFuel !== undefined) fuelOut = data.correctedFuel;
         }
 
-        const driverId = session.user.id;
+        const driverId = session!.user.id;
 
         // Créer le trip et mettre à jour le véhicule en transaction
         const tx = await db.transaction('write');
@@ -151,10 +146,10 @@ export async function POST(request: Request) {
             });
 
             // Auto-delete active reservation for this user if they are taking the vehicle they reserved
-            if (session.user.email) {
+            if (session!.user.email) {
                 await tx.execute({
                     sql: `DELETE FROM "Reservation" WHERE vehicleId = ? AND userEmail = ? AND startTime <= ? AND endTime >= ?`,
-                    args: [data.vehicleId, session.user.email, timestamp, timestamp]
+                    args: [data.vehicleId, session!.user.email, timestamp, timestamp]
                 });
             }
 
@@ -166,7 +161,7 @@ export async function POST(request: Request) {
                     const { sendPushNotification } = await import('@/lib/onesignal');
                     const vName = vehicle.name || 'Véhicule inconnu';
                     const fuelLabel = vehicle.fuelType === 'Électrique' ? 'Batterie' : 'Carburant';
-                    const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
+                    const driverDisplayName = session!.user.name || session!.user.email || 'Chauffeur inconnu';
 
                     await sendPushNotification({
                         tags: [
@@ -191,7 +186,7 @@ export async function POST(request: Request) {
                 try {
                     const { sendPushNotification } = await import('@/lib/onesignal');
                     const vName = vehicle.name || 'Véhicule inconnu';
-                    const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
+                    const driverDisplayName = session!.user.name || session!.user.email || 'Chauffeur inconnu';
 
                     await sendPushNotification({
                         tags: [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }],
@@ -211,8 +206,8 @@ export async function POST(request: Request) {
                 id: tripId,
                 vehicleId: data.vehicleId,
                 driverId,
-                driverName: session.user.name || null,
-                driverEmail: session.user.email || null,
+                driverName: session!.user.name || null,
+                driverEmail: session!.user.email || null,
                 missionType: data.missionType,
                 missionName: data.missionName || null,
                 checkOutAt: timestamp,

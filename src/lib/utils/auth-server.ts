@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { NextResponse } from 'next/server';
 import { ROLES } from '@/lib/constants/roles';
+import { Session } from 'next-auth';
 
 export async function getSessionOrUnauthorized() {
     const session = await auth();
@@ -10,7 +11,7 @@ export async function getSessionOrUnauthorized() {
     return { session, response: null };
 }
 
-export function hasRole(session: any, roles: string | string[]) {
+export function hasRole(session: Session | null, roles: string | string[]) {
     const userRoles = (session?.user?.roles || []) as string[];
     const requiredRoles = Array.isArray(roles) ? roles : [roles];
     return requiredRoles.some(role => userRoles.includes(role));

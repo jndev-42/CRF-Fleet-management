@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { auth } from '@/auth';
 import { z } from 'zod';
+import { getSessionOrUnauthorized, hasRole } from '@/lib/utils/auth-server';
+import { ROLES } from '@/lib/constants/roles';
 
 const updateSecondDriverSchema = z.object({
     secondDriverId: z.string().min(1, 'L\'identifiant du 2ème conducteur est requis'),
@@ -12,10 +13,8 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-        }
+        const { session, response: unauthorizedResponse } = await getSessionOrUnauthorized();
+        if (unauthorizedResponse) return unauthorizedResponse;
 
         const { id } = await params;
         const body = await request.json();
@@ -31,8 +30,8 @@ export async function PATCH(
             return NextResponse.json({ error: 'Trajet non trouvé' }, { status: 404 });
         }
 
-        const isAdmin = session.user.roles?.includes('ADMIN');
-        const isPrimaryDriver = session.user.id === tripRes.rows[0].driverId;
+        const isAdmin = hasRole(session, ROLES.ADMIN);
+        const isPrimaryDriver = session!.user.id === tripRes.rows[0].driverId;
 
         if (!isAdmin && !isPrimaryDriver) {
             return NextResponse.json({ error: 'Non autorisé à modifier ce trajet' }, { status: 403 });

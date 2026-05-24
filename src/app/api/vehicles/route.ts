@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { auth } from '@/auth';
+import { checkAdminOrForbidden, getSessionOrUnauthorized } from '@/lib/utils/auth-server';
 
 const createVehicleSchema = z.object({
     name: z.string().min(1, "Nom requis"),
@@ -23,10 +23,8 @@ const createVehicleSchema = z.object({
 
 export async function GET() {
     try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-        }
+        const { response: unauthorizedResponse } = await getSessionOrUnauthorized();
+        if (unauthorizedResponse) return unauthorizedResponse;
 
         const result = await db.execute(`
             SELECT
@@ -89,10 +87,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-        }
+        const { response: forbiddenResponse } = await checkAdminOrForbidden();
+        if (forbiddenResponse) return forbiddenResponse;
 
         const body = await request.json();
         const data = createVehicleSchema.parse(body);
