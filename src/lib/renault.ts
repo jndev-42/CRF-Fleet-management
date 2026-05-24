@@ -38,7 +38,7 @@ async function authenticate(): Promise<{ idToken: string; accountId: string }> {
 
     // Step 2: Get account info (personId)
     const accountUrl = new URL(GigyaApi.GET_ACCOUNT_INFO_URL);
-    accountUrl.searchParams.set('apikey', GigyaApi.KEY);
+    accountUrl.searchParams.set('apikey', apiKey);
     accountUrl.searchParams.set('login_token', loginToken);
     const accountRes = await fetch(accountUrl, { method: 'POST' }).then(r => r.json());
     const personId = accountRes.data?.personId;
@@ -46,7 +46,7 @@ async function authenticate(): Promise<{ idToken: string; accountId: string }> {
 
     // Step 3: Get JWT (15min expiry)
     const jwtUrl = new URL(GigyaApi.GET_JWT_URL);
-    jwtUrl.searchParams.set('apikey', GigyaApi.KEY);
+    jwtUrl.searchParams.set('apikey', apiKey);
     jwtUrl.searchParams.set('login_token', loginToken);
     jwtUrl.searchParams.set('fields', 'data.personId,data.gigyaDataCenter');
     jwtUrl.searchParams.set('expiration', '900');
