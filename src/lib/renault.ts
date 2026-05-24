@@ -24,11 +24,12 @@ async function authenticate(): Promise<{ idToken: string; accountId: string }> {
 
     const mail = process.env.RENAULT_MAIL;
     const pass = process.env.RENAULT_PASS;
-    if (!mail || !pass) throw new Error('RENAULT_MAIL and RENAULT_PASS must be set');
+    const apiKey = process.env.GIGYA_API_KEY;
+    if (!mail || !pass || !apiKey) throw new Error('RENAULT_MAIL, RENAULT_PASS and GIGYA_API_KEY must be set');
 
     // Step 1: Login to Gigya
     const loginUrl = new URL(GigyaApi.LOGIN_URL);
-    loginUrl.searchParams.set('apikey', GigyaApi.KEY);
+    loginUrl.searchParams.set('apikey', apiKey);
     loginUrl.searchParams.set('loginID', mail);
     loginUrl.searchParams.set('password', pass);
     const loginRes = await fetch(loginUrl, { method: 'POST' }).then(r => r.json());
