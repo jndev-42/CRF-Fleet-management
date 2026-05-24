@@ -28,7 +28,6 @@ import MaintenanceCard from '@/components/vehicle/MaintenanceCard';
 import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHistoryModal';
 import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
-import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
 /**
  * VehicleDetailPage Component
  * 
@@ -59,7 +58,6 @@ export default function VehicleDetailPage() {
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [activeTab, setActiveTab] = useState<'details' | 'inventory'>('details');
     const [viewingPhotosFolderId, setViewingPhotosFolderId] = useState<string | null>(null);
     const [tripsPage, setTripsPage] = useState(1);
     const TRIPS_PER_PAGE = 3;
@@ -74,7 +72,6 @@ export default function VehicleDetailPage() {
     const [showEditRevisionModal, setShowEditRevisionModal] = useState(false);
     const [licenseBlocked, setLicenseBlocked] = useState(false);
     const router = useRouter();
-    const { getVisibility } = useMenuSettings();
 
     useEffect(() => {
         // Fetch the current session to determine if the user has specific roles (e.g., ADMIN)
@@ -97,15 +94,6 @@ export default function VehicleDetailPage() {
             .catch(console.error);
     }, []);
 
-    const invVis = getVisibility('inventory');
-    const canSeeInventoryTab = invVis !== 'disabled' && userRoles.includes('ADMIN') && (
-        invVis === 'available' ||
-        (invVis === 'admin_only' && userRoles.includes('ADMIN'))
-    );
-
-    useEffect(() => {
-        if (!canSeeInventoryTab && activeTab === 'inventory') setActiveTab('details');
-    }, [canSeeInventoryTab, activeTab]);
 
     /**
      * Fetches the detailed vehicle data from the database.
@@ -518,30 +506,7 @@ export default function VehicleDetailPage() {
                 </div>
             )}
 
-            <div className="tab-bar" role="tablist">
-                <button
-                    role="tab"
-                    aria-selected={activeTab === 'details'}
-                    className={`tab-btn${activeTab === 'details' ? ' active' : ''}`}
-                    onClick={() => setActiveTab('details')}
-                >
-                    Détails
-                </button>
-                {canSeeInventoryTab && (
-                    <button
-                        role="tab"
-                        aria-selected={activeTab === 'inventory'}
-                        className={`tab-btn${activeTab === 'inventory' ? ' active' : ''}`}
-                        onClick={() => setActiveTab('inventory')}
-                    >
-                        Inventaire
-                    </button>
-                )}
-            </div>
-
-
-            {activeTab === 'details' && (
-            <>
+            <div style={{ marginTop: 24 }}>
             {vehicle && (
                 <ReservationBlock
                     vehicleId={vehicle.id}
@@ -792,8 +757,7 @@ export default function VehicleDetailPage() {
                     onClose={() => setViewingPhotosFolderId(null)}
                 />
             )}
-            </>
-            )}
+            </div>
 
             {showCheckOut && (
                 <CheckOutModal

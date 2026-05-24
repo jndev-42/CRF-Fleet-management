@@ -93,21 +93,21 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
                         <p>Chargement...</p>
                     ) : (
                         <>
-                            <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: '#f9f9f9', borderRadius: '4px', fontSize: '0.9rem' }}>
+                            <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: '4px', fontSize: '0.9rem' }}>
                                 <strong>{batches.find(b => b.expiryDate === null)?.quantity || 0}</strong> items sans date de péremption
                             </div>
 
                             {batches.length > 0 && (
                                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem' }}>
                                     <thead>
-                                        <tr style={{ textAlign: 'left', borderBottom: '1px solid #eee' }}>
+                                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-primary)' }}>
                                             <th style={{ padding: '8px' }}>Date de péremption</th>
                                             <th style={{ padding: '8px', textAlign: 'right' }}>Quantité</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {batches.map(batch => (
-                                            <tr key={batch.id} style={{ borderBottom: '1px solid #eee' }}>
+                                            <tr key={batch.id} style={{ borderBottom: '1px solid var(--border-primary)' }}>
                                                 <td style={{ padding: '8px' }}>
                                                     {formatDate(batch.expiryDate)}
                                                 </td>
@@ -120,7 +120,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
                                 </table>
                             )}
 
-                            <div style={{ border: '1px solid #eee', padding: '1rem', borderRadius: '8px' }}>
+                            <div style={{ border: '1px solid var(--border-primary)', padding: '1rem', borderRadius: '8px' }}>
                                 <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Ajouter une date de péremption</h3>
                                 <form onSubmit={handleAddBatch}>
                                     <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
