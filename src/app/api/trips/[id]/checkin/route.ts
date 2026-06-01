@@ -98,7 +98,7 @@ export async function PATCH(
                     if (rData.isElectric && rData.batteryLevel !== null) {
                         finalFuelIn = rData.batteryLevel;
                     } else if (!rData.isElectric && rData.fuelQuantity !== null) {
-                        finalFuelIn = Math.min(Math.round((rData.fuelQuantity / 50) * 100), 100);
+                        finalFuelIn = Math.min(Math.round((rData.fuelQuantity / (Number(vehicle.maxFuelCapacity) || 50)) * 100), 100);
                     }
                 }
                 if (rData.cockpitTimestamp) {

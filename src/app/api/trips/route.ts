@@ -95,7 +95,7 @@ export async function POST(request: Request) {
                 if (rData.totalMileage !== null) mileageOut = rData.totalMileage;
                 if (rData.isElectric && rData.batteryLevel !== null) fuelOut = rData.batteryLevel;
                 if (!rData.isElectric && rData.fuelQuantity !== null) {
-                    fuelOut = Math.min(Math.round((rData.fuelQuantity / 50) * 100), 100);
+                    fuelOut = Math.min(Math.round((rData.fuelQuantity / (Number(vehicle.maxFuelCapacity) || 50)) * 100), 100);
                 }
             } catch (e) {
                 console.error('Failed to get live Renault data during checkout', e);

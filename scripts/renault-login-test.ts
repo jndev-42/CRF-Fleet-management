@@ -7,7 +7,8 @@ async function testLogin() {
     console.log('Testing raw Gigya login with:', mail);
 
     const url = new URL(GigyaApi.LOGIN_URL);
-    url.searchParams.set('apikey', GigyaApi.KEY);
+    // url.searchParams.set('apikey', GigyaApi.KEY);
+    url.searchParams.set('apikey', '3_VgdkgtIRH3AdHvJm-cjV2ug2EFE0lxt0IJzMC4MFqZjFpn_GYFXVdNZ19L7wZX0N');
     url.searchParams.set('loginID', mail);
     url.searchParams.set('password', pass);
 

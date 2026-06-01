@@ -35,7 +35,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
         incident: string;
         commentsIn: string;
     }>({
-        mileageIn: isConnected(vehicle.vin) ? vehicle.mileage : '',
+        mileageIn: vehicle.mileage,
         fuelIn: vehicle.fuelLevel,
         parkingInSelection: trip.parkingOut === "Baigneur (devant l’UL)" || trip.parkingOut === "Parking Aubervillers" ? trip.parkingOut : (trip.parkingOut ? "Autre" : "Baigneur (devant l’UL)"),
         parkingInCustom: trip.parkingOut && trip.parkingOut !== "Baigneur (devant l'UL)" && trip.parkingOut !== "Parking Aubervillers" ? trip.parkingOut : '',
@@ -50,6 +50,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [desinfResponsableId, setDesinfResponsableId] = useState(initialDesinfResponsableId);
     const [desinfLotNumber, setDesinfLotNumber] = useState(initialDesinfLotNumber);
     const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+    const [loadingRenault, setLoadingRenault] = useState(isConnected(vehicle.vin));
+    const [renaultError, setRenaultError] = useState(false);
+    const [manualEntry, setManualEntry] = useState(!isConnected(vehicle.vin));
 
     const isDesinf = trip.missionType === 'Désinfection';
 
@@ -60,6 +63,32 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
     }, [isDesinf, vehicle.type]);
+
+    useEffect(() => {
+        if (isConnected(vehicle.vin)) {
+            fetch(`/api/renault/${encodeURIComponent(vehicle.vin!)}`)
+                .then(r => r.json())
+                .then(rData => {
+                    if (rData.error) {
+                        setRenaultError(true);
+                        setManualEntry(true);
+                    } else {
+                        if (rData.totalMileage !== null) setForm(f => ({ ...f, mileageIn: rData.totalMileage }));
+                        if (vehicle.fuelType === 'Électrique') {
+                            if (rData.batteryLevel !== null) setForm(f => ({ ...f, fuelIn: rData.batteryLevel }));
+                        } else if (rData.fuelQuantity !== null) {
+                            const fuelPct = Math.min(Math.round((rData.fuelQuantity / (vehicle.maxFuelCapacity ?? 50)) * 100), 100);
+                            setForm(f => ({ ...f, fuelIn: fuelPct }));
+                        }
+                    }
+                })
+                .catch(() => {
+                    setRenaultError(true);
+                    setManualEntry(true);
+                })
+                .finally(() => setLoadingRenault(false));
+        }
+    }, [vehicle.vin, vehicle.fuelType, vehicle.maxFuelCapacity]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -121,8 +150,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mileageIn: isConnected(vehicle.vin) ? undefined : form.mileageIn,
-                    fuelIn: isConnected(vehicle.vin) ? undefined : form.fuelIn,
+                    mileageIn: manualEntry ? form.mileageIn : undefined,
+                    fuelIn: manualEntry ? form.fuelIn : undefined,
                     parkingIn: finalParkingIn,
                     conditionIn: form.conditionIn,
                     cleanlinessIn: form.cleanlinessIn,
@@ -184,9 +213,14 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {/* Km et parking */}
                         <div className="form-row">
-                            {!isConnected(vehicle.vin) && (
+                            {(manualEntry || !isConnected(vehicle.vin)) && (
                                 <div className="form-group">
-                                    <label className="form-label" htmlFor="checkin-mileage">Kilométrage actuel *</label>
+                                    <label className="form-label" htmlFor="checkin-mileage">
+                                        Kilométrage actuel *
+                                        {loadingRenault && <span style={{ marginLeft: 8, fontSize: 11 }}>⌛ Chargement...</span>}
+                                        {isConnected(vehicle.vin) && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: '#059669', fontSize: 11 }}>📡 Connecté</span>}
+                                        {renaultError && <span style={{ marginLeft: 8, color: '#DC2626', fontSize: 11 }}>⚠️ Renault injoignable</span>}
+                                    </label>
                                     <input
                                         id="checkin-mileage"
                                         className="form-input"
@@ -227,7 +261,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         </div>
 
                         {/* Essence */}
-                        {!isConnected(vehicle.vin) && (
+                        {(manualEntry || !isConnected(vehicle.vin)) && (
                             <div className="form-group">
                                 <label className="form-label" htmlFor="checkin-fuel">{vehicle.fuelType === 'Électrique' ? 'Niveau de batterie *' : (vehicle.fuelType === 'Diesel' ? 'Niveau de diesel *' : 'Niveau d\'essence *')}</label>
                                 <input
@@ -248,8 +282,21 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         )}
 
                         {isConnected(vehicle.vin) && (
-                            <div style={{ marginBottom: 20, padding: 12, background: 'rgba(59, 130, 246, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(59, 130, 246, 0.2)', fontSize: 13, color: '#1E40AF' }}>
-                                ℹ️ <strong>Données connectées :</strong> Le kilométrage et le niveau de {vehicle.fuelType === 'Électrique' ? 'batterie' : 'carburant'} remontent automatiquement depuis le véhicule. Il n&apos;est pas nécessaire de les saisir.
+                            <div style={{ marginBottom: 20 }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, padding: '12px 14px', background: manualEntry ? 'var(--status-maintenance-bg)' : 'rgba(59, 130, 246, 0.05)', borderRadius: 'var(--radius-sm)', border: `1px solid ${manualEntry ? 'rgba(239,68,68,0.4)' : 'rgba(59, 130, 246, 0.2)'}` }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={manualEntry}
+                                        onChange={e => setManualEntry(e.target.checked)}
+                                        style={{ width: 16, height: 16, cursor: 'pointer' }}
+                                    />
+                                    <span>{renaultError ? '⚠️ Renault injoignable : Saisie manuelle obligatoire' : 'Saisir manuellement le kilométrage/carburant'}</span>
+                                </label>
+                                {!manualEntry && !renaultError && (
+                                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-secondary)', paddingLeft: 4 }}>
+                                        ℹ️ Les données remontent automatiquement depuis le véhicule.
+                                    </div>
+                                )}
                             </div>
                         )}
 
