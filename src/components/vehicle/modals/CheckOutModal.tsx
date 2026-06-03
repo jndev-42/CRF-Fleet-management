@@ -5,6 +5,7 @@ import ChecklistItems from '../ChecklistItems';
 import FuelBar from '@/components/vehicle/FuelBar';
 import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
+import IncidentReportModal from './IncidentReportModal';
 
 interface CheckOutModalProps {
     vehicle: Vehicle;
@@ -50,6 +51,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
     const [photos, setPhotos] = useState<File[]>([]);
     const [loadingRenault, setLoadingRenault] = useState(!!vehicle.vin);
     const [renaultError, setRenaultError] = useState(false);
+    const [showIncidentReport, setShowIncidentReport] = useState(false);
 
     useEffect(() => {
         const sessionPromise = fetch('/api/auth/session')
@@ -447,7 +449,16 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                             />
                         </div>
                     </div>
-                    <div className="modal-footer">
+                    <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                            onClick={() => setShowIncidentReport(true)}
+                        >
+                            🚨 Signaler incident
+                        </button>
+
                         <button type="button" className="btn btn-secondary" onClick={onClose}>
                             Annuler
                         </button>
@@ -457,6 +468,13 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                     </div>
                 </form>
             </div>
+
+            {showIncidentReport && (
+                <IncidentReportModal
+                    vehicle={vehicle}
+                    onClose={() => setShowIncidentReport(false)}
+                />
+            )}
         </div>
     );
 }

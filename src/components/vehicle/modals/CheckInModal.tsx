@@ -5,6 +5,7 @@ import FuelBar from '@/components/vehicle/FuelBar';
 import ChecklistItems from '../ChecklistItems';
 import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
+import IncidentReportModal from './IncidentReportModal';
 
 interface CheckInModalProps {
     vehicle: Vehicle;
@@ -53,6 +54,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [loadingRenault, setLoadingRenault] = useState(isConnected(vehicle.vin));
     const [renaultError, setRenaultError] = useState(false);
     const [manualEntry, setManualEntry] = useState(!isConnected(vehicle.vin));
+    const [showIncidentReport, setShowIncidentReport] = useState(false);
 
     const isDesinf = trip.missionType === 'Désinfection';
 
@@ -423,7 +425,16 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                             />
                         </div>
                     </div>
-                    <div className="modal-footer">
+                    <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                            onClick={() => setShowIncidentReport(true)}
+                        >
+                            🚨 Signaler incident
+                        </button>
+
                         <button type="button" className="btn btn-secondary" onClick={onClose}>
                             Annuler
                         </button>
@@ -433,6 +444,14 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     </div>
                 </form>
             </div>
+
+            {showIncidentReport && (
+                <IncidentReportModal
+                    vehicle={vehicle}
+                    tripId={trip.id}
+                    onClose={() => setShowIncidentReport(false)}
+                />
+            )}
         </div>
     );
 }

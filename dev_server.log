@@ -1,0 +1,14 @@
+
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+Error: tsx must be loaded with --import instead of --loader
+The --loader flag was deprecated in Node v20.6.0 and v18.19.0
+    at initialize (file:///app/node_modules/tsx/dist/esm/index.mjs:1:985)
+    at Hooks.addCustomLoader (node:internal/modules/esm/hooks:183:24)
+    at Hooks.register (node:internal/modules/esm/hooks:157:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async initializeHooks (node:internal/modules/esm/utils:325:5)
+    at async customizedModuleWorker (node:internal/modules/esm/worker:109:13)
+
+Node.js v22.22.1
