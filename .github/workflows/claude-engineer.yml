@@ -6,21 +6,23 @@ on:
   issue_comment:
     types: [created]
 
-# SÉCURITÉ ANTI-DOUBLON : Si un workflow se relance pour la même issue, 
-# il annule immédiatement le précédent (cancel-in-progress: true)
 concurrency:
   group: claude-${{ github.event.issue.number || github.event.comment.issue.number }}
   cancel-in-progress: true
 
 jobs:
   process-issue:
-    # 1. On ne se déclenche que si le label 'claude' fait partie des labels de l'issue
-    # 2. Sécurité : S'il s'agit d'un événement "labeled", on ne traite QUE si le label ajouté est 'claude' ou 'bug' ou 'feature' ou 'analyze' pour éviter les triggers inutiles
     if: |
       (
         github.event.issue && 
         contains(github.event.issue.labels.*.name, 'claude') &&
-        (github.event.action != 'labeled' || contains(json('["claude", "bug", "feature", "analyze"]'), github.event.label.name))
+        (
+          github.event.action != 'labeled' || 
+          github.event.label.name == 'claude' || 
+          github.event.label.name == 'bug' || 
+          github.event.label.name == 'feature' || 
+          github.event.label.name == 'analyze'
+        )
       ) ||
       (
         github.event.comment && 
