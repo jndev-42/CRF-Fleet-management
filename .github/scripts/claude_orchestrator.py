@@ -2,7 +2,7 @@ import os
 import json
 import time
 import sys
-import re  # Ajout de Regex pour parser la réponse
+import re
 from github import Github, Auth
 from anthropic import Anthropic
 
@@ -43,7 +43,7 @@ def apply_modifications(response_text):
         filepath = match.group(1)
         content = match.group(2)
         
-        # Nettoyage : Si Claude ajoute du markdown dans la balise (ex: ```typescript)
+        # Nettoyage : Si Claude ajoute du markdown dans la balise
         content = re.sub(r'^```[a-zA-Z]*\n', '', content.strip())
         content = re.sub(r'\n```$', '', content)
             
@@ -147,6 +147,15 @@ def get_scoped_codebase_context(target_directories):
     return context
 
 def create_pull_request(branch_name, title, body):
+    """Exécute Vitest et pousse la PR si tout est au vert, avec une description propre."""
+    
+    # Nettoyage : On supprime tous les blocs <file>...</file> de la description
+    clean_body = re.sub(r'<file path="[^"]+">.*?</file>', '', body, flags=re.DOTALL).strip()
+    
+    # Sécurité si Claude n'a renvoyé QUE du code sans aucun texte d'explication
+    if not clean_body:
+        clean_body = "Modifications générées automatiquement par l'agent Claude."
+        
     print("🛠️ Lancement de la suite de tests Vitest...")
     test_result = os.system("npx vitest run")
     
@@ -163,7 +172,7 @@ def create_pull_request(branch_name, title, body):
     os.system(f"git push origin {branch_name} --force")
     
     try:
-        pr = repo.create_pull(title=title, body=body, head=branch_name, base="main")
+        pr = repo.create_pull(title=title, body=clean_body, head=branch_name, base="main")
         issue.create_comment(f"🚀 **Claude** : Code déployé sur la branche `{branch_name}` et validé par Vitest !\n👉 Pull Request créée : {pr.html_url}")
     except Exception as e:
         issue.create_comment(f"⚠️ Branch poussée mais échec de création de la PR sur GitHub : {e}")
