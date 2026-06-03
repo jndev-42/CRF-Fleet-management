@@ -6,16 +6,28 @@ on:
   issue_comment:
     types: [created]
 
+# SÉCURITÉ ANTI-DOUBLON : Si un workflow se relance pour la même issue, 
+# il annule immédiatement le précédent (cancel-in-progress: true)
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.comment.issue.number }}
+  cancel-in-progress: true
+
 jobs:
   process-issue:
-    # Sécurité : On ne déclenche le runner que si le label 'claude' est présent sur l'issue
+    # 1. On ne se déclenche que si le label 'claude' fait partie des labels de l'issue
+    # 2. Sécurité : S'il s'agit d'un événement "labeled", on ne traite QUE si le label ajouté est 'claude' ou 'bug' ou 'feature' ou 'analyze' pour éviter les triggers inutiles
     if: |
-      (github.event.issue && contains(github.event.issue.labels.*.name, 'claude')) ||
-      (github.event.comment && contains(github.event.issue.labels.*.name, 'claude'))
+      (
+        github.event.issue && 
+        contains(github.event.issue.labels.*.name, 'claude') &&
+        (github.event.action != 'labeled' || contains(json('["claude", "bug", "feature", "analyze"]'), github.event.label.name))
+      ) ||
+      (
+        github.event.comment && 
+        contains(github.event.issue.labels.*.name, 'claude')
+      )
     
     runs-on: ubuntu-latest
-
-    # Permissions requises pour que le bot puisse commenter, créer des branches et ouvrir des PR
     permissions:
       contents: write
       issues: write
@@ -25,12 +37,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Récupère tout l'historique pour permettre la création de branches propres
+          fetch-depth: 0
 
       - name: Set up Node.js (for Vitest)
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Ajuste selon ta version locale si besoin
+          node-version: '20'
           cache: 'npm'
 
       - name: Install Project Dependencies
