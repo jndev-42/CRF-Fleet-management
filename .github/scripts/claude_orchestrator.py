@@ -166,4 +166,66 @@ def execute_batch_request(model, system_prompt, user_prompt):
             break
         time.sleep(20)
         
-    for result in anthropic_client.beta.messages.batches
+    for result in anthropic_client.beta.messages.batches.results(batch_job.id):
+        if result.result.type == "succeeded":
+            return result.result.message.content[0].text
+        else:
+            error_details = getattr(result.result, 'error', 'Erreur inconnue détaillée')
+            raise Exception(f"L'exécution du Batch Anthropic a échoué. Raison : {error_details}")
+
+# ==========================================
+# EXECUTION ORCHESTRATEUR
+# ==========================================
+
+print("Exécution de l'étape de Triage...")
+repository_map = get_repository_map()
+targeted_folders = ask_claude_for_scope(issue.title, issue.body, repository_map)
+print(f"Dossiers retenus pour l'analyse : {targeted_folders}")
+
+codebase = get_scoped_codebase_context(targeted_folders)
+
+# --- ROUTER DE LABELS ---
+
+if "bug" in labels:
+    system_text = f"Tu es un développeur senior TypeScript/Next.js. Corrige le bug décrit. Respecte scrupuleusement les consignes des fichiers CLAUDE.md fournis.\n\n{codebase}"
+    user_text = f"Applique les modifications nécessaires pour résoudre l'issue suivante :\n{issue.title}\n{issue.body}\n\nModifie directement les fichiers du dépôt."
+    
+    response = execute_batch_request("claude-sonnet-4-6", system_text, user_text)
+    create_pull_request(f"fix/issue-{issue_number}", f"fix: #{issue_number} {issue.title}", response)
+
+elif "analyze" in labels:
+    system_text = f"Tu es un expert en refactoring et sécurité Next.js. Améliore le code selon la demande.\n\n{codebase}"
+    user_text = f"Analyse et applique les ajustements demandés ici : {issue.title}\n{issue.body}"
+    
+    response = execute_batch_request("claude-sonnet-4-6", system_text, user_text)
+    create_pull_request(f"refactor/issue-{issue_number}", f"refactor: #{issue_number} {issue.title}", response)
+
+elif "feature" in labels:
+    comments = issue.get_comments()
+    discussion = "\n".join([f"{c.user.login}: {c.body}" for c in comments])
+
+    system_opus = f"Tu es architecte logiciel principal. Conçois l'implémentation Next.js/TS de cette feature. Si tu as besoin de précisions, commence ton message par '[NEED_CLARIFICATION]'.\n\n{codebase}"
+    user_opus = f"Feature demandée : {issue.title}\nDescription : {issue.body}\nDiscussion : {discussion}"
+    
+    opus_response = anthropic_client.messages.create(
+        model="claude-opus-4-7",
+        max_tokens=4000,
+        system=[{"type": "text", "text": system_opus, "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": user_opus}]
+    ).content[0].text
+    
+    if "[NEED_CLARIFICATION]" in opus_response:
+        issue.create_comment(opus_response)
+        sys.exit(0)
+    else:
+        system_sonnet = f"Tu es un développeur senior Next.js. Applique le plan d'architecture validé ci-dessous en modifiant le code.\n\n{codebase}"
+        user_sonnet = f"Plan d'architecture d'Opus :\n{opus_response}\n\nImplémente ce code dès maintenant."
+        
+        sonnet_response = anthropic_client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=8192,
+            system=[{"type": "text", "text": system_sonnet, "cache_control": {"type": "ephemeral"}}],
+            messages=[{"role": "user", "content": user_sonnet}]
+        ).content[0].text
+        
+        create_pull_request(f"feature/issue-{issue_number}", f"feat: #{issue_number} {issue.title}", sonnet_response)
