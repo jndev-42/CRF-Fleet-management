@@ -2,6 +2,7 @@ import os
 import json
 import time
 import sys
+import re  # Ajout de Regex pour parser la réponse
 from github import Github, Auth
 from anthropic import Anthropic
 
@@ -26,11 +27,48 @@ issue = repo.get_issue(number=issue_number)
 labels = [l.name for l in issue.labels]
 
 # ==========================================
+# UTILITAIRES DE PARSING ET FICHIERS
+# ==========================================
+
+def apply_modifications(response_text):
+    """Parse la réponse XML de Claude et réécrit les fichiers modifiés sur le disque."""
+    pattern = r'<file path="([^"]+)">\n?(.*?)\n?</file>'
+    matches = list(re.finditer(pattern, response_text, re.DOTALL))
+    
+    if not matches:
+        print("⚠️ Aucun fichier modifié trouvé dans la réponse de Claude (format <file> manquant).")
+        return 0
+        
+    for match in matches:
+        filepath = match.group(1)
+        content = match.group(2)
+        
+        # Nettoyage : Si Claude ajoute du markdown dans la balise (ex: ```typescript)
+        content = re.sub(r'^```[a-zA-Z]*\n', '', content.strip())
+        content = re.sub(r'\n```$', '', content)
+            
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"✍️ Fichier mis à jour sur le disque : {filepath}")
+        
+    return len(matches)
+
+# Instructions strictes ajoutées au prompt de Claude pour garantir le parsing
+FORMAT_INSTRUCTIONS = """
+RÈGLE ABSOLUE POUR TA RÉPONSE :
+Pour CHAQUE fichier que tu modifies, tu DOIS utiliser exactement le format XML suivant et renvoyer le code COMPLET du fichier (ne fais pas de résumé ni de "snippets").
+<file path="chemin/complet/du/fichier.ts">
+// Le code entier de haut en bas ici
+</file>
+Ne renvoie que les fichiers que tu as modifiés.
+"""
+
+# ==========================================
 # GESTION DE L'ARBORESCENCE NEXT.JS / TS
 # ==========================================
 
 def get_repository_map():
-    """Génère une carte de ton architecture Next.js pour l'étape de triage."""
     repo_map = []
     target_roots = ["src/app", "src/components", "src/lib", "scripts"]
     
@@ -54,7 +92,6 @@ def get_repository_map():
     return json.dumps(repo_map, indent=2)
 
 def ask_claude_for_scope(issue_title, issue_body, repo_map):
-    """Première passe (Triage) : Claude choisit ses dossiers cibles."""
     system_prompt = (
         "Tu es un ingénieur principal. Analyse l'issue GitHub et la carte de l'application Next.js "
         "pour déterminer dans quel(s) sous-dossier(s) le travail doit être effectué.\n"
@@ -72,19 +109,16 @@ def ask_claude_for_scope(issue_title, issue_body, repo_map):
     ).content[0].text
     
     try:
-        # Nettoyage robuste des balises markdown potentielles
         clean_response = response.strip().strip('`').replace('json\n', '', 1).strip()
         start = clean_response.find('[')
         end = clean_response.rfind(']') + 1
         return json.loads(clean_response[start:end])
     except Exception as e:
         print(f"Erreur de parsing du scope ({e}). Réponse brute : {response}")
-        return ["src/app", "src/components"] # Repli de sécurité
+        return ["src/app", "src/components"]
 
 def get_scoped_codebase_context(target_directories):
-    """Charge les CLAUDE.md transversaux + le code source des répertoires ciblés."""
     context = ""
-    
     context += "=== CONTEXTES ET RÈGLES APPLICABLES (CLAUDE.md) ===\n"
     for root, dirs, files in os.walk("."):
         if any(p in root for p in [".git", "node_modules", ".next"]):
@@ -113,9 +147,7 @@ def get_scoped_codebase_context(target_directories):
     return context
 
 def create_pull_request(branch_name, title, body):
-    """Exécute Vitest et pousse la PR si tout est au vert."""
     print("🛠️ Lancement de la suite de tests Vitest...")
-    
     test_result = os.system("npx vitest run")
     
     if test_result != 0:
@@ -137,7 +169,6 @@ def create_pull_request(branch_name, title, body):
         issue.create_comment(f"⚠️ Branch poussée mais échec de création de la PR sur GitHub : {e}")
 
 def execute_batch_request(model, system_prompt, user_prompt):
-    """Utilise l'API Batch d'Anthropic avec Prompt Caching."""
     batch_job = anthropic_client.beta.messages.batches.create(
         requests=[
             {
@@ -187,18 +218,26 @@ codebase = get_scoped_codebase_context(targeted_folders)
 # --- ROUTER DE LABELS ---
 
 if "bug" in labels:
-    system_text = f"Tu es un développeur senior TypeScript/Next.js. Corrige le bug décrit. Respecte scrupuleusement les consignes des fichiers CLAUDE.md fournis.\n\n{codebase}"
-    user_text = f"Applique les modifications nécessaires pour résoudre l'issue suivante :\n{issue.title}\n{issue.body}\n\nModifie directement les fichiers du dépôt."
+    system_text = f"Tu es un développeur senior TypeScript/Next.js. Corrige le bug décrit. Respecte scrupuleusement les consignes des fichiers CLAUDE.md fournis.\n\n{FORMAT_INSTRUCTIONS}\n\n{codebase}"
+    user_text = f"Applique les modifications nécessaires pour résoudre l'issue :\n{issue.title}\n{issue.body}"
     
     response = execute_batch_request("claude-sonnet-4-6", system_text, user_text)
-    create_pull_request(f"fix/issue-{issue_number}", f"fix: #{issue_number} {issue.title}", response)
+    
+    if apply_modifications(response) > 0:
+        create_pull_request(f"fix/issue-{issue_number}", f"fix: #{issue_number} {issue.title}", response)
+    else:
+        issue.create_comment("⚠️ **Claude** : L'analyse est terminée, mais je n'ai pu formater aucune modification de fichier.")
 
 elif "analyze" in labels:
-    system_text = f"Tu es un expert en refactoring et sécurité Next.js. Améliore le code selon la demande.\n\n{codebase}"
+    system_text = f"Tu es un expert en refactoring et sécurité Next.js. Améliore le code selon la demande.\n\n{FORMAT_INSTRUCTIONS}\n\n{codebase}"
     user_text = f"Analyse et applique les ajustements demandés ici : {issue.title}\n{issue.body}"
     
     response = execute_batch_request("claude-sonnet-4-6", system_text, user_text)
-    create_pull_request(f"refactor/issue-{issue_number}", f"refactor: #{issue_number} {issue.title}", response)
+    
+    if apply_modifications(response) > 0:
+        create_pull_request(f"refactor/issue-{issue_number}", f"refactor: #{issue_number} {issue.title}", response)
+    else:
+        issue.create_comment("⚠️ **Claude** : L'analyse est terminée, mais aucun fichier n'a été modifié.")
 
 elif "feature" in labels:
     comments = issue.get_comments()
@@ -218,7 +257,7 @@ elif "feature" in labels:
         issue.create_comment(opus_response)
         sys.exit(0)
     else:
-        system_sonnet = f"Tu es un développeur senior Next.js. Applique le plan d'architecture validé ci-dessous en modifiant le code.\n\n{codebase}"
+        system_sonnet = f"Tu es un développeur senior Next.js. Applique le plan d'architecture validé ci-dessous.\n\n{FORMAT_INSTRUCTIONS}\n\n{codebase}"
         user_sonnet = f"Plan d'architecture d'Opus :\n{opus_response}\n\nImplémente ce code dès maintenant."
         
         sonnet_response = anthropic_client.messages.create(
@@ -228,4 +267,7 @@ elif "feature" in labels:
             messages=[{"role": "user", "content": user_sonnet}]
         ).content[0].text
         
-        create_pull_request(f"feature/issue-{issue_number}", f"feat: #{issue_number} {issue.title}", sonnet_response)
+        if apply_modifications(sonnet_response) > 0:
+            create_pull_request(f"feature/issue-{issue_number}", f"feat: #{issue_number} {issue.title}", sonnet_response)
+        else:
+            issue.create_comment("⚠️ **Claude** : J'ai conçu la feature, mais un problème est survenu lors de l'écriture des fichiers locaux.")
