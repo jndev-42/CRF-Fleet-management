@@ -3,15 +3,15 @@ import json
 import time
 import sys
 import re
+import subprocess  # Ajout de subprocess pour sécuriser les commandes Git
 from github import Github, Auth
 from anthropic import Anthropic
 
-# Initialisation des clients API avec la nouvelle méthode d'authentification
+# Initialisation des clients API
 auth = Auth.Token(os.environ["GITHUB_TOKEN"])
 gh = Github(auth=auth)
 anthropic_client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-# Récupération du contexte de l'événement GitHub
 with open(os.environ["GITHUB_EVENT_PATH"], "r") as f:
     event_data = json.load(f)
 
@@ -36,29 +36,32 @@ def apply_modifications(response_text):
     matches = list(re.finditer(pattern, response_text, re.DOTALL))
     
     if not matches:
-        print("⚠️ Aucun fichier modifié trouvé dans la réponse de Claude (format <file> manquant).")
+        print("⚠️ Aucun fichier modifié trouvé dans la réponse de Claude.")
         return 0
         
     for match in matches:
-        filepath = match.group(1)
-        content = match.group(2)
+        raw_path = match.group(1).replace('\\', '/')
+        filepath = raw_path.lstrip('/').lstrip('./')
+        content = match.group(2).strip()
         
-        # Nettoyage : Si Claude ajoute du markdown dans la balise
-        content = re.sub(r'^```[a-zA-Z]*\n', '', content.strip())
-        content = re.sub(r'\n```$', '', content)
+        if content.startswith("```"):
+            first_newline = content.find('\n')
+            if first_newline != -1:
+                content = content[first_newline+1:]
+        if content.endswith("```"):
+            content = content[:-3].strip()
             
-        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        os.makedirs(os.path.dirname(filepath) or '.', exist_ok=True)
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(content)
         print(f"✍️ Fichier mis à jour sur le disque : {filepath}")
         
     return len(matches)
 
-# Instructions strictes ajoutées au prompt de Claude pour garantir le parsing
 FORMAT_INSTRUCTIONS = """
 RÈGLE ABSOLUE POUR TA RÉPONSE :
-Pour CHAQUE fichier que tu modifies, tu DOIS utiliser exactement le format XML suivant et renvoyer le code COMPLET du fichier (ne fais pas de résumé ni de "snippets").
-<file path="chemin/complet/du/fichier.ts">
+Pour CHAQUE fichier que tu modifies, tu DOIS utiliser exactement le format XML suivant et renvoyer le code COMPLET du fichier.
+<file path="chemin/relatif/du/fichier.ts">
 // Le code entier de haut en bas ici
 </file>
 Ne renvoie que les fichiers que tu as modifiés.
@@ -88,7 +91,6 @@ def get_repository_map():
                     "has_rules_file": has_claude_md,
                     "files": source_files
                 })
-                
     return json.dumps(repo_map, indent=2)
 
 def ask_claude_for_scope(issue_title, issue_body, repo_map):
@@ -96,8 +98,7 @@ def ask_claude_for_scope(issue_title, issue_body, repo_map):
         "Tu es un ingénieur principal. Analyse l'issue GitHub et la carte de l'application Next.js "
         "pour déterminer dans quel(s) sous-dossier(s) le travail doit être effectué.\n"
         "Réponds EXCLUSIVEMENT sous la forme d'un tableau JSON contenant les chemins des dossiers.\n"
-        "INTERDICTION FORMELLE d'utiliser des balises markdown comme ```json. Renvoie UNIQUEMENT le tableau brut.\n"
-        "Exemple : [\"src/components/vehicle\", \"src/app/vehicles\"]"
+        "INTERDICTION FORMELLE d'utiliser des balises markdown comme ```json. Renvoie UNIQUEMENT le tableau brut."
     )
     user_prompt = f"Issue: {issue_title}\nDescription: {issue_body}\n\nCarte du projet :\n{repo_map}"
     
@@ -147,12 +148,7 @@ def get_scoped_codebase_context(target_directories):
     return context
 
 def create_pull_request(branch_name, title, body):
-    """Exécute Vitest et pousse la PR si tout est au vert, avec une description propre."""
-    
-    # Nettoyage : On supprime tous les blocs <file>...</file> de la description
     clean_body = re.sub(r'<file path="[^"]+">.*?</file>', '', body, flags=re.DOTALL).strip()
-    
-    # Sécurité si Claude n'a renvoyé QUE du code sans aucun texte d'explication
     if not clean_body:
         clean_body = "Modifications générées automatiquement par l'agent Claude."
         
@@ -160,7 +156,7 @@ def create_pull_request(branch_name, title, body):
     test_result = os.system("npx vitest run")
     
     if test_result != 0:
-        issue.create_comment(f"❌ **Claude** : Les tests unitaires/intégration via **Vitest** ont échoué. Création de la PR avortée pour éviter une régression.")
+        issue.create_comment(f"❌ **Claude** : Les tests via **Vitest** ont échoué. Création de la PR avortée pour éviter une régression.")
         sys.exit(1)
         
     print("✅ Tests validés. Préparation du commit et push...")
@@ -168,14 +164,21 @@ def create_pull_request(branch_name, title, body):
     os.system("git config --global user.email 'github-actions[bot]@users.noreply.github.com'")
     os.system(f"git checkout -b {branch_name}")
     os.system("git add .")
-    os.system(f"git commit -m '{title}'")
+    
+    git_status = os.popen("git status --porcelain").read().strip()
+    if not git_status:
+        issue.create_comment("⚠️ **Claude** : Le code généré est identique au dépôt actuel. Aucun changement n'a été appliqué, la PR est annulée.")
+        sys.exit(0)
+        
+    # FIX : Utilisation de subprocess.run pour protéger le titre contre les apostrophes et parenthèses
+    subprocess.run(["git", "commit", "-m", title], check=True)
     os.system(f"git push origin {branch_name} --force")
     
     try:
         pr = repo.create_pull(title=title, body=clean_body, head=branch_name, base="main")
-        issue.create_comment(f"🚀 **Claude** : Code déployé sur la branche `{branch_name}` et validé par Vitest !\n👉 Pull Request créée : {pr.html_url}")
+        issue.create_comment(f"🚀 **Claude** : Code déployé et validé par Vitest !\n👉 Pull Request créée : {pr.html_url}")
     except Exception as e:
-        issue.create_comment(f"⚠️ Branch poussée mais échec de création de la PR sur GitHub : {e}")
+        issue.create_comment(f"⚠️ Échec de création de la PR sur GitHub : {e}")
 
 def execute_batch_request(model, system_prompt, user_prompt):
     batch_job = anthropic_client.beta.messages.batches.create(
@@ -224,10 +227,8 @@ print(f"Dossiers retenus pour l'analyse : {targeted_folders}")
 
 codebase = get_scoped_codebase_context(targeted_folders)
 
-# --- ROUTER DE LABELS ---
-
 if "bug" in labels:
-    system_text = f"Tu es un développeur senior TypeScript/Next.js. Corrige le bug décrit. Respecte scrupuleusement les consignes des fichiers CLAUDE.md fournis.\n\n{FORMAT_INSTRUCTIONS}\n\n{codebase}"
+    system_text = f"Tu es un développeur senior TypeScript/Next.js. Corrige le bug décrit.\n\n{FORMAT_INSTRUCTIONS}\n\n{codebase}"
     user_text = f"Applique les modifications nécessaires pour résoudre l'issue :\n{issue.title}\n{issue.body}"
     
     response = execute_batch_request("claude-sonnet-4-6", system_text, user_text)
@@ -235,10 +236,10 @@ if "bug" in labels:
     if apply_modifications(response) > 0:
         create_pull_request(f"fix/issue-{issue_number}", f"fix: #{issue_number} {issue.title}", response)
     else:
-        issue.create_comment("⚠️ **Claude** : L'analyse est terminée, mais je n'ai pu formater aucune modification de fichier.")
+        issue.create_comment("⚠️ **Claude** : L'analyse est terminée, mais aucun fichier n'a été correctement formaté.")
 
 elif "analyze" in labels:
-    system_text = f"Tu es un expert en refactoring et sécurité Next.js. Améliore le code selon la demande.\n\n{FORMAT_INSTRUCTIONS}\n\n{codebase}"
+    system_text = f"Tu es un expert en refactoring et sécurité Next.js. Améliore le code.\n\n{FORMAT_INSTRUCTIONS}\n\n{codebase}"
     user_text = f"Analyse et applique les ajustements demandés ici : {issue.title}\n{issue.body}"
     
     response = execute_batch_request("claude-sonnet-4-6", system_text, user_text)
@@ -279,4 +280,4 @@ elif "feature" in labels:
         if apply_modifications(sonnet_response) > 0:
             create_pull_request(f"feature/issue-{issue_number}", f"feat: #{issue_number} {issue.title}", sonnet_response)
         else:
-            issue.create_comment("⚠️ **Claude** : J'ai conçu la feature, mais un problème est survenu lors de l'écriture des fichiers locaux.")
+            issue.create_comment("⚠️ **Claude** : J'ai conçu la feature, mais aucun fichier de code n'a pu être écrit localement.")
