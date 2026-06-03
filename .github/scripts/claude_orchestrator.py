@@ -2,11 +2,12 @@ import os
 import json
 import time
 import sys
-from github import Github
+from github import Github, Auth
 from anthropic import Anthropic
 
 # Initialisation des clients API
-gh = Github(os.environ["GITHUB_TOKEN"])
+auth = Auth.Token(os.environ["GITHUB_TOKEN"])
+gh = Github(auth=auth)
 anthropic_client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 # Récupération du contexte de l'événement GitHub
@@ -67,7 +68,7 @@ def ask_claude_for_scope(issue_title, issue_body, repo_map):
     user_prompt = f"Issue: {issue_title}\nDescription: {issue_body}\n\nCarte du projet :\n{repo_map}"
     
     response = anthropic_client.messages.create(
-        model="claude-3-5-sonnet-latest",
+        model="claude-sonnet-4-6",
         max_tokens=300,
         system=system_prompt,
         messages=[{"role": "user", "content": user_prompt}]
@@ -196,7 +197,7 @@ if "bug" in labels:
     system_text = f"Tu es un développeur senior TypeScript/Next.js. Corrige le bug décrit. Respecte scrupuleusement les consignes des fichiers CLAUDE.md fournis.\n\n{codebase}"
     user_text = f"Applique les modifications nécessaires pour résoudre l'issue suivante :\n{issue.title}\n{issue.body}\n\nModifie directement les fichiers du dépôt."
     
-    response = execute_batch_request("claude-3-5-sonnet-latest", system_text, user_text)
+    response = execute_batch_request("claude-sonnet-4-6", system_text, user_text)
     # (Optionnel) Logique de parsing/écriture si nécessaire avant la PR
     create_pull_request(f"fix/issue-{issue_number}", f"fix: #{issue_number} {issue.title}", response)
 
@@ -218,7 +219,7 @@ elif "feature" in labels:
     user_opus = f"Feature demandée : {issue.title}\nDescription : {issue.body}\nDiscussion : {discussion}"
     
     opus_response = anthropic_client.messages.create(
-        model="claude-3-opus-latest",
+        model="claude-opus-4-7",
         max_tokens=4000,
         system=[{"type": "text", "text": system_opus, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_opus}]
