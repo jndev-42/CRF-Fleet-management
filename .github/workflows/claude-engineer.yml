@@ -1,0 +1,59 @@
+name: Claude Autonomous Engineer
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+
+jobs:
+  process-issue:
+    # Sécurité : On ne déclenche le runner que si le label 'claude' est présent sur l'issue
+    if: |
+      (github.event.issue && contains(github.event.issue.labels.*.name, 'claude')) ||
+      (github.event.comment && contains(github.event.issue.labels.*.name, 'claude'))
+    
+    runs-on: ubuntu-latest
+
+    # Permissions requises pour que le bot puisse commenter, créer des branches et ouvrir des PR
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Récupère tout l'historique pour permettre la création de branches propres
+
+      - name: Set up Node.js (for Vitest)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Ajuste selon ta version locale si besoin
+          cache: 'npm'
+
+      - name: Install Project Dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Python Dependencies
+        run: |
+          pip install anthropic PyGithub
+
+      - name: Run Claude Orchestrator
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_CONTEXT: ${{ toJson(github.event) }}
+        run: python .github/scripts/claude_orchestrator.py
