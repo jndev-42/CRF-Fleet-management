@@ -103,13 +103,20 @@ export default function VehicleDetailPage() {
         try {
             const res = await fetch(`/api/vehicles/${id}`);
             const data = await res.json();
+            if (!res.ok) {
+                if (res.status === 401) {
+                    router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
+                    return;
+                }
+                throw new Error(data.error || 'Erreur lors de la récupération');
+            }
             setVehicle(data);
         } catch (error) {
             console.error('Erreur:', error);
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, router]);
 
     useEffect(() => {
         fetchVehicle();

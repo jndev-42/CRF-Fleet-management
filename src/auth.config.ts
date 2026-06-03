@@ -14,15 +14,39 @@ export const authConfig: NextAuthConfig = {
     callbacks: {
         authorized({ auth, request: { nextUrl } }) {
             const isLoggedIn = !!auth?.user;
-            const isApiAuthRoute = nextUrl.pathname.startsWith('/api/auth');
-            const isLoginRoute = nextUrl.pathname === '/login';
+            const pathname = nextUrl.pathname;
 
-            if (isApiAuthRoute) return true;
+            // Public assets and auth APIs are always allowed
+            const isPublicAsset = pathname.startsWith('/icons') ||
+                                 pathname.startsWith('/manifest.json') ||
+                                 pathname.startsWith('/crf-logo.svg') ||
+                                 pathname.startsWith('/_next');
+            const isApiAuthRoute = pathname.startsWith('/api/auth');
+
+            if (isPublicAsset || isApiAuthRoute) return true;
+
+            const isLoginRoute = pathname === '/login';
+            const isInactifRoute = pathname === '/inactif';
+
             if (isLoginRoute) {
                 if (isLoggedIn) return Response.redirect(new URL('/', nextUrl));
                 return true;
             }
-            if (!isLoggedIn) return false;
+
+            if (!isLoggedIn) return false; // Redirect to login
+
+            // Inactive user handling (logic from legacy proxy.ts)
+            const roles = (auth?.user?.roles as string[] | undefined) ?? [];
+            const isInactif = roles.length > 0 && roles.every(r => r === 'INACTIF');
+
+            if (isInactif && !isInactifRoute) {
+                return Response.redirect(new URL('/inactif', nextUrl));
+            }
+
+            if (!isInactif && isInactifRoute) {
+                 return Response.redirect(new URL('/', nextUrl));
+            }
+
             return true;
         },
     },
