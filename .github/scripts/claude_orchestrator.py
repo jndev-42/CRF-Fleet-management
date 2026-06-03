@@ -257,7 +257,7 @@ elif "feature" in labels:
     user_opus = f"Feature demandée : {issue.title}\nDescription : {issue.body}\nDiscussion : {discussion}"
     
     opus_response = anthropic_client.messages.create(
-        model="claude-opus-4-7",
+        model="claude-sonnet-4-6",
         max_tokens=4000,
         system=[{"type": "text", "text": system_opus, "cache_control": {"type": "ephemeral"}}],
         messages=[{"role": "user", "content": user_opus}]
