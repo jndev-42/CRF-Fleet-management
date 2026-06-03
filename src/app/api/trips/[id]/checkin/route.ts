@@ -27,11 +27,23 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        // 1. Auth check FIRST — before any DB query or body parsing
+        const session = await auth();
+        const userId = session?.user?.id;
+
+        if (!userId) {
+            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        }
+
+        const userRoles = session.user.roles || [];
+        const isAdmin = userRoles.includes('ADMIN');
+
+        // 2. Parse & validate body
         const { id } = await params;
         const body = await request.json();
         const data = checkInSchema.parse(body);
 
-        // Vérifier que le trip existe et n'est pas déjà clôturé
+        // 3. Fetch trip
         const tripResult = await db.execute({
             sql: `SELECT * FROM Trip WHERE id = ?`,
             args: [id]
@@ -52,16 +64,7 @@ export async function PATCH(
             );
         }
 
-        // --- ENFORCE RETURN AUTHORIZATION ---
-        const session = await auth();
-        const userId = session?.user?.id;
-        const userRoles = session?.user?.roles || [];
-
-        if (!userId) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-        }
-
-        const isAdmin = userRoles.includes('ADMIN');
+        // 4. Authorization: only the driver, second driver, or admin can check in
         const isFirstDriver = userId === trip.driverId;
         const isSecondDriver = userId === trip.secondDriverId;
 
@@ -71,7 +74,6 @@ export async function PATCH(
                 { status: 403 }
             );
         }
-        // ------------------------------------
 
         const vehicleResult = await db.execute({
             sql: `SELECT * FROM Vehicle WHERE id = ?`,
@@ -193,7 +195,7 @@ export async function PATCH(
 
             await tx.commit();
 
-            // Incident push notification
+            // Incident push notification (non-blocking, after commit)
             if (data.conditionIn === "Problème signalé" || data.incident) {
                 try {
                     const { sendPushNotification } = await import('@/lib/onesignal');
@@ -206,7 +208,7 @@ export async function PATCH(
                             en: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`,
                             fr: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`
                         },
-                        url: `https://cr-chauffeur.vercel.app/vehicles/${vName}`
+                        url: `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(String(vName))}`
                     });
                 } catch (pushError) {
                     console.error('Erreur lors de l\'envoi de la notification Push Incident (Retour):', pushError);
