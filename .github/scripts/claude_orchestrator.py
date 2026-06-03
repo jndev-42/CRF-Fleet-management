@@ -3,7 +3,7 @@ import json
 import time
 import sys
 import re
-import subprocess  # Ajout de subprocess pour sécuriser les commandes Git
+import subprocess
 from github import Github, Auth
 from anthropic import Anthropic
 
@@ -170,7 +170,6 @@ def create_pull_request(branch_name, title, body):
         issue.create_comment("⚠️ **Claude** : Le code généré est identique au dépôt actuel. Aucun changement n'a été appliqué, la PR est annulée.")
         sys.exit(0)
         
-    # FIX : Utilisation de subprocess.run pour protéger le titre contre les apostrophes et parenthèses
     subprocess.run(["git", "commit", "-m", title], check=True)
     os.system(f"git push origin {branch_name} --force")
     
@@ -201,7 +200,7 @@ def execute_batch_request(model, system_prompt, user_prompt):
         ]
     )
     
-    issue.create_comment(f"⏳ **Claude** : Tâche planifiée via l'API Batch ({model}). Traitement asynchrone en cours...")
+    issue.create_comment(f"⏳ **Claude** : Tâche planifiée via l'API Batch ({model}). Traitement asynchrone en cours (coût réduit de 50%)...")
     
     while True:
         status = anthropic_client.beta.messages.batches.retrieve(batch_job.id)
@@ -253,31 +252,13 @@ elif "feature" in labels:
     comments = issue.get_comments()
     discussion = "\n".join([f"{c.user.login}: {c.body}" for c in comments])
 
-    system_opus = f"Tu es architecte logiciel principal. Conçois l'implémentation Next.js/TS de cette feature. Si tu as besoin de précisions, commence ton message par '[NEED_CLARIFICATION]'.\n\n{codebase}"
-    user_opus = f"Feature demandée : {issue.title}\nDescription : {issue.body}\nDiscussion : {discussion}"
+    system_text = f"Tu es un développeur senior TypeScript/Next.js. Conçois l'architecture et implémente directement cette nouvelle feature. Respecte rigoureusement la demande.\n\n{FORMAT_INSTRUCTIONS}\n\n{codebase}"
+    user_text = f"Feature demandée : {issue.title}\nDescription : {issue.body}\nDiscussion : {discussion}\n\nGénère le code complet et final pour cette fonctionnalité."
     
-    opus_response = anthropic_client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=4000,
-        system=[{"type": "text", "text": system_opus, "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": user_opus}]
-    ).content[0].text
+    # Remplacement d'Opus par Sonnet et passage direct en Batch API
+    response = execute_batch_request("claude-sonnet-4-6", system_text, user_text)
     
-    if "[NEED_CLARIFICATION]" in opus_response:
-        issue.create_comment(opus_response)
-        sys.exit(0)
+    if apply_modifications(response) > 0:
+        create_pull_request(f"feature/issue-{issue_number}", f"feat: #{issue_number} {issue.title}", response)
     else:
-        system_sonnet = f"Tu es un développeur senior Next.js. Applique le plan d'architecture validé ci-dessous.\n\n{FORMAT_INSTRUCTIONS}\n\n{codebase}"
-        user_sonnet = f"Plan d'architecture d'Opus :\n{opus_response}\n\nImplémente ce code dès maintenant."
-        
-        sonnet_response = anthropic_client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=8192,
-            system=[{"type": "text", "text": system_sonnet, "cache_control": {"type": "ephemeral"}}],
-            messages=[{"role": "user", "content": user_sonnet}]
-        ).content[0].text
-        
-        if apply_modifications(sonnet_response) > 0:
-            create_pull_request(f"feature/issue-{issue_number}", f"feat: #{issue_number} {issue.title}", sonnet_response)
-        else:
-            issue.create_comment("⚠️ **Claude** : J'ai conçu la feature, mais aucun fichier de code n'a pu être écrit localement.")
+        issue.create_comment("⚠️ **Claude** : J'ai traité la demande de feature, mais aucun fichier n'a été correctement formaté pour être sauvegardé.")
