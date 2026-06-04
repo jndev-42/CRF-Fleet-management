@@ -59,10 +59,10 @@ describe('GET /api/vehicles/[id]/incidents', () => {
         });
 
         // We need another valid user for the "other" incident to test filtering
-        const otherUserId = 'other-user-id';
+        const otherUserId = 'other-user-id-' + Math.random().toString(36).substring(7);
         await db.execute({
             sql: `INSERT INTO "User" (id, email, name) VALUES (?, ?, ?)`,
-            args: [otherUserId, 'other@dev.local', 'Other User']
+            args: [otherUserId, `other-${Math.random().toString(36).substring(7)}@dev.local`, 'Other User']
         });
 
         // Insert two incidents: one for this user, one for another
