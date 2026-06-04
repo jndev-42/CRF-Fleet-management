@@ -499,6 +499,33 @@ async function main() {
         )
     `);
 
+    // ── Rapports d'incidents ──────────────────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "IncidentReport" (
+            "id"              TEXT PRIMARY KEY,
+            "vehicleId"       TEXT NOT NULL REFERENCES "Vehicle"("id") ON DELETE CASCADE,
+            "userId"          TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+            "tripId"          TEXT REFERENCES "Trip"("id") ON DELETE SET NULL,
+            "reservationId"   TEXT REFERENCES "Reservation"("id") ON DELETE SET NULL,
+            "type"            TEXT, -- 'ACCIDENT', 'FLASH'
+            "status"          TEXT NOT NULL DEFAULT 'DRAFT',
+            "occurredAt"      TEXT, -- ISO Date
+            "location"        TEXT,
+            "flashDetails"    TEXT, -- JSON: { ficheInter, horsSamu }
+            "accidentDetails" TEXT, -- JSON: { crfZones, thirdPartyZones, hasThirdParty, thirdPartyPhotos }
+            "damages"         TEXT, -- JSON: { crf: boolean, thirdParty: boolean, urban: boolean, person: boolean }
+            "victims"         TEXT, -- JSON: { crf: boolean, thirdParty: boolean, severity: boolean }
+            "actions"         TEXT, -- JSON: { emergencyCalled: boolean, onyxContacted: boolean, reportMade: boolean }
+            "context"         TEXT, -- JSON: { vehicleStopped: boolean, motion: 'forward' | 'backward' | 'none' }
+            "description"     TEXT,
+            "retrospection"   TEXT,
+            "driveFolderId"   TEXT,
+            "createdAt"       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt"       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['stats', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['inventory', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['missions', 'available'] });

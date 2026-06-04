@@ -27,6 +27,7 @@ import DesinfPreCheckinModal from '@/components/vehicle/modals/DesinfPreCheckinM
 import MaintenanceCard from '@/components/vehicle/MaintenanceCard';
 import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHistoryModal';
 import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
+import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
@@ -66,6 +67,7 @@ export default function VehicleDetailPage() {
     const [secondDriverEmail, setSecondDriverEmail] = useState('');
     const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
     const [showDesinfPre, setShowDesinfPre] = useState(false);
+    const [showIncidentReport, setShowIncidentReport] = useState(false);
     const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
     const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
     const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
@@ -405,6 +407,13 @@ export default function VehicleDetailPage() {
                             ✅ Rendre le véhicule
                         </button>
                     )}
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => setShowIncidentReport(true)}
+                        style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                    >
+                        🚨 Déclarer un incident
+                    </button>
                     {vehicle.status !== 'IN_USE' && userRoles.includes('ADMIN') && (
                         <button
                             className="btn btn-secondary"
@@ -799,6 +808,18 @@ export default function VehicleDetailPage() {
                     onClose={() => setShowDesinfPre(false)}
                     onConfirm={() => {
                         setShowDesinfPre(false);
+                        fetchVehicle();
+                    }}
+                />
+            )}
+
+            {showIncidentReport && vehicle && (
+                <IncidentReportModal
+                    vehicle={vehicle}
+                    tripId={activeTrip?.id}
+                    onClose={() => setShowIncidentReport(false)}
+                    onSuccess={() => {
+                        showToast('Incident déclaré avec succès !');
                         fetchVehicle();
                     }}
                 />

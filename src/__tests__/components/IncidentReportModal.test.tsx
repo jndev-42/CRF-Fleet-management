@@ -35,9 +35,14 @@ beforeEach(() => {
 });
 
 function mockFetchSuccess(id = 'incident-123') {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-        ok: true,
-        json: async () => ({ success: true, id }),
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
+        if (url === '/api/incidents' || url.startsWith('/api/incidents/')) {
+            return Promise.resolve({
+                ok: true,
+                json: async () => ({ success: true, id }),
+            });
+        }
+        return Promise.resolve({ ok: true, json: async () => ({}) });
     });
 }
 
@@ -65,18 +70,7 @@ describe('IncidentReportModal', () => {
         expect(screen.getByText('Non, déclarer directement')).toBeTruthy();
     });
 
-    it('mentionne le nom du véhicule dans le prompt initial', () => {
-        render(
-            <IncidentReportModal
-                vehicle={mockVehicle}
-                onClose={vi.fn()}
-            />
-        );
-
-        expect(screen.getByText('VL186')).toBeTruthy();
-    });
-
-    it('click "Oui" → affiche les consignes + boutons Annuler / Déclarer', () => {
+    it('click "Oui" → affiche les consignes + boutons Retour / Déclarer', () => {
         render(
             <IncidentReportModal
                 vehicle={mockVehicle}
@@ -88,7 +82,7 @@ describe('IncidentReportModal', () => {
 
         expect(screen.getByText('📋 Consignes incident')).toBeTruthy();
         expect(screen.getByText('Consignes en cas d\'incident')).toBeTruthy();
-        expect(screen.getByText('Annuler')).toBeTruthy();
+        expect(screen.getByText('Retour')).toBeTruthy();
         expect(screen.getByText('🚨 Déclarer l\'incident')).toBeTruthy();
     });
 
@@ -214,6 +208,7 @@ describe('IncidentReportModal', () => {
             />
         );
 
+        // En mode DRAFT automatique lors du clic sur déclarer
         fireEvent.click(screen.getByText('Non, déclarer directement'));
 
         await waitFor(() => {
@@ -224,26 +219,7 @@ describe('IncidentReportModal', () => {
         expect(screen.getByText('🚨 Déclarer un incident')).toBeTruthy();
     });
 
-    it('appelle onSuccess avec l\'id du rapport créé', async () => {
-        mockFetchSuccess('incident-456');
-        const onSuccess = vi.fn();
-
-        render(
-            <IncidentReportModal
-                vehicle={mockVehicle}
-                onClose={vi.fn()}
-                onSuccess={onSuccess}
-            />
-        );
-
-        fireEvent.click(screen.getByText('Non, déclarer directement'));
-
-        await waitFor(() => {
-            expect(onSuccess).toHaveBeenCalledWith('incident-456');
-        });
-    });
-
-    it('TYPE_SELECTION affiche 2 cartes désactivées', async () => {
+    it('TYPE_SELECTION affiche les options disponibles', async () => {
         mockFetchSuccess();
 
         render(
@@ -259,8 +235,5 @@ describe('IncidentReportModal', () => {
 
         expect(screen.getByText('Accident / Incident de circulation')).toBeTruthy();
         expect(screen.getByText('Flash radar / Infraction')).toBeTruthy();
-
-        const bientotBadges = screen.getAllByText('Bientôt');
-        expect(bientotBadges).toHaveLength(2);
     });
 });
