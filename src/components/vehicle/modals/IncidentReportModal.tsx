@@ -174,10 +174,15 @@ export default function IncidentReportModal({
             if (res.ok) {
                 if (isFinal) {
                     // Start PDF generation
-                    const pdfRes = await fetch(`/api/incidents/${reportId}/pdf`, { method: 'POST' });
-                    const pdfData = await pdfRes.json();
-                    if (pdfData.success) {
-                        window.location.href = `/api/incidents/${reportId}/pdf?jobId=${pdfData.jobId}`;
+                    const pdfRes = await fetch(`/api/incidents/${reportId}/pdf`);
+                    if (pdfRes.ok) {
+                        const blob = await pdfRes.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `incident-report-${reportId}.pdf`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
                     }
                     onSuccess?.(reportId);
                     onClose();

@@ -53,11 +53,17 @@ export default function IncidentHistoryModal({ vehicle, onClose }: IncidentHisto
     async function handleDownloadPdf(reportId: string) {
         setDownloadingId(reportId);
         try {
-            const pdfRes = await fetch(`/api/incidents/${reportId}/pdf`, { method: 'POST' });
-            const pdfData = await pdfRes.json();
-            if (pdfData.success) {
-                window.location.href = `/api/incidents/${reportId}/pdf?jobId=${pdfData.jobId}`;
+            const pdfRes = await fetch(`/api/incidents/${reportId}/pdf`);
+            if (pdfRes.ok) {
+                const blob = await pdfRes.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `incident-report-${reportId}.pdf`;
+                a.click();
+                window.URL.revokeObjectURL(url);
             } else {
+                const pdfData = await pdfRes.json();
                 alert(pdfData.error || 'Erreur lors de la génération du PDF');
             }
         } catch (err) {

@@ -6,19 +6,7 @@ import { createElement, type JSXElementConstructor, type ReactElement } from 're
 import IncidentPdfDocument from '@/components/incident/IncidentPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
-import crypto from 'crypto';
 import { getDriveClient } from '@/lib/drive';
-
-declare global {
-  var __pdfJobs: Map<string, { buffer: Buffer; createdAt: number }> | undefined;
-}
-
-function getJobsMap(): Map<string, { buffer: Buffer; createdAt: number }> {
-  if (!global.__pdfJobs) {
-    global.__pdfJobs = new Map();
-  }
-  return global.__pdfJobs;
-}
 
 async function generateIncidentPdf(reportId: string): Promise<Buffer> {
   const result = await db.execute({
@@ -105,58 +93,25 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
   return Buffer.from(buffer);
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
-
-    const buffer = await generateIncidentPdf(id);
-    const jobId = crypto.randomUUID();
-    getJobsMap().set(jobId, { buffer, createdAt: Date.now() });
-
-    return NextResponse.json({ success: true, jobId });
-  } catch (error) {
-    console.error('[POST /api/incidents/[id]/pdf]', error);
-    return NextResponse.json({ error: 'Erreur lors de la génération du PDF' }, { status: 500 });
-  }
-}
-
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const session = await auth();
         if (!session?.user) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
         }
 
-        const { searchParams } = new URL(request.url);
-        const jobId = searchParams.get('jobId');
+        const buffer = await generateIncidentPdf(id);
 
-        if (!jobId) {
-            return NextResponse.json({ error: 'jobId manquant' }, { status: 400 });
-        }
-
-        const jobs = getJobsMap();
-        const job = jobs.get(jobId);
-
-        if (!job) {
-            return NextResponse.json({ error: 'PDF non trouvé ou expiré' }, { status: 404 });
-        }
-
-        return new NextResponse(new Uint8Array(job.buffer), {
+        return new NextResponse(new Uint8Array(buffer), {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="incident-report-${(await params).id}.pdf"`,
-                'Content-Length': String(job.buffer.length),
+                'Content-Disposition': `attachment; filename="incident-report-${id}.pdf"`,
+                'Content-Length': String(buffer.length),
             },
         });
     } catch (error) {

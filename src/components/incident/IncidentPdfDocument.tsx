@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image, Svg, Path, Rect } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica' },
@@ -16,6 +16,46 @@ const styles = StyleSheet.create({
   bullet: { marginBottom: 4 },
   footer: { position: 'absolute', bottom: 40, left: 40, right: 40, borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 10, color: '#9CA3AF', fontSize: 8, textAlign: 'center' }
 });
+
+
+
+const pdfZones = [
+    { id: 'front', label: 'Avant', d: 'M 40 10 L 60 10 L 70 25 L 30 25 Z' },
+    { id: 'back', label: 'Arrière', d: 'M 30 85 L 70 85 L 60 100 L 40 100 Z' },
+    { id: 'left-front', label: 'Aile AV Gauche', d: 'M 10 25 L 30 25 L 30 40 L 10 40 Z' },
+    { id: 'left-middle', label: 'Portes Gauches', d: 'M 10 40 L 30 40 L 30 70 L 10 70 Z' },
+    { id: 'left-back', label: 'Aile AR Gauche', d: 'M 10 70 L 30 70 L 30 85 L 10 85 Z' },
+    { id: 'right-front', label: 'Aile AV Droite', d: 'M 70 25 L 90 25 L 90 40 L 70 40 Z' },
+    { id: 'right-middle', label: 'Portes Droites', d: 'M 70 40 L 90 40 L 90 70 L 70 70 Z' },
+    { id: 'right-back', label: 'Aile AR Droite', d: 'M 70 70 L 90 70 L 90 85 L 70 85 Z' },
+    { id: 'roof', label: 'Toit / Pare-brise', d: 'M 30 25 L 70 25 L 70 85 L 30 85 Z' },
+];
+
+function PdfVehicleSVG({ selectedZones, title }: { selectedZones: string[], title: string }) {
+    return (
+        <View style={{ width: 120, alignItems: 'center' }}>
+            <Text style={{ fontSize: 10, marginBottom: 5, fontWeight: 'bold' }}>{title}</Text>
+            <Svg viewBox="0 0 100 110" style={{ width: 100, height: 110, backgroundColor: '#f3f4f6' }}>
+                {pdfZones.map(zone => {
+                    const isSelected = selectedZones.includes(zone.id);
+                    return (
+                        <Path 
+                            key={zone.id} 
+                            d={zone.d} 
+                            fill={isSelected ? '#EF4444' : '#ffffff'} 
+                            stroke={isSelected ? '#B91C1C' : '#d1d5db'}
+                            strokeWidth={1}
+                        />
+                    );
+                })}
+                <Rect x={5} y={28} width={10} height={15} fill="#333333" rx={2} ry={2} />
+                <Rect x={85} y={28} width={10} height={15} fill="#333333" rx={2} ry={2} />
+                <Rect x={5} y={72} width={10} height={15} fill="#333333" rx={2} ry={2} />
+                <Rect x={85} y={72} width={10} height={15} fill="#333333" rx={2} ry={2} />
+            </Svg>
+        </View>
+    );
+}
 
 interface FlashDetails {
     ficheInter?: string;
@@ -107,16 +147,10 @@ export default function IncidentPdfDocument({ report, logoSrc, generatedAt, phot
           <>
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Zones de choc</Text>
-              <View style={styles.grid}>
-                <View style={styles.col}>
-                    <Text style={styles.label}>Véhicule CRF</Text>
-                    <Text style={styles.value}>{report.accidentDetails?.crfZones?.join(', ') || 'Aucune'}</Text>
-                </View>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-start', gap: 40 }}>
+                <PdfVehicleSVG selectedZones={report.accidentDetails?.crfZones || []} title="Véhicule CRF" />
                 {report.damages?.thirdParty && (
-                    <View style={styles.col}>
-                        <Text style={styles.label}>Véhicule tiers</Text>
-                        <Text style={styles.value}>{report.accidentDetails?.thirdPartyZones?.join(', ') || 'Aucune'}</Text>
-                    </View>
+                    <PdfVehicleSVG selectedZones={report.accidentDetails?.thirdPartyZones || []} title="Véhicule tiers" />
                 )}
               </View>
             </View>
