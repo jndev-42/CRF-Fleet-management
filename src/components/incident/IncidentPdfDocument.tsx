@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Image, Svg, Path, Rect } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Image, Svg, Path } from '@react-pdf/renderer';
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica' },
@@ -29,6 +29,10 @@ const pdfZones = [
     { id: 'right-middle', label: 'Portes Droites', d: 'M 70 40 L 90 40 L 90 70 L 70 70 Z' },
     { id: 'right-back', label: 'Aile AR Droite', d: 'M 70 70 L 90 70 L 90 85 L 70 85 Z' },
     { id: 'roof', label: 'Toit / Pare-brise', d: 'M 30 25 L 70 25 L 70 85 L 30 85 Z' },
+    { id: 'wheel-left-front', label: 'Roue AV Gauche', d: 'M 5 28 L 15 28 L 15 43 L 5 43 Z' },
+    { id: 'wheel-right-front', label: 'Roue AV Droite', d: 'M 85 28 L 95 28 L 95 43 L 85 43 Z' },
+    { id: 'wheel-left-back', label: 'Roue AR Gauche', d: 'M 5 72 L 15 72 L 15 87 L 5 87 Z' },
+    { id: 'wheel-right-back', label: 'Roue AR Droite', d: 'M 85 72 L 95 72 L 95 87 L 85 87 Z' },
 ];
 
 function PdfVehicleSVG({ selectedZones, title }: { selectedZones: string[], title: string }) {
@@ -48,10 +52,7 @@ function PdfVehicleSVG({ selectedZones, title }: { selectedZones: string[], titl
                         />
                     );
                 })}
-                <Rect x={5} y={28} width={10} height={15} fill="#333333" rx={2} ry={2} />
-                <Rect x={85} y={28} width={10} height={15} fill="#333333" rx={2} ry={2} />
-                <Rect x={5} y={72} width={10} height={15} fill="#333333" rx={2} ry={2} />
-                <Rect x={85} y={72} width={10} height={15} fill="#333333" rx={2} ry={2} />
+
             </Svg>
         </View>
     );
@@ -127,7 +128,6 @@ export default function IncidentPdfDocument({ report, logoSrc, generatedAt, phot
           <Text style={styles.sectionTitle}>Informations Générales</Text>
           <View style={styles.grid}>
             <View style={styles.col}><Text style={styles.label}>Véhicule</Text><Text style={styles.value}>{report.vehicleName} ({report.vehiclePlate})</Text></View>
-            <View style={styles.col}><Text style={styles.label}>Déclarant</Text><Text style={styles.value}>{report.userName}</Text></View>
             <View style={styles.col}><Text style={styles.label}>Date / Heure</Text><Text style={styles.value}>{report.occurredAt || 'Non précisée'}</Text></View>
             <View style={styles.col}><Text style={styles.label}>Lieu</Text><Text style={styles.value}>{report.location || 'Non précisé'}</Text></View>
           </View>

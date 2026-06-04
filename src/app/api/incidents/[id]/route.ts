@@ -133,3 +133,40 @@ export async function PATCH(
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export async function DELETE(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const { id } = await params;
+    const session = await auth();
+    if (!session?.user?.id) {
+        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
+    try {
+        const check = await db.execute({
+            sql: `SELECT userId, status FROM IncidentReport WHERE id = ?`,
+            args: [id],
+        });
+
+        if (check.rows.length === 0) {
+            return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
+        }
+
+        const isAdmin = session.user.roles?.includes('ADMIN');
+        if (check.rows[0].userId !== session.user.id && !isAdmin) {
+            return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+        }
+
+        await db.execute({
+            sql: `DELETE FROM IncidentReport WHERE id = ?`,
+            args: [id],
+        });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('[DELETE /api/incidents/[id]]', error);
+        return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    }
+}

@@ -30,6 +30,17 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
     }
   });
 
+  // Format occurredAt to a nice French date string if it exists
+  if (report.occurredAt && typeof report.occurredAt === 'string') {
+      const parts = report.occurredAt.split('T');
+      if (parts.length === 2) {
+          const dateParts = parts[0].split('-');
+          if (dateParts.length === 3) {
+              report.occurredAt = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]} à ${parts[1]}`;
+          }
+      }
+  }
+
   const logoPng = await sharp(path.join(process.cwd(), 'public', 'crf-logo.svg'))
     .resize(96, 96)
     .png()
@@ -42,32 +53,42 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
     try {
         const drive = getDriveClient();
 
-        // List subfolders (emprunt/rendu are not used here, it's 'incident' stage)
-        const subfoldersRes = await drive.files.list({
-            q: `'${report.driveFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-            fields: 'files(id, name)',
+        // Check if report.driveFolderId contains folders or images
+        const childrenRes = await drive.files.list({
+            q: `'${report.driveFolderId}' in parents and trashed=false`,
+            fields: 'files(id, name, mimeType)',
         });
+        const children = childrenRes.data.files || [];
+        
+        let imageFiles = children.filter(f => f.mimeType?.includes('image/'));
+        const subfolders = children.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
 
-        const subfolders = subfoldersRes.data.files || [];
-        for (const folder of subfolders) {
-            const filesRes = await drive.files.list({
-                q: `'${folder.id}' in parents and mimeType contains 'image/' and trashed=false`,
-                fields: 'files(id, mimeType)',
-            });
-            const files = filesRes.data.files || [];
-            for (const file of files) {
-                if (file.id) {
-                    try {
-                        const imgRes = await drive.files.get(
-                            { fileId: file.id, alt: 'media' },
-                            { responseType: 'arraybuffer' }
-                        );
-                        const buffer = Buffer.from(imgRes.data as ArrayBuffer);
-                        const base64 = buffer.toString('base64');
-                        photos.push(`data:${file.mimeType || 'image/jpeg'};base64,${base64}`);
-                    } catch (imgErr) {
-                        console.error(`Failed to fetch image ${file.id} for PDF:`, imgErr);
-                    }
+        if (subfolders.length > 0) {
+            // Legacy case: it's a parent folder, find the 'incident' folders
+            for (const folder of subfolders) {
+                if (folder.name?.startsWith('incident')) {
+                    const filesRes = await drive.files.list({
+                        q: `'${folder.id}' in parents and mimeType contains 'image/' and trashed=false`,
+                        fields: 'files(id, mimeType)',
+                    });
+                    const files = filesRes.data.files || [];
+                    imageFiles = imageFiles.concat(files);
+                }
+            }
+        }
+
+        for (const file of imageFiles) {
+            if (file.id) {
+                try {
+                    const imgRes = await drive.files.get(
+                        { fileId: file.id, alt: 'media' },
+                        { responseType: 'arraybuffer' }
+                    );
+                    const buffer = Buffer.from(imgRes.data as ArrayBuffer);
+                    const base64 = buffer.toString('base64');
+                    photos.push(`data:${file.mimeType || 'image/jpeg'};base64,${base64}`);
+                } catch (imgErr) {
+                    console.error(`Failed to fetch image ${file.id} for PDF:`, imgErr);
                 }
             }
         }

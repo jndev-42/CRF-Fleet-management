@@ -12,12 +12,8 @@ export async function GET(
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        // Only ADMIN can view the incident history
-        if (!session.user.roles?.includes('ADMIN')) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-        }
-
         const { id } = await params;
+        const isAdmin = session.user.roles?.includes('ADMIN');
 
         // Fetch vehicle by name since [id] is the vehicle name
         const vehicleResult = await db.execute({
@@ -31,15 +27,26 @@ export async function GET(
 
         const vehicleId = vehicleResult.rows[0].id;
 
-        const incidentsResult = await db.execute({
-            sql: `SELECT ir.id, ir.vehicleId, ir.userId, u.name as userName, u.email as userEmail,
+        let sqlQuery = `SELECT ir.id, ir.vehicleId, ir.userId, u.name as userName, u.email as userEmail,
                          ir.tripId, ir.reservationId, ir.type, ir.status, ir.occurredAt,
                          ir.createdAt, ir.submittedAt
                   FROM IncidentReport ir
                   JOIN "User" u ON u.id = ir.userId
-                  WHERE ir.vehicleId = ?
-                  ORDER BY ir.createdAt DESC`,
-            args: [vehicleId]
+                  WHERE ir.vehicleId = ?`;
+        
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic SQL args
+        const sqlArgs: any[] = [vehicleId];
+
+        if (!isAdmin) {
+            sqlQuery += ` AND ir.userId = ?`;
+            sqlArgs.push(session.user.id);
+        }
+
+        sqlQuery += ` ORDER BY ir.createdAt DESC`;
+
+        const incidentsResult = await db.execute({
+            sql: sqlQuery,
+            args: sqlArgs
         });
 
         const incidents = incidentsResult.rows.map(row => ({
@@ -55,6 +62,7 @@ export async function GET(
             occurredAt: row.occurredAt,
             createdAt: row.createdAt,
             submittedAt: row.submittedAt,
+            canEdit: row.userId === session.user.id || isAdmin,
         }));
 
         return NextResponse.json({ incidents });

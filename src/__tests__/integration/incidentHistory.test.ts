@@ -51,23 +51,49 @@ describe('GET /api/vehicles/[id]/incidents', () => {
         expect(data.error).toBe('Non authentifié');
     });
 
-    it('returns 403 if authenticated but not ADMIN', async () => {
+    it('returns only user incidents if authenticated but not ADMIN', async () => {
+        const currentUserId = testUserId; // Use the already inserted test user
         vi.mocked(auth).mockResolvedValueOnce({
-            user: { email: 'testinc@dev.local', roles: ['CHVL'] },
+            user: { id: currentUserId, email: 'testinc@dev.local', roles: ['CHVL'] },
             expires: '9999',
+        });
+
+        // We need another valid user for the "other" incident to test filtering
+        const otherUserId = 'other-user-id';
+        await db.execute({
+            sql: `INSERT INTO "User" (id, email, name) VALUES (?, ?, ?)`,
+            args: [otherUserId, 'other@dev.local', 'Other User']
+        });
+
+        // Insert two incidents: one for this user, one for another
+        const myIncident = 'inc-mine';
+        const otherIncident = 'inc-other';
+
+        await db.execute({
+            sql: `INSERT INTO IncidentReport (id, vehicleId, userId, type, status, occurredAt) 
+                  VALUES (?, ?, ?, ?, ?, ?)`,
+            args: [myIncident, testVehicleId, currentUserId, 'FLASH', 'DRAFT', '2023-01-01T10:00']
+        });
+
+        await db.execute({
+            sql: `INSERT INTO IncidentReport (id, vehicleId, userId, type, status, occurredAt) 
+                  VALUES (?, ?, ?, ?, ?, ?)`,
+            args: [otherIncident, testVehicleId, otherUserId, 'ACCIDENT', 'SUBMITTED', '2023-01-02T10:00']
         });
 
         const req = new Request(`http://localhost/api/vehicles/${testVehicleName}/incidents`);
         const res = await GET(req, { params: Promise.resolve({ id: testVehicleName }) });
 
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(200);
         const data = await res.json();
-        expect(data.error).toBe('Non autorisé');
+        
+        expect(data.incidents).toHaveLength(1);
+        expect(data.incidents[0].id).toBe(myIncident);
     });
 
     it('returns 404 if vehicle does not exist', async () => {
         vi.mocked(auth).mockResolvedValueOnce({
-            user: { email: 'admin@dev.local', roles: ['ADMIN'] },
+            user: { id: 'admin-id', email: 'admin@dev.local', roles: ['ADMIN'] },
             expires: '9999',
         });
 

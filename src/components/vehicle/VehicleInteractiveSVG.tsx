@@ -17,7 +17,7 @@ export default function VehicleInteractiveSVG({
     title = "Zones de choc",
     width = "100%"
 }: VehicleInteractiveSVGProps) {
-    // Zones IDs: 'front', 'back', 'left-front', 'left-middle', 'left-back', 'right-front', 'right-middle', 'right-back', 'roof'
+    // Zones IDs: 'front', 'back', 'left-front', 'left-middle', 'left-back', 'right-front', 'right-middle', 'right-back', 'roof', wheels...
     const zones = [
         { id: 'front', label: 'Avant', d: 'M 40 10 L 60 10 L 70 25 L 30 25 Z' },
         { id: 'back', label: 'Arrière', d: 'M 30 85 L 70 85 L 60 100 L 40 100 Z' },
@@ -28,6 +28,10 @@ export default function VehicleInteractiveSVG({
         { id: 'right-middle', label: 'Portes Droites', d: 'M 70 40 L 90 40 L 90 70 L 70 70 Z' },
         { id: 'right-back', label: 'Aile AR Droite', d: 'M 70 70 L 90 70 L 90 85 L 70 85 Z' },
         { id: 'roof', label: 'Toit / Pare-brise', d: 'M 30 25 L 70 25 L 70 85 L 30 85 Z' },
+        { id: 'wheel-left-front', label: 'Roue AV Gauche', d: 'M 5 28 L 15 28 L 15 43 L 5 43 Z' },
+        { id: 'wheel-right-front', label: 'Roue AV Droite', d: 'M 85 28 L 95 28 L 95 43 L 85 43 Z' },
+        { id: 'wheel-left-back', label: 'Roue AR Gauche', d: 'M 5 72 L 15 72 L 15 87 L 5 87 Z' },
+        { id: 'wheel-right-back', label: 'Roue AR Droite', d: 'M 85 72 L 95 72 L 95 87 L 85 87 Z' },
     ];
 
     return (
@@ -50,11 +54,6 @@ export default function VehicleInteractiveSVG({
                         <title>{zone.label}</title>
                     </path>
                 ))}
-                {/* Wheels for context */}
-                <rect x="5" y="28" width="10" height="15" fill="#333" rx="2" />
-                <rect x="85" y="28" width="10" height="15" fill="#333" rx="2" />
-                <rect x="5" y="72" width="10" height="15" fill="#333" rx="2" />
-                <rect x="85" y="72" width="10" height="15" fill="#333" rx="2" />
             </svg>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                 {zones.map(zone => (

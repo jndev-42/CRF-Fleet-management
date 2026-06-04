@@ -69,6 +69,7 @@ export default function VehicleDetailPage() {
     const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
     const [showDesinfPre, setShowDesinfPre] = useState(false);
     const [showIncidentReport, setShowIncidentReport] = useState(false);
+    const [editingIncidentId, setEditingIncidentId] = useState<string | null>(null);
     const [showIncidentHistory, setShowIncidentHistory] = useState(false);
     const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
     const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
@@ -411,19 +412,20 @@ export default function VehicleDetailPage() {
                     )}
                     <button
                         className="btn btn-secondary"
-                        onClick={() => setShowIncidentReport(true)}
+                        onClick={() => {
+                            setEditingIncidentId(null);
+                            setShowIncidentReport(true);
+                        }}
                         style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
                     >
                         🚨 Déclarer un incident
                     </button>
-                    {userRoles.includes('ADMIN') && (
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => setShowIncidentHistory(true)}
-                        >
-                            📋 Historique des incidents
-                        </button>
-                    )}
+                    <button
+                        className="btn btn-secondary"
+                        onClick={() => setShowIncidentHistory(true)}
+                    >
+                        📋 Historique des incidents
+                    </button>
                     {vehicle.status !== 'IN_USE' && userRoles.includes('ADMIN') && (
                         <button
                             className="btn btn-secondary"
@@ -827,7 +829,11 @@ export default function VehicleDetailPage() {
                 <IncidentReportModal
                     vehicle={vehicle}
                     tripId={activeTrip?.id}
-                    onClose={() => setShowIncidentReport(false)}
+                    existingDraftId={editingIncidentId || undefined}
+                    onClose={() => {
+                        setShowIncidentReport(false);
+                        setEditingIncidentId(null);
+                    }}
                     onSuccess={() => {
                         showToast('Incident déclaré avec succès !');
                         fetchVehicle();
@@ -839,6 +845,11 @@ export default function VehicleDetailPage() {
                 <IncidentHistoryModal
                     vehicle={vehicle}
                     onClose={() => setShowIncidentHistory(false)}
+                    onEditDraft={(id) => {
+                        setShowIncidentHistory(false);
+                        setEditingIncidentId(id);
+                        setShowIncidentReport(true);
+                    }}
                 />
             )}
 

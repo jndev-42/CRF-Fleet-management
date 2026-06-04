@@ -110,16 +110,27 @@ export async function POST(request: Request) {
         let uploadTargetId: string;
 
         if (stage) {
-            const subfolderMetadata = {
-                name: stage,
-                mimeType: 'application/vnd.google-apps.folder',
-                parents: [parentFolderId],
-            };
-            const subfolderRes = await drive.files.create({
-                requestBody: subfolderMetadata,
-                fields: 'id',
+            // Try to find if the subfolder already exists
+            const subSearchRes = await drive.files.list({
+                q: `name='${stage}' and '${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+                fields: 'files(id)',
+                spaces: 'drive',
             });
-            uploadTargetId = subfolderRes.data.id!;
+
+            if (subSearchRes.data.files && subSearchRes.data.files.length > 0) {
+                uploadTargetId = subSearchRes.data.files[0].id!;
+            } else {
+                const subfolderMetadata = {
+                    name: stage,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: [parentFolderId],
+                };
+                const subfolderRes = await drive.files.create({
+                    requestBody: subfolderMetadata,
+                    fields: 'id',
+                });
+                uploadTargetId = subfolderRes.data.id!;
+            }
         } else {
             uploadTargetId = parentFolderId;
         }
@@ -150,7 +161,7 @@ export async function POST(request: Request) {
         const uploadResults = await Promise.all(uploadPromises);
         const fileIds = uploadResults.map(r => r.data.id as string);
 
-        return NextResponse.json({ success: true, folderId: parentFolderId, fileIds });
+        return NextResponse.json({ success: true, folderId: parentFolderId, subfolderId: uploadTargetId, fileIds });
 
     } catch (error: unknown) {
         const err = error as { response?: { data?: unknown }; message?: string };

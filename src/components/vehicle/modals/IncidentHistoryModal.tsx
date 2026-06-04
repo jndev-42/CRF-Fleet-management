@@ -17,38 +17,62 @@ interface Incident {
     occurredAt: string | null;
     createdAt: string;
     submittedAt: string | null;
+    canEdit: boolean;
 }
 
 interface IncidentHistoryModalProps {
     vehicle: Vehicle;
     onClose: () => void;
+    onEditDraft: (incidentId: string) => void;
 }
 
-export default function IncidentHistoryModal({ vehicle, onClose }: IncidentHistoryModalProps) {
+export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: IncidentHistoryModalProps) {
     const [incidents, setIncidents] = useState<Incident[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [downloadingId, setDownloadingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     useEffect(() => {
-        async function fetchIncidents() {
-            try {
-                const res = await fetch(`/api/vehicles/${vehicle.name}/incidents`);
-                if (!res.ok) {
-                    throw new Error('Erreur lors de la récupération des incidents');
-                }
-                const data = await res.json();
-                setIncidents(data.incidents);
-            } catch (err) {
-                console.error(err);
-                setError('Erreur de connexion');
-            } finally {
-                setLoading(false);
-            }
-        }
-
         fetchIncidents();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [vehicle.name]);
+
+    async function fetchIncidents() {
+        try {
+            const res = await fetch(`/api/vehicles/${vehicle.name}/incidents`);
+            if (!res.ok) {
+                throw new Error('Erreur lors de la récupération des incidents');
+            }
+            const data = await res.json();
+            setIncidents(data.incidents);
+        } catch (err) {
+            console.error(err);
+            setError('Erreur de connexion');
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleDeleteDraft(reportId: string) {
+        if (!confirm("Êtes-vous sûr de vouloir supprimer ce brouillon ?")) return;
+        
+        setDeletingId(reportId);
+        try {
+            const res = await fetch(`/api/incidents/${reportId}`, { method: 'DELETE' });
+            if (res.ok) {
+                fetchIncidents();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Erreur lors de la suppression');
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Erreur de connexion lors de la suppression');
+        } finally {
+            setDeletingId(null);
+        }
+    }
 
     async function handleDownloadPdf(reportId: string) {
         setDownloadingId(reportId);
@@ -72,6 +96,18 @@ export default function IncidentHistoryModal({ vehicle, onClose }: IncidentHisto
         } finally {
             setDownloadingId(null);
         }
+    }
+
+    function formatOccurredAt(dateStr: string | null) {
+        if (!dateStr) return 'Inconnue';
+        const parts = dateStr.split('T');
+        if (parts.length === 2) {
+            const dateParts = parts[0].split('-');
+            if (dateParts.length === 3) {
+                return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]} à ${parts[1]}`;
+            }
+        }
+        return dateStr;
     }
 
     return (
@@ -107,7 +143,7 @@ export default function IncidentHistoryModal({ vehicle, onClose }: IncidentHisto
                                             </span>
                                         </div>
                                         <div className="incident-details">
-                                            <div><strong>Date :</strong> {incident.occurredAt ? formatDate(incident.occurredAt) : 'Inconnue'}</div>
+                                            <div><strong>Date :</strong> {formatOccurredAt(incident.occurredAt)}</div>
                                             <div><strong>Auteur :</strong> {incident.userName || incident.userEmail}</div>
                                             {incident.submittedAt && (
                                                 <div><strong>Soumis le :</strong> {formatDate(incident.submittedAt)}</div>
@@ -124,6 +160,25 @@ export default function IncidentHistoryModal({ vehicle, onClose }: IncidentHisto
                                             >
                                                 {downloadingId === incident.id ? 'Génération...' : '📄 Télécharger PDF'}
                                             </button>
+                                        )}
+                                        {incident.status === 'DRAFT' && incident.canEdit && (
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <button 
+                                                    className="btn btn-secondary"
+                                                    onClick={() => onEditDraft(incident.id)}
+                                                    style={{ fontSize: '13px', padding: '6px 12px' }}
+                                                >
+                                                    ✏️ Continuer
+                                                </button>
+                                                <button 
+                                                    className="btn btn-secondary"
+                                                    onClick={() => handleDeleteDraft(incident.id)}
+                                                    disabled={deletingId === incident.id}
+                                                    style={{ fontSize: '13px', padding: '6px 12px', color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                                                >
+                                                    {deletingId === incident.id ? '...' : '🗑️'}
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import IncidentGuidelines from '@/components/vehicle/IncidentGuidelines';
 import VehicleInteractiveSVG from '@/components/vehicle/VehicleInteractiveSVG';
@@ -10,6 +10,7 @@ interface IncidentReportModalProps {
     vehicle: Vehicle;
     tripId?: string;
     reservationId?: string;
+    existingDraftId?: string;
     onClose: () => void;
     onSuccess?: (reportId: string) => void;
 }
@@ -20,19 +21,24 @@ export default function IncidentReportModal({
     vehicle,
     tripId,
     reservationId,
+    existingDraftId,
     onClose,
     onSuccess,
 }: IncidentReportModalProps) {
     const [step, setStep] = useState<Step>('GUIDELINES_PROMPT');
     const [selectedType, setSelectedType] = useState<'FLASH' | 'ACCIDENT' | null>(null);
-    const [reportId, setReportId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [reportId, setReportId] = useState<string | null>(existingDraftId || null);
+    const [loading, setLoading] = useState(!!existingDraftId);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Form states
     const [commonData, setCommonData] = useState({
-        occurredAt: new Date().toISOString().slice(0, 16),
+        occurredAt: (() => {
+            const now = new Date();
+            const tzOffset = now.getTimezoneOffset() * 60000;
+            return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+        })(),
         location: '',
         description: '',
         retrospection: '',
@@ -74,6 +80,50 @@ export default function IncidentReportModal({
 
     const [photosDamages, setPhotosDamages] = useState<File[]>([]);
     const [photosReport, setPhotosReport] = useState<File[]>([]);
+
+    useEffect(() => {
+        if (existingDraftId) {
+            fetch(`/api/incidents/${existingDraftId}`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Erreur de chargement');
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.type) {
+                        setSelectedType(data.type);
+                        setStep('SUMMARY'); // Direct to summary
+                    } else {
+                        setStep('TYPE_SELECTION');
+                    }
+                    if (data.occurredAt) {
+                        // Format for datetime-local input
+                        let occ = data.occurredAt;
+                        if (occ.length > 16 && occ.includes('Z')) {
+                            const dt = new Date(occ);
+                            const tzOffset = dt.getTimezoneOffset() * 60000;
+                            occ = new Date(dt.getTime() - tzOffset).toISOString().slice(0, 16);
+                        } else if (occ.length > 16) {
+                             occ = occ.slice(0, 16);
+                        }
+                        setCommonData(prev => ({ ...prev, occurredAt: occ, location: data.location || '', description: data.description || '', retrospection: data.retrospection || '' }));
+                    } else {
+                        setCommonData(prev => ({ ...prev, location: data.location || '', description: data.description || '', retrospection: data.retrospection || '' }));
+                    }
+                    if (data.flashDetails) setFlashDetails(data.flashDetails);
+                    if (data.accidentDetails) setAccidentDetails(data.accidentDetails);
+                    if (data.damages) setDamages(data.damages);
+                    if (data.victims) setVictims(data.victims);
+                    if (data.actions) setActions(data.actions);
+                    if (data.context) setContext(data.context);
+                })
+                .catch(err => {
+                    console.error(err);
+                    setError('Erreur lors du chargement du brouillon');
+                    setStep('GUIDELINES_PROMPT');
+                })
+                .finally(() => setLoading(false));
+        }
+    }, [existingDraftId]);
 
     async function createDraftReport() {
         setLoading(true);
@@ -141,7 +191,7 @@ export default function IncidentReportModal({
                 const formData = new FormData();
                 formData.append('vehicleName', vehicle.name);
                 formData.append('date', commonData.occurredAt);
-                formData.append('stage', 'incident');
+                formData.append('stage', `incident-${reportId.substring(0, 8)}`);
                 photosDamages.forEach(f => formData.append('files', f));
                 photosReport.forEach(f => formData.append('files', f));
 
@@ -151,7 +201,7 @@ export default function IncidentReportModal({
                 });
                 if (uploadRes.ok) {
                     const uploadData = await uploadRes.json();
-                    driveFolderId = uploadData.folderId;
+                    driveFolderId = uploadData.subfolderId || uploadData.folderId;
                 }
             }
 
