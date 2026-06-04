@@ -44,7 +44,7 @@ export async function GET(
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic DB row
-        const report = result.rows[0] as any;
+        const report = { ...result.rows[0] } as any;
 
         // Parse JSON fields
         const jsonFields = ['flashDetails', 'accidentDetails', 'damages', 'victims', 'actions', 'context'];
