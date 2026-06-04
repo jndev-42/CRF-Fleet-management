@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import crypto from 'crypto';
 
 const incidentSchema = z.object({
     vehicleId: z.string().min(1),

@@ -7,6 +7,7 @@ import IncidentPdfDocument from '@/components/incident/IncidentPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
 import crypto from 'crypto';
+import { getDriveClient } from '@/lib/drive';
 
 declare global {
   var __pdfJobs: Map<string, { buffer: Buffer; createdAt: number }> | undefined;
@@ -47,8 +48,48 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
     .toBuffer();
   const logoSrc = `data:image/png;base64,${logoPng.toString('base64')}`;
 
+  // Fetch photos from Drive if driveFolderId exists
+  const photos: string[] = [];
+  if (report.driveFolderId) {
+    try {
+        const drive = getDriveClient();
+
+        // List subfolders (emprunt/rendu are not used here, it's 'incident' stage)
+        const subfoldersRes = await drive.files.list({
+            q: `'${report.driveFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+            fields: 'files(id, name)',
+        });
+
+        const subfolders = subfoldersRes.data.files || [];
+        for (const folder of subfolders) {
+            const filesRes = await drive.files.list({
+                q: `'${folder.id}' in parents and mimeType contains 'image/' and trashed=false`,
+                fields: 'files(id, mimeType)',
+            });
+            const files = filesRes.data.files || [];
+            for (const file of files) {
+                if (file.id) {
+                    try {
+                        const imgRes = await drive.files.get(
+                            { fileId: file.id, alt: 'media' },
+                            { responseType: 'arraybuffer' }
+                        );
+                        const buffer = Buffer.from(imgRes.data as ArrayBuffer);
+                        const base64 = buffer.toString('base64');
+                        photos.push(`data:${file.mimeType || 'image/jpeg'};base64,${base64}`);
+                    } catch (imgErr) {
+                        console.error(`Failed to fetch image ${file.id} for PDF:`, imgErr);
+                    }
+                }
+            }
+        }
+    } catch (photoErr) {
+        console.error('Error fetching photos for PDF:', photoErr);
+    }
+  }
+
   const element = createElement(IncidentPdfDocument, {
-    report: report as any, // eslint-disable-line @typescript-eslint/no-explicit-any -- interface mismatch with record
+    report: report as unknown as Parameters<typeof IncidentPdfDocument>[0]['report'],
     logoSrc,
     generatedAt: new Date().toLocaleDateString('fr-FR', {
         day: 'numeric',
@@ -57,6 +98,7 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
         hour: '2-digit',
         minute: '2-digit',
     }),
+    photos,
   });
 
   const buffer = await renderToBuffer(element as React.ReactElement);

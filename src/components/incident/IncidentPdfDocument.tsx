@@ -68,7 +68,7 @@ interface IncidentReport {
     retrospection?: string;
 }
 
-export default function IncidentPdfDocument({ report, logoSrc, generatedAt }: { report: IncidentReport, logoSrc: string, generatedAt: string }) {
+export default function IncidentPdfDocument({ report, logoSrc, generatedAt, photos = [] }: { report: IncidentReport, logoSrc: string, generatedAt: string, photos?: string[] }) {
   const isAccident = report.type === 'ACCIDENT';
 
   return (
@@ -170,6 +170,20 @@ export default function IncidentPdfDocument({ report, logoSrc, generatedAt }: { 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Rétrospection (Comment éviter cet incident ?)</Text>
             <Text style={styles.value}>{report.retrospection}</Text>
+          </View>
+        )}
+
+        {photos.length > 0 && (
+          <View style={styles.section} wrap={false}>
+            <Text style={styles.sectionTitle}>Photos de l&apos;incident</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+              {photos.map((src, index) => (
+                <View key={index} style={{ width: '48%', marginBottom: 10, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                    {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                    <Image src={src} style={{ width: '100%', height: 180, objectFit: 'contain' }} />
+                </View>
+              ))}
+            </View>
           </View>
         )}
 

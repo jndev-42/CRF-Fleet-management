@@ -105,15 +105,16 @@ export default function IncidentReportModal({
         return null;
     }
 
+    async function handleStartDeclaration() {
+        const id = await createDraftReport();
+        if (id) setStep('TYPE_SELECTION');
+    }
+
     async function handleTypeSelect(type: 'FLASH' | 'ACCIDENT') {
-        let currentId = reportId;
-        if (!currentId) {
-            currentId = await createDraftReport();
-        }
-        if (!currentId) return;
+        if (!reportId) return;
 
         try {
-            await fetch(`/api/incidents/${currentId}`, {
+            await fetch(`/api/incidents/${reportId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ type }),
@@ -217,6 +218,9 @@ export default function IncidentReportModal({
 
                     {step === 'GUIDELINES_PROMPT' && (
                         <div className="step-prompt">
+                            <p style={{ marginBottom: 12 }}>
+                                Vous allez déclarer un incident sur le véhicule <strong>{vehicle.name}</strong>.
+                            </p>
                             <p>Souhaitez-vous consulter les consignes à suivre en cas d&apos;incident ?</p>
                         </div>
                     )}
@@ -228,14 +232,14 @@ export default function IncidentReportModal({
                             <button className="type-card" onClick={() => handleTypeSelect('ACCIDENT')}>
                                 <span className="type-icon">🚗</span>
                                 <div className="type-info">
-                                    <div className="type-title">Accident / Incident</div>
+                                    <div className="type-title">Accident / Incident de circulation</div>
                                     <div className="type-desc">Collision, accrochage, bris de glace...</div>
                                 </div>
                             </button>
                             <button className="type-card" onClick={() => handleTypeSelect('FLASH')}>
                                 <span className="type-icon">📸</span>
                                 <div className="type-info">
-                                    <div className="type-title">Flash Radar / Infraction</div>
+                                    <div className="type-title">Flash radar / Infraction</div>
                                     <div className="type-desc">Excès de vitesse, feu rouge...</div>
                                 </div>
                             </button>
@@ -359,7 +363,7 @@ export default function IncidentReportModal({
                     {step === 'SUMMARY' && (
                         <div className="summary-view scrollable" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
                             <div className="summary-section" style={{ background: 'var(--bg-secondary)', padding: 15, borderRadius: 8 }}>
-                                <div className="summary-row"><strong>Type :</strong> {selectedType === 'FLASH' ? '📸 Flash Radar' : '🚗 Accident / Incident'}</div>
+                                <div className="summary-row"><strong>Type :</strong> {selectedType === 'FLASH' ? '📸 Flash radar' : '🚗 Accident / Incident de circulation'}</div>
                                 <div className="summary-row"><strong>Date :</strong> {commonData.occurredAt.replace('T', ' ')}</div>
                                 <div className="summary-row"><strong>Lieu :</strong> {commonData.location}</div>
                                 {selectedType === 'FLASH' && (
@@ -415,17 +419,23 @@ export default function IncidentReportModal({
                     {step === 'GUIDELINES_PROMPT' && (
                         <>
                             <button className="btn btn-secondary" onClick={onClose}>Annuler</button>
-                            <button className="btn btn-secondary" onClick={() => setStep('GUIDELINES_VIEW')}>Oui, voir</button>
-                            <button className="btn btn-primary" style={{ background: '#DC2626' }} onClick={() => setStep('TYPE_SELECTION')} disabled={loading}>{loading ? '...' : 'Non, déclarer'}</button>
+                            <button className="btn btn-secondary" onClick={() => setStep('GUIDELINES_VIEW')}>Oui, voir les consignes</button>
+                            <button className="btn btn-primary" style={{ background: '#DC2626' }} onClick={handleStartDeclaration} disabled={loading}>{loading ? '...' : 'Non, déclarer directement'}</button>
                         </>
                     )}
                     {step === 'GUIDELINES_VIEW' && (
                         <>
                             <button className="btn btn-secondary" onClick={() => setStep('GUIDELINES_PROMPT')}>Retour</button>
-                            <button className="btn btn-primary" style={{ background: '#DC2626' }} onClick={() => setStep('TYPE_SELECTION')} disabled={loading}>{loading ? '...' : 'Déclarer'}</button>
+                            <button className="btn btn-secondary" onClick={onClose}>Annuler</button>
+                            <button className="btn btn-primary" style={{ background: '#DC2626' }} onClick={handleStartDeclaration} disabled={loading}>{loading ? '...' : '🚨 Déclarer l\'incident'}</button>
                         </>
                     )}
-                    {step === 'TYPE_SELECTION' && <button className="btn btn-secondary" onClick={onClose}>Annuler</button>}
+                    {step === 'TYPE_SELECTION' && (
+                        <>
+                            <button className="btn btn-secondary" onClick={() => setStep('GUIDELINES_PROMPT')}>Retour</button>
+                            <button className="btn btn-secondary" onClick={onClose}>Fermer</button>
+                        </>
+                    )}
                     {(step === 'FORM_FLASH' || step === 'FORM_ACCIDENT') && (
                         <>
                             <button className="btn btn-secondary" onClick={() => setStep('TYPE_SELECTION')}>Retour</button>
