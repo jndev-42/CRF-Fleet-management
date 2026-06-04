@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface Batch {
     id: string;
@@ -23,7 +23,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
     const [newQuantity, setNewQuantity] = useState('');
     const [deductFromNoDate, setDeductFromNoDate] = useState(true);
 
-    const fetchBatches = async () => {
+    const fetchBatches = useCallback(async () => {
         setLoading(true);
         try {
             const res = await fetch(`/api/inventory/batches?itemId=${itemId}`);
@@ -36,11 +36,11 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
         } finally {
             setLoading(false);
         }
-    };
+    }, [itemId]);
 
     useEffect(() => {
         fetchBatches();
-    }, [itemId]);
+    }, [fetchBatches]);
 
     const handleAddBatch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -69,7 +69,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
                 const data = await res.json();
                 alert(data.error || 'Erreur lors de l\'ajout du lot');
             }
-        } catch (e) {
+        } catch {
             alert('Erreur de connexion');
         } finally {
             setSubmitting(false);
@@ -83,7 +83,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
 
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal" onClick={_e => _e.stopPropagation()} style={{ maxWidth: '500px' }}>
                 <div className="modal-header">
                     <h2 className="modal-title">Détails des lots - {itemName}</h2>
                     <button className="modal-close" onClick={onClose}>✕</button>

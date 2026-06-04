@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { renderToBuffer } from '@react-pdf/renderer';
-import { createElement } from 'react';
+import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer';
+import { createElement, type JSXElementConstructor, type ReactElement } from 'react';
 import IncidentPdfDocument from '@/components/incident/IncidentPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
@@ -99,9 +99,9 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
         minute: '2-digit',
     }),
     photos,
-  });
+  }) as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>;
 
-  const buffer = await renderToBuffer(element as React.ReactElement);
+  const buffer = await renderToBuffer(element);
   return Buffer.from(buffer);
 }
 
