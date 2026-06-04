@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.2.0] — 04 juin 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Historique des incidents** — Ajout de l'historique des incidents d'un véhicule pour les administrateurs avec téléchargement du rapport PDF.
+
 ## [3.0.0] — 16 mai 2026
 
 ### ✨ Nouvelles fonctionnalités

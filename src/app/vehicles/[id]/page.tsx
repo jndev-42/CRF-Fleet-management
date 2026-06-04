@@ -28,6 +28,7 @@ import MaintenanceCard from '@/components/vehicle/MaintenanceCard';
 import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHistoryModal';
 import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
 import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal';
+import IncidentHistoryModal from '@/components/vehicle/modals/IncidentHistoryModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
@@ -68,6 +69,7 @@ export default function VehicleDetailPage() {
     const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
     const [showDesinfPre, setShowDesinfPre] = useState(false);
     const [showIncidentReport, setShowIncidentReport] = useState(false);
+    const [showIncidentHistory, setShowIncidentHistory] = useState(false);
     const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
     const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
     const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
@@ -414,6 +416,14 @@ export default function VehicleDetailPage() {
                     >
                         🚨 Déclarer un incident
                     </button>
+                    {userRoles.includes('ADMIN') && (
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => setShowIncidentHistory(true)}
+                        >
+                            📋 Historique des incidents
+                        </button>
+                    )}
                     {vehicle.status !== 'IN_USE' && userRoles.includes('ADMIN') && (
                         <button
                             className="btn btn-secondary"
@@ -822,6 +832,13 @@ export default function VehicleDetailPage() {
                         showToast('Incident déclaré avec succès !');
                         fetchVehicle();
                     }}
+                />
+            )}
+
+            {showIncidentHistory && vehicle && (
+                <IncidentHistoryModal
+                    vehicle={vehicle}
+                    onClose={() => setShowIncidentHistory(false)}
                 />
             )}
 
