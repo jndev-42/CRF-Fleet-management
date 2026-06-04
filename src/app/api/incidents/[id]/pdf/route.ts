@@ -32,7 +32,7 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
 
   if (result.rows.length === 0) throw new Error('Report not found');
 
-  const report = result.rows[0] as unknown as Record<string, unknown>;
+  const report = { ...result.rows[0] } as unknown as Record<string, unknown>;
 
   // Parse JSON
   const jsonFields = ['flashDetails', 'accidentDetails', 'damages', 'victims', 'actions', 'context'];
