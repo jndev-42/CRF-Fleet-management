@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface InvItem {
     id: string;
@@ -25,7 +25,16 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
-    // Sync state when item changes
+    // Pré-remplir les champs à chaque ouverture / changement d'article
+    useEffect(() => {
+        if (item) {
+            setName(item.name);
+            setCategory(item.category ?? '');
+            setNotes(item.notes ?? '');
+            setError('');
+        }
+    }, [item]);
+
     if (!isOpen) return null;
 
     async function handleSubmit(e: React.FormEvent) {
