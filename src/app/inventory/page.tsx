@@ -261,34 +261,32 @@ export default function InventoryPage() {
                                 <tr key={item.id}>
                                     <td>
                                         <div style={{ fontWeight: 600 }}>{item.name}</div>
-                                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                                             <button
-                                                className={styles.historyBtn}
+                                                className={styles.actionBtn}
                                                 onClick={() => setHistoryItemId(item.id)}
                                             >
-                                                Historique
+                                                🕒 Historique
                                             </button>
                                             <button
-                                                className={styles.historyBtn}
+                                                className={styles.actionBtn}
                                                 onClick={() => {
                                                     setBatchItemId(item.id);
                                                     setBatchItemName(item.name);
                                                 }}
                                             >
-                                                Péremptions
+                                                📅 Péremptions
                                             </button>
                                             {isAdmin && (
                                                 <>
                                                     <button
-                                                        className={styles.historyBtn}
-                                                        style={{ color: 'var(--primary, #2563eb)' }}
+                                                        className={`${styles.actionBtn} ${styles.editBtn}`}
                                                         onClick={() => setEditItem(item)}
                                                     >
                                                         ✏️ Modifier
                                                     </button>
                                                     <button
-                                                        className={styles.historyBtn}
-                                                        style={{ color: 'var(--danger, #dc2626)' }}
+                                                        className={`${styles.actionBtn} ${styles.deleteBtn}`}
                                                         onClick={() => handleDelete(item)}
                                                         disabled={deleting[item.id]}
                                                     >
