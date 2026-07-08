@@ -1,4 +1,4 @@
-import NextAuth, { type DefaultSession } from "next-auth";
+import NextAuth, { type DefaultSession, type NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
@@ -11,6 +11,16 @@ declare module "next-auth" {
             originalEmail?: string;
             impersonatedEmail?: string;
         } & DefaultSession["user"];
+    }
+}
+
+declare module "next-auth/jwt" {
+    interface JWT {
+        originalEmail?: string | null;
+        impersonatedEmail?: string | null;
+        roles?: string[];
+        userId?: string;
+        devRoles?: string[];
     }
 }
 
@@ -62,7 +72,7 @@ const providers = [
     ] : []),
 ];
 
-export const authCallbacks = {
+export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
     async signIn({ user, profile, account }) {
         // Dev credentials : pas de vérification de domaine
         if (account?.provider === 'dev-credentials') return true;
@@ -120,7 +130,7 @@ export const authCallbacks = {
         // Première connexion dev : stocker les rôles dans le JWT (évite toute requête DB)
         if (user && 'devRoles' in user) {
             // devRoles is set by the dev-credentials authorize() return value
-            token.devRoles = (user as Record<string, unknown>).devRoles;
+            token.devRoles = (user as Record<string, unknown>).devRoles as string[];
         }
 
         // Store original email on first load
