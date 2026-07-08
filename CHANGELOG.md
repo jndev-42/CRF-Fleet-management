@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.0.0] — 08 juillet 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Feature Inventaire** — Ajout de la fonctionnalité de gestion d'inventaire.
+- **Déclaration d'incident/accident/radar** — Ajout de la fonctionnalité de déclaration d'incident, d'accident et de radar.
+
+### 🐛 Corrections
+
+- **Gestion des rôles** — Correction des problèmes liés aux rôles des utilisateurs.
+
 ## [3.2.0] — 04 juin 2026
 
 ### ✨ Nouvelles fonctionnalités
