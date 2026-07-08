@@ -94,3 +94,71 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la suppression du lot' }, { status: 500 });
     }
 }
+
+export async function PATCH(request: Request) {
+    try {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        }
+
+        const userRoles = (session.user.roles ?? []) as string[];
+        if (!userRoles.includes('ADMIN')) {
+            return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
+        }
+
+        const body = await request.json();
+        const { batchId, change } = body;
+
+        if (!batchId || typeof change !== 'number') {
+            return NextResponse.json({ error: 'Données invalides' }, { status: 400 });
+        }
+
+        // Récupérer le lot pour connaître l'itemId, la quantité et la date de péremption
+        const batchRes = await db.execute({
+            sql: `SELECT itemId, quantity, expiryDate FROM "InvBatch" WHERE id = ?`,
+            args: [batchId],
+        });
+
+        if (batchRes.rows.length === 0) {
+            return NextResponse.json({ error: 'Lot non trouvé' }, { status: 404 });
+        }
+
+        const { itemId, quantity, expiryDate } = batchRes.rows[0];
+        const newQuantity = Number(quantity) + change;
+
+        if (newQuantity < 0) {
+            return NextResponse.json({ error: 'La quantité du lot ne peut pas être négative' }, { status: 400 });
+        }
+
+        // Mettre à jour la quantité du lot
+        await db.execute({
+            sql: `UPDATE "InvBatch" SET quantity = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+            args: [newQuantity, batchId],
+        });
+
+        // Resynchroniser la quantity de l'InvItem
+        await db.execute({
+            sql: `UPDATE "InvItem" SET quantity = (SELECT SUM(quantity) FROM "InvBatch" WHERE itemId = ?), updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+            args: [itemId, itemId],
+        });
+
+        // Log the change
+        const dateLabel = expiryDate ? `lot ${new Date(expiryDate as string).toLocaleDateString('fr-FR')}` : 'stock sans date';
+        await db.execute({
+            sql: `INSERT INTO "InvStockLog" (id, itemId, "change", userName, note) VALUES (?, ?, ?, ?, ?)`,
+            args: [
+                crypto.randomUUID(),
+                itemId,
+                change,
+                session.user.name || session.user.email || 'Inconnu',
+                `Ajustement lot (${change > 0 ? '+' : ''}${change} sur ${dateLabel})`,
+            ],
+        });
+
+        return NextResponse.json({ success: true, newBatchQuantity: newQuantity });
+    } catch (e) {
+        console.error('PATCH /api/inventory/batches error:', getErrorMessage(e));
+        return NextResponse.json({ error: 'Erreur lors de la modification de la quantité du lot' }, { status: 500 });
+    }
+}

@@ -28,6 +28,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
     const [newExpiryDate, setNewExpiryDate] = useState('');
     const [newQuantity, setNewQuantity] = useState('');
     const [deductFromNoDate, setDeductFromNoDate] = useState(true);
+    const [adjustingBatch, setAdjustingBatch] = useState<Record<string, boolean>>({});
 
     const fetchBatches = useCallback(async () => {
         setLoading(true);
@@ -43,6 +44,31 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
             setLoading(false);
         }
     }, [itemId]);
+
+    const handleAdjustBatchQuantity = async (batchId: string, change: number) => {
+        setAdjustingBatch(prev => ({ ...prev, [batchId]: true }));
+        try {
+            const res = await fetch('/api/inventory/batches', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ batchId, change }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setBatches(prev => prev.map(b => 
+                    b.id === batchId ? { ...b, quantity: data.newBatchQuantity } : b
+                ).filter(b => b.quantity > 0));
+                onBatchDeleted?.();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Erreur lors de l\'ajustement');
+            }
+        } catch {
+            alert('Erreur de connexion');
+        } finally {
+            setAdjustingBatch(prev => ({ ...prev, [batchId]: false }));
+        }
+    };
 
     useEffect(() => {
         fetchBatches();
@@ -160,7 +186,53 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                                         </span>
                                                     </td>
                                                     <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
-                                                        {batch.quantity}
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                                            {isAdmin && (
+                                                                <button
+                                                                    onClick={() => handleAdjustBatchQuantity(batch.id, -1)}
+                                                                    disabled={adjustingBatch[batch.id] || batch.quantity <= 0}
+                                                                    style={{
+                                                                        width: '24px',
+                                                                        height: '24px',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        border: '1px solid var(--border-primary)',
+                                                                        background: 'var(--bg-muted)',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '0.8rem',
+                                                                        fontWeight: 'bold',
+                                                                    }}
+                                                                    title="-1"
+                                                                >
+                                                                    -
+                                                                </button>
+                                                            )}
+                                                            <span>{batch.quantity}</span>
+                                                            {isAdmin && (
+                                                                <button
+                                                                    onClick={() => handleAdjustBatchQuantity(batch.id, 1)}
+                                                                    disabled={adjustingBatch[batch.id]}
+                                                                    style={{
+                                                                        width: '24px',
+                                                                        height: '24px',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center',
+                                                                        border: '1px solid var(--border-primary)',
+                                                                        background: 'var(--bg-muted)',
+                                                                        borderRadius: '4px',
+                                                                        cursor: 'pointer',
+                                                                        fontSize: '0.8rem',
+                                                                        fontWeight: 'bold',
+                                                                    }}
+                                                                    title="+1"
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     {isAdmin && (
                                                         <td style={{ padding: '8px', textAlign: 'center' }}>
