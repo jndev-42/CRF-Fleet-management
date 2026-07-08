@@ -71,28 +71,103 @@ export async function POST(request: Request) {
         }
 
         const id = crypto.randomUUID();
+        const initialQty = Number(quantity) || 0;
+
         await db.execute({
-            sql: `INSERT INTO "InvItem" (id, name, category, quantity, notes) VALUES (?, ?, ?, ?, ?)`,
-            args: [id, name, category || null, quantity || 0, notes || null],
+            sql: `INSERT INTO "InvItem" (id, name, category, quantity, notes, updatedAt) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+            args: [id, name, category || null, initialQty, notes || null],
         });
 
         // Log initial quantity if > 0
-        if (quantity > 0) {
+        if (initialQty > 0) {
             await db.execute({
                 sql: `INSERT INTO "InvStockLog" (id, itemId, "change", userName, note) VALUES (?, ?, ?, ?, ?)`,
-                args: [crypto.randomUUID(), id, quantity, session.user.name || session.user.email, 'Initialisation'],
+                args: [crypto.randomUUID(), id, initialQty, session.user.name || session.user.email || 'Inconnu', 'Initialisation'],
             });
 
             // Create initial batch
             await db.execute({
                 sql: `INSERT INTO "InvBatch" (id, itemId, quantity, expiryDate) VALUES (?, ?, ?, ?)`,
-                args: [crypto.randomUUID(), id, quantity, expiryDate || null],
+                args: [crypto.randomUUID(), id, initialQty, expiryDate || null],
             });
         }
 
-        return NextResponse.json({ id, name, category, quantity, notes, expiryDate }, { status: 201 });
+        return NextResponse.json({ id, name, category, quantity: initialQty, notes, expiryDate }, { status: 201 });
     } catch (e) {
         console.error('POST /api/inventory error:', getErrorMessage(e));
         return NextResponse.json({ error: 'Erreur lors de la création de l\'article' }, { status: 500 });
+    }
+}
+
+export async function PATCH(request: Request) {
+    try {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        }
+
+        const userRoles = (session.user.roles ?? []) as string[];
+        if (!userRoles.includes('ADMIN')) {
+            return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
+        }
+
+        const body = await request.json();
+        const { id, name, category, notes } = body;
+
+        if (!id) {
+            return NextResponse.json({ error: 'L\'identifiant est requis' }, { status: 400 });
+        }
+        if (!name) {
+            return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 });
+        }
+
+        const res = await db.execute({
+            sql: `UPDATE "InvItem" SET name = ?, category = ?, notes = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+            args: [name, category || null, notes || null, id],
+        });
+
+        if (res.rowsAffected === 0) {
+            return NextResponse.json({ error: 'Article non trouvé' }, { status: 404 });
+        }
+
+        return NextResponse.json({ id, name, category, notes });
+    } catch (e) {
+        console.error('PATCH /api/inventory error:', getErrorMessage(e));
+        return NextResponse.json({ error: 'Erreur lors de la modification de l\'article' }, { status: 500 });
+    }
+}
+
+export async function DELETE(request: Request) {
+    try {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        }
+
+        const userRoles = (session.user.roles ?? []) as string[];
+        if (!userRoles.includes('ADMIN')) {
+            return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
+        }
+
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json({ error: 'L\'identifiant est requis' }, { status: 400 });
+        }
+
+        const res = await db.execute({
+            sql: `DELETE FROM "InvItem" WHERE id = ?`,
+            args: [id],
+        });
+
+        if (res.rowsAffected === 0) {
+            return NextResponse.json({ error: 'Article non trouvé' }, { status: 404 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (e) {
+        console.error('DELETE /api/inventory error:', getErrorMessage(e));
+        return NextResponse.json({ error: 'Erreur lors de la suppression de l\'article' }, { status: 500 });
     }
 }

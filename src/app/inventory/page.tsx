@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AddItemModal from '@/components/inventory/modals/AddItemModal';
+import EditItemModal from '@/components/inventory/modals/EditItemModal';
 import InventoryHistoryModal from '@/components/inventory/modals/InventoryHistoryModal';
 import ItemBatchesModal from '@/components/inventory/modals/ItemBatchesModal';
 import ExpiringSoonModal from '@/components/inventory/modals/ExpiringSoonModal';
@@ -14,6 +15,7 @@ interface InvItem {
     name: string;
     category: string | null;
     quantity: number;
+    notes: string | null;
     updatedAt: string;
 }
 
@@ -35,10 +37,12 @@ export default function InventoryPage() {
     const [page, setPage] = useState(1);
     const [showAddItem, setShowAddItem] = useState(false);
     const [showExpiringSoon, setShowExpiringSoon] = useState(false);
+    const [editItem, setEditItem] = useState<InvItem | null>(null);
     const [historyItemId, setHistoryItemId] = useState<string | null>(null);
     const [batchItemId, setBatchItemId] = useState<string | null>(null);
     const [adjusting, setAdjusting] = useState<Record<string, boolean>>({});
     const [customChanges, setCustomChanges] = useState<Record<string, string>>({});
+    const [deleting, setDeleting] = useState<Record<string, boolean>>({});
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -75,6 +79,24 @@ export default function InventoryPage() {
             fetchInventory();
         }
     }, [status, fetchInventory]);
+
+    const handleDelete = async (item: InvItem) => {
+        if (!confirm(`Supprimer l'article "${item.name}" ? Cette action est irréversible.`)) return;
+        setDeleting(prev => ({ ...prev, [item.id]: true }));
+        try {
+            const res = await fetch(`/api/inventory?id=${item.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setItems(prev => prev.filter(i => i.id !== item.id));
+            } else {
+                const data = await res.json() as { error?: string };
+                alert(data.error || 'Erreur lors de la suppression');
+            }
+        } catch {
+            alert('Erreur de connexion');
+        } finally {
+            setDeleting(prev => ({ ...prev, [item.id]: false }));
+        }
+    };
 
     const handleAdjust = async (itemId: string, change: number) => {
         if (adjusting[itemId]) return;
@@ -160,7 +182,7 @@ export default function InventoryPage() {
                                 <tr key={item.id}>
                                     <td>
                                         <div style={{ fontWeight: 600 }}>{item.name}</div>
-                                        <div style={{ display: 'flex', gap: '12px' }}>
+                                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                                             <button
                                                 className={styles.historyBtn}
                                                 onClick={() => setHistoryItemId(item.id)}
@@ -173,6 +195,25 @@ export default function InventoryPage() {
                                             >
                                                 Péremptions
                                             </button>
+                                            {isAdmin && (
+                                                <>
+                                                    <button
+                                                        className={styles.historyBtn}
+                                                        style={{ color: 'var(--primary, #2563eb)' }}
+                                                        onClick={() => setEditItem(item)}
+                                                    >
+                                                        ✏️ Modifier
+                                                    </button>
+                                                    <button
+                                                        className={styles.historyBtn}
+                                                        style={{ color: 'var(--danger, #dc2626)' }}
+                                                        onClick={() => handleDelete(item)}
+                                                        disabled={deleting[item.id]}
+                                                    >
+                                                        🗑️ Supprimer
+                                                    </button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                     <td><span className={styles.categoryBadge}>{item.category || 'Général'}</span></td>
@@ -253,7 +294,14 @@ export default function InventoryPage() {
             <AddItemModal
                 isOpen={showAddItem}
                 onClose={() => setShowAddItem(false)}
-                onSuccess={() => { setShowAddItem(false); fetchInventory(); }}
+                onSuccess={() => { fetchInventory(); }}
+            />
+
+            <EditItemModal
+                isOpen={editItem !== null}
+                item={editItem}
+                onClose={() => setEditItem(null)}
+                onSuccess={() => { setEditItem(null); fetchInventory(); }}
             />
 
             {historyItemId && (

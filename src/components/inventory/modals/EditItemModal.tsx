@@ -2,50 +2,54 @@
 
 import { useState } from 'react';
 
-interface AddItemModalProps {
+interface InvItem {
+    id: string;
+    name: string;
+    category: string | null;
+    notes: string | null;
+}
+
+interface EditItemModalProps {
     isOpen: boolean;
+    item: InvItem | null;
     onClose: () => void;
     onSuccess: () => void;
 }
 
-const DEFAULT_FORM = {
-    name: '',
-    category: '',
-    quantity: 0,
-    expiryDate: '',
-    notes: '',
-};
+const CATEGORY_OPTIONS = ['Consommable', 'Matériel', 'Médicament', 'Protection', 'Pansements', 'Oxygénothérapie', 'Général'];
 
-const CATEGORY_OPTIONS = ['Consommable', 'Matériel', 'Médicament', 'Protection', 'Pansements', 'Oxygénothérapie'];
-
-export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModalProps) {
-    const [form, setForm] = useState(DEFAULT_FORM);
+export default function EditItemModal({ isOpen, item, onClose, onSuccess }: EditItemModalProps) {
+    const [name, setName] = useState(item?.name ?? '');
+    const [category, setCategory] = useState(item?.category ?? '');
+    const [notes, setNotes] = useState(item?.notes ?? '');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
+    // Sync state when item changes
     if (!isOpen) return null;
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
+        if (!item) return;
         setSubmitting(true);
         setError('');
 
         try {
             const res = await fetch('/api/inventory', {
-                method: 'POST',
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    ...form,
-                    quantity: Number(form.quantity)
+                    id: item.id,
+                    name,
+                    category,
+                    notes,
                 }),
             });
             if (res.ok) {
-                setForm(DEFAULT_FORM);
                 onSuccess();
-                onClose();
             } else {
                 const data = await res.json() as { error?: string };
-                setError(data.error || 'Erreur lors de la création');
+                setError(data.error || 'Erreur lors de la modification');
             }
         } catch {
             setError('Erreur de connexion');
@@ -58,7 +62,7 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
             <div className="modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2 className="modal-title">Créer un nouvel article</h2>
+                    <h2 className="modal-title">Modifier l&apos;article</h2>
                     <button className="modal-close" onClick={onClose}>✕</button>
                 </div>
                 <form onSubmit={handleSubmit}>
@@ -80,8 +84,8 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                             <label className="form-label">Nom *</label>
                             <input
                                 className="form-input"
-                                value={form.name}
-                                onChange={e => setForm({ ...form, name: e.target.value })}
+                                value={name}
+                                onChange={e => setName(e.target.value)}
                                 required
                                 placeholder="ex: Pansements stériles"
                             />
@@ -94,14 +98,14 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                                     <button
                                         key={opt}
                                         type="button"
-                                        onClick={() => setForm({ ...form, category: opt })}
+                                        onClick={() => setCategory(opt)}
                                         style={{
                                             padding: '4px 12px',
                                             borderRadius: '20px',
                                             border: '1.5px solid',
-                                            borderColor: form.category === opt ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
-                                            background: form.category === opt ? 'var(--primary, #2563eb)' : 'transparent',
-                                            color: form.category === opt ? '#fff' : 'inherit',
+                                            borderColor: category === opt ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
+                                            background: category === opt ? 'var(--primary, #2563eb)' : 'transparent',
+                                            color: category === opt ? '#fff' : 'inherit',
                                             cursor: 'pointer',
                                             fontSize: '0.85rem',
                                             fontWeight: 500,
@@ -114,49 +118,27 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                             </div>
                             <input
                                 className="form-input"
-                                value={form.category}
-                                onChange={e => setForm({ ...form, category: e.target.value })}
+                                value={category}
+                                onChange={e => setCategory(e.target.value)}
                                 placeholder="Ou saisir une catégorie personnalisée..."
                             />
-                        </div>
-
-                        <div className="form-row" style={{ display: 'flex', gap: '12px' }}>
-                            <div className="form-group" style={{ flex: 1 }}>
-                                <label className="form-label">Quantité initiale</label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    className="form-input"
-                                    value={form.quantity}
-                                    onChange={e => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })}
-                                />
-                            </div>
-                            <div className="form-group" style={{ flex: 1 }}>
-                                <label className="form-label">Date de péremption (Optionnel)</label>
-                                <input
-                                    type="date"
-                                    className="form-input"
-                                    value={form.expiryDate}
-                                    onChange={e => setForm({ ...form, expiryDate: e.target.value })}
-                                    disabled={form.quantity <= 0}
-                                />
-                            </div>
                         </div>
 
                         <div className="form-group">
                             <label className="form-label">Notes</label>
                             <textarea
                                 className="form-input"
-                                value={form.notes}
-                                onChange={e => setForm({ ...form, notes: e.target.value })}
+                                value={notes}
+                                onChange={e => setNotes(e.target.value)}
                                 style={{ minHeight: '80px' }}
+                                placeholder="Informations complémentaires..."
                             />
                         </div>
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={onClose}>Annuler</button>
                         <button type="submit" className="btn btn-primary" disabled={submitting}>
-                            {submitting ? 'Création...' : 'Créer l\'article'}
+                            {submitting ? 'Enregistrement...' : 'Enregistrer'}
                         </button>
                     </div>
                 </form>
