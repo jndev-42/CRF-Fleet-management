@@ -109,9 +109,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
     };
 
     const handleDeleteBatch = async (batch: Batch) => {
-        const dateLabel = batch.expiryDate
-            ? new Date(batch.expiryDate).toLocaleDateString('fr-FR')
-            : 'sans date';
+        const dateLabel = formatDate(batch.expiryDate);
         if (!confirm(`Supprimer le lot « ${dateLabel} » (${batch.quantity} unité(s)) ? Cette action est irréversible.`)) return;
 
         setDeleting(prev => ({ ...prev, [batch.id]: true }));
@@ -133,7 +131,11 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
 
     const formatDate = (dateStr: string | null) => {
         if (!dateStr) return 'Sans date';
-        return new Date(dateStr).toLocaleDateString('fr-FR');
+        const d = new Date(dateStr);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}/${month}/${day}`;
     };
 
     const isExpired = (dateStr: string | null) => {

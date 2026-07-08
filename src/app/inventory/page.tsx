@@ -158,7 +158,12 @@ export default function InventoryPage() {
         expiry.setHours(0, 0, 0, 0);
         const diffMs = expiry.getTime() - today.getTime();
         const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-        const label = expiry.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        
+        const year = expiry.getFullYear();
+        const month = String(expiry.getMonth() + 1).padStart(2, '0');
+        const day = String(expiry.getDate()).padStart(2, '0');
+        const label = `${year}/${month}/${day}`;
+
         if (diffDays < 0) return { label, color: '#dc2626' };    // rouge — périmé
         if (diffDays <= 31) return { label, color: '#d97706' };   // orange — ≤ 1 mois
         return { label, color: '#16a34a' };                        // vert — > 1 mois

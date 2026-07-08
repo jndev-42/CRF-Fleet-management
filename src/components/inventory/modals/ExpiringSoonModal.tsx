@@ -38,7 +38,11 @@ export default function ExpiringSoonModal({ onClose, onOpenBatches }: ExpiringSo
     }, []);
 
     const formatDate = (dateStr: string) => {
-        return new Date(dateStr).toLocaleDateString('fr-FR');
+        const d = new Date(dateStr);
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}/${month}/${day}`;
     };
 
     const isExpired = (dateStr: string) => {
