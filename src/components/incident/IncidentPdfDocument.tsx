@@ -118,7 +118,7 @@ export default function IncidentPdfDocument({ report, logoSrc, generatedAt, phot
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Rapport d&apos;Incident</Text>
-            <Text style={styles.subtitle}>{report.type === 'FLASH' ? '📸 Flash Radar' : '🚗 Accident / Incident'}</Text>
+            <Text style={styles.subtitle}>{report.type === 'FLASH' ? 'Flash Radar' : 'Accident / Incident'}</Text>
           </View>
           {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer Image does not support alt prop */}
           <Image src={logoSrc} style={styles.logo} />
@@ -133,9 +133,9 @@ export default function IncidentPdfDocument({ report, logoSrc, generatedAt, phot
           </View>
         </View>
 
-        {!isAccident && report.flashDetails && (
+        {report.flashDetails && (report.flashDetails.ficheInter || report.flashDetails.horsSamu) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Détails de l&apos;infraction</Text>
+            <Text style={styles.sectionTitle}>Détails de l&apos;intervention</Text>
             <View style={styles.grid}>
                 <View style={styles.col}><Text style={styles.label}>N° Fiche Inter</Text><Text style={styles.value}>{report.flashDetails.ficheInter || '—'}</Text></View>
                 <View style={styles.col}><Text style={styles.label}>Hors Samu/BSPP</Text><Text style={styles.value}>{report.flashDetails.horsSamu ? 'Oui' : 'Non'}</Text></View>

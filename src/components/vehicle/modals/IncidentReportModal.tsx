@@ -183,7 +183,7 @@ export default function IncidentReportModal({
         setError(null);
 
         try {
-            const type = step === 'FORM_FLASH' ? 'FLASH' : 'ACCIDENT';
+            const type = selectedType;
 
             // Upload photos if any and not already uploaded
             let driveFolderId = null;
@@ -210,7 +210,7 @@ export default function IncidentReportModal({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...commonData,
-                    flashDetails: type === 'FLASH' ? flashDetails : null,
+                    flashDetails: flashDetails,
                     accidentDetails: type === 'ACCIDENT' ? accidentDetails : null,
                     damages,
                     victims,
@@ -340,7 +340,18 @@ export default function IncidentReportModal({
                                     <input type="text" className="form-input" placeholder="Arrondissement, type de voie..." value={commonData.location} onChange={e => setCommonData({ ...commonData, location: e.target.value })} />
                                 </div>
                             </div>
-
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">N° Fiche Inter</label>
+                                    <input type="text" className="form-input" value={flashDetails.ficheInter} onChange={e => setFlashDetails({ ...flashDetails, ficheInter: e.target.value })} />
+                                </div>
+                                <div className="form-group" style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: 25 }}>
+                                    <label className="checkbox-label">
+                                        <input type="checkbox" checked={flashDetails.horsSamu} onChange={e => setFlashDetails({ ...flashDetails, horsSamu: e.target.checked })} />
+                                        <span>Hors départ Samu/BSPP</span>
+                                    </label>
+                                </div>
+                            </div>
                             <div className="svg-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
                                 <VehicleInteractiveSVG
                                     title="Véhicule CRF"
@@ -421,7 +432,7 @@ export default function IncidentReportModal({
                                 <div className="summary-row"><strong>Type :</strong> {selectedType === 'FLASH' ? '📸 Flash radar' : '🚗 Accident / Incident de circulation'}</div>
                                 <div className="summary-row"><strong>Date :</strong> {commonData.occurredAt.replace('T', ' ')}</div>
                                 <div className="summary-row"><strong>Lieu :</strong> {commonData.location}</div>
-                                {selectedType === 'FLASH' && (
+                                {(selectedType === 'FLASH' || flashDetails.ficheInter) && (
                                     <>
                                         <div className="summary-row"><strong>N° Fiche Inter :</strong> {flashDetails.ficheInter || '—'}</div>
                                         <div className="summary-row"><strong>Hors Samu/BSPP :</strong> {flashDetails.horsSamu ? 'Oui' : 'Non'}</div>
