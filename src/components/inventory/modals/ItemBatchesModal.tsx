@@ -188,51 +188,99 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                                         </span>
                                                     </td>
                                                     <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
                                                             {isAdmin && (
-                                                                <button
-                                                                    onClick={() => handleAdjustBatchQuantity(batch.id, -1)}
-                                                                    disabled={adjustingBatch[batch.id] || batch.quantity <= 0}
-                                                                    style={{
-                                                                        width: '24px',
-                                                                        height: '24px',
-                                                                        display: 'inline-flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        border: '1px solid var(--border-primary)',
-                                                                        background: 'var(--bg-muted)',
-                                                                        borderRadius: '4px',
-                                                                        cursor: 'pointer',
-                                                                        fontSize: '0.8rem',
-                                                                        fontWeight: 'bold',
-                                                                    }}
-                                                                    title="-1"
-                                                                >
-                                                                    -
-                                                                </button>
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => handleAdjustBatchQuantity(batch.id, -10)}
+                                                                        disabled={adjustingBatch[batch.id] || batch.quantity < 10}
+                                                                        style={{
+                                                                            minWidth: '32px',
+                                                                            height: '24px',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            border: '1px solid var(--border-primary)',
+                                                                            background: 'var(--bg-muted)',
+                                                                            borderRadius: '4px',
+                                                                            cursor: 'pointer',
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: 'bold',
+                                                                            opacity: (adjustingBatch[batch.id] || batch.quantity < 10) ? 0.5 : 1,
+                                                                        }}
+                                                                        title="-10"
+                                                                    >
+                                                                        -10
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleAdjustBatchQuantity(batch.id, -1)}
+                                                                        disabled={adjustingBatch[batch.id] || batch.quantity <= 0}
+                                                                        style={{
+                                                                            width: '24px',
+                                                                            height: '24px',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            border: '1px solid var(--border-primary)',
+                                                                            background: 'var(--bg-muted)',
+                                                                            borderRadius: '4px',
+                                                                            cursor: 'pointer',
+                                                                            fontSize: '0.8rem',
+                                                                            fontWeight: 'bold',
+                                                                            opacity: (adjustingBatch[batch.id] || batch.quantity <= 0) ? 0.5 : 1,
+                                                                        }}
+                                                                        title="-1"
+                                                                    >
+                                                                        -
+                                                                    </button>
+                                                                </>
                                                             )}
-                                                            <span>{batch.quantity}</span>
+                                                            <span style={{ minWidth: '32px', textAlign: 'center', display: 'inline-block' }}>{batch.quantity}</span>
                                                             {isAdmin && (
-                                                                <button
-                                                                    onClick={() => handleAdjustBatchQuantity(batch.id, 1)}
-                                                                    disabled={adjustingBatch[batch.id]}
-                                                                    style={{
-                                                                        width: '24px',
-                                                                        height: '24px',
-                                                                        display: 'inline-flex',
-                                                                        alignItems: 'center',
-                                                                        justifyContent: 'center',
-                                                                        border: '1px solid var(--border-primary)',
-                                                                        background: 'var(--bg-muted)',
-                                                                        borderRadius: '4px',
-                                                                        cursor: 'pointer',
-                                                                        fontSize: '0.8rem',
-                                                                        fontWeight: 'bold',
-                                                                    }}
-                                                                    title="+1"
-                                                                >
-                                                                    +
-                                                                </button>
+                                                                <>
+                                                                    <button
+                                                                        onClick={() => handleAdjustBatchQuantity(batch.id, 1)}
+                                                                        disabled={adjustingBatch[batch.id]}
+                                                                        style={{
+                                                                            width: '24px',
+                                                                            height: '24px',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            border: '1px solid var(--border-primary)',
+                                                                            background: 'var(--bg-muted)',
+                                                                            borderRadius: '4px',
+                                                                            cursor: 'pointer',
+                                                                            fontSize: '0.8rem',
+                                                                            fontWeight: 'bold',
+                                                                            opacity: adjustingBatch[batch.id] ? 0.5 : 1,
+                                                                        }}
+                                                                        title="+1"
+                                                                    >
+                                                                        +
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleAdjustBatchQuantity(batch.id, 10)}
+                                                                        disabled={adjustingBatch[batch.id]}
+                                                                        style={{
+                                                                            minWidth: '32px',
+                                                                            height: '24px',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            border: '1px solid var(--border-primary)',
+                                                                            background: 'var(--bg-muted)',
+                                                                            borderRadius: '4px',
+                                                                            cursor: 'pointer',
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: 'bold',
+                                                                            opacity: adjustingBatch[batch.id] ? 0.5 : 1,
+                                                                        }}
+                                                                        title="+10"
+                                                                    >
+                                                                        +10
+                                                                    </button>
+                                                                </>
                                                             )}
                                                         </div>
                                                     </td>
