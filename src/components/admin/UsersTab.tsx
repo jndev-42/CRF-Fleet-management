@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { User as UserIcon } from 'lucide-react';
 import RoleLegend from '@/components/users/RoleLegend';
 
 interface User {
@@ -24,6 +25,8 @@ interface UsersTabProps {
     onCreateUser: (email: string, name: string, roles: string[]) => Promise<void>;
     onDeleteUser: (email: string) => Promise<void>;
     showToast: (message: string, type?: 'success' | 'error') => void;
+    originalUserEmail?: string;
+    onImpersonate?: (email: string) => Promise<void>;
 }
 
 const DRIVER_ROLES = ['CHVL', 'CHVPSP'];
@@ -37,6 +40,8 @@ export default function UsersTab({
     onCreateUser,
     onDeleteUser,
     showToast,
+    originalUserEmail,
+    onImpersonate,
 }: UsersTabProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -181,7 +186,17 @@ export default function UsersTab({
                                                 )}
                                             </td>
                                             <td style={{ padding: '16px' }}>
-                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    {originalUserEmail === 'jeannoel.durand@croix-rouge.fr' && user.email !== originalUserEmail && onImpersonate && (
+                                                        <button
+                                                            className="btn btn-secondary"
+                                                            style={{ fontSize: '13px', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                                                            onClick={() => onImpersonate(user.email)}
+                                                            title={`Incarner ${user.name || user.email}`}
+                                                        >
+                                                            <UserIcon size={16} />
+                                                        </button>
+                                                    )}
                                                     {isDriver && !papersValid && (
                                                         <button
                                                             className="btn btn-secondary"

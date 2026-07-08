@@ -240,6 +240,30 @@ async function createTables() {
                CHECK (visibility IN ('available', 'admin_only', 'disabled')),
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "IncidentReport" (
+    id TEXT PRIMARY KEY,
+    vehicleId TEXT NOT NULL REFERENCES "Vehicle"(id) ON DELETE CASCADE,
+    userId TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+    tripId TEXT REFERENCES "Trip"(id) ON DELETE SET NULL,
+    reservationId TEXT REFERENCES "Reservation"(id) ON DELETE SET NULL,
+    type TEXT,
+    status TEXT NOT NULL DEFAULT 'DRAFT',
+    occurredAt TEXT,
+    location TEXT,
+    flashDetails TEXT,
+    accidentDetails TEXT,
+    damages TEXT,
+    victims TEXT,
+    actions TEXT,
+    context TEXT,
+    description TEXT,
+    retrospection TEXT,
+    driveFolderId TEXT,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    submittedAt TEXT
+  )`);
 }
 
 async function truncateTables() {
@@ -255,6 +279,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "InvItem"`);
   await db.execute(`DELETE FROM "InvGroupe"`);
   await db.execute(`DELETE FROM "Notification"`);
+  await db.execute(`DELETE FROM "IncidentReport"`);
   await db.execute(`DELETE FROM "UserRole"`);
   await db.execute(`DELETE FROM "Trip"`);
   await db.execute(`DELETE FROM "Reservation"`);

@@ -3,7 +3,11 @@ import { GET } from '@/app/api/vehicles/[id]/incidents/route';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 
-// Mock auth
+// Mock DB and auth
+vi.mock('@/lib/db', async () => {
+    const { db } = await import('./setup');
+    return { db };
+});
 vi.mock('@/auth', () => ({
     auth: vi.fn(),
 }));

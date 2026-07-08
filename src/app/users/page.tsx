@@ -26,7 +26,7 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [activeTab, setActiveTab] = useState<TabId>('users');
-    const { data: session, status } = useSession();
+    const { data: session, status, update } = useSession();
     const router = useRouter();
 
     const sessionRoles = (session?.user?.roles || []) as string[];
@@ -67,6 +67,17 @@ export default function AdminPage() {
     function showToast(message: string, type: 'success' | 'error' = 'success') {
         setToast({ message, type });
         setTimeout(() => setToast(null), 4000);
+    }
+
+    async function impersonateUser(targetEmail: string) {
+        try {
+            await update({ impersonateEmail: targetEmail });
+            showToast(`Impersonnalisation active : ${targetEmail}`);
+            router.push('/');
+            router.refresh();
+        } catch {
+            showToast("Erreur lors de l'impersonnalisation", 'error');
+        }
     }
 
     async function toggleRole(email: string, roleName: string, currentRoles: string[]) {
@@ -220,6 +231,8 @@ export default function AdminPage() {
                     onCreateUser={createUser}
                     onDeleteUser={deleteUser}
                     showToast={showToast}
+                    originalUserEmail={session?.user?.originalEmail}
+                    onImpersonate={impersonateUser}
                 />
             )}
 

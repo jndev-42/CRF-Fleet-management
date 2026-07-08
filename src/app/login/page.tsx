@@ -10,6 +10,7 @@ const DEV_ROLES = [
     { key: 'ci',         label: 'CI/RPAPS',   badge: 'CI/RPAPS',  color: '#8b5cf6' },
     { key: 'secouriste', label: 'Secouriste', badge: 'SECOUR.',   color: '#10b981' },
     { key: 'guest',      label: 'Inactif',    badge: 'INACTIF',   color: '#6b7280' },
+    { key: 'jeannoel',   label: 'Jean-Noël',   badge: 'JN',        color: '#c70000' },
 ] as const;
 
 export default async function LoginPage(props: { searchParams: Promise<{ error?: string, callbackUrl?: string }> }) {
