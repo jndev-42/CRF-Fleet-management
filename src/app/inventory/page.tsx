@@ -43,6 +43,7 @@ export default function InventoryPage() {
     const [editItem, setEditItem] = useState<InvItem | null>(null);
     const [historyItemId, setHistoryItemId] = useState<string | null>(null);
     const [batchItemId, setBatchItemId] = useState<string | null>(null);
+    const [batchItemName, setBatchItemName] = useState('');
     const [adjusting, setAdjusting] = useState<Record<string, boolean>>({});
     const [customChanges, setCustomChanges] = useState<Record<string, string>>({});
     const [deleting, setDeleting] = useState<Record<string, boolean>>({});
@@ -263,7 +264,10 @@ export default function InventoryPage() {
                                             </button>
                                             <button
                                                 className={styles.historyBtn}
-                                                onClick={() => setBatchItemId(item.id)}
+                                                onClick={() => {
+                                                    setBatchItemId(item.id);
+                                                    setBatchItemName(item.name);
+                                                }}
                                             >
                                                 Péremptions
                                             </button>
@@ -401,14 +405,19 @@ export default function InventoryPage() {
             {batchItemId && (
                 <ItemBatchesModal
                     itemId={batchItemId}
-                    itemName={items.find(i => i.id === batchItemId)?.name || ''}
+                    itemName={batchItemName || items.find(i => i.id === batchItemId)?.name || ''}
                     onClose={() => setBatchItemId(null)}
+                    onBatchDeleted={fetchInventory}
                 />
             )}
 
             {showExpiringSoon && (
                 <ExpiringSoonModal
                     onClose={() => setShowExpiringSoon(false)}
+                    onOpenBatches={(itemId, itemName) => {
+                        setBatchItemId(itemId);
+                        setBatchItemName(itemName);
+                    }}
                 />
             )}
         </div>

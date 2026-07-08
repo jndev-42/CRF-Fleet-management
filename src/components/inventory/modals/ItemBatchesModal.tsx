@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 
 interface Batch {
     id: string;
@@ -12,12 +13,17 @@ interface ItemBatchesModalProps {
     itemId: string;
     itemName: string;
     onClose: () => void;
+    onBatchDeleted?: () => void; // callback optionnel pour rafraîchir la page parente
 }
 
-export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatchesModalProps) {
+export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDeleted }: ItemBatchesModalProps) {
+    const { data: session } = useSession();
+    const isAdmin = ((session?.user?.roles ?? []) as string[]).includes('ADMIN');
+
     const [batches, setBatches] = useState<Batch[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [deleting, setDeleting] = useState<Record<string, boolean>>({});
 
     const [newExpiryDate, setNewExpiryDate] = useState('');
     const [newQuantity, setNewQuantity] = useState('');
@@ -76,16 +82,46 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
         }
     };
 
+    const handleDeleteBatch = async (batch: Batch) => {
+        const dateLabel = batch.expiryDate
+            ? new Date(batch.expiryDate).toLocaleDateString('fr-FR')
+            : 'sans date';
+        if (!confirm(`Supprimer le lot « ${dateLabel} » (${batch.quantity} unité(s)) ? Cette action est irréversible.`)) return;
+
+        setDeleting(prev => ({ ...prev, [batch.id]: true }));
+        try {
+            const res = await fetch(`/api/inventory/batches?batchId=${batch.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setBatches(prev => prev.filter(b => b.id !== batch.id));
+                onBatchDeleted?.();
+            } else {
+                const data = await res.json() as { error?: string };
+                alert(data.error || 'Erreur lors de la suppression');
+            }
+        } catch {
+            alert('Erreur de connexion');
+        } finally {
+            setDeleting(prev => ({ ...prev, [batch.id]: false }));
+        }
+    };
+
     const formatDate = (dateStr: string | null) => {
         if (!dateStr) return 'Sans date';
         return new Date(dateStr).toLocaleDateString('fr-FR');
     };
 
+    const isExpired = (dateStr: string | null) => {
+        if (!dateStr) return false;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return new Date(dateStr) < today;
+    };
+
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
-            <div className="modal" onClick={_e => _e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal" onClick={_e => _e.stopPropagation()} style={{ maxWidth: '520px' }}>
                 <div className="modal-header">
-                    <h2 className="modal-title">Détails des lots - {itemName}</h2>
+                    <h2 className="modal-title">Détails des lots — {itemName}</h2>
                     <button className="modal-close" onClick={onClose}>✕</button>
                 </div>
                 <div className="modal-body">
@@ -103,19 +139,55 @@ export default function ItemBatchesModal({ itemId, itemName, onClose }: ItemBatc
                                         <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-primary)' }}>
                                             <th style={{ padding: '8px' }}>Date de péremption</th>
                                             <th style={{ padding: '8px', textAlign: 'right' }}>Quantité</th>
+                                            {isAdmin && <th style={{ padding: '8px', textAlign: 'center', width: '90px' }}>Action</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {batches.map(batch => (
-                                            <tr key={batch.id} style={{ borderBottom: '1px solid var(--border-primary)' }}>
-                                                <td style={{ padding: '8px' }}>
-                                                    {formatDate(batch.expiryDate)}
-                                                </td>
-                                                <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
-                                                    {batch.quantity}
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {batches.map(batch => {
+                                            const expired = isExpired(batch.expiryDate);
+                                            return (
+                                                <tr key={batch.id} style={{
+                                                    borderBottom: '1px solid var(--border-primary)',
+                                                    background: expired ? 'rgba(220,38,38,0.05)' : undefined,
+                                                }}>
+                                                    <td style={{ padding: '8px' }}>
+                                                        <span style={{
+                                                            fontWeight: expired ? 600 : 400,
+                                                            color: expired ? '#dc2626' : undefined,
+                                                        }}>
+                                                            {formatDate(batch.expiryDate)}
+                                                            {expired && ' ⚠️ Périmé'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
+                                                        {batch.quantity}
+                                                    </td>
+                                                    {isAdmin && (
+                                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                                            {expired && (
+                                                                <button
+                                                                    onClick={() => handleDeleteBatch(batch)}
+                                                                    disabled={deleting[batch.id]}
+                                                                    style={{
+                                                                        background: 'none',
+                                                                        border: '1px solid #dc2626',
+                                                                        color: '#dc2626',
+                                                                        borderRadius: '6px',
+                                                                        padding: '3px 10px',
+                                                                        fontSize: '0.8rem',
+                                                                        cursor: 'pointer',
+                                                                        fontWeight: 600,
+                                                                        opacity: deleting[batch.id] ? 0.5 : 1,
+                                                                    }}
+                                                                >
+                                                                    {deleting[batch.id] ? '...' : '🗑 Supprimer'}
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    )}
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             )}

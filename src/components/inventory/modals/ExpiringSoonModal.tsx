@@ -13,9 +13,10 @@ interface ExpiringItem {
 
 interface ExpiringSoonModalProps {
     onClose: () => void;
+    onOpenBatches: (itemId: string, itemName: string) => void;
 }
 
-export default function ExpiringSoonModal({ onClose }: ExpiringSoonModalProps) {
+export default function ExpiringSoonModal({ onClose, onOpenBatches }: ExpiringSoonModalProps) {
     const [items, setItems] = useState<ExpiringItem[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -41,7 +42,9 @@ export default function ExpiringSoonModal({ onClose }: ExpiringSoonModalProps) {
     };
 
     const isExpired = (dateStr: string) => {
-        return new Date(dateStr) < new Date();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return new Date(dateStr) < today;
     };
 
     return (
@@ -57,37 +60,63 @@ export default function ExpiringSoonModal({ onClose }: ExpiringSoonModalProps) {
                     ) : items.length === 0 ? (
                         <p>Aucun article ne périme bientôt.</p>
                     ) : (
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                <thead>
-                                    <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-primary)' }}>
-                                        <th style={{ padding: '8px' }}>Article</th>
-                                        <th style={{ padding: '8px' }}>Catégorie</th>
-                                        <th style={{ padding: '8px' }}>Péremption</th>
-                                        <th style={{ padding: '8px', textAlign: 'right' }}>Quantité</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {items.map(item => (
-                                        <tr key={item.batchId} style={{ borderBottom: '1px solid var(--border-primary)' }}>
-                                            <td style={{ padding: '8px', fontWeight: 500 }}>{item.itemName}</td>
-                                            <td style={{ padding: '8px', fontSize: '0.85rem' }}>{item.category || '-'}</td>
-                                            <td style={{
-                                                padding: '8px',
-                                                color: isExpired(item.expiryDate) ? '#dc3545' : '#856404',
-                                                fontWeight: 600
-                                            }}>
-                                                {formatDate(item.expiryDate)}
-                                                {isExpired(item.expiryDate) && ' (PÉRIMÉ)'}
-                                            </td>
-                                            <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
-                                                {item.quantity}
-                                            </td>
+                        <>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                                Cliquez sur une ligne pour voir le détail des lots.
+                            </p>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-primary)' }}>
+                                            <th style={{ padding: '8px' }}>Article</th>
+                                            <th style={{ padding: '8px' }}>Catégorie</th>
+                                            <th style={{ padding: '8px' }}>Péremption</th>
+                                            <th style={{ padding: '8px', textAlign: 'right' }}>Quantité</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                    </thead>
+                                    <tbody>
+                                        {items.map(item => {
+                                            const expired = isExpired(item.expiryDate);
+                                            return (
+                                                <tr
+                                                    key={item.batchId}
+                                                    onClick={() => {
+                                                        onClose();
+                                                        onOpenBatches(item.itemId, item.itemName);
+                                                    }}
+                                                    style={{
+                                                        borderBottom: '1px solid var(--border-primary)',
+                                                        cursor: 'pointer',
+                                                        background: expired ? 'rgba(220,38,38,0.06)' : undefined,
+                                                        transition: 'background 0.15s',
+                                                    }}
+                                                    onMouseEnter={e => (e.currentTarget.style.background = expired ? 'rgba(220,38,38,0.12)' : 'var(--bg-hover, rgba(0,0,0,0.04))')}
+                                                    onMouseLeave={e => (e.currentTarget.style.background = expired ? 'rgba(220,38,38,0.06)' : '')}
+                                                    title={`Voir les lots de « ${item.itemName} »`}
+                                                >
+                                                    <td style={{ padding: '8px', fontWeight: 500 }}>
+                                                        {item.itemName}
+                                                        <span style={{ marginLeft: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>→</span>
+                                                    </td>
+                                                    <td style={{ padding: '8px', fontSize: '0.85rem' }}>{item.category || '-'}</td>
+                                                    <td style={{
+                                                        padding: '8px',
+                                                        color: expired ? '#dc2626' : '#d97706',
+                                                        fontWeight: 600,
+                                                    }}>
+                                                        {formatDate(item.expiryDate)}
+                                                        {expired && ' ⚠️ PÉRIMÉ'}
+                                                    </td>
+                                                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
+                                                        {item.quantity}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
                     )}
                 </div>
                 <div className="modal-footer">
