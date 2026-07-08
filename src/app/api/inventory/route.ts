@@ -47,7 +47,19 @@ export async function GET(request: Request) {
         const total = Number(countRes.rows[0].count);
 
         const itemsRes = await db.execute({
-            sql: `SELECT * FROM "InvItem" ${whereClause} ORDER BY name ASC LIMIT ? OFFSET ?`,
+            sql: `
+                SELECT i.*,
+                       (SELECT MIN(b.expiryDate)
+                        FROM "InvBatch" b
+                        WHERE b.itemId = i.id
+                          AND b.quantity > 0
+                          AND b.expiryDate IS NOT NULL
+                       ) AS nearestExpiry
+                FROM "InvItem" i
+                ${whereClause}
+                ORDER BY i.name ASC
+                LIMIT ? OFFSET ?
+            `,
             args: [...args, pageSize, offset],
         });
 
@@ -60,6 +72,7 @@ export async function GET(request: Request) {
                 totalPages: Math.ceil(total / pageSize),
             }
         });
+
     } catch (e) {
         console.error('GET /api/inventory error:', getErrorMessage(e));
         return NextResponse.json({ error: 'Erreur lors de la récupération de l\'inventaire' }, { status: 500 });

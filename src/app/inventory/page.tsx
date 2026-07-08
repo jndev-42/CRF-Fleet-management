@@ -17,6 +17,7 @@ interface InvItem {
     quantity: number;
     notes: string | null;
     updatedAt: string;
+    nearestExpiry: string | null;
 }
 
 interface Pagination {
@@ -145,6 +146,20 @@ export default function InventoryPage() {
         return <div className={styles.page}><p>Chargement...</p></div>;
     }
 
+    function getExpiryDisplay(dateStr: string | null): { label: string; color: string } {
+        if (!dateStr) return { label: '—', color: 'inherit' };
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const expiry = new Date(dateStr);
+        expiry.setHours(0, 0, 0, 0);
+        const diffMs = expiry.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const label = expiry.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        if (diffDays < 0) return { label, color: '#dc2626' };    // rouge — périmé
+        if (diffDays <= 31) return { label, color: '#d97706' };   // orange — ≤ 1 mois
+        return { label, color: '#16a34a' };                        // vert — > 1 mois
+    }
+
     return (
         <div className={styles.page}>
             <div className={styles.header}>
@@ -225,14 +240,15 @@ export default function InventoryPage() {
                             <th>Nom</th>
                             <th>Catégorie</th>
                             <th>Quantité</th>
+                            <th>Péremption</th>
                             {isAdmin && <th>Actions</th>}
                         </tr>
                     </thead>
                     <tbody>
                         {loading && items.length === 0 ? (
-                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem' }}>Chargement...</td></tr>
+                            <tr><td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', padding: '2rem' }}>Chargement...</td></tr>
                         ) : items.length === 0 ? (
-                            <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé</td></tr>
+                            <tr><td colSpan={isAdmin ? 5 : 4} style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé</td></tr>
                         ) : (
                             items.map(item => (
                                 <tr key={item.id}>
@@ -275,6 +291,20 @@ export default function InventoryPage() {
                                     <td><span className={styles.categoryBadge}>{item.category || 'Général'}</span></td>
                                     <td style={{ fontWeight: 700, fontSize: '1.1rem' }}>
                                         {item.quantity}
+                                    </td>
+                                    <td>
+                                        {(() => {
+                                            const { label, color } = getExpiryDisplay(item.nearestExpiry);
+                                            return (
+                                                <span style={{
+                                                    fontWeight: color !== 'inherit' ? 600 : 400,
+                                                    color,
+                                                    fontSize: '0.9rem',
+                                                }}>
+                                                    {label}
+                                                </span>
+                                            );
+                                        })()}
                                     </td>
                                     {isAdmin && (
                                         <td>
