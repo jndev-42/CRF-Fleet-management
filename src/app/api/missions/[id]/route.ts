@@ -6,7 +6,7 @@ import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
 type RouteContext = { params: Promise<{ id: string }> };
 
 /** GET /api/missions/[id] — Détail d'un compte rendu.
- *  CHVL/CHVPSP : uniquement le leur. RESPO/ADMIN : tous. */
+ *  ADMIN : tous. CI/RPAPS : uniquement le leur. */
 export async function GET(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
@@ -41,9 +41,14 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
         const row = reportResult.rows[0];
 
-        // Access control: ADMIN voit tout ; les autres n'accèdent qu'à leurs propres CRs
+        // Access control: only ADMIN and CI/RPAPS can access mission reports
         const roles = (session.user.roles || ['INACTIF']) as string[];
         const isAdmin = roles.includes('ADMIN');
+        const isCiRpaps = roles.includes('CI/RPAPS');
+        if (!isAdmin && !isCiRpaps) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+        }
+        // ADMIN sees all; CI/RPAPS can only access their own reports
         if (!isAdmin) {
             const userId = session.user.id;
             if (!userId || row.submitted_by !== userId) {

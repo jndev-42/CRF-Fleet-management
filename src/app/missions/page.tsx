@@ -25,7 +25,7 @@ interface MissionReport {
     vehicle_name: string | null;
 }
 
-const ALLOWED_ROLES = ['CHVL', 'CHVPSP', 'RESPO', 'ADMIN'];
+const ALLOWED_ROLES = ['ADMIN', 'CI/RPAPS'];
 
 export default function MissionsPage() {
     const { data: session, status } = useSession();
@@ -41,7 +41,7 @@ export default function MissionsPage() {
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {
-            router.push('/');
+            router.push('/vehicles');
         }
     }, [status, canAccess, router]);
 

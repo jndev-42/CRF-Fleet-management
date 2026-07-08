@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import MissionWizard from '@/components/missions/MissionWizard';
 
-const ALLOWED_ROLES = ['CHVL', 'CHVPSP', 'RESPO', 'ADMIN'];
+const ALLOWED_ROLES = ['ADMIN', 'CI/RPAPS'];
 
 export default function NewMissionPage() {
     const { data: session, status } = useSession();
