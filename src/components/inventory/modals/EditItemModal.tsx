@@ -7,6 +7,7 @@ interface InvItem {
     name: string;
     category: string | null;
     notes: string | null;
+    minStock: number | null;
 }
 
 interface EditItemModalProps {
@@ -22,6 +23,7 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
     const [name, setName] = useState(item?.name ?? '');
     const [category, setCategory] = useState(item?.category ?? '');
     const [notes, setNotes] = useState(item?.notes ?? '');
+    const [minStock, setMinStock] = useState(item?.minStock != null ? String(item.minStock) : '');
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
 
@@ -31,6 +33,7 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
             setName(item.name);
             setCategory(item.category ?? '');
             setNotes(item.notes ?? '');
+            setMinStock(item.minStock != null ? String(item.minStock) : '');
             setError('');
         }
     }, [item]);
@@ -52,6 +55,7 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
                     name,
                     category,
                     notes,
+                    minStock: minStock !== '' ? Number(minStock) : null,
                 }),
             });
             if (res.ok) {
@@ -130,6 +134,18 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
                                 value={category}
                                 onChange={e => setCategory(e.target.value)}
                                 placeholder="Ou saisir une catégorie personnalisée..."
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Stock minimum (Optionnel)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                className="form-input"
+                                value={minStock}
+                                onChange={e => setMinStock(e.target.value)}
+                                placeholder="ex: 10 — alerte si stock en dessous"
                             />
                         </div>
 

@@ -8,6 +8,7 @@ import EditItemModal from '@/components/inventory/modals/EditItemModal';
 import InventoryHistoryModal from '@/components/inventory/modals/InventoryHistoryModal';
 import ItemBatchesModal from '@/components/inventory/modals/ItemBatchesModal';
 import ExpiringSoonModal from '@/components/inventory/modals/ExpiringSoonModal';
+import LowStockModal from '@/components/inventory/modals/LowStockModal';
 import styles from './page.module.css';
 
 interface InvItem {
@@ -18,6 +19,7 @@ interface InvItem {
     notes: string | null;
     updatedAt: string;
     nearestExpiry: string | null;
+    minStock: number | null;
 }
 
 interface Pagination {
@@ -40,6 +42,7 @@ export default function InventoryPage() {
     const [categories, setCategories] = useState<string[]>([]);
     const [showAddItem, setShowAddItem] = useState(false);
     const [showExpiringSoon, setShowExpiringSoon] = useState(false);
+    const [showLowStock, setShowLowStock] = useState(false);
     const [editItem, setEditItem] = useState<InvItem | null>(null);
     const [historyItemId, setHistoryItemId] = useState<string | null>(null);
     const [batchItemId, setBatchItemId] = useState<string | null>(null);
@@ -166,6 +169,9 @@ export default function InventoryPage() {
             <div className={styles.header}>
                 <h1 className={styles.title}>Inventaire du Stock</h1>
                 <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn btn-secondary" onClick={() => setShowLowStock(true)}>
+                        📦 Stock faible
+                    </button>
                     <button className="btn btn-secondary" onClick={() => setShowExpiringSoon(true)}>
                         ⚠️ Périmé bientôt
                     </button>
@@ -414,6 +420,16 @@ export default function InventoryPage() {
             {showExpiringSoon && (
                 <ExpiringSoonModal
                     onClose={() => setShowExpiringSoon(false)}
+                    onOpenBatches={(itemId, itemName) => {
+                        setBatchItemId(itemId);
+                        setBatchItemName(itemName);
+                    }}
+                />
+            )}
+
+            {showLowStock && (
+                <LowStockModal
+                    onClose={() => setShowLowStock(false)}
                     onOpenBatches={(itemId, itemName) => {
                         setBatchItemId(itemId);
                         setBatchItemName(itemName);

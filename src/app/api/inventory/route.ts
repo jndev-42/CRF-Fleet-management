@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, category, quantity, notes, expiryDate } = body;
+        const { name, category, quantity, notes, expiryDate, minStock } = body;
 
         if (!name) {
             return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 });
@@ -101,10 +101,11 @@ export async function POST(request: Request) {
 
         const id = crypto.randomUUID();
         const initialQty = Number(quantity) || 0;
+        const minStockVal = minStock !== undefined && minStock !== '' ? Number(minStock) : null;
 
         await db.execute({
-            sql: `INSERT INTO "InvItem" (id, name, category, quantity, notes, updatedAt) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-            args: [id, name, category || null, initialQty, notes || null],
+            sql: `INSERT INTO "InvItem" (id, name, category, quantity, minStock, notes, updatedAt) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+            args: [id, name, category || null, initialQty, minStockVal, notes || null],
         });
 
         // Log initial quantity if > 0
@@ -141,7 +142,7 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, name, category, notes } = body;
+        const { id, name, category, notes, minStock } = body;
 
         if (!id) {
             return NextResponse.json({ error: 'L\'identifiant est requis' }, { status: 400 });
@@ -150,16 +151,18 @@ export async function PATCH(request: Request) {
             return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 });
         }
 
+        const minStockVal = minStock !== undefined && minStock !== '' ? Number(minStock) : null;
+
         const res = await db.execute({
-            sql: `UPDATE "InvItem" SET name = ?, category = ?, notes = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-            args: [name, category || null, notes || null, id],
+            sql: `UPDATE "InvItem" SET name = ?, category = ?, notes = ?, minStock = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+            args: [name, category || null, notes || null, minStockVal, id],
         });
 
         if (res.rowsAffected === 0) {
             return NextResponse.json({ error: 'Article non trouvé' }, { status: 404 });
         }
 
-        return NextResponse.json({ id, name, category, notes });
+        return NextResponse.json({ id, name, category, notes, minStock: minStockVal });
     } catch (e) {
         console.error('PATCH /api/inventory error:', getErrorMessage(e));
         return NextResponse.json({ error: 'Erreur lors de la modification de l\'article' }, { status: 500 });

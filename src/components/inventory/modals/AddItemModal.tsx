@@ -12,6 +12,7 @@ const DEFAULT_FORM = {
     name: '',
     category: '',
     quantity: 0,
+    minStock: '',
     expiryDate: '',
     notes: '',
 };
@@ -141,6 +142,18 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                                     disabled={form.quantity <= 0}
                                 />
                             </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label">Stock minimum (Optionnel)</label>
+                            <input
+                                type="number"
+                                min="0"
+                                className="form-input"
+                                value={form.minStock}
+                                onChange={e => setForm({ ...form, minStock: e.target.value })}
+                                placeholder="ex: 10 — alerte si stock en dessous"
+                            />
                         </div>
 
                         <div className="form-group">
