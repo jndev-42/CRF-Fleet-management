@@ -45,6 +45,7 @@ export default function IncidentReportModal({
     });
 
     const [flashDetails, setFlashDetails] = useState({
+        interventionNumber: '',
         ficheInter: '',
         horsSamu: false,
     });
@@ -315,10 +316,16 @@ export default function IncidentReportModal({
                             </div>
                             <div className="form-row">
                                 <div className="form-group">
+                                    <label className="form-label">N° d&apos;intervention</label>
+                                    <input type="text" className="form-input" placeholder="Ex : 2024-001234" value={flashDetails.interventionNumber} onChange={e => setFlashDetails({ ...flashDetails, interventionNumber: e.target.value })} />
+                                </div>
+                                <div className="form-group">
                                     <label className="form-label">N° Fiche Inter</label>
                                     <input type="text" className="form-input" value={flashDetails.ficheInter} onChange={e => setFlashDetails({ ...flashDetails, ficheInter: e.target.value })} />
                                 </div>
-                                <div className="form-group" style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: 25 }}>
+                            </div>
+                            <div className="form-row">
+                                <div className="form-group" style={{ display: 'flex', alignItems: 'center', height: '100%', paddingTop: 10 }}>
                                     <label className="checkbox-label">
                                         <input type="checkbox" checked={flashDetails.horsSamu} onChange={e => setFlashDetails({ ...flashDetails, horsSamu: e.target.checked })} />
                                         <span>Hors départ Samu/BSPP</span>
@@ -423,6 +430,7 @@ export default function IncidentReportModal({
                                 <div className="summary-row"><strong>Lieu :</strong> {commonData.location}</div>
                                 {selectedType === 'FLASH' && (
                                     <>
+                                        <div className="summary-row"><strong>N° d&apos;intervention :</strong> {flashDetails.interventionNumber || '—'}</div>
                                         <div className="summary-row"><strong>N° Fiche Inter :</strong> {flashDetails.ficheInter || '—'}</div>
                                         <div className="summary-row"><strong>Hors Samu/BSPP :</strong> {flashDetails.horsSamu ? 'Oui' : 'Non'}</div>
                                     </>

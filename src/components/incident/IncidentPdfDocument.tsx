@@ -59,6 +59,7 @@ function PdfVehicleSVG({ selectedZones, title }: { selectedZones: string[], titl
 }
 
 interface FlashDetails {
+    interventionNumber?: string;
     ficheInter?: string;
     horsSamu?: boolean;
 }
@@ -137,6 +138,7 @@ export default function IncidentPdfDocument({ report, logoSrc, generatedAt, phot
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Détails de l&apos;infraction</Text>
             <View style={styles.grid}>
+                <View style={styles.col}><Text style={styles.label}>N° d’intervention</Text><Text style={styles.value}>{report.flashDetails.interventionNumber || '—'}</Text></View>
                 <View style={styles.col}><Text style={styles.label}>N° Fiche Inter</Text><Text style={styles.value}>{report.flashDetails.ficheInter || '—'}</Text></View>
                 <View style={styles.col}><Text style={styles.label}>Hors Samu/BSPP</Text><Text style={styles.value}>{report.flashDetails.horsSamu ? 'Oui' : 'Non'}</Text></View>
             </View>
