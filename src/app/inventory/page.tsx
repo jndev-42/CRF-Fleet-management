@@ -35,6 +35,8 @@ export default function InventoryPage() {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [page, setPage] = useState(1);
+    const [categoryFilter, setCategoryFilter] = useState('');
+    const [categories, setCategories] = useState<string[]>([]);
     const [showAddItem, setShowAddItem] = useState(false);
     const [showExpiringSoon, setShowExpiringSoon] = useState(false);
     const [editItem, setEditItem] = useState<InvItem | null>(null);
@@ -50,6 +52,15 @@ export default function InventoryPage() {
         }
     }, [status, router]);
 
+    // Charger la liste des catégories une seule fois
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+        fetch('/api/inventory?categoriesOnly=1')
+            .then(r => r.json())
+            .then(d => setCategories(d.categories ?? []))
+            .catch(() => {});
+    }, [status]);
+
     const userRoles = (session?.user?.roles ?? ['GUEST']) as string[];
     const isAdmin = userRoles.includes('ADMIN');
 
@@ -58,6 +69,7 @@ export default function InventoryPage() {
         try {
             const params = new URLSearchParams();
             if (search) params.set('search', search);
+            if (categoryFilter) params.set('category', categoryFilter);
             params.set('page', page.toString());
             params.set('pageSize', '20');
 
@@ -72,7 +84,7 @@ export default function InventoryPage() {
         } finally {
             setLoading(false);
         }
-    }, [search, page]);
+    }, [search, categoryFilter, page]);
 
     useEffect(() => {
         if (status === 'authenticated') {
@@ -152,7 +164,7 @@ export default function InventoryPage() {
             <div className={styles.toolbar}>
                 <input
                     className="form-input"
-                    style={{ maxWidth: 400 }}
+                    style={{ maxWidth: 360 }}
                     placeholder="Rechercher un matériel (nom, catégorie)..."
                     value={search}
                     onChange={e => {
@@ -160,6 +172,50 @@ export default function InventoryPage() {
                         setPage(1);
                     }}
                 />
+
+                {categories.length > 0 && (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <button
+                            onClick={() => { setCategoryFilter(''); setPage(1); }}
+                            style={{
+                                padding: '5px 14px',
+                                borderRadius: '20px',
+                                border: '1.5px solid',
+                                borderColor: categoryFilter === '' ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
+                                background: categoryFilter === '' ? 'var(--primary, #2563eb)' : 'transparent',
+                                color: categoryFilter === '' ? '#fff' : 'inherit',
+                                cursor: 'pointer',
+                                fontSize: '0.85rem',
+                                fontWeight: 600,
+                                transition: 'all 0.15s',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            Tous
+                        </button>
+                        {categories.map(cat => (
+                            <button
+                                key={cat as string}
+                                onClick={() => { setCategoryFilter(cat as string); setPage(1); }}
+                                style={{
+                                    padding: '5px 14px',
+                                    borderRadius: '20px',
+                                    border: '1.5px solid',
+                                    borderColor: categoryFilter === cat ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
+                                    background: categoryFilter === cat ? 'var(--primary, #2563eb)' : 'transparent',
+                                    color: categoryFilter === cat ? '#fff' : 'inherit',
+                                    cursor: 'pointer',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 500,
+                                    transition: 'all 0.15s',
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                {cat as string}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             <div className={styles.tableContainer}>

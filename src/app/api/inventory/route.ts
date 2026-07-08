@@ -13,17 +13,32 @@ export async function GET(request: Request) {
 
         const { searchParams } = new URL(request.url);
         const search = searchParams.get('search') ?? '';
+        const category = searchParams.get('category') ?? '';
         const page = parseInt(searchParams.get('page') ?? '1', 10);
         const pageSize = parseInt(searchParams.get('pageSize') ?? '20', 10);
         const offset = (page - 1) * pageSize;
 
+        // Fetch distinct categories list
+        if (searchParams.get('categoriesOnly') === '1') {
+            const catRes = await db.execute(
+                `SELECT DISTINCT category FROM "InvItem" WHERE category IS NOT NULL AND category != '' ORDER BY category ASC`
+            );
+            return NextResponse.json({ categories: catRes.rows.map(r => r.category) });
+        }
+
+        const conditions: string[] = [];
         const args: InValue[] = [];
-        let whereClause = '';
 
         if (search) {
-            whereClause = 'WHERE name LIKE ? OR category LIKE ?';
+            conditions.push('(name LIKE ? OR category LIKE ?)');
             args.push(`%${search}%`, `%${search}%`);
         }
+        if (category) {
+            conditions.push('category = ?');
+            args.push(category);
+        }
+
+        const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
         const countRes = await db.execute({
             sql: `SELECT COUNT(*) as count FROM "InvItem" ${whereClause}`,
@@ -50,6 +65,7 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la récupération de l\'inventaire' }, { status: 500 });
     }
 }
+
 
 export async function POST(request: Request) {
     try {
