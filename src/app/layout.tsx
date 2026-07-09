@@ -64,7 +64,7 @@ export default async function RootLayout({
             Two SWs at the same scope conflict — OneSignal's SW is sufficient for
             PWA install criteria (it has a fetch handler) + push notifications.
           */}
-          <OneSignalProvider appId={onesignalId} roles={roles} />
+          <OneSignalProvider appId={onesignalId} availableULs={session?.user?.availableULs || []} globalRoles={roles} />
           <SessionProvider session={session}>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
               <MenuSettingsProvider>

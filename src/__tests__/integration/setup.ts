@@ -38,6 +38,7 @@ async function createTables() {
     firstRegistrationDate TEXT,
     revisionKmInterval INTEGER,
     revisionYearInterval INTEGER,
+    ulId TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -123,6 +124,7 @@ async function createTables() {
     url TEXT,
     isRead INTEGER NOT NULL DEFAULT 0,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ulId TEXT,
     FOREIGN KEY (userId) REFERENCES "User"(id) ON DELETE CASCADE
   )`);
 
@@ -329,6 +331,7 @@ export async function seedVehicle(overrides: Partial<{
   firstRegistrationDate: string | null;
   revisionKmInterval: number | null;
   revisionYearInterval: number | null;
+  ulId: string | null;
 }> = {}) {
   const v = {
     id: 'VL001',
@@ -346,12 +349,13 @@ export async function seedVehicle(overrides: Partial<{
     firstRegistrationDate: null,
     revisionKmInterval: null,
     revisionYearInterval: null,
+    ulId: 'ul-paris-18',
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT INTO "Vehicle" (id, name, type, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    args: [v.id, v.name, v.type, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval],
+    sql: `INSERT INTO "Vehicle" (id, name, type, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [v.id, v.name, v.type, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval, v.ulId],
   });
   return v;
 }

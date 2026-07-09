@@ -38,6 +38,8 @@ describe('NextAuth Callbacks — Impersonation', () => {
             mockExecute.mockResolvedValueOnce({
                 rows: [{ id: 'user-id-1' }]
             }).mockResolvedValueOnce({
+                rows: [] // UL lookup
+            }).mockResolvedValueOnce({
                 rows: [{ name: 'CHVL' }]
             });
 
@@ -58,6 +60,8 @@ describe('NextAuth Callbacks — Impersonation', () => {
             // Mock DB lookup for target user: id and roles
             mockExecute.mockResolvedValueOnce({
                 rows: [{ id: 'target-user-id' }]
+            }).mockResolvedValueOnce({
+                rows: [] // UL lookup
             }).mockResolvedValueOnce({
                 rows: [{ name: 'CHVL' }, { name: 'RESPO' }]
             });
@@ -86,6 +90,8 @@ describe('NextAuth Callbacks — Impersonation', () => {
             mockExecute.mockResolvedValueOnce({
                 rows: [{ id: 'other-admin-id' }]
             }).mockResolvedValueOnce({
+                rows: [] // UL lookup
+            }).mockResolvedValueOnce({
                 rows: [{ name: 'ADMIN' }]
             });
 
@@ -112,6 +118,8 @@ describe('NextAuth Callbacks — Impersonation', () => {
             // Mock DB lookup for original user (jeannoel)
             mockExecute.mockResolvedValueOnce({
                 rows: [{ id: 'jeannoel-id' }]
+            }).mockResolvedValueOnce({
+                rows: [] // UL lookup
             }).mockResolvedValueOnce({
                 rows: [{ name: 'ADMIN' }]
             });

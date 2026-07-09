@@ -28,23 +28,23 @@ const mockedAuth = vi.mocked(auth);
 // ── Sessions ──────────────────────────────────────────────────────────────────
 
 const adminSession = {
-    user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'] },
+    user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
 };
 
 const ciRpapsSession = {
-    user: { id: 'user-ci', email: 'ci@test.com', roles: ['CI/RPAPS'] },
+    user: { id: 'user-ci', email: 'ci@test.com', roles: ['CI/RPAPS'], ulId: 'ul-paris-18' },
 };
 
 const respoSession = {
-    user: { id: 'user-respo', email: 'respo@test.com', roles: ['RESPO'] },
+    user: { id: 'user-respo', email: 'respo@test.com', roles: ['RESPO'], ulId: 'ul-paris-18' },
 };
 
 const chvlSession = {
-    user: { id: 'user-chvl', email: 'chvl@test.com', roles: ['CHVL'] },
+    user: { id: 'user-chvl', email: 'chvl@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' },
 };
 
 const guestSession = {
-    user: { id: 'user-guest', email: 'guest@test.com', roles: ['GUEST'] },
+    user: { id: 'user-guest', email: 'guest@test.com', roles: ['GUEST'], ulId: 'ul-paris-18' },
 };
 
 // ── Request factories ─────────────────────────────────────────────────────────
@@ -121,7 +121,8 @@ async function createMissionReportTable() {
             "had_complex_care"      INTEGER NOT NULL DEFAULT 0,
             "needs_followup"        INTEGER NOT NULL DEFAULT 0,
             "drive_folder_id"       TEXT,
-            "signed_report_drive_id" TEXT
+            "signed_report_drive_id" TEXT,
+            "ulId"                  TEXT
         )
     `);
     await db.execute(`
@@ -275,14 +276,14 @@ describe('GET /api/missions (list)', () => {
 
         // Insert 2 reports: 1 by admin, 1 by ci
         await db.execute({
-            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            args: ['report-1', 'user-admin', '2026-03-01T12:00:00.000Z', 'RESEAU', 'Mission Admin', '2026-03-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0],
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-1', 'user-admin', '2026-03-01T12:00:00.000Z', 'RESEAU', 'Mission Admin', '2026-03-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-paris-18'],
         });
         await db.execute({
-            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            args: ['report-2', 'user-ci', '2026-03-05T12:00:00.000Z', 'PAPS', 'Mission CI/RPAPS', '2026-03-05', 'Lyon', 'Sophie', 1, 1, 0, 0, 0, 0],
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-2', 'user-ci', '2026-03-05T12:00:00.000Z', 'PAPS', 'Mission CI/RPAPS', '2026-03-05', 'Lyon', 'Sophie', 1, 1, 0, 0, 0, 0, 'ul-paris-18'],
         });
     });
 

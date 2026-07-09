@@ -9,7 +9,7 @@ declare module "next-auth" {
             id: string;
             roles: string[];
             ulId: string;
-            availableULs: { id: string; name: string; slug: string; isHome: boolean }[];
+            availableULs: { id: string; name: string; slug: string; isHome: boolean; roles?: string[] }[];
             originalEmail?: string;
             impersonatedEmail?: string;
         } & DefaultSession["user"];
@@ -24,7 +24,7 @@ declare module "next-auth/jwt" {
         userId?: string;
         devRoles?: string[];
         ulId?: string;
-        availableULs?: { id: string; name: string; slug: string; isHome: boolean }[];
+        availableULs?: { id: string; name: string; slug: string; isHome: boolean; roles?: string[] }[];
     }
 }
 
@@ -42,24 +42,31 @@ const DEV_USERS: Record<string, { email: string; name: string; roles: string[] }
 const isDev = process.env.NODE_ENV === 'development';
 
 // ── UL helpers ───────────────────────────────────────────────────────────────
-type ULEntry = { id: string; name: string; slug: string; isHome: boolean };
+type ULEntry = { id: string; name: string; slug: string; isHome: boolean; roles?: string[] };
 
 async function fetchUserULs(userId: string): Promise<ULEntry[]> {
     try {
         const res = await db.execute({
-            sql: `SELECT ul.id, ul.name, ul.slug, uu.is_home
+            sql: `SELECT ul.id, ul.name, ul.slug, uu.is_home, uu.roles
                   FROM "UserUL" uu
                   JOIN "UniteLocale" ul ON ul.id = uu.ulId
                   WHERE uu.userId = ?
                   ORDER BY uu.is_home DESC, ul.name ASC`,
             args: [userId],
         });
-        return res.rows.map(r => ({
-            id: r.id as string,
-            name: r.name as string,
-            slug: r.slug as string,
-            isHome: !!r.is_home,
-        }));
+        return res.rows.map(r => {
+            const rolesStr = r.roles as string | null;
+            const roles = rolesStr 
+                ? rolesStr.split(',').map(role => role.trim()).filter(Boolean) 
+                : undefined;
+            return {
+                id: r.id as string,
+                name: r.name as string,
+                slug: r.slug as string,
+                isHome: !!r.is_home,
+                roles,
+            };
+        });
     } catch {
         return [];
     }

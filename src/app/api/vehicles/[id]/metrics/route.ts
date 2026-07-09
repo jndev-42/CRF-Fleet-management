@@ -98,7 +98,8 @@ export async function PATCH(
                 tags: [{ field: "tag", key: "role_ADMIN", relation: "=", value: "true" }],
                 headings: { en: notificationTitle, fr: notificationTitle },
                 contents: { en: notificationMessage, fr: notificationMessage },
-                url: notificationUrl
+                url: notificationUrl,
+                ulId: vehicle.ulId as string || 'ul-paris-18'
             });
         } catch (notifError) {
             console.error('Erreur lors de la création des notifications:', notifError);
