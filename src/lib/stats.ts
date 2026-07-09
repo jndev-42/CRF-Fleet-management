@@ -267,6 +267,7 @@ export async function fetchStatsData(
   const missionResult = await db.execute({
     sql: `SELECT t.missionType as missionType, COUNT(*) as count
     FROM Trip t
+    LEFT JOIN Vehicle v ON v.id = t.vehicleId
     WHERE ${whereSql} AND t.missionType IS NOT NULL
     GROUP BY t.missionType
     ORDER BY count DESC`,
