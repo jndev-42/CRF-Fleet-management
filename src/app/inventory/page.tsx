@@ -321,7 +321,15 @@ export default function InventoryPage() {
                                     </td>
                                     {isAdmin && (
                                         <td>
-                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                                <button
+                                                    className="btn btn-secondary"
+                                                    style={{ minWidth: '36px', padding: '4px 8px' }}
+                                                    onClick={() => handleAdjust(item.id, -10)}
+                                                    disabled={adjusting[item.id] || item.quantity < 10}
+                                                >
+                                                    -10
+                                                </button>
                                                 <button
                                                     className="btn btn-secondary"
                                                     style={{ minWidth: '32px', padding: '4px 8px' }}
@@ -337,6 +345,14 @@ export default function InventoryPage() {
                                                     disabled={adjusting[item.id]}
                                                 >
                                                     +1
+                                                </button>
+                                                <button
+                                                    className="btn btn-secondary"
+                                                    style={{ minWidth: '36px', padding: '4px 8px' }}
+                                                    onClick={() => handleAdjust(item.id, 10)}
+                                                    disabled={adjusting[item.id]}
+                                                >
+                                                    +10
                                                 </button>
                                                 
                                                 <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
