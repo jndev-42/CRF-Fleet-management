@@ -17,6 +17,8 @@ interface User {
     last_validation: string | null;
     start_date_invalidation_process: string | null;
     validated_by: string | null;
+    homeUlId?: string | null;
+    homeUlName?: string | null;
 }
 
 type TabId = 'users' | 'menus' | 'uls';

@@ -14,6 +14,8 @@ interface User {
     last_validation: string | null;
     start_date_invalidation_process: string | null;
     validated_by: string | null;
+    homeUlId?: string | null;
+    homeUlName?: string | null;
 }
 
 interface UsersTabProps {
@@ -59,6 +61,16 @@ export default function UsersTab({
     const [userULs, setUserULs] = useState<Record<string, string>>({});
 
     useEffect(() => {
+        const ulsMap: Record<string, string> = {};
+        users.forEach(u => {
+            if (u.homeUlId) {
+                ulsMap[u.email] = u.homeUlId;
+            }
+        });
+        setUserULs(ulsMap);
+    }, [users]);
+
+    useEffect(() => {
         if (!isAdmin) return;
         // Load available ULs for the admin panel
         fetch('/api/ul')
@@ -72,11 +84,10 @@ export default function UsersTab({
             const res = await fetch(`/api/users/${encodeURIComponent(email)}/ul`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ulId, isHome: true, action: 'add' }),
+                body: JSON.stringify({ ulId: ulId || null, isHome: true, action: ulId ? 'add' : 'remove' }),
             });
             if (!res.ok) throw new Error('Erreur');
-            const ul = availableULs.find(u => u.id === ulId);
-            setUserULs(prev => ({ ...prev, [email]: ul?.name ?? '' }));
+            setUserULs(prev => ({ ...prev, [email]: ulId }));
             showToast(`UL mise à jour pour ${email}`);
         } catch {
             showToast('Erreur lors de la mise à jour de l\'UL', 'error');
@@ -167,7 +178,7 @@ export default function UsersTab({
                                             {isAdmin && (
                                                 <td style={{ padding: '16px' }}>
                                                     <select
-                                                        value={userULs[user.email] ? availableULs.find(u => u.name === userULs[user.email])?.id ?? '' : ''}
+                                                        value={userULs[user.email] ?? ''}
                                                         onChange={e => assignUL(user.email, e.target.value)}
                                                         style={{
                                                             fontSize: 13,

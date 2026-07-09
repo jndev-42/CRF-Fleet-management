@@ -59,10 +59,14 @@ export async function GET(request: Request) {
                             u.last_validation,
                             u.start_date_invalidation_process,
                             u.validated_by,
-                            GROUP_CONCAT(r.name) as roles
+                            GROUP_CONCAT(r.name) as roles,
+                            home_ul.ulId as homeUlId,
+                            home_ul_info.name as homeUlName
                         FROM "User" u
                         LEFT JOIN "UserRole" ur ON u.id = ur.userId
                         LEFT JOIN "Role" r ON ur.roleId = r.id
+                        LEFT JOIN "UserUL" home_ul ON u.id = home_ul.userId AND home_ul.is_home = 1
+                        LEFT JOIN "UniteLocale" home_ul_info ON home_ul.ulId = home_ul_info.id
                         WHERE u.id IN (
                             SELECT DISTINCT ur2.userId
                             FROM "UserRole" ur2
@@ -84,10 +88,14 @@ export async function GET(request: Request) {
                         u.last_validation,
                         u.start_date_invalidation_process,
                         u.validated_by,
-                        GROUP_CONCAT(r.name) as roles
+                        GROUP_CONCAT(r.name) as roles,
+                        home_ul.ulId as homeUlId,
+                        home_ul_info.name as homeUlName
                     FROM "User" u
                     LEFT JOIN "UserRole" ur ON u.id = ur.userId
                     LEFT JOIN "Role" r ON ur.roleId = r.id
+                    LEFT JOIN "UserUL" home_ul ON u.id = home_ul.userId AND home_ul.is_home = 1
+                    LEFT JOIN "UniteLocale" home_ul_info ON home_ul.ulId = home_ul_info.id
                     GROUP BY u.id
                     ORDER BY u.email ASC
                 `
@@ -105,7 +113,9 @@ export async function GET(request: Request) {
             last_validation: row.last_validation ?? null,
             start_date_invalidation_process: row.start_date_invalidation_process ?? null,
             validated_by: row.validated_by ?? null,
-            roles: row.roles ? (row.roles as string).split(',') : []
+            roles: row.roles ? (row.roles as string).split(',') : [],
+            homeUlId: row.homeUlId ?? null,
+            homeUlName: row.homeUlName ?? null,
         }));
 
         return NextResponse.json({ users, availableRoles });
