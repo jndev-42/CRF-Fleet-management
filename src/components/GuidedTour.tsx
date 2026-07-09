@@ -251,6 +251,53 @@ function closeBurgerMenu() {
 }
 
 // ──────────────────────────────────────────────────────────────
+// Role-based step filtering
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Returns the subset of TOUR_STEPS visible for a given set of user roles.
+ *
+ * Filtering rules (applied to each step's `target` selector):
+ *  - nav-stats      → requires one of: ADMIN, RESPO, CHVL, CHVPSP (and NOT INACTIF)
+ *  - nav-missions   → requires one of: ADMIN, CI/RPAPS
+ *  - nav-inventory  → requires: ADMIN
+ *  - nav-admin      → requires one of: ADMIN, RESPO
+ *  - notifications  → requires one of: ADMIN, RESPO
+ *  - Check-out/in cards (identified by title) → excluded for INACTIF
+ *  - "Gérer les utilisateurs" info card → requires one of: ADMIN, RESPO
+ */
+function buildActiveSteps(roles: string[]): TourStep[] {
+    const isAdmin   = roles.includes('ADMIN');
+    const isRespo   = roles.includes('RESPO');
+    const isCiRpaps = roles.includes('CI/RPAPS');
+    const isInactif = roles.includes('INACTIF');
+    const hasStats  = isAdmin || isRespo || roles.includes('CHVL') || roles.includes('CHVPSP');
+
+    const checkoutTitles = new Set([
+        'Emprunter & Rendre un véhicule',
+        'Prendre un véhicule (Check-out)',
+        'Le 2ème conducteur',
+        'Rendre un véhicule (Check-in)',
+    ]);
+
+    return TOUR_STEPS.filter((step) => {
+        const t = step.target;
+
+        if (t === '[data-tour="nav-stats"]')     return hasStats && !isInactif;
+        if (t === '[data-tour="nav-missions"]')  return isAdmin || isCiRpaps;
+        if (t === '[data-tour="nav-inventory"]') return isAdmin;
+        if (t === '[data-tour="nav-admin"]')     return isAdmin || isRespo;
+        if (t === '[data-tour="notifications"]') return isAdmin || isRespo;
+
+        if (!t && step.title === 'Gérer les utilisateurs') return isAdmin || isRespo;
+        if (!t && checkoutTitles.has(step.title))          return !isInactif;
+
+        return true;
+    });
+}
+
+// ──────────────────────────────────────────────────────────────
+
 // Component
 // ──────────────────────────────────────────────────────────────
 
