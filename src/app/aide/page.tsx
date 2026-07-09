@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useDemoMode } from '@/lib/contexts/DemoContext';
 import { useEffect, useState } from 'react';
+import { useUL } from '@/lib/contexts/ULContext';
 
 interface PhoneNum {
     label: string;
@@ -19,6 +20,7 @@ interface UL {
 export default function AidePage() {
     const router = useRouter();
     const { isDemoMode, toggleDemoMode } = useDemoMode();
+    const { activeUL } = useUL();
     const [uls, setUls] = useState<UL[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -144,25 +146,27 @@ export default function AidePage() {
                             <div className="loading-spinner" style={{ width: 20, height: 20 }} />
                         </div>
                     ) : (
-                        uls.map(ul => (
-                            <div key={ul.id}>
-                                <h3 style={{ fontSize: 15, marginBottom: 12, color: 'var(--text-secondary)' }}>{ul.name} (UL)</h3>
-                                {ul.phoneNumbers.length === 0 ? (
-                                    <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: 0 }}>Aucun numéro configuré</p>
-                                ) : (
-                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                        {ul.phoneNumbers.map((phone, idx) => (
-                                            <li key={idx}>
-                                                <strong>{phone.label} :</strong>{' '}
-                                                <a href={`tel:${phone.number.replace(/[^\d+]/g, '')}`} style={{ color: 'var(--crf-red)', textDecoration: 'none' }}>
-                                                    {phone.number}
-                                                </a>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                            </div>
-                        ))
+                        uls
+                            .filter(ul => !activeUL || ul.id === activeUL.id)
+                            .map(ul => (
+                                <div key={ul.id}>
+                                    <h3 style={{ fontSize: 15, marginBottom: 12, color: 'var(--text-secondary)' }}>{ul.name} (UL)</h3>
+                                    {ul.phoneNumbers.length === 0 ? (
+                                        <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: 0 }}>Aucun numéro configuré</p>
+                                    ) : (
+                                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {ul.phoneNumbers.map((phone, idx) => (
+                                                <li key={idx}>
+                                                    <strong>{phone.label} :</strong>{' '}
+                                                    <a href={`tel:${phone.number.replace(/[^\d+]/g, '')}`} style={{ color: 'var(--crf-red)', textDecoration: 'none' }}>
+                                                        {phone.number}
+                                                    </a>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+                            ))
                     )}
 
                     {/* Direction 75 */}
