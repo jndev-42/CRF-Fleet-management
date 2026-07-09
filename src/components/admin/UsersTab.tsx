@@ -22,7 +22,6 @@ interface UsersTabProps {
     users: User[];
     availableRoles: string[];
     isAdmin: boolean;
-    onToggleRole: (email: string, roleName: string, currentRoles: string[]) => Promise<void>;
     onValidatePapers: (userId: string, userName: string | null) => Promise<void>;
     onCreateUser: (email: string, name: string, roles: string[], ulId?: string | null) => Promise<void>;
     onDeleteUser: (email: string) => Promise<void>;
@@ -43,7 +42,6 @@ export default function UsersTab({
     users,
     availableRoles,
     isAdmin,
-    onToggleRole,
     onValidatePapers,
     onCreateUser,
     onDeleteUser,
@@ -145,8 +143,6 @@ export default function UsersTab({
                 )}
             </div>
 
-            {isAdmin && <RoleLegend />}
-
             <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-lg)', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
                 <div style={{ overflowX: 'auto' }}>
                     <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -155,7 +151,6 @@ export default function UsersTab({
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Email</th>
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Nom</th>
                                 {isAdmin && <th style={{ padding: '16px', fontWeight: 600 }}>UL</th>}
-                                {isAdmin && <th style={{ padding: '16px', fontWeight: 600 }}>Rôles</th>}
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Papiers</th>
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Actions</th>
                             </tr>
@@ -163,7 +158,7 @@ export default function UsersTab({
                         <tbody>
                             {currentUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isAdmin ? 6 : 4} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan={isAdmin ? 5 : 4} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Aucun utilisateur trouvé.
                                     </td>
                                 </tr>
@@ -197,39 +192,6 @@ export default function UsersTab({
                                                             <option key={ul.id} value={ul.id}>{ul.name}</option>
                                                         ))}
                                                     </select>
-                                                </td>
-                                            )}
-                                            {isAdmin && (
-                                                <td style={{ padding: '16px' }}>
-                                                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                                        {availableRoles.map(role => {
-                                                            const hasRole = user.roles.includes(role);
-                                                            return (
-                                                                <label key={role} style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '6px',
-                                                                    background: hasRole ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.05)',
-                                                                    border: `1px solid ${hasRole ? '#3B82F6' : 'var(--border-primary)'}`,
-                                                                    borderRadius: '100px',
-                                                                    padding: '4px 10px',
-                                                                    fontSize: '13px',
-                                                                    cursor: 'pointer',
-                                                                    color: hasRole ? '#60A5FA' : 'var(--text-secondary)',
-                                                                    transition: 'all 0.2s',
-                                                                    userSelect: 'none'
-                                                                }}>
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={hasRole}
-                                                                        onChange={() => onToggleRole(user.email, role, user.roles)}
-                                                                        style={{ display: 'none' }}
-                                                                    />
-                                                                    {role}
-                                                                </label>
-                                                            );
-                                                        })}
-                                                    </div>
                                                 </td>
                                             )}
 
@@ -601,7 +563,7 @@ function ManageUserULsModal({
                 const mapped = (data.uls || []).map((ul) => ({
                     ulId: ul.id,
                     isHome: !!ul.isHome,
-                    roles: ul.roles || []
+                    roles: (ul.isHome && (!ul.roles || ul.roles.length === 0)) ? user.roles : (ul.roles || [])
                 }));
                 setUls(mapped);
             })
@@ -684,8 +646,11 @@ function ManageUserULsModal({
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                                 {/* Droits Home */}
                                 <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-primary)' }}>
-                                    <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                                        🏠 Unité Locale Principale (Appartenance)
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                                        <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                            🏠 Unité Locale Principale (Appartenance)
+                                        </div>
+                                        <RoleLegend />
                                     </div>
                                     {uls.filter(u => u.isHome).map((row) => {
                                         const originalIdx = uls.indexOf(row);

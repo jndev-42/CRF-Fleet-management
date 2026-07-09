@@ -140,6 +140,29 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
                     sql: `INSERT INTO "UserUL" (userId, ulId, is_home, roles) VALUES (?, ?, ?, ?)`,
                     args: [userId, item.ulId, item.isHome ? 1 : 0, rolesStr || null],
                 });
+
+                // Si c'est l'UL d'appartenance (home), synchroniser avec les rôles globaux (UserRole)
+                if (item.isHome) {
+                    // Supprimer les rôles globaux existants
+                    await tx.execute({
+                        sql: `DELETE FROM "UserRole" WHERE userId = ?`,
+                        args: [userId],
+                    });
+
+                    // Insérer les nouveaux rôles globaux
+                    for (const roleName of item.roles) {
+                        const roleRes = await tx.execute({
+                            sql: 'SELECT id FROM "Role" WHERE name = ?',
+                            args: [roleName]
+                        });
+                        if (roleRes.rows.length > 0) {
+                            await tx.execute({
+                                sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
+                                args: [userId, roleRes.rows[0].id]
+                            });
+                        }
+                    }
+                }
             }
 
             await tx.commit();

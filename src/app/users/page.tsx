@@ -83,41 +83,7 @@ export default function AdminPage() {
         }
     }
 
-    async function toggleRole(email: string, roleName: string, currentRoles: string[]) {
-        const isAdding = !currentRoles.includes(roleName);
-        let newRoles = isAdding
-            ? [...currentRoles, roleName]
-            : currentRoles.filter(r => r !== roleName);
 
-        if (isAdding) {
-            if (roleName === 'GUEST') {
-                newRoles = ['GUEST'];
-            } else {
-                newRoles = newRoles.filter(r => r !== 'GUEST');
-            }
-        }
-
-        const previousUsers = [...users];
-        setUsers(users.map(u => u.email === email ? { ...u, roles: newRoles } : u));
-
-        try {
-            const res = await fetch(`/api/users/${encodeURIComponent(email)}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ roles: newRoles })
-            });
-
-            if (res.ok) {
-                showToast(`Rôles mis à jour pour ${email}`);
-            } else {
-                setUsers(previousUsers);
-                throw new Error('Failed to update roles');
-            }
-        } catch {
-            setUsers(previousUsers);
-            showToast('Erreur lors de la mise à jour', 'error');
-        }
-    }
 
     async function validatePapers(userId: string, userName: string | null) {
         try {
@@ -241,7 +207,6 @@ export default function AdminPage() {
                     users={users}
                     availableRoles={availableRoles}
                     isAdmin={isAdmin}
-                    onToggleRole={toggleRole}
                     onValidatePapers={validatePapers}
                     onCreateUser={createUser}
                     onDeleteUser={deleteUser}
