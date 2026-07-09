@@ -17,6 +17,15 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'ID de l\'article requis' }, { status: 400 });
         }
 
+        const ulId = session.user.ulId || 'default';
+        const itemCheck = await db.execute({
+            sql: `SELECT ulId FROM "InvItem" WHERE id = ?`,
+            args: [itemId],
+        });
+        if (itemCheck.rows.length === 0 || itemCheck.rows[0].ulId !== ulId) {
+            return NextResponse.json({ error: 'Article non trouvé ou accès refusé' }, { status: 404 });
+        }
+
         const batchesRes = await db.execute({
             sql: `SELECT * FROM "InvBatch" WHERE itemId = ? AND quantity > 0 ORDER BY CASE WHEN expiryDate IS NULL THEN 1 ELSE 0 END, expiryDate ASC`,
             args: [itemId],
@@ -63,6 +72,14 @@ export async function DELETE(request: Request) {
         }
 
         const { itemId, quantity } = batchRes.rows[0];
+        const ulId = session.user.ulId || 'default';
+        const itemCheck = await db.execute({
+            sql: `SELECT ulId FROM "InvItem" WHERE id = ?`,
+            args: [itemId],
+        });
+        if (itemCheck.rows.length === 0 || itemCheck.rows[0].ulId !== ulId) {
+            return NextResponse.json({ error: 'Article non trouvé ou accès refusé' }, { status: 404 });
+        }
 
         // Supprimer le lot
         await db.execute({
@@ -125,6 +142,14 @@ export async function PATCH(request: Request) {
         }
 
         const { itemId, quantity, expiryDate } = batchRes.rows[0];
+        const ulIdVal = session.user.ulId || 'default';
+        const itemCheckVal = await db.execute({
+            sql: `SELECT ulId FROM "InvItem" WHERE id = ?`,
+            args: [itemId],
+        });
+        if (itemCheckVal.rows.length === 0 || itemCheckVal.rows[0].ulId !== ulIdVal) {
+            return NextResponse.json({ error: 'Article non trouvé ou accès refusé' }, { status: 404 });
+        }
         const newQuantity = Number(quantity) + change;
 
         if (newQuantity < 0) {

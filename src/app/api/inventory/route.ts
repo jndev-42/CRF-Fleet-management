@@ -17,17 +17,19 @@ export async function GET(request: Request) {
         const page = parseInt(searchParams.get('page') ?? '1', 10);
         const pageSize = parseInt(searchParams.get('pageSize') ?? '20', 10);
         const offset = (page - 1) * pageSize;
+        const ulId = session.user.ulId || 'default';
 
         // Fetch distinct categories list
         if (searchParams.get('categoriesOnly') === '1') {
-            const catRes = await db.execute(
-                `SELECT DISTINCT category FROM "InvItem" WHERE category IS NOT NULL AND category != '' ORDER BY category ASC`
-            );
+            const catRes = await db.execute({
+                sql: `SELECT DISTINCT category FROM "InvItem" WHERE category IS NOT NULL AND category != '' AND ulId = ? ORDER BY category ASC`,
+                args: [ulId]
+            });
             return NextResponse.json({ categories: catRes.rows.map(r => r.category) });
         }
 
-        const conditions: string[] = [];
-        const args: InValue[] = [];
+        const conditions: string[] = ['ulId = ?'];
+        const args: InValue[] = [ulId];
 
         if (search) {
             conditions.push('(name LIKE ? OR category LIKE ?)');
@@ -103,9 +105,11 @@ export async function POST(request: Request) {
         const initialQty = Number(quantity) || 0;
         const minStockVal = minStock !== undefined && minStock !== '' ? Number(minStock) : null;
 
+        const ulId = session.user.ulId || 'default';
+
         await db.execute({
-            sql: `INSERT INTO "InvItem" (id, name, category, quantity, minStock, notes, updatedAt) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-            args: [id, name, category || null, initialQty, minStockVal, notes || null],
+            sql: `INSERT INTO "InvItem" (id, name, category, quantity, minStock, notes, ulId, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+            args: [id, name, category || null, initialQty, minStockVal, notes || null, ulId],
         });
 
         // Log initial quantity if > 0
@@ -152,14 +156,15 @@ export async function PATCH(request: Request) {
         }
 
         const minStockVal = minStock !== undefined && minStock !== '' ? Number(minStock) : null;
+        const ulId = session.user.ulId || 'default';
 
         const res = await db.execute({
-            sql: `UPDATE "InvItem" SET name = ?, category = ?, notes = ?, minStock = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-            args: [name, category || null, notes || null, minStockVal, id],
+            sql: `UPDATE "InvItem" SET name = ?, category = ?, notes = ?, minStock = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ? AND ulId = ?`,
+            args: [name, category || null, notes || null, minStockVal, id, ulId],
         });
 
         if (res.rowsAffected === 0) {
-            return NextResponse.json({ error: 'Article non trouvé' }, { status: 404 });
+            return NextResponse.json({ error: 'Article non trouvé ou accès refusé' }, { status: 404 });
         }
 
         return NextResponse.json({ id, name, category, notes, minStock: minStockVal });
@@ -183,14 +188,15 @@ export async function DELETE(request: Request) {
 
         const { searchParams } = new URL(request.url);
         const id = searchParams.get('id');
+        const ulId = session.user.ulId || 'default';
 
         if (!id) {
             return NextResponse.json({ error: 'L\'identifiant est requis' }, { status: 400 });
         }
 
         const res = await db.execute({
-            sql: `DELETE FROM "InvItem" WHERE id = ?`,
-            args: [id],
+            sql: `DELETE FROM "InvItem" WHERE id = ? AND ulId = ?`,
+            args: [id, ulId],
         });
 
         if (res.rowsAffected === 0) {

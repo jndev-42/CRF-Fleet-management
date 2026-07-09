@@ -14,6 +14,8 @@ export async function GET() {
         oneMonthFromNow.setMonth(oneMonthFromNow.getMonth() + 1);
         const limitDate = oneMonthFromNow.toISOString().split('T')[0];
 
+        const ulId = session.user.ulId || 'default';
+
         // Join InvBatch with InvItem to get names
         const res = await db.execute({
             sql: `
@@ -29,9 +31,10 @@ export async function GET() {
                 WHERE b.expiryDate IS NOT NULL
                   AND b.expiryDate <= ?
                   AND b.quantity > 0
+                  AND i.ulId = ?
                 ORDER BY b.expiryDate ASC
             `,
-            args: [limitDate],
+            args: [limitDate, ulId],
         });
 
         return NextResponse.json({ items: res.rows });

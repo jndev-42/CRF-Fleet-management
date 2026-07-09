@@ -10,13 +10,18 @@ export async function GET() {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        const res = await db.execute(`
-            SELECT id, name, category, quantity, minStock
-            FROM "InvItem"
-            WHERE minStock IS NOT NULL
-              AND quantity < minStock
-            ORDER BY (minStock - quantity) DESC, name ASC
-        `);
+        const ulId = session.user.ulId || 'default';
+        const res = await db.execute({
+            sql: `
+                SELECT id, name, category, quantity, minStock
+                FROM "InvItem"
+                WHERE minStock IS NOT NULL
+                  AND quantity < minStock
+                  AND ulId = ?
+                ORDER BY (minStock - quantity) DESC, name ASC
+            `,
+            args: [ulId],
+        });
 
         return NextResponse.json({ items: res.rows });
     } catch (e) {

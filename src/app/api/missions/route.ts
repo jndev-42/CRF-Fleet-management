@@ -78,8 +78,8 @@ export async function GET(request: Request) {
         const conditions: string[] = [];
         const args: (string | number | null)[] = [];
 
-        // Filtre UL via le véhicule associé
-        conditions.push('(mr.vehicle_id IS NULL OR v.ulId = ?)');
+        // Filtre UL via la colonne ulId du rapport de mission
+        conditions.push('mr.ulId = ?');
         args.push(ulId);
 
         if (!isAdmin) {
@@ -206,6 +206,7 @@ export async function POST(request: Request) {
         const reportId = crypto.randomUUID();
         const submittedAt = new Date().toISOString();
 
+        const ulId = session.user.ulId || 'default';
         const tx = await db.transaction('write');
         try {
             await tx.execute({
@@ -214,8 +215,8 @@ export async function POST(request: Request) {
                     location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count,
                     ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment,
                     had_acr, had_hemorrhage, had_complex_care, needs_followup, drive_folder_id,
-                    signed_report_drive_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    signed_report_drive_id, ulId
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     reportId,
                     submittedBy ?? null,
@@ -240,6 +241,7 @@ export async function POST(request: Request) {
                     data.needs_followup ? 1 : 0,
                     data.drive_folder_id ?? null,
                     data.signed_report_drive_id ?? null,
+                    ulId,
                 ],
             });
 

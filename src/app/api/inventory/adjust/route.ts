@@ -22,6 +22,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Données invalides' }, { status: 400 });
         }
 
+        const ulId = session.user.ulId || 'default';
+        const itemCheck = await db.execute({
+            sql: `SELECT ulId FROM "InvItem" WHERE id = ?`,
+            args: [itemId],
+        });
+        if (itemCheck.rows.length === 0 || itemCheck.rows[0].ulId !== ulId) {
+            return NextResponse.json({ error: 'Article non trouvé ou accès refusé' }, { status: 404 });
+        }
+
         if (change > 0) {
             // Optional: deduct from no-date batch if specified (splitting stock)
             if (deductFromNoDate && expiryDate) {
