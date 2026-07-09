@@ -145,11 +145,11 @@ export default function AdminPage() {
         }
     }
 
-    async function createUser(email: string, name: string, roles: string[]) {
+    async function createUser(email: string, name: string, roles: string[], ulId?: string | null) {
         const res = await fetch('/api/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, name, roles }),
+            body: JSON.stringify({ email, name, roles, ulId }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erreur');
@@ -163,6 +163,8 @@ export default function AdminPage() {
             last_validation: null,
             start_date_invalidation_process: null,
             validated_by: null,
+            homeUlId: ulId || null,
+            homeUlName: ulId ? data.ulName || null : null
         };
         setUsers(prev => [...prev, newUser].sort((a, b) => a.email.localeCompare(b.email)));
     }

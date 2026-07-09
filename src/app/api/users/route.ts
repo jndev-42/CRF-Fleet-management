@@ -20,6 +20,7 @@ const createUserSchema = z.object({
     email: z.string().email('Email invalide'),
     name: z.string().min(1, 'Le nom est requis').max(100),
     roles: z.array(z.string()).optional().default([]),
+    ulId: z.string().optional().nullable(),
 });
 
 /** GET /api/users — ADMIN ou RESPO : liste tous les utilisateurs avec leurs rôles.
@@ -159,6 +160,7 @@ export async function POST(request: Request) {
 
         const userId = crypto.randomUUID();
         const now = new Date().toISOString();
+        let ulName: string | null = null;
 
         const tx = await db.transaction('write');
         try {
@@ -182,6 +184,21 @@ export async function POST(request: Request) {
                 }
             }
 
+            // Assign UL
+            if (data.ulId) {
+                const ulRes = await tx.execute({
+                    sql: 'SELECT name FROM "UniteLocale" WHERE id = ?',
+                    args: [data.ulId]
+                });
+                if (ulRes.rows.length > 0) {
+                    ulName = ulRes.rows[0].name as string;
+                    await tx.execute({
+                        sql: 'INSERT INTO "UserUL" (userId, ulId, is_home) VALUES (?, ?, 1)',
+                        args: [userId, data.ulId]
+                    });
+                }
+            }
+
             // Si l'utilisateur est créé avec un rôle CHVL ou CHVPSP,
             // invalider les papiers par défaut.
             const isDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
@@ -190,14 +207,14 @@ export async function POST(request: Request) {
                 await tx.execute({
                     sql: `UPDATE "User"
                           SET papiers_valides = 0,
-                              start_date_invalidation_process = ?
+                               start_date_invalidation_process = ?
                           WHERE id = ?`,
                     args: [today, userId],
                 });
             }
 
             await tx.commit();
-            return NextResponse.json({ success: true, id: userId }, { status: 201 });
+            return NextResponse.json({ success: true, id: userId, ulName }, { status: 201 });
         } catch (e) {
             await tx.rollback();
             throw e;

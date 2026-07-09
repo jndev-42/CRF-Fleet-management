@@ -196,6 +196,35 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                 const hasAccess = available.some(ul => ul.id === requestedUlId);
                 if (hasAccess) {
                     token.ulId = requestedUlId;
+
+                    // Dynamic roles retrieval upon switching UL
+                    if (token.userId) {
+                        try {
+                            const ulRoleRes = await db.execute({
+                                sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND ulId = ?',
+                                args: [token.userId, requestedUlId],
+                            });
+                            let activeRoles: string[] = [];
+                            if (ulRoleRes.rows.length > 0 && ulRoleRes.rows[0].roles) {
+                                activeRoles = (ulRoleRes.rows[0].roles as string).split(',').map(r => r.trim()).filter(Boolean);
+                            }
+                            if (activeRoles.length === 0) {
+                                const rolesRes = await db.execute({
+                                    sql: `
+                                        SELECT r.name
+                                        FROM "UserRole" ur
+                                        JOIN "Role" r ON ur.roleId = r.id
+                                        WHERE ur.userId = ?
+                                    `,
+                                    args: [token.userId],
+                                });
+                                activeRoles = rolesRes.rows.map(row => row.name as string);
+                            }
+                            token.roles = activeRoles;
+                        } catch (e) {
+                            console.error("Failed to fetch roles for switched UL:", e);
+                        }
+                    }
                 }
             }
         }
@@ -243,23 +272,40 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                 });
                 if (userRes.rows.length > 0) {
                     token.userId = userRes.rows[0].id as string;
-                    
-                    const rolesRes = await db.execute({
-                        sql: `
-                            SELECT r.name
-                            FROM "UserRole" ur
-                            JOIN "Role" r ON ur.roleId = r.id
-                            WHERE ur.userId = ?
-                        `,
-                        args: [token.userId],
-                    });
-                    token.roles = rolesRes.rows.map(row => row.name as string);
 
                     // Load UL data (always refresh on sign-in, keep ulId if already set via switch)
                     token.availableULs = await fetchUserULs(token.userId as string);
                     if (!token.ulId) {
                         token.ulId = resolveActiveUL(token.availableULs);
                     }
+
+                    // Retrieve roles based on the active UL
+                    let activeRoles: string[] = [];
+                    if (token.userId) {
+                        if (token.ulId && token.ulId !== 'default') {
+                            const ulRoleRes = await db.execute({
+                                sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND ulId = ?',
+                                args: [token.userId, token.ulId],
+                            });
+                            if (ulRoleRes.rows.length > 0 && ulRoleRes.rows[0].roles) {
+                                activeRoles = (ulRoleRes.rows[0].roles as string).split(',').map(r => r.trim()).filter(Boolean);
+                            }
+                        }
+
+                        if (activeRoles.length === 0) {
+                            const rolesRes = await db.execute({
+                                sql: `
+                                    SELECT r.name
+                                    FROM "UserRole" ur
+                                    JOIN "Role" r ON ur.roleId = r.id
+                                    WHERE ur.userId = ?
+                                `,
+                                args: [token.userId],
+                            });
+                            activeRoles = rolesRes.rows.map(row => row.name as string);
+                        }
+                    }
+                    token.roles = activeRoles;
                 } else {
                     token.roles = [];
                 }
