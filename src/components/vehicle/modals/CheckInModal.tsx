@@ -6,6 +6,7 @@ import ChecklistItems from '../ChecklistItems';
 import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
+import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
 
 interface CheckInModalProps {
     vehicle: Vehicle;
@@ -55,6 +56,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [renaultError, setRenaultError] = useState(false);
     const [manualEntry, setManualEntry] = useState(!isConnected(vehicle.vin));
     const [showIncidentReport, setShowIncidentReport] = useState(false);
+    const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
     const isDesinf = trip.missionType === 'Désinfection';
 
@@ -167,9 +169,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
             });
 
             if (res.ok) {
-                // API completed successfully — close modal and trigger refetch
-                onSuccess();
-                onRefetch?.();
+                // API completed successfully — show success animation
+                setShowSuccessAnimation(true);
             } else {
                 const errorData = await res.json().catch(() => ({}));
                 alert(errorData.error || 'Erreur lors du retour du véhicule');
@@ -450,6 +451,16 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     vehicle={vehicle}
                     tripId={trip.id}
                     onClose={() => setShowIncidentReport(false)}
+                />
+            )}
+
+            {showSuccessAnimation && (
+                <MarineApprovedOverlay
+                    onAnimationComplete={() => {
+                        setShowSuccessAnimation(false);
+                        onSuccess();
+                        onRefetch?.();
+                    }}
                 />
             )}
         </div>

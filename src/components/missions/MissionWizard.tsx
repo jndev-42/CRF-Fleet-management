@@ -11,6 +11,7 @@ import Step6Incidents from './steps/Step6Incidents';
 import Step7SignedReport from './steps/Step7SignedReport';
 import Step8Photos from './steps/Step8Photos';
 import styles from './MissionWizard.module.css';
+import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
 
 export interface MissionFormData {
     mission_type: 'RESEAU' | 'DPS' | 'PAPS';
@@ -72,6 +73,8 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+    const [successMissionId, setSuccessMissionId] = useState<string | null>(null);
 
     const showReportStep = formData.mission_type === 'DPS' || formData.mission_type === 'PAPS';
     const isExternalVehicle = formData.vehicle_id?.startsWith('EXTERNAL_');
@@ -215,7 +218,8 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
             }
 
             const data = await res.json();
-            onSuccess(data.id);
+            setSuccessMissionId(data.id);
+            setShowSuccessAnimation(true);
         } catch {
             setError('Erreur réseau. Veuillez réessayer.');
         } finally {
@@ -297,6 +301,17 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
                     )}
                 </div>
             </div>
+
+            {showSuccessAnimation && (
+                <MarineApprovedOverlay
+                    onAnimationComplete={() => {
+                        setShowSuccessAnimation(false);
+                        if (successMissionId) {
+                            onSuccess(successMissionId);
+                        }
+                    }}
+                />
+            )}
         </div>
     );
 }

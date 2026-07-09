@@ -1,0 +1,170 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: opacity 0.5s ease;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.6); /* slate-900 with opacity */
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: fadeInBackdrop 0.4s ease forwards;
+}
+
+.contentContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 320px;
+  height: 320px;
+}
+
+.imageWrapper {
+  position: relative;
+  z-index: 5;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 8px solid #ffffff;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  background-color: #ffffff;
+}
+
+.marineImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sealWrapper {
+  position: absolute;
+  z-index: 2;
+  width: 340px;
+  height: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: sealPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.spikySeal {
+  width: 100%;
+  height: 100%;
+  transform-origin: center;
+  animation: spin 15s linear infinite;
+  filter: drop-shadow(0 10px 15px rgba(0, 0, 0, 0.2));
+}
+
+.stampWrapper {
+  position: absolute;
+  z-index: 10;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  animation: stampSlam 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.stampText {
+  font-family: 'Impact', 'Arial Black', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #dc2626; /* red-600 */
+  border: 5px double #dc2626;
+  border-radius: 8px;
+  padding: 6px 18px;
+  background-color: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* Shake the content container when stamp hits */
+.shakeEffect {
+  animation: shake 0.2s ease-in-out;
+}
+
+.fadeOut {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sealPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes stampSlam {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(3) rotate(-35deg);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.9) rotate(-10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(-12deg);
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(-4px, 4px); }
+  50% { transform: translate(4px, -4px); }
+  75% { transform: translate(-2px, -2px); }
+}
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .marineImage, .spikySeal, .stampWrapper, .imageWrapper, .sealWrapper {
+    animation: none !important;
+    transform: none !important;
+  }
+  .spikySeal {
+    transform: rotate(15deg) !important;
+  }
+  .stampWrapper {
+    transform: translate(-50%, -50%) rotate(-12deg) !important;
+    opacity: 1 !important;
+  }
+}
