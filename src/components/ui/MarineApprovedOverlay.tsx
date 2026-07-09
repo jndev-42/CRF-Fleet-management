@@ -6,9 +6,15 @@ import styles from './MarineApprovedOverlay.module.css';
 
 interface MarineApprovedOverlayProps {
     onAnimationComplete: () => void;
+    imageSrc?: string;
+    stampText?: string;
 }
 
-export default function MarineApprovedOverlay({ onAnimationComplete }: MarineApprovedOverlayProps) {
+export default function MarineApprovedOverlay({
+    onAnimationComplete,
+    imageSrc = "/big-marine.png",
+    stampText = "MARINE APPROVED"
+}: MarineApprovedOverlayProps) {
     const [step, setStep] = useState(0); // 0: init/backdrop, 1: photo, 2: seal, 3: stamp, 4: exit
 
     useEffect(() => {
@@ -90,8 +96,8 @@ export default function MarineApprovedOverlay({ onAnimationComplete }: MarineApp
                 {step >= 1 && (
                     <div className={styles.imageWrapper}>
                         <Image
-                            src="/big-marine.png"
-                            alt="Marine"
+                            src={imageSrc}
+                            alt={stampText}
                             width={200}
                             height={200}
                             className={styles.marineImage}
@@ -104,7 +110,7 @@ export default function MarineApprovedOverlay({ onAnimationComplete }: MarineApp
                 {step >= 3 && (
                     <div className={styles.stampWrapper}>
                         <div className={styles.stampText}>
-                            MARINE APPROVED
+                            {stampText}
                         </div>
                     </div>
                 )}

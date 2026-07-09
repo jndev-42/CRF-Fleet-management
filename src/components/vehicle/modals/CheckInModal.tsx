@@ -456,6 +456,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
             {showSuccessAnimation && (
                 <MarineApprovedOverlay
+                    imageSrc="/mecano-pierro.png"
+                    stampText="Pierre approved"
                     onAnimationComplete={() => {
                         setShowSuccessAnimation(false);
                         onSuccess();
