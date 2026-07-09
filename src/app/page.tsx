@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { RenaultVehicleData } from '@/lib/renault';
 import { DashboardSkeletons } from '@/components/ui/Skeleton';
 import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
+import { useUL } from '@/lib/contexts/ULContext';
 
 interface Vehicle {
   id: string;
@@ -64,6 +65,7 @@ export default function DashboardPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { activeUL } = useUL();
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -125,7 +127,7 @@ export default function DashboardPage() {
       <div className="page-header">
         <h1 className="page-title">Tableau de bord</h1>
         <p className="page-description">
-          Vue d&apos;ensemble de la flotte — Croix-Rouge Paris 18
+          Vue d&apos;ensemble de la flotte — Croix-Rouge{activeUL ? ` ${activeUL.name}` : ''}
         </p>
       </div>
 

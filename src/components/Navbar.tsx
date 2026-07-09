@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
 import { User } from 'next-auth';
 import { useMenuSettings, MenuVisibility } from '@/lib/contexts/MenuSettingsContext';
+import { useUL } from '@/lib/contexts/ULContext';
 
 type NavbarProps = {
     user?: User & { roles?: string[] };
@@ -24,8 +25,11 @@ export default function Navbar({ user }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
     const { getVisibility } = useMenuSettings();
+    const { activeUL, availableULs, switchUL, isMultiUL } = useUL();
 
     const userRoles = user?.roles ?? [];
+
+    const ulLabel = activeUL ? `Unité Locale ${activeUL.name}` : 'Unité Locale';
 
     return (
         <header className="header" role="banner">
@@ -34,7 +38,23 @@ export default function Navbar({ user }: NavbarProps) {
                 <Image src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" width={40} height={40} />
                 <div>
                     <div className="header-title">Martine</div>
-                    <div className="header-subtitle">Unité Locale Paris 18</div>
+                    {isMultiUL ? (
+                        <select
+                            className="ul-switcher"
+                            value={activeUL?.id ?? ''}
+                            onChange={e => { e.stopPropagation(); switchUL(e.target.value); }}
+                            onClick={e => e.stopPropagation()}
+                            aria-label="Changer d'Unité Locale"
+                        >
+                            {availableULs.map(ul => (
+                                <option key={ul.id} value={ul.id}>
+                                    Unité Locale {ul.name}
+                                </option>
+                            ))}
+                        </select>
+                    ) : (
+                        <div className="header-subtitle">{ulLabel}</div>
+                    )}
                 </div>
             </Link>
 

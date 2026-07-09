@@ -8,6 +8,8 @@ declare module "next-auth" {
         user: {
             id: string;
             roles: string[];
+            ulId: string;
+            availableULs: { id: string; name: string; slug: string; isHome: boolean }[];
             originalEmail?: string;
             impersonatedEmail?: string;
         } & DefaultSession["user"];
@@ -21,6 +23,8 @@ declare module "next-auth/jwt" {
         roles?: string[];
         userId?: string;
         devRoles?: string[];
+        ulId?: string;
+        availableULs?: { id: string; name: string; slug: string; isHome: boolean }[];
     }
 }
 
@@ -36,6 +40,37 @@ const DEV_USERS: Record<string, { email: string; name: string; roles: string[] }
 };
 
 const isDev = process.env.NODE_ENV === 'development';
+
+// ── UL helpers ───────────────────────────────────────────────────────────────
+type ULEntry = { id: string; name: string; slug: string; isHome: boolean };
+
+async function fetchUserULs(userId: string): Promise<ULEntry[]> {
+    try {
+        const res = await db.execute({
+            sql: `SELECT ul.id, ul.name, ul.slug, uu.is_home
+                  FROM "UserUL" uu
+                  JOIN "UniteLocale" ul ON ul.id = uu.ulId
+                  WHERE uu.userId = ?
+                  ORDER BY uu.is_home DESC, ul.name ASC`,
+            args: [userId],
+        });
+        return res.rows.map(r => ({
+            id: r.id as string,
+            name: r.name as string,
+            slug: r.slug as string,
+            isHome: !!r.is_home,
+        }));
+    } catch {
+        return [];
+    }
+}
+
+/** Retourne l'ulId actif : UL d'appartenance (is_home=1) en priorité, sinon première UL disponible, sinon 'default' */
+function resolveActiveUL(uls: ULEntry[]): string {
+    if (uls.length === 0) return 'default';
+    const home = uls.find(u => u.isHome);
+    return home ? home.id : uls[0].id;
+}
 
 // ── Providers ────────────────────────────────────────────────────────────────
 const providers = [
@@ -110,6 +145,10 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
         session.user.originalEmail = token.originalEmail as string;
         session.user.impersonatedEmail = token.impersonatedEmail as string | undefined;
 
+        // Propagate UL data
+        session.user.ulId = (token.ulId as string) || 'default';
+        session.user.availableULs = (token.availableULs as { id: string; name: string; slug: string; isHome: boolean }[]) || [];
+
         // Dev : @dev.local bypass la vérification de domaine
         if (email?.endsWith('@dev.local')) {
             session.user.roles = (token.roles as string[]) || [];
@@ -142,11 +181,21 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
             token.originalEmail = token.email;
         }
 
-        // Handle session update for impersonation
+        // Handle session update for impersonation and UL switching
         if (trigger === "update" && session) {
             if (token.originalEmail === 'jeannoel.durand@croix-rouge.fr') {
                 if (session.impersonateEmail !== undefined) {
                     token.impersonatedEmail = session.impersonateEmail; // string or null
+                }
+            }
+            // Allow any authenticated user to switch active UL
+            if (session.ulId !== undefined) {
+                const requestedUlId = session.ulId as string;
+                // Validate the user actually has access to the requested UL
+                const available = (token.availableULs as { id: string; name: string; slug: string; isHome: boolean }[] | undefined) || [];
+                const hasAccess = available.some(ul => ul.id === requestedUlId);
+                if (hasAccess) {
+                    token.ulId = requestedUlId;
                 }
             }
         }
@@ -175,6 +224,13 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                     // non-fatal — dev env may not have a User row yet
                 }
             }
+            // Load UL data for dev users if not yet set
+            if (!token.availableULs && token.userId) {
+                token.availableULs = await fetchUserULs(token.userId as string);
+                if (!token.ulId) {
+                    token.ulId = resolveActiveUL(token.availableULs);
+                }
+            }
             return token;
         }
 
@@ -198,6 +254,12 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                         args: [token.userId],
                     });
                     token.roles = rolesRes.rows.map(row => row.name as string);
+
+                    // Load UL data (always refresh on sign-in, keep ulId if already set via switch)
+                    token.availableULs = await fetchUserULs(token.userId as string);
+                    if (!token.ulId) {
+                        token.ulId = resolveActiveUL(token.availableULs);
+                    }
                 } else {
                     token.roles = [];
                 }

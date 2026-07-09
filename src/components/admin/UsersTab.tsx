@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User as UserIcon } from 'lucide-react';
 import RoleLegend from '@/components/users/RoleLegend';
 
@@ -29,6 +29,12 @@ interface UsersTabProps {
     onImpersonate?: (email: string) => Promise<void>;
 }
 
+interface ULEntry {
+    id: string;
+    name: string;
+    slug: string;
+}
+
 const DRIVER_ROLES = ['CHVL', 'CHVPSP'];
 
 export default function UsersTab({
@@ -48,6 +54,34 @@ export default function UsersTab({
     const usersPerPage = 6;
     const [showAddModal, setShowAddModal] = useState(false);
     const [userToDelete, setUserToDelete] = useState<{ email: string; name: string | null } | null>(null);
+    const [availableULs, setAvailableULs] = useState<ULEntry[]>([]);
+    // Map userId -> home UL name
+    const [userULs, setUserULs] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (!isAdmin) return;
+        // Load available ULs for the admin panel
+        fetch('/api/ul')
+            .then(r => r.ok ? r.json() : { uls: [] })
+            .then(data => setAvailableULs(data.uls ?? []))
+            .catch(() => {});
+    }, [isAdmin]);
+
+    async function assignUL(email: string, ulId: string) {
+        try {
+            const res = await fetch(`/api/users/${encodeURIComponent(email)}/ul`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ulId, isHome: true, action: 'add' }),
+            });
+            if (!res.ok) throw new Error('Erreur');
+            const ul = availableULs.find(u => u.id === ulId);
+            setUserULs(prev => ({ ...prev, [email]: ul?.name ?? '' }));
+            showToast(`UL mise à jour pour ${email}`);
+        } catch {
+            showToast('Erreur lors de la mise à jour de l\'UL', 'error');
+        }
+    }
 
     const filteredUsers = users.filter(user => {
         const searchLower = searchQuery.toLowerCase();
@@ -108,6 +142,7 @@ export default function UsersTab({
                             <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid var(--border-primary)' }}>
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Email</th>
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Nom</th>
+                                {isAdmin && <th style={{ padding: '16px', fontWeight: 600 }}>UL</th>}
                                 {isAdmin && <th style={{ padding: '16px', fontWeight: 600 }}>Rôles</th>}
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Papiers</th>
                                 <th style={{ padding: '16px', fontWeight: 600 }}>Actions</th>
@@ -116,7 +151,7 @@ export default function UsersTab({
                         <tbody>
                             {currentUsers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isAdmin ? 5 : 4} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan={isAdmin ? 6 : 4} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Aucun utilisateur trouvé.
                                     </td>
                                 </tr>
@@ -129,6 +164,29 @@ export default function UsersTab({
                                         <tr key={user.id} style={{ borderBottom: '1px solid var(--border-primary)' }}>
                                             <td style={{ padding: '16px' }}>{user.email}</td>
                                             <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>{user.name || '—'}</td>
+                                            {isAdmin && (
+                                                <td style={{ padding: '16px' }}>
+                                                    <select
+                                                        value={userULs[user.email] ? availableULs.find(u => u.name === userULs[user.email])?.id ?? '' : ''}
+                                                        onChange={e => assignUL(user.email, e.target.value)}
+                                                        style={{
+                                                            fontSize: 13,
+                                                            padding: '4px 8px',
+                                                            borderRadius: 'var(--radius-sm)',
+                                                            border: '1px solid var(--border-primary)',
+                                                            background: 'var(--bg-secondary)',
+                                                            color: 'var(--text-primary)',
+                                                            cursor: 'pointer',
+                                                        }}
+                                                        aria-label={`UL de ${user.email}`}
+                                                    >
+                                                        <option value="">— default —</option>
+                                                        {availableULs.map(ul => (
+                                                            <option key={ul.id} value={ul.id}>{ul.name}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                            )}
                                             {isAdmin && (
                                                 <td style={{ padding: '16px' }}>
                                                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
@@ -162,6 +220,7 @@ export default function UsersTab({
                                                     </div>
                                                 </td>
                                             )}
+
                                             <td style={{ padding: '16px' }}>
                                                 {!isDriver ? (
                                                     <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>—</span>

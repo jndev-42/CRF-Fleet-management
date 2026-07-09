@@ -28,8 +28,14 @@ export async function GET() {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        const result = await db.execute(`
-            SELECT
+        const ulId = session.user.ulId;
+
+        // Un utilisateur sans UL ne voit aucun véhicule
+        if (!ulId || ulId === 'default') {
+            return NextResponse.json([]);
+        }
+
+        const sql = `SELECT
                 v.*,
                 t.id as trip_id, u.name as trip_driverName, u2.name as trip_secondDriverName, t.missionType as trip_missionType,
                 t.checkOutAt as trip_checkOutAt
@@ -37,8 +43,11 @@ export async function GET() {
             LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
             LEFT JOIN User u ON u.id = t.driverId
             LEFT JOIN User u2 ON u2.id = t.secondDriverId
-            ORDER BY v.name ASC
-        `);
+            WHERE v.ulId = '${ulId}'
+            ORDER BY v.name ASC`;
+
+        const result = await db.execute(sql);
+
 
         // Group the results manually to match Prisma's output structure
         const vehiclesMap = new Map();

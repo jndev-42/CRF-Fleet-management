@@ -22,6 +22,7 @@ import LicenseBanner from "@/components/LicenseBanner";
 import ImpersonationBanner from "@/components/admin/ImpersonationBanner";
 import { MenuSettingsProvider } from "@/lib/contexts/MenuSettingsContext";
 import { DemoProvider } from "@/lib/contexts/DemoContext";
+import { ULProvider } from "@/lib/contexts/ULContext";
 
 export const metadata: Metadata = {
   title: "Martine | Croix-Rouge Paris 18",
@@ -67,6 +68,7 @@ export default async function RootLayout({
           <SessionProvider session={session}>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
               <MenuSettingsProvider>
+                <ULProvider>
                 <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                   <Navbar user={session?.user} />
                   {session?.user && <ImpersonationBanner />}
@@ -89,6 +91,7 @@ export default async function RootLayout({
                     <FooterChangelog />
                   </footer>
                 </div>
+                </ULProvider>
               </MenuSettingsProvider>
             </ThemeProvider>
           </SessionProvider>

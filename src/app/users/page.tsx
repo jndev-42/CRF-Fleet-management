@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import UsersTab from '@/components/admin/UsersTab';
 import MenusTab from '@/components/admin/MenusTab';
+import ULsTab from '@/components/admin/ULsTab';
 
 interface User {
     id: string;
@@ -18,7 +19,7 @@ interface User {
     validated_by: string | null;
 }
 
-type TabId = 'users' | 'menus';
+type TabId = 'users' | 'menus' | 'uls';
 
 export default function AdminPage() {
     const [users, setUsers] = useState<User[]>([]);
@@ -219,6 +220,16 @@ export default function AdminPage() {
                         Menus
                     </button>
                 )}
+                {isAdmin && (
+                    <button
+                        role="tab"
+                        aria-selected={activeTab === 'uls'}
+                        className={`tab-btn${activeTab === 'uls' ? ' active' : ''}`}
+                        onClick={() => setActiveTab('uls')}
+                    >
+                        Unités Locales
+                    </button>
+                )}
             </div>
 
             {activeTab === 'users' && (
@@ -237,6 +248,8 @@ export default function AdminPage() {
             )}
 
             {activeTab === 'menus' && isAdmin && <MenusTab />}
+
+            {activeTab === 'uls' && isAdmin && <ULsTab />}
         </div>
     );
 }

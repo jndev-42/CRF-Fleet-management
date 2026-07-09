@@ -60,6 +60,12 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
+        const ulId = session.user.ulId as string | undefined;
+        // Un utilisateur sans UL ne voit aucune mission
+        if (!ulId || ulId === 'default') {
+            return NextResponse.json({ reports: [], total: 0, page: 1, limit: 20, totalPages: 0 });
+        }
+
         const isAdmin = roles.includes('ADMIN');
         const userId = session.user.id;
 
@@ -72,6 +78,10 @@ export async function GET(request: Request) {
         const conditions: string[] = [];
         const args: (string | number | null)[] = [];
 
+        // Filtre UL via le véhicule associé
+        conditions.push('(mr.vehicle_id IS NULL OR v.ulId = ?)');
+        args.push(ulId);
+
         if (!isAdmin) {
             conditions.push('mr.submitted_by = ?');
             args.push(userId ?? null);
@@ -81,10 +91,10 @@ export async function GET(request: Request) {
             args.push(typeFilter);
         }
 
-        const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+        const where = `WHERE ${conditions.join(' AND ')}`;
 
         const countResult = await db.execute({
-            sql: `SELECT COUNT(*) as total FROM "mission_reports" mr ${where}`,
+            sql: `SELECT COUNT(*) as total FROM "mission_reports" mr LEFT JOIN "Vehicle" v ON v.id = mr.vehicle_id ${where}`,
             args,
         });
         const total = Number(countResult.rows[0].total);

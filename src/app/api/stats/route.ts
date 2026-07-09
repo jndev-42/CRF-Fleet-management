@@ -23,6 +23,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 
+    const ulId = session.user.ulId as string | undefined;
+    if (!ulId || ulId === 'default') {
+      return NextResponse.json({ success: true, data: null });
+    }
+
     const { searchParams } = new URL(request.url);
     const parsed = querySchema.safeParse({
       dateFrom: searchParams.get('dateFrom'),
@@ -59,12 +64,13 @@ export async function GET(request: Request) {
     const driverIds = driverId ? driverId.split(',').filter(Boolean) : [];
 
     const filters = {
+      ...(ulId ? { ulId } : {}),
       ...(vehicleId ? { vehicleId } : {}),
       ...(driverIds.length > 0 ? { driverIds } : {}),
       ...(missionType ? { missionType } : {}),
     };
 
-    const data = await fetchStatsData(dateFrom, dateTo, Object.keys(filters).length > 0 ? filters : undefined);
+    const data = await fetchStatsData(dateFrom, dateTo, Object.keys(filters).length > 0 ? filters : { ulId });
 
     return NextResponse.json({ success: true, data });
   } catch (error) {

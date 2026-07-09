@@ -4,6 +4,7 @@ export interface StatsFilters {
   vehicleId?: string;
   driverIds?: string[];
   missionType?: string;
+  ulId?: string;
 }
 
 /**
@@ -19,6 +20,10 @@ export function buildTripWhere(
   const args: (string | null)[] = [dateFrom, dateTo];
   let whereSql = 'DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?';
 
+  if (filters?.ulId) {
+    whereSql += ' AND v.ulId = ?';
+    args.push(filters.ulId);
+  }
   if (filters?.vehicleId) {
     whereSql += ' AND t.vehicleId = ?';
     args.push(filters.vehicleId);

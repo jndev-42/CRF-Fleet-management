@@ -52,6 +52,11 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'La plage de dates est limitée à 62 jours.' }, { status: 400 });
         }
 
+        const ulId = session.user.ulId as string | undefined;
+        if (!ulId || ulId === 'default') {
+            return NextResponse.json({ trips: [] });
+        }
+
         const result = await db.execute({
             sql: `SELECT
                     t.id,
@@ -85,11 +90,13 @@ export async function GET(request: Request) {
                   JOIN "User" u ON u.id = t.driverId
                   LEFT JOIN "User" u2 ON u2.id = t.secondDriverId
                   WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?
+                    AND v.ulId = ?
                   ORDER BY t.checkOutAt DESC`,
-            args: [dateFrom, dateTo],
+            args: [dateFrom, dateTo, ulId],
         });
 
         return NextResponse.json({ trips: result.rows });
+
     } catch (error) {
         console.error('[GET /api/stats/trips]', error);
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
