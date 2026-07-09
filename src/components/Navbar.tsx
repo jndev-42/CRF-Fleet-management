@@ -34,29 +34,32 @@ export default function Navbar({ user }: NavbarProps) {
     return (
         <header className="header" role="banner">
             <a href="#main-content" className="skip-link">Aller au contenu principal</a>
-            <Link href="/" className="header-brand">
-                <Image src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" width={40} height={40} />
-                <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Link href="/" className="header-brand" style={{ gap: '8px' }}>
+                    <Image src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" width={40} height={40} />
                     <div className="header-title">Martine</div>
-                    {isMultiUL ? (
+                </Link>
+                {isMultiUL ? (
+                    <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'center', marginTop: '2px' }}>
                         <select
                             className="ul-switcher"
                             value={activeUL?.id ?? ''}
-                            onChange={e => { e.stopPropagation(); switchUL(e.target.value); }}
-                            onClick={e => e.stopPropagation()}
+                            onChange={e => switchUL(e.target.value)}
                             aria-label="Changer d'Unité Locale"
                         >
                             {availableULs.map(ul => (
                                 <option key={ul.id} value={ul.id}>
-                                    Unité Locale {ul.name}
+                                    UL {ul.name}
                                 </option>
                             ))}
                         </select>
-                    ) : (
-                        <div className="header-subtitle">{ulLabel}</div>
-                    )}
-                </div>
-            </Link>
+                    </div>
+                ) : (
+                    <div className="header-subtitle" style={{ alignSelf: 'center', marginTop: '2px', opacity: 0.85 }}>
+                        {ulLabel}
+                    </div>
+                )}
+            </div>
 
             {user && (
                 <>

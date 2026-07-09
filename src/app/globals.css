@@ -187,21 +187,29 @@ body {
 }
 
 .ul-switcher {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-secondary);
-  font-weight: 400;
-  background: transparent;
-  border: none;
+  font-weight: 500;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  padding: 0;
+  padding: 3px 20px 3px 8px;
   font-family: inherit;
-  appearance: none;
-  -webkit-appearance: none;
   outline: none;
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  
+  /* Discrete custom chevron */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='rgba(156, 163, 175, 0.85)' stroke-width='2.5'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 10px;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: all 0.2s;
 }
 
 .ul-switcher:hover {

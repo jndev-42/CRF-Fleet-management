@@ -47,6 +47,7 @@ export default function RoleLegend() {
     return (
         <div style={{ marginBottom: 16 }}>
             <button
+                type="button"
                 onClick={() => setOpen(v => !v)}
                 style={{
                     background: 'none', border: 'none', padding: '4px 0',

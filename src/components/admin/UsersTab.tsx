@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { User as UserIcon } from 'lucide-react';
 import RoleLegend from '@/components/users/RoleLegend';
 
@@ -551,6 +552,7 @@ function ManageUserULsModal({
     onClose: () => void;
     showToast: (msg: string, type?: 'success' | 'error') => void;
 }) {
+    const { data: session, update } = useSession();
     const [uls, setUls] = useState<UserULPermission[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -613,6 +615,9 @@ function ManageUserULsModal({
                 throw new Error(errData.error || "Erreur de sauvegarde");
             }
             showToast("Droits UL mis à jour avec succès");
+            if (user.email === session?.user?.email) {
+                await update();
+            }
             onClose();
         } catch (err: unknown) {
             const errorMsg = err instanceof Error ? err.message : "Erreur de sauvegarde";
