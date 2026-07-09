@@ -26,6 +26,7 @@ describe('Inventory Rework API', () => {
             });
 
             (db.execute as vi.Mock)
+                .mockResolvedValueOnce({ rows: [{ ulId: 'default' }] }) // SELECT ulId FROM "InvItem"
                 .mockResolvedValueOnce({ rows: [] }) // SELECT existing batch (empty)
                 .mockResolvedValueOnce({ rowsAffected: 1 }) // INSERT InvBatch
                 .mockResolvedValueOnce({ rows: [{ total: 15 }] }) // SELECT total quantity
@@ -42,7 +43,7 @@ describe('Inventory Rework API', () => {
 
             expect(res.status).toBe(200);
             expect(data.newQuantity).toBe(15);
-            expect(db.execute).toHaveBeenCalledTimes(5);
+            expect(db.execute).toHaveBeenCalledTimes(6);
         });
 
         it('should return 403 if user is not authorized', async () => {
@@ -86,6 +87,7 @@ describe('Inventory Rework API', () => {
             });
 
             (db.execute as vi.Mock)
+                .mockResolvedValueOnce({ rows: [{ ulId: 'default' }] }) // SELECT ulId FROM "InvItem"
                 .mockResolvedValueOnce({ rows: [{ id: 'no-date-batch-id', quantity: 20 }] }) // SELECT no-date batch
                 .mockResolvedValueOnce({ rowsAffected: 1 }) // UPDATE (deduct from no-date)
                 .mockResolvedValueOnce({ rows: [] }) // SELECT dated batch (not found)
@@ -123,6 +125,7 @@ describe('Inventory Rework API', () => {
             });
 
             (db.execute as vi.Mock)
+                .mockResolvedValueOnce({ rows: [{ ulId: 'default' }] }) // SELECT ulId FROM "InvItem"
                 .mockResolvedValueOnce({ rows: [{ id: 'no-date-batch-id', quantity: 2 }] }); // Only 2 left
 
             const req = new Request('http://localhost/api/inventory/adjust', {

@@ -6,21 +6,27 @@ import { auth } from '@/auth';
 const createULSchema = z.object({
     name: z.string().min(1, 'Le nom est requis'),
     slug: z.string().min(1, 'Le slug est requis').regex(/^[a-z0-9-]+$/, 'Slug invalide (lettres minuscules, chiffres, tirets)'),
+    phoneNumbers: z.array(z.object({
+        label: z.string().min(1, 'Le libellé est requis'),
+        number: z.string().min(1, 'Le numéro est requis'),
+    })).default([]),
 });
 
-/** GET /api/ul — Retourne toutes les UL (ADMIN uniquement) */
+/** GET /api/ul — Retourne toutes les UL (Utilisateurs connectés) */
 export async function GET() {
     try {
         const session = await auth();
         if (!session?.user) {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
-        if (!session.user.roles?.includes('ADMIN')) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
-        }
 
-        const res = await db.execute(`SELECT id, name, slug FROM "UniteLocale" ORDER BY name ASC`);
-        const uls = res.rows.map(r => ({ id: r.id, name: r.name, slug: r.slug }));
+        const res = await db.execute(`SELECT id, name, slug, phoneNumbers FROM "UniteLocale" ORDER BY name ASC`);
+        const uls = res.rows.map(r => ({
+            id: r.id,
+            name: r.name,
+            slug: r.slug,
+            phoneNumbers: r.phoneNumbers ? JSON.parse(r.phoneNumbers as string) : []
+        }));
 
         return NextResponse.json({ uls });
     } catch (error) {
@@ -50,11 +56,11 @@ export async function POST(request: Request) {
 
         const id = `ul-${data.slug}`;
         await db.execute({
-            sql: `INSERT INTO "UniteLocale" (id, name, slug) VALUES (?, ?, ?)`,
-            args: [id, data.name, data.slug],
+            sql: `INSERT INTO "UniteLocale" (id, name, slug, phoneNumbers) VALUES (?, ?, ?, ?)`,
+            args: [id, data.name, data.slug, JSON.stringify(data.phoneNumbers)],
         });
 
-        return NextResponse.json({ success: true, id, name: data.name, slug: data.slug }, { status: 201 });
+        return NextResponse.json({ success: true, id, name: data.name, slug: data.slug, phoneNumbers: data.phoneNumbers }, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: 'Données invalides', details: error.issues }, { status: 400 });

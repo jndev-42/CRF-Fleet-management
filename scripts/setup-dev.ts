@@ -72,6 +72,38 @@ async function main() {
         )
     `);
 
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "UniteLocale" (
+            "id" TEXT NOT NULL PRIMARY KEY,
+            "name" TEXT NOT NULL UNIQUE,
+            "slug" TEXT NOT NULL UNIQUE,
+            "phoneNumbers" TEXT
+        )
+    `);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "UserUL" (
+            "userId" TEXT NOT NULL,
+            "ulId" TEXT NOT NULL,
+            "is_home" INTEGER NOT NULL DEFAULT 0,
+            "roles" TEXT,
+            PRIMARY KEY ("userId", "ulId"),
+            FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE,
+            FOREIGN KEY ("ulId") REFERENCES "UniteLocale"("id") ON DELETE CASCADE
+        )
+    `);
+
+    // Seed de l'UL par défaut
+    const p18PhoneNumbers = JSON.stringify([
+        { label: 'DLUS', number: '06 20 13 93 64' },
+        { label: 'DLUSA', number: '06 05 49 99 67' },
+        { label: 'MOT', number: '06 16 08 19 06' }
+    ]);
+    await db.execute({
+        sql: `INSERT OR IGNORE INTO "UniteLocale" (id, name, slug, phoneNumbers) VALUES (?, ?, ?, ?)`,
+        args: ['ul-paris-18', 'Paris 18', 'paris-18', p18PhoneNumbers]
+    });
+
     // Seed des rôles
     const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'INACTIF', 'SECOURISTE', 'CI/RPAPS'];
     for (const role of roles) {
@@ -577,6 +609,13 @@ async function main() {
                 });
             }
         }
+
+        // Associer à l'UL par défaut (ul-paris-18)
+        await db.execute({
+            sql: `INSERT OR IGNORE INTO "UserUL" (userId, ulId, is_home, roles) VALUES (?, 'ul-paris-18', 1, ?)`,
+            args: [userId, devUser.roles.join(',')],
+        });
+
         console.log(`👤 ${devUser.email.padEnd(24)} roles: ${devUser.roles.join(', ')}`);
     }
 
@@ -1020,7 +1059,7 @@ async function main() {
             const report1Id = crypto.randomUUID();
             await db.execute({
                 sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ul-paris-18')`,
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ul-paris-18')`,
                 args: [report1Id, adminId, '2026-03-10T18:30:00.000Z', 'RESEAU', 'Poste Secours Fête de Quartier', '2026-03-10', 'Salle des fêtes Paris 18', 'Marie Dupont, Jean Martin', 1, vpspId, adminId, 3, 1, 'BIEN', 1, 0, 'Bonne ambiance, équipe soudée.', 0, 0, 0, 0],
             });
             for (const [cat, item, qty] of [
@@ -1034,7 +1073,7 @@ async function main() {
             const report2Id = crypto.randomUUID();
             await db.execute({
                 sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ul-paris-18')`,
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ul-paris-18')`,
                 args: [report2Id, chvlId, '2026-03-15T20:00:00.000Z', 'PAPS', 'PAPS Montmartre', '2026-03-15', 'Place du Tertre, Paris 18', 'Moi', 1, vlId, chvlId, 1, 0, null, null, null, null, 0, 1, 0, 1],
             });
             for (const [cat, item, qty] of [
@@ -1048,7 +1087,7 @@ async function main() {
             const report3Id = crypto.randomUUID();
             await db.execute({
                 sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ul-paris-18')`,
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ul-paris-18')`,
                 args: [report3Id, adminId, '2026-03-18T14:00:00.000Z', 'AUTRE', 'Formation premiers secours lycée', '2026-03-18', 'Lycée Jacques Decour, Paris 9', 'Sophie Leroy, Paul Remy, Anne Dumont', 1, null, adminId, 0, 1, 'PLUTOT_BIEN', 1, 1, 'Un bénévole en difficultée sur les gestes techniques, accompagnement prévu.', 0, 0, 0, 0],
             });
             await db.execute({ sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`, args: [crypto.randomUUID(), report3Id, 'SAC_PRIMAIRE', 'Masque de bouche-à-bouche', 5] });

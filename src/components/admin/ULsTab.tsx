@@ -2,19 +2,30 @@
 
 import { useEffect, useState } from 'react';
 
+interface PhoneNum {
+    label: string;
+    number: string;
+}
+
 interface UL {
     id: string;
     name: string;
     slug: string;
+    phoneNumbers?: PhoneNum[];
 }
 
 export default function ULsTab() {
     const [uls, setUls] = useState<UL[]>([]);
     const [loading, setLoading] = useState(true);
-    const [newName, setNewName] = useState('');
-    const [newSlug, setNewSlug] = useState('');
-    const [creating, setCreating] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+    // Modal state
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingUl, setEditingUl] = useState<UL | null>(null);
+    const [formName, setFormName] = useState('');
+    const [formSlug, setFormSlug] = useState('');
+    const [phoneNumbers, setPhoneNumbers] = useState<PhoneNum[]>([]);
+    const [submitting, setSubmitting] = useState(false);
 
     function showToast(message: string, type: 'success' | 'error' = 'success') {
         setToast({ message, type });
@@ -39,38 +50,93 @@ export default function ULsTab() {
         fetchULs();
     }, []);
 
-    function handleNameChange(value: string) {
-        setNewName(value);
-        // Auto-generate slug from name
-        const slug = value
-            .toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove diacritics
-            .replace(/[^a-z0-9\s-]/g, '')
-            .trim()
-            .replace(/\s+/g, '-');
-        setNewSlug(slug);
+    function handleOpenModal(ul: UL | null = null) {
+        if (ul) {
+            setEditingUl(ul);
+            setFormName(ul.name);
+            setFormSlug(ul.slug);
+            setPhoneNumbers(ul.phoneNumbers || []);
+        } else {
+            setEditingUl(null);
+            setFormName('');
+            setFormSlug('');
+            setPhoneNumbers([]);
+        }
+        setIsModalOpen(true);
     }
 
-    async function handleCreate(e: React.FormEvent) {
+    function handleNameChange(value: string) {
+        setFormName(value);
+        if (!editingUl) {
+            // Auto-generate slug from name during creation only
+            const slug = value
+                .toLowerCase()
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove diacritics
+                .replace(/[^a-z0-9\s-]/g, '')
+                .trim()
+                .replace(/\s+/g, '-');
+            setFormSlug(slug);
+        }
+    }
+
+    function addPhoneRow() {
+        setPhoneNumbers(prev => [...prev, { label: '', number: '' }]);
+    }
+
+    function removePhoneRow(index: number) {
+        setPhoneNumbers(prev => prev.filter((_, i) => i !== index));
+    }
+
+    function updatePhoneRow(index: number, field: 'label' | 'number', value: string) {
+        setPhoneNumbers(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+    }
+
+    async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!newName.trim() || !newSlug.trim()) return;
-        setCreating(true);
+        if (!formName.trim() || !formSlug.trim()) return;
+
+        // Filter out empty phone rows
+        const validPhoneNumbers = phoneNumbers.filter(p => p.label.trim() && p.number.trim());
+
+        setSubmitting(true);
         try {
-            const res = await fetch('/api/ul', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newName.trim(), slug: newSlug.trim() }),
-            });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Erreur');
-            setUls(prev => [...prev, { id: data.id, name: newName.trim(), slug: newSlug.trim() }]);
-            setNewName('');
-            setNewSlug('');
-            showToast(`UL "${newName}" créée avec succès`);
+            if (editingUl) {
+                // Edit mode
+                const res = await fetch(`/api/ul/${editingUl.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: formName.trim(),
+                        slug: formSlug.trim(),
+                        phoneNumbers: validPhoneNumbers
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erreur lors de la modification');
+                
+                showToast(`UL "${formName}" modifiée avec succès`);
+            } else {
+                // Create mode
+                const res = await fetch('/api/ul', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: formName.trim(),
+                        slug: formSlug.trim(),
+                        phoneNumbers: validPhoneNumbers
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Erreur lors de la création');
+
+                showToast(`UL "${formName}" créée avec succès`);
+            }
+            setIsModalOpen(false);
+            fetchULs();
         } catch (err) {
             showToast((err as Error).message, 'error');
         } finally {
-            setCreating(false);
+            setSubmitting(false);
         }
     }
 
@@ -99,9 +165,17 @@ export default function ULsTab() {
                 </div>
             )}
 
-            <div style={{ marginBottom: 24 }}>
-                <h2 className="section-title" style={{ marginBottom: 8 }}>Unités Locales</h2>
-                <p className="page-description">Gérez les Unités Locales disponibles dans l&apos;application.</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <div>
+                    <h2 className="section-title" style={{ marginBottom: 8 }}>Unités Locales</h2>
+                    <p className="page-description">Gérez les Unités Locales disponibles dans l&apos;application.</p>
+                </div>
+                <button
+                    className="btn btn-primary"
+                    onClick={() => handleOpenModal(null)}
+                >
+                    ➕ Ajouter une UL
+                </button>
             </div>
 
             {/* Liste des UL */}
@@ -110,88 +184,183 @@ export default function ULsTab() {
                     <div className="empty-state">
                         <div className="empty-state-icon">🏛️</div>
                         <div className="empty-state-title">Aucune UL configurée</div>
-                        <p>Créez votre première Unité Locale ci-dessous.</p>
+                        <p>Configurez votre première Unité Locale en cliquant sur le bouton ci-dessus.</p>
                     </div>
                 ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {uls.map(ul => (
                             <div key={ul.id} style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                padding: '12px 16px',
+                                padding: '16px',
                                 background: 'var(--bg-card)',
                                 borderRadius: 'var(--radius-md)',
                                 border: '1px solid var(--border-primary)',
                             }}>
-                                <div>
+                                <div style={{ flex: 1 }}>
                                     <div style={{ fontWeight: 600, fontSize: 14 }}>Unité Locale {ul.name}</div>
                                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
                                         ID: <code style={{ fontFamily: 'monospace' }}>{ul.id}</code> · Slug: <code style={{ fontFamily: 'monospace' }}>{ul.slug}</code>
                                     </div>
+                                    {ul.phoneNumbers && ul.phoneNumbers.length > 0 && (
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                                            {ul.phoneNumbers.map((phone, idx) => (
+                                                <span key={idx} style={{
+                                                    background: 'rgba(255, 255, 255, 0.03)',
+                                                    border: '1px solid var(--border-primary)',
+                                                    borderRadius: '4px',
+                                                    padding: '2px 8px',
+                                                    fontSize: '11px',
+                                                    color: 'var(--text-secondary)'
+                                                }}>
+                                                    <strong>{phone.label}:</strong> {phone.number}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
-                                <button
-                                    className="btn btn-danger"
-                                    style={{ fontSize: 13 }}
-                                    onClick={() => handleDelete(ul)}
-                                >
-                                    Supprimer
-                                </button>
+                                <div style={{ display: 'flex', gap: 8, marginLeft: 16 }}>
+                                    <button
+                                        className="btn btn-secondary"
+                                        style={{ fontSize: 13 }}
+                                        onClick={() => handleOpenModal(ul)}
+                                    >
+                                        Modifier
+                                    </button>
+                                    <button
+                                        className="btn btn-danger"
+                                        style={{ fontSize: 13 }}
+                                        onClick={() => handleDelete(ul)}
+                                    >
+                                        Supprimer
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
                 )}
             </div>
 
-            {/* Formulaire de création */}
-            <div style={{
-                padding: '20px',
-                background: 'var(--bg-card)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border-primary)',
-            }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Ajouter une UL</h3>
-                <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                                Nom de l&apos;UL
-                            </label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="Paris 18"
-                                value={newName}
-                                onChange={e => handleNameChange(e.target.value)}
-                                required
-                            />
+            {/* Modal de création / édition */}
+            {isModalOpen && (
+                <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+                    <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '550px', width: '90%' }}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">
+                                {editingUl ? `📝 Modifier l'UL ${editingUl.name}` : '🏛️ Ajouter une Unité Locale'}
+                            </h2>
+                            <button className="modal-close" onClick={() => setIsModalOpen(false)}>✕</button>
                         </div>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
-                                Slug (URL)
-                            </label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                placeholder="paris-18"
-                                value={newSlug}
-                                onChange={e => setNewSlug(e.target.value)}
-                                pattern="[a-z0-9-]+"
-                                required
-                            />
-                        </div>
+                        <form onSubmit={handleSubmit}>
+                            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                                <div style={{ display: 'flex', gap: 12 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                                            Nom de l&apos;UL
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="Paris 18"
+                                            value={formName}
+                                            onChange={e => handleNameChange(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                                            Slug (URL)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            placeholder="paris-18"
+                                            value={formSlug}
+                                            onChange={e => setFormSlug(e.target.value)}
+                                            pattern="[a-z0-9-]+"
+                                            required
+                                            disabled={!!editingUl} // Lock slug on edit for safety
+                                        />
+                                    </div>
+                                </div>
+
+                                <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: 16 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                        <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                                            📞 Numéros de téléphone
+                                        </label>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            style={{ fontSize: 12, padding: '4px 8px' }}
+                                            onClick={addPhoneRow}
+                                        >
+                                            ➕ Ajouter un numéro
+                                        </button>
+                                    </div>
+
+                                    {phoneNumbers.length === 0 ? (
+                                        <p style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '12px 0', border: '1px dashed var(--border-primary)', borderRadius: 'var(--radius-md)' }}>
+                                            Aucun numéro ajouté. Cliquez sur le bouton ci-dessus pour en ajouter.
+                                        </p>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {phoneNumbers.map((phone, idx) => (
+                                                <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        style={{ flex: 1, fontSize: 13 }}
+                                                        placeholder="Libellé (ex: DLUS)"
+                                                        value={phone.label}
+                                                        onChange={e => updatePhoneRow(idx, 'label', e.target.value)}
+                                                        required
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        style={{ flex: 1, fontSize: 13 }}
+                                                        placeholder="Numéro (ex: 06 00 00 00 00)"
+                                                        value={phone.number}
+                                                        onChange={e => updatePhoneRow(idx, 'number', e.target.value)}
+                                                        required
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-danger"
+                                                        style={{ padding: '8px 12px', fontSize: 13 }}
+                                                        onClick={() => removePhoneRow(idx)}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, borderTop: '1px solid var(--border-primary)', padding: '16px 20px' }}>
+                                <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    onClick={() => setIsModalOpen(false)}
+                                    disabled={submitting}
+                                >
+                                    Annuler
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="btn btn-primary"
+                                    disabled={submitting || !formName.trim() || !formSlug.trim()}
+                                >
+                                    {submitting ? 'Enregistrement…' : 'Enregistrer'}
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button
-                            type="submit"
-                            className="btn btn-primary"
-                            disabled={creating || !newName.trim() || !newSlug.trim()}
-                        >
-                            {creating ? 'Création…' : '➕ Créer l\'UL'}
-                        </button>
-                    </div>
-                </form>
-            </div>
+                </div>
+            )}
         </div>
     );
 }

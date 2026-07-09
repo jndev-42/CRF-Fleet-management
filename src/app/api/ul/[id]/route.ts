@@ -36,15 +36,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
 
         const { id } = await params;
-        const body = await request.json();
-        const { name, slug } = body as { name?: string; slug?: string };
+        const { name, slug, phoneNumbers } = body as { name?: string; slug?: string; phoneNumbers?: Array<{ label: string; number: string }> };
 
-        if (!name && !slug) {
+        if (!name && !slug && !phoneNumbers) {
             return NextResponse.json({ error: 'Aucune donnée à modifier' }, { status: 400 });
         }
 
         if (name) await db.execute({ sql: `UPDATE "UniteLocale" SET name = ? WHERE id = ?`, args: [name, id] });
         if (slug) await db.execute({ sql: `UPDATE "UniteLocale" SET slug = ? WHERE id = ?`, args: [slug, id] });
+        if (phoneNumbers) await db.execute({ sql: `UPDATE "UniteLocale" SET phoneNumbers = ? WHERE id = ?`, args: [JSON.stringify(phoneNumbers), id] });
 
         return NextResponse.json({ success: true });
     } catch (error) {

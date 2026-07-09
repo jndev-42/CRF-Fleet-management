@@ -2,10 +2,35 @@
 
 import { useRouter } from 'next/navigation';
 import { useDemoMode } from '@/lib/contexts/DemoContext';
+import { useEffect, useState } from 'react';
+
+interface PhoneNum {
+    label: string;
+    number: string;
+}
+
+interface UL {
+    id: string;
+    name: string;
+    slug: string;
+    phoneNumbers: PhoneNum[];
+}
 
 export default function AidePage() {
     const router = useRouter();
     const { isDemoMode, toggleDemoMode } = useDemoMode();
+    const [uls, setUls] = useState<UL[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch('/api/ul')
+            .then(res => res.ok ? res.json() : { uls: [] })
+            .then(data => {
+                setUls(data.uls || []);
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false));
+    }, []);
 
     function handleRestartTour() {
         localStorage.removeItem('tour-completed');
@@ -24,7 +49,7 @@ export default function AidePage() {
                     <p className="page-description">Informations utiles et numéros d&apos;urgence</p>
                 </div>
                 <a
-                    href="/Annuaire_CRF_Paris.vcf"
+                    href="/api/vcard"
                     download="Annuaire_CRF_Paris.vcf"
                     className="btn btn-primary"
                     style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -112,15 +137,33 @@ export default function AidePage() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
 
-                    {/* Paris 18 */}
-                    <div>
-                        <h3 style={{ fontSize: 15, marginBottom: 12, color: 'var(--text-secondary)' }}>Paris 18 (UL)</h3>
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            <li><strong>DLUS :</strong> <a href="tel:0620139364" style={{ color: 'var(--crf-red)', textDecoration: 'none' }}>06 20 13 93 64</a></li>
-                            <li><strong>DLUSA :</strong> <a href="tel:0605499967" style={{ color: 'var(--crf-red)', textDecoration: 'none' }}>06 05 49 99 67</a></li>
-                            <li><strong>MOT :</strong> <a href="tel:0616081906" style={{ color: 'var(--crf-red)', textDecoration: 'none' }}>06 16 08 19 06</a></li>
-                        </ul>
-                    </div>
+                    {/* ULs dynamiques */}
+                    {loading ? (
+                        <div>
+                            <h3 style={{ fontSize: 15, marginBottom: 12, color: 'var(--text-secondary)' }}>Chargement...</h3>
+                            <div className="loading-spinner" style={{ width: 20, height: 20 }} />
+                        </div>
+                    ) : (
+                        uls.map(ul => (
+                            <div key={ul.id}>
+                                <h3 style={{ fontSize: 15, marginBottom: 12, color: 'var(--text-secondary)' }}>{ul.name} (UL)</h3>
+                                {ul.phoneNumbers.length === 0 ? (
+                                    <p style={{ fontSize: 13, color: 'var(--text-tertiary)', margin: 0 }}>Aucun numéro configuré</p>
+                                ) : (
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                        {ul.phoneNumbers.map((phone, idx) => (
+                                            <li key={idx}>
+                                                <strong>{phone.label} :</strong>{' '}
+                                                <a href={`tel:${phone.number.replace(/[^\d+]/g, '')}`} style={{ color: 'var(--crf-red)', textDecoration: 'none' }}>
+                                                    {phone.number}
+                                                </a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        ))
+                    )}
 
                     {/* Direction 75 */}
                     <div>
