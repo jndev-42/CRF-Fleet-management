@@ -106,10 +106,11 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         // Notifier le demandeur via la table Notification (cloche in-app)
         try {
             const vehicleResult = await db.execute({
-                sql: `SELECT name FROM "Vehicle" WHERE id = ?`,
+                sql: `SELECT name, ulId FROM "Vehicle" WHERE id = ?`,
                 args: [reservation.vehicleId as string]
             });
             const vehicleName = vehicleResult.rows[0]?.name as string || '';
+            const vehicleUlId = vehicleResult.rows[0]?.ulId as string || 'ul-paris-18';
 
             const userResult = await db.execute({
                 sql: `SELECT id FROM "User" WHERE email = ?`,
@@ -123,13 +124,14 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
                 const end = new Date(reservation.endTime as string);
 
                 await db.execute({
-                    sql: `INSERT INTO "Notification" (id, userId, title, message, url) VALUES (?, ?, ?, ?, ?)`,
+                    sql: `INSERT INTO "Notification" (id, userId, title, message, url, ulId) VALUES (?, ?, ?, ?, ?, ?)`,
                     args: [
                         notifId,
                         userId,
                         `✅ Réservation validée`,
                         `Votre réservation de ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} a été validée.`,
-                        `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(vehicleName)}`
+                        `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(vehicleName)}`,
+                        vehicleUlId
                     ]
                 });
             }

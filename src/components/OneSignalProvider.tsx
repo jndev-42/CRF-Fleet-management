@@ -1,10 +1,44 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import OneSignal from 'react-onesignal';
 
-export function OneSignalProvider({ appId, roles }: { appId: string, roles: string[] }) {
+export function OneSignalProvider({ 
+    appId, 
+    availableULs,
+    globalRoles 
+}: { 
+    appId: string; 
+    availableULs: { id: string; name: string; slug: string; isHome: boolean; roles?: string[] }[];
+    globalRoles: string[];
+}) {
     const initialized = useRef(false);
+
+    const updateTags = useCallback(() => {
+        if (typeof window === 'undefined') return;
+        
+        try {
+            const roleTags: Record<string, string> = {};
+            availableULs.forEach(ul => {
+                const roles = ul.roles && ul.roles.length > 0 ? ul.roles : globalRoles;
+                roles.forEach(r => {
+                    roleTags[`role_${ul.id}_${r}`] = 'true';
+                    roleTags[`role_${r}`] = 'true'; // compatible fallback
+                });
+            });
+
+            if (Object.keys(roleTags).length > 0) {
+                const legacyOneSignal = OneSignal as unknown as { sendTags?: (tags: Record<string, string>) => void };
+                if (OneSignal.User && OneSignal.User.addTags) {
+                    OneSignal.User.addTags(roleTags);
+                } else if (legacyOneSignal.sendTags) {
+                    legacyOneSignal.sendTags(roleTags);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to update OneSignal tags:", e);
+        }
+    }, [availableULs, globalRoles]);
 
     useEffect(() => {
         if (!appId || initialized.current) return;
@@ -48,20 +82,8 @@ export function OneSignalProvider({ appId, roles }: { appId: string, roles: stri
                     await OneSignal.Slidedown.promptPush();
                 } catch { /* ignore prompt push errors — non-blocking */ }
 
-                // Set tags so we can target users by roles
-                if (roles.length > 0) {
-                    const roleTags: Record<string, string> = {};
-                    roles.forEach(r => {
-                        roleTags[`role_${r}`] = 'true';
-                    });
-
-                    // v16 API format
-                    if (OneSignal.User && OneSignal.User.addTags) {
-                        OneSignal.User.addTags(roleTags);
-                    } else if ((OneSignal as unknown as { sendTags?: (tags: Record<string, string>) => void }).sendTags) {
-                        (OneSignal as unknown as { sendTags: (tags: Record<string, string>) => void }).sendTags(roleTags);
-                    }
-                }
+                // Initial tags update
+                updateTags();
             } catch (error) {
                 console.error("OneSignal setup error:", error);
             }
@@ -71,7 +93,14 @@ export function OneSignalProvider({ appId, roles }: { appId: string, roles: stri
         if (typeof window !== 'undefined') {
             initializeOneSignal();
         }
-    }, [appId, roles]);
+    }, [appId, updateTags]);
+
+    // React to availableULs changes after initialization
+    useEffect(() => {
+        if (initialized.current) {
+            updateTags();
+        }
+    }, [availableULs, updateTags]);
 
     return null;
 }

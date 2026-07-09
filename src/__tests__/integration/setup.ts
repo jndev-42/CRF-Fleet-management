@@ -124,6 +124,7 @@ async function createTables() {
     url TEXT,
     isRead INTEGER NOT NULL DEFAULT 0,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ulId TEXT,
     FOREIGN KEY (userId) REFERENCES "User"(id) ON DELETE CASCADE
   )`);
 

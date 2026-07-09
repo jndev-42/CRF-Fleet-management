@@ -7,12 +7,14 @@ export async function sendPushNotification({
     tags,
     headings,
     contents,
-    url
+    url,
+    ulId
 }: {
     tags: OneSignalTag[];
     headings: { [key: string]: string };
     contents: { [key: string]: string };
     url?: string;
+    ulId?: string;
 }) {
     const appId = process.env.ONESIGNAL_ID;
     const apiKey = process.env.ONESIGNAL_API_KEY;
@@ -30,18 +32,42 @@ export async function sendPushNotification({
             .map(t => t.key.replace('role_', ''));
 
         if (targetedRoleNames.length > 0) {
-            // Build the SQL query to find users matching any of the roles
-            const placeholders = targetedRoleNames.map(() => '?').join(',');
-            const res = await db.execute({
-                sql: `
-                    SELECT DISTINCT u.id 
-                    FROM "User" u
-                    JOIN "UserRole" ur ON u.id = ur.userId
-                    JOIN "Role" r ON ur.roleId = r.id
-                    WHERE r.name IN (${placeholders})
-                `,
-                args: targetedRoleNames
-            });
+            let res;
+            if (ulId && ulId !== 'default') {
+                const placeholders = targetedRoleNames.map(() => '?').join(',');
+                const roleConditions = targetedRoleNames.map(role => `',' || uu.roles || ',' LIKE '%,${role},%'`).join(' OR ');
+
+                res = await db.execute({
+                    sql: `
+                        SELECT DISTINCT u.id 
+                        FROM "User" u
+                        JOIN "UserUL" uu ON u.id = uu.userId
+                        WHERE uu.ulId = ?
+                          AND (
+                            (uu.roles IS NOT NULL AND uu.roles != '' AND (${roleConditions}))
+                            OR
+                            ((uu.roles IS NULL OR uu.roles = '') AND EXISTS (
+                               SELECT 1 FROM "UserRole" ur 
+                               JOIN "Role" r ON ur.roleId = r.id 
+                               WHERE ur.userId = u.id AND r.name IN (${placeholders})
+                            ))
+                          )
+                    `,
+                    args: [ulId, ...targetedRoleNames]
+                });
+            } else {
+                const placeholders = targetedRoleNames.map(() => '?').join(',');
+                res = await db.execute({
+                    sql: `
+                        SELECT DISTINCT u.id 
+                        FROM "User" u
+                        JOIN "UserRole" ur ON u.id = ur.userId
+                        JOIN "Role" r ON ur.roleId = r.id
+                        WHERE r.name IN (${placeholders})
+                    `,
+                    args: targetedRoleNames
+                });
+            }
 
             // Insert a notification for each targeted user
             const title = headings.fr || headings.en || 'Nouvelle notification';
@@ -51,13 +77,25 @@ export async function sendPushNotification({
             const insertPromises = res.rows.map(row => {
                 const notifyId = crypto.randomUUID();
                 return db.execute({
-                    sql: `INSERT INTO "Notification" (id, userId, title, message, url) VALUES (?, ?, ?, ?, ?)`,
-                    args: [notifyId, row.id as string, title, message, url || null]
+                    sql: `INSERT INTO "Notification" (id, userId, title, message, url, ulId) VALUES (?, ?, ?, ?, ?, ?)`,
+                    args: [notifyId, row.id as string, title, message, url || null, ulId || 'default']
                 });
             });
 
             await Promise.all(insertPromises);
         }
+
+        // Prefix role tags with active ulId if provided
+        const updatedTags = tags.map(tag => {
+            if ('field' in tag && tag.field === 'tag' && tag.key.startsWith('role_')) {
+                const roleName = tag.key.replace('role_', '');
+                return {
+                    ...tag,
+                    key: ulId && ulId !== 'default' ? `role_${ulId}_${roleName}` : `role_${roleName}`
+                };
+            }
+            return tag;
+        });
 
         const response = await fetch('https://onesignal.com/api/v1/notifications', {
             method: 'POST',
@@ -67,11 +105,9 @@ export async function sendPushNotification({
             },
             body: JSON.stringify({
                 app_id: appId,
-                filters: tags, // Targeting by tags like [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }]
+                filters: updatedTags,
                 headings,
                 contents,
-                // Append fromPush=true so the client can detect a push notification click
-                // and auto-dismiss matching in-app notifications
                 url: url ? (url.includes('?') ? `${url}&fromPush=true` : `${url}?fromPush=true`) : undefined
             })
         });

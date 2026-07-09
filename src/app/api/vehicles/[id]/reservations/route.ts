@@ -151,10 +151,11 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         if (status === 'PENDING') {
             try {
                 const vehicleResult = await db.execute({
-                    sql: `SELECT name FROM "Vehicle" WHERE id = ?`,
+                    sql: `SELECT name, ulId FROM "Vehicle" WHERE id = ?`,
                     args: [vehicleId]
                 });
                 const vehicleName = vehicleResult.rows[0]?.name as string || vehicleId;
+                const vehicleUlId = vehicleResult.rows[0]?.ulId as string || 'ul-paris-18';
                 const requesterName = session.user.name || session.user.email;
 
                 const { sendPushNotification } = await import('@/lib/onesignal');
@@ -167,7 +168,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
                         fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,
                         en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} to ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. Pending validation.`
                     },
-                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`
+                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`,
+                    ulId: vehicleUlId
                 });
 
                 // Notifier les RESPO
@@ -178,7 +180,8 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
                         fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,
                         en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} to ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. Pending validation.`
                     },
-                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`
+                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`,
+                    ulId: vehicleUlId
                 });
             } catch (notifErr) {
                 console.error('Failed to send reservation notification:', notifErr);

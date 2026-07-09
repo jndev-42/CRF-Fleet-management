@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
         // On cherche les véhicules qui sont connectés
         const connectedVehiclesObj = await db.execute(`
-            SELECT id, name, mileage, status, isMaintenance, vin 
+            SELECT id, name, mileage, status, isMaintenance, vin, ulId 
             FROM Vehicle 
             WHERE vin IS NOT NULL AND vin != ''
         `);
@@ -87,7 +87,8 @@ export async function GET(request: Request) {
                             en: `${name} a été déplacé sans emprunt. Mouvement inexpliqué de +${gap} km.`,
                             fr: `${name} a été déplacé sans emprunt. Mouvement inexpliqué de +${gap} km.`
                         },
-                        url: `https://cr-chauffeur.vercel.app/vehicles/${name}`
+                        url: `https://cr-chauffeur.vercel.app/vehicles/${name}`,
+                        ulId: v.ulId as string || 'ul-paris-18'
                     });
 
                     alertsSent.push(name);

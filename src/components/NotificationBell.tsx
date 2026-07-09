@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Bell, Trash2 } from 'lucide-react';
+import { useUL } from '@/lib/contexts/ULContext';
 
 type Notification = {
     id: string;
@@ -35,6 +36,7 @@ export function NotificationBell() {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
     const searchParams = useSearchParams();
+    const { activeUL } = useUL();
 
     // Fetch Notifications
     const fetchNotifications = async () => {
@@ -51,14 +53,15 @@ export function NotificationBell() {
         }
     };
 
-    // Initial Fetch
+    // Fetch on mount or when active UL changes
     useEffect(() => {
+        setIsLoading(true);
         fetchNotifications();
 
         // Optional: Poll every 1 minute
         const intervalId = setInterval(fetchNotifications, 60000);
         return () => clearInterval(intervalId);
-    }, []);
+    }, [activeUL?.id]);
 
     // Detect if the user arrived from a push notification click (?fromPush=true)
     // If so, find and delete any in-app notifications matching the current page

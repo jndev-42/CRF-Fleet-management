@@ -21,16 +21,17 @@ export async function GET() {
         }
 
         const userId = userRes.rows[0].id as string;
+        const ulId = session.user.ulId || 'default';
 
         // Fetch notifications
         const notificationsRes = await db.execute({
             sql: `
                 SELECT id, title, message, url, isRead, createdAt
                 FROM "Notification"
-                WHERE userId = ?
+                WHERE userId = ? AND ulId = ?
                 ORDER BY createdAt DESC
             `,
-            args: [userId]
+            args: [userId, ulId]
         });
 
         // Convert the sqlite data structure into a simple array
@@ -53,7 +54,7 @@ export async function GET() {
     }
 }
 
-// Clear all notifications for the authenticated user
+// Clear all notifications for the authenticated user for the current active UL
 export async function DELETE() {
     try {
         const session = await auth();
@@ -71,10 +72,11 @@ export async function DELETE() {
         }
 
         const userId = userRes.rows[0].id as string;
+        const ulId = session.user.ulId || 'default';
 
         await db.execute({
-            sql: `DELETE FROM "Notification" WHERE userId = ?`,
-            args: [userId]
+            sql: `DELETE FROM "Notification" WHERE userId = ? AND ulId = ?`,
+            args: [userId, ulId]
         });
 
         return NextResponse.json({ success: true }, { status: 200 });

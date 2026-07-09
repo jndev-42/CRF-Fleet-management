@@ -57,36 +57,17 @@ const TOUR_STEPS: TourStep[] = [
         icon: '⛽',
         position: 'top',
     },
+
+    // ── PART 2: Navigation — page Véhicules (tous) ──
     {
-        target: '[data-tour="notifications"]',
-        title: 'Notifications',
-        body: "La cloche vous informe des alertes importantes : incidents signalés, anomalies kilométriques, etc. Un badge rouge apparaît quand vous avez des notifications non lues.",
-        icon: '🔔',
+        target: '[data-tour="nav-vehicles"]',
+        title: 'Page Véhicules',
+        body: <>Le menu <strong>Véhicules</strong> donne accès à la liste complète de la flotte avec filtres, kilométrage et statut de chaque véhicule.</>,
+        icon: '🚗',
         position: 'bottom',
-    },
-    {
-        target: '[data-tour="aide"]',
-        title: "Page d'aide",
-        body: <>Cette page centralise toutes les informations pratiques. Vous pouvez aussi y <strong>relancer ce tutoriel</strong> à tout moment.</>,
-        icon: '❓',
-        position: 'bottom',
-    },
-    {
-        target: null,
-        title: "Que trouve-t-on dans l'Aide ?",
-        body: (
-            <>
-                La page Aide contient toutes les informations essentielles :<br /><br />
-                • <strong>🛡️ Assurance</strong> : numéro de police AXA XL Insurance<br />
-                • <strong>🆘 Assistance</strong> : numéros AXA Assistance (France et étranger)<br />
-                • <strong>📍 Contacts opérationnels</strong> : DLUS, DLUSA, MOT, Onyx (cadre de permanence), Vigie, astreintes, COT, PCM…<br /><br />
-                Un bouton <em>&ldquo;📞 Enregistrer les contacts (VCard)&rdquo;</em> permet d&apos;<strong>enregistrer tous ces numéros dans votre téléphone</strong> en un clic.
-            </>
-        ),
-        icon: '📋',
     },
 
-    // ── PART 2: Check-out / Check-in (info cards, no spotlight) ──
+    // ── PART 3: Check-out / Check-in (tous sauf INACTIF) ──
     {
         target: null,
         title: 'Emprunter & Rendre un véhicule',
@@ -136,6 +117,95 @@ const TOUR_STEPS: TourStep[] = [
         ),
         icon: '✅',
     },
+
+    // ── PART 4: Statistiques (ADMIN, RESPO, CHVL, CHVPSP — pas INACTIF) ──
+    {
+        target: '[data-tour="nav-stats"]',
+        title: 'Page Statistiques',
+        body: <>Le menu <strong>Statistiques</strong> vous donne une vue analytique des emprunts : KPIs, graphiques par conducteur / véhicule / type de mission, et export CSV ou PDF.</>,
+        icon: '📈',
+        position: 'bottom',
+    },
+
+    // ── PART 5: Missions — comptes rendus (ADMIN, CI/RPAPS) ──
+    {
+        target: '[data-tour="nav-missions"]',
+        title: 'Comptes rendus de mission',
+        body: <>Le menu <strong>Missions</strong> permet de saisir et consulter les comptes rendus opérationnels (DPS, PAPS, Réseau…) : victimes, incidents, présence UL 18…</>,
+        icon: '📋',
+        position: 'bottom',
+    },
+
+    // ── PART 6: Inventaire (ADMIN uniquement) ──
+    {
+        target: '[data-tour="nav-inventory"]',
+        title: 'Inventaire',
+        body: (
+            <>
+                Le menu <strong>Inventaire</strong> permet de gérer le matériel de la flotte :<br /><br />
+                • Suivi des <strong>stocks</strong> par article et catégorie<br />
+                • Alertes <strong>stock bas</strong> et <strong>dates d&apos;expiration</strong> proches<br />
+                • Historique des mouvements et gestion des lots
+            </>
+        ),
+        icon: '📦',
+        position: 'bottom',
+    },
+
+    // ── PART 7: Administration (ADMIN, RESPO) ──
+    {
+        target: '[data-tour="nav-admin"]',
+        title: 'Page Administration',
+        body: <>Le menu <strong>Administration</strong> centralise la gestion des utilisateurs et des paramètres de l&apos;application.</>,
+        icon: '⚙️',
+        position: 'bottom',
+    },
+    {
+        target: null,
+        title: 'Gérer les utilisateurs',
+        body: (
+            <>
+                Dans la page Administration, onglet <strong>Utilisateurs</strong>, vous pouvez :<br /><br />
+                • <strong>Créer / supprimer</strong> des comptes<br />
+                • Attribuer des <strong>rôles</strong> (Admin, Responsable, CI/RPAPS, etc.)<br />
+                • <strong>Valider les papiers</strong> des conducteurs (permis, etc.)<br />
+                • <strong>Impersonner</strong> un utilisateur pour tester son accès (ADMIN uniquement)
+            </>
+        ),
+        icon: '👤',
+    },
+    {
+        target: '[data-tour="notifications"]',
+        title: 'Notifications',
+        body: "La cloche vous informe des alertes importantes : incidents signalés, anomalies kilométriques, etc. Un badge rouge apparaît quand vous avez des notifications non lues.",
+        icon: '🔔',
+        position: 'bottom',
+    },
+
+    // ── PART 8: Aide (tous) ──
+    {
+        target: '[data-tour="aide"]',
+        title: "Page d'aide",
+        body: <>Cette page centralise toutes les informations pratiques. Vous pouvez aussi y <strong>relancer ce tutoriel</strong> à tout moment.</>,
+        icon: '❓',
+        position: 'bottom',
+    },
+    {
+        target: null,
+        title: "Que trouve-t-on dans l'Aide ?",
+        body: (
+            <>
+                La page Aide contient toutes les informations essentielles :<br /><br />
+                • <strong>🛡️ Assurance</strong> : numéro de police AXA XL Insurance<br />
+                • <strong>🆘 Assistance</strong> : numéros AXA Assistance (France et étranger)<br />
+                • <strong>📍 Contacts opérationnels</strong> : DLUS, DLUSA, MOT, Onyx (cadre de permanence), Vigie, astreintes, COT, PCM…<br /><br />
+                Un bouton <em>&ldquo;📞 Enregistrer les contacts (VCard)&rdquo;</em> permet d&apos;<strong>enregistrer tous ces numéros dans votre téléphone</strong> en un clic.
+            </>
+        ),
+        icon: '📋',
+    },
+
+    // ── Fin (tous) ──
     {
         target: null,
         title: 'Vous êtes prêt ! 🎉',
@@ -181,14 +251,58 @@ function closeBurgerMenu() {
 }
 
 // ──────────────────────────────────────────────────────────────
+// Role-based step filtering
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Returns the subset of TOUR_STEPS visible for a given set of user roles.
+ *
+ * Filtering rules (applied to each step's `target` selector):
+ *  - nav-stats      → requires one of: ADMIN, RESPO, CHVL, CHVPSP (and NOT INACTIF)
+ *  - nav-missions   → requires one of: ADMIN, CI/RPAPS
+ *  - nav-inventory  → requires: ADMIN
+ *  - nav-admin      → requires one of: ADMIN, RESPO
+ *  - notifications  → requires one of: ADMIN, RESPO
+ *  - Check-out/in cards (identified by title) → excluded for INACTIF
+ *  - "Gérer les utilisateurs" info card → requires one of: ADMIN, RESPO
+ */
+function buildActiveSteps(roles: string[]): TourStep[] {
+    const isAdmin   = roles.includes('ADMIN');
+    const isRespo   = roles.includes('RESPO');
+    const isCiRpaps = roles.includes('CI/RPAPS');
+    const isInactif = roles.includes('INACTIF');
+    const hasStats  = isAdmin || isRespo || roles.includes('CHVL') || roles.includes('CHVPSP');
+
+    const checkoutTitles = new Set([
+        'Emprunter & Rendre un véhicule',
+        'Prendre un véhicule (Check-out)',
+        'Le 2ème conducteur',
+        'Rendre un véhicule (Check-in)',
+    ]);
+
+    return TOUR_STEPS.filter((step) => {
+        const t = step.target;
+
+        if (t === '[data-tour="nav-stats"]')     return hasStats && !isInactif;
+        if (t === '[data-tour="nav-missions"]')  return isAdmin || isCiRpaps;
+        if (t === '[data-tour="nav-inventory"]') return isAdmin;
+        if (t === '[data-tour="nav-admin"]')     return isAdmin || isRespo;
+        if (t === '[data-tour="notifications"]') return isAdmin || isRespo;
+
+        if (!t && step.title === 'Gérer les utilisateurs') return isAdmin || isRespo;
+        if (!t && checkoutTitles.has(step.title))          return !isInactif;
+
+        return true;
+    });
+}
+
+// ──────────────────────────────────────────────────────────────
+
 // Component
 // ──────────────────────────────────────────────────────────────
 
 export default function GuidedTour({ roles = [] }: { roles?: string[] }) {
-    const canSeeNotifications = roles.includes('ADMIN') || roles.includes('RESPO');
-    const activeSteps = TOUR_STEPS.filter(s =>
-        s.target !== '[data-tour="notifications"]' || canSeeNotifications
-    );
+    const activeSteps = buildActiveSteps(roles);
 
     const [isActive, setIsActive] = useState(false);
     const [step, setStep] = useState(0);
