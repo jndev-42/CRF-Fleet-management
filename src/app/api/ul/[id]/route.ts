@@ -36,6 +36,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
 
         const { id } = await params;
+        const body = await request.json();
         const { name, slug, phoneNumbers } = body as { name?: string; slug?: string; phoneNumbers?: Array<{ label: string; number: string }> };
 
         if (!name && !slug && !phoneNumbers) {
