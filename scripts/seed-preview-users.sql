@@ -12,14 +12,14 @@
 
 -- ── Utilisateurs preview ─────────────────────────────────────────────────────
 
-INSERT OR IGNORE INTO "User" (id, email, name)
+INSERT OR IGNORE INTO "User" (id, email, name, papiers_valides, last_validation, validated_by)
 VALUES
-    ('preview-user-admin',       'preview-admin@preview.local',       'Admin Preview'),
-    ('preview-user-respo',       'preview-respo@preview.local',       'Responsable Preview'),
-    ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview'),
-    ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview'),
-    ('preview-user-secouriste',  'preview-secouriste@preview.local',  'Secouriste Preview'),
-    ('preview-user-inactif',     'preview-inactif@preview.local',     'Inactif Preview');
+    ('preview-user-admin',       'preview-admin@preview.local',       'Admin Preview', 1, '2026-07-10', 'System Preview'),
+    ('preview-user-respo',       'preview-respo@preview.local',       'Responsable Preview', 1, '2026-07-10', 'System Preview'),
+    ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview', 1, '2026-07-10', 'System Preview'),
+    ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, '2026-07-10', 'System Preview'),
+    ('preview-user-secouriste',  'preview-secouriste@preview.local',  'Secouriste Preview', 1, '2026-07-10', 'System Preview'),
+    ('preview-user-inactif',     'preview-inactif@preview.local',     'Inactif Preview', 1, '2026-07-10', 'System Preview');
 
 -- ── Rattachement à l'UL principale ──────────────────────────────────────────
 -- Adapter l'ulId selon l'UL présente dans la base preview
