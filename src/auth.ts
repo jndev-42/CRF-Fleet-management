@@ -163,11 +163,6 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
     async session({ session, token }) {
         const email = session?.user?.email;
 
-        console.log('[AUTH DEBUG] session callback - email:', email);
-        console.log('[AUTH DEBUG] session callback - token.userId:', token.userId);
-        console.log('[AUTH DEBUG] session callback - token.ulId:', token.ulId);
-        console.log('[AUTH DEBUG] session callback - token.availableULs:', JSON.stringify(token.availableULs));
-
         // Expose the user DB id from the JWT so API routes can use session.user.id
         if (token.userId) {
             session.user.id = token.userId as string;
@@ -185,7 +180,6 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
         // Preview : @preview.local bypass également la vérification de domaine
         if (email?.endsWith('@dev.local') || email?.endsWith('@preview.local')) {
             session.user.roles = (token.roles as string[]) || [];
-            console.log('[AUTH DEBUG] session callback - dev/preview domain bypass triggered, returning session:', JSON.stringify(session));
             return session;
         }
 
@@ -194,18 +188,15 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
             || emailToVerify?.endsWith('@dev.local')
             || emailToVerify?.endsWith('@preview.local');
         if (!emailToVerify || !isInternalDomain) {
-            console.log('[AUTH DEBUG] session callback - domain verification failed for:', emailToVerify);
             // Casting needed: NextAuth Session type does not include error field by default
             return { ...session, error: "Unauthorized" } as typeof session & { error: string };
         }
 
         session.user.roles = (token.roles as string[]) || [];
-        console.log('[AUTH DEBUG] session callback - normal domain bypass, returning session:', JSON.stringify(session));
         return session;
     },
 
     async jwt({ token, user, trigger, session }) {
-        console.log('[AUTH DEBUG] jwt callback - start, trigger:', trigger, 'user:', user ? JSON.stringify(user) : 'undefined');
         // Première connexion dev : stocker les rôles dans le JWT (évite toute requête DB)
         if (user && 'devRoles' in user) {
             // devRoles is set by the dev-credentials authorize() return value
@@ -311,23 +302,18 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
 
         // Utilisateurs normaux : récupération des rôles et userId depuis la DB
         if (emailToUse) {
-            console.log('[AUTH DEBUG] jwt callback - normal/preview user DB lookup for emailToUse:', emailToUse);
             try {
                 const userRes = await db.execute({
                     sql: 'SELECT id FROM "User" WHERE email = ?',
                     args: [emailToUse],
                 });
-                console.log('[AUTH DEBUG] jwt callback - DB user query result rows count:', userRes.rows.length);
                 if (userRes.rows.length > 0) {
                     token.userId = userRes.rows[0].id as string;
-                    console.log('[AUTH DEBUG] jwt callback - found userId in DB:', token.userId);
 
                     // Load UL data (always refresh on sign-in, keep ulId if already set via switch)
                     token.availableULs = await fetchUserULs(token.userId as string);
-                    console.log('[AUTH DEBUG] jwt callback - fetchUserULs output:', JSON.stringify(token.availableULs));
                     if (!token.ulId) {
                         token.ulId = resolveActiveUL(token.availableULs);
-                        console.log('[AUTH DEBUG] jwt callback - resolved active ulId:', token.ulId);
                     }
 
                     // Retrieve roles based on the active UL
@@ -357,17 +343,14 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                         }
                     }
                     token.roles = activeRoles;
-                    console.log('[AUTH DEBUG] jwt callback - final token.roles:', token.roles);
                 } else {
-                    console.log('[AUTH DEBUG] jwt callback - NO USER found in DB for email:', emailToUse);
                     token.roles = [];
                 }
             } catch (e) {
-                console.error("[AUTH DEBUG] Failed to fetch roles for JWT:", e);
+                console.error("Failed to fetch roles for JWT:", e);
                 token.roles = [];
             }
         }
-        console.log('[AUTH DEBUG] jwt callback - returning token:', JSON.stringify(token));
         return token;
     },
 };
