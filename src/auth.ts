@@ -2,6 +2,8 @@ import NextAuth, { type DefaultSession, type NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
+import { isPreview, isDev as isDevEnv } from "@/lib/env";
+import { PREVIEW_ACCOUNTS } from "@/lib/preview-accounts";
 
 declare module "next-auth" {
     interface Session {
@@ -39,7 +41,12 @@ const DEV_USERS: Record<string, { email: string; name: string; roles: string[] }
     jeannoel:   { email: 'jeannoel.durand@croix-rouge.fr', name: 'Jean-Noël Durand', roles: ['ADMIN', 'CHVL'] },
 };
 
-const isDev = process.env.NODE_ENV === 'development';
+const isDev = isDevEnv;
+
+// ── Comptes Preview (one-click, sans mot de passe) ────────────────────────────
+const PREVIEW_USERS: Record<string, { email: string; name: string }> = Object.fromEntries(
+    PREVIEW_ACCOUNTS.map(a => [a.key, { email: a.email, name: a.name }])
+);
 
 // ── UL helpers ───────────────────────────────────────────────────────────────
 type ULEntry = { id: string; name: string; slug: string; isHome: boolean; roles?: string[] };
@@ -81,29 +88,42 @@ function resolveActiveUL(uls: ULEntry[]): string {
 
 // ── Providers ────────────────────────────────────────────────────────────────
 const providers = [
-    Google({
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        authorization: {
-            params: {
-                prompt: "consent",
-                access_type: "offline",
-                response_type: "code",
-                scope: "openid email profile"
+    // Google OAuth : désactivé en preview (connexion one-click uniquement)
+    ...(isPreview ? [] : [
+        Google({
+            clientId: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            authorization: {
+                params: {
+                    prompt: "consent",
+                    access_type: "offline",
+                    response_type: "code",
+                    scope: "openid email profile"
+                },
             },
-        },
-    }),
+        }),
+    ]),
 
-    // Provider disponible uniquement en développement local
-    ...(isDev ? [
+    // Provider disponible en développement local et en preview
+    ...(isDev || isPreview ? [
         Credentials({
             id: 'dev-credentials',
-            name: 'Dev Login',
+            name: isDev ? 'Dev Login' : 'Preview Login',
             credentials: {
                 role: { label: 'Rôle', type: 'text' },
             },
             async authorize(credentials) {
                 const role = credentials?.role as string;
+
+                // Mode preview : lookup par email via les comptes préchargés
+                if (isPreview) {
+                    const previewUser = PREVIEW_USERS[role];
+                    if (!previewUser) return null;
+                    // Pas de devRoles bypass : les rôles sont lus depuis la DB preview normalement
+                    return { id: previewUser.email, email: previewUser.email, name: previewUser.name } as Record<string, unknown>;
+                }
+
+                // Mode dev : bypass DB avec des rôles statiques
                 const user = DEV_USERS[role];
                 if (!user) return null;
                 // devRoles est stocké dans le JWT → aucune requête DB nécessaire
@@ -116,7 +136,7 @@ const providers = [
 
 export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
     async signIn({ user, profile, account }) {
-        // Dev credentials : pas de vérification de domaine
+        // Dev & preview credentials : pas de vérification de domaine
         if (account?.provider === 'dev-credentials') return true;
 
         const email = user?.email || profile?.email;
@@ -157,13 +177,17 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
         session.user.availableULs = (token.availableULs as { id: string; name: string; slug: string; isHome: boolean }[]) || [];
 
         // Dev : @dev.local bypass la vérification de domaine
-        if (email?.endsWith('@dev.local')) {
+        // Preview : @preview.local bypass également la vérification de domaine
+        if (email?.endsWith('@dev.local') || email?.endsWith('@preview.local')) {
             session.user.roles = (token.roles as string[]) || [];
             return session;
         }
 
         const emailToVerify = token.originalEmail as string;
-        if (!emailToVerify || !emailToVerify.toLowerCase().endsWith("@croix-rouge.fr")) {
+        const isInternalDomain = emailToVerify?.endsWith('@croix-rouge.fr')
+            || emailToVerify?.endsWith('@dev.local')
+            || emailToVerify?.endsWith('@preview.local');
+        if (!emailToVerify || !isInternalDomain) {
             // Casting needed: NextAuth Session type does not include error field by default
             return { ...session, error: "Unauthorized" } as typeof session & { error: string };
         }
@@ -243,7 +267,7 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
 
         token.email = emailToUse;
 
-        // Dev users : rôles depuis le JWT uniquement; userId = email (dev DB convention)
+        // Dev users : rôles depuis le JWT uniquement (bypass DB)
         if (emailToUse?.endsWith('@dev.local')) {
             token.roles = (token.devRoles as string[]) || [];
             if (!token.userId) {
@@ -268,6 +292,12 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                 }
             }
             return token;
+        }
+
+        // Preview users : rôles lus depuis la DB preview (comptes préchargés)
+        // Même flow que les utilisateurs normaux — les rôles viennent de UserUL/UserRole
+        if (emailToUse?.endsWith('@preview.local')) {
+            // Falls through to the normal DB lookup below
         }
 
         // Utilisateurs normaux : récupération des rôles et userId depuis la DB

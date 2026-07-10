@@ -11,6 +11,8 @@ import { User } from 'next-auth';
 import { useMenuSettings, MenuVisibility } from '@/lib/contexts/MenuSettingsContext';
 import { useUL } from '@/lib/contexts/ULContext';
 
+const isPreview = process.env.NEXT_PUBLIC_APP_ENV === 'preview';
+
 type NavbarProps = {
     user?: User & { roles?: string[] };
 };
@@ -39,6 +41,26 @@ export default function Navbar({ user }: NavbarProps) {
                     <Image src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" width={40} height={40} />
                     <div className="header-title">Martine</div>
                 </Link>
+                {/* Badge environnement Preview */}
+                {isPreview && (
+                    <span style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '2px 9px',
+                        borderRadius: 99,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        letterSpacing: '0.07em',
+                        textTransform: 'uppercase',
+                        background: 'rgba(234, 179, 8, 0.18)',
+                        color: '#ca8a04',
+                        border: '1px solid rgba(234, 179, 8, 0.4)',
+                        flexShrink: 0,
+                        userSelect: 'none',
+                    }}>
+                        Preview
+                    </span>
+                )}
                 {isMultiUL ? (
                     <div style={{ display: 'flex', alignItems: 'center', alignSelf: 'center', marginTop: '2px' }}>
                         <select
