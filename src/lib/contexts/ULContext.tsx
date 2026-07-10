@@ -31,6 +31,11 @@ export function ULProvider({ children }: { children: ReactNode }) {
     const ulId = session?.user?.ulId as string | undefined;
     const activeUL = availableULs.find(ul => ul.id === ulId) ?? availableULs[0] ?? null;
 
+    console.log('[CLIENT DEBUG] ULProvider - session:', JSON.stringify(session));
+    console.log('[CLIENT DEBUG] ULProvider - availableULs:', JSON.stringify(availableULs));
+    console.log('[CLIENT DEBUG] ULProvider - ulId:', ulId);
+    console.log('[CLIENT DEBUG] ULProvider - activeUL:', JSON.stringify(activeUL));
+
     const switchUL = useCallback(async (newUlId: string) => {
         await update({ ulId: newUlId });
     }, [update]);
