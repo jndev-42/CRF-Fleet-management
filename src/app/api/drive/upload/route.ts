@@ -4,6 +4,38 @@ import { getDriveClient } from '@/lib/drive';
 import { Readable } from 'stream';
 
 const SHARED_FOLDER_ID = '11UwzHHOzNhn--f16eMaoWk9NgvOwOt2G';
+const PREVIEW_FOLDER_NAME = 'PREVIEW';
+
+const isPreview = process.env.NEXT_PUBLIC_APP_ENV === 'preview';
+
+/**
+ * En mode preview, tous les uploads se font sous un dossier PREVIEW/
+ * à la racine de SHARED_FOLDER_ID.
+ * Ce dossier est créé automatiquement s'il n'existe pas.
+ */
+async function getPreviewRootFolderId(): Promise<string> {
+    const drive = getDriveClient();
+    const searchRes = await drive.files.list({
+        q: `name='${PREVIEW_FOLDER_NAME}' and '${SHARED_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+        fields: 'files(id)',
+        spaces: 'drive',
+    });
+
+    if (searchRes.data.files && searchRes.data.files.length > 0) {
+        return searchRes.data.files[0].id!;
+    }
+
+    // Créer le dossier PREVIEW
+    const created = await drive.files.create({
+        requestBody: {
+            name: PREVIEW_FOLDER_NAME,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [SHARED_FOLDER_ID],
+        },
+        fields: 'id',
+    });
+    return created.data.id!;
+}
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_FILES = 10;
@@ -71,6 +103,14 @@ export async function POST(request: Request) {
         // Initialize Google Drive API client using Service Account
         const drive = getDriveClient();
 
+        // En mode preview : utiliser le dossier PREVIEW/ comme racine pour TOUS les uploads.
+        // Cela remplace aussi le rootFolderId passé par le client (ex: MissionWizard),
+        // afin que les rapports signés et photos de mission soient également sous PREVIEW/.
+        const effectiveSharedFolderId = isPreview
+            ? await getPreviewRootFolderId()
+            : SHARED_FOLDER_ID;
+        const effectiveRootFolderId = isPreview ? effectiveSharedFolderId : rootFolderId;
+
         // 1. Get or Create Parent Folder
         let parentFolderId = existingFolderId;
 
@@ -79,7 +119,7 @@ export async function POST(request: Request) {
                 ? `${vehicleName}-${dateStr}`
                 : `${missionName}-${dateStr}`;
 
-            const effectiveRootFolder = stage ? SHARED_FOLDER_ID : rootFolderId;
+            const effectiveRootFolder = stage ? effectiveSharedFolderId : effectiveRootFolderId;
 
             // Try to find if it already exists just in case
             const searchRes = await drive.files.list({
