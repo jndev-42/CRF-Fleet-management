@@ -221,7 +221,12 @@ export default function AdminPage() {
 
             {activeTab === 'menus' && isSuperAdminUser && <MenusTab />}
 
-            {activeTab === 'uls' && isAdminUser && <ULsTab />}
+            {activeTab === 'uls' && isAdminUser && (
+                <ULsTab
+                    isSuperAdmin={isSuperAdminUser}
+                    userUlId={session?.user?.ulId}
+                />
+            )}
         </div>
     );
 }
