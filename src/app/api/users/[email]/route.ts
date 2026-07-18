@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, canAssignRole, resolveRoles } from '@/lib/roles';
+import { isAdminOrAbove, canAssignRole, resolveRoles, isSuperAdmin } from '@/lib/roles';
 
 export async function PATCH(
     request: Request,
@@ -38,6 +38,20 @@ export async function PATCH(
             }
 
             const userId = userRes.rows[0].id;
+
+            const isSuper = isSuperAdmin(actorRoles);
+            if (!isSuper) {
+                const actorUlId = session?.user?.ulId;
+                const userHomeUlRes = await tx.execute({
+                    sql: 'SELECT ulId FROM "UserUL" WHERE userId = ? AND is_home = 1',
+                    args: [userId],
+                });
+                const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
+                if (userHomeUlId && userHomeUlId !== actorUlId) {
+                    await tx.rollback();
+                    return NextResponse.json({ error: "Un administrateur local ne peut modifier les rôles globaux d'un utilisateur appartenant à une autre Unité Locale." }, { status: 403 });
+                }
+            }
 
             // Delete current roles
             await tx.execute({
@@ -126,6 +140,20 @@ export async function DELETE(
             }
 
             const userId = userRes.rows[0].id;
+
+            const isSuper = isSuperAdmin(actorRoles);
+            if (!isSuper) {
+                const actorUlId = session?.user?.ulId;
+                const userHomeUlRes = await tx.execute({
+                    sql: 'SELECT ulId FROM "UserUL" WHERE userId = ? AND is_home = 1',
+                    args: [userId],
+                });
+                const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
+                if (userHomeUlId && userHomeUlId !== actorUlId) {
+                    await tx.rollback();
+                    return NextResponse.json({ error: "Un administrateur local ne peut supprimer qu'un utilisateur appartenant à sa propre Unité Locale." }, { status: 403 });
+                }
+            }
 
             // Check if user has submitted any mission reports (history must be preserved)
             const reportsRes = await tx.execute({

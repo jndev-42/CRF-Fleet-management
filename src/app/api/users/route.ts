@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, canAccessAdminPanel, resolveRoles } from '@/lib/roles';
+import { isAdminOrAbove, canAccessAdminPanel, resolveRoles, isSuperAdmin } from '@/lib/roles';
 
 /** Zod schema for creating a new user */
 const createUserSchema = z.object({
@@ -137,6 +137,13 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Données invalides', details: zodErr.issues }, { status: 400 });
             }
             throw zodErr;
+        }
+
+        const isSuper = isSuperAdmin(roles);
+        if (!isSuper) {
+            if (data.ulId !== session?.user?.ulId) {
+                return NextResponse.json({ error: 'Un administrateur local ne peut créer un utilisateur que pour sa propre Unité Locale.' }, { status: 403 });
+            }
         }
 
         // Check uniqueness
