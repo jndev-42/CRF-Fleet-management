@@ -2,6 +2,7 @@ import { signIn, auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { isPreview, isDev } from "@/lib/env";
 import { PREVIEW_ACCOUNTS } from "@/lib/preview-accounts";
+import Link from "next/link";
 
 const DEV_ROLES = [
     { key: 'admin',      label: 'Admin',      badge: 'ADMIN',     color: '#ef4444' },
@@ -174,6 +175,22 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
                     </button>
                 </form>
             )}
+
+            <p style={{
+                maxWidth: 440,
+                margin: '32px auto 0 auto',
+                fontSize: 12,
+                lineHeight: 1.6,
+                color: 'var(--text-tertiary)',
+                textAlign: 'center',
+                borderTop: '1px solid var(--border-primary)',
+                paddingTop: 16
+            }}>
+                En vous connectant sur cette application, vous acceptez que la croix-rouge (unité locale de paris 18) mémorise votre nom, prénom et adresse email. Ces données sont uniquement utilisées pour vous permettre de vous connecter et de gérer votre accès au site. Pour exercer vos droits ou supprimer votre compte, consultez nos{" "}
+                <Link href="/mentions-legales" style={{ color: 'var(--crf-red)', textDecoration: 'underline' }}>
+                    mentions légales
+                </Link>.
+            </p>
         </div>
     );
 }
