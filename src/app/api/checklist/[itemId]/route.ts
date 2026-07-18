@@ -20,7 +20,7 @@ export async function PATCH(
 ) {
     try {
         const session = await auth();
-        if (!isAdminOrAbove(session?.user?.roles)) {
+        if (!isAdminOrAbove(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
@@ -83,7 +83,7 @@ export async function DELETE(
 ) {
     try {
         const session = await auth();
-        if (!isAdminOrAbove(session?.user?.roles)) {
+        if (!isAdminOrAbove(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 

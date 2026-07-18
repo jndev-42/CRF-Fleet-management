@@ -77,7 +77,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (status === 'authenticated') {
       fetchVehicles();
-      if (isAdminOrAbove(session?.user?.roles)) {
+      if (isAdminOrAbove(session?.user?.roles || [])) {
         setIsAdmin(true);
       }
     }

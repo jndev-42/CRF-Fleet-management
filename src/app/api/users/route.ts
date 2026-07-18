@@ -122,7 +122,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const session = await auth();
-        const roles = session.user.roles || [];
+        const roles = session?.user?.roles || [];
         if (!isAdminOrAbove(roles)) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }

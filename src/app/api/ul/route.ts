@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isSuperAdmin } from '@/lib/roles';
 
 const createULSchema = z.object({
     name: z.string().min(1, 'Le nom est requis'),
@@ -39,7 +40,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        if (!isSuperAdmin(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 

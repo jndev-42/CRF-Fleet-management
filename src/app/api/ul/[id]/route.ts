@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isSuperAdmin } from '@/lib/roles';
 
 /** DELETE /api/ul/[id] — Supprimer une UL (ADMIN uniquement) */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        if (!isSuperAdmin(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
@@ -31,7 +32,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        if (!isSuperAdmin(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 

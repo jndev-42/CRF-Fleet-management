@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isAdminOrAbove, canAccessAdminPanel } from '@/lib/roles';
 
 const ulAssignSchema = z.object({
     ulId: z.string().nullable(),        // null = retirer l'UL d'appartenance
@@ -21,7 +22,7 @@ const bulkULSchema = z.object({
 export async function GET(_request: Request, { params }: { params: Promise<{ email: string }> }) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN') && !session?.user?.roles?.includes('RESPO')) {
+        if (!canAccessAdminPanel(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
@@ -58,7 +59,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ema
 export async function PATCH(request: Request, { params }: { params: Promise<{ email: string }> }) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        if (!isAdminOrAbove(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
@@ -111,7 +112,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ em
 export async function PUT(request: Request, { params }: { params: Promise<{ email: string }> }) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        if (!isAdminOrAbove(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
