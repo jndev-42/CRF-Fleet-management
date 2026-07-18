@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isSuperAdmin, isReadOnlyManager } from '@/lib/roles';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -42,19 +42,15 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
         const row = reportResult.rows[0];
 
-        // Access control: only ADMIN and CI/RPAPS can access mission reports
+        // Access control:
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        const isAdmin = isAdminOrAbove(roles);
-        const isCiRpaps = roles.includes('CI/RPAPS');
-        if (!isAdmin && !isCiRpaps) {
+        const isSuper = isSuperAdmin(roles);
+        const isLocalAdmin = isAdminOrAbove(roles) && row.ulId === session.user.ulId;
+        const isLocalManager = isReadOnlyManager(roles) && row.ulId === session.user.ulId;
+        const isSubmitter = (roles.includes('CI/RPAPS') || roles.includes('CHVL') || roles.includes('CHVPSP')) && row.submitted_by === session.user.id;
+
+        if (!isSuper && !isLocalAdmin && !isLocalManager && !isSubmitter) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
-        }
-        // ADMIN sees all; CI/RPAPS can only access their own reports
-        if (!isAdmin) {
-            const userId = session.user.id;
-            if (!userId || row.submitted_by !== userId) {
-                return NextResponse.json({ error: 'Interdit' }, { status: 403 });
-            }
         }
 
         // Fetch supplies

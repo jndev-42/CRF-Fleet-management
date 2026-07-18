@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { User as UserIcon } from 'lucide-react';
 import RoleLegend from '@/components/users/RoleLegend';
-import { isSuperAdmin as checkIsSuperAdmin } from '@/lib/roles';
 
 interface User {
     id: string;
@@ -234,7 +233,7 @@ export default function UsersTab({
                                                             <UserIcon size={16} />
                                                         </button>
                                                     )}
-                                                    {isDriver && !papersValid && !isReadOnly && (
+                                                    {isDriver && !papersValid && (
                                                         <button
                                                             className="btn btn-secondary"
                                                             style={{ fontSize: '13px', padding: '6px 12px' }}
