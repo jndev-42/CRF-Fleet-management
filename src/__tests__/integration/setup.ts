@@ -334,10 +334,12 @@ afterAll(async () => {
   }
 });
 
+
 export async function seedVehicle(overrides: Partial<{
   id: string;
   name: string;
   type: string;
+  plate: string;
   status: string;
   mileage: number;
   fuelLevel: number;
@@ -356,6 +358,7 @@ export async function seedVehicle(overrides: Partial<{
     id: 'VL001',
     name: 'VL186',
     type: 'VL',
+    plate: 'AB-123-CD',
     status: 'AVAILABLE',
     mileage: 10000,
     fuelLevel: 75,
@@ -372,9 +375,9 @@ export async function seedVehicle(overrides: Partial<{
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT INTO "Vehicle" (id, name, type, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    args: [v.id, v.name, v.type, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval, v.ulId],
+    sql: `INSERT INTO "Vehicle" (id, name, type, plate, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [v.id, v.name, v.type, v.plate, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval, v.ulId],
   });
   return v;
 }
