@@ -63,7 +63,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             }).mockResolvedValueOnce({
                 rows: [] // no ULs
             }).mockResolvedValueOnce({
-                rows: [{ name: 'CHVL' }, { name: 'RESPO' }]
+                rows: [{ name: 'CHVL' }, { name: 'CADRE' }]
             });
 
             const result = await authCallbacks.jwt({
@@ -77,7 +77,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.email).toBe('target@croix-rouge.fr');
             expect(result.userId).toBe('target-user-id');
             expect(result.roles).toContain('CHVL');
-            expect(result.roles).toContain('PRESIDENT');
+            expect(result.roles).toContain('CADRE');
         });
 
         it('should NOT allow other users to impersonate', async () => {

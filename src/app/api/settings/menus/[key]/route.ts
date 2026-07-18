@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isSuperAdmin } from '@/lib/roles';
 
 const VALID_KEYS = ['stats', 'inventory', 'missions'] as const;
 
@@ -21,7 +22,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        if (!roles.includes('ADMIN')) {
+        if (!isSuperAdmin(roles)) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 

@@ -119,7 +119,7 @@ describe('POST /api/users', () => {
         const body = await res.json();
 
         const roles = await getUserRoles(body.id);
-        expect(roles).toEqual(['GUEST']);
+        expect(roles).toEqual(['INACTIF']);
     });
 
     it('6. GUEST + non-GUEST dans le payload — non-GUEST gagne, GUEST retiré', async () => {
@@ -215,7 +215,7 @@ describe('PATCH /api/users/[email]', () => {
         expect(res.status).toBe(200);
 
         const roles = await getUserRoles(user.id);
-        expect(roles).toEqual(['GUEST']);
+        expect(roles).toEqual(['INACTIF']);
     });
 
     it('12b. GUEST + non-GUEST dans le payload PATCH — non-GUEST gagne', async () => {

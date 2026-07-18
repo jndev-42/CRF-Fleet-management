@@ -38,8 +38,8 @@ function makePatchRequest(id: string): Request {
     });
 }
 
-const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', name: 'Admin Test', roles: ['ADMIN'] } };
-const respoSession = { user: { id: 'respo-id', email: 'respo@test.com', name: null,         roles: ['RESPO'] } };
+const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', name: 'Admin Test', roles: ['SUPER_ADMIN'] } };
+const respoSession = { user: { id: 'respo-id', email: 'respo@test.com', name: null,         roles: ['CADRE'] } };
 const chvlSession  = { user: { id: 'chvl-id',  email: 'chvl@test.com',  name: null,         roles: ['CHVL'] } };
 
 describe('GET /api/me/license-check', () => {

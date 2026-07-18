@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isSuperAdmin } from '@/lib/roles';
 
 /** GET /api/settings/menus — Retourne tous les paramètres de visibilité des menus.
  *  ADMIN uniquement. */
@@ -12,7 +13,7 @@ export async function GET() {
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        if (!roles.includes('ADMIN')) {
+        if (!isSuperAdmin(roles)) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
