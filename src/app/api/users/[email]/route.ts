@@ -1,18 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-
-function resolveRoles(roles: string[]): string[] {
-    // 'INACTIF' is the current inactive role; 'GUEST' is the legacy alias (DB backfill pending)
-    const isInactiveRole = (r: string) => r === 'INACTIF' || r === 'GUEST';
-    const activeRoles = roles.filter(r => !isInactiveRole(r));
-    if (activeRoles.length === 0) {
-        // Preserve whatever inactive role was passed (GUEST or INACTIF) — DB backfill handles normalization
-        const inactiveRole = roles.find(isInactiveRole);
-        return inactiveRole ? [inactiveRole] : [];
-    }
-    return activeRoles;
-}
+import { isAdminOrAbove, canAssignRole, resolveRoles } from '@/lib/roles';
 
 export async function PATCH(
     request: Request,
@@ -20,7 +9,8 @@ export async function PATCH(
 ) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        const actorRoles = session?.user?.roles || [];
+        if (!isAdminOrAbove(actorRoles)) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
@@ -55,8 +45,17 @@ export async function PATCH(
                 args: [userId]
             });
 
-            // Insert new roles
+            // Insert new roles (vérifier les droits d'attribution)
             const resolvedRoles = resolveRoles(roles);
+            for (const roleName of resolvedRoles) {
+                if (!canAssignRole(actorRoles, roleName)) {
+                    await tx.rollback();
+                    return NextResponse.json(
+                        { error: `Seul un Super Administrateur peut attribuer le rôle "${roleName}"` },
+                        { status: 403 }
+                    );
+                }
+            }
             for (const roleName of resolvedRoles) {
                 const roleRes = await tx.execute({
                     sql: 'SELECT id FROM "Role" WHERE name = ?',
@@ -105,7 +104,8 @@ export async function DELETE(
 ) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        const actorRoles = session?.user?.roles || [];
+        if (!isAdminOrAbove(actorRoles)) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 

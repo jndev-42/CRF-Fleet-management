@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isAdminOrAbove } from '@/lib/roles';
 
 const createItemSchema = z.object({
     label: z.string().min(1, 'Le libellé est requis').max(200),
@@ -66,7 +67,7 @@ export async function POST(
 ) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        if (!isAdminOrAbove(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 

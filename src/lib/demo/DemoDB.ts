@@ -50,7 +50,7 @@ const INITIAL_VEHICLES: Vehicle[] = [
 ];
 
 const INITIAL_USERS = [
-    { id: 'demo-user-1', name: 'Jean Démo', email: 'jean.demo@croix-rouge.fr', roles: ['ADMIN', 'CHVPSP', 'RESPO'] },
+    { id: 'demo-user-1', name: 'Jean Démo', email: 'jean.demo@croix-rouge.fr', roles: ['SUPER_ADMIN', 'CHVPSP'] },
     { id: 'demo-user-2', name: 'Marie Test', email: 'marie.test@croix-rouge.fr', roles: ['CHVL'] }
 ];
 

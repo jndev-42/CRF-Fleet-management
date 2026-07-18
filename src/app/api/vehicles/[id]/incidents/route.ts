@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isAdminOrAbove } from '@/lib/roles';
 
 export async function GET(
     _request: Request,
@@ -13,7 +14,7 @@ export async function GET(
         }
 
         const { id } = await params;
-        const isAdmin = session.user.roles?.includes('ADMIN');
+        const isAdmin = isAdminOrAbove(session.user.roles || []);
 
         // Fetch vehicle by name since [id] is the vehicle name
         const vehicleResult = await db.execute({

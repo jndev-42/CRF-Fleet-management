@@ -4,13 +4,14 @@ import { isPreview, isDev } from "@/lib/env";
 import { PREVIEW_ACCOUNTS } from "@/lib/preview-accounts";
 
 const DEV_ROLES = [
-    { key: 'admin',      label: 'Admin',      badge: 'ADMIN',     color: '#ef4444' },
-    { key: 'respo',      label: 'Responsable', badge: 'RESPO',     color: '#f97316' },
-    { key: 'chvl',       label: 'Chauffeur',  badge: 'CHVL',      color: '#3b82f6' },
-    { key: 'ci',         label: 'CI/RPAPS',   badge: 'CI/RPAPS',  color: '#8b5cf6' },
-    { key: 'secouriste', label: 'Secouriste', badge: 'SECOUR.',   color: '#10b981' },
-    { key: 'guest',      label: 'Inactif',    badge: 'INACTIF',   color: '#6b7280' },
-    { key: 'jeannoel',   label: 'Jean-Noël',   badge: 'JN',        color: '#c70000' },
+    { key: 'superadmin', label: 'Super Admin',  badge: 'S.ADMIN',   color: '#dc2626' },
+    { key: 'admin',      label: 'Admin',         badge: 'ADMIN',     color: '#ef4444' },
+    { key: 'president',  label: 'Président',    badge: 'PRESIDENT', color: '#f97316' },
+    { key: 'cadre',      label: 'Cadre',         badge: 'CADRE',     color: '#eab308' },
+    { key: 'chvl',       label: 'Chauffeur',     badge: 'CHVL',      color: '#3b82f6' },
+    { key: 'ci',         label: 'CI/RPAPS',      badge: 'CI/RPAPS',  color: '#8b5cf6' },
+    { key: 'guest',      label: 'Inactif',       badge: 'INACTIF',   color: '#6b7280' },
+    { key: 'jeannoel',   label: 'Jean-Noël',     badge: 'JN',        color: '#c70000' },
 ] as const;
 
 export default async function LoginPage(props: { searchParams: Promise<{ error?: string, callbackUrl?: string }> }) {

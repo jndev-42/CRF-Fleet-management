@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { User as UserIcon } from 'lucide-react';
 import RoleLegend from '@/components/users/RoleLegend';
+import { isSuperAdmin as checkIsSuperAdmin } from '@/lib/roles';
 
 interface User {
     id: string;
@@ -23,6 +24,7 @@ interface UsersTabProps {
     users: User[];
     availableRoles: string[];
     isAdmin: boolean;
+    isReadOnly?: boolean;
     onValidatePapers: (userId: string, userName: string | null) => Promise<void>;
     onCreateUser: (email: string, name: string, roles: string[], ulId?: string | null) => Promise<void>;
     onDeleteUser: (email: string) => Promise<void>;
@@ -43,6 +45,7 @@ export default function UsersTab({
     users,
     availableRoles,
     isAdmin,
+    isReadOnly = false,
     onValidatePapers,
     onCreateUser,
     onDeleteUser,
@@ -134,7 +137,7 @@ export default function UsersTab({
                         }}
                     />
                 </div>
-                {isAdmin && (
+                {isAdmin && !isReadOnly && (
                     <button
                         className="btn btn-primary"
                         onClick={() => setShowAddModal(true)}
@@ -231,7 +234,7 @@ export default function UsersTab({
                                                             <UserIcon size={16} />
                                                         </button>
                                                     )}
-                                                    {isDriver && !papersValid && (
+                                                    {isDriver && !papersValid && !isReadOnly && (
                                                         <button
                                                             className="btn btn-secondary"
                                                             style={{ fontSize: '13px', padding: '6px 12px' }}
@@ -241,7 +244,7 @@ export default function UsersTab({
                                                             🪪 Valider les papiers
                                                         </button>
                                                     )}
-                                                    {isAdmin && (
+                                                    {isAdmin && !isReadOnly && (
                                                         <button
                                                             className="btn btn-secondary"
                                                             style={{ fontSize: '13px', padding: '6px 12px' }}
@@ -251,7 +254,7 @@ export default function UsersTab({
                                                             🔑 Droits UL
                                                         </button>
                                                     )}
-                                                    {isAdmin && (
+                                                    {isAdmin && !isReadOnly && (
                                                         <button
                                                             className="btn btn-danger"
                                                             style={{ fontSize: '13px', padding: '6px 12px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}

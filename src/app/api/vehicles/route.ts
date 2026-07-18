@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isAdminOrAbove } from '@/lib/roles';
 
 const createVehicleSchema = z.object({
     name: z.string().min(1, "Nom requis"),
@@ -99,7 +100,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        if (!isAdminOrAbove(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 

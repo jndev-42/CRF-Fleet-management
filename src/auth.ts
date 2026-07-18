@@ -32,13 +32,14 @@ declare module "next-auth/jwt" {
 
 // ── Utilisateurs de test (dev uniquement) ────────────────────────────────────
 const DEV_USERS: Record<string, { email: string; name: string; roles: string[] }> = {
-    admin: { email: 'admin@dev.local',  name: 'Admin Dev',     roles: ['ADMIN', 'CHVL'] },
-    respo: { email: 'respo@dev.local',  name: 'Respo Dev',     roles: ['RESPO', 'CHVL'] },
-    chvl:  { email: 'chvl@dev.local',   name: 'Chauffeur Dev', roles: ['CHVL'] },
-    guest: { email: 'guest@dev.local',  name: 'Inactif Dev',   roles: ['INACTIF'] },
-    secouriste: { email: 'secouriste@dev.local', name: 'Secouriste Dev', roles: [] },
-    ci:         { email: 'ci@dev.local',          name: 'CI/RPAPS Dev',  roles: ['CI/RPAPS'] },
-    jeannoel:   { email: 'jeannoel.durand@croix-rouge.fr', name: 'Jean-Noël Durand', roles: ['ADMIN', 'CHVL'] },
+    superadmin: { email: 'superadmin@dev.local', name: 'Super Admin Dev', roles: ['SUPER_ADMIN', 'CHVL'] },
+    admin:      { email: 'admin@dev.local',      name: 'Admin Dev',       roles: ['ADMIN'] },
+    president:  { email: 'president@dev.local',  name: 'Président Dev',   roles: ['PRESIDENT'] },
+    cadre:      { email: 'cadre@dev.local',       name: 'Cadre Dev',       roles: ['CADRE'] },
+    chvl:       { email: 'chvl@dev.local',        name: 'Chauffeur Dev',   roles: ['CHVL'] },
+    guest:      { email: 'guest@dev.local',       name: 'Inactif Dev',     roles: ['INACTIF'] },
+    ci:         { email: 'ci@dev.local',          name: 'CI/RPAPS Dev',    roles: ['CI/RPAPS'] },
+    jeannoel:   { email: 'jeannoel.durand@croix-rouge.fr', name: 'Jean-Noël Durand', roles: ['SUPER_ADMIN', 'CHVL'] },
 };
 
 const isDev = isDevEnv;

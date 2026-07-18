@@ -29,9 +29,9 @@ async function callPatch(key: string, body: Record<string, unknown>) {
 beforeEach(async () => {
     await seedRoles();
     await seedUser({ id: 'user-admin', email: 'admin@test.com' });
-    await seedUserRole('user-admin', 'ADMIN');
-    await seedUser({ id: 'user-respo', email: 'respo@test.com' });
-    await seedUserRole('user-respo', 'RESPO');
+    await seedUserRole('user-admin', 'SUPER_ADMIN');
+    await seedUser({ id: 'user-readonlymgr', email: 'president@test.com' });
+    await seedUserRole('user-readonlymgr', 'PRESIDENT');
     await seedUser({ id: 'user-chvl', email: 'chvl@test.com' });
     await seedUserRole('user-chvl', 'CHVL');
     await seedMenuSettings();
@@ -51,14 +51,14 @@ describe('GET /api/settings/menus', () => {
         expect(res.status).toBe(403);
     });
 
-    it('returns 403 for RESPO', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'respo@test.com', roles: ['RESPO'] } } as never);
+    it('returns 403 for PRESIDENT (lecture seule, pas de gestion modules)', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
         const res = await GET();
         expect(res.status).toBe(403);
     });
 
     it('returns 3 settings with available visibility for ADMIN', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] } } as never);
         const res = await GET();
         expect(res.status).toBe(200);
         const data = await res.json();
@@ -81,14 +81,14 @@ describe('PATCH /api/settings/menus/[key]', () => {
         expect(res.status).toBe(401);
     });
 
-    it('returns 403 for RESPO', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'respo@test.com', roles: ['RESPO'] } } as never);
+    it('returns 403 for PRESIDENT (lecture seule, pas de gestion modules)', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
         const res = await callPatch('stats', { visibility: 'disabled' });
         expect(res.status).toBe(403);
     });
 
     it('returns 400 for unknown key', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] } } as never);
         const res = await callPatch('unknown_key', { visibility: 'available' });
         expect(res.status).toBe(400);
         const data = await res.json();
@@ -96,7 +96,7 @@ describe('PATCH /api/settings/menus/[key]', () => {
     });
 
     it('returns 400 for invalid visibility value (Zod)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] } } as never);
         const res = await callPatch('stats', { visibility: 'invalid_value' });
         expect(res.status).toBe(400);
         const data = await res.json();
@@ -104,7 +104,7 @@ describe('PATCH /api/settings/menus/[key]', () => {
     });
 
     it('happy path — ADMIN can update visibility and DB is updated', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] } } as never);
         const res = await callPatch('stats', { visibility: 'admin_only' });
         expect(res.status).toBe(200);
         const data = await res.json();
@@ -119,7 +119,7 @@ describe('PATCH /api/settings/menus/[key]', () => {
     });
 
     it('ADMIN can set visibility to disabled', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] } } as never);
         const res = await callPatch('inventory', { visibility: 'disabled' });
         expect(res.status).toBe(200);
 
@@ -131,7 +131,7 @@ describe('PATCH /api/settings/menus/[key]', () => {
     });
 
     it('ADMIN can update missions visibility', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] } } as never);
         const res = await callPatch('missions', { visibility: 'admin_only' });
         expect(res.status).toBe(200);
 

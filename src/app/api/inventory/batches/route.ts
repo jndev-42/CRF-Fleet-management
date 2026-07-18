@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
+import { isAdminOrAbove } from '@/lib/roles';
 
 export async function GET(request: Request) {
     try {
@@ -50,7 +51,7 @@ export async function DELETE(request: Request) {
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
-        if (!userRoles.includes('ADMIN')) {
+        if (!isAdminOrAbove(userRoles)) {
             return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
         }
 
@@ -120,7 +121,7 @@ export async function PATCH(request: Request) {
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
-        if (!userRoles.includes('ADMIN')) {
+        if (!isAdminOrAbove(userRoles)) {
             return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
         }
 

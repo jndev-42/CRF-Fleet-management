@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import UsersTab from '@/components/admin/UsersTab';
 import MenusTab from '@/components/admin/MenusTab';
 import ULsTab from '@/components/admin/ULsTab';
+import { isSuperAdmin, isAdminOrAbove, isReadOnlyManager, canAccessAdminPanel } from '@/lib/roles';
 
 interface User {
     id: string;
@@ -33,9 +34,10 @@ export default function AdminPage() {
     const router = useRouter();
 
     const sessionRoles = (session?.user?.roles || []) as string[];
-    const isAdmin = sessionRoles.includes('ADMIN');
-    const isRespo = sessionRoles.includes('RESPO');
-    const canAccess = isAdmin || isRespo;
+    const isSuperAdminUser = isSuperAdmin(sessionRoles);
+    const isAdminUser = isAdminOrAbove(sessionRoles);
+    const isReadOnly = isReadOnlyManager(sessionRoles);
+    const canAccess = canAccessAdminPanel(sessionRoles);
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {
@@ -165,9 +167,9 @@ export default function AdminPage() {
             <div style={{ marginBottom: '24px' }}>
                 <h1 className="page-title">Administration</h1>
                 <p className="page-description">
-                    {isAdmin
+                    {isAdminUser
                         ? 'Gérez les utilisateurs, leurs rôles et les paramètres de l\'application.'
-                        : 'Validez les papiers des chauffeurs.'}
+                        : 'Consultez les membres de votre unité locale.'}
                 </p>
             </div>
 
@@ -180,7 +182,7 @@ export default function AdminPage() {
                 >
                     Utilisateurs
                 </button>
-                {isAdmin && (
+                {isSuperAdminUser && (
                     <button
                         role="tab"
                         aria-selected={activeTab === 'menus'}
@@ -190,7 +192,7 @@ export default function AdminPage() {
                         Menus
                     </button>
                 )}
-                {isAdmin && (
+                {isAdminUser && (
                     <button
                         role="tab"
                         aria-selected={activeTab === 'uls'}
@@ -206,7 +208,8 @@ export default function AdminPage() {
                 <UsersTab
                     users={users}
                     availableRoles={availableRoles}
-                    isAdmin={isAdmin}
+                    isAdmin={isAdminUser}
+                    isReadOnly={isReadOnly}
                     onValidatePapers={validatePapers}
                     onCreateUser={createUser}
                     onDeleteUser={deleteUser}
@@ -216,9 +219,9 @@ export default function AdminPage() {
                 />
             )}
 
-            {activeTab === 'menus' && isAdmin && <MenusTab />}
+            {activeTab === 'menus' && isSuperAdminUser && <MenusTab />}
 
-            {activeTab === 'uls' && isAdmin && <ULsTab />}
+            {activeTab === 'uls' && isAdminUser && <ULsTab />}
         </div>
     );
 }

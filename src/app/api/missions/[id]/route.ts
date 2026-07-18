@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
+import { isAdminOrAbove } from '@/lib/roles';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -43,7 +44,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
         // Access control: only ADMIN and CI/RPAPS can access mission reports
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        const isAdmin = roles.includes('ADMIN');
+        const isAdmin = isAdminOrAbove(roles);
         const isCiRpaps = roles.includes('CI/RPAPS');
         if (!isAdmin && !isCiRpaps) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
@@ -128,7 +129,7 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        if (!roles.includes('ADMIN')) {
+        if (!isAdminOrAbove(roles)) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 

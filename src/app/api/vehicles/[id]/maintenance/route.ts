@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isAdminOrAbove } from '@/lib/roles';
 
 const PAGE_SIZE = 5;
 
@@ -83,7 +84,7 @@ export async function POST(
         }
 
         const roles = session.user.roles || ['INACTIF'];
-        if (!roles.includes('ADMIN')) {
+        if (!isAdminOrAbove(roles)) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 

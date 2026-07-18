@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { sendPushNotification } from '@/lib/onesignal';
+import { canAccessAdminPanel } from '@/lib/roles';
 
 const updateMetricsSchema = z.object({
     mileage: z.number().min(0).optional(),
@@ -16,7 +17,7 @@ export async function PATCH(
     try {
         const session = await auth();
         const roles = session?.user?.roles || [];
-        const isAuthorized = roles.includes('ADMIN') || roles.includes('RESPO');
+        const isAuthorized = canAccessAdminPanel(roles);
 
         if (!session?.user || !isAuthorized) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });

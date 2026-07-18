@@ -58,7 +58,7 @@ function makeGetRequest(): Request {
     return new Request('http://localhost/api/users', { method: 'GET' });
 }
 
-const adminSession = { user: { email: 'admin@test.com', roles: ['ADMIN'] } };
+const adminSession = { user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] } };
 const chvlSession = { user: { email: 'chvl@test.com', roles: ['CHVL'] } };
 
 async function getUserRoles(userId: string): Promise<string[]> {
@@ -188,7 +188,7 @@ describe('PATCH /api/users/[email]', () => {
         mockedAuth.mockResolvedValue(adminSession as any);
 
         const res = await PATCH(
-            makePatchRequest(user.email, { roles: ['CHVL', 'RESPO'] }),
+            makePatchRequest(user.email, { roles: ['CHVL', 'PRESIDENT'] }),
             { params: Promise.resolve({ email: user.email }) }
         );
         expect(res.status).toBe(200);
@@ -197,7 +197,7 @@ describe('PATCH /api/users/[email]', () => {
 
         const roles = await getUserRoles(user.id);
         expect(roles).toContain('CHVL');
-        expect(roles).toContain('RESPO');
+        expect(roles).toContain('PRESIDENT');
         expect(roles).not.toContain('GUEST');
     });
 
@@ -244,14 +244,14 @@ describe('PATCH /api/users/[email]', () => {
         mockedAuth.mockResolvedValue(adminSession as any);
 
         const res = await PATCH(
-            makePatchRequest(user.email, { roles: ['CHVL', 'RESPO'] }),
+            makePatchRequest(user.email, { roles: ['CHVL', 'PRESIDENT'] }),
             { params: Promise.resolve({ email: user.email }) }
         );
         expect(res.status).toBe(200);
 
         const roles = await getUserRoles(user.id);
         expect(roles).toContain('CHVL');
-        expect(roles).toContain('RESPO');
+        expect(roles).toContain('PRESIDENT');
         expect(roles).not.toContain('GUEST');
     });
 });
