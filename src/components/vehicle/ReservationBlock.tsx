@@ -346,10 +346,10 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                         <div style={{ flex: 1 }}>
                                             <UserCombobox
                                                 users={users}
-                                                value={driverSelection === 'UNASSIGNED' ? '' : driverSelection}
+                                                value={driverSelection}
                                                 onChange={setDriverSelection}
                                                 excludeEmail={currentUserEmail ?? undefined}
-                                                defaultLabel={driverSelection === 'UNASSIGNED' ? 'Chauffeur non décidé' : 'Moi-même'}
+                                                defaultLabel="Moi-même"
                                             />
                                         </div>
                                         <button
@@ -421,10 +421,10 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                         <div style={{ flex: 1 }}>
                                             <UserCombobox
                                                 users={users}
-                                                value={editDriverSelection === 'UNASSIGNED' ? '' : editDriverSelection}
+                                                value={editDriverSelection}
                                                 onChange={setEditDriverSelection}
                                                 excludeEmail={currentUserEmail ?? undefined}
-                                                defaultLabel={editDriverSelection === 'UNASSIGNED' ? 'Chauffeur non décidé' : 'Moi-même'}
+                                                defaultLabel="Moi-même"
                                             />
                                         </div>
                                         <button

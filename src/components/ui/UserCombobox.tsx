@@ -37,7 +37,9 @@ export default function UserCombobox({
     }, [showDropdown]);
 
     const selectedUser = users.find(u => u.id === value);
-    const triggerLabel = value
+    const triggerLabel = value === 'UNASSIGNED'
+        ? 'Chauffeur non décidé'
+        : value
         ? (selectedUser?.name || selectedUser?.email || defaultLabel)
         : defaultLabel;
 
