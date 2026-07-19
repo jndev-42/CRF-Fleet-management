@@ -33,10 +33,10 @@ async function main() {
         }
         console.log("   Rôles existants :", Object.keys(roleIdByName).join(', '));
 
-        // ── 2. Insérer les nouveaux rôles (SUPER_ADMIN, PRESIDENT, CADRE) ───────
-        console.log("\n2. Insertion des nouveaux rôles...");
-        const newRoles = ['SUPER_ADMIN', 'PRESIDENT', 'CADRE'];
-        for (const roleName of newRoles) {
+        // ── 2. Insérer tous les rôles valides (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE, etc.) ───────
+        console.log("\n2. Insertion des rôles du système...");
+        const validSystemRoles = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'CADRE', 'CHVPSP', 'CHVL', 'CI/RPAPS', 'INACTIF'];
+        for (const roleName of validSystemRoles) {
             if (!roleIdByName[roleName]) {
                 const newId = crypto.randomUUID();
                 await db.execute({
@@ -176,8 +176,8 @@ async function main() {
         }
 
         // ── 7. Supprimer les anciens rôles de la table Role ─────────────────────
-        console.log("\n7. Suppression des anciens rôles (RESPO, ADMIN, GUEST, SECOURISTE)...");
-        const rolesToDelete = ['RESPO', 'ADMIN', 'GUEST', 'SECOURISTE'];
+        console.log("\n7. Suppression des anciens rôles (RESPO, GUEST, SECOURISTE)...");
+        const rolesToDelete = ['RESPO', 'GUEST', 'SECOURISTE'];
         for (const roleName of rolesToDelete) {
             const roleId = roleIdByName[roleName];
             if (roleId) {
