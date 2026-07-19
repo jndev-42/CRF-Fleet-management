@@ -20,6 +20,10 @@ const checkInSchema = z.object({
     cleanlinessIn: z.string().optional(),
     incident: z.string().optional(),
     commentsIn: z.string().optional(),
+    checklistIn: z.record(z.string(), z.boolean()).optional(),
+    desinfResponsable: z.string().optional(),
+    desinfLotNumber: z.string().optional(),
+    desinfType: z.string().optional(),
 });
 
 export async function POST(
@@ -131,7 +135,8 @@ export async function POST(
                 sql: `UPDATE Trip SET
                         checkInAt = ?, mileageIn = ?, fuelIn = ?, parkingIn = ?,
                         conditionIn = ?, cleanlinessIn = ?, incident = ?, commentsIn = ?,
-                        renaultDataValidated = ?, renaultLastCheckedAt = ?
+                        checklistIn = ?, renaultDataValidated = ?, renaultLastCheckedAt = ?,
+                        desinfResponsable = ?, desinfLotNumber = ?, desinfType = ?
                       WHERE id = ?`,
                 args: [
                     timestamp,
@@ -142,8 +147,12 @@ export async function POST(
                     data.cleanlinessIn || null,
                     data.incident || null,
                     data.commentsIn || null,
+                    data.checklistIn ? JSON.stringify(data.checklistIn) : null,
                     renaultDataValidated,
                     renaultDataValidated !== null ? timestamp : null,
+                    data.desinfResponsable || null,
+                    data.desinfLotNumber || null,
+                    data.desinfType || null,
                     trip.id,
                 ],
             });
@@ -158,6 +167,13 @@ export async function POST(
                     vehicle.id,
                 ],
             });
+
+            if (trip.missionType === 'Désinfection') {
+                await tx.execute({
+                    sql: `UPDATE Vehicle SET lastDesinfDate = date('now'), nextDesinfMaxDate = date('now', '+42 days') WHERE id = ?`,
+                    args: [vehicle.id],
+                });
+            }
 
             await tx.commit();
         } catch (e) {
