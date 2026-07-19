@@ -9,10 +9,16 @@
  * Usage : npx tsx --env-file=.env scripts/add-desinf-tracking.ts
  */
 import { createClient } from '@libsql/client';
+import * as dotenv from 'dotenv';
+import { resolve } from 'path';
+
+const envFile = process.env.ENV_FILE || '.env.local';
+dotenv.config({ path: resolve(process.cwd(), envFile) });
+console.log(`Using env: ${envFile}`);
 
 const db = createClient({
-    url: process.env.TURSO_DATABASE_URL!,
-    authToken: process.env.TURSO_AUTH_TOKEN,
+    url: (process.env.TURSO_DATABASE_URL || '').trim(),
+    authToken: (process.env.TURSO_AUTH_TOKEN || '').trim(),
 });
 
 async function main() {

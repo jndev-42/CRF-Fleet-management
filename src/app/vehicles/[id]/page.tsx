@@ -887,6 +887,8 @@ export default function VehicleDetailPage() {
             {showQRModal && (
                 <QRCodeModal
                     vehicleName={vehicle.name}
+                    vehicleId={vehicle.id}
+                    userRoles={userRoles}
                     onClose={() => setShowQRModal(false)}
                 />
             )}
