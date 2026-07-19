@@ -193,7 +193,45 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
             return { ...session, error: "Unauthorized" } as typeof session & { error: string };
         }
 
-        session.user.roles = (token.roles as string[]) || [];
+        if (token.userId) {
+            try {
+                const globalRolesRes = await db.execute({
+                    sql: `
+                        SELECT r.name
+                        FROM "UserRole" ur
+                        JOIN "Role" r ON ur.roleId = r.id
+                        WHERE ur.userId = ?
+                    `,
+                    args: [token.userId],
+                });
+                const globalRoles = (globalRolesRes?.rows || []).map(row => row.name as string);
+
+                let activeRoles: string[] = [];
+                const activeUlId = (token.ulId as string) || 'default';
+                if (activeUlId && activeUlId !== 'default') {
+                    const ulRoleRes = await db.execute({
+                        sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND ulId = ?',
+                        args: [token.userId, activeUlId],
+                    });
+                    if (ulRoleRes?.rows && ulRoleRes.rows.length > 0 && ulRoleRes.rows[0].roles) {
+                        activeRoles = (ulRoleRes.rows[0].roles as string).split(',').map(r => r.trim()).filter(Boolean);
+                    }
+                }
+
+                if (activeRoles.length === 0) {
+                    activeRoles = globalRoles.length > 0 ? globalRoles : ((token.roles as string[]) || []);
+                }
+                if (globalRoles.includes('SUPER_ADMIN') && !activeRoles.includes('SUPER_ADMIN')) {
+                    activeRoles.unshift('SUPER_ADMIN');
+                }
+                session.user.roles = activeRoles;
+            } catch (e) {
+                console.error("Failed to fetch fresh roles for session:", e);
+                session.user.roles = (token.roles as string[]) || [];
+            }
+        } else {
+            session.user.roles = (token.roles as string[]) || [];
+        }
         return session;
     },
 
