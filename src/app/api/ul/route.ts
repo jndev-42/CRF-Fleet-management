@@ -14,20 +14,6 @@ const createULSchema = z.object({
     defaultParkingSpots: z.array(z.string()).default([]),
 });
 
-let migrationChecked = false;
-async function ensureULSchema() {
-    if (migrationChecked) return;
-    try {
-        const tableInfo = await db.execute(`PRAGMA table_info("UniteLocale")`);
-        if (tableInfo.rows.length > 0 && !tableInfo.rows.some(r => r.name === 'defaultParkingSpots')) {
-            await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "defaultParkingSpots" TEXT`);
-        }
-        migrationChecked = true;
-    } catch {
-        // Ignore if error occurs during migration check
-    }
-}
-
 /** GET /api/ul — Retourne toutes les UL (Utilisateurs connectés) */
 export async function GET() {
     try {
@@ -35,8 +21,6 @@ export async function GET() {
         if (!session?.user) {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
-
-        await ensureULSchema();
 
         const res = await db.execute(`SELECT id, name, slug, phoneNumbers, defaultParkingSpots FROM "UniteLocale" ORDER BY name ASC`);
         const uls = res.rows.map(r => ({
@@ -61,8 +45,6 @@ export async function POST(request: Request) {
         if (!isSuperAdmin(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
-
-        await ensureULSchema();
 
         const body = await request.json();
         const data = createULSchema.parse(body);
