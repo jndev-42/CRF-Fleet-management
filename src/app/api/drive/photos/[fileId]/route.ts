@@ -12,10 +12,24 @@ export async function GET(
             return new Response('Unauthorized', { status: 401 });
         }
 
-        const drive = getDriveClient();
-
         const resolvedParams = await params;
         const fileId = resolvedParams.fileId;
+
+        if (fileId.startsWith('mock-')) {
+            const mockPng = Buffer.from(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                'base64'
+            );
+            return new Response(mockPng, {
+                status: 200,
+                headers: {
+                    'Content-Type': 'image/png',
+                    'Content-Disposition': 'inline; filename="mock.png"',
+                },
+            });
+        }
+
+        const drive = getDriveClient();
 
         // Fetch file metadata to get MIME type
         const fileMetadata = await drive.files.get({

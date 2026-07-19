@@ -100,6 +100,12 @@ export async function POST(request: Request) {
             }
         }
 
+        if (isPreview) {
+            const uploadTargetId = `mock-folder-drive-${Date.now()}`;
+            const fileIds = files.map((_, i) => `mock-file-${i}-${Date.now()}`);
+            return NextResponse.json({ success: true, folderId: uploadTargetId, subfolderId: uploadTargetId, fileIds });
+        }
+
         // Initialize Google Drive API client using Service Account
         const drive = getDriveClient();
 

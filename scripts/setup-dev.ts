@@ -587,6 +587,41 @@ async function main() {
         )
     `);
 
+    // ── Notes de frais ────────────────────────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "ExpenseReport" (
+            "id"                     TEXT NOT NULL PRIMARY KEY,
+            "userId"                 TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+            "submittedAt"            TEXT NOT NULL,
+            "status"                 TEXT NOT NULL DEFAULT 'soumis', -- 'brouillon', 'soumis', 'validé'
+            "requestRefund"          INTEGER NOT NULL DEFAULT 1,
+            "noReceiptDeclaration"   INTEGER NOT NULL DEFAULT 0,
+            "driveFolderId"          TEXT,
+            "total"                  REAL NOT NULL DEFAULT 0.0,
+            "items"                  TEXT NOT NULL, -- JSON string: Array<{ label: string, amount: number }>
+            "ulId"                   TEXT NOT NULL DEFAULT 'ul-paris-18',
+            "validatedAt"            TEXT,
+            "validatedBy"            TEXT REFERENCES "User"("id") ON DELETE SET NULL,
+            "createdAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute(`
+        CREATE INDEX IF NOT EXISTS "ExpenseReport_userId_idx"
+        ON "ExpenseReport"("userId")
+    `);
+    await db.execute(`
+        CREATE INDEX IF NOT EXISTS "ExpenseReport_status_idx"
+        ON "ExpenseReport"("status")
+    `);
+    await db.execute(`
+        CREATE INDEX IF NOT EXISTS "ExpenseReport_ulId_idx"
+        ON "ExpenseReport"("ulId")
+    `);
+
+
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['stats', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['inventory', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['missions', 'available'] });
