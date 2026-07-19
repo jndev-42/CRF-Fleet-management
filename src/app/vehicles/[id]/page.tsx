@@ -8,7 +8,7 @@ import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
 import PhotoViewer from '@/components/PhotoViewer';
 
-import { Vehicle, MaintenanceRecord } from './types';
+import { Trip, Vehicle, MaintenanceRecord } from './types';
 import { formatDate } from './utils';
 import FuelBar from '@/components/vehicle/FuelBar';
 import VehicleBadges from '@/components/vehicle/VehicleBadges';
