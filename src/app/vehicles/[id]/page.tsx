@@ -58,6 +58,7 @@ export default function VehicleDetailPage() {
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [userRoles, setUserRoles] = useState<string[]>([]);
     const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
+    const [currentUserUlId, setCurrentUserUlId] = useState<string | null>(null);
 
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [viewingPhotosFolderId, setViewingPhotosFolderId] = useState<string | null>(null);
@@ -88,6 +89,9 @@ export default function VehicleDetailPage() {
                 }
                 if (session?.user?.email) {
                     setCurrentUserEmail(session.user.email);
+                }
+                if (session?.user?.ulId) {
+                    setCurrentUserUlId(session.user.ulId);
                 }
             })
             .catch(console.error);
@@ -822,6 +826,7 @@ export default function VehicleDetailPage() {
                     onRefetch={fetchVehicle}
                     initialDesinfResponsableId={activeTrip.desinfResponsableId ?? undefined}
                     initialDesinfLotNumber={activeTrip.desinfLotNumber ?? undefined}
+                    currentUserUlId={currentUserUlId ?? undefined}
                 />
             )}
 
