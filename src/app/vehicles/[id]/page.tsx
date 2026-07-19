@@ -29,6 +29,8 @@ import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHist
 import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
 import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal';
 import IncidentHistoryModal from '@/components/vehicle/modals/IncidentHistoryModal';
+import EditCheckOutModal from '@/components/vehicle/modals/EditCheckOutModal';
+import { isAdminOrAbove } from '@/lib/roles';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
  * VehicleDetailPage Component
@@ -76,6 +78,7 @@ export default function VehicleDetailPage() {
     const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
     const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
     const [showEditRevisionModal, setShowEditRevisionModal] = useState(false);
+    const [editingCheckOutTrip, setEditingCheckOutTrip] = useState<Trip | null>(null);
     const [licenseBlocked, setLicenseBlocked] = useState(false);
     const router = useRouter();
 
@@ -526,6 +529,17 @@ export default function VehicleDetailPage() {
                                 )}
                             </div>
                         )}
+                        {isAdminOrAbove(userRoles) && (
+                            <div style={{ marginTop: 12 }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    style={{ fontSize: 13, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6, borderColor: 'rgba(59, 130, 246, 0.4)', color: '#2563EB' }}
+                                    onClick={() => setEditingCheckOutTrip(activeTrip)}
+                                >
+                                    ✏️ Modifier la prise
+                                </button>
+                            </div>
+                        )}
                     </div>
                     <button
                         className={`btn btn-success ${!canCheckIn ? 'disabled' : ''}`}
@@ -754,6 +768,7 @@ export default function VehicleDetailPage() {
                                             }
                                         }}
                                         onViewPhotos={(folderId: string) => setViewingPhotosFolderId(folderId)}
+                                        onEditCheckOut={(tripToEdit) => setEditingCheckOutTrip(tripToEdit)}
                                     />
                                 </li>
                             ))}
@@ -934,6 +949,19 @@ export default function VehicleDetailPage() {
                         setVehicle(prev => prev ? { ...prev, ...updatedVehicle } : updatedVehicle);
                         setShowEditRevisionModal(false);
                         showToast('Intervalles de révision mis à jour !');
+                    }}
+                />
+            )}
+
+            {editingCheckOutTrip && vehicle && (
+                <EditCheckOutModal
+                    trip={editingCheckOutTrip}
+                    vehicle={vehicle}
+                    onClose={() => setEditingCheckOutTrip(null)}
+                    onSuccess={() => {
+                        setEditingCheckOutTrip(null);
+                        fetchVehicle();
+                        showToast('Informations de prise modifiées avec succès');
                     }}
                 />
             )}
