@@ -18,6 +18,7 @@ export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [regenerating, setRegenerating] = useState(false);
+    const [copied, setCopied] = useState(false);
 
     const qrUrl = token
         ? `${typeof window !== 'undefined' ? window.location.origin : ''}/qr/${token}`
@@ -155,11 +156,54 @@ export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles
                         </div>
 
                         <div style={{
-                            fontSize: 11, color: 'var(--text-muted)', marginBottom: 20,
+                            fontSize: 11, color: 'var(--text-muted)', marginBottom: 16,
                             wordBreak: 'break-all', padding: '0 8px',
                         }}>
                             {qrUrl}
                         </div>
+
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => {
+                                navigator.clipboard.writeText(qrUrl).then(() => {
+                                    setCopied(true);
+                                    setTimeout(() => setCopied(false), 2500);
+                                });
+                            }}
+                            disabled={!token}
+                            style={{
+                                width: '100%',
+                                marginBottom: 20,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: 8,
+                                fontSize: 13,
+                                transition: 'all 0.2s',
+                                ...(copied ? {
+                                    background: 'rgba(16,185,129,0.12)',
+                                    borderColor: 'rgba(16,185,129,0.5)',
+                                    color: '#059669',
+                                } : {}),
+                            }}
+                        >
+                            {copied ? (
+                                <>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    Lien copié !
+                                </>
+                            ) : (
+                                <>
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                    Copier le lien du QR Code
+                                </>
+                            )}
+                        </button>
                     </>
                 )}
 
