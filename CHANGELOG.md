@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.2.0] — 19 juillet 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Bypass QR Code — Accès véhicule sans restriction d'UL** — Génération d'un lien unique `/qr/[token]` par véhicule permettant à tout utilisateur connecté d'effectuer un emprunt ou un retour, indépendamment de son Unité Locale ou de son rôle chauffeur. Interface épurée dédiée hors dashboard et possibilité de régénérer le token (réservé aux rôles d'administration).
+- **Gestion multi-stocks par onglets** — Ajout d'onglets dans le module d'inventaire pour gérer séparément plusieurs stocks, avec prise en charge du dark mode et compatibilité avec le rôle `SUPER_ADMIN`.
+- **Édition des réservations & Chauffeur non décidé** — Possibilité d'éditer les réservations existantes et sélection du statut "CH (Chauffeur non décidé)" lors de leur création ou modification.
+- **Modification des informations de prise d'emprunt** — Autorisation pour les administrateurs et super-administrateurs de modifier les détails de départ (compteur, carburant, remarques) d'un emprunt en cours de trajet.
+
+### 🐛 Corrections & Améliorations
+
+- **Défilement du calendrier sur mobile** — Ajout d'un défilement horizontal sur le calendrier mensuel des véhicules pour les écrans de petite taille.
+
 ## [4.1.0] — 19 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
