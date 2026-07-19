@@ -43,9 +43,10 @@ export async function POST(request: Request) {
 
         const formData = await request.formData();
         const files = formData.getAll('files') as File[];
+        const existingFolderId = formData.get('folderId') as string | null;
 
         if (!files || files.length === 0) {
-            return NextResponse.json({ success: true, folderId: null });
+            return NextResponse.json({ success: true, folderId: existingFolderId || null });
         }
 
         // Validate count and size
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
         }
 
         if (isPreview) {
-            const uploadTargetId = `mock-folder-expense-${Date.now()}`;
+            const uploadTargetId = existingFolderId || `mock-folder-expense-${Date.now()}`;
             const fileIds = files.map((_, i) => `mock-file-${i}-${Date.now()}`);
             return NextResponse.json({ success: true, folderId: uploadTargetId, fileIds });
         }
@@ -106,21 +107,24 @@ export async function POST(request: Request) {
             expenseReportsParentId = parentFolderRes.data.id!;
         }
 
-        // 3. Create subfolder for this specific expense report
-        const userName = session.user.name || 'Utilisateur';
-        const now = new Date();
-        const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
-        const folderName = `Note-de-frais-${userName.replace(/\s+/g, '_')}-${dateStr}`;
+        // 3. Create subfolder for this specific expense report (if it doesn't already exist)
+        let uploadTargetId = existingFolderId;
+        if (!uploadTargetId || uploadTargetId === 'null') {
+            const userName = session.user.name || 'Utilisateur';
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}`;
+            const folderName = `Note-de-frais-${userName.replace(/\s+/g, '_')}-${dateStr}`;
 
-        const folderRes = await drive.files.create({
-            requestBody: {
-                name: folderName,
-                mimeType: 'application/vnd.google-apps.folder',
-                parents: [expenseReportsParentId],
-            },
-            fields: 'id',
-        });
-        const uploadTargetId = folderRes.data.id!;
+            const folderRes = await drive.files.create({
+                requestBody: {
+                    name: folderName,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: [expenseReportsParentId],
+                },
+                fields: 'id',
+            });
+            uploadTargetId = folderRes.data.id!;
+        }
 
         // 4. Upload all files
         const uploadPromises = files.map(async (file) => {

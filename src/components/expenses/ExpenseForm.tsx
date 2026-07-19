@@ -12,12 +12,27 @@ interface ExpenseItem {
 interface ExpenseFormProps {
     onClose: () => void;
     onSuccess: () => void;
+    initialData?: {
+        id: string;
+        requestRefund: boolean;
+        noReceiptDeclaration: boolean;
+        driveFolderId: string | null;
+        items: { label: string; amount: number }[];
+    };
 }
 
-export default function ExpenseForm({ onClose, onSuccess }: ExpenseFormProps) {
-    const [items, setItems] = useState<ExpenseItem[]>([{ label: '', amount: '' }]);
-    const [requestRefund, setRequestRefund] = useState(true);
-    const [certified, setCertified] = useState(false);
+export default function ExpenseForm({ onClose, onSuccess, initialData }: ExpenseFormProps) {
+    const [items, setItems] = useState<ExpenseItem[]>(
+        initialData
+            ? initialData.items.map(item => ({ label: item.label, amount: item.amount.toString() }))
+            : [{ label: '', amount: '' }]
+    );
+    const [requestRefund, setRequestRefund] = useState(
+        initialData ? initialData.requestRefund : true
+    );
+    const [certified, setCertified] = useState(
+        initialData ? initialData.noReceiptDeclaration : false
+    );
     const [photos, setPhotos] = useState<File[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -66,7 +81,7 @@ export default function ExpenseForm({ onClose, onSuccess }: ExpenseFormProps) {
         }
 
         if (requestRefund) {
-            if (photos.length === 0 && !certified) {
+            if (photos.length === 0 && !certified && !initialData?.driveFolderId) {
                 setError('Veuillez soit ajouter au moins un justificatif (photo), soit cocher la déclaration sur l\'honneur.');
                 return;
             }
@@ -75,7 +90,7 @@ export default function ExpenseForm({ onClose, onSuccess }: ExpenseFormProps) {
         setLoading(true);
 
         try {
-            let driveFolderId = null;
+            let driveFolderId = initialData?.driveFolderId || null;
 
             // 2. Upload photos to Drive if there are any
             if (requestRefund && photos.length > 0) {
@@ -83,6 +98,9 @@ export default function ExpenseForm({ onClose, onSuccess }: ExpenseFormProps) {
                 photos.forEach(file => {
                     fd.append('files', file);
                 });
+                if (driveFolderId) {
+                    fd.append('folderId', driveFolderId);
+                }
 
                 const uploadRes = await fetch('/api/expenses/upload', {
                     method: 'POST',
@@ -98,27 +116,52 @@ export default function ExpenseForm({ onClose, onSuccess }: ExpenseFormProps) {
                 driveFolderId = uploadData.folderId;
             }
 
-            // 3. Create Expense Report in Database
-            const payload = {
-                status: submitStatus,
-                requestRefund: requestRefund,
-                noReceiptDeclaration: requestRefund && photos.length === 0 ? certified : false,
-                driveFolderId: driveFolderId,
-                items: validItems.map(item => ({
-                    label: item.label.trim(),
-                    amount: parseFloat(item.amount)
-                }))
-            };
+            // 3. Create or Update Expense Report in Database
+            if (initialData) {
+                const payload = {
+                    action: submitStatus === 'soumis' ? 'submit' : 'update',
+                    status: submitStatus,
+                    requestRefund: requestRefund,
+                    noReceiptDeclaration: requestRefund && photos.length === 0 && !driveFolderId ? certified : false,
+                    driveFolderId: driveFolderId,
+                    items: validItems.map(item => ({
+                        label: item.label.trim(),
+                        amount: parseFloat(item.amount)
+                    }))
+                };
 
-            const response = await fetch('/api/expenses', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+                const response = await fetch(`/api/expenses/${initialData.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-            if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.error || 'Erreur lors de la création de la note de frais.');
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Erreur lors de la mise à jour de la note de frais.');
+                }
+            } else {
+                const payload = {
+                    status: submitStatus,
+                    requestRefund: requestRefund,
+                    noReceiptDeclaration: requestRefund && photos.length === 0 ? certified : false,
+                    driveFolderId: driveFolderId,
+                    items: validItems.map(item => ({
+                        label: item.label.trim(),
+                        amount: parseFloat(item.amount)
+                    }))
+                };
+
+                const response = await fetch('/api/expenses', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Erreur lors de la création de la note de frais.');
+                }
             }
 
             onSuccess();
@@ -145,10 +188,10 @@ export default function ExpenseForm({ onClose, onSuccess }: ExpenseFormProps) {
         }}>
             <div>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    Nouvelle note de frais
+                    {initialData ? 'Modifier la note de frais' : 'Nouvelle note de frais'}
                 </h2>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    Remplissez les détails des dépenses encourues.
+                    {initialData ? 'Mettez à jour les détails de votre brouillon.' : 'Remplissez les détails des dépenses encourues.'}
                 </p>
             </div>
 

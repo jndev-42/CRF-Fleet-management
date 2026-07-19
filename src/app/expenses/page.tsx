@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send } from 'lucide-react';
+import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send, Edit } from 'lucide-react';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
 
 interface ExpenseReport {
@@ -31,6 +31,7 @@ export default function ExpensesPage() {
     const [reports, setReports] = useState<ExpenseReport[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreating, setIsCreating] = useState(false);
+    const [editingReport, setEditingReport] = useState<ExpenseReport | null>(null);
     const [selectedReport, setSelectedReport] = useState<ExpenseReport | null>(null);
     const [photos, setPhotos] = useState<{ id: string; name: string }[]>([]);
     const [photosLoading, setPhotosLoading] = useState(false);
@@ -242,10 +243,18 @@ export default function ExpensesPage() {
 
             {isCreating ? (
                 <ExpenseForm
-                    onClose={() => setIsCreating(false)}
+                    initialData={editingReport || undefined}
+                    onClose={() => {
+                        setIsCreating(false);
+                        setEditingReport(null);
+                    }}
                     onSuccess={() => {
                         setIsCreating(false);
+                        setEditingReport(null);
                         fetchReports();
+                        if (selectedReport && editingReport && selectedReport.id === editingReport.id) {
+                            setSelectedReport(null);
+                        }
                     }}
                 />
             ) : (
@@ -323,6 +332,18 @@ export default function ExpensesPage() {
                                                         </button>
                                                         {report.status === 'brouillon' && report.userId === session?.user?.id && (
                                                             <>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setEditingReport(report);
+                                                                        setIsCreating(true);
+                                                                    }}
+                                                                    className="btn btn-secondary"
+                                                                    style={{ padding: '6px 10px' }}
+                                                                    disabled={actionLoading === report.id}
+                                                                    title="Modifier le brouillon"
+                                                                >
+                                                                    <Edit size={14} />
+                                                                </button>
                                                                 <button
                                                                     onClick={() => handleSubmitDraft(report.id)}
                                                                     className="btn btn-primary"
@@ -543,22 +564,35 @@ export default function ExpensesPage() {
                             )}
 
                             {selectedReport.status === 'brouillon' && selectedReport.userId === session?.user?.id && (
-                                <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '8px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '8px' }}>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button
+                                            onClick={() => handleSubmitDraft(selectedReport.id)}
+                                            className="btn btn-primary"
+                                            style={{ flex: 1, background: '#f97316', borderColor: '#f97316', gap: '6px' }}
+                                            disabled={actionLoading === selectedReport.id}
+                                        >
+                                            <Send size={14} /> Soumettre
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(selectedReport.id)}
+                                            className="btn btn-danger"
+                                            style={{ flex: 1, gap: '6px' }}
+                                            disabled={actionLoading === selectedReport.id}
+                                        >
+                                            <Trash size={14} /> Supprimer
+                                        </button>
+                                    </div>
                                     <button
-                                        onClick={() => handleSubmitDraft(selectedReport.id)}
-                                        className="btn btn-primary"
-                                        style={{ flex: 1, background: '#f97316', borderColor: '#f97316', gap: '6px' }}
+                                        onClick={() => {
+                                            setEditingReport(selectedReport);
+                                            setIsCreating(true);
+                                        }}
+                                        className="btn btn-secondary"
+                                        style={{ width: '100%', gap: '6px' }}
                                         disabled={actionLoading === selectedReport.id}
                                     >
-                                        <Send size={14} /> Soumettre
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(selectedReport.id)}
-                                        className="btn btn-danger"
-                                        style={{ flex: 1, gap: '6px' }}
-                                        disabled={actionLoading === selectedReport.id}
-                                    >
-                                        <Trash size={14} /> Supprimer
+                                        <Edit size={14} /> Modifier le brouillon
                                     </button>
                                 </div>
                             )}
