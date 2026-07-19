@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.3.0] — 19 juillet 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Gestion des Notes de Frais (Frais)** — Ajout d'un module complet de gestion des notes de frais accessible via un nouvel onglet "Frais" dans la navbar.
+  - Saisie dynamique des lignes de dépenses avec calcul en temps réel du total.
+  - Option de remboursement commutable et téléversement de justificatifs photo dans un dossier parent dédié sur Google Drive.
+  - Déclaration sur l'honneur obligatoire en l'absence de justificatif papier.
+  - Possibilité de sauvegarder au format brouillon, de modifier les brouillons existants et de les soumettre.
+  - Validation des notes de frais par les rôles d'administration (`PRESIDENT` et `SUPER_ADMIN`).
+  - Mock de l'intégration Google Drive en environnement de prévisualisation (preview) pour éviter les dépendances externes.
+
 ## [4.2.0] — 19 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
