@@ -29,6 +29,7 @@ vi.mock('@/auth', () => ({ auth: vi.fn() }));
 vi.mock('@/lib/onesignal', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
 
 import { POST } from '@/app/api/vehicles/[id]/reservations/route';
+import { PATCH as PATCH_RESERVATION } from '@/app/api/reservations/[id]/route';
 import { auth } from '@/auth';
 import { db, seedVehicle, seedUser } from './setup';
 
@@ -77,14 +78,14 @@ describe('POST /api/vehicles/[id]/reservations — autorisation onBehalfOf', () 
         const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(403);
         const body = await res.json();
-        expect(body.error).toContain('ADMIN');
+        expect(body.error).toContain('responsable');
     });
 
-    it('3. retourne 403 si RESPO utilise onBehalfOfUserId', async () => {
+    it('3. autorise un RESPO ou CADRE à utiliser onBehalfOfUserId (201)', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'respo@dev.local', name: 'Respo Test', roles: ['RESPO'] } } as never);
         const { startTime, endTime } = futureWindow();
         const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(201);
     });
 });
 
@@ -238,3 +239,162 @@ describe('POST /api/vehicles/[id]/reservations — conflits', () => {
         expect(body.error).toContain('en attente');
     });
 });
+
+describe('POST & PATCH /api/reservations — Chauffeur non décidé & modifications', () => {
+    it('13. permet à un ADMIN/CADRE de créer une réservation avec "Chauffeur non décidé"', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'] } } as never);
+        const { startTime, endTime } = futureWindow(40, 2);
+        const res = await POST(makeRequest({ startTime, endTime, reason: 'Transport urgent', isUnassignedDriver: true }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const rows = await db.execute({ sql: `SELECT * FROM "Reservation" WHERE id = ?`, args: [body.id] });
+        expect(rows.rows[0].userName).toBe('Chauffeur non décidé');
+    });
+
+    it('14. bloque un utilisateur simple (CHVL) qui tente de réserver comme "Chauffeur non décidé" ou pour autrui (403)', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        const { startTime, endTime } = futureWindow(45, 2);
+        const res = await POST(makeRequest({ startTime, endTime, isUnassignedDriver: true }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        expect(res.status).toBe(403);
+    });
+
+    it('15. permet au propriétaire CHVL de modifier sa réservation (motif et dates)', async () => {
+        const { startTime, endTime } = futureWindow(50, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-to-edit', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'Initial Reason', 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+
+        const newStart = new Date(Date.now() + 51 * 60 * 60 * 1000).toISOString();
+        const newEnd = new Date(Date.now() + 54 * 60 * 60 * 1000).toISOString();
+
+        const patchReq = new Request('http://localhost/api/reservations/res-to-edit', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                startTime: newStart,
+                endTime: newEnd,
+                reason: 'Motif mis à jour'
+            })
+        });
+
+        const res = await PATCH_RESERVATION(patchReq, { params: Promise.resolve({ id: 'res-to-edit' }) });
+        expect(res.status).toBe(200);
+
+        const rows = await db.execute({ sql: `SELECT * FROM "Reservation" WHERE id = 'res-to-edit'`, args: [] });
+        expect(rows.rows[0].reason).toBe('Motif mis à jour');
+        expect(rows.rows[0].startTime).toBe(newStart);
+        expect(rows.rows[0].endTime).toBe(newEnd);
+    });
+
+    it('16. empêche un utilisateur simple de modifier le chauffeur d\'une réservation (403)', async () => {
+        const { startTime, endTime } = futureWindow(55, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-change-driver', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'Reason', 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+
+        const patchReq = new Request('http://localhost/api/reservations/res-change-driver', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                isUnassignedDriver: true
+            })
+        });
+
+        const res = await PATCH_RESERVATION(patchReq, { params: Promise.resolve({ id: 'res-change-driver' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it('17. permet à un ADMIN/CADRE de modifier le chauffeur vers "Chauffeur non décidé"', async () => {
+        const { startTime, endTime } = futureWindow(60, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-admin-edit', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'Reason', 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'] } } as never);
+
+        const patchReq = new Request('http://localhost/api/reservations/res-admin-edit', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                isUnassignedDriver: true
+            })
+        });
+
+        const res = await PATCH_RESERVATION(patchReq, { params: Promise.resolve({ id: 'res-admin-edit' }) });
+        expect(res.status).toBe(200);
+
+        const rows = await db.execute({ sql: `SELECT * FROM "Reservation" WHERE id = 'res-admin-edit'`, args: [] });
+        expect(rows.rows[0].userName).toBe('Chauffeur non décidé');
+    });
+
+    it('18. bloque la modification par un autre utilisateur non-admin (403)', async () => {
+        const { startTime, endTime } = futureWindow(65, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-other', VEHICLE_ID, 'other@dev.local', 'Other User', startTime, endTime, 'Reason', 'PENDING']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+
+        const patchReq = new Request('http://localhost/api/reservations/res-other', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                reason: 'Hack'
+            })
+        });
+
+        const res = await PATCH_RESERVATION(patchReq, { params: Promise.resolve({ id: 'res-other' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it('19. bloque la modification de dates si elle entre en conflit avec une autre réservation (409)', async () => {
+        const win1 = futureWindow(70, 2);
+        const win2 = futureWindow(75, 2);
+
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-A', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', win1.startTime, win1.endTime, 'VALIDATED']
+        });
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-B', VEHICLE_ID, 'admin@dev.local', 'Admin Test', win2.startTime, win2.endTime, 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+
+        const patchReq = new Request('http://localhost/api/reservations/res-A', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                startTime: win1.startTime,
+                endTime: win2.endTime
+            })
+        });
+
+        const res = await PATCH_RESERVATION(patchReq, { params: Promise.resolve({ id: 'res-A' }) });
+        expect(res.status).toBe(409);
+        const body = await res.json();
+        expect(body.error).toContain('chevauche');
+    });
+});
+

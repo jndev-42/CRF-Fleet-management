@@ -48,6 +48,18 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
     }
 }
 
+import { z } from 'zod';
+import { canAccessAdminPanel } from '@/lib/roles';
+
+const updateReservationSchema = z.object({
+    startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }).optional(),
+    endTime: z.string().datetime({ message: 'endTime doit être une date ISO valide' }).optional(),
+    reason: z.string().max(500).optional().nullable(),
+    onBehalfOfUserId: z.string().optional().nullable(),
+    isUnassignedDriver: z.boolean().optional(),
+    action: z.enum(['validate', 'update']).optional(),
+});
+
 export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
@@ -55,17 +67,12 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const userRoles: string[] = session.user.roles || [];
-        if (!userRoles.includes('ADMIN') && !userRoles.includes('RESPO')) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
-
         const params = await props.params;
         const reservationId = params.id;
 
         const checkResult = await db.execute({
             sql: `
-                SELECT r.id, r.userEmail, r.vehicleId, r.startTime, r.endTime, r.status
+                SELECT r.id, r.userEmail, r.userName, r.vehicleId, r.startTime, r.endTime, r.reason, r.status
                 FROM "Reservation" r
                 WHERE r.id = ?
             `,
@@ -77,71 +84,187 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         }
 
         const reservation = checkResult.rows[0];
+        const userRoles: string[] = session.user.roles || [];
+        const isOwner = session.user.email === reservation.userEmail;
+        const canManageDriver = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
 
-        if (reservation.status === 'VALIDATED') {
-            return NextResponse.json({ error: 'Réservation déjà validée' }, { status: 409 });
-        }
-
-        // Vérifier qu'il n'y a pas de chevauchement avec les réservations validées existantes
-        const conflictCheck = await db.execute({
-            sql: `
-                SELECT id FROM "Reservation"
-                WHERE vehicleId = ?
-                AND id != ?
-                AND status = 'VALIDATED'
-                AND (startTime < ? AND endTime > ?)
-            `,
-            args: [reservation.vehicleId, reservationId, reservation.endTime, reservation.startTime]
-        });
-
-        if (conflictCheck.rows.length > 0) {
-            return NextResponse.json({ error: 'Ce créneau chevauche une réservation déjà validée.' }, { status: 409 });
-        }
-
-        await db.execute({
-            sql: `UPDATE "Reservation" SET status = 'VALIDATED' WHERE id = ?`,
-            args: [reservationId]
-        });
-
-        // Notifier le demandeur via la table Notification (cloche in-app)
+        let body: Record<string, unknown> = {};
         try {
-            const vehicleResult = await db.execute({
-                sql: `SELECT name, ulId FROM "Vehicle" WHERE id = ?`,
-                args: [reservation.vehicleId as string]
-            });
-            const vehicleName = vehicleResult.rows[0]?.name as string || '';
-            const vehicleUlId = vehicleResult.rows[0]?.ulId as string || 'ul-paris-18';
-
-            const userResult = await db.execute({
-                sql: `SELECT id FROM "User" WHERE email = ?`,
-                args: [reservation.userEmail as string]
-            });
-
-            if (userResult.rows.length > 0) {
-                const userId = userResult.rows[0].id as string;
-                const notifId = crypto.randomUUID();
-                const start = new Date(reservation.startTime as string);
-                const end = new Date(reservation.endTime as string);
-
-                await db.execute({
-                    sql: `INSERT INTO "Notification" (id, userId, title, message, url, ulId) VALUES (?, ?, ?, ?, ?, ?)`,
-                    args: [
-                        notifId,
-                        userId,
-                        `✅ Réservation validée`,
-                        `Votre réservation de ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} a été validée.`,
-                        `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(vehicleName)}`,
-                        vehicleUlId
-                    ]
-                });
+            const text = await request.text();
+            if (text && text.trim() !== '') {
+                body = JSON.parse(text);
             }
-        } catch (notifErr) {
-            console.error('Failed to send validation notification:', notifErr);
+        } catch {
+            // body remain empty object
         }
 
-        return NextResponse.json({ success: true });
+        // If body has edit fields (startTime, endTime, reason, onBehalfOfUserId, isUnassignedDriver) or action === 'update'
+        const hasEditFields = body.startTime !== undefined ||
+            body.endTime !== undefined ||
+            body.reason !== undefined ||
+            body.onBehalfOfUserId !== undefined ||
+            body.isUnassignedDriver !== undefined ||
+            body.action === 'update';
+
+        if (hasEditFields) {
+            // Check editing permissions: owner or manager
+            if (!isOwner && !canManageDriver) {
+                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            }
+
+            let parsed: z.infer<typeof updateReservationSchema>;
+            try {
+                parsed = updateReservationSchema.parse(body);
+            } catch (zodErr) {
+                if (zodErr instanceof z.ZodError) {
+                    return NextResponse.json({ error: 'Données invalides', details: zodErr.issues }, { status: 400 });
+                }
+                throw zodErr;
+            }
+
+            // Check if user is attempting to change driver without management role
+            const isChangingDriver = parsed.isUnassignedDriver !== undefined || parsed.onBehalfOfUserId !== undefined;
+            if (isChangingDriver && !canManageDriver) {
+                return NextResponse.json({ error: 'Seul un responsable peut modifier le chauffeur de la réservation.' }, { status: 403 });
+            }
+
+            const newStartStr = parsed.startTime || (reservation.startTime as string);
+            const newEndStr = parsed.endTime || (reservation.endTime as string);
+
+            const newStart = new Date(newStartStr);
+            const newEnd = new Date(newEndStr);
+
+            if (newEnd <= newStart) {
+                return NextResponse.json({ error: 'endTime doit être après startTime' }, { status: 400 });
+            }
+
+            // Check overlap with other reservations for the same vehicle
+            const conflictCheck = await db.execute({
+                sql: `
+                    SELECT id, status FROM "Reservation"
+                    WHERE vehicleId = ?
+                    AND id != ?
+                    AND status IN ('VALIDATED', 'PENDING')
+                    AND (startTime < ? AND endTime > ?)
+                `,
+                args: [reservation.vehicleId, reservationId, newEnd.toISOString(), newStart.toISOString()]
+            });
+
+            if (conflictCheck.rows.length > 0) {
+                const hasValidated = conflictCheck.rows.some(r => r.status === 'VALIDATED');
+                const msg = hasValidated
+                    ? 'Ce créneau chevauche une réservation déjà validée.'
+                    : 'Ce créneau chevauche une demande de réservation déjà en attente.';
+                return NextResponse.json({ error: msg }, { status: 409 });
+            }
+
+            const newReason = parsed.reason !== undefined ? parsed.reason : reservation.reason;
+            let newUserName = reservation.userName as string;
+            let newUserEmail = reservation.userEmail as string;
+
+            if (isChangingDriver) {
+                if (parsed.isUnassignedDriver || parsed.onBehalfOfUserId === 'UNASSIGNED') {
+                    newUserName = 'Chauffeur non décidé';
+                    newUserEmail = session.user.email as string;
+                } else if (parsed.onBehalfOfUserId) {
+                    const targetResult = await db.execute({
+                        sql: `SELECT id, name, email FROM "User" WHERE id = ?`,
+                        args: [parsed.onBehalfOfUserId]
+                    });
+                    if (targetResult.rows.length === 0) {
+                        return NextResponse.json({ error: 'Utilisateur introuvable.' }, { status: 404 });
+                    }
+                    newUserEmail = targetResult.rows[0].email as string;
+                    newUserName = (targetResult.rows[0].name as string) || newUserEmail;
+                }
+            }
+
+            await db.execute({
+                sql: `
+                    UPDATE "Reservation"
+                    SET startTime = ?, endTime = ?, reason = ?, userName = ?, userEmail = ?
+                    WHERE id = ?
+                `,
+                args: [newStart.toISOString(), newEnd.toISOString(), newReason || null, newUserName, newUserEmail, reservationId]
+            });
+
+            return NextResponse.json({ success: true });
+        } else {
+            // Action is Validation (legacy or action === 'validate')
+            if (!canManageDriver) {
+                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            }
+
+            if (reservation.status === 'VALIDATED') {
+                return NextResponse.json({ error: 'Réservation déjà validée' }, { status: 409 });
+            }
+
+            // Check overlap with validated reservations
+            const conflictCheck = await db.execute({
+                sql: `
+                    SELECT id FROM "Reservation"
+                    WHERE vehicleId = ?
+                    AND id != ?
+                    AND status = 'VALIDATED'
+                    AND (startTime < ? AND endTime > ?)
+                `,
+                args: [reservation.vehicleId, reservationId, reservation.endTime, reservation.startTime]
+            });
+
+            if (conflictCheck.rows.length > 0) {
+                return NextResponse.json({ error: 'Ce créneau chevauche une réservation déjà validée.' }, { status: 409 });
+            }
+
+            await db.execute({
+                sql: `UPDATE "Reservation" SET status = 'VALIDATED' WHERE id = ?`,
+                args: [reservationId]
+            });
+
+            // Notifier le demandeur via la table Notification
+            try {
+                const vehicleResult = await db.execute({
+                    sql: `SELECT name, ulId FROM "Vehicle" WHERE id = ?`,
+                    args: [reservation.vehicleId as string]
+                });
+                const vehicleName = vehicleResult.rows[0]?.name as string || '';
+                const vehicleUlId = vehicleResult.rows[0]?.ulId as string || 'ul-paris-18';
+
+                const userResult = await db.execute({
+                    sql: `SELECT id FROM "User" WHERE email = ?`,
+                    args: [reservation.userEmail as string]
+                });
+
+                if (userResult.rows.length > 0) {
+                    const userId = userResult.rows[0].id as string;
+                    const notifId = crypto.randomUUID();
+                    const start = new Date(reservation.startTime as string);
+                    const end = new Date(reservation.endTime as string);
+
+                    await db.execute({
+                        sql: `INSERT INTO "Notification" (id, userId, title, message, url, ulId) VALUES (?, ?, ?, ?, ?, ?)`,
+                        args: [
+                            notifId,
+                            userId,
+                            `✅ Réservation validée`,
+                            `Votre réservation de ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} a été validée.`,
+                            `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(vehicleName)}`,
+                            vehicleUlId
+                        ]
+                    });
+                }
+            } catch (notifErr) {
+                console.error('Failed to send validation notification:', notifErr);
+            }
+
+            return NextResponse.json({ success: true });
+        }
     } catch (error) {
-        console.error('Failed to validate reservation:', error);
+        console.error('Failed to update reservation:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
+
+export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
+    return PATCH(request, props);
+}
+

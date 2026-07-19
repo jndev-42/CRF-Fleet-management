@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { canAccessAdminPanel, isAdminOrAbove } from '@/lib/roles';
+import { canAccessAdminPanel } from '@/lib/roles';
 
 /** Validates incoming POST body for creating a reservation */
 const createReservationSchema = z.object({
@@ -10,6 +10,7 @@ const createReservationSchema = z.object({
     endTime: z.string().datetime({ message: 'endTime doit être une date ISO valide' }),
     reason: z.string().max(500).optional(),
     onBehalfOfUserId: z.string().min(1).optional(),
+    isUnassignedDriver: z.boolean().optional(),
 }).refine(data => new Date(data.endTime) > new Date(data.startTime), {
     message: 'endTime doit être après startTime',
     path: ['endTime'],
@@ -78,13 +79,15 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
             throw zodErr;
         }
 
-        // ADMIN et RESPO voient leurs réservations auto-validées
+        // ADMIN, CADRE, PRESIDENT, RESPO voient leurs réservations auto-validées
         const userRoles: string[] = session.user.roles || [];
         const isValidator = canAccessAdminPanel(userRoles);
         const status = isValidator ? 'VALIDATED' : 'PENDING';
 
-        if (data.onBehalfOfUserId && !isAdminOrAbove(userRoles)) {
-            return NextResponse.json({ error: 'Seul un ADMIN peut créer une réservation pour quelqu\'un d\'autre.' }, { status: 403 });
+        const canManageDriver = isValidator || userRoles.includes('RESPO');
+
+        if ((data.onBehalfOfUserId || data.isUnassignedDriver) && !canManageDriver) {
+            return NextResponse.json({ error: 'Seul un responsable peut réserver au nom d\'un autre chauffeur ou déclarer "Chauffeur non décidé".' }, { status: 403 });
         }
 
         const start = new Date(data.startTime);
@@ -117,7 +120,10 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         let userEmail = session.user.email as string;
         let userName = session.user.name || session.user.email as string;
 
-        if (data.onBehalfOfUserId) {
+        if (data.isUnassignedDriver || data.onBehalfOfUserId === 'UNASSIGNED') {
+            userName = 'Chauffeur non décidé';
+            userEmail = session.user.email as string;
+        } else if (data.onBehalfOfUserId) {
             const targetResult = await db.execute({
                 sql: `SELECT id, name, email FROM "User" WHERE id = ?`,
                 args: [data.onBehalfOfUserId]

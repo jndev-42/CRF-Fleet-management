@@ -442,9 +442,13 @@ export default function VehicleCalendar() {
               {selectedEvent.type === 'RESERVATION' ? (
                 <>
                   <div className={styles.detailRow}>
-                    <span className={styles.detailLabel}>Réservé par</span>
+                    <span className={styles.detailLabel}>Chauffeur (Réservé par)</span>
                     <span className={styles.detailValue}>
-                      {selectedEvent.data.userName} ({selectedEvent.data.userEmail})
+                      {selectedEvent.data.userName === 'Chauffeur non décidé' ? (
+                        <strong>Chauffeur non décidé</strong>
+                      ) : (
+                        `${selectedEvent.data.userName} (${selectedEvent.data.userEmail})`
+                      )}
                     </span>
                   </div>
                   <div className={styles.detailRow}>
