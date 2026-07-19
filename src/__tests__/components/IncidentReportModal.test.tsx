@@ -15,6 +15,7 @@ const mockVehicle: Vehicle = {
     fuelLevel: 80,
     mileage: 12000,
     hasDSA: false,
+    desinfTracking: false,
     notes: null,
     vin: null,
     fuelType: 'Essence',

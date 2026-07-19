@@ -12,6 +12,7 @@ const createVehicleSchema = z.object({
     fuelLevel: z.number().min(0).max(100),
     mileage: z.number().min(0),
     hasDSA: z.boolean().default(false),
+    desinfTracking: z.boolean().default(false),
     notes: z.string().optional().nullable(),
     vin: z.string().optional().nullable(),
     fuelType: z.string().optional().nullable(),
@@ -137,8 +138,8 @@ export async function POST(request: Request) {
         const ulId = userUlId && userUlId !== 'default' ? userUlId : null;
 
         await db.execute({
-            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, notes, vin, fuelType, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId, createdAt, updatedAt)
-                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, desinfTracking, notes, vin, fuelType, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId, createdAt, updatedAt)
+                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 id,
                 data.name,
@@ -148,6 +149,7 @@ export async function POST(request: Request) {
                 data.fuelLevel,
                 data.mileage,
                 data.hasDSA ? 1 : 0,
+                data.desinfTracking ? 1 : 0,
                 data.notes ?? null,
                 data.vin ?? null,
                 data.fuelType ?? null,
@@ -173,6 +175,7 @@ export async function POST(request: Request) {
             fuelLevel: data.fuelLevel,
             mileage: data.mileage,
             hasDSA: data.hasDSA,
+            desinfTracking: data.desinfTracking,
             notes: data.notes || null,
             maxFuelCapacity: data.maxFuelCapacity ?? null,
             maxBatteryCapacityKwh: data.maxBatteryCapacityKwh ?? null,

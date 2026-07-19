@@ -18,6 +18,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
         fuelType: 'Essence',
         vin: '',
         hasDSA: false,
+        desinfTracking: false,
         notes: '',
         maxFuelCapacity: '',
         maxBatteryCapacityKwh: '',
@@ -51,6 +52,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                     fuelType: form.fuelType,
                     vin: form.vin.trim() || undefined,
                     hasDSA: form.hasDSA,
+                    desinfTracking: form.desinfTracking,
                     notes: form.notes || undefined,
                     maxFuelCapacity: form.maxFuelCapacity ? parseInt(form.maxFuelCapacity) || undefined : undefined,
                     maxBatteryCapacityKwh: form.maxBatteryCapacityKwh ? parseInt(form.maxBatteryCapacityKwh) || undefined : undefined,
@@ -235,6 +237,22 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                 <span style={{ fontSize: 14, fontWeight: 500 }}>🫀 Le véhicule est équipé d&apos;un DSA</span>
                             </label>
                         </div>
+                        {!form.type.toUpperCase().includes('VPSP') && (
+                            <div className="form-group">
+                                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: `1px solid ${form.desinfTracking ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-primary)'}` }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={form.desinfTracking}
+                                        onChange={(e) => setForm({ ...form, desinfTracking: e.target.checked })}
+                                        style={{ width: 18, height: 18, accentColor: '#059669' }}
+                                    />
+                                    <div>
+                                        <span style={{ fontSize: 14, fontWeight: 500 }}>🧴 Activer le suivi de la désinfection</span>
+                                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Des champs supplémentaires seront demandés à chaque retour du véhicule.</div>
+                                    </div>
+                                </label>
+                            </div>
+                        )}
                         <div className="form-row">
                             <div className="form-group">
                                 <label className="form-label">Date de 1ère immatriculation *</label>

@@ -51,6 +51,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [photos, setPhotos] = useState<File[]>([]);
     const [desinfResponsableId, setDesinfResponsableId] = useState(initialDesinfResponsableId);
     const [desinfLotNumber, setDesinfLotNumber] = useState(initialDesinfLotNumber);
+    const [desinfType, setDesinfType] = useState('simple');
     const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
     const [loadingRenault, setLoadingRenault] = useState(isConnected(vehicle.vin));
     const [renaultError, setRenaultError] = useState(false);
@@ -59,14 +60,16 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
 
     const isDesinf = trip.missionType === 'Désinfection';
+    const isVPSP = vehicle.type.toUpperCase().includes('VPSP');
+    const hasDesinfTracking = vehicle.desinfTracking && !isVPSP;
 
     useEffect(() => {
-        if (!isDesinf) return;
+        if (!isDesinf && !hasDesinfTracking) return;
         fetch('/api/users')
             .then(res => res.json())
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
-    }, [isDesinf, vehicle.type]);
+    }, [isDesinf, hasDesinfTracking, vehicle.type]);
 
     useEffect(() => {
         if (isConnected(vehicle.vin)) {
@@ -99,6 +102,11 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
         if (isDesinf && (!desinfResponsableId || !desinfLotNumber.trim())) {
             alert('Le responsable de la désinfection et le numéro de lot sont obligatoires.');
+            return;
+        }
+
+        if (hasDesinfTracking && (!desinfLotNumber.trim() || !desinfType)) {
+            alert('Le numéro de lot et le type de désinfection sont obligatoires.');
             return;
         }
 
@@ -164,7 +172,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     checklistIn: Object.keys(checklistIn).length > 0 ? checklistIn : undefined,
                     driveFolderId,
                     desinfResponsable: isDesinf ? desinfResponsableName : undefined,
-                    desinfLotNumber: isDesinf ? desinfLotNumber.trim() : undefined,
+                    desinfLotNumber: isDesinf ? desinfLotNumber.trim() : (hasDesinfTracking ? desinfLotNumber.trim() : undefined),
+                    desinfType: isDesinf ? undefined : (hasDesinfTracking ? desinfType : undefined),
                 }),
             });
 
@@ -345,7 +354,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                             />
                         </div>
 
-                        {/* Champs Désinfection */}
+                        {/* Champs Désinfection — VPSP (mission Désinfection) */}
                         {isDesinf && (
                             <div
                                 style={{
@@ -377,6 +386,52 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     </label>
                                     <input
                                         id="checkin-desinf-lot"
+                                        className="form-input"
+                                        type="text"
+                                        placeholder="Ex : LOT-2026-001"
+                                        value={desinfLotNumber}
+                                        onChange={e => setDesinfLotNumber(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Champs Désinfection — non-VPSP avec suivi activé */}
+                        {hasDesinfTracking && (
+                            <div
+                                style={{
+                                    marginBottom: 20,
+                                    padding: '14px 16px',
+                                    background: 'rgba(16, 185, 129, 0.05)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                }}
+                            >
+                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: '#059669' }}>
+                                    🧴 Désinfection du véhicule
+                                </div>
+                                <div className="form-group" style={{ marginBottom: 12 }}>
+                                    <label className="form-label" htmlFor="checkin-desinf-type">
+                                        Type de désinfection *
+                                    </label>
+                                    <select
+                                        id="checkin-desinf-type"
+                                        className="form-select"
+                                        value={desinfType}
+                                        onChange={e => setDesinfType(e.target.value)}
+                                        required
+                                    >
+                                        <option value="simple">🧼 Simple</option>
+                                        <option value="complète">✨ Complète</option>
+                                    </select>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label" htmlFor="checkin-desinf-lot-nonvpsp">
+                                        Numéro de lot utilisé *
+                                    </label>
+                                    <input
+                                        id="checkin-desinf-lot-nonvpsp"
                                         className="form-input"
                                         type="text"
                                         placeholder="Ex : LOT-2026-001"

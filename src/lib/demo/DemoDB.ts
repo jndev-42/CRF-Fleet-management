@@ -13,6 +13,7 @@ const INITIAL_VEHICLES: Vehicle[] = [
         fuelLevel: 85,
         mileage: 45200,
         hasDSA: true,
+        desinfTracking: false,
         notes: 'Véhicule de démo',
         vin: 'DEMOVIN123456789',
         fuelType: 'Diesel',
@@ -35,6 +36,7 @@ const INITIAL_VEHICLES: Vehicle[] = [
         fuelLevel: 100,
         mileage: 12500,
         hasDSA: false,
+        desinfTracking: false,
         notes: 'Véhicule de démo électrique',
         vin: null,
         fuelType: 'Électrique',
@@ -254,6 +256,7 @@ export class DemoDB {
             renaultLastCheckedAt: null,
             desinfResponsable: null,
             desinfLotNumber: null,
+            desinfType: null,
             desinfResponsableId: null
         };
 

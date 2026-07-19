@@ -83,6 +83,7 @@ export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: 
                                 <thead>
                                     <tr style={{ borderBottom: '1px solid var(--border-primary)', color: 'var(--text-secondary)', fontSize: 12 }}>
                                         <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600 }}>Date</th>
+                                        <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600 }}>Type</th>
                                         <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600 }}>Responsable</th>
                                         <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600 }}>N° de lot</th>
                                         <th style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600 }}>Conducteur</th>
@@ -98,6 +99,20 @@ export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: 
                                             }}
                                         >
                                             <td style={{ padding: '10px 12px' }}>{formatDate(d.checkInAt)}</td>
+                                            <td style={{ padding: '10px 12px' }}>
+                                                {d.desinfType ? (
+                                                    <span style={{
+                                                        fontSize: 12,
+                                                        fontWeight: 600,
+                                                        padding: '2px 8px',
+                                                        borderRadius: 99,
+                                                        background: d.desinfType === 'complète' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.1)',
+                                                        color: d.desinfType === 'complète' ? '#059669' : '#3B82F6',
+                                                    }}>
+                                                        {d.desinfType === 'complète' ? '✨ Complète' : '🧼 Simple'}
+                                                    </span>
+                                                ) : '—'}
+                                            </td>
                                             <td style={{ padding: '10px 12px' }}>{d.desinfResponsable || '—'}</td>
                                             <td style={{ padding: '10px 12px', fontFamily: 'monospace' }}>{d.desinfLotNumber || '—'}</td>
                                             <td style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>{d.driverName || '—'}</td>

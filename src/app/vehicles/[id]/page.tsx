@@ -651,6 +651,17 @@ export default function VehicleDetailPage() {
                         />
                     );
                 })()}
+                {vehicle.desinfTracking && !vehicle.type.toUpperCase().includes('VPSP') && (
+                    <DetailCard
+                        title="Désinfections"
+                        value="Voir l'historique"
+                        subtitle="Suivi activé"
+                        backgroundColor="rgba(16, 185, 129, 0.05)"
+                        borderColor="rgba(16, 185, 129, 0.3)"
+                        valueStyle={{ color: '#059669', fontSize: 13 }}
+                        onClick={() => setShowDesinfHistoryModal(true)}
+                    />
+                )}
             </div>
 
             <VehicleNotes

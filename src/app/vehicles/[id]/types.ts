@@ -36,6 +36,8 @@ export interface Trip {
     desinfResponsable: string | null;
     /** Numéro de lot du produit désinfectant (renseigné au check-in pour les missions Désinfection) */
     desinfLotNumber: string | null;
+    /** Type de désinfection : 'simple' ou 'complète' (renseigné au check-in) */
+    desinfType: string | null;
     /** ID de l'utilisateur pré-renseigné comme responsable désinf. (avant check-in) */
     desinfResponsableId: string | null;
 }
@@ -46,6 +48,8 @@ export interface DesinfectionRecord {
     checkInAt: string;
     desinfResponsable: string | null;
     desinfLotNumber: string | null;
+    /** Type de désinfection : 'simple' ou 'complète' */
+    desinfType: string | null;
     driverName: string | null;
 }
 
@@ -59,6 +63,8 @@ export interface Vehicle {
     fuelLevel: number;
     mileage: number;
     hasDSA: boolean;
+    /** Suivi de désinfection activé (uniquement pour les véhicules non-VPSP) */
+    desinfTracking: boolean;
     notes: string | null;
     vin: string | null;
     fuelType: string | null;

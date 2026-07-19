@@ -20,6 +20,7 @@ const checkInSchema = z.object({
     checklistIn: z.record(z.string(), z.boolean()).optional(),
     desinfResponsable: z.string().optional(),
     desinfLotNumber: z.string().optional(),
+    desinfType: z.string().optional(),
 });
 
 export async function PATCH(
@@ -118,11 +119,21 @@ export async function PATCH(
             );
         }
 
-        // Pour les missions Désinfection, le responsable et le numéro de lot sont obligatoires
+        // Pour les missions Désinfection (VPSP), le responsable et le numéro de lot sont obligatoires
         if (trip.missionType === 'Désinfection') {
             if (!data.desinfResponsable || !data.desinfLotNumber) {
                 return NextResponse.json(
                     { error: 'Le responsable de la désinfection et le numéro de lot sont requis pour une mission Désinfection' },
+                    { status: 400 }
+                );
+            }
+        }
+
+        // Pour les véhicules non-VPSP avec suivi de désinfection activé, lot et type sont obligatoires
+        if (vehicle.desinfTracking && !(String(vehicle.type || '')).toUpperCase().includes('VPSP')) {
+            if (!data.desinfLotNumber || !data.desinfType) {
+                return NextResponse.json(
+                    { error: 'Le numéro de lot et le type de désinfection sont requis pour ce véhicule (suivi activé)' },
                     { status: 400 }
                 );
             }
@@ -150,7 +161,7 @@ export async function PATCH(
                         incident = ?,
                         commentsIn = ?, parkingPhoto = ?, driveFolderId = ?, checklistIn = ?,
                         renaultDataValidated = ?, renaultLastCheckedAt = ?,
-                        desinfResponsable = ?, desinfLotNumber = ?
+                        desinfResponsable = ?, desinfLotNumber = ?, desinfType = ?
                       WHERE id = ?`,
                 args: [
                     timestamp,
@@ -168,6 +179,7 @@ export async function PATCH(
                     renaultDataValidated !== null ? timestamp : null,
                     data.desinfResponsable || null,
                     data.desinfLotNumber || null,
+                    data.desinfType || null,
                     id
                 ]
             });

@@ -90,6 +90,19 @@ export default function VehicleBadges({ vehicle, userRoles, onToggleDSA, onDelet
             {/* DSA badge — active (green) or inactive (gray, admin-only, detail page only) */}
             {renderDSABadge()}
 
+            {/* Suivi désinfection badge — uniquement pour les véhicules non-VPSP avec suivi activé */}
+            {vehicle.desinfTracking && !vehicle.type.toUpperCase().includes('VPSP') && (
+                <span
+                    className="vehicle-type-badge"
+                    style={{
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        color: '#059669',
+                    }}
+                >
+                    🧴 Suivi désinf.
+                </span>
+            )}
+
             {/* Fuel type badge */}
             {vehicle.fuelType === 'Électrique' ? (
                 <span className="vehicle-type-badge" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}>

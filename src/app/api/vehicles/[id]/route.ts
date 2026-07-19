@@ -13,6 +13,7 @@ const updateVehicleSchema = z.object({
     fuelLevel: z.number().min(0).max(100).optional(),
     mileage: z.number().min(0).optional(),
     hasDSA: z.boolean().optional(),
+    desinfTracking: z.boolean().optional(),
     notes: z.string().optional().nullable(),
     vin: z.string().optional().nullable(),
     fuelType: z.string().optional().nullable(),
@@ -75,6 +76,7 @@ export async function GET(
             fuelLevel: row.fuelLevel,
             mileage: row.mileage,
             hasDSA: !!row.hasDSA,
+            desinfTracking: !!row.desinfTracking,
             notes: row.notes,
             vin: row.vin,
             fuelType: row.fuelType,
@@ -120,6 +122,7 @@ export async function GET(
                 renaultLastCheckedAt: tRow.renaultLastCheckedAt || null,
                 desinfResponsable: tRow.desinfResponsable as string | null ?? null,
                 desinfLotNumber: tRow.desinfLotNumber as string | null ?? null,
+                desinfType: tRow.desinfType as string | null ?? null,
                 desinfResponsableId: tRow.desinfResponsableId as string | null ?? null,
                 createdAt: new Date(tRow.createdAt as string),
             }))
