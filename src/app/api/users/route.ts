@@ -92,7 +92,10 @@ export async function GET(request: Request) {
         );
 
         const rolesRes = await db.execute(`SELECT name FROM "Role"`);
-        const availableRoles = rolesRes.rows.map(r => r.name);
+        const isSuper = isSuperAdmin(roles);
+        const availableRoles = rolesRes.rows
+            .map(r => r.name as string)
+            .filter(roleName => isSuper || roleName !== 'SUPER_ADMIN');
 
         const users = usersRes.rows.map(row => ({
             id: row.id,
