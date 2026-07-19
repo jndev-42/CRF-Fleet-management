@@ -133,7 +133,8 @@ export async function POST(request: Request) {
 
         const id = crypto.randomUUID();
         const timestamp = new Date().toISOString();
-        const ulId = session.user?.ulId && session.user.ulId !== 'default' ? session.user.ulId : null;
+        const userUlId = session?.user?.ulId;
+        const ulId = userUlId && userUlId !== 'default' ? userUlId : null;
 
         await db.execute({
             sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, notes, vin, fuelType, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId, createdAt, updatedAt)
