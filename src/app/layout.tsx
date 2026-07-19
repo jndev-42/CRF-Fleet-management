@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from 'next/font/google';
+import Link from 'next/link';
 import "./globals.css";
 
 const inter = Inter({
@@ -87,7 +88,13 @@ export default async function RootLayout({
                     borderTop: '1px solid var(--border-primary)',
                     marginTop: 'auto'
                   }}>
-                    <div>© 2026 - Jean-Noël DURAND pour le compte de la Croix Rouge (unité locale de Paris 18). Tous droits réservés.</div>
+                    <div>
+                      © 2026 - Jean-Noël DURAND pour le compte de la Croix Rouge (unité locale de Paris 18). Tous droits réservés.
+                      {" • "}
+                      <Link href="/mentions-legales" style={{ color: 'var(--text-secondary)', textDecoration: 'underline' }}>
+                        Mentions Légales
+                      </Link>
+                    </div>
                     <FooterChangelog />
                   </footer>
                 </div>
