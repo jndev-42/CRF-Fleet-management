@@ -80,6 +80,7 @@ export interface Vehicle {
     revisionKmInterval: number | null;
     /** Intervalle en années entre deux révisions */
     revisionYearInterval: number | null;
+    ulId?: string | null;
     trips: Trip[];
 }
 

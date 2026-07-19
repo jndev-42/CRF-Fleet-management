@@ -44,6 +44,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
         parkingInSelection: trip.parkingOut === "Baigneur (devant l’UL)" || trip.parkingOut === "Parking Aubervillers" ? trip.parkingOut : (trip.parkingOut ? "Autre" : "Baigneur (devant l’UL)"),
         parkingInCustom: trip.parkingOut && trip.parkingOut !== "Baigneur (devant l'UL)" && trip.parkingOut !== "Parking Aubervillers" ? trip.parkingOut : '',
         conditionIn: trip.conditionOut || 'Bon état',
+        cleanlinessIn: trip.cleanlinessOut || 'Propre',
+        incident: '',
         commentsIn: '',
     });
 
