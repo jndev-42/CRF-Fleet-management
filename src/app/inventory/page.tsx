@@ -12,6 +12,7 @@ import LowStockModal from '@/components/inventory/modals/LowStockModal';
 import StockTabs from '@/components/inventory/StockTabs';
 import StockModal from '@/components/inventory/modals/StockModal';
 import { InvStockListRow } from '@/lib/inventory/stocks';
+import { isAdminOrAbove } from '@/lib/roles';
 import styles from './page.module.css';
 
 interface InvItem {
@@ -93,7 +94,7 @@ export default function InventoryPage() {
     }, [status, activeStockId]);
 
     const userRoles = (session?.user?.roles ?? ['GUEST']) as string[];
-    const isAdmin = userRoles.includes('ADMIN');
+    const isAdmin = isAdminOrAbove(userRoles);
 
     const fetchInventory = useCallback(async () => {
         if (!activeStockId) return;
