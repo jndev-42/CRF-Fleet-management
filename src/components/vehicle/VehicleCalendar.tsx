@@ -178,6 +178,9 @@ export default function VehicleCalendar() {
       })),
     ];
 
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
     days.forEach(day => {
       const dayStart = new Date(day.date);
       dayStart.setHours(0, 0, 0, 0);
@@ -191,8 +194,8 @@ export default function VehicleCalendar() {
         } else {
           // TRIP
           if (event.isOngoing) {
-            // Ongoing trip starts at checkOutAt and runs through today / current timeline
-            return event.startTime <= dayEnd;
+            // Ongoing trip starts at checkOutAt and runs up to current day (today), not beyond
+            return event.startTime <= dayEnd && dayStart <= todayEnd;
           } else {
             return event.startTime <= dayEnd && event.endTime! >= dayStart;
           }
