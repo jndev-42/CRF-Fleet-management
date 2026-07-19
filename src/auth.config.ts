@@ -27,9 +27,10 @@ export const authConfig: NextAuthConfig = {
 
             const isLoginRoute = pathname === '/login';
             const isInactifRoute = pathname === '/inactif';
+            const isLegalRoute = pathname === '/mentions-legales';
 
-            if (isLoginRoute) {
-                if (isLoggedIn) return Response.redirect(new URL('/', nextUrl));
+            if (isLoginRoute || isLegalRoute) {
+                if (isLoggedIn && isLoginRoute) return Response.redirect(new URL('/', nextUrl));
                 return true;
             }
 

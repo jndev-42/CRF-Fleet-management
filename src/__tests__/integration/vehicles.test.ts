@@ -190,3 +190,31 @@ describe('PATCH /api/vehicles/[id] — mise à jour maxBatteryCapacityKwh', () =
   });
 });
 
+describe('POST /api/vehicles — duplicate checks', () => {
+  it('retourne 400 si un véhicule avec le même nom existe déjà', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
+
+    // Seed a vehicle
+    await seedVehicle({ id: 'VL001', name: 'VL186', plate: 'AA-111-AA' });
+
+    const res = await POST(makePostRequest({ ...validVehicleBody, name: 'VL186', plate: 'BB-222-BB' }));
+    expect(res.status).toBe(400);
+
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe('Un véhicule avec ce nom existe déjà.');
+  });
+
+  it('retourne 400 si un véhicule avec la même plaque existe déjà', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
+
+    // Seed a vehicle
+    await seedVehicle({ id: 'VL001', name: 'VL186', plate: 'AA-111-AA' });
+
+    const res = await POST(makePostRequest({ ...validVehicleBody, name: 'VL187', plate: 'AA-111-AA' }));
+    expect(res.status).toBe(400);
+
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("Un véhicule avec cette plaque d'immatriculation existe déjà.");
+  });
+});
+

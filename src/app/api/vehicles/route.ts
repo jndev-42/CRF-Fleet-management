@@ -107,12 +107,38 @@ export async function POST(request: Request) {
         const body = await request.json();
         const data = createVehicleSchema.parse(body);
 
+        // Vérifie si un véhicule avec le même nom existe déjà
+        const existingName = await db.execute({
+            sql: `SELECT id FROM Vehicle WHERE UPPER(name) = UPPER(?)`,
+            args: [data.name.trim()]
+        });
+        if (existingName.rows.length > 0) {
+            return NextResponse.json(
+                { error: 'Un véhicule avec ce nom existe déjà.' },
+                { status: 400 }
+            );
+        }
+
+        // Vérifie si un véhicule avec la même plaque d'immatriculation existe déjà
+        const existingPlate = await db.execute({
+            sql: `SELECT id FROM Vehicle WHERE UPPER(plate) = UPPER(?)`,
+            args: [data.plate.trim()]
+        });
+        if (existingPlate.rows.length > 0) {
+            return NextResponse.json(
+                { error: 'Un véhicule avec cette plaque d\'immatriculation existe déjà.' },
+                { status: 400 }
+            );
+        }
+
         const id = crypto.randomUUID();
         const timestamp = new Date().toISOString();
+        const userUlId = session?.user?.ulId;
+        const ulId = userUlId && userUlId !== 'default' ? userUlId : null;
 
         await db.execute({
-            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, notes, vin, fuelType, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, createdAt, updatedAt)
-                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, notes, vin, fuelType, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId, createdAt, updatedAt)
+                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 id,
                 data.name,
@@ -130,15 +156,10 @@ export async function POST(request: Request) {
                 data.firstRegistrationDate ?? null,
                 data.revisionKmInterval ?? null,
                 data.revisionYearInterval ?? null,
+                ulId,
                 timestamp,
                 timestamp
             ]
-        });
-
-        // Crée le lieu inventaire pour ce véhicule
-        await db.execute({
-            sql: `INSERT OR IGNORE INTO "InvLocation" (id, type, name, vehicleId) VALUES (?, 'VEHICLE', ?, ?)`,
-            args: [`loc-veh-${id}`, data.name, id],
         });
 
         // Match the Prisma return format
@@ -155,6 +176,7 @@ export async function POST(request: Request) {
             notes: data.notes || null,
             maxFuelCapacity: data.maxFuelCapacity ?? null,
             maxBatteryCapacityKwh: data.maxBatteryCapacityKwh ?? null,
+            ulId,
             createdAt: timestamp,
             updatedAt: timestamp
         };
