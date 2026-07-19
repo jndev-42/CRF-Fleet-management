@@ -102,6 +102,7 @@ export async function GET(
             mileage: row.mileage as number,
             fuelType: row.fuelType as string | null,
             hasDSA: !!row.hasDSA,
+            desinfTracking: !!row.desinfTracking,
             parkingSpot: row.parkingSpot as string | null,
             vin: row.vin as string | null,
             maxFuelCapacity: row.maxFuelCapacity as number | null,

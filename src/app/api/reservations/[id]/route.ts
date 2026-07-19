@@ -166,6 +166,9 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
                 if (parsed.isUnassignedDriver || parsed.onBehalfOfUserId === 'UNASSIGNED') {
                     newUserName = 'Chauffeur non décidé';
                     newUserEmail = session.user.email as string;
+                } else if (parsed.onBehalfOfUserId === 'SELF') {
+                    newUserEmail = session.user.email as string;
+                    newUserName = (session.user.name as string) || newUserEmail;
                 } else if (parsed.onBehalfOfUserId) {
                     const targetResult = await db.execute({
                         sql: `SELECT id, name, email FROM "User" WHERE id = ?`,

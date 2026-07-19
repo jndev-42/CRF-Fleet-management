@@ -152,6 +152,8 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
 
         if (res.userName === 'Chauffeur non décidé') {
             setEditDriverSelection('UNASSIGNED');
+        } else if (res.userEmail === currentUserEmail) {
+            setEditDriverSelection('');
         } else {
             const match = users.find(u => u.email === res.userEmail);
             setEditDriverSelection(match ? match.id : '');
@@ -181,9 +183,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                     bodyPayload.onBehalfOfUserId = editDriverSelection;
                 } else {
                     const selfUser = users.find(u => u.email === currentUserEmail);
-                    if (selfUser) {
-                        bodyPayload.onBehalfOfUserId = selfUser.id;
-                    }
+                    bodyPayload.onBehalfOfUserId = selfUser ? selfUser.id : 'SELF';
                 }
             }
 
@@ -346,10 +346,10 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                         <div style={{ flex: 1 }}>
                                             <UserCombobox
                                                 users={users}
-                                                value={driverSelection === 'UNASSIGNED' ? '' : driverSelection}
+                                                value={driverSelection}
                                                 onChange={setDriverSelection}
                                                 excludeEmail={currentUserEmail ?? undefined}
-                                                defaultLabel={driverSelection === 'UNASSIGNED' ? 'Chauffeur non décidé' : 'Moi-même'}
+                                                defaultLabel="Moi-même"
                                             />
                                         </div>
                                         <button
@@ -421,10 +421,10 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                         <div style={{ flex: 1 }}>
                                             <UserCombobox
                                                 users={users}
-                                                value={editDriverSelection === 'UNASSIGNED' ? '' : editDriverSelection}
+                                                value={editDriverSelection}
                                                 onChange={setEditDriverSelection}
                                                 excludeEmail={currentUserEmail ?? undefined}
-                                                defaultLabel={editDriverSelection === 'UNASSIGNED' ? 'Chauffeur non décidé' : 'Chauffeur initial'}
+                                                defaultLabel="Moi-même"
                                             />
                                         </div>
                                         <button

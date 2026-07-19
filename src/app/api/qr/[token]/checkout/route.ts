@@ -20,6 +20,7 @@ const checkOutSchema = z.object({
     parkingOut: z.string().optional(),
     dsaChecked: z.boolean().default(false),
     commentsOut: z.string().optional(),
+    checklistOut: z.record(z.string(), z.boolean()).optional(),
     dataIncorrect: z.boolean().optional(),
     correctedMileage: z.number().int().min(0).optional(),
     correctedFuel: z.number().int().min(0).max(100).optional(),
@@ -97,8 +98,8 @@ export async function POST(
                 sql: `INSERT INTO Trip (
                         id, vehicleId, driverId, secondDriverId, missionType, missionName,
                         checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut,
-                        parkingOut, dsaChecked, commentsOut, createdAt
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        parkingOut, dsaChecked, commentsOut, checklistOut, createdAt
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     tripId,
                     vehicleId,
@@ -114,6 +115,7 @@ export async function POST(
                     data.parkingOut || (vehicle.parkingSpot as string) || null,
                     data.dsaChecked ? 1 : 0,
                     data.commentsOut || null,
+                    data.checklistOut ? JSON.stringify(data.checklistOut) : null,
                     timestamp,
                 ],
             });

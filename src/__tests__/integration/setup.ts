@@ -29,6 +29,7 @@ async function createTables() {
     mileage INTEGER DEFAULT 0,
     hasDSA INTEGER DEFAULT 0,
     desinfTracking INTEGER DEFAULT 0,
+    qrToken TEXT,
     notes TEXT,
     vin TEXT,
     fuelType TEXT DEFAULT 'Essence',
@@ -432,6 +433,8 @@ export async function seedVehicle(overrides: Partial<{
   firstRegistrationDate: string | null;
   revisionKmInterval: number | null;
   revisionYearInterval: number | null;
+  desinfTracking: boolean | number;
+  qrToken: string | null;
   ulId: string | null;
 }> = {}) {
   const v = {
@@ -451,13 +454,15 @@ export async function seedVehicle(overrides: Partial<{
     firstRegistrationDate: null,
     revisionKmInterval: null,
     revisionYearInterval: null,
+    desinfTracking: 0,
+    qrToken: null,
     ulId: 'ul-paris-18',
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT INTO "Vehicle" (id, name, type, plate, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    args: [v.id, v.name, v.type, v.plate, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval, v.ulId],
+    sql: `INSERT INTO "Vehicle" (id, name, type, plate, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval, desinfTracking, qrToken, ulId)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [v.id, v.name, v.type, v.plate, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval, v.desinfTracking ? 1 : 0, v.qrToken, v.ulId],
   });
   return v;
 }
