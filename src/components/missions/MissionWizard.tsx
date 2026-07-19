@@ -61,10 +61,12 @@ const SIGNED_REPORTS_FOLDER_ID = '1UQ0TxOLUCmL09m6evy1Ofoeuo2RaD2ki';
 interface MissionWizardProps {
     currentUserId?: string;
     currentUserName?: string;
+    /** UL ID of the current user — animation only shown for Paris 18 */
+    currentUserUlId?: string;
     onSuccess: (id: string) => void;
 }
 
-export default function MissionWizard({ currentUserId, currentUserName, onSuccess }: MissionWizardProps) {
+export default function MissionWizard({ currentUserId, currentUserName, currentUserUlId, onSuccess }: MissionWizardProps) {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<MissionFormData>(INITIAL_FORM);
     const [supplies, setSupplies] = useState<Record<string, number>>({});
@@ -219,7 +221,12 @@ export default function MissionWizard({ currentUserId, currentUserName, onSucces
 
             const data = await res.json();
             setSuccessMissionId(data.id);
-            setShowSuccessAnimation(true);
+            // Show success animation only for Paris 18 UL
+            if (currentUserUlId === 'ul-paris-18') {
+                setShowSuccessAnimation(true);
+            } else {
+                onSuccess(data.id);
+            }
         } catch {
             setError('Erreur réseau. Veuillez réessayer.');
         } finally {

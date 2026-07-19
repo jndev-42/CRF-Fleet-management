@@ -20,13 +20,15 @@ interface CheckInModalProps {
     initialDesinfResponsableId?: string;
     /** Pre-filled disinfection lot number (from DesinfPreCheckinModal) */
     initialDesinfLotNumber?: string;
+    /** UL ID of the current user — animation only shown for Paris 18 */
+    currentUserUlId?: string;
 }
 
 /**
  * Modal shown when a user is returning a vehicle.
  * Collects returning mileage, condition, issues, and photos.
  */
-export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch, initialDesinfResponsableId = '', initialDesinfLotNumber = '' }: CheckInModalProps) {
+export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch, initialDesinfResponsableId = '', initialDesinfLotNumber = '', currentUserUlId }: CheckInModalProps) {
     const [form, setForm] = useState<{
         mileageIn: number | '';
         fuelIn: number;
@@ -169,8 +171,13 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
             });
 
             if (res.ok) {
-                // API completed successfully — show success animation
-                setShowSuccessAnimation(true);
+                // API completed successfully — show success animation only for Paris 18
+                if (currentUserUlId === 'ul-paris-18') {
+                    setShowSuccessAnimation(true);
+                } else {
+                    onSuccess();
+                    onRefetch?.();
+                }
             } else {
                 const errorData = await res.json().catch(() => ({}));
                 alert(errorData.error || 'Erreur lors du retour du véhicule');
