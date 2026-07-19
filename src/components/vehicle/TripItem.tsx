@@ -22,6 +22,19 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                     <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
                         {trip.missionType}{trip.missionName ? ` — ${trip.missionName}` : ''}
                     </span>
+                    {trip.desinfType && (
+                        <span style={{
+                            marginLeft: 10,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 99,
+                            background: trip.desinfType === 'complète' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.1)',
+                            color: trip.desinfType === 'complète' ? '#059669' : '#3B82F6',
+                        }}>
+                            {trip.desinfType === 'complète' ? '✨ Désinf. complète' : '🧼 Désinf. simple'}
+                        </span>
+                    )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span className={`status-badge ${trip.checkInAt ? 'available' : 'inuse'}`}>
@@ -113,6 +126,21 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                     <span className="trip-detail-label">Propreté retour</span>
                     <span className="trip-detail-value">{trip.cleanlinessIn || '—'}</span>
                 </div>
+                {(trip.desinfType || trip.desinfLotNumber) && (
+                    <div className="trip-detail-item">
+                        <span className="trip-detail-label">Désinfection</span>
+                        <span className="trip-detail-value">
+                            {trip.desinfType ? (
+                                <span style={{ fontWeight: 600, color: trip.desinfType === 'complète' ? '#059669' : '#3B82F6' }}>
+                                    {trip.desinfType === 'complète' ? '✨ Complète' : '🧼 Simple'}
+                                </span>
+                            ) : (
+                                'Effectuée'
+                            )}
+                            {trip.desinfLotNumber ? ` (Lot ${trip.desinfLotNumber})` : ''}
+                        </span>
+                    </div>
+                )}
             </div>
 
 
