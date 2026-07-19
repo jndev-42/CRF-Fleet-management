@@ -157,10 +157,34 @@
   border-right: 3px dashed #4ADE80;
 }
 
+/* Calendar Grid Container */
+.gridContainer {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius-md);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-primary) transparent;
+}
+
+.gridContainer::-webkit-scrollbar {
+  height: 6px;
+}
+
+.gridContainer::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.gridContainer::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 3px;
+}
+
 /* Calendar Grid */
 .grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(100px, 1fr));
+  min-width: 700px;
   gap: 1px;
   background: var(--border-primary);
   border: 1px solid var(--border-primary);

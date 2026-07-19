@@ -113,4 +113,18 @@ describe('VehicleCalendar Component', () => {
       expect(screen.getByText('Poste de secours')).toBeTruthy();
     });
   });
+
+  it('renders grid container with horizontal scroll wrapper', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => mockCalendarData,
+    } as Response);
+
+    render(<VehicleCalendar />);
+
+    await waitFor(() => {
+      const calendarContainer = screen.getByTestId('vehicle-calendar');
+      expect(calendarContainer.querySelector('[class*="gridContainer"]')).toBeTruthy();
+    });
+  });
 });

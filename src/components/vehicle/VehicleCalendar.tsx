@@ -305,83 +305,85 @@ export default function VehicleCalendar() {
           Chargement du calendrier...
         </div>
       ) : (
-        <div className={styles.grid}>
-          {DAY_NAMES.map(dayName => (
-            <div key={dayName} className={styles.dayHeader}>
-              {dayName}
-            </div>
-          ))}
-
-          {calendarDays.map((day, idx) => (
-            <div
-              key={idx}
-              className={`
-                ${styles.dayCell}
-                ${!day.isCurrentMonth ? styles.dayCellOtherMonth : ''}
-                ${day.isToday ? styles.dayCellToday : ''}
-              `}
-            >
-              <div className={styles.dayNumberRow}>
-                <span className={`${styles.dayNumber} ${day.isToday ? styles.todayBadge : ''}`}>
-                  {day.dayNumber}
-                </span>
+        <div className={styles.gridContainer}>
+          <div className={styles.grid}>
+            {DAY_NAMES.map(dayName => (
+              <div key={dayName} className={styles.dayHeader}>
+                {dayName}
               </div>
+            ))}
 
-              <div className={styles.eventList}>
-                {day.events.map((event, eIdx) => {
-                  if (event.type === 'RESERVATION') {
-                    const res = event.data;
-                    return (
-                      <div
-                        key={`res-${res.id}-${eIdx}`}
-                        className={`${styles.eventItem} ${styles.eventReservation}`}
-                        onClick={() => setSelectedEvent(event)}
-                        title={`Réservation : ${res.vehicleName} (${res.userName})`}
-                      >
-                        <div className={styles.eventHeader}>
-                          <span className={styles.eventVehicle}>{res.vehicleName}</span>
-                          <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
-                            {formatTime(res.startTime)}
-                          </span>
-                        </div>
-                        <div className={styles.eventSubtext}>
-                          🧑 {res.userName || res.userEmail.split('@')[0]}
-                        </div>
-                      </div>
-                    );
-                  } else {
-                    const trip = event.data;
-                    const isOngoing = event.isOngoing;
-                    return (
-                      <div
-                        key={`trip-${trip.id}-${eIdx}`}
-                        className={`
-                          ${styles.eventItem}
-                          ${isOngoing ? styles.eventTripOngoing : styles.eventTripCompleted}
-                        `}
-                        onClick={() => setSelectedEvent(event)}
-                        title={`Emprunt ${isOngoing ? 'en cours' : ''} : ${trip.vehicleName} (${trip.driverName})`}
-                      >
-                        <div className={styles.eventHeader}>
-                          <span className={styles.eventVehicle}>{trip.vehicleName}</span>
-                          {isOngoing ? (
-                            <span className={styles.ongoingBadge}>⏳ En cours</span>
-                          ) : (
+            {calendarDays.map((day, idx) => (
+              <div
+                key={idx}
+                className={`
+                  ${styles.dayCell}
+                  ${!day.isCurrentMonth ? styles.dayCellOtherMonth : ''}
+                  ${day.isToday ? styles.dayCellToday : ''}
+                `}
+              >
+                <div className={styles.dayNumberRow}>
+                  <span className={`${styles.dayNumber} ${day.isToday ? styles.todayBadge : ''}`}>
+                    {day.dayNumber}
+                  </span>
+                </div>
+
+                <div className={styles.eventList}>
+                  {day.events.map((event, eIdx) => {
+                    if (event.type === 'RESERVATION') {
+                      const res = event.data;
+                      return (
+                        <div
+                          key={`res-${res.id}-${eIdx}`}
+                          className={`${styles.eventItem} ${styles.eventReservation}`}
+                          onClick={() => setSelectedEvent(event)}
+                          title={`Réservation : ${res.vehicleName} (${res.userName})`}
+                        >
+                          <div className={styles.eventHeader}>
+                            <span className={styles.eventVehicle}>{res.vehicleName}</span>
                             <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
-                              {formatTime(trip.checkOutAt)}
+                              {formatTime(res.startTime)}
                             </span>
-                          )}
+                          </div>
+                          <div className={styles.eventSubtext}>
+                            🧑 {res.userName || res.userEmail.split('@')[0]}
+                          </div>
                         </div>
-                        <div className={styles.eventSubtext}>
-                          🚗 {trip.driverName} {trip.secondDriverName ? ` & ${trip.secondDriverName}` : ''}
+                      );
+                    } else {
+                      const trip = event.data;
+                      const isOngoing = event.isOngoing;
+                      return (
+                        <div
+                          key={`trip-${trip.id}-${eIdx}`}
+                          className={`
+                            ${styles.eventItem}
+                            ${isOngoing ? styles.eventTripOngoing : styles.eventTripCompleted}
+                          `}
+                          onClick={() => setSelectedEvent(event)}
+                          title={`Emprunt ${isOngoing ? 'en cours' : ''} : ${trip.vehicleName} (${trip.driverName})`}
+                        >
+                          <div className={styles.eventHeader}>
+                            <span className={styles.eventVehicle}>{trip.vehicleName}</span>
+                            {isOngoing ? (
+                              <span className={styles.ongoingBadge}>⏳ En cours</span>
+                            ) : (
+                              <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                                {formatTime(trip.checkOutAt)}
+                              </span>
+                            )}
+                          </div>
+                          <div className={styles.eventSubtext}>
+                            🚗 {trip.driverName} {trip.secondDriverName ? ` & ${trip.secondDriverName}` : ''}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  }
-                })}
+                      );
+                    }
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
