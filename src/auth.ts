@@ -232,6 +232,17 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                     // Dynamic roles retrieval upon switching UL
                     if (token.userId) {
                         try {
+                            const globalRolesRes = await db.execute({
+                                sql: `
+                                    SELECT r.name
+                                    FROM "UserRole" ur
+                                    JOIN "Role" r ON ur.roleId = r.id
+                                    WHERE ur.userId = ?
+                                `,
+                                args: [token.userId],
+                            });
+                            const globalRoles = globalRolesRes.rows.map(row => row.name as string);
+
                             const ulRoleRes = await db.execute({
                                 sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND ulId = ?',
                                 args: [token.userId, requestedUlId],
@@ -241,16 +252,10 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                                 activeRoles = (ulRoleRes.rows[0].roles as string).split(',').map(r => r.trim()).filter(Boolean);
                             }
                             if (activeRoles.length === 0) {
-                                const rolesRes = await db.execute({
-                                    sql: `
-                                        SELECT r.name
-                                        FROM "UserRole" ur
-                                        JOIN "Role" r ON ur.roleId = r.id
-                                        WHERE ur.userId = ?
-                                    `,
-                                    args: [token.userId],
-                                });
-                                activeRoles = rolesRes.rows.map(row => row.name as string);
+                                activeRoles = globalRoles;
+                            }
+                            if (globalRoles.includes('SUPER_ADMIN') && !activeRoles.includes('SUPER_ADMIN')) {
+                                activeRoles.unshift('SUPER_ADMIN');
                             }
                             token.roles = activeRoles;
                         } catch (e) {
@@ -320,6 +325,17 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                     // Retrieve roles based on the active UL
                     let activeRoles: string[] = [];
                     if (token.userId) {
+                        const globalRolesRes = await db.execute({
+                            sql: `
+                                SELECT r.name
+                                FROM "UserRole" ur
+                                JOIN "Role" r ON ur.roleId = r.id
+                                WHERE ur.userId = ?
+                            `,
+                            args: [token.userId],
+                        });
+                        const globalRoles = globalRolesRes.rows.map(row => row.name as string);
+
                         if (token.ulId && token.ulId !== 'default') {
                             const ulRoleRes = await db.execute({
                                 sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND ulId = ?',
@@ -331,16 +347,10 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                         }
 
                         if (activeRoles.length === 0) {
-                            const rolesRes = await db.execute({
-                                sql: `
-                                    SELECT r.name
-                                    FROM "UserRole" ur
-                                    JOIN "Role" r ON ur.roleId = r.id
-                                    WHERE ur.userId = ?
-                                `,
-                                args: [token.userId],
-                            });
-                            activeRoles = rolesRes.rows.map(row => row.name as string);
+                            activeRoles = globalRoles;
+                        }
+                        if (globalRoles.includes('SUPER_ADMIN') && !activeRoles.includes('SUPER_ADMIN')) {
+                            activeRoles.unshift('SUPER_ADMIN');
                         }
                     }
                     token.roles = activeRoles;
