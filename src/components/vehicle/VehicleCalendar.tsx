@@ -21,6 +21,7 @@ interface Reservation {
   startTime: string;
   endTime: string;
   reason: string | null;
+  ch?: string | null;
   status: string;
 }
 
@@ -457,6 +458,12 @@ export default function VehicleCalendar() {
                     <span className={styles.detailLabel}>Fin de réservation</span>
                     <span className={styles.detailValue}>
                       {formatDateFull(selectedEvent.data.endTime)}
+                    </span>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Centre Hospitalier (CH)</span>
+                    <span className={styles.detailValue}>
+                      🏥 {selectedEvent.data.ch || 'CH non décidé'}
                     </span>
                   </div>
                   {selectedEvent.data.reason && (

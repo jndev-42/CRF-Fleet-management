@@ -305,11 +305,18 @@ async function main() {
             "startTime" DATETIME NOT NULL,
             "endTime"   DATETIME NOT NULL,
             "reason"    TEXT,
+            "ch"        TEXT DEFAULT 'CH non décidé',
             "status"    TEXT NOT NULL DEFAULT 'PENDING',
             "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY ("vehicleId") REFERENCES "Vehicle" ("id") ON DELETE CASCADE
         )
     `);
+
+    const resCols = await db.execute(`PRAGMA table_info("Reservation")`);
+    if (!resCols.rows.some(r => r.name === 'ch')) {
+        await db.execute(`ALTER TABLE "Reservation" ADD COLUMN "ch" TEXT DEFAULT 'CH non décidé'`);
+        console.log('  ↳ Migration : colonne Reservation.ch ajoutée');
+    }
 
     await db.execute(`
         CREATE INDEX IF NOT EXISTS "Reservation_vehicleId_startTime_idx"

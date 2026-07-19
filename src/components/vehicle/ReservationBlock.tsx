@@ -10,6 +10,7 @@ interface Reservation {
     startTime: string;
     endTime: string;
     reason: string | null;
+    ch?: string | null;
     status: 'PENDING' | 'VALIDATED';
     createdAt: string;
 }
@@ -27,15 +28,26 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
+    const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
     const [validating, setValidating] = useState<string | null>(null);
 
-    // Form fields
+    // Form fields (Create)
     const [startDate, setStartDate] = useState('');
     const [startTime, setStartTime] = useState('');
     const [endDate, setEndDate] = useState('');
     const [endTime, setEndTime] = useState('');
     const [reason, setReason] = useState('');
+    const [ch, setCh] = useState('CH non décidé');
     const [submitting, setSubmitting] = useState(false);
+
+    // Form fields (Edit)
+    const [editStartDate, setEditStartDate] = useState('');
+    const [editStartTime, setEditStartTime] = useState('');
+    const [editEndDate, setEditEndDate] = useState('');
+    const [editEndTime, setEditEndTime] = useState('');
+    const [editReason, setEditReason] = useState('');
+    const [editCh, setEditCh] = useState('CH non décidé');
+    const [editingSubmitting, setEditingSubmitting] = useState(false);
 
     // On-behalf fields (ADMIN only)
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
@@ -96,6 +108,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                     startTime: startISO,
                     endTime: endISO,
                     reason,
+                    ch: ch || 'CH non décidé',
                     ...(onBehalfOfUserId ? { onBehalfOfUserId } : {})
                 })
             });
@@ -103,6 +116,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             if (res.ok) {
                 setShowModal(false);
                 setStartDate(''); setStartTime(''); setEndDate(''); setEndTime(''); setReason('');
+                setCh('CH non décidé');
                 setOnBehalfOfUserId('');
                 fetchReservations();
             } else {
@@ -113,6 +127,55 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             alert('Erreur réseau');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleOpenEdit = (res: Reservation) => {
+        setEditingReservation(res);
+        const start = new Date(res.startTime);
+        const end = new Date(res.endTime);
+
+        // Format dates YYYY-MM-DD and times HH:mm in local time
+        const pad = (n: number) => String(n).padStart(2, '0');
+        setEditStartDate(`${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`);
+        setEditStartTime(`${pad(start.getHours())}:${pad(start.getMinutes())}`);
+        setEditEndDate(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`);
+        setEditEndTime(`${pad(end.getHours())}:${pad(end.getMinutes())}`);
+        setEditReason(res.reason || '');
+        setEditCh(res.ch || 'CH non décidé');
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!editingReservation) return;
+        setEditingSubmitting(true);
+        try {
+            const startISO = new Date(`${editStartDate}T${editStartTime}`).toISOString();
+            const endISO = new Date(`${editEndDate}T${editEndTime}`).toISOString();
+
+            const res = await fetch(`/api/reservations/${editingReservation.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'update',
+                    startTime: startISO,
+                    endTime: endISO,
+                    reason: editReason,
+                    ch: editCh || 'CH non décidé'
+                })
+            });
+
+            if (res.ok) {
+                setEditingReservation(null);
+                fetchReservations();
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Erreur lors de la modification');
+            }
+        } catch {
+            alert('Erreur réseau');
+        } finally {
+            setEditingSubmitting(false);
         }
     };
 
@@ -156,7 +219,12 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                 <h2 className={styles.title}>Réservations prévues</h2>
                 <button
                     className={`btn btn-secondary ${styles.addBtn}`}
-                    onClick={() => { if (!licenseBlocked || isAdmin) setShowModal(true); }}
+                    onClick={() => {
+                        if (!licenseBlocked || isAdmin) {
+                            setCh('CH non décidé');
+                            setShowModal(true);
+                        }
+                    }}
                     disabled={licenseBlocked && !isAdmin}
                     title={licenseBlocked && !isAdmin ? "Vos papiers n'ont pas été validés — réservation bloquée." : undefined}
                 >
@@ -174,7 +242,9 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                         const start = new Date(res.startTime);
                         const end = new Date(res.endTime);
                         const canDelete = isAdmin || res.userEmail === currentUserEmail;
+                        const canEdit = isAdmin || isRespo || res.userEmail === currentUserEmail;
                         const isPending = res.status === 'PENDING';
+                        const chDisplay = res.ch || 'CH non décidé';
 
                         return (
                             <div key={res.id} className={`${styles.item} ${isPending ? styles.itemPending : ''}`}>
@@ -191,8 +261,21 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                     <div className={styles.itemUser}>
                                         Par {res.userName}{res.reason && <span className={styles.itemReason}> - {res.reason}</span>}
                                     </div>
+                                    <div className={styles.itemCh}>
+                                        🏥 CH : <strong>{chDisplay}</strong>
+                                    </div>
                                 </div>
                                 <div className={styles.itemActions}>
+                                    {canEdit && (
+                                        <button
+                                            onClick={() => handleOpenEdit(res)}
+                                            className={styles.editBtn}
+                                            aria-label="Modifier la réservation"
+                                            title="Modifier la réservation"
+                                        >
+                                            ✏️ Modifier
+                                        </button>
+                                    )}
                                     {canValidate && isPending && (
                                         <button
                                             onClick={() => handleValidate(res.id)}
@@ -215,9 +298,10 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                 </div>
             )}
 
+            {/* Modal de création */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)} style={{ zIndex: 1000 }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
                         <h3>Réserver ce véhicule</h3>
                         {!canValidate && (
                             <p className={styles.pendingNotice}>
@@ -262,6 +346,27 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                 </div>
                             </div>
                             <div className={styles.formGroup}>
+                                <label>Centre Hospitalier (CH)</label>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <input
+                                        type="text"
+                                        value={ch}
+                                        onChange={e => setCh(e.target.value)}
+                                        className="form-input"
+                                        placeholder="Ex: CH Sainte-Anne ou CH non décidé"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <button
+                                        type="button"
+                                        className={styles.quickChBtn}
+                                        onClick={() => setCh('CH non décidé')}
+                                        title="Définir sur CH non décidé"
+                                    >
+                                        CH non décidé
+                                    </button>
+                                </div>
+                            </div>
+                            <div className={styles.formGroup}>
                                 <label>Motif (Optionnel)</label>
                                 <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="form-input" placeholder="Ex: Réserve pour une maraude" />
                             </div>
@@ -280,6 +385,71 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                     </div>
                 </div>
             )}
+
+            {/* Modal de modification */}
+            {editingReservation && (
+                <div className="modal-overlay" onClick={() => setEditingReservation(null)} style={{ zIndex: 1000 }}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                        <h3>Modifier la réservation</h3>
+                        <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                            <div className={styles.formRow}>
+                                <div className={styles.formGroup}>
+                                    <label>Date de début</label>
+                                    <input type="date" required value={editStartDate} onChange={e => setEditStartDate(e.target.value)} className="form-input" />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>Heure</label>
+                                    <input type="time" required value={editStartTime} onChange={e => setEditStartTime(e.target.value)} className="form-input" />
+                                </div>
+                            </div>
+                            <div className={styles.formRow}>
+                                <div className={styles.formGroup}>
+                                    <label>Date de fin</label>
+                                    <input type="date" required value={editEndDate} onChange={e => setEditEndDate(e.target.value)} className="form-input" min={editStartDate} />
+                                </div>
+                                <div className={styles.formGroup}>
+                                    <label>Heure</label>
+                                    <input type="time" required value={editEndTime} onChange={e => setEditEndTime(e.target.value)} className="form-input" />
+                                </div>
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Centre Hospitalier (CH)</label>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <input
+                                        type="text"
+                                        value={editCh}
+                                        onChange={e => setEditCh(e.target.value)}
+                                        className="form-input"
+                                        placeholder="Ex: CH Sainte-Anne ou CH non décidé"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <button
+                                        type="button"
+                                        className={styles.quickChBtn}
+                                        onClick={() => setEditCh('CH non décidé')}
+                                        title="Définir sur CH non décidé"
+                                    >
+                                        CH non décidé
+                                    </button>
+                                </div>
+                            </div>
+                            <div className={styles.formGroup}>
+                                <label>Motif (Optionnel)</label>
+                                <input type="text" value={editReason} onChange={e => setEditReason(e.target.value)} className="form-input" placeholder="Ex: Réserve pour une maraude" />
+                            </div>
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={editingSubmitting}>
+                                    {editingSubmitting ? '...' : 'Enregistrer les modifications'}
+                                </button>
+                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setEditingReservation(null)}>
+                                    Annuler
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
+

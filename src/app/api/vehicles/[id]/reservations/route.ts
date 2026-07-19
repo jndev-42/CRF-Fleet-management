@@ -9,6 +9,7 @@ const createReservationSchema = z.object({
     startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }),
     endTime: z.string().datetime({ message: 'endTime doit être une date ISO valide' }),
     reason: z.string().max(500).optional(),
+    ch: z.string().max(200).optional(),
     onBehalfOfUserId: z.string().min(1).optional(),
 }).refine(data => new Date(data.endTime) > new Date(data.startTime), {
     message: 'endTime doit être après startTime',
@@ -30,7 +31,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
         const result = await db.execute({
             sql: `
-                SELECT r.id, r.vehicleId, r.userEmail, r.userName, r.startTime, r.endTime, r.reason, r.status, r.createdAt
+                SELECT r.id, r.vehicleId, r.userEmail, r.userName, r.startTime, r.endTime, r.reason, r.ch, r.status, r.createdAt
                 FROM "Reservation" r
                 WHERE r.vehicleId = ?
                 ORDER BY r.startTime ASC
@@ -46,6 +47,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
             startTime: row.startTime as string,
             endTime: row.endTime as string,
             reason: row.reason as string | null,
+            ch: (row.ch as string) || 'CH non décidé',
             status: (row.status as string) || 'PENDING',
             createdAt: row.createdAt as string
         }));
@@ -130,11 +132,12 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         }
 
         const id = crypto.randomUUID();
+        const chValue = data.ch && data.ch.trim() !== '' ? data.ch.trim() : 'CH non décidé';
 
         await db.execute({
             sql: `
-                INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, ch, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `,
             args: [
                 id,
@@ -144,6 +147,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
                 start.toISOString(),
                 end.toISOString(),
                 data.reason || null,
+                chValue,
                 status
             ]
         });

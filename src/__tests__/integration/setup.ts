@@ -101,6 +101,7 @@ async function createTables() {
     startTime DATETIME NOT NULL,
     endTime DATETIME NOT NULL,
     reason TEXT,
+    ch TEXT DEFAULT 'CH non décidé',
     status TEXT NOT NULL DEFAULT 'PENDING',
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vehicleId) REFERENCES Vehicle(id)

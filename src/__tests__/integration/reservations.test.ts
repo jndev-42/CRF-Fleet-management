@@ -29,6 +29,7 @@ vi.mock('@/auth', () => ({ auth: vi.fn() }));
 vi.mock('@/lib/onesignal', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
 
 import { POST } from '@/app/api/vehicles/[id]/reservations/route';
+import { PATCH as PATCH_RESERVATION } from '@/app/api/reservations/[id]/route';
 import { auth } from '@/auth';
 import { db, seedVehicle, seedUser } from './setup';
 
@@ -238,3 +239,120 @@ describe('POST /api/vehicles/[id]/reservations — conflits', () => {
         expect(body.error).toContain('en attente');
     });
 });
+
+describe('POST & PATCH /api/reservations — CH non décidé & modifications', () => {
+    it('13. crée une réservation avec CH par défaut "CH non décidé"', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        const { startTime, endTime } = futureWindow(40, 2);
+        const res = await POST(makeRequest({ startTime, endTime, reason: 'Transport SAMU' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const rows = await db.execute({ sql: `SELECT * FROM "Reservation" WHERE id = ?`, args: [body.id] });
+        expect(rows.rows[0].ch).toBe('CH non décidé');
+    });
+
+    it('14. crée une réservation avec un CH spécifié (ex: CH Sainte-Anne)', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        const { startTime, endTime } = futureWindow(45, 2);
+        const res = await POST(makeRequest({ startTime, endTime, ch: 'CH Sainte-Anne' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const rows = await db.execute({ sql: `SELECT * FROM "Reservation" WHERE id = ?`, args: [body.id] });
+        expect(rows.rows[0].ch).toBe('CH Sainte-Anne');
+    });
+
+    it('15. permet au propriétaire de modifier sa réservation (spécifier le CH, motif et dates)', async () => {
+        const { startTime, endTime } = futureWindow(50, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, ch, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-to-edit', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'Initial Reason', 'CH non décidé', 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+
+        const newStart = new Date(Date.now() + 51 * 60 * 60 * 1000).toISOString();
+        const newEnd = new Date(Date.now() + 54 * 60 * 60 * 1000).toISOString();
+
+        const patchReq = new Request('http://localhost/api/reservations/res-to-edit', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                startTime: newStart,
+                endTime: newEnd,
+                reason: 'Motif mis à jour',
+                ch: 'CH Pitié-Salpêtrière'
+            })
+        });
+
+        const res = await PATCH_RESERVATION(patchReq, { params: Promise.resolve({ id: 'res-to-edit' }) });
+        expect(res.status).toBe(200);
+
+        const rows = await db.execute({ sql: `SELECT * FROM "Reservation" WHERE id = 'res-to-edit'`, args: [] });
+        expect(rows.rows[0].ch).toBe('CH Pitié-Salpêtrière');
+        expect(rows.rows[0].reason).toBe('Motif mis à jour');
+        expect(rows.rows[0].startTime).toBe(newStart);
+        expect(rows.rows[0].endTime).toBe(newEnd);
+    });
+
+    it('16. bloque la modification par un autre utilisateur non-admin (403)', async () => {
+        const { startTime, endTime } = futureWindow(60, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, ch, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-other', VEHICLE_ID, 'other@dev.local', 'Other User', startTime, endTime, 'Reason', 'CH non décidé', 'PENDING']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+
+        const patchReq = new Request('http://localhost/api/reservations/res-other', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                ch: 'CH Saint-Louis'
+            })
+        });
+
+        const res = await PATCH_RESERVATION(patchReq, { params: Promise.resolve({ id: 'res-other' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it('17. bloque la modification de dates si elle entre en conflit avec une autre réservation (409)', async () => {
+        const win1 = futureWindow(70, 2);
+        const win2 = futureWindow(75, 2);
+
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-A', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', win1.startTime, win1.endTime, 'VALIDATED']
+        });
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-B', VEHICLE_ID, 'admin@dev.local', 'Admin Test', win2.startTime, win2.endTime, 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+
+        // Attempt to expand res-A dates to overlap res-B
+        const patchReq = new Request('http://localhost/api/reservations/res-A', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                startTime: win1.startTime,
+                endTime: win2.endTime // Overlaps with res-B
+            })
+        });
+
+        const res = await PATCH_RESERVATION(patchReq, { params: Promise.resolve({ id: 'res-A' }) });
+        expect(res.status).toBe(409);
+        const body = await res.json();
+        expect(body.error).toContain('chevauche');
+    });
+});
+
