@@ -11,11 +11,17 @@
  * Usage : npx tsx scripts/add-desinf.ts
  */
 import { createClient } from '@libsql/client';
+import * as dotenv from 'dotenv';
+import { resolve } from 'path';
 
-    const db = createClient({
-        url: process.env.TURSO_DATABASE_URL!,
-        authToken: process.env.TURSO_AUTH_TOKEN,
-    });
+const envFile = process.env.ENV_FILE || '.env.local';
+dotenv.config({ path: resolve(process.cwd(), envFile) });
+console.log(`Using env: ${envFile}`);
+
+const db = createClient({
+    url: (process.env.TURSO_DATABASE_URL || '').trim(),
+    authToken: (process.env.TURSO_AUTH_TOKEN || '').trim(),
+});
 
 async function main() {
     console.log('🔧 Migration : ajout des colonnes de désinfection...\n');
