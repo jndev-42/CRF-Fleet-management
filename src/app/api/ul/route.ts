@@ -11,6 +11,7 @@ const createULSchema = z.object({
         label: z.string().min(1, 'Le libellé est requis'),
         number: z.string().min(1, 'Le numéro est requis'),
     })).default([]),
+    defaultParkingSpots: z.array(z.string()).default([]),
 });
 
 /** GET /api/ul — Retourne toutes les UL (Utilisateurs connectés) */
@@ -21,12 +22,13 @@ export async function GET() {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        const res = await db.execute(`SELECT id, name, slug, phoneNumbers FROM "UniteLocale" ORDER BY name ASC`);
+        const res = await db.execute(`SELECT id, name, slug, phoneNumbers, defaultParkingSpots FROM "UniteLocale" ORDER BY name ASC`);
         const uls = res.rows.map(r => ({
             id: r.id,
             name: r.name,
             slug: r.slug,
-            phoneNumbers: r.phoneNumbers ? JSON.parse(r.phoneNumbers as string) : []
+            phoneNumbers: r.phoneNumbers ? JSON.parse(r.phoneNumbers as string) : [],
+            defaultParkingSpots: r.defaultParkingSpots ? JSON.parse(r.defaultParkingSpots as string) : []
         }));
 
         return NextResponse.json({ uls });
@@ -57,11 +59,11 @@ export async function POST(request: Request) {
 
         const id = `ul-${data.slug}`;
         await db.execute({
-            sql: `INSERT INTO "UniteLocale" (id, name, slug, phoneNumbers) VALUES (?, ?, ?, ?)`,
-            args: [id, data.name, data.slug, JSON.stringify(data.phoneNumbers)],
+            sql: `INSERT INTO "UniteLocale" (id, name, slug, phoneNumbers, defaultParkingSpots) VALUES (?, ?, ?, ?, ?)`,
+            args: [id, data.name, data.slug, JSON.stringify(data.phoneNumbers), JSON.stringify(data.defaultParkingSpots)],
         });
 
-        return NextResponse.json({ success: true, id, name: data.name, slug: data.slug, phoneNumbers: data.phoneNumbers }, { status: 201 });
+        return NextResponse.json({ success: true, id, name: data.name, slug: data.slug, phoneNumbers: data.phoneNumbers, defaultParkingSpots: data.defaultParkingSpots }, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: 'Données invalides', details: error.issues }, { status: 400 });

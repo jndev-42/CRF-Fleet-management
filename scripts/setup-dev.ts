@@ -77,9 +77,15 @@ async function main() {
             "id" TEXT NOT NULL PRIMARY KEY,
             "name" TEXT NOT NULL UNIQUE,
             "slug" TEXT NOT NULL UNIQUE,
-            "phoneNumbers" TEXT
+            "phoneNumbers" TEXT,
+            "defaultParkingSpots" TEXT
         )
     `);
+
+    const ulCols = await db.execute('PRAGMA table_info("UniteLocale")');
+    if (!ulCols.rows.some(r => r.name === 'defaultParkingSpots')) {
+        await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "defaultParkingSpots" TEXT`);
+    }
 
     await db.execute(`
         CREATE TABLE IF NOT EXISTS "UserUL" (
@@ -99,9 +105,17 @@ async function main() {
         { label: 'DLUSA', number: '06 05 49 99 67' },
         { label: 'MOT', number: '06 16 08 19 06' }
     ]);
+    const p18ParkingSpots = JSON.stringify([
+        "Baigneur (devant l'UL)",
+        "Parking Aubervilliers"
+    ]);
     await db.execute({
-        sql: `INSERT OR IGNORE INTO "UniteLocale" (id, name, slug, phoneNumbers) VALUES (?, ?, ?, ?)`,
-        args: ['ul-paris-18', 'Paris 18', 'paris-18', p18PhoneNumbers]
+        sql: `INSERT OR IGNORE INTO "UniteLocale" (id, name, slug, phoneNumbers, defaultParkingSpots) VALUES (?, ?, ?, ?, ?)`,
+        args: ['ul-paris-18', 'Paris 18', 'paris-18', p18PhoneNumbers, p18ParkingSpots]
+    });
+    await db.execute({
+        sql: `UPDATE "UniteLocale" SET defaultParkingSpots = ? WHERE id = 'ul-paris-18' AND (defaultParkingSpots IS NULL OR defaultParkingSpots = '')`,
+        args: [p18ParkingSpots]
     });
 
     // Seed des rôles

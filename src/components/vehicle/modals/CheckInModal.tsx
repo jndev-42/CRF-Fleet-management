@@ -44,10 +44,50 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
         parkingInSelection: trip.parkingOut === "Baigneur (devant l’UL)" || trip.parkingOut === "Parking Aubervillers" ? trip.parkingOut : (trip.parkingOut ? "Autre" : "Baigneur (devant l’UL)"),
         parkingInCustom: trip.parkingOut && trip.parkingOut !== "Baigneur (devant l'UL)" && trip.parkingOut !== "Parking Aubervillers" ? trip.parkingOut : '',
         conditionIn: trip.conditionOut || 'Bon état',
-        cleanlinessIn: trip.cleanlinessOut || 'Propre',
-        incident: '',
         commentsIn: '',
     });
+
+    const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>(["Baigneur (devant l’UL)", "Parking Aubervilliers"]);
+
+    useEffect(() => {
+        Promise.all([
+            fetch('/api/auth/session').then(r => r.json()).catch(() => null),
+            fetch('/api/ul').then(r => r.json()).catch(() => null),
+        ]).then(([session, ulData]) => {
+            const userUlId = currentUserUlId || session?.user?.ulId || vehicle.ulId;
+            const uls: Array<{ id: string; defaultParkingSpots?: string[] }> = ulData?.uls || [];
+            
+            let spots: string[] = [];
+            if (userUlId) {
+                const activeUl = uls.find(u => u.id === userUlId);
+                if (activeUl?.defaultParkingSpots && activeUl.defaultParkingSpots.length > 0) {
+                    spots = activeUl.defaultParkingSpots;
+                }
+            }
+            if (spots.length === 0 && uls.length > 0) {
+                const allSpots = uls.flatMap(u => u.defaultParkingSpots || []);
+                spots = Array.from(new Set(allSpots));
+            }
+            if (spots.length === 0) {
+                spots = ["Baigneur (devant l’UL)", "Parking Aubervilliers"];
+            }
+
+            setDefaultParkingSpots(spots);
+            setForm(f => {
+                const currentSpot = trip.parkingOut || vehicle.parkingSpot;
+                if (currentSpot) {
+                    const match = spots.find(s => s === currentSpot);
+                    if (match) {
+                        return { ...f, parkingInSelection: match, parkingInCustom: '' };
+                    } else {
+                        return { ...f, parkingInSelection: 'Autre', parkingInCustom: currentSpot };
+                    }
+                }
+                return { ...f, parkingInSelection: spots[0] || 'Autre' };
+            });
+        });
+    }, [vehicle.ulId, currentUserUlId, trip.parkingOut, vehicle.parkingSpot]);
+
     const [checklistIn, setChecklistIn] = useState<Record<string, boolean>>({});
     const [submitting, setSubmitting] = useState(false);
     const [photos, setPhotos] = useState<File[]>([]);
@@ -262,8 +302,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     value={form.parkingInSelection}
                                     onChange={(e) => setForm({ ...form, parkingInSelection: e.target.value })}
                                 >
-                                    <option value="Baigneur (devant l’UL)">Baigneur (devant l’UL)</option>
-                                    <option value="Parking Aubervillers">Parking Aubervillers</option>
+                                    {defaultParkingSpots.map(spot => (
+                                        <option key={spot} value={spot}>{spot}</option>
+                                    ))}
                                     <option value="Autre">Autre</option>
                                 </select>
                                 {form.parkingInSelection === 'Autre' && (

@@ -28,6 +28,7 @@ async function createTables() {
     fuelLevel INTEGER DEFAULT 100,
     mileage INTEGER DEFAULT 0,
     hasDSA INTEGER DEFAULT 0,
+    desinfTracking INTEGER DEFAULT 0,
     notes TEXT,
     vin TEXT,
     fuelType TEXT DEFAULT 'Essence',
@@ -86,6 +87,8 @@ async function createTables() {
     desinfResponsable TEXT,
     desinfLotNumber TEXT,
     desinfResponsableId TEXT,
+    desinfType TEXT,
+    desinfNotes TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vehicleId) REFERENCES Vehicle(id)
   )`);
@@ -271,7 +274,8 @@ async function createTables() {
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
     slug TEXT NOT NULL UNIQUE,
-    phoneNumbers TEXT
+    phoneNumbers TEXT,
+    defaultParkingSpots TEXT
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "UserUL" (

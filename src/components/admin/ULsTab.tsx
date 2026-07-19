@@ -12,6 +12,7 @@ interface UL {
     name: string;
     slug: string;
     phoneNumbers?: PhoneNum[];
+    defaultParkingSpots?: string[];
 }
 
 export default function ULsTab({
@@ -31,6 +32,7 @@ export default function ULsTab({
     const [formName, setFormName] = useState('');
     const [formSlug, setFormSlug] = useState('');
     const [phoneNumbers, setPhoneNumbers] = useState<PhoneNum[]>([]);
+    const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
 
     function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -62,11 +64,13 @@ export default function ULsTab({
             setFormName(ul.name);
             setFormSlug(ul.slug);
             setPhoneNumbers(ul.phoneNumbers || []);
+            setDefaultParkingSpots(ul.defaultParkingSpots || []);
         } else {
             setEditingUl(null);
             setFormName('');
             setFormSlug('');
             setPhoneNumbers([]);
+            setDefaultParkingSpots([]);
         }
         setIsModalOpen(true);
     }
@@ -97,12 +101,25 @@ export default function ULsTab({
         setPhoneNumbers(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
     }
 
+    function addParkingSpotRow() {
+        setDefaultParkingSpots(prev => [...prev, '']);
+    }
+
+    function removeParkingSpotRow(index: number) {
+        setDefaultParkingSpots(prev => prev.filter((_, i) => i !== index));
+    }
+
+    function updateParkingSpotRow(index: number, value: string) {
+        setDefaultParkingSpots(prev => prev.map((item, i) => i === index ? value : item));
+    }
+
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!formName.trim() || !formSlug.trim()) return;
 
-        // Filter out empty phone rows
+        // Filter out empty phone rows & parking spot rows
         const validPhoneNumbers = phoneNumbers.filter(p => p.label.trim() && p.number.trim());
+        const validParkingSpots = defaultParkingSpots.map(s => s.trim()).filter(Boolean);
 
         setSubmitting(true);
         try {
@@ -114,7 +131,8 @@ export default function ULsTab({
                     body: JSON.stringify({
                         name: formName.trim(),
                         slug: formSlug.trim(),
-                        phoneNumbers: validPhoneNumbers
+                        phoneNumbers: validPhoneNumbers,
+                        defaultParkingSpots: validParkingSpots,
                     }),
                 });
                 const data = await res.json();
@@ -129,7 +147,8 @@ export default function ULsTab({
                     body: JSON.stringify({
                         name: formName.trim(),
                         slug: formSlug.trim(),
-                        phoneNumbers: validPhoneNumbers
+                        phoneNumbers: validPhoneNumbers,
+                        defaultParkingSpots: validParkingSpots,
                     }),
                 });
                 const data = await res.json();
@@ -223,6 +242,22 @@ export default function ULsTab({
                                                     color: 'var(--text-secondary)'
                                                 }}>
                                                     <strong>{phone.label}:</strong> {phone.number}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                    {ul.defaultParkingSpots && ul.defaultParkingSpots.length > 0 && (
+                                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                                            {ul.defaultParkingSpots.map((spot, idx) => (
+                                                <span key={idx} style={{
+                                                    background: 'rgba(59, 130, 246, 0.1)',
+                                                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                                                    borderRadius: '4px',
+                                                    padding: '2px 8px',
+                                                    fontSize: '11px',
+                                                    color: 'var(--text-secondary)'
+                                                }}>
+                                                    🅿️ {spot}
                                                 </span>
                                             ))}
                                         </div>
@@ -343,6 +378,52 @@ export default function ULsTab({
                                                         className="btn btn-danger"
                                                         style={{ padding: '8px 12px', fontSize: 13 }}
                                                         onClick={() => removePhoneRow(idx)}
+                                                    >
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: 16 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                        <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                                            🅿️ Emplacements de parking par défaut
+                                        </label>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            style={{ fontSize: 12, padding: '4px 8px' }}
+                                            onClick={addParkingSpotRow}
+                                        >
+                                            ➕ Ajouter un emplacement
+                                        </button>
+                                    </div>
+
+                                    {defaultParkingSpots.length === 0 ? (
+                                        <p style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '12px 0', border: '1px dashed var(--border-primary)', borderRadius: 'var(--radius-md)' }}>
+                                            Aucun emplacement ajouté. Cliquez sur le bouton ci-dessus pour en ajouter.
+                                        </p>
+                                    ) : (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                            {defaultParkingSpots.map((spot, idx) => (
+                                                <div key={idx} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                                    <input
+                                                        type="text"
+                                                        className="form-input"
+                                                        style={{ flex: 1, fontSize: 13 }}
+                                                        placeholder="Emplacement (ex: Baigneur (devant l'UL))"
+                                                        value={spot}
+                                                        onChange={e => updateParkingSpotRow(idx, e.target.value)}
+                                                        required
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-danger"
+                                                        style={{ padding: '8px 12px', fontSize: 13 }}
+                                                        onClick={() => removeParkingSpotRow(idx)}
                                                     >
                                                         ✕
                                                     </button>
