@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { isAdminOrAbove } from '@/lib/roles';
 
 interface Batch {
     id: string;
@@ -18,7 +19,7 @@ interface ItemBatchesModalProps {
 
 export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDeleted }: ItemBatchesModalProps) {
     const { data: session } = useSession();
-    const isAdmin = ((session?.user?.roles ?? []) as string[]).includes('ADMIN');
+    const isAdmin = isAdminOrAbove((session?.user?.roles ?? []) as string[]);
 
     const [batches, setBatches] = useState<Batch[]>([]);
     const [loading, setLoading] = useState(true);

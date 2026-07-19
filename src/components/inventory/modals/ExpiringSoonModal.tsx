@@ -12,18 +12,20 @@ interface ExpiringItem {
 }
 
 interface ExpiringSoonModalProps {
+    stockId?: string;
     onClose: () => void;
     onOpenBatches: (itemId: string, itemName: string) => void;
 }
 
-export default function ExpiringSoonModal({ onClose, onOpenBatches }: ExpiringSoonModalProps) {
+export default function ExpiringSoonModal({ stockId, onClose, onOpenBatches }: ExpiringSoonModalProps) {
     const [items, setItems] = useState<ExpiringItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function fetchExpiring() {
             try {
-                const res = await fetch('/api/inventory/expiring-soon');
+                const url = stockId ? `/api/inventory/expiring-soon?stockId=${encodeURIComponent(stockId)}` : '/api/inventory/expiring-soon';
+                const res = await fetch(url);
                 if (res.ok) {
                     const data = await res.json();
                     setItems(data.items);
@@ -35,7 +37,7 @@ export default function ExpiringSoonModal({ onClose, onOpenBatches }: ExpiringSo
             }
         }
         fetchExpiring();
-    }, []);
+    }, [stockId]);
 
     const formatDate = (dateStr: string) => {
         const d = new Date(dateStr);

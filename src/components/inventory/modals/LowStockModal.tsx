@@ -11,21 +11,23 @@ interface LowStockItem {
 }
 
 interface LowStockModalProps {
+    stockId?: string;
     onClose: () => void;
     onOpenBatches: (itemId: string, itemName: string) => void;
 }
 
-export default function LowStockModal({ onClose, onOpenBatches }: LowStockModalProps) {
+export default function LowStockModal({ stockId, onClose, onOpenBatches }: LowStockModalProps) {
     const [items, setItems] = useState<LowStockItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('/api/inventory/low-stock')
+        const url = stockId ? `/api/inventory/low-stock?stockId=${encodeURIComponent(stockId)}` : '/api/inventory/low-stock';
+        fetch(url)
             .then(r => r.json())
             .then(d => setItems(d.items ?? []))
             .catch(e => console.error(e))
             .finally(() => setLoading(false));
-    }, []);
+    }, [stockId]);
 
     const deficit = (item: LowStockItem) => item.minStock - item.quantity;
 
