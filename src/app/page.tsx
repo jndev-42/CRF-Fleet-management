@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { RenaultVehicleData } from '@/lib/renault';
 import { DashboardSkeletons } from '@/components/ui/Skeleton';
 import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
+import VehicleCalendar from '@/components/vehicle/VehicleCalendar';
 import { useUL } from '@/lib/contexts/ULContext';
 import { isAdminOrAbove } from '@/lib/roles';
 
@@ -150,6 +151,8 @@ export default function DashboardPage() {
           <div className="stat-value">{stats.maintenance}</div>
         </div>
       </div>
+
+      <VehicleCalendar />
 
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 className="section-title" style={{ margin: 0 }}>Véhicules</h2>
