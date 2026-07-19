@@ -1,6 +1,7 @@
 import React from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import { formatDate } from '@/app/vehicles/[id]/utils';
+import { isAdminOrAbove } from '@/lib/roles';
 
 interface TripItemProps {
     trip: Trip;
@@ -8,12 +9,14 @@ interface TripItemProps {
     userRoles: string[];
     onDelete: (tripId: string) => Promise<void>;
     onViewPhotos: (folderId: string) => void;
+    onEditCheckOut?: (trip: Trip) => void;
 }
 
 /**
  * Renders a single trip log detailing checkout and check-in times, mileage, fuel, and incident reports.
  */
-export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPhotos }: TripItemProps) {
+export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPhotos, onEditCheckOut }: TripItemProps) {
+    const isAdmin = isAdminOrAbove(userRoles);
     return (
         <div className={`trip-item ${!trip.checkInAt ? 'active' : ''}`}>
             <div className="trip-header">
@@ -40,7 +43,19 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                     <span className={`status-badge ${trip.checkInAt ? 'available' : 'inuse'}`}>
                         {trip.checkInAt ? 'Terminé' : 'En cours'}
                     </span>
-                    {userRoles.includes('ADMIN') && (
+                    {!trip.checkInAt && isAdmin && onEditCheckOut && (
+                        <button
+                            title="Modifier les informations de la prise du véhicule"
+                            style={{
+                                background: 'none', border: 'none', cursor: 'pointer', fontSize: 14,
+                                padding: '4px', opacity: 0.8
+                            }}
+                            onClick={() => onEditCheckOut(trip)}
+                        >
+                            ✏️
+                        </button>
+                    )}
+                    {isAdmin && (
                         <button
                             title="Supprimer cette sortie"
                             style={{
