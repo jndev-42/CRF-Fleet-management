@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 interface AddItemModalProps {
     isOpen: boolean;
+    stockId?: string;
     onClose: () => void;
     onSuccess: () => void;
 }
@@ -19,7 +20,7 @@ const DEFAULT_FORM = {
 
 const CATEGORY_OPTIONS = ['Consommable', 'Matériel', 'Médicament', 'Protection', 'Pansements', 'Oxygénothérapie'];
 
-export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModalProps) {
+export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: AddItemModalProps) {
     const [form, setForm] = useState(DEFAULT_FORM);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -37,7 +38,8 @@ export default function AddItemModal({ isOpen, onClose, onSuccess }: AddItemModa
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...form,
-                    quantity: Number(form.quantity)
+                    quantity: Number(form.quantity),
+                    stockId,
                 }),
             });
             if (res.ok) {

@@ -1,0 +1,130 @@
+.tabsContainer {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--border-color, #e2e8f0);
+    padding-bottom: 0;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.tabsList {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    padding-left: 2px;
+}
+
+.tabItem {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--bg-card, #f8fafc);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-bottom: none;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    color: var(--text-secondary, #64748b);
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    user-select: none;
+    position: relative;
+    top: 2px;
+    white-space: nowrap;
+}
+
+.tabItem:hover {
+    background: var(--bg-hover, #f1f5f9);
+    color: var(--text-main, #0f172a);
+}
+
+.tabActive {
+    background: var(--bg-surface, #ffffff);
+    color: var(--primary, #0284c7);
+    font-weight: 600;
+    border-color: var(--border-color, #cbd5e1);
+    border-top: 3px solid var(--primary, #0284c7);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.tabIcon {
+    font-size: 1.1rem;
+}
+
+.tabName {
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tabActions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+}
+
+.tabItem:hover .tabActions,
+.tabActive .tabActions {
+    opacity: 1;
+}
+
+.tabActionButton {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: inherit;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+}
+
+.tabActionButton:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.tabDeleteButton:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.addTabButton {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: transparent;
+    border: 1.5px dashed var(--border-color, #cbd5e1);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--primary, #0284c7);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 6px;
+    margin-bottom: 4px;
+    white-space: nowrap;
+}
+
+.addTabButton:hover {
+    background: var(--bg-hover, #e0f2fe);
+    border-color: var(--primary, #0284c7);
+}
+
+@media (max-width: 640px) {
+    .addTabText {
+        display: none;
+    }
+}

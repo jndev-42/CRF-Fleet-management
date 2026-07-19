@@ -3,24 +3,33 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
+        const { searchParams } = new URL(request.url);
+        const stockId = searchParams.get('stockId');
         const ulId = session.user.ulId || 'default';
+
+        const conditions = ['minStock IS NOT NULL', 'quantity < minStock', 'ulId = ?'];
+        const args: (string | number)[] = [ulId];
+
+        if (stockId) {
+            conditions.push('stockId = ?');
+            args.push(stockId);
+        }
+
         const res = await db.execute({
             sql: `
                 SELECT id, name, category, quantity, minStock
                 FROM "InvItem"
-                WHERE minStock IS NOT NULL
-                  AND quantity < minStock
-                  AND ulId = ?
+                WHERE ${conditions.join(' AND ')}
                 ORDER BY (minStock - quantity) DESC, name ASC
             `,
-            args: [ulId],
+            args,
         });
 
         return NextResponse.json({ items: res.rows });

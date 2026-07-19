@@ -9,6 +9,9 @@ import InventoryHistoryModal from '@/components/inventory/modals/InventoryHistor
 import ItemBatchesModal from '@/components/inventory/modals/ItemBatchesModal';
 import ExpiringSoonModal from '@/components/inventory/modals/ExpiringSoonModal';
 import LowStockModal from '@/components/inventory/modals/LowStockModal';
+import StockTabs from '@/components/inventory/StockTabs';
+import StockModal from '@/components/inventory/modals/StockModal';
+import { InvStockListRow } from '@/lib/inventory/stocks';
 import styles from './page.module.css';
 
 interface InvItem {
@@ -32,6 +35,14 @@ interface Pagination {
 export default function InventoryPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
+
+    const [stocks, setStocks] = useState<InvStockListRow[]>([]);
+    const [activeStockId, setActiveStockId] = useState<string>('');
+    const [stockModalState, setStockModalState] = useState<{
+        isOpen: boolean;
+        mode: 'create' | 'rename';
+        stockToRename?: InvStockListRow;
+    }>({ isOpen: false, mode: 'create' });
 
     const [items, setItems] = useState<InvItem[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -57,22 +68,39 @@ export default function InventoryPage() {
         }
     }, [status, router]);
 
-    // Charger la liste des catégories une seule fois
+    // Charger les stocks
     useEffect(() => {
         if (status !== 'authenticated') return;
-        fetch('/api/inventory?categoriesOnly=1')
+        fetch('/api/inventory/stocks')
+            .then(r => r.json())
+            .then(d => {
+                const list: InvStockListRow[] = d.stocks ?? [];
+                setStocks(list);
+                if (list.length > 0 && !activeStockId) {
+                    setActiveStockId(list[0].id);
+                }
+            })
+            .catch(e => console.error('Erreur fetch stocks:', e));
+    }, [status, activeStockId]);
+
+    // Charger la liste des catégories à chaque changement de stock actif
+    useEffect(() => {
+        if (status !== 'authenticated' || !activeStockId) return;
+        fetch(`/api/inventory?categoriesOnly=1&stockId=${encodeURIComponent(activeStockId)}`)
             .then(r => r.json())
             .then(d => setCategories(d.categories ?? []))
             .catch(() => {});
-    }, [status]);
+    }, [status, activeStockId]);
 
     const userRoles = (session?.user?.roles ?? ['GUEST']) as string[];
     const isAdmin = userRoles.includes('ADMIN');
 
     const fetchInventory = useCallback(async () => {
+        if (!activeStockId) return;
         setLoading(true);
         try {
             const params = new URLSearchParams();
+            params.set('stockId', activeStockId);
             if (search) params.set('search', search);
             if (categoryFilter) params.set('category', categoryFilter);
             params.set('page', page.toString());
@@ -89,13 +117,71 @@ export default function InventoryPage() {
         } finally {
             setLoading(false);
         }
-    }, [search, categoryFilter, page]);
+    }, [search, categoryFilter, page, activeStockId]);
 
     useEffect(() => {
-        if (status === 'authenticated') {
+        if (status === 'authenticated' && activeStockId) {
             fetchInventory();
         }
-    }, [status, fetchInventory]);
+    }, [status, activeStockId, fetchInventory]);
+
+    const handleCreateStock = async (name: string) => {
+        const res = await fetch('/api/inventory/stocks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (res.ok) {
+            const newStock = await res.json();
+            setStocks(prev => [...prev, newStock]);
+            setActiveStockId(newStock.id);
+            setSearch('');
+            setCategoryFilter('');
+            setPage(1);
+        } else {
+            const data = await res.json();
+            throw new Error(data.error || 'Erreur lors de la création du stock');
+        }
+    };
+
+    const handleRenameStock = async (name: string) => {
+        if (!stockModalState.stockToRename) return;
+        const stockId = stockModalState.stockToRename.id;
+        const res = await fetch('/api/inventory/stocks', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: stockId, name }),
+        });
+        if (res.ok) {
+            setStocks(prev => prev.map(s => s.id === stockId ? { ...s, name } : s));
+        } else {
+            const data = await res.json();
+            throw new Error(data.error || 'Erreur lors du renommage du stock');
+        }
+    };
+
+    const handleDeleteStock = async (stockToDelete: InvStockListRow) => {
+        if (!confirm(`Supprimer le stock "${stockToDelete.name}" ?\nATTENTION : Cette action supprimera TOUS les articles qu'il contient.`)) return;
+
+        try {
+            const res = await fetch(`/api/inventory/stocks?id=${stockToDelete.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                const updated = stocks.filter(s => s.id !== stockToDelete.id);
+                setStocks(updated);
+                if (activeStockId === stockToDelete.id) {
+                    setActiveStockId(updated[0]?.id || '');
+                    setSearch('');
+                    setCategoryFilter('');
+                    setPage(1);
+                }
+            } else {
+                const data = await res.json();
+                alert(data.error || 'Erreur lors de la suppression du stock');
+            }
+        } catch {
+            alert('Erreur de connexion');
+        }
+    };
 
     const handleDelete = async (item: InvItem) => {
         if (!confirm(`Supprimer l'article "${item.name}" ? Cette action est irréversible.`)) return;
@@ -187,6 +273,23 @@ export default function InventoryPage() {
                     )}
                 </div>
             </div>
+
+            {stocks.length > 0 && (
+                <StockTabs
+                    stocks={stocks}
+                    activeStockId={activeStockId}
+                    isAdmin={isAdmin}
+                    onSelectStock={id => {
+                        setActiveStockId(id);
+                        setSearch('');
+                        setCategoryFilter('');
+                        setPage(1);
+                    }}
+                    onOpenCreate={() => setStockModalState({ isOpen: true, mode: 'create' })}
+                    onOpenRename={stock => setStockModalState({ isOpen: true, mode: 'rename', stockToRename: stock })}
+                    onDeleteStock={handleDeleteStock}
+                />
+            )}
 
             <div className={styles.toolbar}>
                 <input
@@ -408,6 +511,7 @@ export default function InventoryPage() {
 
             <AddItemModal
                 isOpen={showAddItem}
+                stockId={activeStockId}
                 onClose={() => setShowAddItem(false)}
                 onSuccess={() => { fetchInventory(); }}
             />
@@ -438,6 +542,7 @@ export default function InventoryPage() {
 
             {showExpiringSoon && (
                 <ExpiringSoonModal
+                    stockId={activeStockId}
                     onClose={() => setShowExpiringSoon(false)}
                     onOpenBatches={(itemId, itemName) => {
                         setBatchItemId(itemId);
@@ -448,6 +553,7 @@ export default function InventoryPage() {
 
             {showLowStock && (
                 <LowStockModal
+                    stockId={activeStockId}
                     onClose={() => setShowLowStock(false)}
                     onOpenBatches={(itemId, itemName) => {
                         setBatchItemId(itemId);
@@ -455,6 +561,14 @@ export default function InventoryPage() {
                     }}
                 />
             )}
+
+            <StockModal
+                isOpen={stockModalState.isOpen}
+                mode={stockModalState.mode}
+                initialName={stockModalState.stockToRename?.name || ''}
+                onClose={() => setStockModalState({ isOpen: false, mode: 'create' })}
+                onSubmit={stockModalState.mode === 'create' ? handleCreateStock : handleRenameStock}
+            />
         </div>
     );
 }

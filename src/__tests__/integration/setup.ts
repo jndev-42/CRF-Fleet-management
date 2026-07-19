@@ -133,12 +133,24 @@ async function createTables() {
 
   // ── Nouveau système d'inventaire ────────────────────────────────────────────
 
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvStockList" (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    ulId TEXT NOT NULL DEFAULT 'default',
+    isDefault INTEGER NOT NULL DEFAULT 0,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "InvItem" (
     id TEXT NOT NULL PRIMARY KEY,
+    stockId TEXT REFERENCES "InvStockList"("id") ON DELETE CASCADE,
     name TEXT NOT NULL,
     category TEXT,
     quantity INTEGER NOT NULL DEFAULT 0,
+    minStock INTEGER,
     notes TEXT,
+    ulId TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -150,6 +162,15 @@ async function createTables() {
     expiryDate TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "InvStockLog" (
+    id TEXT NOT NULL PRIMARY KEY,
+    itemId TEXT NOT NULL REFERENCES "InvItem"("id") ON DELETE CASCADE,
+    change INTEGER NOT NULL,
+    userName TEXT NOT NULL,
+    note TEXT,
+    timestamp DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "InvLocation" (

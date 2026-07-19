@@ -10,8 +10,8 @@ import crypto from 'crypto';
 // DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
 // Defaults to file:./dev.db when run directly via npm run dev:setup.
 const db = createClient({
-    url: (process.env.DEV_DB_URL ?? 'file:./dev.db').trim(),
-    authToken: ('').trim(),
+    url: (process.env.DEV_DB_URL ?? process.env.TURSO_DATABASE_URL ?? 'file:./dev.db').trim(),
+    authToken: (process.env.DEV_DB_TOKEN ?? process.env.TURSO_AUTH_TOKEN ?? '').trim(),
 });
 
 async function main() {
@@ -369,8 +369,20 @@ async function main() {
     // ── Inventaire ────────────────────────────────────────────────
 
     await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvStockList" (
+            "id"        TEXT NOT NULL PRIMARY KEY,
+            "name"      TEXT NOT NULL,
+            "ulId"      TEXT NOT NULL DEFAULT 'default',
+            "isDefault" INTEGER NOT NULL DEFAULT 0,
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute(`
         CREATE TABLE IF NOT EXISTS "InvItem" (
             "id"        TEXT NOT NULL PRIMARY KEY,
+            "stockId"   TEXT REFERENCES "InvStockList"("id") ON DELETE CASCADE,
             "name"      TEXT NOT NULL,
             "category"  TEXT,
             "unit"      TEXT NOT NULL DEFAULT 'unité',
@@ -921,8 +933,8 @@ async function main() {
         ];
         for (const item of catalogItems) {
             await db.execute({
-                sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, unit, ulId) VALUES (?, ?, ?, ?, 'ul-paris-18')`,
-                args: [item.id, item.name, item.category, item.unit],
+                sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, ulId) VALUES (?, ?, ?, 'ul-paris-18')`,
+                args: [item.id, item.name, item.category],
             });
         }
 

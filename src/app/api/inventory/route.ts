@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 import type { InValue } from '@libsql/client';
 import { isAdminOrAbove } from '@/lib/roles';
+import { getOrCreateDefaultStock } from '@/lib/inventory/stocks';
 
 export async function GET(request: Request) {
     try {
@@ -20,17 +21,23 @@ export async function GET(request: Request) {
         const offset = (page - 1) * pageSize;
         const ulId = session.user.ulId || 'default';
 
+        let targetStockId = searchParams.get('stockId');
+        if (!targetStockId) {
+            const defaultStock = await getOrCreateDefaultStock(ulId);
+            targetStockId = defaultStock.id;
+        }
+
         // Fetch distinct categories list
         if (searchParams.get('categoriesOnly') === '1') {
             const catRes = await db.execute({
-                sql: `SELECT DISTINCT category FROM "InvItem" WHERE category IS NOT NULL AND category != '' AND ulId = ? ORDER BY category ASC`,
-                args: [ulId]
+                sql: `SELECT DISTINCT category FROM "InvItem" WHERE category IS NOT NULL AND category != '' AND ulId = ? AND stockId = ? ORDER BY category ASC`,
+                args: [ulId, targetStockId]
             });
             return NextResponse.json({ categories: catRes.rows.map(r => r.category) });
         }
 
-        const conditions: string[] = ['ulId = ?'];
-        const args: InValue[] = [ulId];
+        const conditions: string[] = ['ulId = ?', 'stockId = ?'];
+        const args: InValue[] = [ulId, targetStockId];
 
         if (search) {
             conditions.push('(name LIKE ? OR category LIKE ?)');
@@ -96,21 +103,26 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name, category, quantity, notes, expiryDate, minStock } = body;
+        const { name, category, quantity, notes, expiryDate, minStock, stockId } = body;
 
         if (!name) {
             return NextResponse.json({ error: 'Le nom est requis' }, { status: 400 });
+        }
+
+        const ulId = session.user.ulId || 'default';
+        let targetStockId = stockId;
+        if (!targetStockId) {
+            const defaultStock = await getOrCreateDefaultStock(ulId);
+            targetStockId = defaultStock.id;
         }
 
         const id = crypto.randomUUID();
         const initialQty = Number(quantity) || 0;
         const minStockVal = minStock !== undefined && minStock !== '' ? Number(minStock) : null;
 
-        const ulId = session.user.ulId || 'default';
-
         await db.execute({
-            sql: `INSERT INTO "InvItem" (id, name, category, quantity, minStock, notes, ulId, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-            args: [id, name, category || null, initialQty, minStockVal, notes || null, ulId],
+            sql: `INSERT INTO "InvItem" (id, stockId, name, category, quantity, minStock, notes, ulId, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+            args: [id, targetStockId, name, category || null, initialQty, minStockVal, notes || null, ulId],
         });
 
         // Log initial quantity if > 0
@@ -127,7 +139,7 @@ export async function POST(request: Request) {
             });
         }
 
-        return NextResponse.json({ id, name, category, quantity: initialQty, notes, expiryDate }, { status: 201 });
+        return NextResponse.json({ id, stockId: targetStockId, name, category, quantity: initialQty, notes, expiryDate }, { status: 201 });
     } catch (e) {
         console.error('POST /api/inventory error:', getErrorMessage(e));
         return NextResponse.json({ error: 'Erreur lors de la création de l\'article' }, { status: 500 });
