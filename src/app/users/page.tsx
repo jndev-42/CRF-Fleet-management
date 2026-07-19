@@ -36,7 +36,8 @@ export default function AdminPage() {
     const sessionRoles = (session?.user?.roles || []) as string[];
     const isSuperAdminUser = isSuperAdmin(sessionRoles);
     const isAdminUser = isAdminOrAbove(sessionRoles);
-    const isReadOnly = isReadOnlyManager(sessionRoles);
+    // isReadOnly is only true if the user is a read-only manager AND NOT an admin/super-admin
+    const isReadOnly = isReadOnlyManager(sessionRoles) && !isAdminUser;
     const canAccess = canAccessAdminPanel(sessionRoles);
 
     useEffect(() => {
