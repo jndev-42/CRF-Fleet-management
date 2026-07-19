@@ -28,6 +28,20 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     }
 }
 
+let migrationChecked = false;
+async function ensureULSchema() {
+    if (migrationChecked) return;
+    try {
+        const tableInfo = await db.execute(`PRAGMA table_info("UniteLocale")`);
+        if (tableInfo.rows.length > 0 && !tableInfo.rows.some(r => r.name === 'defaultParkingSpots')) {
+            await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "defaultParkingSpots" TEXT`);
+        }
+        migrationChecked = true;
+    } catch {
+        // Ignore if error occurs during migration check
+    }
+}
+
 /** PATCH /api/ul/[id] — Modifier une UL (ADMIN uniquement) */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -40,6 +54,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if (!isSuper && !isLocalAdmin) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
+
+        await ensureULSchema();
 
         const body = await request.json();
         const { name, slug, phoneNumbers, defaultParkingSpots } = body as {
