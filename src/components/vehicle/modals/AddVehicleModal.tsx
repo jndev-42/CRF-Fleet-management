@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useUL } from '@/lib/contexts/ULContext';
 
 interface AddVehicleModalProps {
     isOpen: boolean;
@@ -7,11 +8,12 @@ interface AddVehicleModalProps {
 }
 
 export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehicleModalProps) {
+    const { activeUL } = useUL();
     const [form, setForm] = useState({
         name: '',
         type: 'VL',
         plate: '',
-        parkingSpotSelection: "Baigneur (devant l\u2019UL)",
+        parkingSpotSelection: 'Autre',
         parkingSpotCustom: '',
         fuelLevel: 100,
         mileage: 0,
@@ -31,35 +33,28 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
 
     useEffect(() => {
         if (!isOpen) return;
-        Promise.all([
-            fetch('/api/auth/session').then(r => r.json()).catch(() => null),
-            fetch('/api/ul').then(r => r.json()).catch(() => null),
-        ]).then(([session, ulData]) => {
-            const userUlId = session?.user?.ulId;
-            const uls: Array<{ id: string; defaultParkingSpots?: string[] }> = ulData?.uls || [];
-            
-            let spots: string[] = [];
-            if (userUlId) {
-                const activeUl = uls.find(u => u.id === userUlId);
-                if (activeUl?.defaultParkingSpots && activeUl.defaultParkingSpots.length > 0) {
-                    spots = activeUl.defaultParkingSpots;
+        fetch('/api/ul')
+            .then(r => r.json())
+            .then(ulData => {
+                const uls: Array<{ id: string; defaultParkingSpots?: string[] }> = ulData?.uls || [];
+                const currentUlId = activeUL?.id;
+                
+                let spots: string[] = [];
+                if (currentUlId) {
+                    const foundUl = uls.find(u => u.id === currentUlId);
+                    if (foundUl?.defaultParkingSpots) {
+                        spots = foundUl.defaultParkingSpots;
+                    }
                 }
-            }
-            if (spots.length === 0 && uls.length > 0) {
-                const allSpots = uls.flatMap(u => u.defaultParkingSpots || []);
-                spots = Array.from(new Set(allSpots));
-            }
-            if (spots.length === 0) {
-                spots = ["Baigneur (devant l'UL)", "Parking Aubervilliers"];
-            }
 
-            setDefaultParkingSpots(spots);
-            setForm(f => ({
-                ...f,
-                parkingSpotSelection: spots.includes(f.parkingSpotSelection) ? f.parkingSpotSelection : (spots[0] || 'Autre')
-            }));
-        });
-    }, [isOpen]);
+                setDefaultParkingSpots(spots);
+                setForm(f => ({
+                    ...f,
+                    parkingSpotSelection: spots.length > 0 ? spots[0] : 'Autre'
+                }));
+            })
+            .catch(console.error);
+    }, [isOpen, activeUL?.id]);
 
     if (!isOpen) return null;
 
