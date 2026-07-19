@@ -72,7 +72,7 @@ export async function GET(request: Request) {
     const reservationsSql = `
       SELECT
         r.id, r.vehicleId, v.name as vehicleName, v.plate as vehiclePlate,
-        r.userEmail, r.userName, r.startTime, r.endTime, r.reason, r.ch, r.status, r.createdAt
+        r.userEmail, r.userName, r.startTime, r.endTime, r.reason, r.status, r.createdAt
       FROM "Reservation" r
       JOIN Vehicle v ON r.vehicleId = v.id
       WHERE v.ulId = ? ${vehicleFilterClause}
@@ -96,7 +96,6 @@ export async function GET(request: Request) {
       startTime: row.startTime as string,
       endTime: row.endTime as string,
       reason: row.reason as string | null,
-      ch: (row.ch as string) || 'CH non décidé',
       status: (row.status as string) || 'PENDING',
       createdAt: row.createdAt as string,
     }));

@@ -226,3 +226,21 @@
     background: var(--bg-tertiary);
 }
 
+.quickChBtnActive {
+    background: rgba(245, 158, 11, 0.2);
+    border-color: rgba(245, 158, 11, 0.4);
+    color: #d97706;
+}
+
+.badgeUnassigned {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(245, 158, 11, 0.15);
+    color: #d97706;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    white-space: nowrap;
+}
+
+

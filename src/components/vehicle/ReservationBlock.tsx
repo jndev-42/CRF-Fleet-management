@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styles from './Reservation.module.css';
 import UserCombobox from '@/components/ui/UserCombobox';
+import { canAccessAdminPanel } from '@/lib/roles';
 
 interface Reservation {
     id: string;
@@ -10,7 +11,6 @@ interface Reservation {
     startTime: string;
     endTime: string;
     reason: string | null;
-    ch?: string | null;
     status: 'PENDING' | 'VALIDATED';
     createdAt: string;
 }
@@ -37,7 +37,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const [endDate, setEndDate] = useState('');
     const [endTime, setEndTime] = useState('');
     const [reason, setReason] = useState('');
-    const [ch, setCh] = useState('CH non décidé');
+    const [driverSelection, setDriverSelection] = useState(''); // '' = self, 'UNASSIGNED' = Chauffeur non décidé, or userId
     const [submitting, setSubmitting] = useState(false);
 
     // Form fields (Edit)
@@ -46,16 +46,16 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const [editEndDate, setEditEndDate] = useState('');
     const [editEndTime, setEditEndTime] = useState('');
     const [editReason, setEditReason] = useState('');
-    const [editCh, setEditCh] = useState('CH non décidé');
+    const [editDriverSelection, setEditDriverSelection] = useState('');
     const [editingSubmitting, setEditingSubmitting] = useState(false);
 
-    // On-behalf fields (ADMIN only)
+    // On-behalf fields (Managers / Admins / Cadres / Présidents)
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
-    const [onBehalfOfUserId, setOnBehalfOfUserId] = useState('');
 
     const isAdmin = userRoles.includes('ADMIN');
     const isRespo = userRoles.includes('RESPO');
     const canValidate = isAdmin || isRespo;
+    const canManageDriver = canAccessAdminPanel(userRoles) || isRespo;
 
     const fetchReservations = useCallback(async () => {
         try {
@@ -87,12 +87,12 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     }, [fetchReservations]);
 
     useEffect(() => {
-        if (!isAdmin) return;
+        if (!canManageDriver) return;
         fetch(`/api/users?vehicleType=${encodeURIComponent(vehicleType)}`)
             .then(res => res.json())
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
-    }, [isAdmin, vehicleType]);
+    }, [canManageDriver, vehicleType]);
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -101,23 +101,30 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             const startISO = new Date(`${startDate}T${startTime}`).toISOString();
             const endISO = new Date(`${endDate}T${endTime}`).toISOString();
 
+            const bodyPayload: Record<string, unknown> = {
+                startTime: startISO,
+                endTime: endISO,
+                reason,
+            };
+
+            if (canManageDriver) {
+                if (driverSelection === 'UNASSIGNED') {
+                    bodyPayload.isUnassignedDriver = true;
+                } else if (driverSelection) {
+                    bodyPayload.onBehalfOfUserId = driverSelection;
+                }
+            }
+
             const res = await fetch(`/api/vehicles/${vehicleId}/reservations`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    startTime: startISO,
-                    endTime: endISO,
-                    reason,
-                    ch: ch || 'CH non décidé',
-                    ...(onBehalfOfUserId ? { onBehalfOfUserId } : {})
-                })
+                body: JSON.stringify(bodyPayload)
             });
 
             if (res.ok) {
                 setShowModal(false);
                 setStartDate(''); setStartTime(''); setEndDate(''); setEndTime(''); setReason('');
-                setCh('CH non décidé');
-                setOnBehalfOfUserId('');
+                setDriverSelection('');
                 fetchReservations();
             } else {
                 const data = await res.json();
@@ -142,7 +149,13 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         setEditEndDate(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`);
         setEditEndTime(`${pad(end.getHours())}:${pad(end.getMinutes())}`);
         setEditReason(res.reason || '');
-        setEditCh(res.ch || 'CH non décidé');
+
+        if (res.userName === 'Chauffeur non décidé') {
+            setEditDriverSelection('UNASSIGNED');
+        } else {
+            const match = users.find(u => u.email === res.userEmail);
+            setEditDriverSelection(match ? match.id : '');
+        }
     };
 
     const handleEditSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -153,16 +166,31 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             const startISO = new Date(`${editStartDate}T${editStartTime}`).toISOString();
             const endISO = new Date(`${editEndDate}T${editEndTime}`).toISOString();
 
+            const bodyPayload: Record<string, unknown> = {
+                action: 'update',
+                startTime: startISO,
+                endTime: endISO,
+                reason: editReason,
+            };
+
+            if (canManageDriver) {
+                if (editDriverSelection === 'UNASSIGNED') {
+                    bodyPayload.isUnassignedDriver = true;
+                    bodyPayload.onBehalfOfUserId = 'UNASSIGNED';
+                } else if (editDriverSelection) {
+                    bodyPayload.onBehalfOfUserId = editDriverSelection;
+                } else {
+                    const selfUser = users.find(u => u.email === currentUserEmail);
+                    if (selfUser) {
+                        bodyPayload.onBehalfOfUserId = selfUser.id;
+                    }
+                }
+            }
+
             const res = await fetch(`/api/reservations/${editingReservation.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'update',
-                    startTime: startISO,
-                    endTime: endISO,
-                    reason: editReason,
-                    ch: editCh || 'CH non décidé'
-                })
+                body: JSON.stringify(bodyPayload)
             });
 
             if (res.ok) {
@@ -221,7 +249,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                     className={`btn btn-secondary ${styles.addBtn}`}
                     onClick={() => {
                         if (!licenseBlocked || isAdmin) {
-                            setCh('CH non décidé');
+                            setDriverSelection('');
                             setShowModal(true);
                         }
                     }}
@@ -242,9 +270,9 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                         const start = new Date(res.startTime);
                         const end = new Date(res.endTime);
                         const canDelete = isAdmin || res.userEmail === currentUserEmail;
-                        const canEdit = isAdmin || isRespo || res.userEmail === currentUserEmail;
+                        const canEdit = canManageDriver || res.userEmail === currentUserEmail;
                         const isPending = res.status === 'PENDING';
-                        const chDisplay = res.ch || 'CH non décidé';
+                        const isUnassigned = res.userName === 'Chauffeur non décidé';
 
                         return (
                             <div key={res.id} className={`${styles.item} ${isPending ? styles.itemPending : ''}`}>
@@ -259,10 +287,12 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                         </span>
                                     </div>
                                     <div className={styles.itemUser}>
-                                        Par {res.userName}{res.reason && <span className={styles.itemReason}> - {res.reason}</span>}
-                                    </div>
-                                    <div className={styles.itemCh}>
-                                        🏥 CH : <strong>{chDisplay}</strong>
+                                        Par {isUnassigned ? (
+                                            <span className={styles.badgeUnassigned}>Chauffeur non décidé</span>
+                                        ) : (
+                                            <strong>{res.userName}</strong>
+                                        )}
+                                        {res.reason && <span className={styles.itemReason}> - {res.reason}</span>}
                                     </div>
                                 </div>
                                 <div className={styles.itemActions}>
@@ -301,7 +331,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             {/* Modal de création */}
             {showModal && (
                 <div className="modal-overlay" onClick={() => setShowModal(false)} style={{ zIndex: 1000 }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
                         <h3>Réserver ce véhicule</h3>
                         {!canValidate && (
                             <p className={styles.pendingNotice}>
@@ -309,18 +339,31 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                             </p>
                         )}
                         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-                            {isAdmin && (
+                            {canManageDriver && (
                                 <div className={styles.formGroup}>
-                                    <label>Pour</label>
-                                    <UserCombobox
-                                        users={users}
-                                        value={onBehalfOfUserId}
-                                        onChange={setOnBehalfOfUserId}
-                                        excludeEmail={currentUserEmail ?? undefined}
-                                    />
-                                    {onBehalfOfUserId && (
+                                    <label>Chauffeur (Pour)</label>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <UserCombobox
+                                                users={users}
+                                                value={driverSelection === 'UNASSIGNED' ? '' : driverSelection}
+                                                onChange={setDriverSelection}
+                                                excludeEmail={currentUserEmail ?? undefined}
+                                                defaultLabel={driverSelection === 'UNASSIGNED' ? 'Chauffeur non décidé' : 'Moi-même'}
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className={`${styles.quickChBtn} ${driverSelection === 'UNASSIGNED' ? styles.quickChBtnActive : ''}`}
+                                            onClick={() => setDriverSelection(driverSelection === 'UNASSIGNED' ? '' : 'UNASSIGNED')}
+                                            title="Indiquer Chauffeur non décidé"
+                                        >
+                                            Chauffeur non décidé
+                                        </button>
+                                    </div>
+                                    {driverSelection === 'UNASSIGNED' && (
                                         <p className={styles.pendingNotice} style={{ marginTop: 4 }}>
-                                            Cette réservation sera validée automatiquement et l&apos;utilisateur en sera notifié.
+                                            Cette réservation sera enregistrée sans chauffeur attribué.
                                         </p>
                                     )}
                                 </div>
@@ -346,28 +389,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                 </div>
                             </div>
                             <div className={styles.formGroup}>
-                                <label>Centre Hospitalier (CH)</label>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        value={ch}
-                                        onChange={e => setCh(e.target.value)}
-                                        className="form-input"
-                                        placeholder="Ex: CH Sainte-Anne ou CH non décidé"
-                                        style={{ flex: 1 }}
-                                    />
-                                    <button
-                                        type="button"
-                                        className={styles.quickChBtn}
-                                        onClick={() => setCh('CH non décidé')}
-                                        title="Définir sur CH non décidé"
-                                    >
-                                        CH non décidé
-                                    </button>
-                                </div>
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Motif (Optionnel)</label>
+                                <label>Motif / Mission (Optionnel)</label>
                                 <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="form-input" placeholder="Ex: Réserve pour une maraude" />
                             </div>
                             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
@@ -376,7 +398,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                 </button>
                                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
                                     setShowModal(false);
-                                    setOnBehalfOfUserId('');
+                                    setDriverSelection('');
                                 }}>
                                     Annuler
                                 </button>
@@ -389,9 +411,45 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             {/* Modal de modification */}
             {editingReservation && (
                 <div className="modal-overlay" onClick={() => setEditingReservation(null)} style={{ zIndex: 1000 }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
                         <h3>Modifier la réservation</h3>
                         <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+                            {canManageDriver ? (
+                                <div className={styles.formGroup}>
+                                    <label>Chauffeur</label>
+                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                        <div style={{ flex: 1 }}>
+                                            <UserCombobox
+                                                users={users}
+                                                value={editDriverSelection === 'UNASSIGNED' ? '' : editDriverSelection}
+                                                onChange={setEditDriverSelection}
+                                                excludeEmail={currentUserEmail ?? undefined}
+                                                defaultLabel={editDriverSelection === 'UNASSIGNED' ? 'Chauffeur non décidé' : 'Chauffeur initial'}
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className={`${styles.quickChBtn} ${editDriverSelection === 'UNASSIGNED' ? styles.quickChBtnActive : ''}`}
+                                            onClick={() => setEditDriverSelection(editDriverSelection === 'UNASSIGNED' ? '' : 'UNASSIGNED')}
+                                            title="Indiquer Chauffeur non décidé"
+                                        >
+                                            Chauffeur non décidé
+                                        </button>
+                                    </div>
+                                    {editDriverSelection === 'UNASSIGNED' && (
+                                        <p className={styles.pendingNotice} style={{ marginTop: 4 }}>
+                                            Réservation configurée sans chauffeur désigné.
+                                        </p>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className={styles.formGroup}>
+                                    <label>Chauffeur</label>
+                                    <div className="form-input" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'not-allowed' }}>
+                                        {editingReservation.userName}
+                                    </div>
+                                </div>
+                            )}
                             <div className={styles.formRow}>
                                 <div className={styles.formGroup}>
                                     <label>Date de début</label>
@@ -413,28 +471,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                 </div>
                             </div>
                             <div className={styles.formGroup}>
-                                <label>Centre Hospitalier (CH)</label>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        value={editCh}
-                                        onChange={e => setEditCh(e.target.value)}
-                                        className="form-input"
-                                        placeholder="Ex: CH Sainte-Anne ou CH non décidé"
-                                        style={{ flex: 1 }}
-                                    />
-                                    <button
-                                        type="button"
-                                        className={styles.quickChBtn}
-                                        onClick={() => setEditCh('CH non décidé')}
-                                        title="Définir sur CH non décidé"
-                                    >
-                                        CH non décidé
-                                    </button>
-                                </div>
-                            </div>
-                            <div className={styles.formGroup}>
-                                <label>Motif (Optionnel)</label>
+                                <label>Motif / Mission (Optionnel)</label>
                                 <input type="text" value={editReason} onChange={e => setEditReason(e.target.value)} className="form-input" placeholder="Ex: Réserve pour une maraude" />
                             </div>
                             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
@@ -452,4 +489,5 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         </div>
     );
 }
+
 

@@ -49,12 +49,14 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 }
 
 import { z } from 'zod';
+import { canAccessAdminPanel } from '@/lib/roles';
 
 const updateReservationSchema = z.object({
     startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }).optional(),
     endTime: z.string().datetime({ message: 'endTime doit être une date ISO valide' }).optional(),
     reason: z.string().max(500).optional().nullable(),
-    ch: z.string().max(200).optional().nullable(),
+    onBehalfOfUserId: z.string().optional().nullable(),
+    isUnassignedDriver: z.boolean().optional(),
     action: z.enum(['validate', 'update']).optional(),
 });
 
@@ -70,7 +72,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
         const checkResult = await db.execute({
             sql: `
-                SELECT r.id, r.userEmail, r.vehicleId, r.startTime, r.endTime, r.reason, r.ch, r.status
+                SELECT r.id, r.userEmail, r.userName, r.vehicleId, r.startTime, r.endTime, r.reason, r.status
                 FROM "Reservation" r
                 WHERE r.id = ?
             `,
@@ -84,7 +86,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         const reservation = checkResult.rows[0];
         const userRoles: string[] = session.user.roles || [];
         const isOwner = session.user.email === reservation.userEmail;
-        const isAdminOrRespo = userRoles.includes('ADMIN') || userRoles.includes('RESPO');
+        const canManageDriver = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
 
         let body: Record<string, unknown> = {};
         try {
@@ -96,12 +98,17 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
             // body remain empty object
         }
 
-        // If body has edit fields (startTime, endTime, reason, ch) or action === 'update'
-        const hasEditFields = body.startTime !== undefined || body.endTime !== undefined || body.reason !== undefined || body.ch !== undefined || body.action === 'update';
+        // If body has edit fields (startTime, endTime, reason, onBehalfOfUserId, isUnassignedDriver) or action === 'update'
+        const hasEditFields = body.startTime !== undefined ||
+            body.endTime !== undefined ||
+            body.reason !== undefined ||
+            body.onBehalfOfUserId !== undefined ||
+            body.isUnassignedDriver !== undefined ||
+            body.action === 'update';
 
         if (hasEditFields) {
-            // Check editing permissions: owner or ADMIN/RESPO
-            if (!isOwner && !isAdminOrRespo) {
+            // Check editing permissions: owner or manager
+            if (!isOwner && !canManageDriver) {
                 return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
             }
 
@@ -113,6 +120,12 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
                     return NextResponse.json({ error: 'Données invalides', details: zodErr.issues }, { status: 400 });
                 }
                 throw zodErr;
+            }
+
+            // Check if user is attempting to change driver without management role
+            const isChangingDriver = parsed.isUnassignedDriver !== undefined || parsed.onBehalfOfUserId !== undefined;
+            if (isChangingDriver && !canManageDriver) {
+                return NextResponse.json({ error: 'Seul un responsable peut modifier le chauffeur de la réservation.' }, { status: 403 });
             }
 
             const newStartStr = parsed.startTime || (reservation.startTime as string);
@@ -146,21 +159,39 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
             }
 
             const newReason = parsed.reason !== undefined ? parsed.reason : reservation.reason;
-            const newCh = parsed.ch !== undefined ? (parsed.ch && parsed.ch.trim() !== '' ? parsed.ch.trim() : 'CH non décidé') : (reservation.ch || 'CH non décidé');
+            let newUserName = reservation.userName as string;
+            let newUserEmail = reservation.userEmail as string;
+
+            if (isChangingDriver) {
+                if (parsed.isUnassignedDriver || parsed.onBehalfOfUserId === 'UNASSIGNED') {
+                    newUserName = 'Chauffeur non décidé';
+                    newUserEmail = session.user.email as string;
+                } else if (parsed.onBehalfOfUserId) {
+                    const targetResult = await db.execute({
+                        sql: `SELECT id, name, email FROM "User" WHERE id = ?`,
+                        args: [parsed.onBehalfOfUserId]
+                    });
+                    if (targetResult.rows.length === 0) {
+                        return NextResponse.json({ error: 'Utilisateur introuvable.' }, { status: 404 });
+                    }
+                    newUserEmail = targetResult.rows[0].email as string;
+                    newUserName = (targetResult.rows[0].name as string) || newUserEmail;
+                }
+            }
 
             await db.execute({
                 sql: `
                     UPDATE "Reservation"
-                    SET startTime = ?, endTime = ?, reason = ?, ch = ?
+                    SET startTime = ?, endTime = ?, reason = ?, userName = ?, userEmail = ?
                     WHERE id = ?
                 `,
-                args: [newStart.toISOString(), newEnd.toISOString(), newReason || null, newCh, reservationId]
+                args: [newStart.toISOString(), newEnd.toISOString(), newReason || null, newUserName, newUserEmail, reservationId]
             });
 
             return NextResponse.json({ success: true });
         } else {
             // Action is Validation (legacy or action === 'validate')
-            if (!isAdminOrRespo) {
+            if (!canManageDriver) {
                 return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
             }
 

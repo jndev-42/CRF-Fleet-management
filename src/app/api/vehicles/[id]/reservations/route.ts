@@ -2,15 +2,15 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { canAccessAdminPanel, isAdminOrAbove } from '@/lib/roles';
+import { canAccessAdminPanel } from '@/lib/roles';
 
 /** Validates incoming POST body for creating a reservation */
 const createReservationSchema = z.object({
     startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }),
     endTime: z.string().datetime({ message: 'endTime doit être une date ISO valide' }),
     reason: z.string().max(500).optional(),
-    ch: z.string().max(200).optional(),
     onBehalfOfUserId: z.string().min(1).optional(),
+    isUnassignedDriver: z.boolean().optional(),
 }).refine(data => new Date(data.endTime) > new Date(data.startTime), {
     message: 'endTime doit être après startTime',
     path: ['endTime'],
@@ -31,7 +31,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
         const result = await db.execute({
             sql: `
-                SELECT r.id, r.vehicleId, r.userEmail, r.userName, r.startTime, r.endTime, r.reason, r.ch, r.status, r.createdAt
+                SELECT r.id, r.vehicleId, r.userEmail, r.userName, r.startTime, r.endTime, r.reason, r.status, r.createdAt
                 FROM "Reservation" r
                 WHERE r.vehicleId = ?
                 ORDER BY r.startTime ASC
@@ -47,7 +47,6 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
             startTime: row.startTime as string,
             endTime: row.endTime as string,
             reason: row.reason as string | null,
-            ch: (row.ch as string) || 'CH non décidé',
             status: (row.status as string) || 'PENDING',
             createdAt: row.createdAt as string
         }));
@@ -80,13 +79,15 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
             throw zodErr;
         }
 
-        // ADMIN et RESPO voient leurs réservations auto-validées
+        // ADMIN, CADRE, PRESIDENT, RESPO voient leurs réservations auto-validées
         const userRoles: string[] = session.user.roles || [];
         const isValidator = canAccessAdminPanel(userRoles);
         const status = isValidator ? 'VALIDATED' : 'PENDING';
 
-        if (data.onBehalfOfUserId && !isAdminOrAbove(userRoles)) {
-            return NextResponse.json({ error: 'Seul un ADMIN peut créer une réservation pour quelqu\'un d\'autre.' }, { status: 403 });
+        const canManageDriver = isValidator || userRoles.includes('RESPO');
+
+        if ((data.onBehalfOfUserId || data.isUnassignedDriver) && !canManageDriver) {
+            return NextResponse.json({ error: 'Seul un responsable peut réserver au nom d\'un autre chauffeur ou déclarer "Chauffeur non décidé".' }, { status: 403 });
         }
 
         const start = new Date(data.startTime);
@@ -119,7 +120,10 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         let userEmail = session.user.email as string;
         let userName = session.user.name || session.user.email as string;
 
-        if (data.onBehalfOfUserId) {
+        if (data.isUnassignedDriver || data.onBehalfOfUserId === 'UNASSIGNED') {
+            userName = 'Chauffeur non décidé';
+            userEmail = session.user.email as string;
+        } else if (data.onBehalfOfUserId) {
             const targetResult = await db.execute({
                 sql: `SELECT id, name, email FROM "User" WHERE id = ?`,
                 args: [data.onBehalfOfUserId]
@@ -132,12 +136,11 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         }
 
         const id = crypto.randomUUID();
-        const chValue = data.ch && data.ch.trim() !== '' ? data.ch.trim() : 'CH non décidé';
 
         await db.execute({
             sql: `
-                INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, ch, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             `,
             args: [
                 id,
@@ -147,7 +150,6 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
                 start.toISOString(),
                 end.toISOString(),
                 data.reason || null,
-                chValue,
                 status
             ]
         });
