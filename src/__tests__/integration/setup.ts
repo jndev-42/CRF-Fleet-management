@@ -291,6 +291,24 @@ async function createTables() {
     submittedAt TEXT
   )`);
 
+  await db.execute(`CREATE TABLE IF NOT EXISTS "ExpenseReport" (
+    id                     TEXT NOT NULL PRIMARY KEY,
+    userId                 TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+    submittedAt            TEXT NOT NULL,
+    status                 TEXT NOT NULL DEFAULT 'soumis',
+    requestRefund          INTEGER NOT NULL DEFAULT 1,
+    noReceiptDeclaration   INTEGER NOT NULL DEFAULT 0,
+    driveFolderId          TEXT,
+    total                  REAL NOT NULL DEFAULT 0.0,
+    items                  TEXT NOT NULL,
+    ulId                   TEXT NOT NULL DEFAULT 'ul-paris-18',
+    validatedAt            TEXT,
+    validatedBy            TEXT REFERENCES "User"(id) ON DELETE SET NULL,
+    createdAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "UniteLocale" (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,

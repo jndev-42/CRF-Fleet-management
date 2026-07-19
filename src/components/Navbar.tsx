@@ -124,6 +124,7 @@ export default function Navbar({ user }: NavbarProps) {
                         </div>
                         <Link href="/" className={`nav-link${pathname === '/' ? ' active' : ''}`} data-tour="nav-dashboard" onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</Link>
                         <Link href="/vehicles" className={`nav-link${pathname === '/vehicles' ? ' active' : ''}`} data-tour="nav-vehicles" onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</Link>
+                        <Link href="/expenses" className={`nav-link${pathname === '/expenses' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/expenses' ? 'page' : undefined}>Note de frais</Link>
                         {!isInactive(userRoles) && canSeeMenu('stats', getVisibility('stats'), userRoles) && (
                             <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} data-tour="nav-stats" onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
                         )}

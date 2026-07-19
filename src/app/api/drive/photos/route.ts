@@ -17,6 +17,22 @@ export async function GET(request: Request) {
             return NextResponse.json({ error: 'Paramètre folderId manquant' }, { status: 400 });
         }
 
+        if (folderId.startsWith('mock-')) {
+            const flat = searchParams.get('flat') === 'true';
+            if (flat) {
+                return NextResponse.json({
+                    photos: [
+                        { id: 'mock-photo-1', name: 'justificatif_1.jpg' },
+                        { id: 'mock-photo-2', name: 'justificatif_2.jpg' }
+                    ]
+                });
+            }
+            return NextResponse.json({
+                emprunt: [{ id: 'mock-photo-1', name: 'photo_emprunt.jpg' }],
+                rendu: [{ id: 'mock-photo-2', name: 'photo_rendu.jpg' }]
+            });
+        }
+
         const drive = getDriveClient();
 
         // Flat mode: list images directly in the folder (no subfolders), used for mission photos
