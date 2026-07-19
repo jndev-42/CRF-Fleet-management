@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, AlertCircle } from 'lucide-react';
 import { MISSION_TYPE_LABELS } from '@/lib/mission-supplies';
+import { isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
 import styles from './missions.module.css';
 
 interface MissionReport {
@@ -25,8 +26,6 @@ interface MissionReport {
     vehicle_name: string | null;
 }
 
-const ALLOWED_ROLES = ['ADMIN', 'CI/RPAPS'];
-
 export default function MissionsPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -37,7 +36,10 @@ export default function MissionsPage() {
     const [typeFilter, setTypeFilter] = useState('');
 
     const roles = (session?.user?.roles || ['GUEST']) as string[];
-    const canAccess = ALLOWED_ROLES.some(r => roles.includes(r));
+    const isManager = isAdminOrAbove(roles) || isReadOnlyManager(roles) || roles.includes('CI/RPAPS');
+    const isDriver = roles.includes('CHVL') || roles.includes('CHVPSP');
+    const canAccess = isManager || isDriver;
+    const canCreate = !isReadOnlyManager(roles) && (isAdminOrAbove(roles) || roles.includes('CI/RPAPS') || isDriver);
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {
@@ -78,10 +80,12 @@ export default function MissionsPage() {
         <main id="main-content" className="page-container">
             <div className="page-header">
                 <h1 className="page-title">Comptes rendus de mission</h1>
-                <Link href="/missions/new" className="btn btn-primary">
-                    <Plus size={16} />
-                    Nouveau compte rendu
-                </Link>
+                {canCreate && (
+                    <Link href="/missions/new" className="btn btn-primary">
+                        <Plus size={16} />
+                        Nouveau compte rendu
+                    </Link>
+                )}
             </div>
 
             <div className="filters-bar">
@@ -107,10 +111,12 @@ export default function MissionsPage() {
             ) : reports.length === 0 ? (
                 <div className={styles.emptyState}>
                     <p>Aucun compte rendu trouvé.</p>
-                    <Link href="/missions/new" className="btn btn-primary">
-                        <Plus size={16} />
-                        Créer le premier compte rendu
-                    </Link>
+                    {canCreate && (
+                        <Link href="/missions/new" className="btn btn-primary">
+                            <Plus size={16} />
+                            Créer le premier compte rendu
+                        </Link>
+                    )}
                 </div>
             ) : (
                 <div className={styles.tableWrapper}>

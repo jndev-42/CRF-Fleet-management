@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { canAccessAdminPanel, isAdminOrAbove } from '@/lib/roles';
 
 /** Validates incoming POST body for creating a reservation */
 const createReservationSchema = z.object({
@@ -79,10 +80,10 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
 
         // ADMIN et RESPO voient leurs réservations auto-validées
         const userRoles: string[] = session.user.roles || [];
-        const isValidator = userRoles.includes('ADMIN') || userRoles.includes('RESPO');
+        const isValidator = canAccessAdminPanel(userRoles);
         const status = isValidator ? 'VALIDATED' : 'PENDING';
 
-        if (data.onBehalfOfUserId && !userRoles.includes('ADMIN')) {
+        if (data.onBehalfOfUserId && !isAdminOrAbove(userRoles)) {
             return NextResponse.json({ error: 'Seul un ADMIN peut créer une réservation pour quelqu\'un d\'autre.' }, { status: 403 });
         }
 

@@ -1,18 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-
-function resolveRoles(roles: string[]): string[] {
-    // 'INACTIF' is the current inactive role; 'GUEST' is the legacy alias (DB backfill pending)
-    const isInactiveRole = (r: string) => r === 'INACTIF' || r === 'GUEST';
-    const activeRoles = roles.filter(r => !isInactiveRole(r));
-    if (activeRoles.length === 0) {
-        // Preserve whatever inactive role was passed (GUEST or INACTIF) — DB backfill handles normalization
-        const inactiveRole = roles.find(isInactiveRole);
-        return inactiveRole ? [inactiveRole] : [];
-    }
-    return activeRoles;
-}
+import { isAdminOrAbove, canAssignRole, resolveRoles, isSuperAdmin } from '@/lib/roles';
 
 export async function PATCH(
     request: Request,
@@ -20,7 +9,8 @@ export async function PATCH(
 ) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        const actorRoles = session?.user?.roles || [];
+        if (!isAdminOrAbove(actorRoles)) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
@@ -49,14 +39,37 @@ export async function PATCH(
 
             const userId = userRes.rows[0].id;
 
+            const isSuper = isSuperAdmin(actorRoles);
+            if (!isSuper) {
+                const actorUlId = session?.user?.ulId;
+                const userHomeUlRes = await tx.execute({
+                    sql: 'SELECT ulId FROM "UserUL" WHERE userId = ? AND is_home = 1',
+                    args: [userId],
+                });
+                const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
+                if (userHomeUlId && userHomeUlId !== actorUlId) {
+                    await tx.rollback();
+                    return NextResponse.json({ error: "Un administrateur local ne peut modifier les rôles globaux d'un utilisateur appartenant à une autre Unité Locale." }, { status: 403 });
+                }
+            }
+
             // Delete current roles
             await tx.execute({
                 sql: 'DELETE FROM "UserRole" WHERE userId = ?',
                 args: [userId]
             });
 
-            // Insert new roles
+            // Insert new roles (vérifier les droits d'attribution)
             const resolvedRoles = resolveRoles(roles);
+            for (const roleName of resolvedRoles) {
+                if (!canAssignRole(actorRoles, roleName)) {
+                    await tx.rollback();
+                    return NextResponse.json(
+                        { error: `Seul un Super Administrateur peut attribuer le rôle "${roleName}"` },
+                        { status: 403 }
+                    );
+                }
+            }
             for (const roleName of resolvedRoles) {
                 const roleRes = await tx.execute({
                     sql: 'SELECT id FROM "Role" WHERE name = ?',
@@ -105,7 +118,8 @@ export async function DELETE(
 ) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        const actorRoles = session?.user?.roles || [];
+        if (!isAdminOrAbove(actorRoles)) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
@@ -126,6 +140,20 @@ export async function DELETE(
             }
 
             const userId = userRes.rows[0].id;
+
+            const isSuper = isSuperAdmin(actorRoles);
+            if (!isSuper) {
+                const actorUlId = session?.user?.ulId;
+                const userHomeUlRes = await tx.execute({
+                    sql: 'SELECT ulId FROM "UserUL" WHERE userId = ? AND is_home = 1',
+                    args: [userId],
+                });
+                const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
+                if (userHomeUlId && userHomeUlId !== actorUlId) {
+                    await tx.rollback();
+                    return NextResponse.json({ error: "Un administrateur local ne peut supprimer qu'un utilisateur appartenant à sa propre Unité Locale." }, { status: 403 });
+                }
+            }
 
             // Check if user has submitted any mission reports (history must be preserved)
             const reportsRes = await tx.execute({

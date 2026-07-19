@@ -2,18 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-
-function resolveRoles(roles: string[]): string[] {
-    // 'INACTIF' is the current inactive role; 'GUEST' is the legacy alias (DB backfill pending)
-    const isInactiveRole = (r: string) => r === 'INACTIF' || r === 'GUEST';
-    const activeRoles = roles.filter(r => !isInactiveRole(r));
-    if (activeRoles.length === 0) {
-        // Preserve whatever inactive role was passed (GUEST or INACTIF) — DB backfill handles normalization
-        const inactiveRole = roles.find(isInactiveRole);
-        return inactiveRole ? [inactiveRole] : [];
-    }
-    return activeRoles;
-}
+import { isAdminOrAbove, canAccessAdminPanel, resolveRoles, isSuperAdmin } from '@/lib/roles';
 
 /** Zod schema for creating a new user */
 const createUserSchema = z.object({
@@ -33,7 +22,7 @@ export async function GET(request: Request) {
         }
 
         const roles = session.user.roles || [];
-        const canView = roles.includes('ADMIN') || roles.includes('RESPO');
+        const canView = canAccessAdminPanel(roles);
         if (!canView) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
@@ -133,7 +122,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        const roles = session?.user?.roles || [];
+        if (!isAdminOrAbove(roles)) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
@@ -147,6 +137,13 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Données invalides', details: zodErr.issues }, { status: 400 });
             }
             throw zodErr;
+        }
+
+        const isSuper = isSuperAdmin(roles);
+        if (!isSuper) {
+            if (data.ulId !== session?.user?.ulId) {
+                return NextResponse.json({ error: 'Un administrateur local ne peut créer un utilisateur que pour sa propre Unité Locale.' }, { status: 403 });
+            }
         }
 
         // Check uniqueness

@@ -9,6 +9,14 @@
 
 export const PREVIEW_ACCOUNTS = [
     {
+        key: 'preview-superadmin',
+        email: 'preview-superadmin@preview.local',
+        name: 'Super Admin Preview',
+        badge: 'S.ADMIN',
+        color: '#dc2626',
+        label: 'Super Admin',
+    },
+    {
         key: 'preview-admin',
         email: 'preview-admin@preview.local',
         name: 'Admin Preview',
@@ -17,12 +25,20 @@ export const PREVIEW_ACCOUNTS = [
         label: 'Admin',
     },
     {
-        key: 'preview-respo',
-        email: 'preview-respo@preview.local',
-        name: 'Responsable Preview',
-        badge: 'RESPO',
+        key: 'preview-president',
+        email: 'preview-president@preview.local',
+        name: 'Président Preview',
+        badge: 'PRESIDENT',
         color: '#f97316',
-        label: 'Responsable',
+        label: 'Président',
+    },
+    {
+        key: 'preview-cadre',
+        email: 'preview-cadre@preview.local',
+        name: 'Cadre Preview',
+        badge: 'CADRE',
+        color: '#eab308',
+        label: 'Cadre',
     },
     {
         key: 'preview-chvl',
@@ -39,14 +55,6 @@ export const PREVIEW_ACCOUNTS = [
         badge: 'CI/RPAPS',
         color: '#8b5cf6',
         label: 'CI/RPAPS',
-    },
-    {
-        key: 'preview-secouriste',
-        email: 'preview-secouriste@preview.local',
-        name: 'Secouriste Preview',
-        badge: 'SECOUR.',
-        color: '#10b981',
-        label: 'Secouriste',
     },
     {
         key: 'preview-inactif',

@@ -8,6 +8,7 @@ import { RenaultVehicleData } from '@/lib/renault';
 import { DashboardSkeletons } from '@/components/ui/Skeleton';
 import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
 import { useUL } from '@/lib/contexts/ULContext';
+import { isAdminOrAbove } from '@/lib/roles';
 
 interface Vehicle {
   id: string;
@@ -76,7 +77,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (status === 'authenticated') {
       fetchVehicles();
-      if (session?.user?.roles?.includes('ADMIN')) {
+      if (isAdminOrAbove(session?.user?.roles || [])) {
         setIsAdmin(true);
       }
     }

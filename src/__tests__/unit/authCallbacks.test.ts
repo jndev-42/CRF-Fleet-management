@@ -63,7 +63,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             }).mockResolvedValueOnce({
                 rows: [] // no ULs
             }).mockResolvedValueOnce({
-                rows: [{ name: 'CHVL' }, { name: 'RESPO' }]
+                rows: [{ name: 'CHVL' }, { name: 'CADRE' }]
             });
 
             const result = await authCallbacks.jwt({
@@ -77,7 +77,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.email).toBe('target@croix-rouge.fr');
             expect(result.userId).toBe('target-user-id');
             expect(result.roles).toContain('CHVL');
-            expect(result.roles).toContain('RESPO');
+            expect(result.roles).toContain('CADRE');
         });
 
         it('should NOT allow other users to impersonate', async () => {
@@ -92,7 +92,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             }).mockResolvedValueOnce({
                 rows: [] // no ULs
             }).mockResolvedValueOnce({
-                rows: [{ name: 'ADMIN' }]
+                rows: [{ name: 'SUPER_ADMIN' }]
             });
 
             const result = await authCallbacks.jwt({
@@ -105,7 +105,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.impersonatedEmail).toBeUndefined();
             expect(result.email).toBe('other-admin@croix-rouge.fr');
             expect(result.userId).toBe('other-admin-id');
-            expect(result.roles).toContain('ADMIN');
+            expect(result.roles).toContain('SUPER_ADMIN');
         });
 
         it('should allow jeannoel to stop impersonating', async () => {
@@ -121,7 +121,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             }).mockResolvedValueOnce({
                 rows: [] // no ULs
             }).mockResolvedValueOnce({
-                rows: [{ name: 'ADMIN' }]
+                rows: [{ name: 'SUPER_ADMIN' }]
             });
 
             const result = await authCallbacks.jwt({
@@ -134,7 +134,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.impersonatedEmail).toBeNull();
             expect(result.email).toBe('jeannoel.durand@croix-rouge.fr');
             expect(result.userId).toBe('jeannoel-id');
-            expect(result.roles).toContain('ADMIN');
+            expect(result.roles).toContain('SUPER_ADMIN');
         });
     });
 

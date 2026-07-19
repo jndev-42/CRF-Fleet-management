@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { User as UserIcon } from 'lucide-react';
 import RoleLegend from '@/components/users/RoleLegend';
+import { isSuperAdmin } from '@/lib/roles';
 
 interface User {
     id: string;
@@ -23,6 +24,7 @@ interface UsersTabProps {
     users: User[];
     availableRoles: string[];
     isAdmin: boolean;
+    isReadOnly?: boolean;
     onValidatePapers: (userId: string, userName: string | null) => Promise<void>;
     onCreateUser: (email: string, name: string, roles: string[], ulId?: string | null) => Promise<void>;
     onDeleteUser: (email: string) => Promise<void>;
@@ -43,6 +45,7 @@ export default function UsersTab({
     users,
     availableRoles,
     isAdmin,
+    isReadOnly = false,
     onValidatePapers,
     onCreateUser,
     onDeleteUser,
@@ -134,7 +137,7 @@ export default function UsersTab({
                         }}
                     />
                 </div>
-                {isAdmin && (
+                {isAdmin && !isReadOnly && (
                     <button
                         className="btn btn-primary"
                         onClick={() => setShowAddModal(true)}
@@ -241,7 +244,7 @@ export default function UsersTab({
                                                             🪪 Valider les papiers
                                                         </button>
                                                     )}
-                                                    {isAdmin && (
+                                                    {isAdmin && !isReadOnly && (
                                                         <button
                                                             className="btn btn-secondary"
                                                             style={{ fontSize: '13px', padding: '6px 12px' }}
@@ -251,7 +254,7 @@ export default function UsersTab({
                                                             🔑 Droits UL
                                                         </button>
                                                     )}
-                                                    {isAdmin && (
+                                                    {isAdmin && !isReadOnly && (
                                                         <button
                                                             className="btn btn-danger"
                                                             style={{ fontSize: '13px', padding: '6px 12px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}
@@ -557,6 +560,10 @@ function ManageUserULsModal({
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
+    const actorRoles = (session?.user?.roles || []) as string[];
+    const isSuper = isSuperAdmin(actorRoles);
+    const actorUlId = session?.user?.ulId || '';
+
     useEffect(() => {
         // Load user's existing UL rights
         fetch(`/api/users/${encodeURIComponent(user.email)}/ul`)
@@ -629,9 +636,13 @@ function ManageUserULsModal({
 
     // Filter available ULs for the dropdown (exclude ULs that are already selected, except for the current row)
     const getAvailableULsForDropdown = (currentRowUlId: string) => {
-        return availableULs.filter(ul => 
+        const list = availableULs.filter(ul => 
             ul.id === currentRowUlId || !uls.some(row => row.ulId === ul.id)
         );
+        if (!isSuper) {
+            return list.filter(ul => ul.id === actorUlId);
+        }
+        return list;
     };
 
     return (
@@ -666,6 +677,7 @@ function ManageUserULsModal({
                                                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
                                                     {availableRoles.map(role => {
                                                         const active = row.roles.includes(role);
+                                                        const isRowDisabled = !isSuper && row.ulId !== actorUlId;
                                                         return (
                                                             <label key={role} style={{
                                                                 display: 'flex',
@@ -676,7 +688,8 @@ function ManageUserULsModal({
                                                                 borderRadius: '100px',
                                                                 padding: '2px 8px',
                                                                 fontSize: '12px',
-                                                                cursor: 'pointer',
+                                                                cursor: isRowDisabled ? 'not-allowed' : 'pointer',
+                                                                opacity: isRowDisabled ? 0.6 : 1,
                                                                 color: active ? '#60A5FA' : 'var(--text-secondary)',
                                                                 transition: 'all 0.2s',
                                                                 userSelect: 'none'
@@ -684,7 +697,11 @@ function ManageUserULsModal({
                                                                 <input
                                                                     type="checkbox"
                                                                     checked={active}
-                                                                    onChange={() => toggleRoleInRow(originalIdx, role)}
+                                                                    onChange={() => {
+                                                                        if (isRowDisabled) return;
+                                                                        toggleRoleInRow(originalIdx, role);
+                                                                    }}
+                                                                    disabled={isRowDisabled}
                                                                     style={{ display: 'none' }}
                                                                 />
                                                                 {role}
@@ -711,9 +728,11 @@ function ManageUserULsModal({
                                         <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-secondary)' }}>
                                             🌐 Droits additionnels (Autres ULs)
                                         </div>
-                                        <button type="button" className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }} onClick={addRow}>
-                                            ➕ Ajouter des droits externes
-                                        </button>
+                                        {(isSuper || !uls.some(u => u.ulId === actorUlId)) && (
+                                            <button type="button" className="btn btn-secondary" style={{ fontSize: '12px', padding: '4px 10px' }} onClick={addRow}>
+                                                ➕ Ajouter des droits externes
+                                            </button>
+                                        )}
                                     </div>
 
                                     {uls.filter(u => !u.isHome).length === 0 ? (
@@ -724,6 +743,7 @@ function ManageUserULsModal({
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                                             {uls.map((row, idx) => {
                                                 if (row.isHome) return null;
+                                                const isRowDisabled = !isSuper && row.ulId && row.ulId !== actorUlId;
                                                 return (
                                                     <div key={idx} style={{
                                                         display: 'flex',
@@ -741,6 +761,7 @@ function ManageUserULsModal({
                                                                     className="form-input"
                                                                     value={row.ulId}
                                                                     onChange={e => updateRow(idx, 'ulId', e.target.value)}
+                                                                    disabled={!!isRowDisabled}
                                                                     required
                                                                     style={{ flex: 1, padding: '6px 10px', fontSize: '13px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
                                                                 >
@@ -751,9 +772,11 @@ function ManageUserULsModal({
                                                                         </option>
                                                                     ))}
                                                                 </select>
-                                                                <button type="button" className="btn btn-danger" style={{ padding: '6px 10px', fontSize: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }} onClick={() => removeRow(idx)}>
-                                                                    Supprimer
-                                                                </button>
+                                                                {!isRowDisabled && (
+                                                                    <button type="button" className="btn btn-danger" style={{ padding: '6px 10px', fontSize: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }} onClick={() => removeRow(idx)}>
+                                                                        Supprimer
+                                                                    </button>
+                                                                )}
                                                             </div>
 
                                                             {/* Role Selection */}
@@ -770,7 +793,8 @@ function ManageUserULsModal({
                                                                             borderRadius: '100px',
                                                                             padding: '2px 8px',
                                                                             fontSize: '12px',
-                                                                            cursor: 'pointer',
+                                                                            cursor: isRowDisabled ? 'not-allowed' : 'pointer',
+                                                                            opacity: isRowDisabled ? 0.6 : 1,
                                                                             color: active ? '#60A5FA' : 'var(--text-secondary)',
                                                                             transition: 'all 0.2s',
                                                                             userSelect: 'none'
@@ -778,7 +802,11 @@ function ManageUserULsModal({
                                                                             <input
                                                                                 type="checkbox"
                                                                                 checked={active}
-                                                                                onChange={() => toggleRoleInRow(idx, role)}
+                                                                                onChange={() => {
+                                                                                    if (isRowDisabled) return;
+                                                                                    toggleRoleInRow(idx, role);
+                                                                                }}
+                                                                                disabled={!!isRowDisabled}
                                                                                 style={{ display: 'none' }}
                                                                             />
                                                                             {role}

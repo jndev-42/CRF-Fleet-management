@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
+import { isAdminOrAbove } from '@/lib/roles';
 
 export async function POST(request: Request) {
     try {
@@ -11,7 +12,7 @@ export async function POST(request: Request) {
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
-        if (!userRoles.includes('ADMIN')) {
+        if (!isAdminOrAbove(userRoles)) {
             return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
         }
 

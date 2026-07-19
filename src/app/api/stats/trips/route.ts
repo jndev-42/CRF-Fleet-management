@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { z } from 'zod';
+import { isInactive, canAccessAdminPanel } from '@/lib/roles';
 
 const querySchema = z.object({
     dateFrom: z.string().min(1),
@@ -17,13 +18,12 @@ export async function GET(request: Request) {
 
         // Seuls les rôles actifs (non INACTIF/GUEST) peuvent accéder aux stats
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        const isInactive = roles.length === 0 || (roles.length === 1 && (roles[0] === 'INACTIF' || roles[0] === 'GUEST'));
-        if (isInactive) {
+        if (isInactive(roles)) {
             return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
         }
 
         // Seuls ADMIN et RESPO peuvent voir les trajets de tous les utilisateurs
-        const canViewAll = roles.includes('ADMIN') || roles.includes('RESPO');
+        const canViewAll = canAccessAdminPanel(roles);
         if (!canViewAll) {
             return NextResponse.json({ error: 'Interdit : accès réservé aux administrateurs et responsables' }, { status: 403 });
         }

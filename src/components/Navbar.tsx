@@ -10,6 +10,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { User } from 'next-auth';
 import { useMenuSettings, MenuVisibility } from '@/lib/contexts/MenuSettingsContext';
 import { useUL } from '@/lib/contexts/ULContext';
+import { isSuperAdmin, isAdminOrAbove, canAccessAdminPanel, isInactive } from '@/lib/roles';
 
 const isPreview = process.env.NEXT_PUBLIC_APP_ENV === 'preview';
 
@@ -19,7 +20,7 @@ type NavbarProps = {
 
 function canSeeMenu(key: string, visibility: MenuVisibility, userRoles: string[]): boolean {
     if (visibility === 'disabled') return false;
-    if (visibility === 'admin_only') return userRoles.includes('ADMIN');
+    if (visibility === 'admin_only') return isSuperAdmin(userRoles);
     return true;
 }
 
@@ -123,22 +124,22 @@ export default function Navbar({ user }: NavbarProps) {
                         </div>
                         <Link href="/" className={`nav-link${pathname === '/' ? ' active' : ''}`} data-tour="nav-dashboard" onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</Link>
                         <Link href="/vehicles" className={`nav-link${pathname === '/vehicles' ? ' active' : ''}`} data-tour="nav-vehicles" onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</Link>
-                        {!userRoles.includes('INACTIF') && canSeeMenu('stats', getVisibility('stats'), userRoles) && (
+                        {!isInactive(userRoles) && canSeeMenu('stats', getVisibility('stats'), userRoles) && (
                             <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} data-tour="nav-stats" onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
                         )}
-                        {userRoles.includes('ADMIN') && canSeeMenu('inventory', getVisibility('inventory'), userRoles) && (
+                        {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles)) && canSeeMenu('inventory', getVisibility('inventory'), userRoles) && (
                             <Link href="/inventory" className={`nav-link${pathname === '/inventory' ? ' active' : ''}`} data-tour="nav-inventory" onClick={() => setIsOpen(false)} aria-current={pathname === '/inventory' ? 'page' : undefined}>Inventaire</Link>
                         )}
-                        {(userRoles.includes('ADMIN') || userRoles.includes('CI/RPAPS')) && canSeeMenu('missions', getVisibility('missions'), userRoles) && (
+                        {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles) || userRoles.includes('CI/RPAPS')) && canSeeMenu('missions', getVisibility('missions'), userRoles) && (
                             <Link href="/missions" className={`nav-link${pathname.startsWith('/missions') ? ' active' : ''}`} data-tour="nav-missions" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/missions') ? 'page' : undefined}>Missions</Link>
                         )}
-                        {(userRoles.includes('ADMIN') || userRoles.includes('RESPO')) && (
+                        {canAccessAdminPanel(userRoles) && (
                             <Link href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} data-tour="nav-admin" onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Administration</Link>
                         )}
                         <Link href="/aide" className={`nav-link${pathname === '/aide' ? ' active' : ''}`} data-tour="aide" onClick={() => setIsOpen(false)} aria-current={pathname === '/aide' ? 'page' : undefined}>Aide</Link>
 
                         <div className="nav-actions">
-                            {(userRoles.includes('ADMIN') || userRoles.includes('RESPO')) && (
+                            {isAdminOrAbove(userRoles) && (
                                 <span data-tour="notifications"><NotificationBell /></span>
                             )}
                             <ThemeToggle />

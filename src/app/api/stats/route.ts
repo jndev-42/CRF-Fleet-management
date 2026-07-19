@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { fetchStatsData } from '@/lib/stats';
 import { z } from 'zod';
+import { isInactive } from '@/lib/roles';
 
 const querySchema = z.object({
   dateFrom: z.string().min(1),
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
     }
 
     const roles = (session.user.roles || ['INACTIF']) as string[];
-    if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
+    if (isInactive(roles)) {
       return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isAdminOrAbove } from '@/lib/roles';
 
 export async function DELETE(
     _request: Request,
@@ -13,7 +14,7 @@ export async function DELETE(
         }
 
         const roles = session.user.roles || ['INACTIF'];
-        if (!roles.includes('ADMIN')) {
+        if (!isAdminOrAbove(roles)) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 

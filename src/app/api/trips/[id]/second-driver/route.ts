@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import { isAdminOrAbove } from '@/lib/roles';
 
 const updateSecondDriverSchema = z.object({
     secondDriverId: z.string().min(1, 'L\'identifiant du 2ème conducteur est requis'),
@@ -31,7 +32,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Trajet non trouvé' }, { status: 404 });
         }
 
-        const isAdmin = session.user.roles?.includes('ADMIN');
+        const isAdmin = isAdminOrAbove(session.user.roles || []);
         const isPrimaryDriver = session.user.id === tripRes.rows[0].driverId;
 
         if (!isAdmin && !isPrimaryDriver) {

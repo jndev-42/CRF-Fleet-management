@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { canAccessAdminPanel } from '@/lib/roles';
 
 /** PATCH /api/users/[email]/validate-papers
  *
@@ -23,7 +24,7 @@ export async function PATCH(
         }
 
         const roles = session.user.roles || [];
-        const canValidate = roles.includes('ADMIN') || roles.includes('RESPO');
+        const canValidate = canAccessAdminPanel(roles);
         if (!canValidate) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }

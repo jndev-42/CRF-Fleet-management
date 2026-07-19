@@ -31,11 +31,23 @@ export async function sendPushNotification({
                 'field' in t && t.field === 'tag' && t.key.startsWith('role_') && t.value === 'true')
             .map(t => t.key.replace('role_', ''));
 
-        if (targetedRoleNames.length > 0) {
+        let expandedRoleNames: string[] = [];
+        for (const roleName of targetedRoleNames) {
+            if (roleName === 'ADMIN') {
+                expandedRoleNames.push('ADMIN', 'SUPER_ADMIN');
+            } else if (roleName === 'RESPO') {
+                expandedRoleNames.push('PRESIDENT', 'CADRE');
+            } else {
+                expandedRoleNames.push(roleName);
+            }
+        }
+        expandedRoleNames = Array.from(new Set(expandedRoleNames));
+
+        if (expandedRoleNames.length > 0) {
             let res;
             if (ulId && ulId !== 'default') {
-                const placeholders = targetedRoleNames.map(() => '?').join(',');
-                const roleConditions = targetedRoleNames.map(role => `',' || uu.roles || ',' LIKE '%,${role},%'`).join(' OR ');
+                const placeholders = expandedRoleNames.map(() => '?').join(',');
+                const roleConditions = expandedRoleNames.map(role => `',' || uu.roles || ',' LIKE '%,${role},%'`).join(' OR ');
 
                 res = await db.execute({
                     sql: `
@@ -53,10 +65,10 @@ export async function sendPushNotification({
                             ))
                           )
                     `,
-                    args: [ulId, ...targetedRoleNames]
+                    args: [ulId, ...expandedRoleNames]
                 });
             } else {
-                const placeholders = targetedRoleNames.map(() => '?').join(',');
+                const placeholders = expandedRoleNames.map(() => '?').join(',');
                 res = await db.execute({
                     sql: `
                         SELECT DISTINCT u.id 
@@ -65,7 +77,7 @@ export async function sendPushNotification({
                         JOIN "Role" r ON ur.roleId = r.id
                         WHERE r.name IN (${placeholders})
                     `,
-                    args: targetedRoleNames
+                    args: expandedRoleNames
                 });
             }
 
@@ -85,16 +97,19 @@ export async function sendPushNotification({
             await Promise.all(insertPromises);
         }
 
-        // Prefix role tags with active ulId if provided
-        const updatedTags = tags.map(tag => {
-            if ('field' in tag && tag.field === 'tag' && tag.key.startsWith('role_')) {
-                const roleName = tag.key.replace('role_', '');
-                return {
-                    ...tag,
-                    key: ulId && ulId !== 'default' ? `role_${ulId}_${roleName}` : `role_${roleName}`
-                };
+        // Map tag keys for OneSignal using the same expansion logic
+        const updatedTags: OneSignalTag[] = [];
+        expandedRoleNames.forEach((role, idx) => {
+            if (idx > 0) {
+                updatedTags.push({ operator: 'OR' });
             }
-            return tag;
+            const finalKey = ulId && ulId !== 'default' ? `role_${ulId}_${role}` : `role_${role}`;
+            updatedTags.push({
+                field: 'tag',
+                key: finalKey,
+                relation: '=',
+                value: 'true'
+            });
         });
 
         const response = await fetch('https://onesignal.com/api/v1/notifications', {

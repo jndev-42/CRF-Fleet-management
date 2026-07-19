@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
-
+import { isAdminOrAbove } from '@/lib/roles';
 const checkOutSchema = z.object({
     vehicleId: z.string().min(1),
     missionType: z.string().min(1, 'Le type de mission est requis'),
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
         // Verify Roles
         const roles = session?.user?.roles || ['INACTIF'];
-        const isAdmin = roles.includes('ADMIN');
+        const isAdmin = isAdminOrAbove(roles);
         const isCHVL = roles.includes('CHVL');
         const isCHVPSP = roles.includes('CHVPSP');
         const vehicleType = String(vehicle.type || '');

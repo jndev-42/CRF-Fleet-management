@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isAdminOrAbove, canAccessAdminPanel, isSuperAdmin } from '@/lib/roles';
 
 const ulAssignSchema = z.object({
     ulId: z.string().nullable(),        // null = retirer l'UL d'appartenance
@@ -21,7 +22,7 @@ const bulkULSchema = z.object({
 export async function GET(_request: Request, { params }: { params: Promise<{ email: string }> }) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN') && !session?.user?.roles?.includes('RESPO')) {
+        if (!canAccessAdminPanel(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
@@ -58,7 +59,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ema
 export async function PATCH(request: Request, { params }: { params: Promise<{ email: string }> }) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        const actorRoles = session?.user?.roles || [];
+        if (!isAdminOrAbove(actorRoles)) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
@@ -71,6 +73,25 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ em
         if (userRes.rows.length === 0) return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
 
         const userId = userRes.rows[0].id as string;
+
+        const isSuper = isSuperAdmin(actorRoles);
+        const actorUlId = session?.user?.ulId;
+
+        if (!isSuper) {
+            if (data.ulId !== actorUlId) {
+                return NextResponse.json({ error: "Un administrateur local ne peut gérer les rattachements que pour sa propre Unité Locale." }, { status: 403 });
+            }
+            if (data.isHome) {
+                const userHomeUlRes = await db.execute({
+                    sql: 'SELECT ulId FROM "UserUL" WHERE userId = ? AND is_home = 1',
+                    args: [userId],
+                });
+                const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
+                if (userHomeUlId && userHomeUlId !== actorUlId) {
+                    return NextResponse.json({ error: "L'utilisateur appartient déjà à une autre Unité Locale." }, { status: 403 });
+                }
+            }
+        }
 
         if (data.action === 'remove' && data.ulId) {
             await db.execute({
@@ -111,7 +132,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ em
 export async function PUT(request: Request, { params }: { params: Promise<{ email: string }> }) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        const actorRoles = session?.user?.roles || [];
+        if (!isAdminOrAbove(actorRoles)) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
@@ -125,6 +147,51 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
 
         const userId = userRes.rows[0].id as string;
 
+        const isSuper = isSuperAdmin(actorRoles);
+        const actorUlId = session?.user?.ulId;
+
+        // Fetch existing UserUL entries from database
+        const existingRes = await db.execute({
+            sql: `SELECT ulId, is_home, roles FROM "UserUL" WHERE userId = ?`,
+            args: [userId],
+        });
+        const existingMap = new Map<string, { isHome: boolean; roles: string[] }>();
+        let existingHomeUlId: string | null = null;
+        for (const row of existingRes.rows) {
+            const uId = row.ulId as string;
+            const isHome = !!row.is_home;
+            const rList = row.roles ? (row.roles as string).split(',').map(r => r.trim()).filter(Boolean) : [];
+            existingMap.set(uId, { isHome, roles: rList });
+            if (isHome) {
+                existingHomeUlId = uId;
+            }
+        }
+
+        let mergedUls: { ulId: string; isHome: boolean; roles: string[] }[] = [];
+
+        if (isSuper) {
+            mergedUls = data.uls;
+        } else {
+            if (!actorUlId) {
+                return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            }
+            // Keep all existing entries for other ULs exactly as-is
+            for (const [uId, entry] of existingMap.entries()) {
+                if (uId !== actorUlId) {
+                    mergedUls.push({ ulId: uId, isHome: entry.isHome, roles: entry.roles });
+                }
+            }
+            // Add/modify entry for actorUlId if present in payload
+            const payloadEntry = data.uls.find(item => item.ulId === actorUlId);
+            if (payloadEntry) {
+                let isHomeVal = payloadEntry.isHome;
+                if (existingHomeUlId && existingHomeUlId !== actorUlId) {
+                    isHomeVal = false; // Force false because the user belongs to another UL
+                }
+                mergedUls.push({ ulId: actorUlId, isHome: isHomeVal, roles: payloadEntry.roles });
+            }
+        }
+
         const tx = await db.transaction('write');
         try {
             // Supprimer tous les droits actuels
@@ -133,8 +200,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
                 args: [userId],
             });
 
-            // Insérer les nouveaux droits
-            for (const item of data.uls) {
+            // Insérer les nouveaux droits fusionnés
+            for (const item of mergedUls) {
                 const rolesStr = item.roles.join(',');
                 await tx.execute({
                     sql: `INSERT INTO "UserUL" (userId, ulId, is_home, roles) VALUES (?, ?, ?, ?)`,
@@ -142,7 +209,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
                 });
 
                 // Si c'est l'UL d'appartenance (home), synchroniser avec les rôles globaux (UserRole)
-                if (item.isHome) {
+                // Seulement si c'est le super admin OR si c'est la sienne (actorUlId)
+                if (item.isHome && (isSuper || item.ulId === actorUlId)) {
                     // Supprimer les rôles globaux existants
                     await tx.execute({
                         sql: `DELETE FROM "UserRole" WHERE userId = ?`,

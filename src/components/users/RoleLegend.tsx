@@ -4,16 +4,28 @@ import { useState } from 'react';
 
 const ROLE_DESCRIPTIONS = [
     {
-        key: 'ADMIN', label: 'Administrateur', color: '#ef4444',
-        bgColor: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)',
-        description: 'Accès complet en lecture et écriture. Reçoit les notifications.',
-        permissions: ['Gestion des utilisateurs', 'Statistiques & exports', 'Gestion des véhicules', 'Réservations VL et VPSP', 'Missions & inventaire', 'Notifications push', 'Paramétrage des menus'],
+        key: 'SUPER_ADMIN', label: 'Super Administrateur', color: '#dc2626',
+        bgColor: 'rgba(220, 38, 38, 0.08)', borderColor: 'rgba(220, 38, 38, 0.35)',
+        description: 'Accès complet à toutes les ULs. Seul rôle pouvant activer/désactiver les modules.',
+        permissions: ['Gestion de toutes les ULs (création/suppression)', 'Gestion des utilisateurs globale', 'Activer/désactiver les modules (Menus)', 'Statistiques & exports globaux', 'Gestion des véhicules & inventaire', 'Notifications push'],
     },
     {
-        key: 'RESPO', label: 'Responsable', color: '#f97316',
+        key: 'ADMIN', label: 'Administrateur', color: '#ef4444',
+        bgColor: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)',
+        description: 'Gestion de son UL uniquement. Ne peut pas créer ou supprimer d\'UL.',
+        permissions: ['Gestion des utilisateurs de son UL', 'Gestion des droits (limité à son UL)', 'Validation des papiers/permis', 'Modification des paramètres de son UL', 'Gestion des véhicules & inventaire', 'Notifications push'],
+    },
+    {
+        key: 'PRESIDENT', label: 'Président', color: '#f97316',
         bgColor: 'rgba(249, 115, 22, 0.08)', borderColor: 'rgba(249, 115, 22, 0.25)',
-        description: 'Responsable d\'activité. Reçoit les notifications.',
-        permissions: ['Statistiques & exports', 'Validation des réservations', 'Retour de véhicule pour autrui', 'Modification des véhicules', 'Inventaire en lecture (modification réservée à l\'admin)', 'Notifications push'],
+        description: 'Lecture seule de son UL. Peut valider les papiers des utilisateurs.',
+        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Consulter les véhicules & missions', 'Consulter l\'inventaire'],
+    },
+    {
+        key: 'CADRE', label: 'Cadre', color: '#eab308',
+        bgColor: 'rgba(234, 179, 8, 0.08)', borderColor: 'rgba(234, 179, 8, 0.25)',
+        description: 'Lecture seule de son UL. Peut valider les papiers des utilisateurs.',
+        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Consulter les véhicules & missions', 'Consulter l\'inventaire'],
     },
     {
         key: 'CI/RPAPS', label: 'CI / RPAPS', color: '#0ea5e9',

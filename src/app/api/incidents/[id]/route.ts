@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import { isAdminOrAbove } from '@/lib/roles';
 
 const updateIncidentSchema = z.object({
     type: z.enum(['ACCIDENT', 'FLASH']).optional().nullable(),
@@ -95,7 +96,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
         }
 
-        const isAdmin = session.user.roles?.includes('ADMIN');
+        const isAdmin = isAdminOrAbove(session.user.roles);
         if (check.rows[0].userId !== session.user.id && !isAdmin) {
             return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
         }
@@ -154,7 +155,7 @@ export async function DELETE(
             return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
         }
 
-        const isAdmin = session.user.roles?.includes('ADMIN');
+        const isAdmin = isAdminOrAbove(session.user.roles);
         if (check.rows[0].userId !== session.user.id && !isAdmin) {
             return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
         }

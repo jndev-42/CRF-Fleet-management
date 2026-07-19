@@ -283,9 +283,46 @@ async function createTables() {
     FOREIGN KEY (userId) REFERENCES "User"(id) ON DELETE CASCADE,
     FOREIGN KEY (ulId) REFERENCES "UniteLocale"(id) ON DELETE CASCADE
   )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "mission_reports" (
+    "id"                    TEXT PRIMARY KEY,
+    "submitted_by"          TEXT NOT NULL,
+    "submitted_at"          TEXT NOT NULL,
+    "mission_type"          TEXT NOT NULL,
+    "mission_name"          TEXT NOT NULL,
+    "mission_date"          TEXT NOT NULL,
+    "location"              TEXT NOT NULL,
+    "volunteers"            TEXT NOT NULL,
+    "pegass_ok"             INTEGER NOT NULL DEFAULT 1,
+    "vehicle_id"            TEXT,
+    "driver_id"             TEXT,
+    "victim_count"          INTEGER NOT NULL DEFAULT 0,
+    "ul18_present"          INTEGER,
+    "team_dynamics"         TEXT,
+    "all_found_place"       INTEGER,
+    "member_difficulties"   INTEGER,
+    "free_comment"          TEXT,
+    "had_acr"               INTEGER NOT NULL DEFAULT 0,
+    "had_hemorrhage"        INTEGER NOT NULL DEFAULT 0,
+    "had_complex_care"      INTEGER NOT NULL DEFAULT 0,
+    "needs_followup"        INTEGER NOT NULL DEFAULT 0,
+    "drive_folder_id"       TEXT,
+    "signed_report_drive_id" TEXT,
+    "ulId"                  TEXT
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "mission_report_supplies" (
+    "id"            TEXT PRIMARY KEY,
+    "report_id"     TEXT NOT NULL,
+    "category"      TEXT NOT NULL,
+    "item_name"     TEXT NOT NULL,
+    "quantity_used" INTEGER NOT NULL DEFAULT 0
+  )`);
 }
 
 async function truncateTables() {
+  await db.execute(`DELETE FROM "mission_report_supplies"`);
+  await db.execute(`DELETE FROM "mission_reports"`);
   // Nouveau système inventaire (ordre FK-safe)
   await db.execute(`DELETE FROM "InvTransfer"`);
   await db.execute(`DELETE FROM "InvGroupeMember"`);
@@ -408,7 +445,7 @@ export async function seedUser(overrides: Partial<{
   return u;
 }
 
-export async function seedRoles(names: string[] = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'GUEST', 'CI/RPAPS']) {
+export async function seedRoles(names: string[] = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'CADRE', 'CHVL', 'CHVPSP', 'INACTIF', 'CI/RPAPS']) {
   for (const name of names) {
     await db.execute({
       sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,

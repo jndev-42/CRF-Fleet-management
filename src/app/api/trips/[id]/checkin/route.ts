@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
-
+import { isAdminOrAbove } from '@/lib/roles';
 // Increase duration limits for Vercel Serverless Functions
 export const maxDuration = 30; // 30 seconds max duration
 
@@ -36,7 +36,7 @@ export async function PATCH(
         }
 
         const userRoles = session.user.roles || [];
-        const isAdmin = userRoles.includes('ADMIN');
+        const isAdmin = isAdminOrAbove(userRoles);
 
         // 2. Parse & validate body
         const { id } = await params;

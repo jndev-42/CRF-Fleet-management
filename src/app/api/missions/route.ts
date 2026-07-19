@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
+import { isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
 
 const supplySchema = z.object({
     category: z.enum(['SAC_PRIMAIRE', 'BRULURE', 'HEMORRHAGIE', 'KIT_DSA', 'HYGIENE', 'OXYGENE']),
@@ -55,7 +56,7 @@ export async function GET(request: Request) {
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        const canView = ALLOWED_ROLES.some(r => roles.includes(r));
+        const canView = ALLOWED_ROLES.some(r => roles.includes(r)) || isAdminOrAbove(roles) || isReadOnlyManager(roles);
         if (!canView) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
@@ -66,7 +67,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ reports: [], total: 0, page: 1, limit: 20, totalPages: 0 });
         }
 
-        const isAdmin = roles.includes('ADMIN');
+        const isManager = isAdminOrAbove(roles) || isReadOnlyManager(roles);
         const userId = session.user.id;
 
         const { searchParams } = new URL(request.url);
@@ -82,7 +83,7 @@ export async function GET(request: Request) {
         conditions.push('mr.ulId = ?');
         args.push(ulId);
 
-        if (!isAdmin) {
+        if (!isManager) {
             conditions.push('mr.submitted_by = ?');
             args.push(userId ?? null);
         }
@@ -168,7 +169,7 @@ export async function POST(request: Request) {
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        const canSubmit = ALLOWED_ROLES.some(r => roles.includes(r));
+        const canSubmit = ALLOWED_ROLES.some(r => roles.includes(r)) || isAdminOrAbove(roles);
         if (!canSubmit) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }

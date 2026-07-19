@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { deleteDriveFolder } from '@/lib/drive';
+import { isAdminOrAbove } from '@/lib/roles';
 
 export async function DELETE(
     request: Request,
@@ -9,7 +10,7 @@ export async function DELETE(
 ) {
     try {
         const session = await auth();
-        if (!session?.user?.roles?.includes('ADMIN')) {
+        if (!isAdminOrAbove(session?.user?.roles || [])) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 

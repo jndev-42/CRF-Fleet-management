@@ -5,14 +5,14 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import MissionWizard from '@/components/missions/MissionWizard';
 
-const ALLOWED_ROLES = ['ADMIN', 'CI/RPAPS'];
+import { isAdminOrAbove } from '@/lib/roles';
 
 export default function NewMissionPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
 
     const roles = (session?.user?.roles || ['GUEST']) as string[];
-    const canAccess = ALLOWED_ROLES.some(r => roles.includes(r));
+    const canAccess = isAdminOrAbove(roles) || roles.includes('CI/RPAPS');
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {

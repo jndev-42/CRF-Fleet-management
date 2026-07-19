@@ -14,7 +14,13 @@ interface UL {
     phoneNumbers?: PhoneNum[];
 }
 
-export default function ULsTab() {
+export default function ULsTab({
+    isSuperAdmin = false,
+    userUlId = ''
+}: {
+    isSuperAdmin?: boolean;
+    userUlId?: string;
+}) {
     const [uls, setUls] = useState<UL[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -170,12 +176,14 @@ export default function ULsTab() {
                     <h2 className="section-title" style={{ marginBottom: 8 }}>Unités Locales</h2>
                     <p className="page-description">Gérez les Unités Locales disponibles dans l&apos;application.</p>
                 </div>
-                <button
-                    className="btn btn-primary"
-                    onClick={() => handleOpenModal(null)}
-                >
-                    ➕ Ajouter une UL
-                </button>
+                {isSuperAdmin && (
+                    <button
+                        className="btn btn-primary"
+                        onClick={() => handleOpenModal(null)}
+                    >
+                        ➕ Ajouter une UL
+                    </button>
+                )}
             </div>
 
             {/* Liste des UL */}
@@ -184,7 +192,7 @@ export default function ULsTab() {
                     <div className="empty-state">
                         <div className="empty-state-icon">🏛️</div>
                         <div className="empty-state-title">Aucune UL configurée</div>
-                        <p>Configurez votre première Unité Locale en cliquant sur le bouton ci-dessus.</p>
+                        {isSuperAdmin && <p>Configurez votre première Unité Locale en cliquant sur le bouton ci-dessus.</p>}
                     </div>
                 ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -221,20 +229,24 @@ export default function ULsTab() {
                                     )}
                                 </div>
                                 <div style={{ display: 'flex', gap: 8, marginLeft: 16 }}>
-                                    <button
-                                        className="btn btn-secondary"
-                                        style={{ fontSize: 13 }}
-                                        onClick={() => handleOpenModal(ul)}
-                                    >
-                                        Modifier
-                                    </button>
-                                    <button
-                                        className="btn btn-danger"
-                                        style={{ fontSize: 13 }}
-                                        onClick={() => handleDelete(ul)}
-                                    >
-                                        Supprimer
-                                    </button>
+                                    {(isSuperAdmin || ul.id === userUlId) && (
+                                        <button
+                                            className="btn btn-secondary"
+                                            style={{ fontSize: 13 }}
+                                            onClick={() => handleOpenModal(ul)}
+                                        >
+                                            Modifier
+                                        </button>
+                                    )}
+                                    {isSuperAdmin && (
+                                        <button
+                                            className="btn btn-danger"
+                                            style={{ fontSize: 13 }}
+                                            onClick={() => handleDelete(ul)}
+                                        >
+                                            Supprimer
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

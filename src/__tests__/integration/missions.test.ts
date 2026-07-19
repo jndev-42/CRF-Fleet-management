@@ -28,7 +28,7 @@ const mockedAuth = vi.mocked(auth);
 // ── Sessions ──────────────────────────────────────────────────────────────────
 
 const adminSession = {
-    user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
+    user: { id: 'user-admin', email: 'admin@test.com', roles: ['SUPER_ADMIN'], ulId: 'ul-paris-18' },
 };
 
 const ciRpapsSession = {
