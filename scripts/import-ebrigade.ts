@@ -29,7 +29,13 @@ const db = createClient({ url: 'file:./dev.db' });
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function stripHtml(html: string): string {
-    return html.replace(/<[^>]+>/g, '').trim();
+    let prev = '';
+    let current = html;
+    while (current !== prev) {
+        prev = current;
+        current = current.replace(/<[^>]+>/g, '');
+    }
+    return current.trim();
 }
 
 /**
