@@ -18,7 +18,7 @@
  *   tsx scripts/dev-db.ts --reset      # destroy + remove data dir
  */
 
-import { execSync, spawnSync } from 'child_process';
+import { execSync, execFileSync, spawnSync } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 
@@ -66,19 +66,24 @@ function ensureDataDir(): void {
 function createContainer(): void {
   console.log(`[dev-db] Creating container ${CONTAINER_NAME} on port ${PORT}...`);
   ensureDataDir();
-  execSync(
-    `container run -d --name ${CONTAINER_NAME} -p ${PORT}:8080 -v ${DATA_DIR}:/var/lib/sqld ${IMAGE}`,
+  execFileSync(
+    'container',
+    ['run', '-d', '--name', CONTAINER_NAME, '-p', `${PORT}:8080`, '-v', `${DATA_DIR}:/var/lib/sqld`, IMAGE],
     { stdio: 'inherit' }
   );
 }
 
 function startContainer(): void {
   console.log(`[dev-db] Restarting stopped container ${CONTAINER_NAME}...`);
-  execSync(`container start ${CONTAINER_NAME}`, { stdio: 'inherit' });
+  execFileSync('container', ['start', CONTAINER_NAME], { stdio: 'inherit' });
 }
 
 function removeContainer(): void {
-  runCmd(`container rm -f ${CONTAINER_NAME} 2>/dev/null`);
+  try {
+    execFileSync('container', ['rm', '-f', CONTAINER_NAME], { stdio: 'ignore' });
+  } catch {
+    // ignore if container doesn't exist
+  }
 }
 
 async function waitForReady(): Promise<void> {
