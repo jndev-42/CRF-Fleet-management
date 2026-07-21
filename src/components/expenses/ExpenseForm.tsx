@@ -14,6 +14,8 @@ interface ExpenseFormProps {
     onSuccess: () => void;
     initialData?: {
         id: string;
+        imputation?: 'DLUS' | 'DLAS' | 'UL' | 'Autre';
+        customImputation?: string | null;
         requestRefund: boolean;
         noReceiptDeclaration: boolean;
         driveFolderId: string | null;
@@ -27,12 +29,19 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
             ? initialData.items.map(item => ({ label: item.label, amount: item.amount.toString() }))
             : [{ label: '', amount: '' }]
     );
+    const [imputation, setImputation] = useState<'DLUS' | 'DLAS' | 'UL' | 'Autre'>(
+        initialData?.imputation || 'DLUS'
+    );
+    const [customImputation, setCustomImputation] = useState<string>(
+        initialData?.customImputation || ''
+    );
     const [requestRefund, setRequestRefund] = useState(
         initialData ? initialData.requestRefund : true
     );
     const [certified, setCertified] = useState(
         initialData ? initialData.noReceiptDeclaration : false
     );
+    const [submitCertified, setSubmitCertified] = useState(false);
     const [photos, setPhotos] = useState<File[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -80,6 +89,16 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
             return;
         }
 
+        if (imputation === 'Autre' && !customImputation.trim()) {
+            setError('Veuillez spécifier l\'imputation dans le champ texte dédié.');
+            return;
+        }
+
+        if (submitStatus === 'soumis' && !submitCertified) {
+            setError('Veuillez cocher la case certifiant l\'exactitude des informations et signant électroniquement la demande.');
+            return;
+        }
+
         if (requestRefund) {
             if (photos.length === 0 && !certified && !initialData?.driveFolderId) {
                 setError('Veuillez soit ajouter au moins un justificatif (photo), soit cocher la déclaration sur l\'honneur.');
@@ -121,6 +140,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 const payload = {
                     action: submitStatus === 'soumis' ? 'submit' : 'update',
                     status: submitStatus,
+                    imputation: imputation,
+                    customImputation: imputation === 'Autre' ? customImputation.trim() : null,
                     requestRefund: requestRefund,
                     noReceiptDeclaration: requestRefund && photos.length === 0 && !driveFolderId ? certified : false,
                     driveFolderId: driveFolderId,
@@ -143,6 +164,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
             } else {
                 const payload = {
                     status: submitStatus,
+                    imputation: imputation,
+                    customImputation: imputation === 'Autre' ? customImputation.trim() : null,
                     requestRefund: requestRefund,
                     noReceiptDeclaration: requestRefund && photos.length === 0 ? certified : false,
                     driveFolderId: driveFolderId,
@@ -211,6 +234,37 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     <div>{error}</div>
                 </div>
             )}
+
+            {/* Imputation de la dépense */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label className="form-label" style={{ fontWeight: 600, margin: 0 }}>Imputation de la dépense</label>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <select
+                        className="form-input"
+                        style={{ flex: 1 }}
+                        value={imputation}
+                        onChange={(e) => setImputation(e.target.value as 'DLUS' | 'DLAS' | 'UL' | 'Autre')}
+                        disabled={loading}
+                    >
+                        <option value="DLUS">DLUS</option>
+                        <option value="DLAS">DLAS</option>
+                        <option value="UL">UL</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                    {imputation === 'Autre' && (
+                        <input
+                            type="text"
+                            className="form-input"
+                            style={{ flex: 1.5 }}
+                            placeholder="Précisez l'imputation..."
+                            value={customImputation}
+                            onChange={(e) => setCustomImputation(e.target.value)}
+                            disabled={loading}
+                            required
+                        />
+                    )}
+                </div>
+            </div>
 
             {/* Dépenses */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -371,6 +425,32 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     </div>
                 )}
             </div>
+
+            {/* Signature électronique obligatoire pour la soumission */}
+            <label style={{
+                display: 'flex',
+                gap: '10px',
+                alignItems: 'flex-start',
+                padding: '12px 14px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                fontSize: '0.8125rem',
+                color: 'var(--text-primary)',
+                fontWeight: 500
+            }}>
+                <input
+                    type="checkbox"
+                    checked={submitCertified}
+                    onChange={(e) => setSubmitCertified(e.target.checked)}
+                    disabled={loading}
+                    style={{ marginTop: '2px' }}
+                />
+                <span>
+                    {"Je certifie l'exactitude des informations ci-dessus et signe electroniquement cette demande"}
+                </span>
+            </label>
 
             {/* Actions */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>

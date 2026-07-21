@@ -18,8 +18,14 @@ const ROLE_DESCRIPTIONS = [
     {
         key: 'PRESIDENT', label: 'Président', color: '#f97316',
         bgColor: 'rgba(249, 115, 22, 0.08)', borderColor: 'rgba(249, 115, 22, 0.25)',
-        description: 'Lecture seule de son UL. Peut valider les papiers des utilisateurs.',
-        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Consulter les véhicules & missions', 'Consulter l\'inventaire'],
+        description: 'Lecture seule de son UL. Peut valider les papiers et les notes de frais.',
+        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Validation et refus des notes de frais', 'Consulter les véhicules & missions', 'Consulter l\'inventaire'],
+    },
+    {
+        key: 'TRESORIER', label: 'Trésorier', color: '#10b981',
+        bgColor: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)',
+        description: 'Gestion de la trésorerie et paiement des notes de frais.',
+        permissions: ['Consultation des notes de frais en attente de paiement', 'Indiquer les notes de frais comme payées'],
     },
     {
         key: 'CADRE', label: 'Cadre', color: '#eab308',

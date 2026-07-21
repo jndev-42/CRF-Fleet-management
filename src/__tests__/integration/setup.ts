@@ -297,6 +297,8 @@ async function createTables() {
     userId                 TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
     submittedAt            TEXT NOT NULL,
     status                 TEXT NOT NULL DEFAULT 'soumis',
+    imputation             TEXT NOT NULL DEFAULT 'DLUS',
+    customImputation       TEXT,
     requestRefund          INTEGER NOT NULL DEFAULT 1,
     noReceiptDeclaration   INTEGER NOT NULL DEFAULT 0,
     driveFolderId          TEXT,
@@ -305,6 +307,11 @@ async function createTables() {
     ulId                   TEXT NOT NULL DEFAULT 'ul-paris-18',
     validatedAt            TEXT,
     validatedBy            TEXT REFERENCES "User"(id) ON DELETE SET NULL,
+    rejectionComment       TEXT,
+    rejectedAt             TEXT,
+    rejectedBy             TEXT REFERENCES "User"(id) ON DELETE SET NULL,
+    paidAt                 TEXT,
+    paidBy                 TEXT REFERENCES "User"(id) ON DELETE SET NULL,
     createdAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);

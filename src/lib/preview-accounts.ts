@@ -33,6 +33,14 @@ export const PREVIEW_ACCOUNTS = [
         label: 'Président',
     },
     {
+        key: 'preview-tresorier',
+        email: 'preview-tresorier@preview.local',
+        name: 'Trésorier Preview',
+        badge: 'TRESORIER',
+        color: '#10b981',
+        label: 'Trésorier',
+    },
+    {
         key: 'preview-cadre',
         email: 'preview-cadre@preview.local',
         name: 'Cadre Preview',

@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.4.0] — 21 juillet 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Imputation des dépenses (Notes de frais)** — Sélection de l'imputation de la dépense (`DLUS`, `DLAS`, `UL`, `Autre`) avec saisie libre en cas de choix "Autre".
+- **Refus de la note de frais avec commentaire** — Les valideurs (`SUPER_ADMIN` ou `PRESIDENT`) peuvent refuser une note soumise en joignant obligatoirement un commentaire explicatif visible par l'utilisateur.
+- **Rôle Trésorier (`TRESORIER`) & Workflow de paiement** — Ajout du rôle centralisé `TRESORIER` avec accès dédié aux notes de frais en attente de paiement et possibilité d'indiquer les notes comme payées (`traité`).
+- **Signature électronique des demandes et validations** — Case à cocher obligatoire pour le demandeur lors de la soumission et pour le valideur lors de la validation (`Je certifie l'exactitude des informations ci-dessus et signe electroniquement cette demande` / `Je valide et signe electroniquement cette demande`).
+
 ## [4.3.0] — 19 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
