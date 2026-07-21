@@ -312,6 +312,9 @@ async function createTables() {
     rejectedBy             TEXT REFERENCES "User"(id) ON DELETE SET NULL,
     paidAt                 TEXT,
     paidBy                 TEXT REFERENCES "User"(id) ON DELETE SET NULL,
+    userSignature          TEXT,
+    userFunction           TEXT,
+    validatorSignature     TEXT,
     createdAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);

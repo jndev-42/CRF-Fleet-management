@@ -10,6 +10,8 @@ const expenseReportSchema = z.object({
     customImputation: z.string().optional().nullable(),
     requestRefund: z.boolean(),
     noReceiptDeclaration: z.boolean(),
+    userSignature: z.union([z.string(), z.any()]).optional().nullable(),
+    userFunction: z.string().optional().nullable(),
     driveFolderId: z.string().optional().nullable(),
     items: z.array(z.object({
         label: z.string().min(1, 'Le libellé est requis'),
@@ -144,6 +146,9 @@ export async function GET(request: Request) {
                 paidAt: (row.paidAt as string) || null,
                 paidBy: (row.paidBy as string) || null,
                 payerName: (row.payerName as string) || null,
+                userSignature: (row.userSignature as string) || null,
+                userFunction: (row.userFunction as string) || null,
+                validatorSignature: (row.validatorSignature as string) || null,
                 createdAt: row.createdAt,
                 updatedAt: row.updatedAt,
             };
@@ -177,12 +182,16 @@ export async function POST(request: Request) {
         const imputation = data.imputation || 'DLUS';
         const customImputation = imputation === 'Autre' ? (data.customImputation || null) : null;
 
+        const userSigStr = typeof data.userSignature === 'object' && data.userSignature !== null
+            ? JSON.stringify(data.userSignature)
+            : (data.userSignature || null);
+
         await db.execute({
             sql: `
                 INSERT INTO "ExpenseReport" (
                     id, userId, submittedAt, status, imputation, customImputation, requestRefund, noReceiptDeclaration,
-                    driveFolderId, total, items, ulId, createdAt, updatedAt
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    userSignature, userFunction, driveFolderId, total, items, ulId, createdAt, updatedAt
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `,
             args: [
                 id,
@@ -193,6 +202,8 @@ export async function POST(request: Request) {
                 customImputation,
                 data.requestRefund ? 1 : 0,
                 data.noReceiptDeclaration ? 1 : 0,
+                userSigStr,
+                data.userFunction || null,
                 data.driveFolderId || null,
                 total,
                 JSON.stringify(data.items),

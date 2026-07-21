@@ -5,6 +5,7 @@
 ### ✨ Nouvelles fonctionnalités
 
 - **Imputation des dépenses (Notes de frais)** — Sélection de l'imputation de la dépense (`DLUS`, `DLAS`, `UL`, `Autre`) avec saisie libre en cas de choix "Autre".
+- **PDF Note de frais conforme (C2 INTERNE) & Signatures Yousign** — Génération du PDF officiel de note de frais respectant le modèle C2 INTERNE avec signatures électronique et manuscrite style Yousign du demandeur et du responsable, et tampon officiel de l'UL.
 - **Refus de la note de frais avec commentaire** — Les valideurs (`SUPER_ADMIN` ou `PRESIDENT`) peuvent refuser une note soumise en joignant obligatoirement un commentaire explicatif visible par l'utilisateur.
 - **Rôle Trésorier (`TRESORIER`) & Workflow de paiement** — Ajout du rôle centralisé `TRESORIER` avec accès dédié aux notes de frais en attente de paiement et possibilité d'indiquer les notes comme payées (`traité`).
 - **Pagination et tri interactif du tableau de notes de frais** — Tri ascendant/descendant interactif sur toutes les colonnes (`Collaborateur`, `Date`, `Imputation`, `Description`, `Total`, `Remboursement`, `Statut`) et barre de pagination configurable (5, 10, 25, 50 par page) avec navigation par boutons.
