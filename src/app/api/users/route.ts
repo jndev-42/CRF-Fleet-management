@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, canAccessAdminPanel, resolveRoles, isSuperAdmin } from '@/lib/roles';
+import { isAdminOrAbove, canAccessAdminPanel, resolveRoles, isSuperAdmin, MANAGEABLE_ROLES } from '@/lib/roles';
 
 /** Zod schema for creating a new user */
 const createUserSchema = z.object({
@@ -25,6 +25,14 @@ export async function GET(request: Request) {
         const canView = canAccessAdminPanel(roles);
         if (!canView) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+        }
+
+        // Auto-seed missing system roles (such as TRESORIER) into the "Role" table
+        for (const roleName of MANAGEABLE_ROLES) {
+            await db.execute({
+                sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
+                args: [`role-${roleName.toLowerCase().replace('/', '-')}`, roleName],
+            });
         }
 
         const { searchParams } = new URL(request.url);
@@ -93,8 +101,9 @@ export async function GET(request: Request) {
 
         const rolesRes = await db.execute(`SELECT name FROM "Role"`);
         const isSuper = isSuperAdmin(roles);
-        const availableRoles = rolesRes.rows
-            .map(r => r.name as string)
+        const dbRoles = new Set(rolesRes.rows.map(r => r.name as string));
+        const availableRoles = MANAGEABLE_ROLES
+            .filter(roleName => dbRoles.has(roleName))
             .filter(roleName => isSuper || roleName !== 'SUPER_ADMIN');
 
         const users = usersRes.rows.map(row => ({

@@ -500,7 +500,7 @@ export async function seedUser(overrides: Partial<{
   return u;
 }
 
-export async function seedRoles(names: string[] = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'CADRE', 'CHVL', 'CHVPSP', 'INACTIF', 'CI/RPAPS']) {
+export async function seedRoles(names: string[] = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'CADRE', 'CHVL', 'CHVPSP', 'INACTIF', 'CI/RPAPS']) {
   for (const name of names) {
     await db.execute({
       sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,

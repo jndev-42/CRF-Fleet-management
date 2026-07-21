@@ -119,7 +119,7 @@ async function main() {
     });
 
     // Seed des rôles
-    const roles = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'INACTIF', 'SECOURISTE', 'CI/RPAPS'];
+    const roles = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'CADRE', 'CHVPSP', 'CHVL', 'CI/RPAPS', 'INACTIF'];
     for (const role of roles) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
