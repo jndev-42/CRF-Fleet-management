@@ -145,15 +145,22 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
 
         if (email.toLowerCase().endsWith("@croix-rouge.fr")) {
             try {
+                const normalizedEmail = email.toLowerCase();
                 const resUser = await db.execute({
                     sql: 'SELECT id FROM "User" WHERE email = ?',
-                    args: [email],
+                    args: [normalizedEmail],
                 });
                 if (resUser.rows.length === 0) {
-                    return "/login?error=AccessDenied";
+                    const newUserId = crypto.randomUUID();
+                    const name = user?.name || profile?.name || normalizedEmail.split('@')[0];
+                    await db.execute({
+                        sql: 'INSERT INTO "User" (id, email, name) VALUES (?, ?, ?)',
+                        args: [newUserId, normalizedEmail, name],
+                    });
                 }
             } catch (e) {
-                console.error("Failed to verify user:", e);
+                console.error("Failed to verify or auto-create user:", e);
+                return "/login?error=AccessDenied";
             }
             return true;
         }

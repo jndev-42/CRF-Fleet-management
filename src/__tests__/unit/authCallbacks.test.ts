@@ -164,4 +164,82 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.user.roles).toContain('CHVL');
         });
     });
+
+    describe('signIn callback — Auto-création de compte', () => {
+        it('should auto-create a user in DB if email is @croix-rouge.fr and user does not exist', async () => {
+            const user = { email: 'nouveau.benevole@croix-rouge.fr', name: 'Nouveau Bénévoles' };
+            const account = { provider: 'google' };
+
+            // Mock user query returning no rows (user does not exist)
+            mockExecute.mockResolvedValueOnce({ rows: [] }); // SELECT
+            mockExecute.mockResolvedValueOnce({ rows: [] }); // INSERT
+
+            const result = await authCallbacks.signIn!({
+                user: user as unknown as Parameters<NonNullable<typeof authCallbacks.signIn>>[0]['user'],
+                account: account as unknown as Parameters<NonNullable<typeof authCallbacks.signIn>>[0]['account'],
+                profile: undefined,
+                email: undefined,
+                credentials: undefined,
+            });
+
+            expect(result).toBe(true);
+            expect(mockExecute).toHaveBeenCalledTimes(2);
+            expect(mockExecute.mock.calls[0][0].sql).toContain('SELECT id FROM "User" WHERE email = ?');
+            expect(mockExecute.mock.calls[0][0].args).toEqual(['nouveau.benevole@croix-rouge.fr']);
+            expect(mockExecute.mock.calls[1][0].sql).toContain('INSERT INTO "User" (id, email, name)');
+            expect(mockExecute.mock.calls[1][0].args[1]).toBe('nouveau.benevole@croix-rouge.fr');
+            expect(mockExecute.mock.calls[1][0].args[2]).toBe('Nouveau Bénévoles');
+        });
+
+        it('should allow sign in without inserting if user already exists', async () => {
+            const user = { email: 'existant@croix-rouge.fr', name: 'User Existant' };
+            const account = { provider: 'google' };
+
+            // Mock user query returning existing user row
+            mockExecute.mockResolvedValueOnce({ rows: [{ id: 'existing-id' }] });
+
+            const result = await authCallbacks.signIn!({
+                user: user as unknown as Parameters<NonNullable<typeof authCallbacks.signIn>>[0]['user'],
+                account: account as unknown as Parameters<NonNullable<typeof authCallbacks.signIn>>[0]['account'],
+                profile: undefined,
+                email: undefined,
+                credentials: undefined,
+            });
+
+            expect(result).toBe(true);
+            expect(mockExecute).toHaveBeenCalledTimes(1);
+            expect(mockExecute.mock.calls[0][0].sql).toContain('SELECT id FROM "User" WHERE email = ?');
+        });
+
+        it('should deny sign in if email is not @croix-rouge.fr', async () => {
+            const user = { email: 'externe@gmail.com', name: 'Externe' };
+            const account = { provider: 'google' };
+
+            const result = await authCallbacks.signIn!({
+                user: user as unknown as Parameters<NonNullable<typeof authCallbacks.signIn>>[0]['user'],
+                account: account as unknown as Parameters<NonNullable<typeof authCallbacks.signIn>>[0]['account'],
+                profile: undefined,
+                email: undefined,
+                credentials: undefined,
+            });
+
+            expect(result).toBe('/login?error=AccessDenied');
+            expect(mockExecute).not.toHaveBeenCalled();
+        });
+
+        it('should allow dev-credentials without checking email domain or DB', async () => {
+            const account = { provider: 'dev-credentials' };
+
+            const result = await authCallbacks.signIn!({
+                user: { email: 'admin@dev.local' } as unknown as Parameters<NonNullable<typeof authCallbacks.signIn>>[0]['user'],
+                account: account as unknown as Parameters<NonNullable<typeof authCallbacks.signIn>>[0]['account'],
+                profile: undefined,
+                email: undefined,
+                credentials: undefined,
+            });
+
+            expect(result).toBe(true);
+            expect(mockExecute).not.toHaveBeenCalled();
+        });
+    });
 });
