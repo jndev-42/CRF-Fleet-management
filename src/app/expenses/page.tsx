@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send, Edit, XCircle, DollarSign } from 'lucide-react';
+import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send, Edit, XCircle, DollarSign, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
 
 interface ExpenseReport {
@@ -106,6 +106,98 @@ export default function ExpensesPage() {
 
     const [validatingReport, setValidatingReport] = useState<ExpenseReport | null>(null);
     const [validatorSigned, setValidatorSigned] = useState(false);
+
+    // Sorting state
+    type SortField = 'userName' | 'date' | 'imputation' | 'description' | 'total' | 'requestRefund' | 'status';
+    type SortOrder = 'asc' | 'desc';
+    const [sortField, setSortField] = useState<SortField>('date');
+    const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+    // Pagination state
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+
+    const handleSort = (field: SortField) => {
+        if (sortField === field) {
+            setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortField(field);
+            setSortOrder('asc');
+        }
+        setPage(1);
+    };
+
+    const sortedReports = useMemo(() => {
+        return [...reports].sort((a, b) => {
+            let valA: string | number = '';
+            let valB: string | number = '';
+
+            switch (sortField) {
+                case 'userName':
+                    valA = (a.userName || '').toLowerCase();
+                    valB = (b.userName || '').toLowerCase();
+                    break;
+                case 'date':
+                    valA = new Date(a.submittedAt || a.createdAt).getTime();
+                    valB = new Date(b.submittedAt || b.createdAt).getTime();
+                    break;
+                case 'imputation':
+                    valA = ((a.imputation === 'Autre' ? a.customImputation : a.imputation) || '').toLowerCase();
+                    valB = ((b.imputation === 'Autre' ? b.customImputation : b.imputation) || '').toLowerCase();
+                    break;
+                case 'description':
+                    valA = (a.items.map(i => i.label).join(', ')).toLowerCase();
+                    valB = (b.items.map(i => i.label).join(', ')).toLowerCase();
+                    break;
+                case 'total':
+                    valA = a.total;
+                    valB = b.total;
+                    break;
+                case 'requestRefund':
+                    valA = a.requestRefund ? 1 : 0;
+                    valB = b.requestRefund ? 1 : 0;
+                    break;
+                case 'status':
+                    valA = (a.status || '').toLowerCase();
+                    valB = (b.status || '').toLowerCase();
+                    break;
+            }
+
+            if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+            if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [reports, sortField, sortOrder]);
+
+    const totalPages = Math.ceil(sortedReports.length / pageSize) || 1;
+    const paginatedReports = useMemo(() => {
+        const start = (page - 1) * pageSize;
+        return sortedReports.slice(start, start + pageSize);
+    }, [sortedReports, page, pageSize]);
+
+    const renderSortHeader = (label: string, field: SortField) => {
+        const isActive = sortField === field;
+        return (
+            <th
+                onClick={() => handleSort(field)}
+                style={{
+                    padding: '12px 16px',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    whiteSpace: 'nowrap'
+                }}
+            >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <span>{label}</span>
+                    {isActive ? (
+                        sortOrder === 'asc' ? <ArrowUp size={14} color="var(--red-primary, #ef4444)" /> : <ArrowDown size={14} color="var(--red-primary, #ef4444)" />
+                    ) : (
+                        <ArrowUpDown size={13} style={{ opacity: 0.4 }} />
+                    )}
+                </div>
+            </th>
+        );
+    };
 
     const openValidateModal = (report: ExpenseReport) => {
         setValidatingReport(report);
@@ -459,22 +551,23 @@ export default function ExpensesPage() {
                                 </p>
                             </div>
                         ) : (
-                            <div style={{ overflowX: 'auto' }}>
+                            <>
+                                <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                            {(isManager || isTresorier) && <th style={{ padding: '12px 16px' }}>Collaborateur</th>}
-                                            <th style={{ padding: '12px 16px' }}>Date</th>
-                                            <th style={{ padding: '12px 16px' }}>Imputation</th>
-                                            <th style={{ padding: '12px 16px' }}>Description</th>
-                                            <th style={{ padding: '12px 16px' }}>Total</th>
-                                            <th style={{ padding: '12px 16px' }}>Remboursement</th>
-                                            <th style={{ padding: '12px 16px' }}>Statut</th>
+                                            {(isManager || isTresorier) && renderSortHeader('Collaborateur', 'userName')}
+                                            {renderSortHeader('Date', 'date')}
+                                            {renderSortHeader('Imputation', 'imputation')}
+                                            {renderSortHeader('Description', 'description')}
+                                            {renderSortHeader('Total', 'total')}
+                                            {renderSortHeader('Remboursement', 'requestRefund')}
+                                            {renderSortHeader('Statut', 'status')}
                                             <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {reports.map((report) => (
+                                        {paginatedReports.map((report) => (
                                             <tr
                                                 key={report.id}
                                                 style={{
@@ -592,8 +685,79 @@ export default function ExpensesPage() {
                                     </tbody>
                                 </table>
                             </div>
-                        )}
-                    </div>
+
+                            {/* Pagination Bar */}
+                            {sortedReports.length > 0 && (
+                                <div style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    justify: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '12px 16px',
+                                    borderTop: '1px solid var(--border-primary)',
+                                    background: 'var(--bg-secondary)',
+                                    fontSize: '0.8125rem',
+                                    color: 'var(--text-secondary)',
+                                    gap: '12px'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                        <span>
+                                            Affichage de {Math.min((page - 1) * pageSize + 1, sortedReports.length)} à {Math.min(page * pageSize, sortedReports.length)} sur {sortedReports.length} notes
+                                        </span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span>Afficher :</span>
+                                            <select
+                                                value={pageSize}
+                                                onChange={(e) => {
+                                                    setPageSize(Number(e.target.value));
+                                                    setPage(1);
+                                                }}
+                                                style={{
+                                                    padding: '4px 8px',
+                                                    borderRadius: 'var(--radius-sm)',
+                                                    border: '1px solid var(--border-primary)',
+                                                    background: 'var(--bg-primary)',
+                                                    color: 'var(--text-primary)',
+                                                    fontSize: '0.8125rem',
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                <option value={5}>5</option>
+                                                <option value={10}>10</option>
+                                                <option value={25}>25</option>
+                                                <option value={50}>50</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <button
+                                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                                            disabled={page === 1}
+                                            className="btn btn-secondary"
+                                            style={{ padding: '4px 8px', opacity: page === 1 ? 0.5 : 1 }}
+                                            title="Page précédente"
+                                        >
+                                            <ChevronLeft size={16} />
+                                        </button>
+                                        <span style={{ fontWeight: 600, color: 'var(--text-primary)', padding: '0 4px' }}>
+                                            Page {page} sur {totalPages}
+                                        </span>
+                                        <button
+                                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={page >= totalPages}
+                                            className="btn btn-secondary"
+                                            style={{ padding: '4px 8px', opacity: page >= totalPages ? 0.5 : 1 }}
+                                            title="Page suivante"
+                                        >
+                                            <ChevronRight size={16} />
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
 
                     {/* Detail Sidebar */}
                     {selectedReport && (

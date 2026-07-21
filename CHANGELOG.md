@@ -7,7 +7,7 @@
 - **Imputation des dépenses (Notes de frais)** — Sélection de l'imputation de la dépense (`DLUS`, `DLAS`, `UL`, `Autre`) avec saisie libre en cas de choix "Autre".
 - **Refus de la note de frais avec commentaire** — Les valideurs (`SUPER_ADMIN` ou `PRESIDENT`) peuvent refuser une note soumise en joignant obligatoirement un commentaire explicatif visible par l'utilisateur.
 - **Rôle Trésorier (`TRESORIER`) & Workflow de paiement** — Ajout du rôle centralisé `TRESORIER` avec accès dédié aux notes de frais en attente de paiement et possibilité d'indiquer les notes comme payées (`traité`).
-- **Toggle d'affichage et filtres pour décideurs & trésoriers** — Ajout d'un sélecteur de vue pour `SUPER_ADMIN`, `PRESIDENT` et `TRESORIER` permettant de basculer entre *"Mes notes de frais"* et *"Notes à traiter / en attente de paiement"*, avec option pour afficher également l'historique complet des notes déjà traitées.
+- **Pagination et tri interactif du tableau de notes de frais** — Tri ascendant/descendant interactif sur toutes les colonnes (`Collaborateur`, `Date`, `Imputation`, `Description`, `Total`, `Remboursement`, `Statut`) et barre de pagination configurable (5, 10, 25, 50 par page) avec navigation par boutons.
 
 ## [4.3.0] — 19 juillet 2026
 
