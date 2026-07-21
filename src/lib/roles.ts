@@ -11,6 +11,7 @@ export const ROLES = {
     SUPER_ADMIN: 'SUPER_ADMIN',
     ADMIN:       'ADMIN',
     PRESIDENT:   'PRESIDENT',
+    TRESORIER:   'TRESORIER',
     CADRE:       'CADRE',
     CHVPSP:      'CHVPSP',
     CHVL:        'CHVL',
@@ -25,6 +26,7 @@ export const MANAGEABLE_ROLES: Role[] = [
     ROLES.SUPER_ADMIN,
     ROLES.ADMIN,
     ROLES.PRESIDENT,
+    ROLES.TRESORIER,
     ROLES.CADRE,
     ROLES.CHVPSP,
     ROLES.CHVL,
@@ -36,6 +38,7 @@ export const ROLE_LABELS: Record<Role, string> = {
     [ROLES.SUPER_ADMIN]: 'Super Administrateur',
     [ROLES.ADMIN]:       'Administrateur',
     [ROLES.PRESIDENT]:   'Président',
+    [ROLES.TRESORIER]:   'Trésorier',
     [ROLES.CADRE]:       'Cadre',
     [ROLES.CHVPSP]:      'Chauffeur VPSP',
     [ROLES.CHVL]:        'Chauffeur VL',
@@ -58,6 +61,11 @@ export function isAdmin(roles: string[]): boolean {
 /** Super Admin ou Admin : peut tout faire dans son périmètre */
 export function isAdminOrAbove(roles: string[]): boolean {
     return isSuperAdmin(roles) || isAdmin(roles);
+}
+
+/** Trésorier : accès aux notes de frais en attente de paiement */
+export function isTresorier(roles: string[]): boolean {
+    return roles.includes(ROLES.TRESORIER);
 }
 
 /** Président ou Cadre : accès en lecture seule dans leur UL */

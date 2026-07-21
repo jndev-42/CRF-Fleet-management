@@ -6,6 +6,8 @@ import crypto from 'crypto';
 
 const expenseReportSchema = z.object({
     status: z.enum(['brouillon', 'soumis']),
+    imputation: z.enum(['DLUS', 'DLAS', 'UL', 'Autre']).optional().default('DLUS'),
+    customImputation: z.string().optional().nullable(),
     requestRefund: z.boolean(),
     noReceiptDeclaration: z.boolean(),
     driveFolderId: z.string().optional().nullable(),
@@ -24,6 +26,7 @@ export async function GET() {
 
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
+        const isTresorier = roles.includes('TRESORIER');
         const ulId = session.user.ulId || 'ul-paris-18';
         const userId = session.user.id;
 
@@ -31,22 +34,40 @@ export async function GET() {
         if (isManager) {
             result = await db.execute({
                 sql: `
-                    SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName
+                    SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
                     FROM "ExpenseReport" er
                     JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
+                    LEFT JOIN "User" rej ON rej.id = er.rejectedBy
+                    LEFT JOIN "User" pay ON pay.id = er.paidBy
                     WHERE er.ulId = ?
                     ORDER BY er.submittedAt DESC, er.createdAt DESC
                 `,
                 args: [ulId],
             });
-        } else {
+        } else if (isTresorier) {
             result = await db.execute({
                 sql: `
-                    SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName
+                    SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
                     FROM "ExpenseReport" er
                     JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
+                    LEFT JOIN "User" rej ON rej.id = er.rejectedBy
+                    LEFT JOIN "User" pay ON pay.id = er.paidBy
+                    WHERE (er.ulId = ? AND er.status = 'en_attente_paiement') OR er.userId = ?
+                    ORDER BY er.submittedAt DESC, er.createdAt DESC
+                `,
+                args: [ulId, userId],
+            });
+        } else {
+            result = await db.execute({
+                sql: `
+                    SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
+                    FROM "ExpenseReport" er
+                    JOIN "User" u ON u.id = er.userId
+                    LEFT JOIN "User" val ON val.id = er.validatedBy
+                    LEFT JOIN "User" rej ON rej.id = er.rejectedBy
+                    LEFT JOIN "User" pay ON pay.id = er.paidBy
                     WHERE er.userId = ?
                     ORDER BY er.createdAt DESC
                 `,
@@ -69,6 +90,8 @@ export async function GET() {
                 userEmail: row.userEmail,
                 submittedAt: row.submittedAt,
                 status: row.status,
+                imputation: (row.imputation as string) || 'DLUS',
+                customImputation: (row.customImputation as string) || null,
                 requestRefund: row.requestRefund === 1,
                 noReceiptDeclaration: row.noReceiptDeclaration === 1,
                 driveFolderId: row.driveFolderId,
@@ -78,6 +101,13 @@ export async function GET() {
                 validatedAt: row.validatedAt,
                 validatedBy: row.validatedBy,
                 validatorName: row.validatorName,
+                rejectionComment: (row.rejectionComment as string) || null,
+                rejectedAt: (row.rejectedAt as string) || null,
+                rejectedBy: (row.rejectedBy as string) || null,
+                rejectorName: (row.rejectorName as string) || null,
+                paidAt: (row.paidAt as string) || null,
+                paidBy: (row.paidBy as string) || null,
+                payerName: (row.payerName as string) || null,
                 createdAt: row.createdAt,
                 updatedAt: row.updatedAt,
             };
@@ -108,19 +138,23 @@ export async function POST(request: Request) {
         const id = crypto.randomUUID();
         const now = new Date().toISOString();
         const ulId = session.user.ulId || 'ul-paris-18';
+        const imputation = data.imputation || 'DLUS';
+        const customImputation = imputation === 'Autre' ? (data.customImputation || null) : null;
 
         await db.execute({
             sql: `
                 INSERT INTO "ExpenseReport" (
-                    id, userId, submittedAt, status, requestRefund, noReceiptDeclaration,
+                    id, userId, submittedAt, status, imputation, customImputation, requestRefund, noReceiptDeclaration,
                     driveFolderId, total, items, ulId, createdAt, updatedAt
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `,
             args: [
                 id,
                 session.user.id,
                 now,
                 data.status,
+                imputation,
+                customImputation,
                 data.requestRefund ? 1 : 0,
                 data.noReceiptDeclaration ? 1 : 0,
                 data.driveFolderId || null,

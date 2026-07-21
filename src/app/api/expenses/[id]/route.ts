@@ -4,8 +4,11 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 
 const updateExpenseReportSchema = z.object({
-    action: z.enum(['update', 'submit', 'validate']),
-    status: z.enum(['brouillon', 'soumis', 'validé']).optional(),
+    action: z.enum(['update', 'submit', 'validate', 'reject', 'pay']),
+    status: z.enum(['brouillon', 'soumis', 'en_attente_paiement', 'traité', 'refusé']).optional(),
+    imputation: z.enum(['DLUS', 'DLAS', 'UL', 'Autre']).optional(),
+    customImputation: z.string().optional().nullable(),
+    rejectionComment: z.string().optional().nullable(),
     requestRefund: z.boolean().optional(),
     noReceiptDeclaration: z.boolean().optional(),
     driveFolderId: z.string().optional().nullable(),
@@ -30,10 +33,13 @@ export async function GET(
 
         const result = await db.execute({
             sql: `
-                SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName
+                SELECT er.*, u.name as userName, u.email as userEmail,
+                       val.name as validatorName, rej.name as rejectorName, pay.name as payerName
                 FROM "ExpenseReport" er
                 JOIN "User" u ON u.id = er.userId
                 LEFT JOIN "User" val ON val.id = er.validatedBy
+                LEFT JOIN "User" rej ON rej.id = er.rejectedBy
+                LEFT JOIN "User" pay ON pay.id = er.paidBy
                 WHERE er.id = ?
             `,
             args: [id],
@@ -46,9 +52,10 @@ export async function GET(
 
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
+        const isTresorier = roles.includes('TRESORIER');
         const isOwner = row.userId === session.user.id;
 
-        if (!isManager && !isOwner) {
+        if (!isManager && !isOwner && !(isTresorier && row.status === 'en_attente_paiement')) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
@@ -66,6 +73,8 @@ export async function GET(
             userEmail: row.userEmail,
             submittedAt: row.submittedAt,
             status: row.status,
+            imputation: (row.imputation as string) || 'DLUS',
+            customImputation: (row.customImputation as string) || null,
             requestRefund: row.requestRefund === 1,
             noReceiptDeclaration: row.noReceiptDeclaration === 1,
             driveFolderId: row.driveFolderId,
@@ -75,6 +84,13 @@ export async function GET(
             validatedAt: row.validatedAt,
             validatedBy: row.validatedBy,
             validatorName: row.validatorName,
+            rejectionComment: (row.rejectionComment as string) || null,
+            rejectedAt: (row.rejectedAt as string) || null,
+            rejectedBy: (row.rejectedBy as string) || null,
+            rejectorName: (row.rejectorName as string) || null,
+            paidAt: (row.paidAt as string) || null,
+            paidBy: (row.paidBy as string) || null,
+            payerName: (row.payerName as string) || null,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
         };
@@ -116,7 +132,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Données invalides', details: parsed.error.issues }, { status: 400 });
         }
 
-        const { action, status, requestRefund, noReceiptDeclaration, driveFolderId, items } = parsed.data;
+        const { action, status, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, driveFolderId, items } = parsed.data;
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
         const isOwner = report.userId === session.user.id;
@@ -132,16 +148,62 @@ export async function PATCH(
                 return NextResponse.json({ error: 'Seules les notes de frais soumises peuvent être validées.' }, { status: 400 });
             }
 
+            // Si demande de remboursement -> 'en_attente_paiement', sinon 'traité'
+            const nextStatus = report.requestRefund === 1 ? 'en_attente_paiement' : 'traité';
+
             await db.execute({
                 sql: `
                     UPDATE "ExpenseReport"
-                    SET status = 'validé', validatedAt = ?, validatedBy = ?, updatedAt = ?
+                    SET status = ?, validatedAt = ?, validatedBy = ?, updatedAt = ?
+                    WHERE id = ?
+                `,
+                args: [nextStatus, now, session.user.id, now, id],
+            });
+
+            return NextResponse.json({ success: true, status: nextStatus });
+        } else if (action === 'reject') {
+            if (!isManager) {
+                return NextResponse.json({ error: 'Seuls le Président et les Super Administrateurs peuvent refuser des notes de frais.' }, { status: 403 });
+            }
+
+            if (report.status !== 'soumis') {
+                return NextResponse.json({ error: 'Seules les notes de frais soumises peuvent être refusées.' }, { status: 400 });
+            }
+
+            if (!rejectionComment || !rejectionComment.trim()) {
+                return NextResponse.json({ error: 'Un commentaire est obligatoire pour refuser une note de frais.' }, { status: 400 });
+            }
+
+            await db.execute({
+                sql: `
+                    UPDATE "ExpenseReport"
+                    SET status = 'refusé', rejectionComment = ?, rejectedAt = ?, rejectedBy = ?, updatedAt = ?
+                    WHERE id = ?
+                `,
+                args: [rejectionComment.trim(), now, session.user.id, now, id],
+            });
+
+            return NextResponse.json({ success: true, status: 'refusé' });
+        } else if (action === 'pay') {
+            const canPay = roles.includes('TRESORIER') || roles.includes('SUPER_ADMIN');
+            if (!canPay) {
+                return NextResponse.json({ error: 'Seuls le Trésorier et les Super Administrateurs peuvent marquer une note comme payée.' }, { status: 403 });
+            }
+
+            if (report.status !== 'en_attente_paiement') {
+                return NextResponse.json({ error: 'Seules les notes de frais en attente de paiement peuvent être marquées comme payées.' }, { status: 400 });
+            }
+
+            await db.execute({
+                sql: `
+                    UPDATE "ExpenseReport"
+                    SET status = 'traité', paidAt = ?, paidBy = ?, updatedAt = ?
                     WHERE id = ?
                 `,
                 args: [now, session.user.id, now, id],
             });
 
-            return NextResponse.json({ success: true });
+            return NextResponse.json({ success: true, status: 'traité' });
         } else {
             // update or submit action by the owner
             if (!isOwner) {
@@ -153,6 +215,10 @@ export async function PATCH(
             }
 
             const finalStatus = action === 'submit' ? 'soumis' : (status || 'brouillon');
+            const finalImputation = imputation || (report.imputation as string) || 'DLUS';
+            const finalCustomImputation = finalImputation === 'Autre'
+                ? (customImputation !== undefined ? customImputation : (report.customImputation as string || null))
+                : null;
             const finalRequestRefund = requestRefund !== undefined ? (requestRefund ? 1 : 0) : report.requestRefund;
             const finalNoReceipt = noReceiptDeclaration !== undefined ? (noReceiptDeclaration ? 1 : 0) : report.noReceiptDeclaration;
             const finalDriveFolder = driveFolderId !== undefined ? driveFolderId : report.driveFolderId;
@@ -167,11 +233,13 @@ export async function PATCH(
             await db.execute({
                 sql: `
                     UPDATE "ExpenseReport"
-                    SET status = ?, requestRefund = ?, noReceiptDeclaration = ?, driveFolderId = ?, total = ?, items = ?, submittedAt = ?, updatedAt = ?
+                    SET status = ?, imputation = ?, customImputation = ?, requestRefund = ?, noReceiptDeclaration = ?, driveFolderId = ?, total = ?, items = ?, submittedAt = ?, updatedAt = ?
                     WHERE id = ?
                 `,
                 args: [
                     finalStatus,
+                    finalImputation,
+                    finalCustomImputation,
                     finalRequestRefund,
                     finalNoReceipt,
                     finalDriveFolder,

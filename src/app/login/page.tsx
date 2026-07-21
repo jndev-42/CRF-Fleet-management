@@ -8,6 +8,7 @@ const DEV_ROLES = [
     { key: 'superadmin', label: 'Super Admin',  badge: 'S.ADMIN',   color: '#dc2626' },
     { key: 'admin',      label: 'Admin',         badge: 'ADMIN',     color: '#ef4444' },
     { key: 'president',  label: 'Président',    badge: 'PRESIDENT', color: '#f97316' },
+    { key: 'tresorier',  label: 'Trésorier',    badge: 'TRESORIER', color: '#10b981' },
     { key: 'cadre',      label: 'Cadre',         badge: 'CADRE',     color: '#eab308' },
     { key: 'chvl',       label: 'Chauffeur',     badge: 'CHVL',      color: '#3b82f6' },
     { key: 'ci',         label: 'CI/RPAPS',      badge: 'CI/RPAPS',  color: '#8b5cf6' },

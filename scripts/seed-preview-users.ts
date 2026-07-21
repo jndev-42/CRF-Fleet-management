@@ -36,6 +36,7 @@ async function seed() {
             ('preview-user-superadmin',  'preview-superadmin@preview.local',  'Super Admin Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-admin',       'preview-admin@preview.local',       'Admin Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-president',   'preview-president@preview.local',   'Président Preview', 1, '2026-07-10', 'System Preview'),
+            ('preview-user-tresorier',   'preview-tresorier@preview.local',   'Trésorier Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-cadre',       'preview-cadre@preview.local',       'Cadre Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, '2026-07-10', 'System Preview'),
@@ -53,6 +54,7 @@ async function seed() {
         { userId: 'preview-user-superadmin', roles: 'SUPER_ADMIN,CHVL' },
         { userId: 'preview-user-admin',      roles: 'ADMIN,CHVL' },
         { userId: 'preview-user-president',  roles: 'PRESIDENT,CHVL' },
+        { userId: 'preview-user-tresorier',  roles: 'TRESORIER' },
         { userId: 'preview-user-cadre',      roles: 'CADRE,CHVL' },
         { userId: 'preview-user-chvl',       roles: 'CHVL' },
         { userId: 'preview-user-ci',         roles: 'CI/RPAPS' },
@@ -82,6 +84,20 @@ async function seed() {
         }
     }
     console.log('✅ UserUL and global UserRole relationships inserted');
+
+    // Seed sample ExpenseReports in preview database
+    const now = new Date().toISOString();
+    await db.execute({
+        sql: `INSERT OR REPLACE INTO "ExpenseReport"
+            (id, userId, submittedAt, status, imputation, customImputation, requestRefund, noReceiptDeclaration, total, items, ulId, validatedAt, validatedBy, rejectionComment, rejectedAt, rejectedBy, paidAt, paidBy, createdAt, updatedAt)
+            VALUES
+            ('preview-exp-pending-pay', 'preview-user-chvl', ?, 'en_attente_paiement', 'DLUS', NULL, 1, 0, 45.50, '[{"label":"Essence VPSP Boxer","amount":45.50}]', 'ul-paris-18', ?, 'preview-user-president', NULL, NULL, NULL, NULL, NULL, ?, ?),
+            ('preview-exp-submitted', 'preview-user-chvl', ?, 'soumis', 'UL', NULL, 1, 0, 28.00, '[{"label":"Piles et fourniture poste","amount":28.00}]', 'ul-paris-18', NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, ?),
+            ('preview-exp-paid', 'preview-user-chvl', ?, 'traité', 'DLAS', NULL, 1, 0, 120.00, '[{"label":"Repas secours marathon","amount":120.00}]', 'ul-paris-18', ?, 'preview-user-president', NULL, NULL, NULL, ?, 'preview-user-tresorier', ?, ?),
+            ('preview-exp-rejected', 'preview-user-chvl', ?, 'refusé', 'Autre', 'Projet Spécial', 1, 0, 89.90, '[{"label":"Matériel indéterminé","amount":89.90}]', 'ul-paris-18', NULL, NULL, 'Justificatif flou et il manque la facture acquittée.', ?, 'preview-user-president', NULL, NULL, ?, ?)`,
+        args: [now, now, now, now, now, now, now, now, now, now, now, now, now, now, now, now]
+    });
+    console.log('✅ Sample Expense Reports seeded (including en_attente_paiement)');
 
     // Verify
     const check = await db.execute({

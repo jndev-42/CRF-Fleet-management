@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send, Edit } from 'lucide-react';
+import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send, Edit, XCircle, DollarSign } from 'lucide-react';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
 
 interface ExpenseReport {
@@ -12,7 +12,9 @@ interface ExpenseReport {
     userName: string;
     userEmail: string;
     submittedAt: string;
-    status: 'brouillon' | 'soumis' | 'validé';
+    status: 'brouillon' | 'soumis' | 'en_attente_paiement' | 'traité' | 'refusé';
+    imputation: 'DLUS' | 'DLAS' | 'UL' | 'Autre';
+    customImputation: string | null;
     requestRefund: boolean;
     noReceiptDeclaration: boolean;
     driveFolderId: string | null;
@@ -22,6 +24,13 @@ interface ExpenseReport {
     validatedAt: string | null;
     validatedBy: string | null;
     validatorName: string | null;
+    rejectionComment: string | null;
+    rejectedAt: string | null;
+    rejectedBy: string | null;
+    rejectorName: string | null;
+    paidAt: string | null;
+    paidBy: string | null;
+    payerName: string | null;
     createdAt: string;
 }
 
@@ -39,6 +48,8 @@ export default function ExpensesPage() {
 
     const userRoles = session?.user?.roles || [];
     const isManager = userRoles.includes('SUPER_ADMIN') || userRoles.includes('PRESIDENT');
+    const isTresorier = userRoles.includes('TRESORIER');
+    const canPay = userRoles.includes('TRESORIER') || userRoles.includes('SUPER_ADMIN');
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -86,8 +97,19 @@ export default function ExpensesPage() {
         }
     }, [selectedReport]);
 
-    const handleValidate = async (id: string) => {
-        if (!confirm('Voulez-vous vraiment valider cette note de frais ?')) return;
+    const [validatingReport, setValidatingReport] = useState<ExpenseReport | null>(null);
+    const [validatorSigned, setValidatorSigned] = useState(false);
+
+    const openValidateModal = (report: ExpenseReport) => {
+        setValidatingReport(report);
+        setValidatorSigned(false);
+    };
+
+    const confirmValidate = async () => {
+        if (!validatingReport) return;
+        if (!validatorSigned) return;
+
+        const id = validatingReport.id;
         setActionLoading(id);
         try {
             const res = await fetch(`/api/expenses/${id}`, {
@@ -96,13 +118,86 @@ export default function ExpensesPage() {
                 body: JSON.stringify({ action: 'validate' })
             });
             if (res.ok) {
+                const data = await res.json();
                 fetchReports();
                 if (selectedReport?.id === id) {
-                    setSelectedReport(prev => prev ? { ...prev, status: 'validé', validatorName: session?.user?.name || '' } : null);
+                    setSelectedReport(prev => prev ? {
+                        ...prev,
+                        status: data.status || 'traité',
+                        validatorName: session?.user?.name || ''
+                    } : null);
                 }
+                setValidatingReport(null);
             } else {
                 const err = await res.json();
                 alert(err.error || 'Erreur lors de la validation.');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Erreur réseau.');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handleReject = async (id: string) => {
+        const comment = prompt('Veuillez indiquer le motif du refus de cette note de frais :');
+        if (comment === null) return; // Annulé par l'utilisateur
+        if (!comment.trim()) {
+            alert('Le commentaire est obligatoire pour refuser une note de frais.');
+            return;
+        }
+
+        setActionLoading(id);
+        try {
+            const res = await fetch(`/api/expenses/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'reject', rejectionComment: comment })
+            });
+            if (res.ok) {
+                fetchReports();
+                if (selectedReport?.id === id) {
+                    setSelectedReport(prev => prev ? {
+                        ...prev,
+                        status: 'refusé',
+                        rejectionComment: comment.trim(),
+                        rejectorName: session?.user?.name || ''
+                    } : null);
+                }
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Erreur lors du refus.');
+            }
+        } catch (error) {
+            console.error(error);
+            alert('Erreur réseau.');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    const handlePay = async (id: string) => {
+        if (!confirm('Voulez-vous indiquer cette note de frais comme payée ?')) return;
+        setActionLoading(id);
+        try {
+            const res = await fetch(`/api/expenses/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'pay' })
+            });
+            if (res.ok) {
+                fetchReports();
+                if (selectedReport?.id === id) {
+                    setSelectedReport(prev => prev ? {
+                        ...prev,
+                        status: 'traité',
+                        payerName: session?.user?.name || ''
+                    } : null);
+                }
+            } else {
+                const err = await res.json();
+                alert(err.error || 'Erreur lors du paiement.');
             }
         } catch (error) {
             console.error(error);
@@ -163,19 +258,25 @@ export default function ExpensesPage() {
         const styles: Record<ExpenseReport['status'], React.CSSProperties> = {
             brouillon: { background: 'rgba(107, 114, 128, 0.15)', color: '#9ca3af', border: '1px solid rgba(107, 114, 128, 0.3)' },
             soumis: { background: 'rgba(249, 115, 22, 0.15)', color: '#f97316', border: '1px solid rgba(249, 115, 22, 0.3)' },
-            validé: { background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }
+            en_attente_paiement: { background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' },
+            traité: { background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' },
+            refusé: { background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }
         };
 
-        const labels = {
+        const labels: Record<ExpenseReport['status'], string> = {
             brouillon: 'Brouillon',
             soumis: 'Soumis',
-            validé: 'Validé'
+            en_attente_paiement: 'En attente de paiement',
+            traité: 'Traitée',
+            refusé: 'Refusé'
         };
 
-        const icons = {
+        const icons: Record<ExpenseReport['status'], React.ReactNode> = {
             brouillon: <Clock size={12} style={{ marginRight: '4px' }} />,
             soumis: <Clock size={12} style={{ marginRight: '4px' }} />,
-            validé: <CheckCircle size={12} style={{ marginRight: '4px' }} />
+            en_attente_paiement: <Clock size={12} style={{ marginRight: '4px' }} />,
+            traité: <CheckCircle size={12} style={{ marginRight: '4px' }} />,
+            refusé: <XCircle size={12} style={{ marginRight: '4px' }} />
         };
 
         return (
@@ -227,7 +328,11 @@ export default function ExpensesPage() {
                         Notes de frais
                     </h1>
                     <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                        {isManager ? 'Gérer et valider les notes de frais de l\'Unité Locale.' : 'Suivez et soumettez vos notes de frais.'}
+                        {isManager
+                            ? 'Gérer, valider et refuser les notes de frais de l\'Unité Locale.'
+                            : isTresorier
+                            ? 'Consulter les notes en attente de paiement et effectuer les règlements.'
+                            : 'Suivez et soumettez vos notes de frais.'}
                     </p>
                 </div>
                 {!isCreating && (
@@ -271,7 +376,7 @@ export default function ExpensesPage() {
                                 <FileText size={48} style={{ margin: '0 auto 12px auto', opacity: 0.5 }} />
                                 <p style={{ fontWeight: 600, margin: '0 0 4px 0' }}>Aucune note de frais</p>
                                 <p style={{ fontSize: '0.8125rem', margin: 0 }}>
-                                    {"Vous n'avez pas encore créé de note de frais."}
+                                    {"Vous n'avez pas encore de note de frais dans cette liste."}
                                 </p>
                             </div>
                         ) : (
@@ -279,8 +384,9 @@ export default function ExpensesPage() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                            {isManager && <th style={{ padding: '12px 16px' }}>Collaborateur</th>}
+                                            {(isManager || isTresorier) && <th style={{ padding: '12px 16px' }}>Collaborateur</th>}
                                             <th style={{ padding: '12px 16px' }}>Date</th>
+                                            <th style={{ padding: '12px 16px' }}>Imputation</th>
                                             <th style={{ padding: '12px 16px' }}>Description</th>
                                             <th style={{ padding: '12px 16px' }}>Total</th>
                                             <th style={{ padding: '12px 16px' }}>Remboursement</th>
@@ -299,7 +405,7 @@ export default function ExpensesPage() {
                                                 }}
                                                 onClick={() => setSelectedReport(report)}
                                             >
-                                                {isManager && (
+                                                {(isManager || isTresorier) && (
                                                     <td style={{ padding: '16px' }}>
                                                         <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{report.userName}</div>
                                                         <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{report.userEmail}</div>
@@ -307,6 +413,9 @@ export default function ExpensesPage() {
                                                 )}
                                                 <td style={{ padding: '16px', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
                                                     {formatDate(report.submittedAt || report.createdAt)}
+                                                </td>
+                                                <td style={{ padding: '16px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                                                    {report.imputation === 'Autre' ? (report.customImputation || 'Autre') : report.imputation}
                                                 </td>
                                                 <td style={{ padding: '16px', color: 'var(--text-primary)' }}>
                                                     {report.items.map(item => item.label).join(', ')}
@@ -365,14 +474,36 @@ export default function ExpensesPage() {
                                                             </>
                                                         )}
                                                         {report.status === 'soumis' && isManager && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => openValidateModal(report)}
+                                                                    className="btn btn-primary"
+                                                                    style={{ padding: '6px 10px', background: '#22c55e', borderColor: '#22c55e' }}
+                                                                    disabled={actionLoading === report.id}
+                                                                    title="Valider"
+                                                                >
+                                                                    <Check size={14} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleReject(report.id)}
+                                                                    className="btn btn-danger"
+                                                                    style={{ padding: '6px 10px' }}
+                                                                    disabled={actionLoading === report.id}
+                                                                    title="Refuser"
+                                                                >
+                                                                    <X size={14} />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                        {report.status === 'en_attente_paiement' && canPay && (
                                                             <button
-                                                                onClick={() => handleValidate(report.id)}
+                                                                onClick={() => handlePay(report.id)}
                                                                 className="btn btn-primary"
-                                                                style={{ padding: '6px 10px', background: '#22c55e', borderColor: '#22c55e' }}
+                                                                style={{ padding: '6px 10px', background: '#3b82f6', borderColor: '#3b82f6' }}
                                                                 disabled={actionLoading === report.id}
-                                                                title="Valider"
+                                                                title="Indiquer comme payée"
                                                             >
-                                                                <Check size={14} />
+                                                                <DollarSign size={14} />
                                                             </button>
                                                         )}
                                                     </div>
@@ -425,7 +556,7 @@ export default function ExpensesPage() {
                                 </div>
                             </div>
 
-                            {/* Date & Status */}
+                            {/* Date, Imputation & Status */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-primary)', paddingBottom: '12px' }}>
                                 <div>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase' }}>
@@ -433,6 +564,12 @@ export default function ExpensesPage() {
                                     </span>
                                     <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', marginTop: '2px' }}>
                                         {formatDate(selectedReport.submittedAt || selectedReport.createdAt)}
+                                    </div>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', display: 'block', marginTop: '8px' }}>
+                                        Imputation
+                                    </span>
+                                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600, marginTop: '2px' }}>
+                                        {selectedReport.imputation === 'Autre' ? (selectedReport.customImputation || 'Autre') : selectedReport.imputation}
                                     </div>
                                 </div>
                                 <div style={{ textAlign: 'right' }}>
@@ -443,8 +580,31 @@ export default function ExpensesPage() {
                                 </div>
                             </div>
 
-                            {/* Validator (if validated) */}
-                            {selectedReport.status === 'validé' && (
+                            {/* Rejection comment display */}
+                            {selectedReport.status === 'refusé' && selectedReport.rejectionComment && (
+                                <div style={{
+                                    padding: '12px',
+                                    background: 'rgba(239, 68, 68, 0.08)',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    borderRadius: 'var(--radius-md)',
+                                    color: '#ef4444'
+                                }}>
+                                    <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <XCircle size={14} /> Motif du refus
+                                    </div>
+                                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
+                                        {selectedReport.rejectionComment}
+                                    </div>
+                                    {selectedReport.rejectorName && (
+                                        <div style={{ fontSize: '0.75rem', marginTop: '6px', color: 'var(--text-tertiary)' }}>
+                                            Refusée par {selectedReport.rejectorName} {selectedReport.rejectedAt ? `le ${formatDate(selectedReport.rejectedAt)}` : ''}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Validator (if validated or paid) */}
+                            {(selectedReport.validatedBy || selectedReport.validatorName) && (
                                 <div style={{ borderBottom: '1px solid var(--border-primary)', paddingBottom: '12px' }}>
                                     <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase' }}>
                                         Validée par
@@ -457,6 +617,21 @@ export default function ExpensesPage() {
                                             le {formatDate(selectedReport.validatedAt)}
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {/* Payer details (if paid) */}
+                            {selectedReport.paidAt && (
+                                <div style={{ borderBottom: '1px solid var(--border-primary)', paddingBottom: '12px' }}>
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                                        Payée par
+                                    </span>
+                                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600, marginTop: '2px' }}>
+                                        {selectedReport.payerName || 'Trésorier'}
+                                    </div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                        le {formatDate(selectedReport.paidAt)}
+                                    </div>
                                 </div>
                             )}
 
@@ -551,15 +726,36 @@ export default function ExpensesPage() {
                                 </div>
                             )}
 
-                            {/* Sidebar Action button */}
+                            {/* Sidebar Action buttons */}
                             {selectedReport.status === 'soumis' && isManager && (
+                                <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '8px' }}>
+                                    <button
+                                        onClick={() => openValidateModal(selectedReport)}
+                                        className="btn btn-primary"
+                                        style={{ flex: 1, background: '#22c55e', borderColor: '#22c55e', gap: '6px' }}
+                                        disabled={actionLoading === selectedReport.id}
+                                    >
+                                        <Check size={16} /> Valider
+                                    </button>
+                                    <button
+                                        onClick={() => handleReject(selectedReport.id)}
+                                        className="btn btn-danger"
+                                        style={{ flex: 1, gap: '6px' }}
+                                        disabled={actionLoading === selectedReport.id}
+                                    >
+                                        <X size={16} /> Refuser
+                                    </button>
+                                </div>
+                            )}
+
+                            {selectedReport.status === 'en_attente_paiement' && canPay && (
                                 <button
-                                    onClick={() => handleValidate(selectedReport.id)}
+                                    onClick={() => handlePay(selectedReport.id)}
                                     className="btn btn-primary"
-                                    style={{ width: '100%', background: '#22c55e', borderColor: '#22c55e', marginTop: '8px', gap: '6px' }}
+                                    style={{ width: '100%', background: '#3b82f6', borderColor: '#3b82f6', marginTop: '8px', gap: '6px' }}
                                     disabled={actionLoading === selectedReport.id}
                                 >
-                                    <Check size={16} /> Valider cette note
+                                    <DollarSign size={16} /> Indiquer comme payée
                                 </button>
                             )}
 
@@ -598,6 +794,90 @@ export default function ExpensesPage() {
                             )}
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* Modal Validation et Signature Électronique */}
+            {validatingReport && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    zIndex: 1000,
+                    padding: '16px'
+                }}>
+                    <div style={{
+                        background: 'var(--bg-primary)',
+                        borderRadius: 'var(--radius-lg)',
+                        border: '1px solid var(--border-primary)',
+                        padding: '24px',
+                        maxWidth: '500px',
+                        width: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        boxShadow: 'var(--shadow-lg)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                Validation et signature électronique
+                            </h3>
+                            <button
+                                onClick={() => setValidatingReport(null)}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}
+                                aria-label="Fermer"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            Vous êtes sur le point de valider la note de frais de <strong>{validatingReport.userName}</strong> d&apos;un montant de <strong>{validatingReport.total.toFixed(2)} €</strong>.
+                        </p>
+
+                        <label style={{
+                            display: 'flex',
+                            gap: '10px',
+                            alignItems: 'flex-start',
+                            padding: '14px',
+                            background: 'rgba(34, 197, 94, 0.08)',
+                            border: '1px solid rgba(34, 197, 94, 0.3)',
+                            borderRadius: 'var(--radius-md)',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            color: 'var(--text-primary)',
+                            fontWeight: 600
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={validatorSigned}
+                                onChange={(e) => setValidatorSigned(e.target.checked)}
+                                style={{ marginTop: '3px' }}
+                            />
+                            <span>Je valide et signe electroniquement cette demande</span>
+                        </label>
+
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                            <button
+                                onClick={() => setValidatingReport(null)}
+                                className="btn btn-secondary"
+                                disabled={actionLoading === validatingReport.id}
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                onClick={confirmValidate}
+                                className="btn btn-primary"
+                                style={{ background: '#22c55e', borderColor: '#22c55e', gap: '6px' }}
+                                disabled={!validatorSigned || actionLoading === validatingReport.id}
+                            >
+                                <Check size={16} /> Valider et signer
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
