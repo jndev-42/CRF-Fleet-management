@@ -38,7 +38,7 @@ export default function Navbar({ user }: NavbarProps) {
         <header className="header" role="banner">
             <a href="#main-content" className="skip-link">Aller au contenu principal</a>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Link href="/" className="header-brand" style={{ gap: '8px' }}>
+                <Link href="/vehicles" className="header-brand" style={{ gap: '8px' }}>
                     <Image src="/crf-logo.svg" alt="Croix-Rouge Française" className="header-logo" width={40} height={40} />
                     <div className="header-title">Martine</div>
                 </Link>
@@ -122,8 +122,7 @@ export default function Navbar({ user }: NavbarProps) {
                                 </svg>
                             </button>
                         </div>
-                        <Link href="/" className={`nav-link${pathname === '/' ? ' active' : ''}`} data-tour="nav-dashboard" onClick={() => setIsOpen(false)} aria-current={pathname === '/' ? 'page' : undefined}>Dashboard</Link>
-                        <Link href="/vehicles" className={`nav-link${pathname === '/vehicles' ? ' active' : ''}`} data-tour="nav-vehicles" onClick={() => setIsOpen(false)} aria-current={pathname === '/vehicles' ? 'page' : undefined}>Véhicules</Link>
+                        <Link href="/vehicles" className={`nav-link${pathname.startsWith('/vehicles') || pathname === '/' ? ' active' : ''}`} data-tour="nav-vehicles" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/vehicles') || pathname === '/' ? 'page' : undefined}>Véhicules</Link>
                         <Link href="/expenses" className={`nav-link${pathname === '/expenses' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/expenses' ? 'page' : undefined}>Frais</Link>
                         {!isInactive(userRoles) && canSeeMenu('stats', getVisibility('stats'), userRoles) && (
                             <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} data-tour="nav-stats" onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
