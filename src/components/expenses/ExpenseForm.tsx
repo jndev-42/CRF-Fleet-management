@@ -110,7 +110,6 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
     const handleInitiateSubmit = (status: 'brouillon' | 'soumis') => {
         if (!validateForm()) return;
         if (status === 'soumis') {
-            setPendingSubmitStatus('soumis');
             setIsSignatureModalOpen(true);
         } else {
             executeSave('brouillon', null, userFunction);

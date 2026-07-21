@@ -31,6 +31,7 @@ export default function YousignSignatureModal({
     signerName,
     signerEmail,
     roleTitle,
+    initialFunction = 'Bénévole local',
     loading = false,
 }: YousignSignatureModalProps) {
     const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
