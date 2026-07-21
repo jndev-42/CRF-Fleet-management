@@ -17,12 +17,16 @@ const expenseReportSchema = z.object({
     })).min(1, 'Au moins une dépense est requise'),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
+
+        const { searchParams } = new URL(request.url);
+        const scopeParam = searchParams.get('scope'); // 'my' | 'ul'
+        const includeProcessed = searchParams.get('includeProcessed') === 'true';
 
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
@@ -30,8 +34,10 @@ export async function GET() {
         const ulId = session.user.ulId || 'ul-paris-18';
         const userId = session.user.id;
 
+        const scope = (scopeParam === 'my' || (!isManager && !isTresorier)) ? 'my' : 'ul';
+
         let result;
-        if (isManager) {
+        if (scope === 'my') {
             result = await db.execute({
                 sql: `
                     SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
@@ -40,11 +46,41 @@ export async function GET() {
                     LEFT JOIN "User" val ON val.id = er.validatedBy
                     LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                     LEFT JOIN "User" pay ON pay.id = er.paidBy
-                    WHERE er.ulId = ?
+                    WHERE er.userId = ?
                     ORDER BY er.submittedAt DESC, er.createdAt DESC
                 `,
-                args: [ulId],
+                args: [userId],
             });
+        } else if (isManager) {
+            if (includeProcessed) {
+                result = await db.execute({
+                    sql: `
+                        SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
+                        FROM "ExpenseReport" er
+                        JOIN "User" u ON u.id = er.userId
+                        LEFT JOIN "User" val ON val.id = er.validatedBy
+                        LEFT JOIN "User" rej ON rej.id = er.rejectedBy
+                        LEFT JOIN "User" pay ON pay.id = er.paidBy
+                        WHERE er.ulId = ?
+                        ORDER BY er.submittedAt DESC, er.createdAt DESC
+                    `,
+                    args: [ulId],
+                });
+            } else {
+                result = await db.execute({
+                    sql: `
+                        SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
+                        FROM "ExpenseReport" er
+                        JOIN "User" u ON u.id = er.userId
+                        LEFT JOIN "User" val ON val.id = er.validatedBy
+                        LEFT JOIN "User" rej ON rej.id = er.rejectedBy
+                        LEFT JOIN "User" pay ON pay.id = er.paidBy
+                        WHERE er.ulId = ? AND er.status != 'traité'
+                        ORDER BY er.submittedAt DESC, er.createdAt DESC
+                    `,
+                    args: [ulId],
+                });
+            }
         } else if (isTresorier) {
             result = await db.execute({
                 sql: `
@@ -54,10 +90,10 @@ export async function GET() {
                     LEFT JOIN "User" val ON val.id = er.validatedBy
                     LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                     LEFT JOIN "User" pay ON pay.id = er.paidBy
-                    WHERE (er.ulId = ? AND er.status = 'en_attente_paiement') OR er.userId = ?
+                    WHERE er.ulId = ? AND er.status = 'en_attente_paiement'
                     ORDER BY er.submittedAt DESC, er.createdAt DESC
                 `,
-                args: [ulId, userId],
+                args: [ulId],
             });
         } else {
             result = await db.execute({

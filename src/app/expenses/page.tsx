@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send, Edit, XCircle, DollarSign } from 'lucide-react';
@@ -51,16 +51,23 @@ export default function ExpensesPage() {
     const isTresorier = userRoles.includes('TRESORIER');
     const canPay = userRoles.includes('TRESORIER') || userRoles.includes('SUPER_ADMIN');
 
+    const [viewScope, setViewScope] = useState<'ul' | 'my'>(() => (isManager || isTresorier ? 'ul' : 'my'));
+    const [includeProcessed, setIncludeProcessed] = useState(false);
+
     useEffect(() => {
         if (status === 'unauthenticated') {
             router.push('/login');
         }
     }, [status, router]);
 
-    const fetchReports = async () => {
+    const fetchReports = useCallback(async (scope = viewScope, incProc = includeProcessed) => {
         try {
             setLoading(true);
-            const res = await fetch('/api/expenses');
+            const params = new URLSearchParams();
+            params.set('scope', scope);
+            if (incProc) params.set('includeProcessed', 'true');
+
+            const res = await fetch(`/api/expenses?${params.toString()}`);
             if (res.ok) {
                 const data = await res.json();
                 setReports(data);
@@ -70,13 +77,13 @@ export default function ExpensesPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [viewScope, includeProcessed]);
 
     useEffect(() => {
         if (status === 'authenticated') {
-            fetchReports();
+            fetchReports(viewScope, includeProcessed);
         }
-    }, [status]);
+    }, [status, viewScope, includeProcessed, fetchReports]);
 
     // Fetch photos for selected report
     useEffect(() => {
@@ -345,6 +352,78 @@ export default function ExpensesPage() {
                     </button>
                 )}
             </div>
+
+            {/* Scope & Filter Toggles for Managers & Tresorier */}
+            {(isManager || isTresorier) && !isCreating && (
+                <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '16px',
+                    background: 'var(--bg-secondary)',
+                    padding: '12px 16px',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--border-primary)'
+                }}>
+                    <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-primary)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-primary)' }}>
+                        <button
+                            type="button"
+                            onClick={() => setViewScope('ul')}
+                            style={{
+                                padding: '6px 14px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: 'none',
+                                fontSize: '0.8125rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                background: viewScope === 'ul' ? 'var(--red-primary, #ef4444)' : 'transparent',
+                                color: viewScope === 'ul' ? '#ffffff' : 'var(--text-secondary)',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            {isManager ? 'Notes à traiter (UL)' : 'Notes en attente de paiement'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setViewScope('my')}
+                            style={{
+                                padding: '6px 14px',
+                                borderRadius: 'var(--radius-sm)',
+                                border: 'none',
+                                fontSize: '0.8125rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                background: viewScope === 'my' ? 'var(--red-primary, #ef4444)' : 'transparent',
+                                color: viewScope === 'my' ? '#ffffff' : 'var(--text-secondary)',
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            Mes notes de frais
+                        </button>
+                    </div>
+
+                    {isManager && viewScope === 'ul' && (
+                        <label style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            fontSize: '0.8125rem',
+                            cursor: 'pointer',
+                            color: 'var(--text-primary)',
+                            fontWeight: 500
+                        }}>
+                            <input
+                                type="checkbox"
+                                checked={includeProcessed}
+                                onChange={(e) => setIncludeProcessed(e.target.checked)}
+                                style={{ cursor: 'pointer' }}
+                            />
+                            <span>Afficher toutes les notes (y compris déjà traitées)</span>
+                        </label>
+                    )}
+                </div>
+            )}
 
             {isCreating ? (
                 <ExpenseForm

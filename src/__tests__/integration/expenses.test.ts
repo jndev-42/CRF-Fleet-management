@@ -128,13 +128,17 @@ describe('Expense Report integration tests', () => {
             });
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
-                      VALUES ('exp-draft', 'user-standard', '2026-07-19T12:00:00Z', 'brouillon', 20.0, '[]', 'ul-paris-18', 1)`
+                      VALUES ('exp-processed', 'user-other', '2026-07-19T12:00:00Z', 'traité', 100.0, '[]', 'ul-paris-18', 1)`
+            });
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
+                      VALUES ('exp-draft', 'user-standard', '2026-07-19T13:00:00Z', 'brouillon', 20.0, '[]', 'ul-paris-18', 1)`
             });
         });
 
-        it('returns only owned reports for a standard user', async () => {
+        it('returns only owned reports for a standard user regardless of scope param', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
-            const res = await getList(new Request('http://localhost/api/expenses'));
+            const res = await getList(new Request('http://localhost/api/expenses?scope=ul'));
             expect(res.status).toBe(200);
             
             const data = await res.json();
@@ -145,9 +149,9 @@ describe('Expense Report integration tests', () => {
             expect(ids).not.toContain('exp-pending-pay');
         });
 
-        it('returns pending payment reports for a TRESORIER', async () => {
+        it('returns pending payment reports for a TRESORIER when in UL scope', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-tresorier', email: 'tresorier@test.com', roles: ['TRESORIER'], ulId: 'ul-paris-18' } } as never);
-            const res = await getList(new Request('http://localhost/api/expenses'));
+            const res = await getList(new Request('http://localhost/api/expenses?scope=ul'));
             expect(res.status).toBe(200);
             
             const data = await res.json();
@@ -155,13 +159,38 @@ describe('Expense Report integration tests', () => {
             expect(data[0].id).toBe('exp-pending-pay');
         });
 
-        it('returns all reports in the same UL for a PRESIDENT', async () => {
+        it('returns only own reports for a TRESORIER when in my scope', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-tresorier', email: 'tresorier@test.com', roles: ['TRESORIER'], ulId: 'ul-paris-18' } } as never);
+            const res = await getList(new Request('http://localhost/api/expenses?scope=my'));
+            expect(res.status).toBe(200);
+            
+            const data = await res.json();
+            expect(data).toHaveLength(0); // tresorier has no reports of their own seeded
+        });
+
+        it('returns non-processed reports for a PRESIDENT by default (without includeProcessed)', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'], ulId: 'ul-paris-18' } } as never);
-            const res = await getList(new Request('http://localhost/api/expenses'));
+            const res = await getList(new Request('http://localhost/api/expenses?scope=ul'));
             expect(res.status).toBe(200);
             
             const data = await res.json();
             expect(data).toHaveLength(3);
+            const ids = data.map((r: { id: string }) => r.id);
+            expect(ids).toContain('exp-submitted');
+            expect(ids).toContain('exp-pending-pay');
+            expect(ids).toContain('exp-draft');
+            expect(ids).not.toContain('exp-processed');
+        });
+
+        it('returns all reports for a PRESIDENT when includeProcessed=true', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'], ulId: 'ul-paris-18' } } as never);
+            const res = await getList(new Request('http://localhost/api/expenses?scope=ul&includeProcessed=true'));
+            expect(res.status).toBe(200);
+            
+            const data = await res.json();
+            expect(data).toHaveLength(4);
+            const ids = data.map((r: { id: string }) => r.id);
+            expect(ids).toContain('exp-processed');
         });
     });
 

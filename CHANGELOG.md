@@ -7,7 +7,7 @@
 - **Imputation des dépenses (Notes de frais)** — Sélection de l'imputation de la dépense (`DLUS`, `DLAS`, `UL`, `Autre`) avec saisie libre en cas de choix "Autre".
 - **Refus de la note de frais avec commentaire** — Les valideurs (`SUPER_ADMIN` ou `PRESIDENT`) peuvent refuser une note soumise en joignant obligatoirement un commentaire explicatif visible par l'utilisateur.
 - **Rôle Trésorier (`TRESORIER`) & Workflow de paiement** — Ajout du rôle centralisé `TRESORIER` avec accès dédié aux notes de frais en attente de paiement et possibilité d'indiquer les notes comme payées (`traité`).
-- **Signature électronique des demandes et validations** — Case à cocher obligatoire pour le demandeur lors de la soumission et pour le valideur lors de la validation (`Je certifie l'exactitude des informations ci-dessus et signe electroniquement cette demande` / `Je valide et signe electroniquement cette demande`).
+- **Toggle d'affichage et filtres pour décideurs & trésoriers** — Ajout d'un sélecteur de vue pour `SUPER_ADMIN`, `PRESIDENT` et `TRESORIER` permettant de basculer entre *"Mes notes de frais"* et *"Notes à traiter / en attente de paiement"*, avec option pour afficher également l'historique complet des notes déjà traitées.
 
 ## [4.3.0] — 19 juillet 2026
 
