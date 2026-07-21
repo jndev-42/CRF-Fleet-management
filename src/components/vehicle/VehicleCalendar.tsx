@@ -65,6 +65,22 @@ export default function VehicleCalendar() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [showCalendar, setShowCalendar] = useState<boolean>(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('show_vehicle_calendar');
+    if (saved !== null) {
+      setShowCalendar(saved === 'true');
+    }
+  }, []);
+
+  const toggleShowCalendar = () => {
+    setShowCalendar(prev => {
+      const next = !prev;
+      localStorage.setItem('show_vehicle_calendar', String(next));
+      return next;
+    });
+  };
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -94,8 +110,10 @@ export default function VehicleCalendar() {
   }, [monthParam, selectedVehicleId]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (showCalendar) {
+      fetchData();
+    }
+  }, [fetchData, showCalendar]);
 
   // Handlers for month navigation
   const handlePrevMonth = () => {
@@ -224,6 +242,29 @@ export default function VehicleCalendar() {
     });
   };
 
+  if (!showCalendar) {
+    return (
+      <div className={styles.containerCollapsed} data-testid="vehicle-calendar">
+        <div className={styles.titleArea}>
+          <span className={styles.titleIcon}>📅</span>
+          <div>
+            <h2 className={styles.title}>Planning des véhicules</h2>
+            <p className={styles.subtitle}>Le calendrier est actuellement masqué</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          className={styles.toggleBtn}
+          onClick={toggleShowCalendar}
+          aria-expanded={false}
+          aria-label="Afficher le calendrier des véhicules"
+        >
+          👁️ Afficher le calendrier
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container} data-testid="vehicle-calendar">
       {/* Header & Controls */}
@@ -280,6 +321,16 @@ export default function VehicleCalendar() {
               </option>
             ))}
           </select>
+
+          <button
+            type="button"
+            className={styles.toggleBtn}
+            onClick={toggleShowCalendar}
+            aria-expanded={true}
+            aria-label="Masquer le calendrier des véhicules"
+          >
+            👁️ Masquer
+          </button>
         </div>
       </div>
 

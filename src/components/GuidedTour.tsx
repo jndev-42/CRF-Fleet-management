@@ -315,8 +315,8 @@ export default function GuidedTour({ roles = [] }: { roles?: string[] }) {
 
     // ── Start tour on first visit or when localStorage flag is cleared ──
     useEffect(() => {
-        // Only start on the dashboard
-        if (pathname !== '/') return;
+        // Only start on the vehicles page / dashboard
+        if (pathname !== '/vehicles' && pathname !== '/') return;
 
         const completed = localStorage.getItem(LOCALSTORAGE_KEY);
         if (!completed) {

@@ -127,4 +127,43 @@ describe('VehicleCalendar Component', () => {
       expect(calendarContainer.querySelector('[class*="gridContainer"]')).toBeTruthy();
     });
   });
+
+  it('toggles calendar visibility and persists preference in localStorage', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => mockCalendarData,
+    } as Response);
+
+    localStorage.clear();
+    render(<VehicleCalendar />);
+
+    const hideBtn = screen.getByRole('button', { name: /Masquer le calendrier/i });
+    expect(hideBtn).toBeTruthy();
+
+    fireEvent.click(hideBtn);
+
+    expect(localStorage.getItem('show_vehicle_calendar')).toBe('false');
+    expect(screen.getByText('Le calendrier est actuellement masqué')).toBeTruthy();
+
+    const showBtn = screen.getByRole('button', { name: /Afficher le calendrier/i });
+    fireEvent.click(showBtn);
+
+    expect(localStorage.getItem('show_vehicle_calendar')).toBe('true');
+    expect(screen.getByText('Réservations & Emprunts par mois')).toBeTruthy();
+  });
+
+  it('loads initial hidden state from localStorage', async () => {
+    vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => mockCalendarData,
+    } as Response);
+
+    localStorage.setItem('show_vehicle_calendar', 'false');
+
+    render(<VehicleCalendar />);
+
+    expect(screen.getByText('Le calendrier est actuellement masqué')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Afficher le calendrier/i })).toBeTruthy();
+  });
 });
+
