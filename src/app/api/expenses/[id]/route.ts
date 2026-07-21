@@ -135,7 +135,6 @@ export async function PATCH(
         const { action, status, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, driveFolderId, items } = parsed.data;
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
-        const isTresorier = roles.includes('TRESORIER');
         const isOwner = report.userId === session.user.id;
         const now = new Date().toISOString();
 
@@ -186,8 +185,9 @@ export async function PATCH(
 
             return NextResponse.json({ success: true, status: 'refusé' });
         } else if (action === 'pay') {
-            if (!isTresorier && !isManager) {
-                return NextResponse.json({ error: 'Seuls le Trésorier, le Président et les Super Administrateurs peuvent marquer une note comme payée.' }, { status: 403 });
+            const canPay = roles.includes('TRESORIER') || roles.includes('SUPER_ADMIN');
+            if (!canPay) {
+                return NextResponse.json({ error: 'Seuls le Trésorier et les Super Administrateurs peuvent marquer une note comme payée.' }, { status: 403 });
             }
 
             if (report.status !== 'en_attente_paiement') {

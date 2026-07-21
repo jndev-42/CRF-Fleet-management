@@ -49,6 +49,7 @@ export default function ExpensesPage() {
     const userRoles = session?.user?.roles || [];
     const isManager = userRoles.includes('SUPER_ADMIN') || userRoles.includes('PRESIDENT');
     const isTresorier = userRoles.includes('TRESORIER');
+    const canPay = userRoles.includes('TRESORIER') || userRoles.includes('SUPER_ADMIN');
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -494,7 +495,7 @@ export default function ExpensesPage() {
                                                                 </button>
                                                             </>
                                                         )}
-                                                        {report.status === 'en_attente_paiement' && (isTresorier || isManager) && (
+                                                        {report.status === 'en_attente_paiement' && canPay && (
                                                             <button
                                                                 onClick={() => handlePay(report.id)}
                                                                 className="btn btn-primary"
@@ -747,7 +748,7 @@ export default function ExpensesPage() {
                                 </div>
                             )}
 
-                            {selectedReport.status === 'en_attente_paiement' && (isTresorier || isManager) && (
+                            {selectedReport.status === 'en_attente_paiement' && canPay && (
                                 <button
                                     onClick={() => handlePay(selectedReport.id)}
                                     className="btn btn-primary"

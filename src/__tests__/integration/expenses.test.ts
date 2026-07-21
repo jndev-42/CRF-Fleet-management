@@ -221,6 +221,13 @@ describe('Expense Report integration tests', () => {
             expect(res.status).toBe(400);
         });
 
+        it('returns 403 when PRESIDENT attempts to mark report as paid', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
+            const req = makePatchRequest({ action: 'pay' });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-pending' }) });
+            expect(res.status).toBe(403);
+        });
+
         it('allows TRESORIER to mark pending payment report as paid (traité)', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-tresorier', email: 'tresorier@test.com', roles: ['TRESORIER'] } } as never);
             const req = makePatchRequest({ action: 'pay' });
