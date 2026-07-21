@@ -691,7 +691,7 @@ export default function ExpensesPage() {
                                 <div style={{
                                     display: 'flex',
                                     flexWrap: 'wrap',
-                                    justify: 'space-between',
+                                    justifyContent: 'space-between',
                                     alignItems: 'center',
                                     padding: '12px 16px',
                                     borderTop: '1px solid var(--border-primary)',
