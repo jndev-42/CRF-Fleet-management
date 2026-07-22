@@ -115,7 +115,7 @@ export default function VehicleDetailPage() {
      */
     const fetchVehicle = useCallback(async () => {
         try {
-            const res = await fetch(`/api/vehicles/${id}`);
+            const res = await fetch(`/api/vehicles/${id}?t=${Date.now()}`, { cache: 'no-store' });
             const data = await res.json();
             if (!res.ok) {
                 if (res.status === 401) {

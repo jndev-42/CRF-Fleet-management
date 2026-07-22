@@ -32,7 +32,6 @@ async function getPreviewRootFolderId(): Promise<string> {
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_FILES = 10;
-const ALLOWED_MIME_PREFIX = 'image/';
 
 export async function POST(request: Request) {
     try {
@@ -64,9 +63,11 @@ export async function POST(request: Request) {
                     { status: 400 }
                 );
             }
-            if (!file.type.startsWith(ALLOWED_MIME_PREFIX)) {
+            const isImage = file.type.startsWith('image/');
+            const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+            if (!isImage && !isPdf) {
                 return NextResponse.json(
-                    { error: `Le fichier "${file.name}" n'est pas une image valide.` },
+                    { error: `Le fichier "${file.name}" n'est ni une image ni un fichier PDF valide.` },
                     { status: 400 }
                 );
             }

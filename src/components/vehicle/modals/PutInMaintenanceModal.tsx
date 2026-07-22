@@ -15,10 +15,15 @@ export default function PutInMaintenanceModal({
   onSuccess,
   showToast,
 }: PutInMaintenanceModalProps) {
-  const todayStr = new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const todayDateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const currentTimeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-  const [startDate, setStartDate] = useState<string>(todayStr);
+  const [startDate, setStartDate] = useState<string>(todayDateStr);
+  const [startTime, setStartTime] = useState<string>(currentTimeStr);
   const [endDate, setEndDate] = useState<string>('');
+  const [endTime, setEndTime] = useState<string>('23:59');
   const [isEndDateUnknown, setIsEndDateUnknown] = useState<boolean>(false);
   const [reason, setReason] = useState<string>('');
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -38,12 +43,21 @@ export default function PutInMaintenanceModal({
 
     setSubmitting(true);
     try {
+      const startDateTimeStr = `${startDate}T${startTime || '00:00'}:00`;
+      const startDateISO = new Date(startDateTimeStr).toISOString();
+
+      let endDateISO: string | null = null;
+      if (!isEndDateUnknown && endDate) {
+        const endDateTimeStr = `${endDate}T${endTime || '23:59'}:00`;
+        endDateISO = new Date(endDateTimeStr).toISOString();
+      }
+
       const res = await fetch(`/api/vehicles/${encodeURIComponent(vehicleName)}/maintenance-events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startDate,
-          endDate: isEndDateUnknown ? null : endDate || null,
+          startDate: startDateISO,
+          endDate: endDateISO,
           reason: reason.trim(),
         }),
       });
@@ -84,7 +98,7 @@ export default function PutInMaintenanceModal({
           color: 'var(--text-primary, #1e293b)',
           borderRadius: '12px',
           width: '100%',
-          maxWidth: '500px',
+          maxWidth: '520px',
           boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           overflow: 'hidden',
           border: '1px solid var(--border-primary, #e2e8f0)',
@@ -127,26 +141,58 @@ export default function PutInMaintenanceModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Start Date */}
+          {/* Start Date & Time */}
           <div>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.375rem' }}>
-              Date de début <span style={{ color: '#EF4444' }}>*</span>
+              Début de la maintenance <span style={{ color: '#EF4444' }}>*</span>
             </label>
-            <input
-              type="date"
-              className="form-input"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-              style={{ width: '100%', padding: '0.5rem 0.75rem', borderRadius: '6px' }}
-            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 85px 85px', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="date"
+                className="form-input"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+                style={{ padding: '0.5rem 0.75rem', borderRadius: '6px' }}
+              />
+              <select
+                className="form-input"
+                value={startTime.split(':')[0] || '00'}
+                onChange={(e) => {
+                  const m = startTime.split(':')[1] || '00';
+                  setStartTime(`${e.target.value}:${m}`);
+                }}
+                required
+                style={{ padding: '0.5rem 0.25rem', borderRadius: '6px', textAlign: 'center' }}
+              >
+                {Array.from({ length: 24 }, (_, i) => {
+                  const h = i.toString().padStart(2, '0');
+                  return <option key={h} value={h}>{h} h</option>;
+                })}
+              </select>
+              <select
+                className="form-input"
+                value={startTime.split(':')[1] || '00'}
+                onChange={(e) => {
+                  const h = startTime.split(':')[0] || '00';
+                  setStartTime(`${h}:${e.target.value}`);
+                }}
+                required
+                style={{ padding: '0.5rem 0.25rem', borderRadius: '6px', textAlign: 'center' }}
+              >
+                {Array.from({ length: 60 }, (_, i) => {
+                  const m = i.toString().padStart(2, '0');
+                  return <option key={m} value={m}>{m} min</option>;
+                })}
+              </select>
+            </div>
           </div>
 
-          {/* End Date & Checkbox */}
+          {/* End Date & Time & Checkbox */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                Date de fin
+                Fin de la maintenance
               </label>
               <label style={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.375rem', cursor: 'pointer' }}>
                 <input
@@ -160,21 +206,64 @@ export default function PutInMaintenanceModal({
                 <span>Date de fin inconnue</span>
               </label>
             </div>
-            <input
-              type="date"
-              className="form-input"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              disabled={isEndDateUnknown}
-              min={startDate}
-              style={{
-                width: '100%',
-                padding: '0.5rem 0.75rem',
-                borderRadius: '6px',
-                opacity: isEndDateUnknown ? 0.5 : 1,
-                cursor: isEndDateUnknown ? 'not-allowed' : 'auto',
-              }}
-            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 85px 85px', gap: '0.5rem', alignItems: 'center' }}>
+              <input
+                type="date"
+                className="form-input"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                disabled={isEndDateUnknown}
+                min={startDate}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '6px',
+                  opacity: isEndDateUnknown ? 0.5 : 1,
+                  cursor: isEndDateUnknown ? 'not-allowed' : 'auto',
+                }}
+              />
+              <select
+                className="form-input"
+                value={endTime.split(':')[0] || '23'}
+                onChange={(e) => {
+                  const m = endTime.split(':')[1] || '59';
+                  setEndTime(`${e.target.value}:${m}`);
+                }}
+                disabled={isEndDateUnknown}
+                style={{
+                  padding: '0.5rem 0.25rem',
+                  borderRadius: '6px',
+                  textAlign: 'center',
+                  opacity: isEndDateUnknown ? 0.5 : 1,
+                  cursor: isEndDateUnknown ? 'not-allowed' : 'auto',
+                }}
+              >
+                {Array.from({ length: 24 }, (_, i) => {
+                  const h = i.toString().padStart(2, '0');
+                  return <option key={h} value={h}>{h} h</option>;
+                })}
+              </select>
+              <select
+                className="form-input"
+                value={endTime.split(':')[1] || '59'}
+                onChange={(e) => {
+                  const h = endTime.split(':')[0] || '23';
+                  setEndTime(`${h}:${e.target.value}`);
+                }}
+                disabled={isEndDateUnknown}
+                style={{
+                  padding: '0.5rem 0.25rem',
+                  borderRadius: '6px',
+                  textAlign: 'center',
+                  opacity: isEndDateUnknown ? 0.5 : 1,
+                  cursor: isEndDateUnknown ? 'not-allowed' : 'auto',
+                }}
+              >
+                {Array.from({ length: 60 }, (_, i) => {
+                  const m = i.toString().padStart(2, '0');
+                  return <option key={m} value={m}>{m} min</option>;
+                })}
+              </select>
+            </div>
           </div>
 
           {/* Reason */}

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { Camera, Image as ImageIcon, X } from 'lucide-react';
+import { Camera, Image as ImageIcon, X, FileText } from 'lucide-react';
 
 interface PhotoPickerProps {
     /** Multiple mode: for vehicle checkout/checkin and mission photos */
@@ -77,6 +77,8 @@ export default function PhotoPicker({
         }
     };
 
+    const isPdfFile = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+
     return (
         <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {label && <label className="form-label">{label}</label>}
@@ -99,7 +101,7 @@ export default function PhotoPicker({
                         style={{ flex: 1, justifyContent: 'center', gap: '8px', padding: '10px' }}
                     >
                         <ImageIcon size={18} />
-                        Galerie
+                        Fichiers / Galerie
                     </button>
                 </div>
             )}
@@ -127,13 +129,23 @@ export default function PhotoPicker({
             {isMultiple && currentPhotos.length > 0 && (
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
                     {currentPhotos.map((p, i) => (
-                        <div key={i} style={{ position: 'relative', width: '70px', height: '70px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={URL.createObjectURL(p)}
-                                alt="Aperçu"
-                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            />
+                        <div key={i} style={{ position: 'relative', width: '75px', height: '75px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)' }}>
+                            {isPdfFile(p) ? (
+                                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px', gap: '2px', textAlign: 'center' }}>
+                                    <FileText size={22} color="var(--red-primary, #ef4444)" />
+                                    <span style={{ fontSize: '9px', fontWeight: 600, color: 'var(--text-primary)', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                        {p.name}
+                                    </span>
+                                    <span style={{ fontSize: '8px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>PDF</span>
+                                </div>
+                            ) : (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img
+                                    src={URL.createObjectURL(p)}
+                                    alt="Aperçu"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            )}
                             <button
                                 type="button"
                                 onClick={() => removePhoto(i)}
@@ -161,10 +173,17 @@ export default function PhotoPicker({
                 </div>
             )}
 
-            {/* Preview for single mode (if needed, but Step7 handles its own) */}
+            {/* Preview for single mode */}
             {!isMultiple && file && (
-                <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-primary)' }}>
-                     {file.type.startsWith('image/') ? (
+                <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)' }}>
+                     {isPdfFile(file) ? (
+                         <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px', gap: '2px', textAlign: 'center' }}>
+                             <FileText size={24} color="var(--red-primary, #ef4444)" />
+                             <span style={{ fontSize: '9px', fontWeight: 600, color: 'var(--text-primary)', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                 {file.name}
+                             </span>
+                         </div>
+                     ) : file.type.startsWith('image/') ? (
                          /* eslint-disable-next-line @next/next/no-img-element */
                          <img
                             src={URL.createObjectURL(file)}

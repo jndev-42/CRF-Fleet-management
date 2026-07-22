@@ -4,6 +4,8 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 
+export const dynamic = 'force-dynamic';
+
 const updateVehicleSchema = z.object({
     name: z.string().min(1).optional(),
     type: z.string().min(1).optional(),
@@ -66,27 +68,38 @@ export async function GET(
             args: [row.id]
         });
 
-        // Fetch active maintenance (started today or in the past, and not ended or ends today/future)
-        const todayDate = new Date().toISOString().split('T')[0];
+        // Fetch active maintenance (started today or in the past, and not ended)
+        const nowISO = new Date().toISOString();
+        const todayDate = nowISO.split('T')[0];
+        const currentStatusUpper = String(row.status || '').toUpperCase();
         const maintenanceResult = await db.execute({
             sql: `SELECT id, startDate, endDate, reason
                   FROM "VehicleMaintenance"
-                  WHERE vehicleId = ? AND startDate <= ? AND (endDate IS NULL OR endDate >= ?)
+                  WHERE vehicleId = ?
+                    AND (
+                      (startDate LIKE '%T%' AND startDate <= ?) OR
+                      (startDate NOT LIKE '%T%' AND startDate <= ?)
+                    )
+                    AND (
+                      endDate IS NULL OR
+                      (endDate LIKE '%T%' AND endDate > ?) OR
+                      (endDate NOT LIKE '%T%' AND endDate >= ?)
+                    )
                   ORDER BY createdAt DESC LIMIT 1`,
-            args: [row.id, todayDate, todayDate]
+            args: [row.id, nowISO, todayDate, nowISO, todayDate]
         });
         const activeMaint = maintenanceResult.rows[0] ?? null;
 
         let effectiveStatus = row.status as string;
-        if (activeMaint && row.status !== 'IN_USE') {
+        if (activeMaint && currentStatusUpper !== 'IN_USE') {
             effectiveStatus = 'MAINTENANCE';
-            if (row.status !== 'MAINTENANCE') {
+            if (currentStatusUpper !== 'MAINTENANCE') {
                 await db.execute({
                     sql: `UPDATE "Vehicle" SET status = 'MAINTENANCE', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
                     args: [row.id]
                 });
             }
-        } else if (!activeMaint && row.status === 'MAINTENANCE') {
+        } else if (!activeMaint && currentStatusUpper === 'MAINTENANCE') {
             effectiveStatus = 'AVAILABLE';
             await db.execute({
                 sql: `UPDATE "Vehicle" SET status = 'AVAILABLE', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
@@ -117,7 +130,7 @@ export async function GET(
             revisionYearInterval: row.revisionYearInterval as number | null,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
-            activeMaintenance: activeMaint ? {
+            activeMaintenance: (effectiveStatus === 'MAINTENANCE' && activeMaint) ? {
                 id: activeMaint.id as string,
                 startDate: activeMaint.startDate as string,
                 endDate: activeMaint.endDate as string | null,
