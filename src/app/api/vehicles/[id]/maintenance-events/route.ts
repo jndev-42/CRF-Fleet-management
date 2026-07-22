@@ -29,9 +29,10 @@ export async function POST(
     const body = await request.json();
     const data = createMaintenanceEventSchema.parse(body);
 
+    const decodedId = decodeURIComponent(id);
     const vehicleResult = await db.execute({
-      sql: `SELECT id FROM "Vehicle" WHERE name = ?`,
-      args: [id],
+      sql: `SELECT id FROM "Vehicle" WHERE name = ? OR id = ? OR name = ?`,
+      args: [id, id, decodedId],
     });
 
     if (vehicleResult.rows.length === 0) {
@@ -103,10 +104,10 @@ export async function PATCH(
     }
 
     const { id } = await params;
-
+    const decodedId = decodeURIComponent(id);
     const vehicleResult = await db.execute({
-      sql: `SELECT id FROM "Vehicle" WHERE name = ?`,
-      args: [id],
+      sql: `SELECT id FROM "Vehicle" WHERE name = ? OR id = ? OR name = ?`,
+      args: [id, id, decodedId],
     });
 
     if (vehicleResult.rows.length === 0) {
@@ -117,17 +118,16 @@ export async function PATCH(
     const nowISO = new Date().toISOString();
     const todayDate = nowISO.split('T')[0];
 
-    // Find active/ongoing maintenance record for this vehicle (endDate IS NULL or endDate >= todayDate)
+    // Close all active/ongoing maintenance records for this vehicle (endDate IS NULL or endDate >= todayDate)
     const activeMaint = await db.execute({
-      sql: `SELECT id FROM "VehicleMaintenance" WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ?) ORDER BY createdAt DESC LIMIT 1`,
+      sql: `SELECT id FROM "VehicleMaintenance" WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ?)`,
       args: [vehicleId, todayDate],
     });
 
     if (activeMaint.rows.length > 0) {
-      const maintId = activeMaint.rows[0].id as string;
       await db.execute({
-        sql: `UPDATE "VehicleMaintenance" SET endDate = ?, updatedAt = ? WHERE id = ?`,
-        args: [todayDate, nowISO, maintId],
+        sql: `UPDATE "VehicleMaintenance" SET endDate = ?, updatedAt = ? WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ?)`,
+        args: [todayDate, nowISO, vehicleId, todayDate],
       });
     } else {
       // Fallback: update latest maintenance record if any exists

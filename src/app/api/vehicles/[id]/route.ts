@@ -68,25 +68,26 @@ export async function GET(
 
         // Fetch active maintenance (started today or in the past, and not ended or ends today/future if vehicle status is MAINTENANCE)
         const todayDate = new Date().toISOString().split('T')[0];
+        const currentStatusUpper = String(row.status || '').toUpperCase();
         const maintenanceResult = await db.execute({
             sql: `SELECT id, startDate, endDate, reason
                   FROM "VehicleMaintenance"
                   WHERE vehicleId = ? AND startDate <= ? AND (endDate IS NULL OR endDate > ? OR (endDate = ? AND ? = 'MAINTENANCE'))
                   ORDER BY createdAt DESC LIMIT 1`,
-            args: [row.id, todayDate, todayDate, todayDate, row.status]
+            args: [row.id, todayDate, todayDate, todayDate, currentStatusUpper]
         });
         const activeMaint = maintenanceResult.rows[0] ?? null;
 
         let effectiveStatus = row.status as string;
-        if (activeMaint && row.status !== 'IN_USE') {
+        if (activeMaint && currentStatusUpper !== 'IN_USE') {
             effectiveStatus = 'MAINTENANCE';
-            if (row.status !== 'MAINTENANCE') {
+            if (currentStatusUpper !== 'MAINTENANCE') {
                 await db.execute({
                     sql: `UPDATE "Vehicle" SET status = 'MAINTENANCE', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
                     args: [row.id]
                 });
             }
-        } else if (!activeMaint && row.status === 'MAINTENANCE') {
+        } else if (!activeMaint && currentStatusUpper === 'MAINTENANCE') {
             effectiveStatus = 'AVAILABLE';
             await db.execute({
                 sql: `UPDATE "Vehicle" SET status = 'AVAILABLE', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
