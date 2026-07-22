@@ -15,12 +15,7 @@ export default function PutInMaintenanceModal({
   onSuccess,
   showToast,
 }: PutInMaintenanceModalProps) {
-  const formatDateTimeLocal = (d: Date) => {
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-
-  const todayStr = formatDateTimeLocal(new Date());
+  const todayStr = new Date().toISOString().split('T')[0];
 
   const [startDate, setStartDate] = useState<string>(todayStr);
   const [endDate, setEndDate] = useState<string>('');
@@ -43,15 +38,12 @@ export default function PutInMaintenanceModal({
 
     setSubmitting(true);
     try {
-      const startDateISO = new Date(startDate).toISOString();
-      const endDateISO = isEndDateUnknown || !endDate ? null : new Date(endDate).toISOString();
-
       const res = await fetch(`/api/vehicles/${encodeURIComponent(vehicleName)}/maintenance-events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          startDate: startDateISO,
-          endDate: endDateISO,
+          startDate,
+          endDate: isEndDateUnknown ? null : endDate || null,
           reason: reason.trim(),
         }),
       });
@@ -135,13 +127,13 @@ export default function PutInMaintenanceModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Start Date & Time */}
+          {/* Start Date */}
           <div>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.375rem' }}>
-              Date et heure de début <span style={{ color: '#EF4444' }}>*</span>
+              Date de début <span style={{ color: '#EF4444' }}>*</span>
             </label>
             <input
-              type="datetime-local"
+              type="date"
               className="form-input"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
@@ -150,11 +142,11 @@ export default function PutInMaintenanceModal({
             />
           </div>
 
-          {/* End Date & Time */}
+          {/* End Date & Checkbox */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.375rem' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                Date et heure de fin
+                Date de fin
               </label>
               <label style={{ fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '0.375rem', cursor: 'pointer' }}>
                 <input
@@ -169,7 +161,7 @@ export default function PutInMaintenanceModal({
               </label>
             </div>
             <input
-              type="datetime-local"
+              type="date"
               className="form-input"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}

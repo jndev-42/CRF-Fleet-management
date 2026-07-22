@@ -45,19 +45,17 @@ export async function POST(
     const eventId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    const startDateISO = data.startDate.includes('T') ? data.startDate : `${data.startDate}T00:00:00.000Z`;
-    const endDateISO = data.endDate && data.endDate.trim() !== ''
-      ? (data.endDate.includes('T') ? data.endDate : `${data.endDate}T23:59:59.999Z`)
-      : null;
+    const endDateValue = data.endDate && data.endDate.trim() !== '' ? data.endDate : null;
+    const todayDate = new Date().toISOString().split('T')[0];
 
     await db.execute({
       sql: `INSERT INTO "VehicleMaintenance" (id, vehicleId, startDate, endDate, reason, createdAt, updatedAt)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [eventId, vehicleId, startDateISO, endDateISO, data.reason, now, now],
+      args: [eventId, vehicleId, data.startDate, endDateValue, data.reason, now, now],
     });
 
     // Only update vehicle status to MAINTENANCE immediately if start date is today or in the past
-    if (startDateISO <= now) {
+    if (data.startDate <= todayDate) {
       await db.execute({
         sql: `UPDATE "Vehicle" SET status = 'MAINTENANCE', updatedAt = ? WHERE id = ?`,
         args: [now, vehicleId],
@@ -70,8 +68,8 @@ export async function POST(
         maintenance: {
           id: eventId,
           vehicleId,
-          startDate: startDateISO,
-          endDate: endDateISO,
+          startDate: data.startDate,
+          endDate: endDateValue,
           reason: data.reason,
         },
       },
@@ -84,31 +82,32 @@ export async function POST(
         { status: 400 }
       );
     }
-    console.error('Error starting vehicle maintenance:', error);
+    console.error('Error creating maintenance event:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la mise en maintenance' },
+      { error: 'Erreur lors de la création de la maintenance' },
       { status: 500 }
     );
   }
 }
 
 export async function PATCH(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const roles = session.user.roles || ['INACTIF'];
     if (!isAdminOrAbove(roles)) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
     const { id } = await params;
     const decodedId = decodeURIComponent(id);
+
     const vehicleResult = await db.execute({
       sql: `SELECT id FROM "Vehicle" WHERE name = ? OR id = ? OR name = ?`,
       args: [id, id, decodedId],
@@ -120,13 +119,12 @@ export async function PATCH(
 
     const vehicleId = vehicleResult.rows[0].id as string;
     const nowISO = new Date().toISOString();
-    const endTimestamp = new Date(Date.now() - 1000).toISOString();
-    const todayDate = nowISO.split('T')[0];
+    const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-    // Close all active/ongoing maintenance records for this vehicle
+    // Close all active/ongoing maintenance records for this vehicle (set endDate to yesterday's date so endDate >= todayDate is false)
     await db.execute({
-      sql: `UPDATE "VehicleMaintenance" SET endDate = ?, updatedAt = ? WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ? OR endDate > ?)`,
-      args: [endTimestamp, nowISO, vehicleId, todayDate, endTimestamp],
+      sql: `UPDATE "VehicleMaintenance" SET endDate = ?, updatedAt = ? WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ?)`,
+      args: [yesterdayDate, nowISO, vehicleId, yesterdayDate],
     });
 
     await db.execute({
@@ -134,7 +132,7 @@ export async function PATCH(
       args: [nowISO, vehicleId],
     });
 
-    return NextResponse.json({ success: true, endDate: endTimestamp });
+    return NextResponse.json({ success: true, endDate: yesterdayDate });
   } catch (error) {
     console.error('Error ending vehicle maintenance:', error);
     return NextResponse.json(
