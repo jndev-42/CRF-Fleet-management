@@ -8,36 +8,7 @@ import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
 
-async function processImageForPdf(input: string | null | undefined, maxWidth = 400, maxHeight = 200): Promise<string | null> {
-    if (!input || typeof input !== 'string') return null;
-    try {
-        let buffer: Buffer | null = null;
-        if (input.startsWith('data:')) {
-            const parts = input.split(',');
-            if (parts.length > 1) {
-                buffer = Buffer.from(parts[1], 'base64');
-            }
-        } else if (input.startsWith('http://') || input.startsWith('https://')) {
-            const res = await fetch(input);
-            if (res.ok) {
-                const arrayBuffer = await res.arrayBuffer();
-                buffer = Buffer.from(arrayBuffer);
-            }
-        }
 
-        if (!buffer) return null;
-
-        const pngBuffer = await sharp(buffer)
-            .resize(maxWidth, maxHeight, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
-            .png()
-            .toBuffer();
-
-        return `data:image/png;base64,${pngBuffer.toString('base64')}`;
-    } catch (err) {
-        console.error('Failed to process image for PDF:', err);
-        return null;
-    }
-}
 
 async function generateExpensePdf(reportId: string): Promise<Buffer> {
     const result = await db.execute({
@@ -66,40 +37,6 @@ async function generateExpensePdf(reportId: string): Promise<Buffer> {
         console.error('Failed to parse items for PDF', e);
     }
 
-    const processedStamp = await processImageForPdf(row.ulStampImage as string, 400, 200);
-
-    let processedUserSig = (row.userSignature as string) || null;
-    if (processedUserSig) {
-        try {
-            const parsed = JSON.parse(processedUserSig);
-            if (parsed.image) {
-                const cleanImg = await processImageForPdf(parsed.image, 300, 100);
-                if (cleanImg) {
-                    parsed.image = cleanImg;
-                    processedUserSig = JSON.stringify(parsed);
-                }
-            }
-        } catch {
-            // keep original
-        }
-    }
-
-    let processedValSig = (row.validatorSignature as string) || null;
-    if (processedValSig) {
-        try {
-            const parsed = JSON.parse(processedValSig);
-            if (parsed.image) {
-                const cleanImg = await processImageForPdf(parsed.image, 300, 100);
-                if (cleanImg) {
-                    parsed.image = cleanImg;
-                    processedValSig = JSON.stringify(parsed);
-                }
-            }
-        } catch {
-            // keep original
-        }
-    }
-
     const report = {
         id: row.id as string,
         userName: row.userName as string,
@@ -114,12 +51,12 @@ async function generateExpensePdf(reportId: string): Promise<Buffer> {
         items: parsedItems,
         ulId: row.ulId as string,
         ulName: (row.ulName as string) || (row.ulId === 'ul-paris-18' ? 'Paris 18' : row.ulId as string),
-        ulStampImage: processedStamp,
+        ulStampImage: (row.ulStampImage as string) || null,
         userFunction: (row.userFunction as string) || null,
-        userSignature: processedUserSig,
+        userSignature: (row.userSignature as string) || null,
         validatorName: (row.validatorName as string) || null,
         validatedAt: (row.validatedAt as string) || null,
-        validatorSignature: processedValSig,
+        validatorSignature: (row.validatorSignature as string) || null,
     };
 
     let logoSrc = '';

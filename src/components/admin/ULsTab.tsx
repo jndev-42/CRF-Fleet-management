@@ -13,7 +13,6 @@ interface UL {
     slug: string;
     phoneNumbers?: PhoneNum[];
     defaultParkingSpots?: string[];
-    stampUrl?: string | null;
     stampImage?: string | null;
 }
 
@@ -35,9 +34,7 @@ export default function ULsTab({
     const [formSlug, setFormSlug] = useState('');
     const [phoneNumbers, setPhoneNumbers] = useState<PhoneNum[]>([]);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
-    const [stampPreview, setStampPreview] = useState<string | null>(null);
-    const [stampFileBase64, setStampFileBase64] = useState<string | null>(null);
-    const [stampDeleted, setStampDeleted] = useState(false);
+    const [stampImage, setStampImage] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
     function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -70,18 +67,14 @@ export default function ULsTab({
             setFormSlug(ul.slug);
             setPhoneNumbers(ul.phoneNumbers || []);
             setDefaultParkingSpots(ul.defaultParkingSpots || []);
-            setStampPreview(ul.stampUrl || null);
-            setStampFileBase64(null);
-            setStampDeleted(false);
+            setStampImage(ul.stampImage || null);
         } else {
             setEditingUl(null);
             setFormName('');
             setFormSlug('');
             setPhoneNumbers([]);
             setDefaultParkingSpots([]);
-            setStampPreview(null);
-            setStampFileBase64(null);
-            setStampDeleted(false);
+            setStampImage(null);
         }
         setIsModalOpen(true);
     }
@@ -101,8 +94,8 @@ export default function ULsTab({
 
             const img = new window.Image();
             img.onload = () => {
-                const maxWidth = 800;
-                const maxHeight = 400;
+                const maxWidth = 500;
+                const maxHeight = 250;
                 let width = img.width;
                 let height = img.height;
 
@@ -119,24 +112,14 @@ export default function ULsTab({
                 if (ctx) {
                     ctx.drawImage(img, 0, 0, width, height);
                     const compressed = canvas.toDataURL('image/png');
-                    setStampFileBase64(compressed);
-                    setStampPreview(compressed);
-                    setStampDeleted(false);
+                    setStampImage(compressed);
                 } else {
-                    setStampFileBase64(dataUrl);
-                    setStampPreview(dataUrl);
-                    setStampDeleted(false);
+                    setStampImage(dataUrl);
                 }
             };
             img.src = dataUrl;
         };
         reader.readAsDataURL(file);
-    }
-
-    function handleDeleteStamp() {
-        setStampPreview(null);
-        setStampFileBase64(null);
-        setStampDeleted(true);
     }
 
     function handleNameChange(value: string) {
@@ -185,19 +168,6 @@ export default function ULsTab({
         const validPhoneNumbers = phoneNumbers.filter(p => p.label.trim() && p.number.trim());
         const validParkingSpots = defaultParkingSpots.map(s => s.trim()).filter(Boolean);
 
-        const payload: Record<string, unknown> = {
-            name: formName.trim(),
-            slug: formSlug.trim(),
-            phoneNumbers: validPhoneNumbers,
-            defaultParkingSpots: validParkingSpots,
-        };
-
-        if (stampFileBase64) {
-            payload.stampImage = stampFileBase64;
-        } else if (stampDeleted) {
-            payload.stampImage = null;
-        }
-
         setSubmitting(true);
         try {
             if (editingUl) {
@@ -205,7 +175,13 @@ export default function ULsTab({
                 const res = await fetch(`/api/ul/${editingUl.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
+                    body: JSON.stringify({
+                        name: formName.trim(),
+                        slug: formSlug.trim(),
+                        phoneNumbers: validPhoneNumbers,
+                        defaultParkingSpots: validParkingSpots,
+                        stampImage: stampImage || null,
+                    }),
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Erreur lors de la modification');
@@ -216,7 +192,13 @@ export default function ULsTab({
                 const res = await fetch('/api/ul', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
+                    body: JSON.stringify({
+                        name: formName.trim(),
+                        slug: formSlug.trim(),
+                        phoneNumbers: validPhoneNumbers,
+                        defaultParkingSpots: validParkingSpots,
+                        stampImage: stampImage || null,
+                    }),
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Erreur lors de la création');
@@ -329,10 +311,10 @@ export default function ULsTab({
                                             ))}
                                         </div>
                                     )}
-                                    {(ul.stampUrl || ul.stampImage) && (
+                                    {ul.stampImage && (
                                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '4px 8px', background: 'rgba(227, 6, 19, 0.06)', border: '1px dashed rgba(227, 6, 19, 0.3)', borderRadius: '6px' }}>
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={(ul.stampUrl || ul.stampImage)!} alt="Tampon UL" style={{ height: 28, maxWidth: 80, objectFit: 'contain' }} />
+                                            <img src={ul.stampImage} alt="Tampon UL" style={{ height: 28, maxWidth: 80, objectFit: 'contain' }} />
                                             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>Tampon officiel configuré</span>
                                         </div>
                                     )}
@@ -414,15 +396,15 @@ export default function ULsTab({
                                         Si une image de tampon est téléversée, elle sera directement incrustée dans la case &quot;Tampon de la structure&quot; sur les PDF de notes de frais.
                                     </p>
 
-                                    {stampPreview ? (
+                                    {stampImage ? (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 12, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-primary)' }}>
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={stampPreview} alt="Aperçu tampon UL" style={{ maxHeight: 60, maxWidth: 140, objectFit: 'contain' }} />
+                                            <img src={stampImage} alt="Aperçu tampon UL" style={{ maxHeight: 60, maxWidth: 140, objectFit: 'contain' }} />
                                             <button
                                                 type="button"
                                                 className="btn btn-danger"
                                                 style={{ fontSize: 12, padding: '6px 12px' }}
-                                                onClick={handleDeleteStamp}
+                                                onClick={() => setStampImage(null)}
                                             >
                                                 🗑️ Supprimer le tampon
                                             </button>

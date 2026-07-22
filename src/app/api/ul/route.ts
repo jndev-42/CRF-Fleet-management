@@ -23,14 +23,14 @@ export async function GET() {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        const res = await db.execute(`SELECT id, name, slug, phoneNumbers, defaultParkingSpots, (stampImage IS NOT NULL AND stampImage != '') as hasStamp FROM "UniteLocale" ORDER BY name ASC`);
+        const res = await db.execute(`SELECT id, name, slug, phoneNumbers, defaultParkingSpots, stampImage FROM "UniteLocale" ORDER BY name ASC`);
         const uls = res.rows.map(r => ({
             id: r.id,
             name: r.name,
             slug: r.slug,
             phoneNumbers: r.phoneNumbers ? JSON.parse(r.phoneNumbers as string) : [],
             defaultParkingSpots: r.defaultParkingSpots ? JSON.parse(r.defaultParkingSpots as string) : [],
-            stampUrl: r.hasStamp ? `/api/ul/${r.id}/stamp` : null,
+            stampImage: (r.stampImage as string) || null,
         }));
 
         return NextResponse.json({ uls });
