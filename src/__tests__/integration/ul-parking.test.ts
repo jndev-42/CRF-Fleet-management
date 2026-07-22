@@ -104,4 +104,45 @@ describe('UL default parking spots API (/api/ul)', () => {
     expect(testUl).toBeDefined();
     expect(testUl.defaultParkingSpots).toEqual(['Spot A', 'Spot B']);
   });
+
+  it('crée et met à jour le tampon d’une UL (stampImage)', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] },
+    } as never);
+
+    const stampBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+    // 1. POST avec stampImage
+    const postReq = new Request('http://localhost/api/ul', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'UL Stamp Test',
+        slug: 'stamp-test',
+        stampImage: stampBase64,
+      }),
+    });
+    const postRes = await POST(postReq);
+    expect(postRes.status).toBe(201);
+    const postData = await postRes.json();
+    expect(postData.stampImage).toBe(stampBase64);
+
+    // 2. PATCH pour effacer le tampon (null)
+    const patchReq = new Request('http://localhost/api/ul/ul-stamp-test', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        stampImage: null,
+      }),
+    });
+    const patchRes = await PATCH(patchReq, { params: Promise.resolve({ id: 'ul-stamp-test' }) });
+    expect(patchRes.status).toBe(200);
+
+    // Vérification en DB
+    const dbRes = await db.execute({
+      sql: `SELECT stampImage FROM "UniteLocale" WHERE id = ?`,
+      args: ['ul-stamp-test'],
+    });
+    expect(dbRes.rows[0].stampImage).toBeNull();
+  });
 });

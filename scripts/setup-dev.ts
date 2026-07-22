@@ -78,13 +78,17 @@ async function main() {
             "name" TEXT NOT NULL UNIQUE,
             "slug" TEXT NOT NULL UNIQUE,
             "phoneNumbers" TEXT,
-            "defaultParkingSpots" TEXT
+            "defaultParkingSpots" TEXT,
+            "stampImage" TEXT
         )
     `);
 
     const ulCols = await db.execute('PRAGMA table_info("UniteLocale")');
     if (!ulCols.rows.some(r => r.name === 'defaultParkingSpots')) {
         await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "defaultParkingSpots" TEXT`);
+    }
+    if (!ulCols.rows.some(r => r.name === 'stampImage')) {
+        await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "stampImage" TEXT`);
     }
 
     await db.execute(`

@@ -370,6 +370,7 @@ export interface ExpensePdfReportProps {
         items: { label: string; amount: number }[];
         ulId: string;
         ulName?: string;
+        ulStampImage?: string | null;
         userFunction?: string | null;
         userSignature?: string | ParsedSignature | null;
         validatorName?: string | null;
@@ -606,11 +607,18 @@ export default function ExpensePdfDocument({ report, logoSrc }: ExpensePdfReport
                         {/* Col 3: Tampon de la structure */}
                         <View style={styles.sigColLast}>
                             <Text style={[styles.sigTitle, { alignSelf: 'flex-start', width: '100%' }]}>Tampon de la structure :</Text>
-                            <View style={styles.stampContainer}>
-                                <Text style={styles.stampTextHeader}>CROIX-ROUGE FRANÇAISE</Text>
-                                <Text style={styles.stampTextUL}>{ulDisplayName.toUpperCase()}</Text>
-                                <Text style={styles.stampTextFooter}>UNITE LOCALE DE {ulDisplayName.toUpperCase()}</Text>
-                            </View>
+                            {report.ulStampImage ? (
+                                <View style={styles.sigImageContainer}>
+                                    {/* eslint-disable-next-line jsx-a11y/alt-text */}
+                                    <Image src={report.ulStampImage} style={styles.sigImage} />
+                                </View>
+                            ) : (
+                                <View style={styles.stampContainer}>
+                                    <Text style={styles.stampTextHeader}>CROIX-ROUGE FRANÇAISE</Text>
+                                    <Text style={styles.stampTextUL}>{ulDisplayName.toUpperCase()}</Text>
+                                    <Text style={styles.stampTextFooter}>UNITE LOCALE DE {ulDisplayName.toUpperCase()}</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
                     <Text style={styles.sigArchiveNote}>

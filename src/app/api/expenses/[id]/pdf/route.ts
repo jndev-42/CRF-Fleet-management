@@ -12,7 +12,7 @@ async function generateExpensePdf(reportId: string): Promise<Buffer> {
     const result = await db.execute({
         sql: `
             SELECT er.*, u.name as userName, u.email as userEmail,
-                   val.name as validatorName, ul.name as ulName
+                   val.name as validatorName, ul.name as ulName, ul.stampImage as ulStampImage
             FROM "ExpenseReport" er
             JOIN "User" u ON u.id = er.userId
             LEFT JOIN "User" val ON val.id = er.validatedBy
@@ -49,6 +49,7 @@ async function generateExpensePdf(reportId: string): Promise<Buffer> {
         items: parsedItems,
         ulId: row.ulId as string,
         ulName: (row.ulName as string) || (row.ulId === 'ul-paris-18' ? 'Paris 18' : row.ulId as string),
+        ulStampImage: (row.ulStampImage as string) || null,
         userFunction: (row.userFunction as string) || null,
         userSignature: (row.userSignature as string) || null,
         validatorName: (row.validatorName as string) || null,

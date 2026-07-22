@@ -13,6 +13,7 @@ interface UL {
     slug: string;
     phoneNumbers?: PhoneNum[];
     defaultParkingSpots?: string[];
+    stampImage?: string | null;
 }
 
 export default function ULsTab({
@@ -33,6 +34,7 @@ export default function ULsTab({
     const [formSlug, setFormSlug] = useState('');
     const [phoneNumbers, setPhoneNumbers] = useState<PhoneNum[]>([]);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
+    const [stampImage, setStampImage] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
     function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -65,14 +67,32 @@ export default function ULsTab({
             setFormSlug(ul.slug);
             setPhoneNumbers(ul.phoneNumbers || []);
             setDefaultParkingSpots(ul.defaultParkingSpots || []);
+            setStampImage(ul.stampImage || null);
         } else {
             setEditingUl(null);
             setFormName('');
             setFormSlug('');
             setPhoneNumbers([]);
             setDefaultParkingSpots([]);
+            setStampImage(null);
         }
         setIsModalOpen(true);
+    }
+
+    function handleStampUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > 2 * 1024 * 1024) {
+            showToast('L\'image du tampon ne doit pas dépasser 2 Mo', 'error');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            if (evt.target?.result) {
+                setStampImage(evt.target.result as string);
+            }
+        };
+        reader.readAsDataURL(file);
     }
 
     function handleNameChange(value: string) {
@@ -133,6 +153,7 @@ export default function ULsTab({
                         slug: formSlug.trim(),
                         phoneNumbers: validPhoneNumbers,
                         defaultParkingSpots: validParkingSpots,
+                        stampImage: stampImage || null,
                     }),
                 });
                 const data = await res.json();
@@ -149,6 +170,7 @@ export default function ULsTab({
                         slug: formSlug.trim(),
                         phoneNumbers: validPhoneNumbers,
                         defaultParkingSpots: validParkingSpots,
+                        stampImage: stampImage || null,
                     }),
                 });
                 const data = await res.json();
@@ -262,6 +284,13 @@ export default function ULsTab({
                                             ))}
                                         </div>
                                     )}
+                                    {ul.stampImage && (
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '4px 8px', background: 'rgba(227, 6, 19, 0.06)', border: '1px dashed rgba(227, 6, 19, 0.3)', borderRadius: '6px' }}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={ul.stampImage} alt="Tampon UL" style={{ height: 28, maxWidth: 80, objectFit: 'contain' }} />
+                                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>Tampon officiel configuré</span>
+                                        </div>
+                                    )}
                                 </div>
                                 <div style={{ display: 'flex', gap: 8, marginLeft: 16 }}>
                                     {(isSuperAdmin || ul.id === userUlId) && (
@@ -330,6 +359,40 @@ export default function ULsTab({
                                             disabled={!!editingUl} // Lock slug on edit for safety
                                         />
                                     </div>
+                                </div>
+
+                                <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: 16 }}>
+                                    <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 4 }}>
+                                        🔴 Tampon officiel de l&apos;UL (image)
+                                    </label>
+                                    <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                                        Si une image de tampon est téléversée, elle sera directement incrustée dans la case &quot;Tampon de la structure&quot; sur les PDF de notes de frais.
+                                    </p>
+
+                                    {stampImage ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 12, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-primary)' }}>
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={stampImage} alt="Aperçu tampon UL" style={{ maxHeight: 60, maxWidth: 140, objectFit: 'contain' }} />
+                                            <button
+                                                type="button"
+                                                className="btn btn-danger"
+                                                style={{ fontSize: 12, padding: '6px 12px' }}
+                                                onClick={() => setStampImage(null)}
+                                            >
+                                                🗑️ Supprimer le tampon
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <label className="btn btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
+                                            📁 Téléverser une image de tampon
+                                            <input
+                                                type="file"
+                                                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                                onChange={handleStampUpload}
+                                                style={{ display: 'none' }}
+                                            />
+                                        </label>
+                                    )}
                                 </div>
 
                                 <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: 16 }}>
