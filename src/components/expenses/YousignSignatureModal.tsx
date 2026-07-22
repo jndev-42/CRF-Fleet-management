@@ -455,7 +455,7 @@ export default function YousignSignatureModal({
                             style={{ marginTop: '2px', cursor: 'pointer' }}
                         />
                         <span>
-                            Je confirme signer électroniquement ce document et certifie l’exactitude de l’état des frais engagés (horodatage Yousign cryptographique).
+                            Je confirme signer électroniquement ce document et certifie l’exactitude de l’état des frais engagés (horodatage numérique cryptographique).
                         </span>
                     </label>
                 </div>

@@ -4,7 +4,6 @@ import { db } from '@/lib/db';
 import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer';
 import { createElement, type JSXElementConstructor, type ReactElement } from 'react';
 import ExpensePdfDocument from '@/components/expenses/ExpensePdfDocument';
-import path from 'path';
 import sharp from 'sharp';
 
 async function generateExpensePdf(reportId: string): Promise<Buffer> {
@@ -57,8 +56,15 @@ async function generateExpensePdf(reportId: string): Promise<Buffer> {
 
     let logoSrc = '';
     try {
-        const logoPng = await sharp(path.join(process.cwd(), 'public', 'crf-logo.svg'))
-            .resize(96, 96)
+        const logoSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="360" height="90" viewBox="0 0 360 90">
+  <text x="5" y="58" font-family="Helvetica, Arial, sans-serif" font-size="32" font-weight="bold" fill="#222222">croix-rouge française</text>
+  <g transform="translate(295, 12)">
+    <rect x="22" y="0" width="22" height="66" fill="#E30613" />
+    <rect x="0" y="22" width="66" height="22" fill="#E30613" />
+  </g>
+</svg>`;
+        const logoPng = await sharp(Buffer.from(logoSvg))
+            .resize(360, 90)
             .png()
             .toBuffer();
         logoSrc = `data:image/png;base64,${logoPng.toString('base64')}`;
