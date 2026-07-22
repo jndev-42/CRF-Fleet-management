@@ -230,7 +230,7 @@ export default function ExpenseStatsSection({
                           outerRadius={80}
                           innerRadius={45}
                           paddingAngle={3}
-                          label={(entry) => `${entry.imputation}: ${entry.amount.toFixed(0)}€`}
+                          label={(entry: any) => `${entry.imputation || entry.name || ''}: ${Number(entry.amount || entry.value || 0).toFixed(0)}€`}
                         >
                           {data.byImputation.map((_, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
