@@ -203,7 +203,7 @@ export default function ExpenseStatsSection({
                         <XAxis dataKey="label" stroke="var(--text-secondary)" fontSize={12} />
                         <YAxis stroke="var(--text-secondary)" fontSize={12} unit="€" />
                         <Tooltip
-                          formatter={(value: number | string | Array<number | string> | undefined) => [
+                          formatter={(value: any) => [
                             typeof value === 'number' ? `${value.toFixed(2)} €` : `${value ?? 0} €`,
                             'Montant',
                           ]}
@@ -237,7 +237,7 @@ export default function ExpenseStatsSection({
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value: number | string | Array<number | string> | undefined) => [
+                          formatter={(value: any) => [
                             typeof value === 'number' ? `${value.toFixed(2)} €` : `${value ?? 0} €`,
                             'Montant',
                           ]}
