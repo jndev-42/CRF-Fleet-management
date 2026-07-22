@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.6.0] — 22 juillet 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Notifications cloche pour les notes de frais (Président & Trésorier)** — Notification automatique dans la cloche d'alerte en haut à droite de l'application :
+  - **Pour le Président (`PRESIDENT`)** : Lorsqu'une nouvelle note de frais est soumise pour validation.
+  - **Pour le Trésorier (`TRESORIER`)** : Lorsqu'une note de frais avec demande de remboursement est validée et passe en attente de paiement.
+
+### 🐛 Corrections & Améliorations
+
+- **Affichage de la cloche pour tous les utilisateurs actifs** — Modification du composant de navigation (`Navbar`) afin de rendre la cloche de notification accessible à l'ensemble des rôles d'utilisateurs actifs (Présidents, Trésoriers, Cadres, Chauffeurs) et non plus uniquement aux administrateurs.
+- **Fonctionnement des notifications in-app sans OneSignal** — Prise en charge intégrale de la création et du traitement des notifications in-app en base de données, même lorsque l'intégration OneSignal est absente ou désactivée (ex: environnement Preview ou local).
+
 ## [4.5.0] — 22 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
