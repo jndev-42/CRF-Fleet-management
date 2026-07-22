@@ -16,10 +16,12 @@ const mockedAuth = vi.mocked(auth);
 beforeEach(async () => {
     // Clear and seed base data
     await db.execute('DELETE FROM "ExpenseReport"');
+    await db.execute('DELETE FROM "UserUL"');
     await db.execute('DELETE FROM "UserRole"');
     await db.execute('DELETE FROM "User"');
     
     await seedRoles();
+    await db.execute(`INSERT OR IGNORE INTO "UniteLocale" (id, name, slug) VALUES ('ul-paris-18', 'Paris 18', 'ul-paris-18')`);
     
     // Create users for tests
     await seedUser({ id: 'user-standard', email: 'secouriste@test.com', name: 'Standard User' });
@@ -27,9 +29,15 @@ beforeEach(async () => {
     
     await seedUser({ id: 'user-president', email: 'president@test.com', name: 'President User' });
     await seedUserRole('user-president', 'PRESIDENT');
+    await db.execute({
+        sql: `INSERT INTO "UserUL" (userId, ulId, is_home) VALUES ('user-president', 'ul-paris-18', 1)`
+    });
 
     await seedUser({ id: 'user-tresorier', email: 'tresorier@test.com', name: 'Tresorier User' });
     await seedUserRole('user-tresorier', 'TRESORIER');
+    await db.execute({
+        sql: `INSERT INTO "UserUL" (userId, ulId, is_home) VALUES ('user-tresorier', 'ul-paris-18', 1)`
+    });
 
     await seedUser({ id: 'user-other', email: 'other@test.com', name: 'Other User' });
     await seedUserRole('user-other', 'SECOURISTE');
@@ -113,6 +121,26 @@ describe('Expense Report integration tests', () => {
             expect(dbCheck.rows[0].customImputation).toBe('Projet Formation 2026');
             expect(dbCheck.rows[0].total).toBe(75.50);
             expect(JSON.parse(dbCheck.rows[0].items as string)).toHaveLength(2);
+        });
+
+        it('creates a notification for PRESIDENT when a report is submitted', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18', name: 'Standard User' } } as never);
+            const req = makePostRequest({
+                status: 'soumis',
+                imputation: 'DLUS',
+                requestRefund: true,
+                noReceiptDeclaration: false,
+                items: [{ label: 'Fournitures', amount: 50 }]
+            });
+            const res = await createReport(req);
+            expect(res.status).toBe(201);
+
+            const notifs = await db.execute({
+                sql: 'SELECT * FROM "Notification" WHERE userId = ?',
+                args: ['user-president']
+            });
+            expect(notifs.rows.length).toBeGreaterThanOrEqual(1);
+            expect(notifs.rows[0].title).toContain('Note de frais à valider');
         });
     });
 
@@ -277,6 +305,20 @@ describe('Expense Report integration tests', () => {
 
             const dbCheck = await db.execute({ sql: 'SELECT * FROM "ExpenseReport" WHERE id = ?', args: ['exp-submitted-refund'] });
             expect(dbCheck.rows[0].validatorSignature).toContain('ysg_test_123');
+        });
+
+        it('creates a notification for TRESORIER when a report is validated with refund requirement', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
+            const req = makePatchRequest({ action: 'validate' });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-submitted-refund' }) });
+            expect(res.status).toBe(200);
+
+            const notifs = await db.execute({
+                sql: 'SELECT * FROM "Notification" WHERE userId = ?',
+                args: ['user-tresorier']
+            });
+            expect(notifs.rows.length).toBeGreaterThanOrEqual(1);
+            expect(notifs.rows[0].title).toContain('Note de frais à payer');
         });
     });
 

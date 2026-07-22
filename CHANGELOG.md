@@ -1,23 +1,25 @@
 # Changelog
 
-## [4.5.0] — 22 juillet 2026
+## [4.6.0] — 22 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Modale de mise en maintenance & Suivi des motifs** — Ajout d'une modale permettant de passer un véhicule en maintenance en définissant une date de début (par défaut aujourd'hui), une date de fin optionnelle (avec case à cocher "Date de fin inconnue") et un motif explicatif.
-  - Affichage de l'encadré d'information avec le motif et les dates sur la page du véhicule.
-  - Enregistrement automatique de la date du jour comme date de fin lors de la remise en service du véhicule.
-  - Rendu visuel distinct sur le calendrier des véhicules : rouge plein pour date de fin connue, rouge pointillé pour date de fin inconnue.
-
-## [4.4.0] — 21 juillet 2026
-
-### ✨ Nouvelles fonctionnalités
-
+- **Notifications cloche pour les notes de frais (Président & Trésorier)** — Notification automatique dans la cloche d'alerte en haut à droite de l'application :
+  - **Pour le Président (`PRESIDENT`)** : Lorsqu'une nouvelle note de frais est soumise pour validation.
+  - **Pour le Trésorier (`TRESORIER`)** : Lorsqu'une note de frais avec demande de remboursement est validée et passe en attente de paiement.
+- **Modale de mise en maintenance & Suivi des motifs** — Passage d'un véhicule en maintenance via modale avec date de début, date de fin optionnelle (ou "Date de fin inconnue") et motif explicatif.
+  - Encadré d'information sur la fiche véhicule et affichage visuel différencié sur le calendrier (rouge plein / rouge pointillé).
+  - Date de fin automatique lors de la remise en service du véhicule.
 - **Imputation des dépenses (Notes de frais)** — Sélection de l'imputation de la dépense (`DLUS`, `DLAS`, `UL`, `Autre`) avec saisie libre en cas de choix "Autre".
-- **PDF Note de frais conforme (C2 INTERNE) & Signatures Yousign** — Génération du PDF officiel de note de frais respectant le modèle C2 INTERNE avec signatures électronique et manuscrite style Yousign du demandeur et du responsable, et tampon officiel de l'UL.
-- **Refus de la note de frais avec commentaire** — Les valideurs (`SUPER_ADMIN` ou `PRESIDENT`) peuvent refuser une note soumise en joignant obligatoirement un commentaire explicatif visible par l'utilisateur.
-- **Rôle Trésorier (`TRESORIER`) & Workflow de paiement** — Ajout du rôle centralisé `TRESORIER` avec accès dédié aux notes de frais en attente de paiement et possibilité d'indiquer les notes comme payées (`traité`).
-- **Pagination et tri interactif du tableau de notes de frais** — Tri ascendant/descendant interactif sur toutes les colonnes (`Collaborateur`, `Date`, `Imputation`, `Description`, `Total`, `Remboursement`, `Statut`) et barre de pagination configurable (5, 10, 25, 50 par page) avec navigation par boutons.
+- **Génération PDF Note de frais conforme (C2 INTERNE) & Signatures Yousign** — Génération du PDF officiel de note de frais respectant le modèle C2 INTERNE avec signatures électronique et manuscrite style Yousign du demandeur et du responsable, et tampon officiel de l'UL.
+- **Refus de la note de frais avec commentaire** — Possibilité pour les valideurs (`SUPER_ADMIN` ou `PRESIDENT`) de refuser une note soumise en joignant obligatoirement un commentaire explicatif.
+- **Rôle Trésorier (`TRESORIER`) & Workflow de paiement** — Rôle centralisé `TRESORIER` avec accès aux notes en attente de paiement et possibilité d'indiquer les notes comme payées (`traité`).
+- **Pagination et tri interactif du tableau de notes de frais** — Tri ascendant/descendant interactif sur toutes les colonnes et barre de pagination configurable (5, 10, 25, 50 par page).
+
+### 🐛 Corrections & Améliorations
+
+- **Affichage de la cloche pour tous les utilisateurs actifs** — Modification de la `Navbar` pour afficher la cloche de notification à l'ensemble des rôles d'utilisateurs actifs (Présidents, Trésoriers, Cadres, Chauffeurs) et non plus uniquement aux administrateurs.
+- **Fonctionnement des notifications in-app sans OneSignal** — Prise en charge intégrale de la création et du traitement des notifications in-app en base de données, même lorsque l'intégration OneSignal est absente ou désactivée (ex: environnement Preview ou local).
 
 ## [4.3.0] — 19 juillet 2026
 

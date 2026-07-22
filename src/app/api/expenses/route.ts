@@ -213,6 +213,25 @@ export async function POST(request: Request) {
             ],
         });
 
+        if (data.status === 'soumis') {
+            try {
+                const requesterName = session.user.name || session.user.email || 'Un membre';
+                const { sendPushNotification } = await import('@/lib/onesignal');
+                await sendPushNotification({
+                    tags: [{ field: "tag", key: "role_PRESIDENT", relation: "=", value: "true" }],
+                    headings: { fr: `📋 Note de frais à valider`, en: `📋 Expense report pending approval` },
+                    contents: {
+                        fr: `${requesterName} a soumis une note de frais (${total.toFixed(2)} €) à valider.`,
+                        en: `${requesterName} submitted an expense report (${total.toFixed(2)} €) pending approval.`
+                    },
+                    url: `/expenses`,
+                    ulId
+                });
+            } catch (notifErr) {
+                console.error('Failed to send expense notification to president:', notifErr);
+            }
+        }
+
         return NextResponse.json({ success: true, id }, { status: 201 });
     } catch (error) {
         console.error('[POST /api/expenses]', error);
