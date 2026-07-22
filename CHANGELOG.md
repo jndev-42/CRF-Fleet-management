@@ -4,6 +4,8 @@
 
 ### ✨ Nouvelles fonctionnalités
 
+- **Support des justificatifs PDF (Notes de frais)** — Prise en charge des fichiers PDF en tant que justificatifs de dépenses avec aperçu en icône et ouverture/téléchargement depuis la modale dédiée.
+- **Onglets Statistiques (Véhicules & Frais)** — Organisation de la page des statistiques en onglets ("Véhicules" et "Frais"). Analyse complète des dépenses par mois, par bénévole et par imputation, avec accès restreint aux gestionnaires (`PRESIDENT`, `TRESORIER`, `SUPER_ADMIN`) et isolation par UL.
 - **Notifications cloche pour les notes de frais (Président & Trésorier)** — Notification automatique dans la cloche d'alerte en haut à droite de l'application :
   - **Pour le Président (`PRESIDENT`)** : Lorsqu'une nouvelle note de frais est soumise pour validation.
   - **Pour le Trésorier (`TRESORIER`)** : Lorsqu'une note de frais avec demande de remboursement est validée et passe en attente de paiement.

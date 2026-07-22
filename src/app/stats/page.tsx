@@ -14,6 +14,7 @@ import VehicleBreakdown from '@/components/stats/VehicleBreakdown';
 import FunFactor from '@/components/stats/FunFactor';
 import ExportModal from '@/components/stats/ExportModal';
 import ExportReadyModal from '@/components/stats/ExportReadyModal';
+import ExpenseStatsSection from '@/components/stats/ExpenseStatsSection';
 
 // Recharts uses browser APIs — SSR disabled
 const ChartsSection = dynamic(() => import('@/components/stats/ChartsSection'), { ssr: false });
@@ -50,6 +51,11 @@ export default function StatsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  const userRoles = (session?.user?.roles || []) as string[];
+  const canViewExpensesStats = userRoles.includes('SUPER_ADMIN') || userRoles.includes('PRESIDENT') || userRoles.includes('TRESORIER');
+
+  const [activeTab, setActiveTab] = useState<'vehicles' | 'expenses'>('vehicles');
+
   const defaults = getDefaultDates();
   const [dateFrom, setDateFrom] = useState(defaults.from);
   const [dateTo, setDateTo] = useState(defaults.to);
@@ -78,7 +84,7 @@ export default function StatsPage() {
       router.push('/login');
     } else if (status === 'authenticated') {
       const roles = (session?.user?.roles || ['GUEST']) as string[];
-      const allowed = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP'];
+      const allowed = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'PRESIDENT', 'TRESORIER', 'SUPER_ADMIN'];
       if (!roles.some((r) => allowed.includes(r))) {
         router.push('/');
       }
@@ -143,10 +149,10 @@ export default function StatsPage() {
   }, [dateFrom, dateTo, vehicleId, driverIds, missionType, rangeError]);
 
   useEffect(() => {
-    if (status === 'authenticated') {
+    if (status === 'authenticated' && activeTab === 'vehicles') {
       fetchStats();
     }
-  }, [status, fetchStats]);
+  }, [status, fetchStats, activeTab]);
 
   async function handleExportCSV(from: string, to: string) {
     setShowExportModal(null);
@@ -207,160 +213,222 @@ export default function StatsPage() {
       <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 className="page-title">Statistiques</h1>
-          <p className="page-description">Analyse des emprunts véhicules</p>
+          <p className="page-description">
+            {activeTab === 'vehicles' ? 'Analyse des emprunts véhicules' : 'Analyse des notes de frais'}
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            className="btn btn-secondary btn-sm"
-            onClick={() => setShowExportModal('csv')}
-            disabled={exportingCsv}
-          >
-            <Download size={14} />
-            {exportingCsv ? 'Génération...' : 'Export CSV'}
-          </button>
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => setShowExportModal('pdf')}
-            disabled={exportingPdf}
-          >
-            <FileText size={14} />
-            {exportingPdf ? 'Génération...' : 'Export PDF'}
-          </button>
-        </div>
-      </div>
-
-      {/* Filters bar */}
-      <div className="stats-filters-bar">
-        <span className="stats-filter-label">Période</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <input
-            type="date"
-            className="stats-date-input"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-          />
-          <span className="stats-filter-sep">→</span>
-          <input
-            type="date"
-            className="stats-date-input"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-          />
-        </div>
-
-        <select
-          className="stats-date-input"
-          value={vehicleId}
-          onChange={(e) => setVehicleId(e.target.value)}
-          aria-label="Filtrer par véhicule"
-        >
-          <option value="">Tous les véhicules</option>
-          {vehicles.map((v) => (
-            <option key={v.id} value={v.id}>{v.name}</option>
-          ))}
-        </select>
-
-        <MultiSelectDropdown
-          options={drivers.map((d) => ({ id: d.id, label: d.name }))}
-          value={driverIds}
-          onChange={setDriverIds}
-          placeholder="Tous les chauffeurs"
-        />
-
-        <select
-          className="stats-date-input"
-          value={missionType}
-          onChange={(e) => setMissionType(e.target.value)}
-          aria-label="Filtrer par type de mission"
-        >
-          <option value="">Tous types</option>
-          {MISSION_TYPES.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-
-        {rangeError ? (
-          <div className="stats-date-error">
-            <AlertCircle size={13} />
-            {rangeError}
-          </div>
-        ) : (
-          <div className="stats-filter-hint">
-            Affichage limité à 2 mois • Pour des plages plus larges, utilisez l&apos;export
+        {activeTab === 'vehicles' && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowExportModal('csv')}
+              disabled={exportingCsv}
+            >
+              <Download size={14} />
+              {exportingCsv ? 'Génération...' : 'Export CSV'}
+            </button>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowExportModal('pdf')}
+              disabled={exportingPdf}
+            >
+              <FileText size={14} />
+              {exportingPdf ? 'Génération...' : 'Export PDF'}
+            </button>
           </div>
         )}
       </div>
 
-      {/* Loading skeleton */}
-      {(loading || status === 'loading') && !rangeError && (
+      {/* Tabs navigation bar */}
+      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-primary)', paddingBottom: '12px', marginBottom: '20px' }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('vehicles')}
+          style={{
+            padding: '8px 16px',
+            borderRadius: 'var(--radius-md)',
+            border: 'none',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background: activeTab === 'vehicles' ? 'var(--red-primary, #ef4444)' : 'var(--bg-secondary)',
+            color: activeTab === 'vehicles' ? '#ffffff' : 'var(--text-secondary)',
+            transition: 'all 0.2s ease',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}
+        >
+          🚗 Véhicules
+        </button>
+
+        {canViewExpensesStats && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('expenses')}
+            style={{
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-md)',
+              border: 'none',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              background: activeTab === 'expenses' ? 'var(--red-primary, #ef4444)' : 'var(--bg-secondary)',
+              color: activeTab === 'expenses' ? '#ffffff' : 'var(--text-secondary)',
+              transition: 'all 0.2s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            💶 Frais
+          </button>
+        )}
+      </div>
+
+      {activeTab === 'expenses' && canViewExpensesStats ? (
+        <ExpenseStatsSection
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onDateFromChange={setDateFrom}
+          onDateToChange={setDateTo}
+        />
+      ) : (
         <>
-          <div className="stats-skeleton-grid">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="kpi-card">
-                <div className="skel" style={{ width: 36, height: 36, borderRadius: 8 }} />
-                <div className="skel" style={{ width: '60%', height: 10 }} />
-                <div className="skel" style={{ width: '40%', height: 28 }} />
-                <div className="skel" style={{ width: '70%', height: 10 }} />
+          {/* Filters bar */}
+          <div className="stats-filters-bar">
+            <span className="stats-filter-label">Période</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="date"
+                className="stats-date-input"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
+              <span className="stats-filter-sep">→</span>
+              <input
+                type="date"
+                className="stats-date-input"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
+            </div>
+
+            <select
+              className="stats-date-input"
+              value={vehicleId}
+              onChange={(e) => setVehicleId(e.target.value)}
+              aria-label="Filtrer par véhicule"
+            >
+              <option value="">Tous les véhicules</option>
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>{v.name}</option>
+              ))}
+            </select>
+
+            <MultiSelectDropdown
+              options={drivers.map((d) => ({ id: d.id, label: d.name }))}
+              value={driverIds}
+              onChange={setDriverIds}
+              placeholder="Tous les chauffeurs"
+            />
+
+            <select
+              className="stats-date-input"
+              value={missionType}
+              onChange={(e) => setMissionType(e.target.value)}
+              aria-label="Filtrer par type de mission"
+            >
+              <option value="">Tous types</option>
+              {MISSION_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+
+            {rangeError ? (
+              <div className="stats-date-error">
+                <AlertCircle size={13} />
+                {rangeError}
               </div>
-            ))}
+            ) : (
+              <div className="stats-filter-hint">
+                Affichage limité à 2 mois • Pour des plages plus larges, utilisez l&apos;export
+              </div>
+            )}
           </div>
-          <div className="charts-grid">
-            <div className="chart-card" style={{ height: 280 }}>
-              <div className="skel" style={{ height: '100%' }} />
+
+          {/* Loading skeleton */}
+          {(loading || status === 'loading') && !rangeError && (
+            <>
+              <div className="stats-skeleton-grid">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div key={i} className="kpi-card">
+                    <div className="skel" style={{ width: 36, height: 36, borderRadius: 8 }} />
+                    <div className="skel" style={{ width: '60%', height: 10 }} />
+                    <div className="skel" style={{ width: '40%', height: 28 }} />
+                    <div className="skel" style={{ width: '70%', height: 10 }} />
+                  </div>
+                ))}
+              </div>
+              <div className="charts-grid">
+                <div className="chart-card" style={{ height: 280 }}>
+                  <div className="skel" style={{ height: '100%' }} />
+                </div>
+                <div className="chart-card" style={{ height: 280 }}>
+                  <div className="skel" style={{ height: '100%' }} />
+                </div>
+                <div className="chart-card chart-card-full" style={{ height: 220 }}>
+                  <div className="skel" style={{ height: '100%' }} />
+                </div>
+              </div>
+              <div className="breakdown-grid">
+                <div className="breakdown-card">
+                  <div className="skel" style={{ height: 220 }} />
+                </div>
+                <div className="breakdown-card">
+                  <div className="skel" style={{ height: 220 }} />
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Error state */}
+          {error && !loading && (
+            <div className="empty-state">
+              <div className="empty-state-icon">⚠️</div>
+              <div className="empty-state-title">{error}</div>
             </div>
-            <div className="chart-card" style={{ height: 280 }}>
-              <div className="skel" style={{ height: '100%' }} />
+          )}
+
+          {/* Data */}
+          {data && !loading && !rangeError && (
+            <>
+              <KPICards data={data.global} />
+
+              <ChartsSection
+                byDriver={data.byDriver}
+                kmOverTime={data.kmOverTime}
+                byMissionType={data.byMissionType}
+              />
+
+              <div className="breakdown-grid">
+                <DriverBreakdown byDriver={data.byDriver} />
+                <VehicleBreakdown byVehicle={data.byVehicle} />
+              </div>
+
+              <FunFactor byDriver={data.byDriver} />
+            </>
+          )}
+
+          {/* Empty state when no trips in range */}
+          {data && !loading && !rangeError && data.global.totalTrips === 0 && (
+            <div className="empty-state" style={{ marginTop: -16 }}>
+              <div className="empty-state-icon">📊</div>
+              <div className="empty-state-title">Aucune sortie sur cette période</div>
+              <p>Modifiez la plage de dates pour afficher des statistiques.</p>
             </div>
-            <div className="chart-card chart-card-full" style={{ height: 220 }}>
-              <div className="skel" style={{ height: '100%' }} />
-            </div>
-          </div>
-          <div className="breakdown-grid">
-            <div className="breakdown-card">
-              <div className="skel" style={{ height: 220 }} />
-            </div>
-            <div className="breakdown-card">
-              <div className="skel" style={{ height: 220 }} />
-            </div>
-          </div>
+          )}
         </>
-      )}
-
-      {/* Error state */}
-      {error && !loading && (
-        <div className="empty-state">
-          <div className="empty-state-icon">⚠️</div>
-          <div className="empty-state-title">{error}</div>
-        </div>
-      )}
-
-      {/* Data */}
-      {data && !loading && !rangeError && (
-        <>
-          <KPICards data={data.global} />
-
-          <ChartsSection
-            byDriver={data.byDriver}
-            kmOverTime={data.kmOverTime}
-            byMissionType={data.byMissionType}
-          />
-
-          <div className="breakdown-grid">
-            <DriverBreakdown byDriver={data.byDriver} />
-            <VehicleBreakdown byVehicle={data.byVehicle} />
-          </div>
-
-          <FunFactor byDriver={data.byDriver} />
-        </>
-      )}
-
-      {/* Empty state when no trips in range */}
-      {data && !loading && !rangeError && data.global.totalTrips === 0 && (
-        <div className="empty-state" style={{ marginTop: -16 }}>
-          <div className="empty-state-icon">📊</div>
-          <div className="empty-state-title">Aucune sortie sur cette période</div>
-          <p>Modifiez la plage de dates pour afficher des statistiques.</p>
-        </div>
       )}
 
       {/* Export modals */}

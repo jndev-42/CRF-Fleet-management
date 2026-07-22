@@ -46,9 +46,15 @@ export default function ExpensesPage() {
     const [isCreating, setIsCreating] = useState(false);
     const [editingReport, setEditingReport] = useState<ExpenseReport | null>(null);
     const [selectedReport, setSelectedReport] = useState<ExpenseReport | null>(null);
-    const [photos, setPhotos] = useState<{ id: string; name: string }[]>([]);
+    const [photos, setPhotos] = useState<{ id: string; name: string; mimeType?: string }[]>([]);
     const [photosLoading, setPhotosLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [isJustificatifsModalOpen, setIsJustificatifsModalOpen] = useState(false);
+    const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
+
+    const isPdfItem = (item: { name: string; mimeType?: string }) => {
+        return item.mimeType === 'application/pdf' || item.name.toLowerCase().endsWith('.pdf');
+    };
 
     const userRoles = session?.user?.roles || [];
     const isManager = userRoles.includes('SUPER_ADMIN') || userRoles.includes('PRESIDENT');
@@ -949,39 +955,85 @@ export default function ExpensesPage() {
                             {/* Photos gallery */}
                             {selectedReport.driveFolderId && (
                                 <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <Receipt size={14} /> Justificatifs ({photos.length})
-                                    </span>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <Receipt size={14} /> Justificatifs ({photos.length})
+                                        </span>
+                                        {photos.length > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsJustificatifsModalOpen(true)}
+                                                style={{ background: 'none', border: 'none', color: 'var(--red-primary, #ef4444)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                                            >
+                                                Voir tout
+                                            </button>
+                                        )}
+                                    </div>
 
                                     {photosLoading ? (
-                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Chargement des photos...</span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Chargement des justificatifs...</span>
                                     ) : photos.length === 0 ? (
                                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Aucun justificatif disponible.</span>
                                     ) : (
                                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                                            {photos.map(photo => (
-                                                <a
-                                                    key={photo.id}
-                                                    href={`/api/drive/photos/${photo.id}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    style={{
-                                                        aspectRatio: '1',
-                                                        borderRadius: '4px',
-                                                        overflow: 'hidden',
-                                                        border: '1px solid var(--border-primary)',
-                                                        display: 'block'
-                                                    }}
-                                                    title={photo.name}
-                                                >
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img
-                                                        src={`/api/drive/photos/${photo.id}`}
-                                                        alt={photo.name}
-                                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                                    />
-                                                </a>
-                                            ))}
+                                            {photos.map(photo => {
+                                                const pdf = isPdfItem(photo);
+                                                if (pdf) {
+                                                    return (
+                                                        <a
+                                                            key={photo.id}
+                                                            href={`/api/drive/photos/${photo.id}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            style={{
+                                                                aspectRatio: '1',
+                                                                borderRadius: '4px',
+                                                                overflow: 'hidden',
+                                                                border: '1px solid var(--border-primary)',
+                                                                background: 'var(--bg-secondary)',
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                padding: '4px',
+                                                                textDecoration: 'none',
+                                                                gap: '2px',
+                                                                textAlign: 'center'
+                                                            }}
+                                                            title={`Ouvrir/Télécharger ${photo.name}`}
+                                                        >
+                                                            <FileText size={20} color="var(--red-primary, #ef4444)" />
+                                                            <span style={{ fontSize: '8px', fontWeight: 600, color: 'var(--text-primary)', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                                {photo.name}
+                                                            </span>
+                                                            <span style={{ fontSize: '7px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>PDF</span>
+                                                        </a>
+                                                    );
+                                                }
+                                                return (
+                                                    <a
+                                                        key={photo.id}
+                                                        href={`/api/drive/photos/${photo.id}`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        style={{
+                                                            aspectRatio: '1',
+                                                            borderRadius: '4px',
+                                                            overflow: 'hidden',
+                                                            border: '1px solid var(--border-primary)',
+                                                            display: 'block'
+                                                        }}
+                                                        title={photo.name}
+                                                    >
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img
+                                                            src={`/api/drive/photos/${photo.id}`}
+                                                            alt={photo.name}
+                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                        />
+                                                    </a>
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>
@@ -1085,6 +1137,132 @@ export default function ExpensesPage() {
                     initialFunction="Président local"
                     loading={actionLoading === validatingReport.id}
                 />
+            )}
+
+            {/* Modale d'affichage des justificatifs (photos & PDF) */}
+            {isJustificatifsModalOpen && selectedReport && (
+                <div className="modal-overlay" onClick={() => setIsJustificatifsModalOpen(false)} style={{ zIndex: 9999, backdropFilter: 'blur(5px)' }}>
+                    <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 750, width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
+                        <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
+                                <Receipt size={20} /> Justificatifs de la note de frais ({photos.length})
+                            </h2>
+                            <button className="modal-close" onClick={() => setIsJustificatifsModalOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="modal-body" style={{ padding: '20px' }}>
+                            {photos.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-secondary)' }}>
+                                    Aucun justificatif disponible.
+                                </div>
+                            ) : (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '16px' }}>
+                                    {photos.map(photo => {
+                                        const pdf = isPdfItem(photo);
+                                        const fileUrl = `/api/drive/photos/${photo.id}`;
+                                        return (
+                                            <div
+                                                key={photo.id}
+                                                style={{
+                                                    borderRadius: 'var(--radius-md)',
+                                                    border: '1px solid var(--border-primary)',
+                                                    background: 'var(--bg-secondary)',
+                                                    overflow: 'hidden',
+                                                    display: 'flex',
+                                                    flexDirection: 'column'
+                                                }}
+                                            >
+                                                {pdf ? (
+                                                    <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center', flex: 1 }}>
+                                                        <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                            <FileText size={28} color="var(--red-primary, #ef4444)" />
+                                                        </div>
+                                                        <div>
+                                                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+                                                                {photo.name}
+                                                            </div>
+                                                            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', marginTop: '2px', display: 'inline-block' }}>
+                                                                Document PDF
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        style={{ height: '160px', width: '100%', background: '#000', cursor: 'pointer', overflow: 'hidden' }}
+                                                        onClick={() => setActiveLightboxImage(fileUrl)}
+                                                    >
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img
+                                                            src={fileUrl}
+                                                            alt={photo.name}
+                                                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                        />
+                                                    </div>
+                                                )}
+                                                <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border-primary)', background: 'var(--bg-primary)', display: 'flex', justifyContent: 'center' }}>
+                                                    <a
+                                                        href={fileUrl}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="btn btn-secondary"
+                                                        style={{ width: '100%', justifyContent: 'center', gap: '6px', fontSize: '0.8125rem', padding: '6px 12px' }}
+                                                    >
+                                                        <Download size={14} /> {pdf ? 'Afficher / Télécharger PDF' : 'Ouvrir en grand'}
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Lightbox photo en plein écran */}
+            {activeLightboxImage && (
+                <div
+                    style={{
+                        position: 'fixed',
+                        top: 0, left: 0, right: 0, bottom: 0,
+                        backgroundColor: 'rgba(0,0,0,0.9)',
+                        zIndex: 10000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'zoom-out'
+                    }}
+                    onClick={() => setActiveLightboxImage(null)}
+                >
+                    <button
+                        onClick={() => setActiveLightboxImage(null)}
+                        style={{
+                            position: 'absolute',
+                            top: 20, right: 20,
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'white',
+                            fontSize: 32,
+                            cursor: 'pointer',
+                            padding: 10
+                        }}
+                    >
+                        ✕
+                    </button>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={activeLightboxImage}
+                        alt="Aperçu justificatif"
+                        style={{
+                            maxWidth: '90vw',
+                            maxHeight: '90vh',
+                            objectFit: 'contain'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
             )}
         </div>
     );
