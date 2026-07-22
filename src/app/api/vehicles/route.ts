@@ -4,6 +4,8 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 
+export const dynamic = 'force-dynamic';
+
 const createVehicleSchema = z.object({
     name: z.string().min(1, "Nom requis"),
     type: z.string().min(1, "Type requis"),

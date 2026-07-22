@@ -4,6 +4,8 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 
+export const dynamic = 'force-dynamic';
+
 const createMaintenanceEventSchema = z.object({
   startDate: z.string().min(1, 'Date de début requise'),
   endDate: z.string().nullable().optional(),

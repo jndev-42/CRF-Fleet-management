@@ -79,7 +79,7 @@ export default function VehiclesPage() {
 
   async function fetchVehicles() {
     try {
-      const res = await fetch('/api/vehicles');
+      const res = await fetch(`/api/vehicles?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur lors de la récupération');
       setVehicles(data);
