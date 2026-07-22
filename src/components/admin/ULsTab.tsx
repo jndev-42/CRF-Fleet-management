@@ -13,6 +13,7 @@ interface UL {
     slug: string;
     phoneNumbers?: PhoneNum[];
     defaultParkingSpots?: string[];
+    stampUrl?: string | null;
     stampImage?: string | null;
 }
 
@@ -67,7 +68,7 @@ export default function ULsTab({
             setFormSlug(ul.slug);
             setPhoneNumbers(ul.phoneNumbers || []);
             setDefaultParkingSpots(ul.defaultParkingSpots || []);
-            setStampImage(ul.stampImage || null);
+            setStampImage(ul.stampUrl || ul.stampImage || null);
         } else {
             setEditingUl(null);
             setFormName('');
@@ -82,15 +83,41 @@ export default function ULsTab({
     function handleStampUpload(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
-        if (file.size > 2 * 1024 * 1024) {
-            showToast('L\'image du tampon ne doit pas dépasser 2 Mo', 'error');
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('L\'image du tampon ne doit pas dépasser 10 Mo', 'error');
             return;
         }
+
         const reader = new FileReader();
         reader.onload = (evt) => {
-            if (evt.target?.result) {
-                setStampImage(evt.target.result as string);
-            }
+            const dataUrl = evt.target?.result as string;
+            if (!dataUrl) return;
+
+            const img = new window.Image();
+            img.onload = () => {
+                const maxWidth = 400;
+                const maxHeight = 200;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width = Math.round(width * ratio);
+                    height = Math.round(height * ratio);
+                }
+
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    setStampImage(canvas.toDataURL('image/png'));
+                } else {
+                    setStampImage(dataUrl);
+                }
+            };
+            img.src = dataUrl;
         };
         reader.readAsDataURL(file);
     }
@@ -284,10 +311,10 @@ export default function ULsTab({
                                             ))}
                                         </div>
                                     )}
-                                    {ul.stampImage && (
+                                    {(ul.stampUrl || ul.stampImage) && (
                                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 8, padding: '4px 8px', background: 'rgba(227, 6, 19, 0.06)', border: '1px dashed rgba(227, 6, 19, 0.3)', borderRadius: '6px' }}>
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={ul.stampImage} alt="Tampon UL" style={{ height: 28, maxWidth: 80, objectFit: 'contain' }} />
+                                            <img src={(ul.stampUrl || ul.stampImage)!} alt="Tampon UL" style={{ height: 28, maxWidth: 80, objectFit: 'contain' }} />
                                             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary)' }}>Tampon officiel configuré</span>
                                         </div>
                                     )}
