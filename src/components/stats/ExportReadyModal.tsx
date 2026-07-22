@@ -3,6 +3,7 @@
 interface ExportReadyModalProps {
   type: 'csv' | 'pdf';
   jobId: string;
+  downloadUrl?: string;
   onClose: () => void;
 }
 
@@ -23,11 +24,12 @@ const config = {
   },
 };
 
-export default function ExportReadyModal({ type, jobId, onClose }: ExportReadyModalProps) {
+export default function ExportReadyModal({ type, jobId, downloadUrl, onClose }: ExportReadyModalProps) {
   const c = config[type];
 
   function handleDownload() {
-    window.open(c.url(jobId), '_blank');
+    const targetUrl = downloadUrl || c.url(jobId);
+    window.open(targetUrl, '_blank');
     onClose();
   }
 

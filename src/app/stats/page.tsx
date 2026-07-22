@@ -154,13 +154,17 @@ export default function StatsPage() {
     }
   }, [status, fetchStats, activeTab]);
 
+  const [exportDownloadUrl, setExportDownloadUrl] = useState<string | undefined>(undefined);
+
   async function handleExportCSV(from: string, to: string) {
     setShowExportModal(null);
     setExportingCsv(true);
     setExportJobId(null);
     setExportReadyType(null);
+    setExportDownloadUrl(undefined);
     try {
-      const res = await fetch('/api/stats/csv', {
+      const endpoint = activeTab === 'expenses' ? '/api/stats/expenses/csv' : '/api/stats/csv';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dateFrom: from, dateTo: to }),
@@ -171,6 +175,9 @@ export default function StatsPage() {
         return;
       }
       setExportJobId(json.jobId);
+      if (activeTab === 'expenses') {
+        setExportDownloadUrl(`/api/stats/expenses/csv?jobId=${encodeURIComponent(json.jobId)}`);
+      }
       setExportReadyType('csv');
     } catch (err) {
       console.error(err);
@@ -185,8 +192,10 @@ export default function StatsPage() {
     setExportingPdf(true);
     setExportJobId(null);
     setExportReadyType(null);
+    setExportDownloadUrl(undefined);
     try {
-      const res = await fetch('/api/stats/pdf', {
+      const endpoint = activeTab === 'expenses' ? '/api/stats/expenses/pdf' : '/api/stats/pdf';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dateFrom: from, dateTo: to }),
@@ -197,6 +206,9 @@ export default function StatsPage() {
         return;
       }
       setExportJobId(json.jobId);
+      if (activeTab === 'expenses') {
+        setExportDownloadUrl(`/api/stats/expenses/pdf?jobId=${encodeURIComponent(json.jobId)}`);
+      }
       setExportReadyType('pdf');
     } catch (err) {
       console.error(err);
@@ -217,26 +229,24 @@ export default function StatsPage() {
             {activeTab === 'vehicles' ? 'Analyse des emprunts véhicules' : 'Analyse des notes de frais'}
           </p>
         </div>
-        {activeTab === 'vehicles' && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={() => setShowExportModal('csv')}
-              disabled={exportingCsv}
-            >
-              <Download size={14} />
-              {exportingCsv ? 'Génération...' : 'Export CSV'}
-            </button>
-            <button
-              className="btn btn-primary btn-sm"
-              onClick={() => setShowExportModal('pdf')}
-              disabled={exportingPdf}
-            >
-              <FileText size={14} />
-              {exportingPdf ? 'Génération...' : 'Export PDF'}
-            </button>
-          </div>
-        )}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={() => setShowExportModal('csv')}
+            disabled={exportingCsv}
+          >
+            <Download size={14} />
+            {exportingCsv ? 'Génération...' : 'Export CSV'}
+          </button>
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowExportModal('pdf')}
+            disabled={exportingPdf}
+          >
+            <FileText size={14} />
+            {exportingPdf ? 'Génération...' : 'Export PDF'}
+          </button>
+        </div>
       </div>
 
       {/* Tabs navigation bar */}
@@ -456,9 +466,11 @@ export default function StatsPage() {
         <ExportReadyModal
           type={exportReadyType}
           jobId={exportJobId}
+          downloadUrl={exportDownloadUrl}
           onClose={() => {
             setExportReadyType(null);
             setExportJobId(null);
+            setExportDownloadUrl(undefined);
           }}
         />
       )}
