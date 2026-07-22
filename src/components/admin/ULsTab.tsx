@@ -95,8 +95,8 @@ export default function ULsTab({
 
             const img = new window.Image();
             img.onload = () => {
-                const maxWidth = 400;
-                const maxHeight = 200;
+                const maxWidth = 800;
+                const maxHeight = 400;
                 let width = img.width;
                 let height = img.height;
 

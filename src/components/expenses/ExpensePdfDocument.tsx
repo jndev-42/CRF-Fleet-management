@@ -234,6 +234,17 @@ const styles = StyleSheet.create({
         maxWidth: 110,
         objectFit: 'contain',
     },
+    stampImageContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 52,
+        width: '100%',
+    },
+    stampImage: {
+        maxHeight: 50,
+        maxWidth: 155,
+        objectFit: 'contain',
+    },
     sigMetaText: {
         fontSize: 6.5,
         color: '#333333',
@@ -608,9 +619,9 @@ export default function ExpensePdfDocument({ report, logoSrc }: ExpensePdfReport
                         <View style={styles.sigColLast}>
                             <Text style={[styles.sigTitle, { alignSelf: 'flex-start', width: '100%' }]}>Tampon de la structure :</Text>
                             {report.ulStampImage ? (
-                                <View style={styles.sigImageContainer}>
+                                <View style={styles.stampImageContainer}>
                                     {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                                    <Image src={report.ulStampImage} style={styles.sigImage} />
+                                    <Image src={report.ulStampImage} style={styles.stampImage} />
                                 </View>
                             ) : (
                                 <View style={styles.stampContainer}>
