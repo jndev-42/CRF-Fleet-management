@@ -47,6 +47,19 @@ const mockCalendarData = {
       createdAt: '2026-07-15T08:00:00.000Z',
     },
   ],
+  maintenances: [
+    {
+      id: 'maint-1',
+      vehicleId: 'v-1',
+      vehicleName: 'VSAV 01',
+      vehiclePlate: 'AB-123-CD',
+      startDate: '2026-07-20',
+      endDate: null,
+      reason: 'Panne embrayage',
+      isEndDateUnknown: true,
+      createdAt: '2026-07-20T00:00:00.000Z',
+    },
+  ],
 };
 
 describe('VehicleCalendar Component', () => {
@@ -65,11 +78,14 @@ describe('VehicleCalendar Component', () => {
     expect(screen.getByText(/Réservation \(Jaune\)/)).toBeTruthy();
     expect(screen.getByText(/Emprunt effectué \(Vert\)/)).toBeTruthy();
     expect(screen.getByText(/Emprunt en cours \(Vert pointillés\)/)).toBeTruthy();
+    expect(screen.getByText(/Maintenance \(Rouge\)/)).toBeTruthy();
+    expect(screen.getByText(/Maintenance fin inconnue \(Rouge pointillés\)/)).toBeTruthy();
 
     // Wait for fetch & data rendering
     await waitFor(() => {
       expect(screen.getAllByText(/Jean Dupont/).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/En cours/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Panne embrayage/).length).toBeGreaterThan(0);
     });
   });
 

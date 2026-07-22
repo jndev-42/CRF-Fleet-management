@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.5.0] — 22 juillet 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Modale de mise en maintenance & Suivi des motifs** — Ajout d'une modale permettant de passer un véhicule en maintenance en définissant une date de début (par défaut aujourd'hui), une date de fin optionnelle (avec case à cocher "Date de fin inconnue") et un motif explicatif.
+  - Affichage de l'encadré d'information avec le motif et les dates sur la page du véhicule.
+  - Enregistrement automatique de la date du jour comme date de fin lors de la remise en service du véhicule.
+  - Rendu visuel distinct sur le calendrier des véhicules : rouge plein pour date de fin connue, rouge pointillé pour date de fin inconnue.
+
 ## [4.4.0] — 21 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités

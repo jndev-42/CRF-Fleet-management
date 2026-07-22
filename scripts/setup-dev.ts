@@ -359,6 +359,18 @@ async function main() {
         )
     `);
 
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "VehicleMaintenance" (
+            "id"        TEXT NOT NULL PRIMARY KEY,
+            "vehicleId" TEXT NOT NULL REFERENCES "Vehicle"(id),
+            "startDate" TEXT NOT NULL,
+            "endDate"   TEXT,
+            "reason"    TEXT NOT NULL,
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
     // ── Session Renault ───────────────────────────────────────────
 
     await db.execute(`

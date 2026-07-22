@@ -157,6 +157,28 @@
   border-right: 3px dashed #4ADE80;
 }
 
+.legendMaintenance {
+  background: #FEE2E2;
+  border: 1.5px solid #EF4444;
+}
+
+:global(.dark) .legendMaintenance {
+  background: rgba(239, 68, 68, 0.25);
+  border: 1.5px solid #EF4444;
+}
+
+.legendMaintenanceOngoing {
+  background: #FEE2E2;
+  border: 1.5px solid #EF4444;
+  border-right: 3px dashed #DC2626;
+}
+
+:global(.dark) .legendMaintenanceOngoing {
+  background: rgba(239, 68, 68, 0.25);
+  border: 1.5px solid #EF4444;
+  border-right: 3px dashed #F87171;
+}
+
 /* Calendar Grid Container */
 .gridContainer {
   width: 100%;
@@ -335,6 +357,42 @@
   border-right: 3px dashed #4ADE80;
 }
 
+.eventMaintenanceCompleted {
+  background: #FEE2E2;
+  color: #991B1B;
+  border-left-color: #EF4444;
+  border-top: 1px solid rgba(239, 68, 68, 0.3);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  border-right: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+:global(.dark) .eventMaintenanceCompleted {
+  background: rgba(239, 68, 68, 0.2);
+  color: #FCA5A5;
+  border-left-color: #EF4444;
+  border-top: 1px solid rgba(239, 68, 68, 0.4);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.4);
+  border-right: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.eventMaintenanceOngoing {
+  background: #FEE2E2;
+  color: #991B1B;
+  border-left-color: #EF4444;
+  border-top: 1px solid rgba(239, 68, 68, 0.3);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  border-right: 3px dashed #DC2626;
+}
+
+:global(.dark) .eventMaintenanceOngoing {
+  background: rgba(239, 68, 68, 0.25);
+  color: #FCA5A5;
+  border-left-color: #EF4444;
+  border-top: 1px solid rgba(239, 68, 68, 0.4);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.4);
+  border-right: 3px dashed #F87171;
+}
+
 .eventHeader {
   display: flex;
   align-items: center;
@@ -362,6 +420,21 @@
 :global(.dark) .ongoingBadge {
   background: #22C55E;
   color: #052E16;
+}
+
+.ongoingBadgeRed {
+  font-size: 0.65rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  background: #DC2626;
+  color: white;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+:global(.dark) .ongoingBadgeRed {
+  background: #EF4444;
+  color: #450A0A;
 }
 
 .eventSubtext {

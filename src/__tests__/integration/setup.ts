@@ -261,6 +261,16 @@ async function createTables() {
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleMaintenance" (
+    id TEXT PRIMARY KEY,
+    vehicleId TEXT NOT NULL REFERENCES "Vehicle"(id),
+    startDate TEXT NOT NULL,
+    endDate TEXT,
+    reason TEXT NOT NULL,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "MenuSetting" (
     menu_key TEXT NOT NULL PRIMARY KEY,
     visibility TEXT NOT NULL DEFAULT 'available'
@@ -397,6 +407,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "Trip"`);
   await db.execute(`DELETE FROM "Reservation"`);
   await db.execute(`DELETE FROM "VehicleMaintenanceRecord"`);
+  await db.execute(`DELETE FROM "VehicleMaintenance"`);
   await db.execute(`DELETE FROM "Vehicle"`);
   await db.execute(`DELETE FROM "User"`);
   await db.execute(`DELETE FROM "Role"`);
