@@ -146,7 +146,7 @@ export default function PutInMaintenanceModal({
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.375rem' }}>
               Début de la maintenance <span style={{ color: '#EF4444' }}>*</span>
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px', gap: '0.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 85px 85px', gap: '0.5rem', alignItems: 'center' }}>
               <input
                 type="date"
                 className="form-input"
@@ -155,16 +155,36 @@ export default function PutInMaintenanceModal({
                 required
                 style={{ padding: '0.5rem 0.75rem', borderRadius: '6px' }}
               />
-              <input
-                type="time"
+              <select
                 className="form-input"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                value={startTime.split(':')[0] || '00'}
+                onChange={(e) => {
+                  const m = startTime.split(':')[1] || '00';
+                  setStartTime(`${e.target.value}:${m}`);
+                }}
                 required
-                lang="fr-FR"
-                step="60"
-                style={{ padding: '0.5rem 0.75rem', borderRadius: '6px' }}
-              />
+                style={{ padding: '0.5rem 0.25rem', borderRadius: '6px', textAlign: 'center' }}
+              >
+                {Array.from({ length: 24 }, (_, i) => {
+                  const h = i.toString().padStart(2, '0');
+                  return <option key={h} value={h}>{h} h</option>;
+                })}
+              </select>
+              <select
+                className="form-input"
+                value={startTime.split(':')[1] || '00'}
+                onChange={(e) => {
+                  const h = startTime.split(':')[0] || '00';
+                  setStartTime(`${h}:${e.target.value}`);
+                }}
+                required
+                style={{ padding: '0.5rem 0.25rem', borderRadius: '6px', textAlign: 'center' }}
+              >
+                {Array.from({ length: 60 }, (_, i) => {
+                  const m = i.toString().padStart(2, '0');
+                  return <option key={m} value={m}>{m} min</option>;
+                })}
+              </select>
             </div>
           </div>
 
@@ -186,7 +206,7 @@ export default function PutInMaintenanceModal({
                 <span>Date de fin inconnue</span>
               </label>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px', gap: '0.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 85px 85px', gap: '0.5rem', alignItems: 'center' }}>
               <input
                 type="date"
                 className="form-input"
@@ -201,21 +221,48 @@ export default function PutInMaintenanceModal({
                   cursor: isEndDateUnknown ? 'not-allowed' : 'auto',
                 }}
               />
-              <input
-                type="time"
+              <select
                 className="form-input"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                value={endTime.split(':')[0] || '23'}
+                onChange={(e) => {
+                  const m = endTime.split(':')[1] || '59';
+                  setEndTime(`${e.target.value}:${m}`);
+                }}
                 disabled={isEndDateUnknown}
-                lang="fr-FR"
-                step="60"
                 style={{
-                  padding: '0.5rem 0.75rem',
+                  padding: '0.5rem 0.25rem',
                   borderRadius: '6px',
+                  textAlign: 'center',
                   opacity: isEndDateUnknown ? 0.5 : 1,
                   cursor: isEndDateUnknown ? 'not-allowed' : 'auto',
                 }}
-              />
+              >
+                {Array.from({ length: 24 }, (_, i) => {
+                  const h = i.toString().padStart(2, '0');
+                  return <option key={h} value={h}>{h} h</option>;
+                })}
+              </select>
+              <select
+                className="form-input"
+                value={endTime.split(':')[1] || '59'}
+                onChange={(e) => {
+                  const h = endTime.split(':')[0] || '23';
+                  setEndTime(`${h}:${e.target.value}`);
+                }}
+                disabled={isEndDateUnknown}
+                style={{
+                  padding: '0.5rem 0.25rem',
+                  borderRadius: '6px',
+                  textAlign: 'center',
+                  opacity: isEndDateUnknown ? 0.5 : 1,
+                  cursor: isEndDateUnknown ? 'not-allowed' : 'auto',
+                }}
+              >
+                {Array.from({ length: 60 }, (_, i) => {
+                  const m = i.toString().padStart(2, '0');
+                  return <option key={m} value={m}>{m} min</option>;
+                })}
+              </select>
             </div>
           </div>
 
