@@ -85,7 +85,14 @@ async function seed() {
     }
     console.log('✅ UserUL and global UserRole relationships inserted');
 
-    // Migration des colonnes de signature pour ExpenseReport si besoin
+    // Migration des colonnes de signature et tampon si besoin
+    const ulCols = await db.execute('PRAGMA table_info("UniteLocale")');
+    const ulColNames = ulCols.rows.map(r => r.name as string);
+    if (!ulColNames.includes('stampImage')) {
+        await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "stampImage" TEXT`);
+        console.log('    Migration : colonne UniteLocale.stampImage ajoutée');
+    }
+
     const expCols = await db.execute('PRAGMA table_info("ExpenseReport")');
     const expColNames = expCols.rows.map(r => r.name as string);
     if (!expColNames.includes('userSignature')) {
