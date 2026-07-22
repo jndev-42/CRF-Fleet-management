@@ -39,7 +39,8 @@ export async function GET() {
             return NextResponse.json([]);
         }
 
-        const todayDate = new Date().toISOString().split('T')[0];
+        const nowISO = new Date().toISOString();
+        const todayDate = nowISO.split('T')[0];
 
         const sql = `SELECT
                 v.*,
@@ -50,7 +51,16 @@ export async function GET() {
             LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
             LEFT JOIN User u ON u.id = t.driverId
             LEFT JOIN User u2 ON u2.id = t.secondDriverId
-            LEFT JOIN VehicleMaintenance m ON m.vehicleId = v.id AND m.startDate <= '${todayDate}' AND (m.endDate IS NULL OR m.endDate >= '${todayDate}')
+            LEFT JOIN VehicleMaintenance m ON m.vehicleId = v.id
+              AND (
+                (m.startDate LIKE '%T%' AND m.startDate <= '${nowISO}') OR
+                (m.startDate NOT LIKE '%T%' AND m.startDate <= '${todayDate}')
+              )
+              AND (
+                m.endDate IS NULL OR
+                (m.endDate LIKE '%T%' AND m.endDate > '${nowISO}') OR
+                (m.endDate NOT LIKE '%T%' AND m.endDate >= '${todayDate}')
+              )
             WHERE v.ulId = '${ulId}'
             ORDER BY v.name ASC`;
 
