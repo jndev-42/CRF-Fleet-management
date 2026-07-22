@@ -312,6 +312,9 @@ async function createTables() {
     rejectedBy             TEXT REFERENCES "User"(id) ON DELETE SET NULL,
     paidAt                 TEXT,
     paidBy                 TEXT REFERENCES "User"(id) ON DELETE SET NULL,
+    userSignature          TEXT,
+    userFunction           TEXT,
+    validatorSignature     TEXT,
     createdAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -322,7 +325,8 @@ async function createTables() {
     name TEXT NOT NULL UNIQUE,
     slug TEXT NOT NULL UNIQUE,
     phoneNumbers TEXT,
-    defaultParkingSpots TEXT
+    defaultParkingSpots TEXT,
+    stampImage TEXT
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "UserUL" (

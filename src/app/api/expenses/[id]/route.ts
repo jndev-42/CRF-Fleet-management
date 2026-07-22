@@ -11,6 +11,9 @@ const updateExpenseReportSchema = z.object({
     rejectionComment: z.string().optional().nullable(),
     requestRefund: z.boolean().optional(),
     noReceiptDeclaration: z.boolean().optional(),
+    userSignature: z.union([z.string(), z.any()]).optional().nullable(),
+    userFunction: z.string().optional().nullable(),
+    validatorSignature: z.union([z.string(), z.any()]).optional().nullable(),
     driveFolderId: z.string().optional().nullable(),
     items: z.array(z.object({
         label: z.string().min(1),
@@ -91,6 +94,9 @@ export async function GET(
             paidAt: (row.paidAt as string) || null,
             paidBy: (row.paidBy as string) || null,
             payerName: (row.payerName as string) || null,
+            userSignature: (row.userSignature as string) || null,
+            userFunction: (row.userFunction as string) || null,
+            validatorSignature: (row.validatorSignature as string) || null,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
         };
@@ -132,7 +138,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Données invalides', details: parsed.error.issues }, { status: 400 });
         }
 
-        const { action, status, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, driveFolderId, items } = parsed.data;
+        const { action, status, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, userSignature, userFunction, validatorSignature, driveFolderId, items } = parsed.data;
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
         const isOwner = report.userId === session.user.id;
@@ -150,14 +156,17 @@ export async function PATCH(
 
             // Si demande de remboursement -> 'en_attente_paiement', sinon 'traité'
             const nextStatus = report.requestRefund === 1 ? 'en_attente_paiement' : 'traité';
+            const valSigStr = typeof validatorSignature === 'object' && validatorSignature !== null
+                ? JSON.stringify(validatorSignature)
+                : (validatorSignature || null);
 
             await db.execute({
                 sql: `
                     UPDATE "ExpenseReport"
-                    SET status = ?, validatedAt = ?, validatedBy = ?, updatedAt = ?
+                    SET status = ?, validatedAt = ?, validatedBy = ?, validatorSignature = ?, updatedAt = ?
                     WHERE id = ?
                 `,
-                args: [nextStatus, now, session.user.id, now, id],
+                args: [nextStatus, now, session.user.id, valSigStr, now, id],
             });
 
             return NextResponse.json({ success: true, status: nextStatus });
@@ -223,6 +232,11 @@ export async function PATCH(
             const finalNoReceipt = noReceiptDeclaration !== undefined ? (noReceiptDeclaration ? 1 : 0) : report.noReceiptDeclaration;
             const finalDriveFolder = driveFolderId !== undefined ? driveFolderId : report.driveFolderId;
             
+            const userSigStr = typeof userSignature === 'object' && userSignature !== null
+                ? JSON.stringify(userSignature)
+                : (userSignature !== undefined ? (userSignature || null) : (report.userSignature as string || null));
+            const finalUserFunction = userFunction !== undefined ? (userFunction || null) : (report.userFunction as string || null);
+
             let finalItemsStr = report.items as string;
             let finalTotal = Number(report.total);
             if (items) {
@@ -233,7 +247,7 @@ export async function PATCH(
             await db.execute({
                 sql: `
                     UPDATE "ExpenseReport"
-                    SET status = ?, imputation = ?, customImputation = ?, requestRefund = ?, noReceiptDeclaration = ?, driveFolderId = ?, total = ?, items = ?, submittedAt = ?, updatedAt = ?
+                    SET status = ?, imputation = ?, customImputation = ?, requestRefund = ?, noReceiptDeclaration = ?, driveFolderId = ?, total = ?, items = ?, userSignature = ?, userFunction = ?, submittedAt = ?, updatedAt = ?
                     WHERE id = ?
                 `,
                 args: [
@@ -245,6 +259,8 @@ export async function PATCH(
                     finalDriveFolder,
                     finalTotal,
                     finalItemsStr,
+                    userSigStr,
+                    finalUserFunction,
                     now,
                     now,
                     id

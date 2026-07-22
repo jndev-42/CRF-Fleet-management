@@ -3,8 +3,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send, Edit, XCircle, DollarSign, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send, Edit, XCircle, DollarSign, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
+import YousignSignatureModal, { SignatureData } from '@/components/expenses/YousignSignatureModal';
 
 interface ExpenseReport {
     id: string;
@@ -21,6 +22,9 @@ interface ExpenseReport {
     total: number;
     items: { label: string; amount: number }[];
     ulId: string;
+    userFunction?: string | null;
+    userSignature?: string | null;
+    validatorSignature?: string | null;
     validatedAt: string | null;
     validatedBy: string | null;
     validatorName: string | null;
@@ -105,7 +109,6 @@ export default function ExpensesPage() {
     }, [selectedReport]);
 
     const [validatingReport, setValidatingReport] = useState<ExpenseReport | null>(null);
-    const [validatorSigned, setValidatorSigned] = useState(false);
 
     // Sorting state
     type SortField = 'userName' | 'date' | 'imputation' | 'description' | 'total' | 'requestRefund' | 'status';
@@ -201,12 +204,10 @@ export default function ExpensesPage() {
 
     const openValidateModal = (report: ExpenseReport) => {
         setValidatingReport(report);
-        setValidatorSigned(false);
     };
 
-    const confirmValidate = async () => {
+    const confirmValidate = async (sigData?: SignatureData) => {
         if (!validatingReport) return;
-        if (!validatorSigned) return;
 
         const id = validatingReport.id;
         setActionLoading(id);
@@ -214,7 +215,10 @@ export default function ExpensesPage() {
             const res = await fetch(`/api/expenses/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'validate' })
+                body: JSON.stringify({
+                    action: 'validate',
+                    validatorSignature: sigData || null,
+                })
             });
             if (res.ok) {
                 const data = await res.json();
@@ -382,12 +386,13 @@ export default function ExpensesPage() {
             <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                padding: '2px 8px',
+                padding: '4px 10px',
                 borderRadius: '99px',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 textTransform: 'uppercase',
                 letterSpacing: '0.03em',
+                whiteSpace: 'nowrap',
                 ...styles[status]
             }}>
                 {icons[status]}
@@ -598,7 +603,7 @@ export default function ExpensesPage() {
                                                 <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>
                                                     {report.requestRefund ? 'Demandé' : 'Non demandé'}
                                                 </td>
-                                                <td style={{ padding: '16px' }}>
+                                                <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
                                                     {getStatusBadge(report.status)}
                                                 </td>
                                                 <td style={{ padding: '16px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
@@ -611,6 +616,19 @@ export default function ExpensesPage() {
                                                         >
                                                             <Eye size={14} />
                                                         </button>
+                                                        {report.status !== 'brouillon' && (
+                                                            <a
+                                                                href={`/api/expenses/${report.id}/pdf`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="btn btn-secondary"
+                                                                style={{ padding: '6px 10px', display: 'inline-flex', alignItems: 'center' }}
+                                                                title="Télécharger le PDF officiel"
+                                                                onClick={(e) => e.stopPropagation()}
+                                                            >
+                                                                <Download size={14} />
+                                                            </a>
+                                                        )}
                                                         {report.status === 'brouillon' && report.userId === session?.user?.id && (
                                                             <>
                                                                 <button
@@ -969,6 +987,19 @@ export default function ExpensesPage() {
                                 </div>
                             )}
 
+                            {/* Sidebar PDF Download Button */}
+                            {selectedReport.status !== 'brouillon' && (
+                                <a
+                                    href={`/api/expenses/${selectedReport.id}/pdf`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="btn btn-secondary"
+                                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '8px' }}
+                                >
+                                    <Download size={16} /> Télécharger le PDF officiel
+                                </a>
+                            )}
+
                             {/* Sidebar Action buttons */}
                             {selectedReport.status === 'soumis' && isManager && (
                                 <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '8px' }}>
@@ -1040,88 +1071,20 @@ export default function ExpensesPage() {
                 </div>
             )}
 
-            {/* Modal Validation et Signature Électronique */}
+            {/* Modale Yousign Signature du Valideur */}
             {validatingReport && (
-                <div style={{
-                    position: 'fixed',
-                    top: 0, left: 0, right: 0, bottom: 0,
-                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    zIndex: 1000,
-                    padding: '16px'
-                }}>
-                    <div style={{
-                        background: 'var(--bg-primary)',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1px solid var(--border-primary)',
-                        padding: '24px',
-                        maxWidth: '500px',
-                        width: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '16px',
-                        boxShadow: 'var(--shadow-lg)'
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                Validation et signature électronique
-                            </h3>
-                            <button
-                                onClick={() => setValidatingReport(null)}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}
-                                aria-label="Fermer"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                            Vous êtes sur le point de valider la note de frais de <strong>{validatingReport.userName}</strong> d&apos;un montant de <strong>{validatingReport.total.toFixed(2)} €</strong>.
-                        </p>
-
-                        <label style={{
-                            display: 'flex',
-                            gap: '10px',
-                            alignItems: 'flex-start',
-                            padding: '14px',
-                            background: 'rgba(34, 197, 94, 0.08)',
-                            border: '1px solid rgba(34, 197, 94, 0.3)',
-                            borderRadius: 'var(--radius-md)',
-                            cursor: 'pointer',
-                            fontSize: '0.875rem',
-                            color: 'var(--text-primary)',
-                            fontWeight: 600
-                        }}>
-                            <input
-                                type="checkbox"
-                                checked={validatorSigned}
-                                onChange={(e) => setValidatorSigned(e.target.checked)}
-                                style={{ marginTop: '3px' }}
-                            />
-                            <span>Je valide et signe electroniquement cette demande</span>
-                        </label>
-
-                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
-                            <button
-                                onClick={() => setValidatingReport(null)}
-                                className="btn btn-secondary"
-                                disabled={actionLoading === validatingReport.id}
-                            >
-                                Annuler
-                            </button>
-                            <button
-                                onClick={confirmValidate}
-                                className="btn btn-primary"
-                                style={{ background: '#22c55e', borderColor: '#22c55e', gap: '6px' }}
-                                disabled={!validatorSigned || actionLoading === validatingReport.id}
-                            >
-                                <Check size={16} /> Valider et signer
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <YousignSignatureModal
+                    isOpen={Boolean(validatingReport)}
+                    onClose={() => setValidatingReport(null)}
+                    onSign={(sigData) => {
+                        confirmValidate(sigData);
+                    }}
+                    signerName={session?.user?.name || 'Président / Responsable'}
+                    signerEmail={session?.user?.email || ''}
+                    roleTitle="Responsable / Valideur"
+                    initialFunction="Président local"
+                    loading={actionLoading === validatingReport.id}
+                />
             )}
         </div>
     );

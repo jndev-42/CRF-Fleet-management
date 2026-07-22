@@ -85,19 +85,61 @@ async function seed() {
     }
     console.log('✅ UserUL and global UserRole relationships inserted');
 
+    // Migration des colonnes de signature et tampon si besoin
+    const ulCols = await db.execute('PRAGMA table_info("UniteLocale")');
+    const ulColNames = ulCols.rows.map(r => r.name as string);
+    if (!ulColNames.includes('stampImage')) {
+        await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "stampImage" TEXT`);
+        console.log('    Migration : colonne UniteLocale.stampImage ajoutée');
+    }
+
+    const expCols = await db.execute('PRAGMA table_info("ExpenseReport")');
+    const expColNames = expCols.rows.map(r => r.name as string);
+    if (!expColNames.includes('userSignature')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "userSignature" TEXT`);
+    }
+    if (!expColNames.includes('userFunction')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "userFunction" TEXT`);
+    }
+    if (!expColNames.includes('validatorSignature')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "validatorSignature" TEXT`);
+    }
+
     // Seed sample ExpenseReports in preview database
     const now = new Date().toISOString();
+    const demoUserSig = JSON.stringify({
+        mode: 'typed',
+        name: 'Chauffeur Preview',
+        date: now,
+        hash: 'ysg_20260721_demo_chvl',
+        userEmail: 'preview-chvl@preview.local',
+        functionTitle: 'Secouriste Bénévole'
+    });
+    const demoValSig = JSON.stringify({
+        mode: 'typed',
+        name: 'Président Preview',
+        date: now,
+        hash: 'ysg_20260721_demo_pres',
+        userEmail: 'preview-president@preview.local',
+        functionTitle: 'Président local'
+    });
+
     await db.execute({
         sql: `INSERT OR REPLACE INTO "ExpenseReport"
-            (id, userId, submittedAt, status, imputation, customImputation, requestRefund, noReceiptDeclaration, total, items, ulId, validatedAt, validatedBy, rejectionComment, rejectedAt, rejectedBy, paidAt, paidBy, createdAt, updatedAt)
+            (id, userId, submittedAt, status, imputation, customImputation, requestRefund, noReceiptDeclaration, total, items, ulId, validatedAt, validatedBy, rejectionComment, rejectedAt, rejectedBy, paidAt, paidBy, userSignature, userFunction, validatorSignature, createdAt, updatedAt)
             VALUES
-            ('preview-exp-pending-pay', 'preview-user-chvl', ?, 'en_attente_paiement', 'DLUS', NULL, 1, 0, 45.50, '[{"label":"Essence VPSP Boxer","amount":45.50}]', 'ul-paris-18', ?, 'preview-user-president', NULL, NULL, NULL, NULL, NULL, ?, ?),
-            ('preview-exp-submitted', 'preview-user-chvl', ?, 'soumis', 'UL', NULL, 1, 0, 28.00, '[{"label":"Piles et fourniture poste","amount":28.00}]', 'ul-paris-18', NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, ?),
-            ('preview-exp-paid', 'preview-user-chvl', ?, 'traité', 'DLAS', NULL, 1, 0, 120.00, '[{"label":"Repas secours marathon","amount":120.00}]', 'ul-paris-18', ?, 'preview-user-president', NULL, NULL, NULL, ?, 'preview-user-tresorier', ?, ?),
-            ('preview-exp-rejected', 'preview-user-chvl', ?, 'refusé', 'Autre', 'Projet Spécial', 1, 0, 89.90, '[{"label":"Matériel indéterminé","amount":89.90}]', 'ul-paris-18', NULL, NULL, 'Justificatif flou et il manque la facture acquittée.', ?, 'preview-user-president', NULL, NULL, ?, ?)`,
-        args: [now, now, now, now, now, now, now, now, now, now, now, now, now, now, now, now]
+            ('preview-exp-pending-pay', 'preview-user-chvl', ?, 'en_attente_paiement', 'DLUS', NULL, 1, 0, 45.50, '[{"label":"Essence VPSP Boxer","amount":45.50}]', 'ul-paris-18', ?, 'preview-user-president', NULL, NULL, NULL, NULL, NULL, ?, 'Secouriste Bénévole', ?, ?, ?),
+            ('preview-exp-submitted', 'preview-user-chvl', ?, 'soumis', 'UL', NULL, 1, 0, 28.00, '[{"label":"Piles et fourniture poste","amount":28.00}]', 'ul-paris-18', NULL, NULL, NULL, NULL, NULL, NULL, NULL, ?, 'Secouriste Bénévole', NULL, ?, ?),
+            ('preview-exp-paid', 'preview-user-chvl', ?, 'traité', 'DLAS', NULL, 1, 0, 120.00, '[{"label":"Repas secours marathon","amount":120.00}]', 'ul-paris-18', ?, 'preview-user-president', NULL, NULL, NULL, ?, 'preview-user-tresorier', ?, 'Equipier Secouriste', ?, ?, ?),
+            ('preview-exp-rejected', 'preview-user-chvl', ?, 'refusé', 'Autre', 'Projet Spécial', 1, 0, 89.90, '[{"label":"Matériel indéterminé","amount":89.90}]', 'ul-paris-18', NULL, NULL, 'Justificatif flou et il manque la facture acquittée.', ?, 'preview-user-president', NULL, NULL, ?, 'Equipier Secouriste', NULL, ?, ?)`,
+        args: [
+            now, now, demoUserSig, demoValSig, now, now,
+            now, demoUserSig, now, now,
+            now, now, now, demoUserSig, demoValSig, now, now,
+            now, now, demoUserSig, now, now
+        ]
     });
-    console.log('✅ Sample Expense Reports seeded (including en_attente_paiement)');
+    console.log('✅ Sample Expense Reports seeded with signatures (including en_attente_paiement)');
 
     // Verify
     const check = await db.execute({

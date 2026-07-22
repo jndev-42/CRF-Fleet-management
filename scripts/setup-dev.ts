@@ -78,13 +78,17 @@ async function main() {
             "name" TEXT NOT NULL UNIQUE,
             "slug" TEXT NOT NULL UNIQUE,
             "phoneNumbers" TEXT,
-            "defaultParkingSpots" TEXT
+            "defaultParkingSpots" TEXT,
+            "stampImage" TEXT
         )
     `);
 
     const ulCols = await db.execute('PRAGMA table_info("UniteLocale")');
     if (!ulCols.rows.some(r => r.name === 'defaultParkingSpots')) {
         await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "defaultParkingSpots" TEXT`);
+    }
+    if (!ulCols.rows.some(r => r.name === 'stampImage')) {
+        await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "stampImage" TEXT`);
     }
 
     await db.execute(`
@@ -610,10 +614,26 @@ async function main() {
             "rejectedBy"             TEXT REFERENCES "User"("id") ON DELETE SET NULL,
             "paidAt"                 TEXT,
             "paidBy"                 TEXT REFERENCES "User"("id") ON DELETE SET NULL,
+            "userSignature"          TEXT, -- JSON { type, data, date, hash, name }
+            "userFunction"           TEXT, -- Fonction / rôle du demandeur
+            "validatorSignature"     TEXT, -- JSON { type, data, date, hash, name }
             "createdAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     `);
+
+    // Migrations idempotentes pour ExpenseReport
+    const expCols = await db.execute('PRAGMA table_info("ExpenseReport")');
+    const expColNames = expCols.rows.map(r => r.name as string);
+    if (!expColNames.includes('userSignature')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "userSignature" TEXT`);
+    }
+    if (!expColNames.includes('userFunction')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "userFunction" TEXT`);
+    }
+    if (!expColNames.includes('validatorSignature')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "validatorSignature" TEXT`);
+    }
 
     await db.execute(`
         CREATE INDEX IF NOT EXISTS "ExpenseReport_userId_idx"

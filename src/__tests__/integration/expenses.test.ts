@@ -267,5 +267,41 @@ describe('Expense Report integration tests', () => {
             expect(dbCheck.rows[0].status).toBe('traité');
             expect(dbCheck.rows[0].paidBy).toBe('user-tresorier');
         });
+
+        it('saves validatorSignature upon validation', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
+            const sigObj = { mode: 'typed', name: 'President User', date: '2026-07-21T10:00:00Z', hash: 'ysg_test_123' };
+            const req = makePatchRequest({ action: 'validate', validatorSignature: sigObj });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-submitted-refund' }) });
+            expect(res.status).toBe(200);
+
+            const dbCheck = await db.execute({ sql: 'SELECT * FROM "ExpenseReport" WHERE id = ?', args: ['exp-submitted-refund'] });
+            expect(dbCheck.rows[0].validatorSignature).toContain('ysg_test_123');
+        });
+    });
+
+    describe('GET /api/expenses/[id]/pdf', () => {
+        beforeEach(async () => {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund, userFunction, userSignature)
+                      VALUES ('exp-pdf-test', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 45.0, '[{"label":"Carburant","amount":45.0}]', 'ul-paris-18', 1, 'Bénévole local', '{"name":"Standard User"}')`
+            });
+        });
+
+        it('returns 401 when unauthenticated', async () => {
+            mockedAuth.mockResolvedValue(null);
+            const { GET: getPdf } = await import('@/app/api/expenses/[id]/pdf/route');
+            const res = await getPdf(new Request('http://localhost/api/expenses/exp-pdf-test/pdf'), { params: Promise.resolve({ id: 'exp-pdf-test' }) });
+            expect(res.status).toBe(401);
+        });
+
+        it('returns a PDF response with Content-Type application/pdf', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'] } } as never);
+            const { GET: getPdf } = await import('@/app/api/expenses/[id]/pdf/route');
+            const res = await getPdf(new Request('http://localhost/api/expenses/exp-pdf-test/pdf'), { params: Promise.resolve({ id: 'exp-pdf-test' }) });
+            expect(res.status).toBe(200);
+            expect(res.headers.get('Content-Type')).toBe('application/pdf');
+            expect(res.headers.get('Content-Disposition')).toContain('note-de-frais-exp-pdf-test.pdf');
+        });
     });
 });

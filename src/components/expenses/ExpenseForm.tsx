@@ -1,8 +1,8 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash, Save, Send, AlertTriangle } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import PhotoPicker from '@/components/ui/PhotoPicker';
+import YousignSignatureModal, { SignatureData } from '@/components/expenses/YousignSignatureModal';
 
 interface ExpenseItem {
     label: string;
@@ -19,11 +19,14 @@ interface ExpenseFormProps {
         requestRefund: boolean;
         noReceiptDeclaration: boolean;
         driveFolderId: string | null;
+        userFunction?: string | null;
+        userSignature?: string | null;
         items: { label: string; amount: number }[];
     };
 }
 
 export default function ExpenseForm({ onClose, onSuccess, initialData }: ExpenseFormProps) {
+    const { data: session } = useSession();
     const [items, setItems] = useState<ExpenseItem[]>(
         initialData
             ? initialData.items.map(item => ({ label: item.label, amount: item.amount.toString() }))
@@ -41,7 +44,12 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
     const [certified, setCertified] = useState(
         initialData ? initialData.noReceiptDeclaration : false
     );
-    const [submitCertified, setSubmitCertified] = useState(false);
+    const [userFunction, setUserFunction] = useState<string>(
+        initialData?.userFunction || 'Bénévole local'
+    );
+    const [userSignature, setUserSignature] = useState<SignatureData | null>(null);
+    const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+
     const [photos, setPhotos] = useState<File[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -69,7 +77,6 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
         setItems(prev => prev.map((item, i) => {
             if (i === index) {
                 if (field === 'amount') {
-                    // Prevent typing non-numeric values (except dot/comma for decimals)
                     const sanitized = value.replace(/[^0-9.,]/g, '').replace(',', '.');
                     return { ...item, [field]: sanitized };
                 }
@@ -79,39 +86,55 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
         }));
     };
 
-    const handleSubmit = async (submitStatus: 'brouillon' | 'soumis') => {
+    const validateForm = (): boolean => {
         setError(null);
-
-        // 1. Validation
         const validItems = items.filter(item => item.label.trim() && parseFloat(item.amount) > 0);
         if (validItems.length === 0) {
             setError('Veuillez ajouter au moins une dépense valide avec un libellé et un montant supérieur à 0.');
-            return;
+            return false;
         }
 
         if (imputation === 'Autre' && !customImputation.trim()) {
             setError('Veuillez spécifier l\'imputation dans le champ texte dédié.');
-            return;
+            return false;
         }
 
-        if (submitStatus === 'soumis' && !submitCertified) {
-            setError('Veuillez cocher la case certifiant l\'exactitude des informations et signant électroniquement la demande.');
-            return;
+        if (requestRefund && photos.length === 0 && !certified && !initialData?.driveFolderId) {
+            setError('Veuillez soit ajouter au moins un justificatif (photo), soit cocher la déclaration sur l\'honneur.');
+            return false;
         }
 
-        if (requestRefund) {
-            if (photos.length === 0 && !certified && !initialData?.driveFolderId) {
-                setError('Veuillez soit ajouter au moins un justificatif (photo), soit cocher la déclaration sur l\'honneur.');
-                return;
-            }
-        }
+        return true;
+    };
 
+    const handleInitiateSubmit = (status: 'brouillon' | 'soumis') => {
+        if (!validateForm()) return;
+        if (status === 'soumis') {
+            setIsSignatureModalOpen(true);
+        } else {
+            executeSave('brouillon', null, userFunction);
+        }
+    };
+
+    const handleSignatureConfirmed = (sigData: SignatureData, funcTitle: string) => {
+        setUserSignature(sigData);
+        setUserFunction(funcTitle);
+        setIsSignatureModalOpen(false);
+        executeSave('soumis', sigData, funcTitle);
+    };
+
+    const executeSave = async (
+        submitStatus: 'brouillon' | 'soumis',
+        sigData: SignatureData | null,
+        funcTitle: string
+    ) => {
+        const validItems = items.filter(item => item.label.trim() && parseFloat(item.amount) > 0);
         setLoading(true);
+        setError(null);
 
         try {
             let driveFolderId = initialData?.driveFolderId || null;
 
-            // 2. Upload photos to Drive if there are any
             if (requestRefund && photos.length > 0) {
                 const fd = new FormData();
                 photos.forEach(file => {
@@ -135,7 +158,6 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 driveFolderId = uploadData.folderId;
             }
 
-            // 3. Create or Update Expense Report in Database
             if (initialData) {
                 const payload = {
                     action: submitStatus === 'soumis' ? 'submit' : 'update',
@@ -144,6 +166,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     customImputation: imputation === 'Autre' ? customImputation.trim() : null,
                     requestRefund: requestRefund,
                     noReceiptDeclaration: requestRefund && photos.length === 0 && !driveFolderId ? certified : false,
+                    userFunction: funcTitle,
+                    userSignature: sigData || userSignature,
                     driveFolderId: driveFolderId,
                     items: validItems.map(item => ({
                         label: item.label.trim(),
@@ -168,6 +192,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     customImputation: imputation === 'Autre' ? customImputation.trim() : null,
                     requestRefund: requestRefund,
                     noReceiptDeclaration: requestRefund && photos.length === 0 ? certified : false,
+                    userFunction: funcTitle,
+                    userSignature: sigData || userSignature,
                     driveFolderId: driveFolderId,
                     items: validItems.map(item => ({
                         label: item.label.trim(),
@@ -426,32 +452,6 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 )}
             </div>
 
-            {/* Signature électronique obligatoire pour la soumission */}
-            <label style={{
-                display: 'flex',
-                gap: '10px',
-                alignItems: 'flex-start',
-                padding: '12px 14px',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-primary)',
-                borderRadius: 'var(--radius-md)',
-                cursor: 'pointer',
-                fontSize: '0.8125rem',
-                color: 'var(--text-primary)',
-                fontWeight: 500
-            }}>
-                <input
-                    type="checkbox"
-                    checked={submitCertified}
-                    onChange={(e) => setSubmitCertified(e.target.checked)}
-                    disabled={loading}
-                    style={{ marginTop: '2px' }}
-                />
-                <span>
-                    {"Je certifie l'exactitude des informations ci-dessus et signe electroniquement cette demande"}
-                </span>
-            </label>
-
             {/* Actions */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
                 <button
@@ -464,7 +464,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 </button>
                 <button
                     type="button"
-                    onClick={() => handleSubmit('brouillon')}
+                    onClick={() => handleInitiateSubmit('brouillon')}
                     className="btn btn-secondary"
                     style={{ gap: '6px' }}
                     disabled={loading}
@@ -473,14 +473,26 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 </button>
                 <button
                     type="button"
-                    onClick={() => handleSubmit('soumis')}
+                    onClick={() => handleInitiateSubmit('soumis')}
                     className="btn btn-primary"
                     style={{ gap: '6px' }}
                     disabled={loading}
                 >
-                    <Send size={16} /> Soumettre
+                    <Send size={16} /> Signer et Soumettre
                 </button>
             </div>
+
+            {/* Modal de signature Yousign du demandeur */}
+            <YousignSignatureModal
+                isOpen={isSignatureModalOpen}
+                onClose={() => setIsSignatureModalOpen(false)}
+                onSign={handleSignatureConfirmed}
+                signerName={session?.user?.name || 'Demandeur'}
+                signerEmail={session?.user?.email || ''}
+                roleTitle="Demandeur"
+                initialFunction={userFunction}
+                loading={loading}
+            />
         </div>
     );
 }
