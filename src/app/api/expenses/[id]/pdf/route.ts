@@ -61,7 +61,7 @@ async function generateExpensePdf(reportId: string): Promise<Buffer> {
         const logoPath = path.join(process.cwd(), 'public', 'logo_crf_text.png');
         if (fs.existsSync(logoPath)) {
             const logoPng = await sharp(logoPath)
-                .resize(240, 140, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
+                .resize(480, 130, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
                 .png()
                 .toBuffer();
             logoSrc = `data:image/png;base64,${logoPng.toString('base64')}`;

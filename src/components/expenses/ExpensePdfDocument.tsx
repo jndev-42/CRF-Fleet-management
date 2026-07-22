@@ -40,8 +40,8 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     logoImage: {
-        width: 160,
-        height: 40,
+        width: 220,
+        height: 60,
         objectFit: 'contain',
     },
 
