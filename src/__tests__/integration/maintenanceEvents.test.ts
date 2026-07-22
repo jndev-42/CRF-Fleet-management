@@ -169,14 +169,14 @@ describe('PATCH /api/vehicles/[id]/maintenance-events', () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.success).toBe(true);
-    expect(json.endDate).toBe(new Date().toISOString().split('T')[0]);
+    expect(json.endDate).toContain(new Date().toISOString().split('T')[0]);
 
     // Check DB side effects
     const v = await db.execute({ sql: `SELECT status FROM "Vehicle" WHERE id = 'v-1'`, args: [] });
     expect(v.rows[0].status).toBe('AVAILABLE');
 
     const m = await db.execute({ sql: `SELECT endDate FROM "VehicleMaintenance" WHERE vehicleId = 'v-1'`, args: [] });
-    expect(m.rows[0].endDate).toBe(new Date().toISOString().split('T')[0]);
+    expect(m.rows[0].endDate).toContain(new Date().toISOString().split('T')[0]);
 
     // Verify GET /api/vehicles/[id] preserves status AVAILABLE and activeMaintenance is null
     const getRes = await GETVehicle(new Request('http://localhost/api/vehicles/VSAV%2001'), {

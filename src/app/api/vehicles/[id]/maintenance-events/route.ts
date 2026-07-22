@@ -120,37 +120,18 @@ export async function PATCH(
     const nowISO = new Date().toISOString();
     const todayDate = nowISO.split('T')[0];
 
-    // Close all active/ongoing maintenance records for this vehicle (endDate IS NULL or endDate >= todayDate)
-    const activeMaint = await db.execute({
-      sql: `SELECT id FROM "VehicleMaintenance" WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ?)`,
-      args: [vehicleId, todayDate],
+    // Close all active/ongoing maintenance records for this vehicle (endDate IS NULL or endDate >= todayDate or endDate > nowISO)
+    await db.execute({
+      sql: `UPDATE "VehicleMaintenance" SET endDate = ?, updatedAt = ? WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ? OR endDate > ?)`,
+      args: [nowISO, nowISO, vehicleId, todayDate, nowISO],
     });
-
-    if (activeMaint.rows.length > 0) {
-      await db.execute({
-        sql: `UPDATE "VehicleMaintenance" SET endDate = ?, updatedAt = ? WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ?)`,
-        args: [todayDate, nowISO, vehicleId, todayDate],
-      });
-    } else {
-      // Fallback: update latest maintenance record if any exists
-      const latestMaint = await db.execute({
-        sql: `SELECT id FROM "VehicleMaintenance" WHERE vehicleId = ? ORDER BY createdAt DESC LIMIT 1`,
-        args: [vehicleId],
-      });
-      if (latestMaint.rows.length > 0) {
-        await db.execute({
-          sql: `UPDATE "VehicleMaintenance" SET endDate = ?, updatedAt = ? WHERE id = ?`,
-          args: [todayDate, nowISO, latestMaint.rows[0].id as string],
-        });
-      }
-    }
 
     await db.execute({
       sql: `UPDATE "Vehicle" SET status = 'AVAILABLE', updatedAt = ? WHERE id = ?`,
       args: [nowISO, vehicleId],
     });
 
-    return NextResponse.json({ success: true, endDate: todayDate });
+    return NextResponse.json({ success: true, endDate: nowISO });
   } catch (error) {
     console.error('Error ending vehicle maintenance:', error);
     return NextResponse.json(
