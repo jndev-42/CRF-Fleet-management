@@ -237,12 +237,13 @@ const styles = StyleSheet.create({
     stampImageContainer: {
         alignItems: 'center',
         justifyContent: 'center',
-        height: 52,
+        height: 72,
+        flex: 1,
         width: '100%',
     },
     stampImage: {
-        maxHeight: 50,
-        maxWidth: 155,
+        maxHeight: 70,
+        maxWidth: 165,
         objectFit: 'contain',
     },
     sigMetaText: {
