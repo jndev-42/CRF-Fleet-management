@@ -125,7 +125,7 @@ describe('UL default parking spots API (/api/ul)', () => {
     const postRes = await POST(postReq);
     expect(postRes.status).toBe(201);
     const postData = await postRes.json();
-    expect(postData.stampImage).toBe(stampBase64);
+    expect(postData.stampImage).toContain('data:image/png;base64,');
 
     // 2. PATCH pour effacer le tampon (null)
     const patchReq = new Request('http://localhost/api/ul/ul-stamp-test', {

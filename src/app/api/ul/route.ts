@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
+import { compressStampImage } from '@/lib/stamp';
 
 const createULSchema = z.object({
     name: z.string().min(1, 'Le nom est requis'),
@@ -59,13 +60,15 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Une UL avec ce nom ou ce slug existe déjà.' }, { status: 409 });
         }
 
+        const compressedStamp = await compressStampImage(data.stampImage);
+
         const id = `ul-${data.slug}`;
         await db.execute({
             sql: `INSERT INTO "UniteLocale" (id, name, slug, phoneNumbers, defaultParkingSpots, stampImage) VALUES (?, ?, ?, ?, ?, ?)`,
-            args: [id, data.name, data.slug, JSON.stringify(data.phoneNumbers), JSON.stringify(data.defaultParkingSpots), data.stampImage || null],
+            args: [id, data.name, data.slug, JSON.stringify(data.phoneNumbers), JSON.stringify(data.defaultParkingSpots), compressedStamp],
         });
 
-        return NextResponse.json({ success: true, id, name: data.name, slug: data.slug, phoneNumbers: data.phoneNumbers, defaultParkingSpots: data.defaultParkingSpots, stampImage: data.stampImage || null }, { status: 201 });
+        return NextResponse.json({ success: true, id, name: data.name, slug: data.slug, phoneNumbers: data.phoneNumbers, defaultParkingSpots: data.defaultParkingSpots, stampImage: compressedStamp }, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: 'Données invalides', details: error.issues }, { status: 400 });

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin, isAdminOrAbove } from '@/lib/roles';
+import { compressStampImage } from '@/lib/stamp';
 
 /** DELETE /api/ul/[id] — Supprimer une UL (ADMIN uniquement) */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -58,7 +59,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if (slug) await db.execute({ sql: `UPDATE "UniteLocale" SET slug = ? WHERE id = ?`, args: [slug, id] });
         if (phoneNumbers) await db.execute({ sql: `UPDATE "UniteLocale" SET phoneNumbers = ? WHERE id = ?`, args: [JSON.stringify(phoneNumbers), id] });
         if (defaultParkingSpots) await db.execute({ sql: `UPDATE "UniteLocale" SET defaultParkingSpots = ? WHERE id = ?`, args: [JSON.stringify(defaultParkingSpots), id] });
-        if (stampImage !== undefined) await db.execute({ sql: `UPDATE "UniteLocale" SET stampImage = ? WHERE id = ?`, args: [stampImage, id] });
+        if (stampImage !== undefined) {
+            const compressed = await compressStampImage(stampImage);
+            await db.execute({ sql: `UPDATE "UniteLocale" SET stampImage = ? WHERE id = ?`, args: [compressed, id] });
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {
