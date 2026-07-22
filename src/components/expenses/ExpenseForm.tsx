@@ -416,8 +416,9 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                         <PhotoPicker
                             photos={photos}
                             onPhotosChange={setPhotos}
-                            label="Photos des justificatifs"
-                            hint="Prenez ou importez des photos des reçus."
+                            label="Justificatifs (Photos ou PDF)"
+                            hint="Importez des photos ou des fichiers PDF de vos reçus."
+                            accept="image/*,application/pdf"
                             maxFiles={5}
                         />
 

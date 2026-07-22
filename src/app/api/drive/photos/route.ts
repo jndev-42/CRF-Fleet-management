@@ -22,31 +22,31 @@ export async function GET(request: Request) {
             if (flat) {
                 return NextResponse.json({
                     photos: [
-                        { id: 'mock-photo-1', name: 'justificatif_1.jpg' },
-                        { id: 'mock-photo-2', name: 'justificatif_2.jpg' }
+                        { id: 'mock-photo-1', name: 'justificatif_1.jpg', mimeType: 'image/jpeg' },
+                        { id: 'mock-photo-2', name: 'justificatif_2.pdf', mimeType: 'application/pdf' }
                     ]
                 });
             }
             return NextResponse.json({
-                emprunt: [{ id: 'mock-photo-1', name: 'photo_emprunt.jpg' }],
-                rendu: [{ id: 'mock-photo-2', name: 'photo_rendu.jpg' }]
+                emprunt: [{ id: 'mock-photo-1', name: 'photo_emprunt.jpg', mimeType: 'image/jpeg' }],
+                rendu: [{ id: 'mock-photo-2', name: 'photo_rendu.jpg', mimeType: 'image/jpeg' }]
             });
         }
 
         const drive = getDriveClient();
 
-        // Flat mode: list images directly in the folder (no subfolders), used for mission photos
+        // Flat mode: list images and PDFs directly in the folder (no subfolders), used for expense receipts and mission photos
         const flat = searchParams.get('flat') === 'true';
         if (flat) {
             const res = await drive.files.list({
-                q: `'${folderId}' in parents and mimeType contains 'image/' and trashed=false`,
-                fields: 'files(id, name)',
+                q: `'${folderId}' in parents and (mimeType contains 'image/' or mimeType = 'application/pdf') and trashed=false`,
+                fields: 'files(id, name, mimeType)',
             });
             const photos = (res.data.files ?? [])
-                .filter((f): f is { id: string; name: string } =>
+                .filter((f): f is { id: string; name: string; mimeType?: string } =>
                     typeof f.id === 'string' && typeof f.name === 'string'
                 )
-                .map(f => ({ id: f.id, name: f.name }));
+                .map(f => ({ id: f.id, name: f.name, mimeType: f.mimeType }));
             return NextResponse.json({ photos });
         }
 
