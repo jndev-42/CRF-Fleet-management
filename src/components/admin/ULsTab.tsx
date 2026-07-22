@@ -35,7 +35,9 @@ export default function ULsTab({
     const [formSlug, setFormSlug] = useState('');
     const [phoneNumbers, setPhoneNumbers] = useState<PhoneNum[]>([]);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
-    const [stampImage, setStampImage] = useState<string | null>(null);
+    const [stampPreview, setStampPreview] = useState<string | null>(null);
+    const [stampFileBase64, setStampFileBase64] = useState<string | null>(null);
+    const [stampDeleted, setStampDeleted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
     function showToast(message: string, type: 'success' | 'error' = 'success') {
@@ -68,14 +70,18 @@ export default function ULsTab({
             setFormSlug(ul.slug);
             setPhoneNumbers(ul.phoneNumbers || []);
             setDefaultParkingSpots(ul.defaultParkingSpots || []);
-            setStampImage(ul.stampUrl || ul.stampImage || null);
+            setStampPreview(ul.stampUrl || null);
+            setStampFileBase64(null);
+            setStampDeleted(false);
         } else {
             setEditingUl(null);
             setFormName('');
             setFormSlug('');
             setPhoneNumbers([]);
             setDefaultParkingSpots([]);
-            setStampImage(null);
+            setStampPreview(null);
+            setStampFileBase64(null);
+            setStampDeleted(false);
         }
         setIsModalOpen(true);
     }
@@ -112,14 +118,25 @@ export default function ULsTab({
                 const ctx = canvas.getContext('2d');
                 if (ctx) {
                     ctx.drawImage(img, 0, 0, width, height);
-                    setStampImage(canvas.toDataURL('image/png'));
+                    const compressed = canvas.toDataURL('image/png');
+                    setStampFileBase64(compressed);
+                    setStampPreview(compressed);
+                    setStampDeleted(false);
                 } else {
-                    setStampImage(dataUrl);
+                    setStampFileBase64(dataUrl);
+                    setStampPreview(dataUrl);
+                    setStampDeleted(false);
                 }
             };
             img.src = dataUrl;
         };
         reader.readAsDataURL(file);
+    }
+
+    function handleDeleteStamp() {
+        setStampPreview(null);
+        setStampFileBase64(null);
+        setStampDeleted(true);
     }
 
     function handleNameChange(value: string) {
@@ -168,6 +185,19 @@ export default function ULsTab({
         const validPhoneNumbers = phoneNumbers.filter(p => p.label.trim() && p.number.trim());
         const validParkingSpots = defaultParkingSpots.map(s => s.trim()).filter(Boolean);
 
+        const payload: Record<string, unknown> = {
+            name: formName.trim(),
+            slug: formSlug.trim(),
+            phoneNumbers: validPhoneNumbers,
+            defaultParkingSpots: validParkingSpots,
+        };
+
+        if (stampFileBase64) {
+            payload.stampImage = stampFileBase64;
+        } else if (stampDeleted) {
+            payload.stampImage = null;
+        }
+
         setSubmitting(true);
         try {
             if (editingUl) {
@@ -175,13 +205,7 @@ export default function ULsTab({
                 const res = await fetch(`/api/ul/${editingUl.id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: formName.trim(),
-                        slug: formSlug.trim(),
-                        phoneNumbers: validPhoneNumbers,
-                        defaultParkingSpots: validParkingSpots,
-                        stampImage: stampImage || null,
-                    }),
+                    body: JSON.stringify(payload),
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Erreur lors de la modification');
@@ -192,13 +216,7 @@ export default function ULsTab({
                 const res = await fetch('/api/ul', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        name: formName.trim(),
-                        slug: formSlug.trim(),
-                        phoneNumbers: validPhoneNumbers,
-                        defaultParkingSpots: validParkingSpots,
-                        stampImage: stampImage || null,
-                    }),
+                    body: JSON.stringify(payload),
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Erreur lors de la création');
@@ -396,15 +414,15 @@ export default function ULsTab({
                                         Si une image de tampon est téléversée, elle sera directement incrustée dans la case &quot;Tampon de la structure&quot; sur les PDF de notes de frais.
                                     </p>
 
-                                    {stampImage ? (
+                                    {stampPreview ? (
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 12, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-primary)' }}>
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={stampImage} alt="Aperçu tampon UL" style={{ maxHeight: 60, maxWidth: 140, objectFit: 'contain' }} />
+                                            <img src={stampPreview} alt="Aperçu tampon UL" style={{ maxHeight: 60, maxWidth: 140, objectFit: 'contain' }} />
                                             <button
                                                 type="button"
                                                 className="btn btn-danger"
                                                 style={{ fontSize: 12, padding: '6px 12px' }}
-                                                onClick={() => setStampImage(null)}
+                                                onClick={handleDeleteStamp}
                                             >
                                                 🗑️ Supprimer le tampon
                                             </button>

@@ -1,4 +1,3 @@
-import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
 export async function GET(
@@ -13,21 +12,21 @@ export async function GET(
         });
 
         if (res.rows.length === 0 || !res.rows[0].stampImage) {
-            return new NextResponse('Stamp image not found', { status: 404 });
+            return new Response('Stamp image not found', { status: 404 });
         }
 
         const raw = res.rows[0].stampImage as string;
 
         // Parse Data URL format: data:[<mediatype>][;base64],<data>
-        const match = raw.match(/^data:(image\/[a-zA-Z0-9+-]+);base64,(.+)$/);
+        const match = raw.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,(.+)$/);
         if (!match) {
-            return new NextResponse('Invalid stamp image format', { status: 400 });
+            return new Response('Invalid stamp image format', { status: 400 });
         }
 
         const mimeType = match[1];
         const buffer = Buffer.from(match[2], 'base64');
 
-        return new NextResponse(new Uint8Array(buffer), {
+        return new Response(buffer, {
             status: 200,
             headers: {
                 'Content-Type': mimeType,
@@ -36,6 +35,6 @@ export async function GET(
         });
     } catch (error) {
         console.error('Error fetching UL stamp image:', error);
-        return new NextResponse('Internal server error', { status: 500 });
+        return new Response('Internal server error', { status: 500 });
     }
 }
