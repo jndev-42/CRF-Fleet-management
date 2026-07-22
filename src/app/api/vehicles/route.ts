@@ -51,7 +51,13 @@ export async function GET() {
             LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
             LEFT JOIN User u ON u.id = t.driverId
             LEFT JOIN User u2 ON u2.id = t.secondDriverId
-            LEFT JOIN VehicleMaintenance m ON m.vehicleId = v.id AND m.startDate <= '${nowISO}' AND (m.endDate IS NULL OR m.endDate > '${nowISO}' OR (m.endDate = '${todayDate}' AND UPPER(v.status) = 'MAINTENANCE'))
+            LEFT JOIN VehicleMaintenance m ON m.vehicleId = v.id
+              AND (m.startDate <= '${nowISO}' OR m.startDate <= '${todayDate}')
+              AND (
+                m.endDate IS NULL OR
+                (m.endDate LIKE '%T%' AND m.endDate > '${nowISO}') OR
+                (m.endDate NOT LIKE '%T%' AND m.endDate > '${todayDate}')
+              )
             WHERE v.ulId = '${ulId}'
             ORDER BY v.name ASC`;
 

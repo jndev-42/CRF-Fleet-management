@@ -45,17 +45,19 @@ export async function POST(
     const eventId = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    const endDateValue = data.endDate && data.endDate.trim() !== '' ? data.endDate : null;
-    const todayDate = new Date().toISOString().split('T')[0];
+    const startDateISO = data.startDate.includes('T') ? data.startDate : `${data.startDate}T00:00:00.000Z`;
+    const endDateISO = data.endDate && data.endDate.trim() !== ''
+      ? (data.endDate.includes('T') ? data.endDate : `${data.endDate}T23:59:59.999Z`)
+      : null;
 
     await db.execute({
       sql: `INSERT INTO "VehicleMaintenance" (id, vehicleId, startDate, endDate, reason, createdAt, updatedAt)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [eventId, vehicleId, data.startDate, endDateValue, data.reason, now, now],
+      args: [eventId, vehicleId, startDateISO, endDateISO, data.reason, now, now],
     });
 
     // Only update vehicle status to MAINTENANCE immediately if start date is today or in the past
-    if (data.startDate <= todayDate) {
+    if (startDateISO <= now) {
       await db.execute({
         sql: `UPDATE "Vehicle" SET status = 'MAINTENANCE', updatedAt = ? WHERE id = ?`,
         args: [now, vehicleId],
@@ -68,8 +70,8 @@ export async function POST(
         maintenance: {
           id: eventId,
           vehicleId,
-          startDate: data.startDate,
-          endDate: endDateValue,
+          startDate: startDateISO,
+          endDate: endDateISO,
           reason: data.reason,
         },
       },
@@ -118,12 +120,13 @@ export async function PATCH(
 
     const vehicleId = vehicleResult.rows[0].id as string;
     const nowISO = new Date().toISOString();
+    const endTimestamp = new Date(Date.now() - 1000).toISOString();
     const todayDate = nowISO.split('T')[0];
 
-    // Close all active/ongoing maintenance records for this vehicle (endDate IS NULL or endDate >= todayDate or endDate > nowISO)
+    // Close all active/ongoing maintenance records for this vehicle
     await db.execute({
       sql: `UPDATE "VehicleMaintenance" SET endDate = ?, updatedAt = ? WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ? OR endDate > ?)`,
-      args: [nowISO, nowISO, vehicleId, todayDate, nowISO],
+      args: [endTimestamp, nowISO, vehicleId, todayDate, endTimestamp],
     });
 
     await db.execute({
@@ -131,7 +134,7 @@ export async function PATCH(
       args: [nowISO, vehicleId],
     });
 
-    return NextResponse.json({ success: true, endDate: nowISO });
+    return NextResponse.json({ success: true, endDate: endTimestamp });
   } catch (error) {
     console.error('Error ending vehicle maintenance:', error);
     return NextResponse.json(

@@ -85,8 +85,8 @@ describe('POST /api/vehicles/[id]/maintenance-events', () => {
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.maintenance.reason).toBe('Changement de pneus');
-    expect(json.maintenance.startDate).toBe('2026-07-22');
-    expect(json.maintenance.endDate).toBe('2026-07-25');
+    expect(json.maintenance.startDate).toContain('2026-07-22');
+    expect(json.maintenance.endDate).toContain('2026-07-25');
 
     // Check DB side effects
     const v = await db.execute({ sql: `SELECT status FROM "Vehicle" WHERE id = 'v-1'`, args: [] });
