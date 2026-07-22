@@ -386,12 +386,13 @@ export default function ExpensesPage() {
             <span style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                padding: '2px 8px',
+                padding: '4px 10px',
                 borderRadius: '99px',
                 fontSize: '0.75rem',
                 fontWeight: 600,
                 textTransform: 'uppercase',
                 letterSpacing: '0.03em',
+                whiteSpace: 'nowrap',
                 ...styles[status]
             }}>
                 {icons[status]}
@@ -602,7 +603,7 @@ export default function ExpensesPage() {
                                                 <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>
                                                     {report.requestRefund ? 'Demandé' : 'Non demandé'}
                                                 </td>
-                                                <td style={{ padding: '16px' }}>
+                                                <td style={{ padding: '16px', whiteSpace: 'nowrap' }}>
                                                     {getStatusBadge(report.status)}
                                                 </td>
                                                 <td style={{ padding: '16px', textAlign: 'right' }} onClick={e => e.stopPropagation()}>
