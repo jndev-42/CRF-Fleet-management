@@ -161,6 +161,8 @@ export default function PutInMaintenanceModal({
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 required
+                lang="fr-FR"
+                step="60"
                 style={{ padding: '0.5rem 0.75rem', borderRadius: '6px' }}
               />
             </div>
@@ -205,6 +207,8 @@ export default function PutInMaintenanceModal({
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 disabled={isEndDateUnknown}
+                lang="fr-FR"
+                step="60"
                 style={{
                   padding: '0.5rem 0.75rem',
                   borderRadius: '6px',
