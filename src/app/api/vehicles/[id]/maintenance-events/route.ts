@@ -117,10 +117,10 @@ export async function PATCH(
     const nowISO = new Date().toISOString();
     const todayDate = nowISO.split('T')[0];
 
-    // Find active/ongoing maintenance record for this vehicle (endDate IS NULL)
+    // Find active/ongoing maintenance record for this vehicle (endDate IS NULL or endDate >= todayDate)
     const activeMaint = await db.execute({
-      sql: `SELECT id FROM "VehicleMaintenance" WHERE vehicleId = ? AND endDate IS NULL ORDER BY createdAt DESC LIMIT 1`,
-      args: [vehicleId],
+      sql: `SELECT id FROM "VehicleMaintenance" WHERE vehicleId = ? AND (endDate IS NULL OR endDate >= ?) ORDER BY createdAt DESC LIMIT 1`,
+      args: [vehicleId, todayDate],
     });
 
     if (activeMaint.rows.length > 0) {

@@ -66,14 +66,14 @@ export async function GET(
             args: [row.id]
         });
 
-        // Fetch active maintenance (started today or in the past, and not ended or ends today/future)
+        // Fetch active maintenance (started today or in the past, and not ended or ends today/future if vehicle status is MAINTENANCE)
         const todayDate = new Date().toISOString().split('T')[0];
         const maintenanceResult = await db.execute({
             sql: `SELECT id, startDate, endDate, reason
                   FROM "VehicleMaintenance"
-                  WHERE vehicleId = ? AND startDate <= ? AND (endDate IS NULL OR endDate >= ?)
+                  WHERE vehicleId = ? AND startDate <= ? AND (endDate IS NULL OR endDate > ? OR (endDate = ? AND ? = 'MAINTENANCE'))
                   ORDER BY createdAt DESC LIMIT 1`,
-            args: [row.id, todayDate, todayDate]
+            args: [row.id, todayDate, todayDate, todayDate, row.status]
         });
         const activeMaint = maintenanceResult.rows[0] ?? null;
 
@@ -117,7 +117,7 @@ export async function GET(
             revisionYearInterval: row.revisionYearInterval as number | null,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
-            activeMaintenance: activeMaint ? {
+            activeMaintenance: (effectiveStatus === 'MAINTENANCE' && activeMaint) ? {
                 id: activeMaint.id as string,
                 startDate: activeMaint.startDate as string,
                 endDate: activeMaint.endDate as string | null,
