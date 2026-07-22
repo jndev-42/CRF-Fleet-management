@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import FuelBar from '@/components/vehicle/FuelBar';
 import ChecklistItems from '@/components/vehicle/ChecklistItems';
 import UserCombobox from '@/components/ui/UserCombobox';
+import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -539,6 +540,7 @@ export default function QRVehiclePage() {
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [step, setStep] = useState<'view' | 'checkout' | 'checkin'>('view');
     const [done, setDone] = useState<'checkedout' | 'checkedin' | null>(null);
+    const [showIncidentReport, setShowIncidentReport] = useState(false);
 
     function showToast(message: string, type = 'success') {
         setToast({ message, type });
@@ -792,6 +794,14 @@ export default function QRVehiclePage() {
                                         🔧 Ce véhicule est en maintenance et n&apos;est pas disponible.
                                     </div>
                                 )}
+
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => setShowIncidentReport(true)}
+                                    style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)', width: '100%' }}
+                                >
+                                    🚨 Déclarer un incident
+                                </button>
                             </div>
                         )}
 
@@ -841,6 +851,18 @@ export default function QRVehiclePage() {
                                     }}
                                 />
                             </div>
+                        )}
+
+                        {showIncidentReport && vehicle && (
+                            <IncidentReportModal
+                                vehicle={vehicle}
+                                tripId={activeTrip?.id}
+                                onClose={() => setShowIncidentReport(false)}
+                                onSuccess={() => {
+                                    showToast('Incident déclaré avec succès !');
+                                    fetchVehicle();
+                                }}
+                            />
                         )}
                     </>
                 )}

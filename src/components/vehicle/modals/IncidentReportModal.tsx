@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Vehicle } from '@/app/vehicles/[id]/types';
 import IncidentGuidelines from '@/components/vehicle/IncidentGuidelines';
 import VehicleInteractiveSVG from '@/components/vehicle/VehicleInteractiveSVG';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 
 interface IncidentReportModalProps {
-    vehicle: Vehicle;
+    vehicle: { id: string; name: string };
     tripId?: string;
     reservationId?: string;
     existingDraftId?: string;
