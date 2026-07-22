@@ -77,8 +77,7 @@ export async function POST(request: Request) {
           er.requestRefund,
           er.noReceiptDeclaration,
           er.total,
-          er.items,
-          er.photos
+          er.items
         FROM "ExpenseReport" er
         JOIN "User" u ON u.id = er.userId
         WHERE er.ulId = ?
