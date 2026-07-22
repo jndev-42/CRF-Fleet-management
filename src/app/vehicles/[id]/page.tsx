@@ -26,6 +26,7 @@ import DesinfHistoryModal from '@/components/vehicle/modals/DesinfHistoryModal';
 import DesinfPreCheckinModal from '@/components/vehicle/modals/DesinfPreCheckinModal';
 import MaintenanceCard from '@/components/vehicle/MaintenanceCard';
 import MaintenanceHistoryModal from '@/components/vehicle/modals/MaintenanceHistoryModal';
+import PutInMaintenanceModal from '@/components/vehicle/modals/PutInMaintenanceModal';
 import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevisionIntervalsModal';
 import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal';
 import IncidentHistoryModal from '@/components/vehicle/modals/IncidentHistoryModal';
@@ -76,6 +77,7 @@ export default function VehicleDetailPage() {
     const [showIncidentHistory, setShowIncidentHistory] = useState(false);
     const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
     const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+    const [showPutInMaintenanceModal, setShowPutInMaintenanceModal] = useState(false);
     const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
     const [showEditRevisionModal, setShowEditRevisionModal] = useState(false);
     const [editingCheckOutTrip, setEditingCheckOutTrip] = useState<Trip | null>(null);
@@ -243,36 +245,19 @@ export default function VehicleDetailPage() {
 
 
     /**
-     * Admin capability to toggle vehicle maintenance mode, preventing regular usage.
-     * Uses Optimistic UI for immediate feedback.
+     * Admin capability to end vehicle maintenance mode and return to service.
      */
-    async function toggleMaintenance() {
+    async function handleEndMaintenance() {
         if (!vehicle) return;
-
-        const previousStatus = vehicle.status;
-        const newStatus = previousStatus === 'MAINTENANCE' ? 'AVAILABLE' : 'MAINTENANCE';
-
-        // Optimistic update
-        setVehicle({ ...vehicle, status: newStatus });
-
         try {
-            const res = await fetch(`/api/vehicles/${id}`, {
+            const res = await fetch(`/api/vehicles/${encodeURIComponent(id)}/maintenance-events`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus }),
             });
-
-            if (!res.ok) throw new Error('Failed to update status');
-
-            showToast(
-                newStatus === 'MAINTENANCE'
-                    ? 'Véhicule mis en maintenance'
-                    : 'Véhicule remis en service'
-            );
+            if (!res.ok) throw new Error('Erreur lors de la remise en service');
+            showToast('Véhicule remis en service');
+            fetchVehicle();
         } catch {
-            // Revert on failure
-            setVehicle({ ...vehicle, status: previousStatus });
-            showToast('Erreur', 'error');
+            showToast('Erreur lors de la remise en service', 'error');
         }
     }
 
@@ -436,7 +421,13 @@ export default function VehicleDetailPage() {
                     {vehicle.status !== 'IN_USE' && userRoles.includes('ADMIN') && (
                         <button
                             className="btn btn-secondary"
-                            onClick={toggleMaintenance}
+                            onClick={() => {
+                                if (vehicle.status === 'MAINTENANCE') {
+                                    handleEndMaintenance();
+                                } else {
+                                    setShowPutInMaintenanceModal(true);
+                                }
+                            }}
                         >
                             {vehicle.status === 'MAINTENANCE' ? '✅ Remettre en service' : '🔧 Maintenance'}
                         </button>
@@ -549,6 +540,56 @@ export default function VehicleDetailPage() {
                     >
                         ✅ Rendre
                     </button>
+                </div>
+            )}
+
+            {vehicle?.status === 'MAINTENANCE' && (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                        background: 'var(--status-maintenance-bg, rgba(239, 68, 68, 0.12))',
+                        border: '1px solid var(--status-maintenance, #EF4444)',
+                        borderRadius: 'var(--radius-md, 8px)',
+                        padding: '16px 20px',
+                        marginBottom: 24,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: 12,
+                    }}
+                >
+                    <div>
+                        <div style={{ fontWeight: 700, color: 'var(--status-maintenance, #EF4444)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span>🔧 Ce véhicule est actuellement en maintenance</span>
+                        </div>
+                        {vehicle.activeMaintenance ? (
+                            <div style={{ fontSize: 13, color: 'var(--text-primary, #334155)', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <div>
+                                    <strong>Début :</strong> {formatDate(vehicle.activeMaintenance.startDate)}
+                                    {' — '}
+                                    <strong>Fin :</strong> {vehicle.activeMaintenance.endDate ? formatDate(vehicle.activeMaintenance.endDate) : 'Date de fin inconnue'}
+                                </div>
+                                <div>
+                                    <strong>Raison :</strong> {vehicle.activeMaintenance.reason}
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ fontSize: 13, color: 'var(--text-secondary, #64748b)' }}>
+                                Indisponible pour les sorties.
+                            </div>
+                        )}
+                    </div>
+                    {userRoles.includes('ADMIN') && (
+                        <button
+                            className="btn btn-primary"
+                            style={{ backgroundColor: '#10B981', borderColor: '#10B981' }}
+                            onClick={handleEndMaintenance}
+                        >
+                            ✅ Remettre en service
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -965,6 +1006,15 @@ export default function VehicleDetailPage() {
                         fetchVehicle();
                         showToast('Informations de prise modifiées avec succès');
                     }}
+                />
+            )}
+
+            {showPutInMaintenanceModal && vehicle && (
+                <PutInMaintenanceModal
+                    vehicleName={vehicle.name}
+                    onClose={() => setShowPutInMaintenanceModal(false)}
+                    onSuccess={() => fetchVehicle()}
+                    showToast={showToast}
                 />
             )}
 

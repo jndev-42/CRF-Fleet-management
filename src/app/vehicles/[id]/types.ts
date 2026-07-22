@@ -81,6 +81,12 @@ export interface Vehicle {
     /** Intervalle en années entre deux révisions */
     revisionYearInterval: number | null;
     ulId?: string | null;
+    activeMaintenance?: {
+        id: string;
+        startDate: string;
+        endDate: string | null;
+        reason: string;
+    } | null;
     trips: Trip[];
 }
 

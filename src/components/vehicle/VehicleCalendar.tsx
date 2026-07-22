@@ -38,9 +38,21 @@ interface Trip {
   isOngoing: boolean;
 }
 
+interface MaintenanceEvent {
+  id: string;
+  vehicleId: string;
+  vehicleName: string;
+  vehiclePlate: string;
+  startDate: string;
+  endDate: string | null;
+  reason: string;
+  isEndDateUnknown: boolean;
+}
+
 type CalendarEvent =
   | { type: 'RESERVATION'; data: Reservation; startTime: Date; endTime: Date }
-  | { type: 'TRIP'; data: Trip; startTime: Date; endTime: Date | null; isOngoing: boolean };
+  | { type: 'TRIP'; data: Trip; startTime: Date; endTime: Date | null; isOngoing: boolean }
+  | { type: 'MAINTENANCE'; data: MaintenanceEvent; startTime: Date; endTime: Date | null; isEndDateUnknown: boolean };
 
 interface CalendarDay {
   date: Date;
@@ -63,6 +75,7 @@ export default function VehicleCalendar() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [maintenances, setMaintenances] = useState<MaintenanceEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showCalendar, setShowCalendar] = useState<boolean>(true);
@@ -102,6 +115,7 @@ export default function VehicleCalendar() {
       setVehicles(data.vehicles || []);
       setReservations(data.reservations || []);
       setTrips(data.trips || []);
+      setMaintenances(data.maintenances || []);
     } catch (err) {
       console.error('Erreur calendrier:', err);
     } finally {
@@ -194,6 +208,17 @@ export default function VehicleCalendar() {
         endTime: t.checkInAt ? new Date(t.checkInAt) : null,
         isOngoing: !t.checkInAt,
       })),
+      ...maintenances.map(m => {
+        const start = new Date(m.startDate.includes('T') ? m.startDate : `${m.startDate}T00:00:00`);
+        const end = m.endDate ? new Date(m.endDate.includes('T') ? m.endDate : `${m.endDate}T23:59:59`) : null;
+        return {
+          type: 'MAINTENANCE' as const,
+          data: m,
+          startTime: start,
+          endTime: end,
+          isEndDateUnknown: !m.endDate,
+        };
+      }),
     ];
 
     const todayEnd = new Date();
@@ -209,10 +234,15 @@ export default function VehicleCalendar() {
       day.events = allEvents.filter(event => {
         if (event.type === 'RESERVATION') {
           return event.startTime <= dayEnd && event.endTime >= dayStart;
-        } else {
-          // TRIP
+        } else if (event.type === 'TRIP') {
           if (event.isOngoing) {
-            // Ongoing trip starts at checkOutAt and runs up to current day (today), not beyond
+            return event.startTime <= dayEnd && dayStart <= todayEnd;
+          } else {
+            return event.startTime <= dayEnd && event.endTime! >= dayStart;
+          }
+        } else {
+          // MAINTENANCE
+          if (event.isEndDateUnknown) {
             return event.startTime <= dayEnd && dayStart <= todayEnd;
           } else {
             return event.startTime <= dayEnd && event.endTime! >= dayStart;
@@ -222,7 +252,7 @@ export default function VehicleCalendar() {
     });
 
     return days;
-  }, [year, month, reservations, trips]);
+  }, [year, month, reservations, trips, maintenances]);
 
   const formatTime = (dateStr: string | null) => {
     if (!dateStr) return 'En cours';
@@ -348,6 +378,14 @@ export default function VehicleCalendar() {
           <span className={`${styles.legendBadge} ${styles.legendOngoing}`} />
           <span>Emprunt en cours (Vert pointillés)</span>
         </div>
+        <div className={styles.legendItem}>
+          <span className={`${styles.legendBadge} ${styles.legendMaintenance}`} />
+          <span>Maintenance (Rouge)</span>
+        </div>
+        <div className={styles.legendItem}>
+          <span className={`${styles.legendBadge} ${styles.legendMaintenanceOngoing}`} />
+          <span>Maintenance fin inconnue (Rouge pointillés)</span>
+        </div>
       </div>
 
       {/* Grid */}
@@ -401,7 +439,7 @@ export default function VehicleCalendar() {
                           </div>
                         </div>
                       );
-                    } else {
+                    } else if (event.type === 'TRIP') {
                       const trip = event.data;
                       const isOngoing = event.isOngoing;
                       return (
@@ -429,6 +467,34 @@ export default function VehicleCalendar() {
                           </div>
                         </div>
                       );
+                    } else {
+                      const maint = event.data;
+                      const isUnknown = event.isEndDateUnknown;
+                      return (
+                        <div
+                          key={`maint-${maint.id}-${eIdx}`}
+                          className={`
+                            ${styles.eventItem}
+                            ${isUnknown ? styles.eventMaintenanceOngoing : styles.eventMaintenanceCompleted}
+                          `}
+                          onClick={() => setSelectedEvent(event)}
+                          title={`Maintenance ${isUnknown ? '(fin inconnue)' : ''} : ${maint.vehicleName} (${maint.reason})`}
+                        >
+                          <div className={styles.eventHeader}>
+                            <span className={styles.eventVehicle}>{maint.vehicleName}</span>
+                            {isUnknown ? (
+                              <span className={styles.ongoingBadgeRed}>🔧 Maint.</span>
+                            ) : (
+                              <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                                🔧 Maint.
+                              </span>
+                            )}
+                          </div>
+                          <div className={styles.eventSubtext}>
+                            🛠️ {maint.reason}
+                          </div>
+                        </div>
+                      );
                     }
                   })}
                 </div>
@@ -453,28 +519,28 @@ export default function VehicleCalendar() {
                     background:
                       selectedEvent.type === 'RESERVATION'
                         ? '#FEF08A'
-                        : selectedEvent.isOngoing
+                        : selectedEvent.type === 'TRIP'
                         ? '#DCFCE7'
-                        : '#DCFCE7',
+                        : '#FEE2E2',
                     color:
                       selectedEvent.type === 'RESERVATION'
                         ? '#854D0E'
-                        : selectedEvent.isOngoing
-                        ? '#15803D'
-                        : '#166534',
+                        : selectedEvent.type === 'TRIP'
+                        ? (selectedEvent.isOngoing ? '#15803D' : '#166534')
+                        : '#991B1B',
                     border:
                       selectedEvent.type === 'RESERVATION'
                         ? '1px solid #CA8A04'
-                        : selectedEvent.isOngoing
-                        ? '1px dashed #15803D'
-                        : '1px solid #16A34A',
+                        : selectedEvent.type === 'TRIP'
+                        ? (selectedEvent.isOngoing ? '1px dashed #15803D' : '1px solid #16A34A')
+                        : (selectedEvent.isEndDateUnknown ? '1px dashed #DC2626' : '1px solid #EF4444'),
                   }}
                 >
                   {selectedEvent.type === 'RESERVATION'
                     ? '🟡 Réservation'
-                    : selectedEvent.isOngoing
-                    ? '🟢 Emprunt en cours'
-                    : '🟢 Emprunt terminé'}
+                    : selectedEvent.type === 'TRIP'
+                    ? (selectedEvent.isOngoing ? '🟢 Emprunt en cours' : '🟢 Emprunt terminé')
+                    : (selectedEvent.isEndDateUnknown ? '🔴 Maintenance (date fin inconnue)' : '🔴 Maintenance')}
                 </span>
                 <h3 className={styles.modalTitle} style={{ marginTop: '0.4rem' }}>
                   {selectedEvent.data.vehicleName} ({selectedEvent.data.vehiclePlate})
@@ -527,7 +593,7 @@ export default function VehicleCalendar() {
                     </span>
                   </div>
                 </>
-              ) : (
+              ) : selectedEvent.type === 'TRIP' ? (
                 <>
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Conducteur principal</span>
@@ -566,6 +632,37 @@ export default function VehicleCalendar() {
                         formatDateFull(selectedEvent.data.checkInAt)
                       )}
                     </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Véhicule</span>
+                    <span className={styles.detailValue}>
+                      {selectedEvent.data.vehicleName} ({selectedEvent.data.vehiclePlate})
+                    </span>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Date de début</span>
+                    <span className={styles.detailValue}>
+                      {formatDateFull(selectedEvent.data.startDate)}
+                    </span>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Date de fin</span>
+                    <span className={styles.detailValue}>
+                      {selectedEvent.data.endDate ? (
+                        formatDateFull(selectedEvent.data.endDate)
+                      ) : (
+                        <span style={{ color: '#DC2626', fontWeight: 700 }}>
+                          Date de fin inconnue
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className={styles.detailRow}>
+                    <span className={styles.detailLabel}>Raison / Motif</span>
+                    <span className={styles.detailValue}>{selectedEvent.data.reason}</span>
                   </div>
                 </>
               )}

@@ -66,6 +66,16 @@ export async function GET(
             args: [row.id]
         });
 
+        // Fetch active/latest maintenance details
+        const maintenanceResult = await db.execute({
+            sql: `SELECT id, startDate, endDate, reason
+                  FROM "VehicleMaintenance"
+                  WHERE vehicleId = ?
+                  ORDER BY createdAt DESC LIMIT 1`,
+            args: [row.id]
+        });
+        const activeMaint = maintenanceResult.rows[0] ?? null;
+
         const vehicle = {
             id: row.id,
             name: row.name,
@@ -89,6 +99,12 @@ export async function GET(
             revisionYearInterval: row.revisionYearInterval as number | null,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
+            activeMaintenance: activeMaint ? {
+                id: activeMaint.id as string,
+                startDate: activeMaint.startDate as string,
+                endDate: activeMaint.endDate as string | null,
+                reason: activeMaint.reason as string,
+            } : null,
             trips: tripsResult.rows.map((tRow) => ({
                 id: tRow.id,
                 vehicleId: tRow.vehicleId,

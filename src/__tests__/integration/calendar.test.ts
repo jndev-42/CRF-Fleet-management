@@ -112,6 +112,13 @@ describe('GET /api/vehicles/calendar', () => {
       ],
     });
 
+    // Insert a maintenance event
+    await db.execute({
+      sql: `INSERT INTO "VehicleMaintenance" (id, vehicleId, startDate, endDate, reason)
+            VALUES (?, ?, ?, ?, ?)`,
+      args: ['maint-1', 'v-1', '2026-07-20', null, 'Panne batterie'],
+    });
+
     const res = await GET(makeRequest('month=2026-07'));
     expect(res.status).toBe(200);
 
@@ -133,6 +140,11 @@ describe('GET /api/vehicles/calendar', () => {
     expect(ongoingTrip).toBeDefined();
     expect(ongoingTrip?.isOngoing).toBe(true);
     expect(ongoingTrip?.checkInAt).toBeNull();
+
+    expect(data.maintenances).toHaveLength(1);
+    expect(data.maintenances[0].id).toBe('maint-1');
+    expect(data.maintenances[0].reason).toBe('Panne batterie');
+    expect(data.maintenances[0].isEndDateUnknown).toBe(true);
   });
 
   it('should filter by vehicleId when vehicleId parameter is provided', async () => {

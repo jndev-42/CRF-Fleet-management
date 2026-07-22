@@ -136,11 +136,45 @@ export async function GET(request: Request) {
       createdAt: row.createdAt as string,
     }));
 
+    // 4. Fetch maintenance events
+    const windowStartDay = windowStartISO.split('T')[0];
+    const windowEndDay = windowEndISO.split('T')[0];
+
+    const maintenanceSql = `
+      SELECT
+        m.id, m.vehicleId, v.name as vehicleName, v.plate as vehiclePlate,
+        m.startDate, m.endDate, m.reason, m.createdAt
+      FROM "VehicleMaintenance" m
+      JOIN Vehicle v ON m.vehicleId = v.id
+      WHERE v.ulId = ? ${vehicleFilterClause}
+        AND m.startDate <= ?
+        AND (m.endDate >= ? OR m.endDate IS NULL)
+      ORDER BY m.startDate ASC
+    `;
+
+    const maintenanceResult = await db.execute({
+      sql: maintenanceSql,
+      args: [ulId, windowEndDay, windowStartDay],
+    });
+
+    const maintenances = maintenanceResult.rows.map(row => ({
+      id: row.id as string,
+      vehicleId: row.vehicleId as string,
+      vehicleName: row.vehicleName as string,
+      vehiclePlate: row.vehiclePlate as string,
+      startDate: row.startDate as string,
+      endDate: row.endDate as string | null,
+      reason: row.reason as string,
+      isEndDateUnknown: !row.endDate,
+      createdAt: row.createdAt as string,
+    }));
+
     return NextResponse.json({
       month: monthParam || `${year}-${String(month + 1).padStart(2, '0')}`,
       vehicles,
       reservations,
       trips,
+      maintenances,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
