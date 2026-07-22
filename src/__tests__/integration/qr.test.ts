@@ -16,6 +16,7 @@ vi.mock('@/lib/renault', () => ({
 import { GET as GET_QR_VEHICLE } from '@/app/api/qr/[token]/vehicle/route';
 import { POST as POST_QR_CHECKOUT } from '@/app/api/qr/[token]/checkout/route';
 import { POST as POST_QR_CHECKIN } from '@/app/api/qr/[token]/checkin/route';
+import { POST as POST_INCIDENT } from '@/app/api/incidents/route';
 import { auth } from '@/auth';
 import { db, seedVehicle, seedUser } from './setup';
 
@@ -126,5 +127,40 @@ describe('QR Code API Flow', () => {
     });
     expect(vRes.rows[0].status).toBe('AVAILABLE');
     expect(vRes.rows[0].lastDesinfDate).not.toBeNull();
+  });
+
+  it('allows reporting an incident on a vehicle accessed via QR token', async () => {
+    await seedVehicle({ id: 'VL02', name: 'Véhicule QR Incident', type: 'VL', status: 'AVAILABLE', qrToken: 'token-vl-02' });
+
+    // Resolve vehicle via GET /api/qr/[token]/vehicle
+    const getReq = new Request('http://localhost/api/qr/token-vl-02/vehicle');
+    const getRes = await GET_QR_VEHICLE(getReq, { params: Promise.resolve({ token: 'token-vl-02' }) });
+    expect(getRes.status).toBe(200);
+    const vehicle = await getRes.json();
+
+    // Create incident draft for this vehicle
+    const incReq = new Request('http://localhost/api/incidents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        vehicleId: vehicle.id,
+        tripId: vehicle.activeTrip?.id || null,
+        status: 'DRAFT',
+      }),
+    });
+
+    const incRes = await POST_INCIDENT(incReq);
+    expect(incRes.status).toBe(201);
+    const incBody = await incRes.json();
+    expect(incBody.id).toBeDefined();
+
+    // Verify incident in DB
+    const incDb = await db.execute({
+      sql: `SELECT vehicleId, userId, status FROM IncidentReport WHERE id = ?`,
+      args: [incBody.id],
+    });
+    expect(incDb.rows[0].vehicleId).toBe('VL02');
+    expect(incDb.rows[0].userId).toBe('usr-driver-1');
+    expect(incDb.rows[0].status).toBe('DRAFT');
   });
 });
