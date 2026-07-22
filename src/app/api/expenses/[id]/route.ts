@@ -121,9 +121,14 @@ export async function PATCH(
         const resolvedParams = await params;
         const id = resolvedParams.id;
 
-        // Fetch report first
+        // Fetch report first with requester user info
         const result = await db.execute({
-            sql: `SELECT * FROM "ExpenseReport" WHERE id = ?`,
+            sql: `
+                SELECT er.*, u.name as userName, u.email as userEmail
+                FROM "ExpenseReport" er
+                JOIN "User" u ON u.id = er.userId
+                WHERE er.id = ?
+            `,
             args: [id],
         });
         const report = result.rows[0];
@@ -168,6 +173,27 @@ export async function PATCH(
                 `,
                 args: [nextStatus, now, session.user.id, valSigStr, now, id],
             });
+
+            if (nextStatus === 'en_attente_paiement') {
+                try {
+                    const requesterName = (report.userName as string) || (report.userEmail as string) || 'Un membre';
+                    const expenseTotal = Number(report.total);
+                    const reportUlId = (report.ulId as string) || 'ul-paris-18';
+                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    await sendPushNotification({
+                        tags: [{ field: "tag", key: "role_TRESORIER", relation: "=", value: "true" }],
+                        headings: { fr: `💶 Note de frais à payer`, en: `💶 Expense report pending payment` },
+                        contents: {
+                            fr: `La note de frais de ${requesterName} (${expenseTotal.toFixed(2)} €) a été validée et est en attente de paiement.`,
+                            en: `Expense report from ${requesterName} (${expenseTotal.toFixed(2)} €) was approved and is pending payment.`
+                        },
+                        url: `/expenses`,
+                        ulId: reportUlId
+                    });
+                } catch (notifErr) {
+                    console.error('Failed to send expense payment notification to tresorier:', notifErr);
+                }
+            }
 
             return NextResponse.json({ success: true, status: nextStatus });
         } else if (action === 'reject') {
@@ -266,6 +292,26 @@ export async function PATCH(
                     id
                 ],
             });
+
+            if (finalStatus === 'soumis') {
+                try {
+                    const requesterName = (report.userName as string) || (report.userEmail as string) || session.user.name || session.user.email || 'Un membre';
+                    const reportUlId = (report.ulId as string) || 'ul-paris-18';
+                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    await sendPushNotification({
+                        tags: [{ field: "tag", key: "role_PRESIDENT", relation: "=", value: "true" }],
+                        headings: { fr: `📋 Note de frais à valider`, en: `📋 Expense report pending approval` },
+                        contents: {
+                            fr: `${requesterName} a soumis une note de frais (${finalTotal.toFixed(2)} €) à valider.`,
+                            en: `${requesterName} submitted an expense report (${finalTotal.toFixed(2)} €) pending approval.`
+                        },
+                        url: `/expenses`,
+                        ulId: reportUlId
+                    });
+                } catch (notifErr) {
+                    console.error('Failed to send expense notification to president:', notifErr);
+                }
+            }
 
             return NextResponse.json({ success: true });
         }

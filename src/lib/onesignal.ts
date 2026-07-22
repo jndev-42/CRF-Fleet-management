@@ -16,14 +16,6 @@ export async function sendPushNotification({
     url?: string;
     ulId?: string;
 }) {
-    const appId = process.env.ONESIGNAL_ID;
-    const apiKey = process.env.ONESIGNAL_API_KEY;
-
-    if (!appId || !apiKey) {
-        console.warn('ONESIGNAL_ID or ONESIGNAL_API_KEY is not defined. Push Notification will not be sent.');
-        return false;
-    }
-
     try {
         // Find targeted users based on the OneSignal tags
         const targetedRoleNames = tags
@@ -95,6 +87,14 @@ export async function sendPushNotification({
             });
 
             await Promise.all(insertPromises);
+        }
+
+        const appId = process.env.ONESIGNAL_ID;
+        const apiKey = process.env.ONESIGNAL_API_KEY;
+
+        if (!appId || !apiKey) {
+            console.warn('ONESIGNAL_ID or ONESIGNAL_API_KEY is not defined. Push Notification will not be sent.');
+            return true;
         }
 
         // Map tag keys for OneSignal using the same expansion logic
