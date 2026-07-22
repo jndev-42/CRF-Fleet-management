@@ -139,7 +139,7 @@ export default function Navbar({ user }: NavbarProps) {
                         <Link href="/aide" className={`nav-link${pathname === '/aide' ? ' active' : ''}`} data-tour="aide" onClick={() => setIsOpen(false)} aria-current={pathname === '/aide' ? 'page' : undefined}>Aide</Link>
 
                         <div className="nav-actions">
-                            {isAdminOrAbove(userRoles) && (
+                            {!isInactive(userRoles) && (
                                 <span data-tour="notifications"><NotificationBell /></span>
                             )}
                             <ThemeToggle />
