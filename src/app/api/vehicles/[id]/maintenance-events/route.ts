@@ -43,6 +43,7 @@ export async function POST(
     const now = new Date().toISOString();
 
     const endDateValue = data.endDate && data.endDate.trim() !== '' ? data.endDate : null;
+    const todayDate = new Date().toISOString().split('T')[0];
 
     await db.execute({
       sql: `INSERT INTO "VehicleMaintenance" (id, vehicleId, startDate, endDate, reason, createdAt, updatedAt)
@@ -50,10 +51,13 @@ export async function POST(
       args: [eventId, vehicleId, data.startDate, endDateValue, data.reason, now, now],
     });
 
-    await db.execute({
-      sql: `UPDATE "Vehicle" SET status = 'MAINTENANCE', updatedAt = ? WHERE id = ?`,
-      args: [now, vehicleId],
-    });
+    // Only update vehicle status to MAINTENANCE immediately if start date is today or in the past
+    if (data.startDate <= todayDate) {
+      await db.execute({
+        sql: `UPDATE "Vehicle" SET status = 'MAINTENANCE', updatedAt = ? WHERE id = ?`,
+        args: [now, vehicleId],
+      });
+    }
 
     return NextResponse.json(
       {

@@ -37,14 +37,18 @@ export async function GET() {
             return NextResponse.json([]);
         }
 
+        const todayDate = new Date().toISOString().split('T')[0];
+
         const sql = `SELECT
                 v.*,
                 t.id as trip_id, u.name as trip_driverName, u2.name as trip_secondDriverName, t.missionType as trip_missionType,
-                t.checkOutAt as trip_checkOutAt
+                t.checkOutAt as trip_checkOutAt,
+                m.id as active_maint_id
             FROM Vehicle v
             LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
             LEFT JOIN User u ON u.id = t.driverId
             LEFT JOIN User u2 ON u2.id = t.secondDriverId
+            LEFT JOIN VehicleMaintenance m ON m.vehicleId = v.id AND m.startDate <= '${todayDate}' AND (m.endDate IS NULL OR m.endDate >= '${todayDate}')
             WHERE v.ulId = '${ulId}'
             ORDER BY v.name ASC`;
 
@@ -61,7 +65,7 @@ export async function GET() {
                     name: row.name,
                     type: row.type,
                     plate: row.plate,
-                    status: row.status,
+                    status: (row.active_maint_id && row.status !== 'IN_USE') ? 'MAINTENANCE' : (row.status === 'MAINTENANCE' && !row.active_maint_id ? 'AVAILABLE' : row.status),
                     parkingSpot: row.parkingSpot,
                     fuelLevel: row.fuelLevel,
                     mileage: row.mileage,

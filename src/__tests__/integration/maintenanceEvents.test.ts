@@ -95,6 +95,32 @@ describe('POST /api/vehicles/[id]/maintenance-events', () => {
     expect(m.rows[0].reason).toBe('Changement de pneus');
   });
 
+  it('does NOT set vehicle status to MAINTENANCE immediately if start date is in the future', async () => {
+    // @ts-expect-error session for test
+    mockedAuth.mockResolvedValue({
+      user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' },
+    });
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 5);
+    const futureDate = tomorrow.toISOString().split('T')[0];
+
+    const res = await POST(
+      makePostRequest('VSAV 01', {
+        startDate: futureDate,
+        endDate: null,
+        reason: 'Maintenance future prévue dans 5 jours',
+      }),
+      { params: Promise.resolve({ id: 'VSAV 01' }) }
+    );
+
+    expect(res.status).toBe(201);
+
+    // Vehicle status should remain AVAILABLE today since start date is in the future
+    const v = await db.execute({ sql: `SELECT status FROM "Vehicle" WHERE id = 'v-1'`, args: [] });
+    expect(v.rows[0].status).toBe('AVAILABLE');
+  });
+
   it('handles unknown end date (endDate = null)', async () => {
     // @ts-expect-error session for test
     mockedAuth.mockResolvedValue({
