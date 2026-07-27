@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from './Reservation.module.css';
 import UserCombobox from '@/components/ui/UserCombobox';
 import { canAccessAdminPanel } from '@/lib/roles';
@@ -35,12 +35,15 @@ const DEFAULT_RECURRENCE: RecurrenceFormState = {
     recurrenceEndDate: '',
 };
 
+const PAGE_SIZE = 5;
+
 export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange, licenseBlocked = false }: ReservationBlockProps) {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
     const [validating, setValidating] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
 
     // Form fields (Create)
     const [startDate, setStartDate] = useState('');
@@ -48,7 +51,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const [endDate, setEndDate] = useState('');
     const [endTime, setEndTime] = useState('');
     const [reason, setReason] = useState('');
-    const [driverSelection, setDriverSelection] = useState(''); // '' = self, 'UNASSIGNED' = Chauffeur non décidé, or userId
+    const [driverSelection, setDriverSelection] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     // Recurrence state
@@ -64,15 +67,15 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const [editDriverSelection, setEditDriverSelection] = useState('');
     const [editingSubmitting, setEditingSubmitting] = useState(false);
 
-    // Cancelling a whole recurrence group
+    // Group actions
     const [cancellingGroup, setCancellingGroup] = useState<string | null>(null);
+    const [validatingGroup, setValidatingGroup] = useState<string | null>(null);
 
-    // On-behalf fields (Managers / Admins / Cadres / Présidents)
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
     const isAdmin = userRoles.includes('ADMIN');
     const isRespo = userRoles.includes('RESPO');
-    const canValidate = isAdmin || isRespo;
+    const canValidate = isAdmin || isRespo || canAccessAdminPanel(userRoles);
     const canManageDriver = canAccessAdminPanel(userRoles) || isRespo;
 
     const fetchReservations = useCallback(async () => {
@@ -84,7 +87,6 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
 
                 if (onActiveReservationChange) {
                     const now = new Date();
-                    // Seules les réservations VALIDÉES bloquent l'emprunt
                     const activeRes = data.find(r =>
                         r.status === 'VALIDATED' &&
                         new Date(r.startTime) <= now &&
@@ -112,13 +114,37 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             .catch(console.error);
     }, [canManageDriver, vehicleType]);
 
+    // ── Pagination ─────────────────────────────────────────────────────────────
+    const upcomingReservations = useMemo(
+        () => reservations.filter(r => new Date(r.endTime) >= new Date()),
+        [reservations]
+    );
+    const totalPages = Math.max(1, Math.ceil(upcomingReservations.length / PAGE_SIZE));
+    const currentPage = Math.min(page, totalPages);
+    const pagedReservations = useMemo(
+        () => upcomingReservations.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+        [upcomingReservations, currentPage]
+    );
+
+    // Reset page when reservations change
+    useEffect(() => {
+        setPage(1);
+    }, [vehicleId]);
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    const resetCreateForm = () => {
+        setStartDate(''); setStartTime(''); setEndDate(''); setEndTime(''); setReason('');
+        setDriverSelection('');
+        setRecurrence(DEFAULT_RECURRENCE);
+    };
+
+    // ── Handlers ───────────────────────────────────────────────────────────────
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setSubmitting(true);
         setRecurrenceWarning(null);
         try {
             if (recurrence.enabled) {
-                // ── Réservation récurrente ──
                 const payload = {
                     recurrence: {
                         daysOfWeek: recurrence.daysOfWeek,
@@ -157,28 +183,20 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                     alert(data.error || 'Erreur lors de la création des réservations récurrentes');
                 }
             } else {
-                // ── Réservation simple ──
                 const startISO = new Date(`${startDate}T${startTime}`).toISOString();
                 const endISO = new Date(`${endDate}T${endTime}`).toISOString();
 
-                const bodyPayload: Record<string, unknown> = {
-                    startTime: startISO,
-                    endTime: endISO,
-                    reason,
-                };
+                const bodyPayload: Record<string, unknown> = { startTime: startISO, endTime: endISO, reason };
 
                 if (canManageDriver) {
-                    if (driverSelection === 'UNASSIGNED') {
-                        bodyPayload.isUnassignedDriver = true;
-                    } else if (driverSelection) {
-                        bodyPayload.onBehalfOfUserId = driverSelection;
-                    }
+                    if (driverSelection === 'UNASSIGNED') bodyPayload.isUnassignedDriver = true;
+                    else if (driverSelection) bodyPayload.onBehalfOfUserId = driverSelection;
                 }
 
                 const res = await fetch(`/api/vehicles/${vehicleId}/reservations`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bodyPayload)
+                    body: JSON.stringify(bodyPayload),
                 });
 
                 if (res.ok) {
@@ -197,18 +215,10 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         }
     };
 
-    const resetCreateForm = () => {
-        setStartDate(''); setStartTime(''); setEndDate(''); setEndTime(''); setReason('');
-        setDriverSelection('');
-        setRecurrence(DEFAULT_RECURRENCE);
-    };
-
     const handleOpenEdit = (res: Reservation) => {
         setEditingReservation(res);
         const start = new Date(res.startTime);
         const end = new Date(res.endTime);
-
-        // Format dates YYYY-MM-DD and times HH:mm in local time
         const pad = (n: number) => String(n).padStart(2, '0');
         setEditStartDate(`${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`);
         setEditStartTime(`${pad(start.getHours())}:${pad(start.getMinutes())}`);
@@ -256,7 +266,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             const res = await fetch(`/api/reservations/${editingReservation.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bodyPayload)
+                body: JSON.stringify(bodyPayload),
             });
 
             if (res.ok) {
@@ -274,7 +284,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     };
 
     const handleDelete = async (id: string) => {
-        if (!window.confirm('Voulez-vous vraiment annuler cette réservation ?')) return;
+        if (!window.confirm('Voulez-vous vraiment annuler cette occurrence ?')) return;
         try {
             const res = await fetch(`/api/reservations/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -295,9 +305,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             const data = await res.json();
             if (res.ok) {
                 fetchReservations();
-                if (data.deleted === 0) {
-                    alert('Aucune occurrence future à annuler.');
-                }
+                if (data.deleted === 0) alert('Aucune occurrence future à annuler.');
             } else {
                 alert(data.error || 'Erreur lors de la suppression du groupe');
             }
@@ -325,9 +333,30 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         }
     };
 
-    // Filter out reservations that have already strictly passed
-    const upcomingReservations = reservations.filter(r => new Date(r.endTime) >= new Date());
+    const handleValidateGroup = async (groupId: string) => {
+        if (!window.confirm('Voulez-vous valider toutes les occurrences FUTURES en attente de cette récurrence ?')) return;
+        setValidatingGroup(groupId);
+        try {
+            const res = await fetch(`/api/reservations/recurrence/${groupId}`, { method: 'PATCH' });
+            const data = await res.json();
+            if (res.ok) {
+                fetchReservations();
+                if (data.skipped > 0) {
+                    setRecurrenceWarning(
+                        `✅ ${data.validated} occurrence(s) validée(s). ⚠️ ${data.skipped} ignorée(s) (conflit) : ${data.skippedDates?.join(', ') || ''}`
+                    );
+                }
+            } else {
+                alert(data.error || 'Erreur lors de la validation du groupe');
+            }
+        } catch {
+            alert('Erreur réseau');
+        } finally {
+            setValidatingGroup(null);
+        }
+    };
 
+    // ── Rendu ──────────────────────────────────────────────────────────────────
     return (
         <div className={styles.container}>
             <div className={styles.header}>
@@ -347,7 +376,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                 </button>
             </div>
 
-            {/* Warning banner for recurrence skipped slots */}
+            {/* Bandeau alerte (conflits récurrence) */}
             {recurrenceWarning && (
                 <div className={styles.recurrenceWarning}>
                     <span>{recurrenceWarning}</span>
@@ -360,85 +389,143 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
             ) : upcomingReservations.length === 0 ? (
                 <div className={styles.empty}>Aucune réservation prévue pour le moment.</div>
             ) : (
-                <div className={styles.list}>
-                    {upcomingReservations.map(res => {
-                        const start = new Date(res.startTime);
-                        const end = new Date(res.endTime);
-                        const canDelete = isAdmin || res.userEmail === currentUserEmail;
-                        const canEdit = canManageDriver || res.userEmail === currentUserEmail;
-                        const isPending = res.status === 'PENDING';
-                        const isUnassigned = res.userName === 'Chauffeur non décidé';
-                        const isRecurring = !!res.recurrenceGroupId;
-                        const canDeleteGroup = isAdmin || res.userEmail === currentUserEmail;
+                <>
+                    <div className={styles.list}>
+                        {pagedReservations.map(res => {
+                            const start = new Date(res.startTime);
+                            const end = new Date(res.endTime);
+                            const canDelete = isAdmin || res.userEmail === currentUserEmail;
+                            const canEdit = canManageDriver || res.userEmail === currentUserEmail;
+                            const isPending = res.status === 'PENDING';
+                            const isUnassigned = res.userName === 'Chauffeur non décidé';
+                            const isRecurring = !!res.recurrenceGroupId;
+                            const groupId = res.recurrenceGroupId!;
+                            const canActOnGroup = isAdmin || canAccessAdminPanel(userRoles) || isRespo || res.userEmail === currentUserEmail;
 
-                        return (
-                            <div key={res.id} className={`${styles.item} ${isPending ? styles.itemPending : ''}`}>
-                                <div className={styles.itemInfo}>
-                                    <div className={styles.itemDateRow}>
-                                        <div className={styles.itemDate}>
-                                            Du <strong>{start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} à {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}</strong>
-                                            {' '}au <strong>{end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} à {end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}</strong>
+                            // Determine if group has any pending future occurrences visible (for group-validate button)
+                            const groupHasPending = isRecurring && upcomingReservations.some(
+                                r => r.recurrenceGroupId === groupId && r.status === 'PENDING'
+                            );
+
+                            return (
+                                <div key={res.id} className={`${styles.item} ${isPending ? styles.itemPending : ''}`}>
+                                    <div className={styles.itemInfo}>
+                                        <div className={styles.itemDateRow}>
+                                            <div className={styles.itemDate}>
+                                                Du <strong>{start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} à {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}</strong>
+                                                {' '}au <strong>{end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} à {end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}</strong>
+                                            </div>
+                                            <div className={styles.badgeRow}>
+                                                {isRecurring && (
+                                                    <span className={styles.badgeRecurring} title="Réservation récurrente">🔁 Récurrente</span>
+                                                )}
+                                                <span className={isPending ? styles.badgePending : styles.badgeValidated}>
+                                                    {isPending ? 'En attente' : 'Validée'}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className={styles.badgeRow}>
-                                            {isRecurring && (
-                                                <span className={styles.badgeRecurring} title="Réservation récurrente">🔁 Récurrente</span>
+                                        <div className={styles.itemUser}>
+                                            Par {isUnassigned ? (
+                                                <span className={styles.badgeUnassigned}>Chauffeur non décidé</span>
+                                            ) : (
+                                                <strong>{res.userName}</strong>
                                             )}
-                                            <span className={isPending ? styles.badgePending : styles.badgeValidated}>
-                                                {isPending ? 'En attente' : 'Validée'}
-                                            </span>
+                                            {res.reason && <span className={styles.itemReason}> - {res.reason}</span>}
                                         </div>
-                                    </div>
-                                    <div className={styles.itemUser}>
-                                        Par {isUnassigned ? (
-                                            <span className={styles.badgeUnassigned}>Chauffeur non décidé</span>
-                                        ) : (
-                                            <strong>{res.userName}</strong>
+
+                                        {/* Actions de groupe — sous les infos */}
+                                        {isRecurring && canActOnGroup && (
+                                            <div className={styles.groupActions}>
+                                                <span className={styles.groupActionsLabel}>Groupe :</span>
+                                                {canValidate && groupHasPending && (
+                                                    <button
+                                                        onClick={() => handleValidateGroup(groupId)}
+                                                        className={styles.validateGroupBtn}
+                                                        disabled={validatingGroup === groupId}
+                                                        aria-label="Valider toutes les occurrences futures"
+                                                        title="Valider toutes les occurrences futures en attente"
+                                                    >
+                                                        {validatingGroup === groupId ? '...' : '✓✓ Valider tout'}
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => handleDeleteGroup(groupId)}
+                                                    className={styles.deleteGroupBtn}
+                                                    disabled={cancellingGroup === groupId}
+                                                    aria-label="Annuler toutes les occurrences futures"
+                                                    title="Annuler toutes les occurrences futures de cette récurrence"
+                                                >
+                                                    {cancellingGroup === groupId ? '...' : '✕✕ Annuler tout'}
+                                                </button>
+                                            </div>
                                         )}
-                                        {res.reason && <span className={styles.itemReason}> - {res.reason}</span>}
+                                    </div>
+
+                                    {/* Actions individuelles */}
+                                    <div className={styles.itemActions}>
+                                        {canEdit && (
+                                            <button
+                                                onClick={() => handleOpenEdit(res)}
+                                                className={styles.editBtn}
+                                                aria-label="Modifier cette occurrence"
+                                                title="Modifier cette occurrence"
+                                            >
+                                                ✏️ Modifier
+                                            </button>
+                                        )}
+                                        {canValidate && isPending && (
+                                            <button
+                                                onClick={() => handleValidate(res.id)}
+                                                className={styles.validateBtn}
+                                                disabled={validating === res.id}
+                                                aria-label="Valider cette occurrence"
+                                                title="Valider uniquement cette occurrence"
+                                            >
+                                                {validating === res.id ? '...' : '✓ Valider'}
+                                            </button>
+                                        )}
+                                        {canDelete && (
+                                            <button
+                                                onClick={() => handleDelete(res.id)}
+                                                className={styles.deleteBtn}
+                                                aria-label="Annuler cette occurrence"
+                                                title="Annuler uniquement cette occurrence"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
-                                <div className={styles.itemActions}>
-                                    {canEdit && (
-                                        <button
-                                            onClick={() => handleOpenEdit(res)}
-                                            className={styles.editBtn}
-                                            aria-label="Modifier la réservation"
-                                            title="Modifier cette occurrence"
-                                        >
-                                            ✏️ Modifier
-                                        </button>
-                                    )}
-                                    {canValidate && isPending && (
-                                        <button
-                                            onClick={() => handleValidate(res.id)}
-                                            className={styles.validateBtn}
-                                            disabled={validating === res.id}
-                                            aria-label="Valider la réservation"
-                                        >
-                                            {validating === res.id ? '...' : '✓ Valider'}
-                                        </button>
-                                    )}
-                                    {isRecurring && canDeleteGroup && (
-                                        <button
-                                            onClick={() => handleDeleteGroup(res.recurrenceGroupId!)}
-                                            className={styles.deleteGroupBtn}
-                                            disabled={cancellingGroup === res.recurrenceGroupId}
-                                            aria-label="Annuler toutes les occurrences futures"
-                                            title="Annuler toutes les occurrences futures de cette récurrence"
-                                        >
-                                            {cancellingGroup === res.recurrenceGroupId ? '...' : '🔁✕ Annuler tout'}
-                                        </button>
-                                    )}
-                                    {canDelete && (
-                                        <button onClick={() => handleDelete(res.id)} className={styles.deleteBtn} aria-label="Supprimer cette occurrence">
-                                            ✕
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className={styles.pagination}>
+                            <button
+                                className={styles.pageBtn}
+                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                aria-label="Page précédente"
+                            >
+                                ◀
+                            </button>
+                            <span className={styles.pageInfo}>
+                                {currentPage} / {totalPages}
+                                <span className={styles.pageCount}>({upcomingReservations.length} réservations)</span>
+                            </span>
+                            <button
+                                className={styles.pageBtn}
+                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                aria-label="Page suivante"
+                            >
+                                ▶
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
 
             {/* Modal de création */}
@@ -502,10 +589,8 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                             </div>
 
                             {recurrence.enabled ? (
-                                /* ── Formulaire récurrence ── */
                                 <RecurrencePanel state={recurrence} onChange={setRecurrence} />
                             ) : (
-                                /* ── Formulaire date/heure simple ── */
                                 <>
                                     <div className={styles.formRow}>
                                         <div className={styles.formGroup}>
@@ -536,12 +621,11 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                             </div>
                             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
-                                    {submitting ? '...' : canValidate ? (recurrence.enabled ? '🔁 Créer les réservations' : 'Valider') : (recurrence.enabled ? '🔁 Soumettre la récurrence' : 'Soumettre la demande')}
+                                    {submitting ? '...' : canValidate
+                                        ? (recurrence.enabled ? '🔁 Créer les réservations' : 'Valider')
+                                        : (recurrence.enabled ? '🔁 Soumettre la récurrence' : 'Soumettre la demande')}
                                 </button>
-                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
-                                    setShowModal(false);
-                                    resetCreateForm();
-                                }}>
+                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setShowModal(false); resetCreateForm(); }}>
                                     Annuler
                                 </button>
                             </div>
