@@ -8,6 +8,7 @@ export type ULEntry = {
     name: string;
     slug: string;
     isHome: boolean;
+    dtCode?: string | null;
 };
 
 interface ULContextValue {

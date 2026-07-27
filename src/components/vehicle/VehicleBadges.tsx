@@ -6,7 +6,7 @@ interface VehicleBadgesProps {
     vehicle: Vehicle;
     userRoles: string[];
     onToggleDSA: () => Promise<void>;
-    onDelete: () => void;
+    onDelete?: () => void;
     /**
      * When true (vehicle detail page only), the DSA badge becomes clickable for admins
      * and a grayed-out badge is shown when DSA is absent.
@@ -119,7 +119,7 @@ export default function VehicleBadges({ vehicle, userRoles, onToggleDSA, onDelet
             ) : null}
 
             {/* Admin-only: delete vehicle button */}
-            {isAdmin && (
+            {isAdmin && onDelete && (
                 <button
                     onClick={onDelete}
                     style={{

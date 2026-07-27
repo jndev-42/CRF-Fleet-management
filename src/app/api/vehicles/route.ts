@@ -25,7 +25,9 @@ const createVehicleSchema = z.object({
     revisionYearInterval: z.number().int().positive().optional().nullable(),
 });
 
-export async function GET() {
+import { hasDTRole } from '@/lib/roles';
+
+export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -39,15 +41,43 @@ export async function GET() {
             return NextResponse.json([]);
         }
 
+        const urlStr = request?.url || 'http://localhost/api/vehicles';
+        const { searchParams } = new URL(urlStr);
+        const isDtView = searchParams.get('view') === 'dt';
+
+        const userRoles = session.user.roles || [];
+
+        let dtCode: string | null = null;
+        if (isDtView) {
+            if (!hasDTRole(userRoles)) {
+                return NextResponse.json({ error: 'Accès réservé au rôle DT' }, { status: 403 });
+            }
+            // Fetch dtCode for active UL
+            const ulRes = await db.execute({
+                sql: `SELECT dtCode FROM "UniteLocale" WHERE id = ?`,
+                args: [ulId],
+            });
+            dtCode = (ulRes.rows[0]?.dtCode as string) || null;
+            if (!dtCode) {
+                return NextResponse.json({ error: 'Aucune DT de rattachement configurée pour cette UL' }, { status: 400 });
+            }
+        }
+
         const nowISO = new Date().toISOString();
         const todayDate = nowISO.split('T')[0];
 
+        const whereClause = isDtView && dtCode
+            ? `WHERE v.ulId IN (SELECT id FROM "UniteLocale" WHERE dtCode = '${dtCode}')`
+            : `WHERE v.ulId = '${ulId}'`;
+
         const sql = `SELECT
                 v.*,
+                ul.name as ulName,
                 t.id as trip_id, u.name as trip_driverName, u2.name as trip_secondDriverName, t.missionType as trip_missionType,
                 t.checkOutAt as trip_checkOutAt,
                 m.id as active_maint_id
             FROM Vehicle v
+            LEFT JOIN "UniteLocale" ul ON ul.id = v.ulId
             LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
             LEFT JOIN User u ON u.id = t.driverId
             LEFT JOIN User u2 ON u2.id = t.secondDriverId
@@ -61,11 +91,10 @@ export async function GET() {
                 (m.endDate LIKE '%T%' AND m.endDate > '${nowISO}') OR
                 (m.endDate NOT LIKE '%T%' AND m.endDate >= '${todayDate}')
               )
-            WHERE v.ulId = '${ulId}'
+            ${whereClause}
             ORDER BY v.name ASC`;
 
         const result = await db.execute(sql);
-
 
         // Group the results manually to match Prisma's output structure
         const vehiclesMap = new Map();
@@ -87,6 +116,8 @@ export async function GET() {
                     fuelType: row.fuelType,
                     maxFuelCapacity: row.maxFuelCapacity as number | null,
                     maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
+                    ulId: row.ulId as string | null,
+                    ulName: row.ulName as string | null,
                     createdAt: new Date(row.createdAt as string),
                     updatedAt: new Date(row.updatedAt as string),
                     trips: []

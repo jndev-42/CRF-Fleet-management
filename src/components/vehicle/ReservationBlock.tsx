@@ -24,6 +24,7 @@ interface ReservationBlockProps {
     userRoles: string[];
     onActiveReservationChange?: (isReservedByOther: boolean) => void;
     licenseBlocked?: boolean;
+    readOnly?: boolean;
 }
 
 const DEFAULT_RECURRENCE: RecurrenceFormState = {
@@ -37,7 +38,7 @@ const DEFAULT_RECURRENCE: RecurrenceFormState = {
 
 const PAGE_SIZE = 5;
 
-export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange, licenseBlocked = false }: ReservationBlockProps) {
+export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange, licenseBlocked = false, readOnly = false }: ReservationBlockProps) {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -361,19 +362,21 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         <div className={styles.container}>
             <div className={styles.header}>
                 <h2 className={styles.title}>Réservations prévues</h2>
-                <button
-                    className={`btn btn-secondary ${styles.addBtn}`}
-                    onClick={() => {
-                        if (!licenseBlocked || isAdmin) {
-                            setDriverSelection('');
-                            setShowModal(true);
-                        }
-                    }}
-                    disabled={licenseBlocked && !isAdmin}
-                    title={licenseBlocked && !isAdmin ? "Vos papiers n'ont pas été validés — réservation bloquée." : undefined}
-                >
-                    + Réserver
-                </button>
+                {!readOnly && (
+                    <button
+                        className={`btn btn-secondary ${styles.addBtn}`}
+                        onClick={() => {
+                            if (!licenseBlocked || isAdmin) {
+                                setDriverSelection('');
+                                setShowModal(true);
+                            }
+                        }}
+                        disabled={licenseBlocked && !isAdmin}
+                        title={licenseBlocked && !isAdmin ? "Vos papiers n'ont pas été validés — réservation bloquée." : undefined}
+                    >
+                        + Réserver
+                    </button>
+                )}
             </div>
 
             {/* Bandeau alerte (conflits récurrence) */}
@@ -394,13 +397,13 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                         {pagedReservations.map(res => {
                             const start = new Date(res.startTime);
                             const end = new Date(res.endTime);
-                            const canDelete = isAdmin || res.userEmail === currentUserEmail;
-                            const canEdit = canManageDriver || res.userEmail === currentUserEmail;
+                            const canDelete = !readOnly && (isAdmin || res.userEmail === currentUserEmail);
+                            const canEdit = !readOnly && (canManageDriver || res.userEmail === currentUserEmail);
                             const isPending = res.status === 'PENDING';
                             const isUnassigned = res.userName === 'Chauffeur non décidé';
                             const isRecurring = !!res.recurrenceGroupId;
                             const groupId = res.recurrenceGroupId!;
-                            const canActOnGroup = isAdmin || canAccessAdminPanel(userRoles) || isRespo || res.userEmail === currentUserEmail;
+                            const canActOnGroup = !readOnly && (isAdmin || canAccessAdminPanel(userRoles) || isRespo || res.userEmail === currentUserEmail);
 
                             // Determine if group has any pending future occurrences visible (for group-validate button)
                             const groupHasPending = isRecurring && upcomingReservations.some(
@@ -473,7 +476,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                                 ✏️ Modifier
                                             </button>
                                         )}
-                                        {canValidate && isPending && (
+                                        {!readOnly && canValidate && isPending && (
                                             <button
                                                 onClick={() => handleValidate(res.id)}
                                                 className={styles.validateBtn}

@@ -9,7 +9,7 @@ import { DashboardSkeletons } from '@/components/ui/Skeleton';
 import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
 import VehicleCalendar from '@/components/vehicle/VehicleCalendar';
 import { useUL } from '@/lib/contexts/ULContext';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, hasDTRole } from '@/lib/roles';
 
 interface Vehicle {
   id: string;
@@ -24,6 +24,8 @@ interface Vehicle {
   notes: string | null;
   vin: string | null;
   fuelType: string | null;
+  ulId?: string | null;
+  ulName?: string | null;
   trips: {
     id: string;
     driverName: string;
@@ -57,10 +59,14 @@ export default function VehiclesPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isDtView, setIsDtView] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
   const { activeUL } = useUL();
+
+  const userRoles = session?.user?.roles || [];
+  const canAccessDtView = hasDTRole(userRoles) && Boolean(activeUL?.dtCode);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -70,16 +76,18 @@ export default function VehiclesPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      fetchVehicles();
+      fetchVehicles(isDtView);
       if (isAdminOrAbove(session?.user?.roles || [])) {
         setIsAdmin(true);
       }
     }
-  }, [status, session]);
+  }, [status, session, isDtView]);
 
-  async function fetchVehicles() {
+  async function fetchVehicles(dtMode = false) {
+    setLoading(true);
     try {
-      const res = await fetch(`/api/vehicles?t=${Date.now()}`, { cache: 'no-store' });
+      const url = dtMode ? `/api/vehicles?view=dt&t=${Date.now()}` : `/api/vehicles?t=${Date.now()}`;
+      const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur lors de la récupération');
       setVehicles(data);
@@ -117,12 +125,55 @@ export default function VehiclesPage() {
 
   return (
     <>
-      <div className="page-header">
-        <h1 className="page-title">Véhicules</h1>
-        <p className="page-description">
-          Vue d&apos;ensemble de la flotte — Croix-Rouge{activeUL ? ` ${activeUL.name}` : ''}
-        </p>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <h1 className="page-title">Véhicules</h1>
+          <p className="page-description">
+            {isDtView ? `Vision DT de la flotte — ${activeUL?.dtCode}` : `Vue d'ensemble de la flotte — Croix-Rouge${activeUL ? ` ${activeUL.name}` : ''}`}
+          </p>
+        </div>
+
+        {canAccessDtView && (
+          <div style={{ display: 'flex', gap: 8, background: 'var(--bg-secondary)', padding: 4, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-primary)' }}>
+            <button
+              className={`btn ${!isDtView ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: 13, padding: '6px 14px' }}
+              onClick={() => setIsDtView(false)}
+            >
+              🏢 Vue UL ({activeUL?.name})
+            </button>
+            <button
+              className={`btn ${isDtView ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ fontSize: 13, padding: '6px 14px' }}
+              onClick={() => setIsDtView(true)}
+            >
+              🌐 Vue DT ({activeUL?.dtCode})
+            </button>
+          </div>
+        )}
       </div>
+
+      {isDtView && (
+        <div style={{
+          padding: '12px 16px',
+          marginBottom: 20,
+          background: 'rgba(139, 92, 246, 0.12)',
+          border: '1px solid rgba(139, 92, 246, 0.3)',
+          borderRadius: 'var(--radius-md)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          color: 'var(--text-primary)',
+        }}>
+          <span style={{ fontSize: 22 }}>🌐</span>
+          <div>
+            <strong style={{ display: 'block', fontSize: 14 }}>Vision DT — {activeUL?.dtCode} (Lecture seule)</strong>
+            <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              Vous consultez l&apos;ensemble de la flotte de toutes les Unités Locales associées à la {activeUL?.dtCode}. La liste et le calendrier sont en lecture seule.
+            </span>
+          </div>
+        </div>
+      )}
 
       <div className="stats-grid" data-tour="stats">
         <div className="stat-card total">
@@ -143,11 +194,13 @@ export default function VehiclesPage() {
         </div>
       </div>
 
-      <VehicleCalendar />
+      <VehicleCalendar dtView={isDtView} />
 
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 className="section-title" style={{ margin: 0 }}>Véhicules</h2>
-        {isAdmin && (
+        <h2 className="section-title" style={{ margin: 0 }}>
+          {isDtView ? `Véhicules de la DT (${stats.total})` : 'Véhicules'}
+        </h2>
+        {isAdmin && !isDtView && (
           <button
             className="btn btn-primary"
             onClick={() => setShowAddModal(true)}
@@ -201,12 +254,27 @@ export default function VehiclesPage() {
             {filteredVehicles.map((vehicle) => (
               <Link
                 key={vehicle.id}
-                href={`/vehicles/${vehicle.name}`}
+                href={`/vehicles/${vehicle.name}${isDtView ? '?dtView=true' : ''}`}
                 className="vehicle-card"
               >
                 <div className="vehicle-card-header">
                   <div>
-                    <div className="vehicle-name">{vehicle.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span className="vehicle-name">{vehicle.name}</span>
+                      {isDtView && vehicle.ulName && (
+                        <span style={{
+                          fontSize: 10,
+                          fontWeight: 600,
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid var(--border-primary)',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          UL {vehicle.ulName}
+                        </span>
+                      )}
+                    </div>
                     <div className="vehicle-plate">{vehicle.plate}</div>
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>

@@ -51,12 +51,12 @@ const PREVIEW_USERS: Record<string, { email: string; name: string }> = Object.fr
 );
 
 // ── UL helpers ───────────────────────────────────────────────────────────────
-type ULEntry = { id: string; name: string; slug: string; isHome: boolean; roles?: string[] };
+type ULEntry = { id: string; name: string; slug: string; isHome: boolean; dtCode?: string | null; roles?: string[] };
 
 async function fetchUserULs(userId: string): Promise<ULEntry[]> {
     try {
         const res = await db.execute({
-            sql: `SELECT ul.id, ul.name, ul.slug, uu.is_home, uu.roles
+            sql: `SELECT ul.id, ul.name, ul.slug, ul.dtCode, uu.is_home, uu.roles
                   FROM "UserUL" uu
                   JOIN "UniteLocale" ul ON ul.id = uu.ulId
                   WHERE uu.userId = ?
@@ -73,6 +73,7 @@ async function fetchUserULs(userId: string): Promise<ULEntry[]> {
                 name: r.name as string,
                 slug: r.slug as string,
                 isHome: !!r.is_home,
+                dtCode: (r.dtCode as string) || null,
                 roles,
             };
         });

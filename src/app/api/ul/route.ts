@@ -14,6 +14,7 @@ const createULSchema = z.object({
     })).default([]),
     defaultParkingSpots: z.array(z.string()).default([]),
     stampImage: z.string().optional().nullable(),
+    dtCode: z.string().optional().nullable(),
 });
 
 /** GET /api/ul — Retourne toutes les UL (Utilisateurs connectés) */
@@ -24,7 +25,7 @@ export async function GET() {
             return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
         }
 
-        const res = await db.execute(`SELECT id, name, slug, phoneNumbers, defaultParkingSpots, stampImage FROM "UniteLocale" ORDER BY name ASC`);
+        const res = await db.execute(`SELECT id, name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode FROM "UniteLocale" ORDER BY name ASC`);
         const uls = res.rows.map(r => ({
             id: r.id,
             name: r.name,
@@ -32,6 +33,7 @@ export async function GET() {
             phoneNumbers: r.phoneNumbers ? JSON.parse(r.phoneNumbers as string) : [],
             defaultParkingSpots: r.defaultParkingSpots ? JSON.parse(r.defaultParkingSpots as string) : [],
             stampImage: (r.stampImage as string) || null,
+            dtCode: (r.dtCode as string) || null,
         }));
 
         return NextResponse.json({ uls });
@@ -64,11 +66,11 @@ export async function POST(request: Request) {
 
         const id = `ul-${data.slug}`;
         await db.execute({
-            sql: `INSERT INTO "UniteLocale" (id, name, slug, phoneNumbers, defaultParkingSpots, stampImage) VALUES (?, ?, ?, ?, ?, ?)`,
-            args: [id, data.name, data.slug, JSON.stringify(data.phoneNumbers), JSON.stringify(data.defaultParkingSpots), compressedStamp],
+            sql: `INSERT INTO "UniteLocale" (id, name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: [id, data.name, data.slug, JSON.stringify(data.phoneNumbers), JSON.stringify(data.defaultParkingSpots), compressedStamp || null, data.dtCode || null],
         });
 
-        return NextResponse.json({ success: true, id, name: data.name, slug: data.slug, phoneNumbers: data.phoneNumbers, defaultParkingSpots: data.defaultParkingSpots, stampImage: compressedStamp }, { status: 201 });
+        return NextResponse.json({ success: true, id, name: data.name, slug: data.slug, phoneNumbers: data.phoneNumbers, defaultParkingSpots: data.defaultParkingSpots, stampImage: compressedStamp || null, dtCode: data.dtCode || null }, { status: 201 });
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: 'Données invalides', details: error.issues }, { status: 400 });

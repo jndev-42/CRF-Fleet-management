@@ -14,6 +14,7 @@ interface UL {
     phoneNumbers?: PhoneNum[];
     defaultParkingSpots?: string[];
     stampImage?: string | null;
+    dtCode?: string | null;
 }
 
 export default function ULsTab({
@@ -32,6 +33,7 @@ export default function ULsTab({
     const [editingUl, setEditingUl] = useState<UL | null>(null);
     const [formName, setFormName] = useState('');
     const [formSlug, setFormSlug] = useState('');
+    const [formDtCode, setFormDtCode] = useState('');
     const [phoneNumbers, setPhoneNumbers] = useState<PhoneNum[]>([]);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
     const [stampImage, setStampImage] = useState<string | null>(null);
@@ -65,6 +67,7 @@ export default function ULsTab({
             setEditingUl(ul);
             setFormName(ul.name);
             setFormSlug(ul.slug);
+            setFormDtCode(ul.dtCode || '');
             setPhoneNumbers(ul.phoneNumbers || []);
             setDefaultParkingSpots(ul.defaultParkingSpots || []);
             setStampImage(ul.stampImage || null);
@@ -72,6 +75,7 @@ export default function ULsTab({
             setEditingUl(null);
             setFormName('');
             setFormSlug('');
+            setFormDtCode('');
             setPhoneNumbers([]);
             setDefaultParkingSpots([]);
             setStampImage(null);
@@ -178,6 +182,7 @@ export default function ULsTab({
                     body: JSON.stringify({
                         name: formName.trim(),
                         slug: formSlug.trim(),
+                        dtCode: formDtCode.trim() || null,
                         phoneNumbers: validPhoneNumbers,
                         defaultParkingSpots: validParkingSpots,
                         stampImage: stampImage || null,
@@ -195,6 +200,7 @@ export default function ULsTab({
                     body: JSON.stringify({
                         name: formName.trim(),
                         slug: formSlug.trim(),
+                        dtCode: formDtCode.trim() || null,
                         phoneNumbers: validPhoneNumbers,
                         defaultParkingSpots: validParkingSpots,
                         stampImage: stampImage || null,
@@ -275,9 +281,25 @@ export default function ULsTab({
                                 border: '1px solid var(--border-primary)',
                             }}>
                                 <div style={{ flex: 1 }}>
-                                    <div style={{ fontWeight: 600, fontSize: 14 }}>Unité Locale {ul.name}</div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <div style={{ fontWeight: 600, fontSize: 14 }}>Unité Locale {ul.name}</div>
+                                        {ul.dtCode && (
+                                            <span style={{
+                                                background: 'rgba(139, 92, 246, 0.15)',
+                                                color: '#8b5cf6',
+                                                border: '1px solid rgba(139, 92, 246, 0.3)',
+                                                borderRadius: '999px',
+                                                padding: '2px 8px',
+                                                fontSize: '11px',
+                                                fontWeight: 600,
+                                            }}>
+                                                🏢 {ul.dtCode}
+                                            </span>
+                                        )}
+                                    </div>
                                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
                                         ID: <code style={{ fontFamily: 'monospace' }}>{ul.id}</code> · Slug: <code style={{ fontFamily: 'monospace' }}>{ul.slug}</code>
+                                        {ul.dtCode && <> · DT: <code style={{ fontFamily: 'monospace' }}>{ul.dtCode}</code></>}
                                     </div>
                                     {ul.phoneNumbers && ul.phoneNumbers.length > 0 && (
                                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
@@ -386,6 +408,34 @@ export default function ULsTab({
                                             disabled={!!editingUl} // Lock slug on edit for safety
                                         />
                                     </div>
+                                </div>
+
+                                <div>
+                                    <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                                        🏢 Direction Territoriale de rattachement (DT)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        list="existing-dt-list"
+                                        className="form-input"
+                                        placeholder="Sélectionner ou saisir une DT (ex: DT 75)"
+                                        value={formDtCode}
+                                        onChange={e => setFormDtCode(e.target.value)}
+                                    />
+                                    <datalist id="existing-dt-list">
+                                        {Array.from(
+                                            new Set(
+                                                uls
+                                                    .map(u => u.dtCode?.trim())
+                                                    .filter((code): code is string => Boolean(code))
+                                            )
+                                        ).sort().map(dt => (
+                                            <option key={dt} value={dt} />
+                                        ))}
+                                    </datalist>
+                                    <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                                        Sélectionnez une DT existante dans la liste ou saisissez un nouveau nom pour en créer une nouvelle.
+                                    </p>
                                 </div>
 
                                 <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: 16 }}>

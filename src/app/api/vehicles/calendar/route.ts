@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { hasDTRole } from '@/lib/roles';
 
 export async function GET(request: Request) {
   try {
@@ -14,9 +15,28 @@ export async function GET(request: Request) {
       return NextResponse.json({ vehicles: [], reservations: [], trips: [] });
     }
 
-    const { searchParams } = new URL(request.url);
+    const urlStr = request?.url || 'http://localhost/api/vehicles/calendar';
+    const { searchParams } = new URL(urlStr);
     const monthParam = searchParams.get('month'); // e.g. "2026-07"
     const vehicleIdParam = searchParams.get('vehicleId'); // optional filter
+    const isDtView = searchParams.get('view') === 'dt';
+
+    const userRoles = session.user.roles || [];
+
+    let dtCode: string | null = null;
+    if (isDtView) {
+      if (!hasDTRole(userRoles)) {
+        return NextResponse.json({ error: 'Accès réservé au rôle DT' }, { status: 403 });
+      }
+      const ulRes = await db.execute({
+        sql: `SELECT dtCode FROM "UniteLocale" WHERE id = ?`,
+        args: [ulId],
+      });
+      dtCode = (ulRes.rows[0]?.dtCode as string) || null;
+      if (!dtCode) {
+        return NextResponse.json({ error: 'Aucune DT de rattachement configurée pour cette UL' }, { status: 400 });
+      }
+    }
 
     let targetDate = new Date();
     if (monthParam && /^\d{4}-\d{2}$/.test(monthParam)) {
@@ -43,14 +63,18 @@ export async function GET(request: Request) {
     const windowStartISO = windowStart.toISOString();
     const windowEndISO = windowEnd.toISOString();
 
+    const ulWhereClause = isDtView && dtCode
+      ? `v.ulId IN (SELECT id FROM "UniteLocale" WHERE dtCode = '${dtCode}')`
+      : `v.ulId = '${ulId}'`;
+
     // 1. Fetch vehicles
-    let vehiclesSql = `SELECT id, name, plate, type, status FROM Vehicle WHERE ulId = ?`;
-    const vehiclesArgs: (string | null)[] = [ulId];
+    let vehiclesSql = `SELECT v.id, v.name, v.plate, v.type, v.status, ul.name as ulName FROM Vehicle v LEFT JOIN "UniteLocale" ul ON ul.id = v.ulId WHERE ${ulWhereClause}`;
+    const vehiclesArgs: (string | null)[] = [];
     if (vehicleIdParam) {
-      vehiclesSql += ` AND id = ?`;
+      vehiclesSql += ` AND v.id = ?`;
       vehiclesArgs.push(vehicleIdParam);
     }
-    vehiclesSql += ` ORDER BY name ASC`;
+    vehiclesSql += ` ORDER BY v.name ASC`;
 
     const vehiclesResult = await db.execute({
       sql: vehiclesSql,
@@ -63,6 +87,7 @@ export async function GET(request: Request) {
       plate: row.plate as string,
       type: row.type as string,
       status: row.status as string,
+      ulName: row.ulName as string | null,
     }));
 
     // If vehicleIdParam specified, use it for filtering
@@ -75,7 +100,7 @@ export async function GET(request: Request) {
         r.userEmail, r.userName, r.startTime, r.endTime, r.reason, r.status, r.createdAt
       FROM "Reservation" r
       JOIN Vehicle v ON r.vehicleId = v.id
-      WHERE v.ulId = ? ${vehicleFilterClause}
+      WHERE ${ulWhereClause} ${vehicleFilterClause}
         AND r.startTime <= ?
         AND r.endTime >= ?
       ORDER BY r.startTime ASC
@@ -83,7 +108,7 @@ export async function GET(request: Request) {
 
     const reservationsResult = await db.execute({
       sql: reservationsSql,
-      args: [ulId, windowEndISO, windowStartISO],
+      args: [windowEndISO, windowStartISO],
     });
 
     const reservations = reservationsResult.rows.map(row => ({
@@ -110,7 +135,7 @@ export async function GET(request: Request) {
       JOIN Vehicle v ON t.vehicleId = v.id
       LEFT JOIN User u ON u.id = t.driverId
       LEFT JOIN User u2 ON u2.id = t.secondDriverId
-      WHERE v.ulId = ? ${vehicleFilterClause}
+      WHERE ${ulWhereClause} ${vehicleFilterClause}
         AND t.checkOutAt <= ?
         AND (t.checkInAt >= ? OR t.checkInAt IS NULL)
       ORDER BY t.checkOutAt ASC
@@ -118,7 +143,7 @@ export async function GET(request: Request) {
 
     const tripsResult = await db.execute({
       sql: tripsSql,
-      args: [ulId, windowEndISO, windowStartISO],
+      args: [windowEndISO, windowStartISO],
     });
 
     const trips = tripsResult.rows.map(row => ({
@@ -146,7 +171,7 @@ export async function GET(request: Request) {
         m.startDate, m.endDate, m.reason, m.createdAt
       FROM "VehicleMaintenance" m
       JOIN Vehicle v ON m.vehicleId = v.id
-      WHERE v.ulId = ? ${vehicleFilterClause}
+      WHERE ${ulWhereClause} ${vehicleFilterClause}
         AND m.startDate <= ?
         AND (m.endDate >= ? OR m.endDate IS NULL)
       ORDER BY m.startDate ASC
@@ -154,7 +179,7 @@ export async function GET(request: Request) {
 
     const maintenanceResult = await db.execute({
       sql: maintenanceSql,
-      args: [ulId, windowEndDay, windowStartDay],
+      args: [windowEndDay, windowStartDay],
     });
 
     const maintenances = maintenanceResult.rows.map(row => ({
