@@ -243,4 +243,220 @@
     white-space: nowrap;
 }
 
+/* Badge row grouping status badges */
+.badgeRow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
 
+/* Recurring reservation badge */
+.badgeRecurring {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.12);
+    color: #6366f1;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    white-space: nowrap;
+}
+
+/* Delete entire recurrence group button */
+.deleteGroupBtn {
+    background: transparent;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #6366f1;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 9px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background-color 0.2s, color 0.2s;
+    white-space: nowrap;
+}
+
+.deleteGroupBtn:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.deleteGroupBtn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* Recurrence toggle row */
+.recurrenceToggleRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.recurrenceToggleLabel {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Toggle switch */
+.toggleSwitch {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    border-radius: 999px;
+    border: none;
+    background: var(--border-primary);
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+}
+
+.toggleSwitchOn {
+    background: var(--accent-primary, #6366f1);
+}
+
+.toggleThumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    transition: transform 0.2s;
+    display: block;
+}
+
+.toggleSwitchOn .toggleThumb {
+    transform: translateX(18px);
+}
+
+/* Warning banner for skipped conflict slots */
+.recurrenceWarning {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(234, 179, 8, 0.08);
+    border: 1px solid rgba(234, 179, 8, 0.25);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.recurrenceWarningClose {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.recurrenceWarningClose:hover {
+    color: var(--text-primary);
+}
+
+/* ── Group action row (below item info) ───────────────────────────── */
+.groupActions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+}
+
+.groupActionsLabel {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+}
+
+/* Validate entire recurrence group button */
+.validateGroupBtn {
+    background: rgba(99, 102, 241, 0.08);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    color: #6366f1;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background-color 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.validateGroupBtn:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.18);
+}
+
+.validateGroupBtn:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+/* ── Pagination ────────────────────────────────────────────────────── */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 10px 0 2px;
+    border-top: 1px solid var(--border-primary);
+    margin-top: 8px;
+}
+
+.pageBtn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    transition: background 0.15s, color 0.15s;
+    line-height: 1.4;
+}
+
+.pageBtn:hover:not(:disabled) {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.pageBtn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.pageInfo {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pageCount {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-secondary);
+}
