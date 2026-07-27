@@ -1,0 +1,124 @@
+.panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-top: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.panelHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.panelIcon {
+    font-size: 1rem;
+}
+
+.panelTitle {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+}
+
+.label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.maxHint {
+    font-size: 0.72rem;
+    opacity: 0.7;
+    font-weight: 400;
+}
+
+.row {
+    display: flex;
+    gap: 12px;
+}
+
+/* Days of week toggle buttons */
+.daysGrid {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.dayBtn {
+    min-width: 38px;
+    padding: 5px 6px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border-primary);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    line-height: 1;
+    text-align: center;
+}
+
+.dayBtn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+}
+
+.dayBtnActive {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: #fff;
+}
+
+.dayBtnActive:hover {
+    background: var(--accent-hover, var(--accent-primary));
+    color: #fff;
+}
+
+/* Human-readable summary */
+.summary {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-primary) 30%, transparent);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.summaryIcon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.summaryText {
+    font-size: 0.82rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.summaryCount {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
