@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import styles from './Reservation.module.css';
 import UserCombobox from '@/components/ui/UserCombobox';
 import { canAccessAdminPanel } from '@/lib/roles';
+import RecurrencePanel, { RecurrenceFormState } from './RecurrencePanel';
 
 interface Reservation {
     id: string;
@@ -13,6 +14,7 @@ interface Reservation {
     reason: string | null;
     status: 'PENDING' | 'VALIDATED';
     createdAt: string;
+    recurrenceGroupId?: string | null;
 }
 
 interface ReservationBlockProps {
@@ -23,6 +25,15 @@ interface ReservationBlockProps {
     onActiveReservationChange?: (isReservedByOther: boolean) => void;
     licenseBlocked?: boolean;
 }
+
+const DEFAULT_RECURRENCE: RecurrenceFormState = {
+    enabled: false,
+    daysOfWeek: [],
+    startHour: '',
+    endHour: '',
+    firstOccurrenceDate: '',
+    recurrenceEndDate: '',
+};
 
 export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange, licenseBlocked = false }: ReservationBlockProps) {
     const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -40,6 +51,10 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const [driverSelection, setDriverSelection] = useState(''); // '' = self, 'UNASSIGNED' = Chauffeur non décidé, or userId
     const [submitting, setSubmitting] = useState(false);
 
+    // Recurrence state
+    const [recurrence, setRecurrence] = useState<RecurrenceFormState>(DEFAULT_RECURRENCE);
+    const [recurrenceWarning, setRecurrenceWarning] = useState<string | null>(null);
+
     // Form fields (Edit)
     const [editStartDate, setEditStartDate] = useState('');
     const [editStartTime, setEditStartTime] = useState('');
@@ -48,6 +63,9 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const [editReason, setEditReason] = useState('');
     const [editDriverSelection, setEditDriverSelection] = useState('');
     const [editingSubmitting, setEditingSubmitting] = useState(false);
+
+    // Cancelling a whole recurrence group
+    const [cancellingGroup, setCancellingGroup] = useState<string | null>(null);
 
     // On-behalf fields (Managers / Admins / Cadres / Présidents)
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
@@ -97,44 +115,92 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         setSubmitting(true);
+        setRecurrenceWarning(null);
         try {
-            const startISO = new Date(`${startDate}T${startTime}`).toISOString();
-            const endISO = new Date(`${endDate}T${endTime}`).toISOString();
+            if (recurrence.enabled) {
+                // ── Réservation récurrente ──
+                const payload = {
+                    recurrence: {
+                        daysOfWeek: recurrence.daysOfWeek,
+                        startHour: recurrence.startHour,
+                        endHour: recurrence.endHour,
+                        firstOccurrenceDate: recurrence.firstOccurrenceDate,
+                        recurrenceEndDate: recurrence.recurrenceEndDate,
+                        reason: reason || undefined,
+                        ...(canManageDriver && driverSelection === 'UNASSIGNED' ? { isUnassignedDriver: true } : {}),
+                        ...(canManageDriver && driverSelection && driverSelection !== 'UNASSIGNED' ? { onBehalfOfUserId: driverSelection } : {}),
+                    },
+                };
 
-            const bodyPayload: Record<string, unknown> = {
-                startTime: startISO,
-                endTime: endISO,
-                reason,
-            };
+                const res = await fetch(`/api/vehicles/${vehicleId}/reservations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
 
-            if (canManageDriver) {
-                if (driverSelection === 'UNASSIGNED') {
-                    bodyPayload.isUnassignedDriver = true;
-                } else if (driverSelection) {
-                    bodyPayload.onBehalfOfUserId = driverSelection;
-                }
-            }
-
-            const res = await fetch(`/api/vehicles/${vehicleId}/reservations`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(bodyPayload)
-            });
-
-            if (res.ok) {
-                setShowModal(false);
-                setStartDate(''); setStartTime(''); setEndDate(''); setEndTime(''); setReason('');
-                setDriverSelection('');
-                fetchReservations();
-            } else {
                 const data = await res.json();
-                alert(data.error || 'Erreur lors de la réservation');
+
+                if (res.ok) {
+                    setShowModal(false);
+                    resetCreateForm();
+                    fetchReservations();
+
+                    if (data.skipped && data.skipped.length > 0) {
+                        const skippedFormatted = data.skipped
+                            .map((d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }))
+                            .join(', ');
+                        setRecurrenceWarning(
+                            `✅ ${data.created} créneau(x) créé(s). ⚠️ ${data.skipped.length} créneau(x) ignoré(s) car déjà réservé(s) : ${skippedFormatted}`
+                        );
+                    }
+                } else {
+                    alert(data.error || 'Erreur lors de la création des réservations récurrentes');
+                }
+            } else {
+                // ── Réservation simple ──
+                const startISO = new Date(`${startDate}T${startTime}`).toISOString();
+                const endISO = new Date(`${endDate}T${endTime}`).toISOString();
+
+                const bodyPayload: Record<string, unknown> = {
+                    startTime: startISO,
+                    endTime: endISO,
+                    reason,
+                };
+
+                if (canManageDriver) {
+                    if (driverSelection === 'UNASSIGNED') {
+                        bodyPayload.isUnassignedDriver = true;
+                    } else if (driverSelection) {
+                        bodyPayload.onBehalfOfUserId = driverSelection;
+                    }
+                }
+
+                const res = await fetch(`/api/vehicles/${vehicleId}/reservations`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyPayload)
+                });
+
+                if (res.ok) {
+                    setShowModal(false);
+                    resetCreateForm();
+                    fetchReservations();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Erreur lors de la réservation');
+                }
             }
         } catch {
             alert('Erreur réseau');
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const resetCreateForm = () => {
+        setStartDate(''); setStartTime(''); setEndDate(''); setEndTime(''); setReason('');
+        setDriverSelection('');
+        setRecurrence(DEFAULT_RECURRENCE);
     };
 
     const handleOpenEdit = (res: Reservation) => {
@@ -221,6 +287,27 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         }
     };
 
+    const handleDeleteGroup = async (groupId: string) => {
+        if (!window.confirm('Voulez-vous annuler toutes les occurrences FUTURES de cette réservation récurrente ?')) return;
+        setCancellingGroup(groupId);
+        try {
+            const res = await fetch(`/api/reservations/recurrence/${groupId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (res.ok) {
+                fetchReservations();
+                if (data.deleted === 0) {
+                    alert('Aucune occurrence future à annuler.');
+                }
+            } else {
+                alert(data.error || 'Erreur lors de la suppression du groupe');
+            }
+        } catch {
+            alert('Erreur réseau');
+        } finally {
+            setCancellingGroup(null);
+        }
+    };
+
     const handleValidate = async (id: string) => {
         setValidating(id);
         try {
@@ -260,6 +347,14 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                 </button>
             </div>
 
+            {/* Warning banner for recurrence skipped slots */}
+            {recurrenceWarning && (
+                <div className={styles.recurrenceWarning}>
+                    <span>{recurrenceWarning}</span>
+                    <button className={styles.recurrenceWarningClose} onClick={() => setRecurrenceWarning(null)} aria-label="Fermer">✕</button>
+                </div>
+            )}
+
             {loading ? (
                 <div className={styles.loading}>Chargement des réservations...</div>
             ) : upcomingReservations.length === 0 ? (
@@ -273,6 +368,8 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                         const canEdit = canManageDriver || res.userEmail === currentUserEmail;
                         const isPending = res.status === 'PENDING';
                         const isUnassigned = res.userName === 'Chauffeur non décidé';
+                        const isRecurring = !!res.recurrenceGroupId;
+                        const canDeleteGroup = isAdmin || res.userEmail === currentUserEmail;
 
                         return (
                             <div key={res.id} className={`${styles.item} ${isPending ? styles.itemPending : ''}`}>
@@ -282,9 +379,14 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                             Du <strong>{start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} à {start.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}</strong>
                                             {' '}au <strong>{end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} à {end.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })}</strong>
                                         </div>
-                                        <span className={isPending ? styles.badgePending : styles.badgeValidated}>
-                                            {isPending ? 'En attente' : 'Validée'}
-                                        </span>
+                                        <div className={styles.badgeRow}>
+                                            {isRecurring && (
+                                                <span className={styles.badgeRecurring} title="Réservation récurrente">🔁 Récurrente</span>
+                                            )}
+                                            <span className={isPending ? styles.badgePending : styles.badgeValidated}>
+                                                {isPending ? 'En attente' : 'Validée'}
+                                            </span>
+                                        </div>
                                     </div>
                                     <div className={styles.itemUser}>
                                         Par {isUnassigned ? (
@@ -301,7 +403,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                             onClick={() => handleOpenEdit(res)}
                                             className={styles.editBtn}
                                             aria-label="Modifier la réservation"
-                                            title="Modifier la réservation"
+                                            title="Modifier cette occurrence"
                                         >
                                             ✏️ Modifier
                                         </button>
@@ -316,8 +418,19 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                             {validating === res.id ? '...' : '✓ Valider'}
                                         </button>
                                     )}
+                                    {isRecurring && canDeleteGroup && (
+                                        <button
+                                            onClick={() => handleDeleteGroup(res.recurrenceGroupId!)}
+                                            className={styles.deleteGroupBtn}
+                                            disabled={cancellingGroup === res.recurrenceGroupId}
+                                            aria-label="Annuler toutes les occurrences futures"
+                                            title="Annuler toutes les occurrences futures de cette récurrence"
+                                        >
+                                            {cancellingGroup === res.recurrenceGroupId ? '...' : '🔁✕ Annuler tout'}
+                                        </button>
+                                    )}
                                     {canDelete && (
-                                        <button onClick={() => handleDelete(res.id)} className={styles.deleteBtn} aria-label="Supprimer la réservation">
+                                        <button onClick={() => handleDelete(res.id)} className={styles.deleteBtn} aria-label="Supprimer cette occurrence">
                                             ✕
                                         </button>
                                     )}
@@ -330,8 +443,8 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
 
             {/* Modal de création */}
             {showModal && (
-                <div className="modal-overlay" onClick={() => setShowModal(false)} style={{ zIndex: 1000 }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
+                <div className="modal-overlay" onClick={() => { setShowModal(false); resetCreateForm(); }} style={{ zIndex: 1000 }}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
                         <h3>Réserver ce véhicule</h3>
                         {!canValidate && (
                             <p className={styles.pendingNotice}>
@@ -368,37 +481,66 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                     )}
                                 </div>
                             )}
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>Date de début</label>
-                                    <input type="date" required value={startDate} onChange={e => setStartDate(e.target.value)} className="form-input" />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Heure</label>
-                                    <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} className="form-input" />
+
+                            {/* Toggle récurrence */}
+                            <div className={styles.formGroup}>
+                                <div className={styles.recurrenceToggleRow}>
+                                    <label htmlFor="recurrence-toggle" className={styles.recurrenceToggleLabel}>
+                                        🔁 Réservation récurrente
+                                    </label>
+                                    <button
+                                        id="recurrence-toggle"
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={recurrence.enabled}
+                                        className={`${styles.toggleSwitch} ${recurrence.enabled ? styles.toggleSwitchOn : ''}`}
+                                        onClick={() => setRecurrence(prev => ({ ...prev, enabled: !prev.enabled }))}
+                                    >
+                                        <span className={styles.toggleThumb} />
+                                    </button>
                                 </div>
                             </div>
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label>Date de fin</label>
-                                    <input type="date" required value={endDate} onChange={e => setEndDate(e.target.value)} className="form-input" min={startDate} />
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label>Heure</label>
-                                    <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} className="form-input" />
-                                </div>
-                            </div>
+
+                            {recurrence.enabled ? (
+                                /* ── Formulaire récurrence ── */
+                                <RecurrencePanel state={recurrence} onChange={setRecurrence} />
+                            ) : (
+                                /* ── Formulaire date/heure simple ── */
+                                <>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.formGroup}>
+                                            <label>Date de début</label>
+                                            <input type="date" required value={startDate} onChange={e => setStartDate(e.target.value)} className="form-input" />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>Heure</label>
+                                            <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} className="form-input" />
+                                        </div>
+                                    </div>
+                                    <div className={styles.formRow}>
+                                        <div className={styles.formGroup}>
+                                            <label>Date de fin</label>
+                                            <input type="date" required value={endDate} onChange={e => setEndDate(e.target.value)} className="form-input" min={startDate} />
+                                        </div>
+                                        <div className={styles.formGroup}>
+                                            <label>Heure</label>
+                                            <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} className="form-input" />
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+
                             <div className={styles.formGroup}>
                                 <label>Motif / Mission (Optionnel)</label>
                                 <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="form-input" placeholder="Ex: Réserve pour une maraude" />
                             </div>
                             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                                 <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
-                                    {submitting ? '...' : canValidate ? 'Valider' : 'Soumettre la demande'}
+                                    {submitting ? '...' : canValidate ? (recurrence.enabled ? '🔁 Créer les réservations' : 'Valider') : (recurrence.enabled ? '🔁 Soumettre la récurrence' : 'Soumettre la demande')}
                                 </button>
                                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => {
                                     setShowModal(false);
-                                    setDriverSelection('');
+                                    resetCreateForm();
                                 }}>
                                     Annuler
                                 </button>
@@ -413,6 +555,11 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                 <div className="modal-overlay" onClick={() => setEditingReservation(null)} style={{ zIndex: 1000 }}>
                     <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
                         <h3>Modifier la réservation</h3>
+                        {editingReservation.recurrenceGroupId && (
+                            <p className={styles.pendingNotice} style={{ marginBottom: 0 }}>
+                                🔁 Cette occurrence fait partie d&apos;une réservation récurrente. Seule cette occurrence sera modifiée.
+                            </p>
+                        )}
                         <form onSubmit={handleEditSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
                             {canManageDriver ? (
                                 <div className={styles.formGroup}>
@@ -489,5 +636,3 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         </div>
     );
 }
-
-

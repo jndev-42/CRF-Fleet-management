@@ -1,5 +1,21 @@
 # Changelog
 
+## [4.7.0] — 27 juillet 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Réservations récurrentes** — Possibilité de créer une série de réservations récurrentes pour un véhicule depuis la fiche véhicule.
+  - **Toggle de récurrence** dans la modale `+ Réserver` : activer le mode récurrence remplace le formulaire date/heure classique par un panneau dédié.
+  - **Sélection des jours** : cases à cocher pour choisir un ou plusieurs jours de la semaine (Lundi, Mardi, … Dimanche).
+  - **Plage horaire** : saisie des heures de début et de fin valable pour chaque occurrence.
+  - **Période de récurrence** : date de premier et dernier passage, avec une limite maximale de **6 mois** à partir de la date du jour.
+  - **Résumé humain** en temps réel : _"Tous les Lundi et Mercredi de 08:00 à 12:00 jusqu'au 31/01/2027 (12 occurrences)"_.
+  - **Insertion partielle** : les créneaux en conflit avec une réservation existante sont automatiquement ignorés. Un bandeau d'alerte liste les dates skippées.
+  - **Badge 🔁 Récurrente** visible sur chaque occurrence dans la liste des réservations.
+  - **Annulation groupée** : bouton `🔁✕ Annuler tout` pour supprimer toutes les occurrences **futures** d'une même récurrence en une seule action.
+  - Les occurrences individuelles restent modifiables et supprimables indépendamment.
+  - Migration DB : ajout de la colonne `recurrenceGroupId` sur la table `Reservation` (index inclus).
+
 ## [4.6.0] — 22 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
