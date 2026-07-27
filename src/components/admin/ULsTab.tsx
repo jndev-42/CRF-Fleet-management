@@ -416,13 +416,25 @@ export default function ULsTab({
                                     </label>
                                     <input
                                         type="text"
+                                        list="existing-dt-list"
                                         className="form-input"
-                                        placeholder="ex: DT 75 ou DT Paris"
+                                        placeholder="Sélectionner ou saisir une DT (ex: DT 75)"
                                         value={formDtCode}
                                         onChange={e => setFormDtCode(e.target.value)}
                                     />
+                                    <datalist id="existing-dt-list">
+                                        {Array.from(
+                                            new Set(
+                                                uls
+                                                    .map(u => u.dtCode?.trim())
+                                                    .filter((code): code is string => Boolean(code))
+                                            )
+                                        ).sort().map(dt => (
+                                            <option key={dt} value={dt} />
+                                        ))}
+                                    </datalist>
                                     <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
-                                        Renseignez le nom ou le code de la DT à laquelle cette UL est rattachée (ex: DT 75).
+                                        Sélectionnez une DT existante dans la liste ou saisissez un nouveau nom pour en créer une nouvelle.
                                     </p>
                                 </div>
 
