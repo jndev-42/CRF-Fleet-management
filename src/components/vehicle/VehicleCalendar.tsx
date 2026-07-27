@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from './VehicleCalendar.module.css';
+import { useUL } from '@/lib/contexts/ULContext';
 
 interface Vehicle {
   id: string;
@@ -70,6 +71,7 @@ const MONTH_NAMES = [
 const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 export default function VehicleCalendar() {
+  const { activeUL } = useUL();
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('ALL');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -79,6 +81,11 @@ export default function VehicleCalendar() {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showCalendar, setShowCalendar] = useState<boolean>(true);
+
+  // Reset vehicle filter when active UL changes
+  useEffect(() => {
+    setSelectedVehicleId('ALL');
+  }, [activeUL?.id]);
 
   useEffect(() => {
     const saved = localStorage.getItem('show_vehicle_calendar');
@@ -127,7 +134,7 @@ export default function VehicleCalendar() {
     if (showCalendar) {
       fetchData();
     }
-  }, [fetchData, showCalendar]);
+  }, [fetchData, showCalendar, activeUL?.id]);
 
   // Handlers for month navigation
   const handlePrevMonth = () => {

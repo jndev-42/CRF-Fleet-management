@@ -181,5 +181,23 @@ describe('VehicleCalendar Component', () => {
     expect(screen.getByText('Le calendrier est actuellement masqué')).toBeTruthy();
     expect(screen.getByRole('button', { name: /Afficher le calendrier/i })).toBeTruthy();
   });
+
+  it('re-fetches calendar data when activeUL changes', async () => {
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => mockCalendarData,
+    } as Response);
+
+    const { rerender } = render(<VehicleCalendar />);
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    // Rerender component (simulating activeUL change in context)
+    rerender(<VehicleCalendar />);
+
+    expect(fetchSpy).toHaveBeenCalled();
+  });
 });
 

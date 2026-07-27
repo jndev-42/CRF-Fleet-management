@@ -75,7 +75,7 @@ export default function VehiclesPage() {
         setIsAdmin(true);
       }
     }
-  }, [status, session]);
+  }, [status, session, activeUL?.id]);
 
   async function fetchVehicles() {
     try {
