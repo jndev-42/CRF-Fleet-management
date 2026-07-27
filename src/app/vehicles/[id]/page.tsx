@@ -3,7 +3,7 @@
 import { QrCode } from 'lucide-react';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
 import PhotoViewer from '@/components/PhotoViewer';
@@ -85,6 +85,7 @@ export default function VehicleDetailPage() {
     const [editingCheckOutTrip, setEditingCheckOutTrip] = useState<Trip | null>(null);
     const [licenseBlocked, setLicenseBlocked] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     useEffect(() => {
         // Fetch the current session to determine if the user has specific roles (e.g., ADMIN)
@@ -285,8 +286,12 @@ export default function VehicleDetailPage() {
         );
     }
 
+    const isDtViewParam = searchParams.get('dtView') === 'true';
+    const isCrossUl = Boolean(vehicle?.ulId) && Boolean(currentUserUlId) && vehicle?.ulId !== currentUserUlId;
+    const isDtView = isDtViewParam || isCrossUl;
+
     // Determine whether there's an active (un-checked-in) trip to render Check-In UI
-    const activeTrip = vehicle.trips.find((t) => !t.checkInAt);
+    const activeTrip = vehicle?.trips.find((t) => !t.checkInAt);
     const canCheckIn = activeTrip ? (
         userRoles.includes('ADMIN') ||
         activeTrip.driverEmail === currentUserEmail ||
@@ -298,6 +303,28 @@ export default function VehicleDetailPage() {
             <Link href="/" className="back-link" aria-label="Retour au tableau de bord">
                 ← Retour au dashboard
             </Link>
+
+            {isDtView && (
+                <div style={{
+                    padding: '12px 16px',
+                    marginBottom: 20,
+                    background: 'rgba(139, 92, 246, 0.12)',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    borderRadius: 'var(--radius-md)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    color: 'var(--text-primary)',
+                }}>
+                    <span style={{ fontSize: 22 }}>ℹ️</span>
+                    <div>
+                        <strong style={{ display: 'block', fontSize: 14 }}>Mode Vue DT (Lecture seule)</strong>
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                            Vous consultez ce véhicule en mode lecture seule dans le cadre de la vision DT. Les actions d&apos;emprunt, restitution et modifications sont désactivées.
+                        </span>
+                    </div>
+                </div>
+            )}
 
             <div className="vehicle-detail-header">
                 <div className="vehicle-detail-info">
@@ -328,8 +355,9 @@ export default function VehicleDetailPage() {
                     <VehicleBadges
                         vehicle={vehicle}
                         userRoles={userRoles}
-                        showAdminDsaToggle={true}
+                        showAdminDsaToggle={!isDtView}
                         onToggleDSA={async () => {
+                            if (isDtView) return;
                             const newHasDSA = !vehicle.hasDSA;
                             // Optimistic update
                             setVehicle({ ...vehicle, hasDSA: newHasDSA });
@@ -347,11 +375,11 @@ export default function VehicleDetailPage() {
                                 showToast('Erreur lors de la modification du DSA', 'error');
                             }
                         }}
-                        onDelete={() => setShowDeleteModal(true)}
+                        onDelete={!isDtView ? () => setShowDeleteModal(true) : undefined}
                     />
                 </div>
                 <div className="vehicle-detail-actions">
-                    {vehicle.status === 'AVAILABLE' && (() => {
+                    {!isDtView && vehicle.status === 'AVAILABLE' && (() => {
                         const isAdmin = userRoles.includes('ADMIN');
                         const isCHVL = userRoles.includes('CHVL');
                         const isCHVPSP = userRoles.includes('CHVPSP');
@@ -394,7 +422,7 @@ export default function VehicleDetailPage() {
                             </button>
                         );
                     })()}
-                    {vehicle.status === 'IN_USE' && activeTrip && (
+                    {!isDtView && vehicle.status === 'IN_USE' && activeTrip && (
                         <button
                             className={`btn btn-success btn-lg ${!canCheckIn ? 'disabled' : ''}`}
                             onClick={() => { if (canCheckIn) setShowCheckIn(true); }}
@@ -404,23 +432,25 @@ export default function VehicleDetailPage() {
                             ✅ Rendre le véhicule
                         </button>
                     )}
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => {
-                            setEditingIncidentId(null);
-                            setShowIncidentReport(true);
-                        }}
-                        style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
-                    >
-                        🚨 Déclarer un incident
-                    </button>
+                    {!isDtView && (
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => {
+                                setEditingIncidentId(null);
+                                setShowIncidentReport(true);
+                            }}
+                            style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                        >
+                            🚨 Déclarer un incident
+                        </button>
+                    )}
                     <button
                         className="btn btn-secondary"
                         onClick={() => setShowIncidentHistory(true)}
                     >
                         📋 Historique des incidents
                     </button>
-                    {vehicle.status !== 'IN_USE' && userRoles.includes('ADMIN') && (
+                    {!isDtView && vehicle.status !== 'IN_USE' && userRoles.includes('ADMIN') && (
                         <button
                             className="btn btn-secondary"
                             onClick={() => {
@@ -434,7 +464,7 @@ export default function VehicleDetailPage() {
                             {vehicle.status === 'MAINTENANCE' ? '✅ Remettre en service' : '🔧 Maintenance'}
                         </button>
                     )}
-                    {isAdminOrAbove(userRoles) && (
+                    {!isDtView && isAdminOrAbove(userRoles) && (
                         <button
                             className="btn btn-secondary"
                             onClick={() => setShowEditVehicleModal(true)}
@@ -442,7 +472,7 @@ export default function VehicleDetailPage() {
                             ✏️ Éditer le véhicule
                         </button>
                     )}
-                    {isAdminOrAbove(userRoles) && (
+                    {!isDtView && isAdminOrAbove(userRoles) && (
                         <button
                             className="btn btn-secondary"
                             onClick={() => setShowChecklistManager(true)}
@@ -612,6 +642,7 @@ export default function VehicleDetailPage() {
                     userRoles={userRoles}
                     onActiveReservationChange={setIsReservedByOther}
                     licenseBlocked={licenseBlocked}
+                    readOnly={isDtView}
                 />
             )}
 

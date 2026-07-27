@@ -43,15 +43,16 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
 
         const body = await request.json();
-        const { name, slug, phoneNumbers, defaultParkingSpots, stampImage } = body as {
+        const { name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode } = body as {
             name?: string;
             slug?: string;
             phoneNumbers?: Array<{ label: string; number: string }>;
             defaultParkingSpots?: string[];
             stampImage?: string | null;
+            dtCode?: string | null;
         };
 
-        if (!name && !slug && !phoneNumbers && !defaultParkingSpots && stampImage === undefined) {
+        if (!name && !slug && !phoneNumbers && !defaultParkingSpots && stampImage === undefined && dtCode === undefined) {
             return NextResponse.json({ error: 'Aucune donnée à modifier' }, { status: 400 });
         }
 
@@ -62,6 +63,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         if (stampImage !== undefined) {
             const compressed = await compressStampImage(stampImage);
             await db.execute({ sql: `UPDATE "UniteLocale" SET stampImage = ? WHERE id = ?`, args: [compressed, id] });
+        }
+        if (dtCode !== undefined) {
+            await db.execute({ sql: `UPDATE "UniteLocale" SET dtCode = ? WHERE id = ?`, args: [dtCode ? dtCode.trim() : null, id] });
         }
 
         return NextResponse.json({ success: true });

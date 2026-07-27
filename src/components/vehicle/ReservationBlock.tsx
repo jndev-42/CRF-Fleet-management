@@ -22,9 +22,10 @@ interface ReservationBlockProps {
     userRoles: string[];
     onActiveReservationChange?: (isReservedByOther: boolean) => void;
     licenseBlocked?: boolean;
+    readOnly?: boolean;
 }
 
-export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange, licenseBlocked = false }: ReservationBlockProps) {
+export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange, licenseBlocked = false, readOnly = false }: ReservationBlockProps) {
     const [reservations, setReservations] = useState<Reservation[]>([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -245,19 +246,21 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         <div className={styles.container}>
             <div className={styles.header}>
                 <h2 className={styles.title}>Réservations prévues</h2>
-                <button
-                    className={`btn btn-secondary ${styles.addBtn}`}
-                    onClick={() => {
-                        if (!licenseBlocked || isAdmin) {
-                            setDriverSelection('');
-                            setShowModal(true);
-                        }
-                    }}
-                    disabled={licenseBlocked && !isAdmin}
-                    title={licenseBlocked && !isAdmin ? "Vos papiers n'ont pas été validés — réservation bloquée." : undefined}
-                >
-                    + Réserver
-                </button>
+                {!readOnly && (
+                    <button
+                        className={`btn btn-secondary ${styles.addBtn}`}
+                        onClick={() => {
+                            if (!licenseBlocked || isAdmin) {
+                                setDriverSelection('');
+                                setShowModal(true);
+                            }
+                        }}
+                        disabled={licenseBlocked && !isAdmin}
+                        title={licenseBlocked && !isAdmin ? "Vos papiers n'ont pas été validés — réservation bloquée." : undefined}
+                    >
+                        + Réserver
+                    </button>
+                )}
             </div>
 
             {loading ? (
@@ -269,8 +272,8 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                     {upcomingReservations.map(res => {
                         const start = new Date(res.startTime);
                         const end = new Date(res.endTime);
-                        const canDelete = isAdmin || res.userEmail === currentUserEmail;
-                        const canEdit = canManageDriver || res.userEmail === currentUserEmail;
+                        const canDelete = !readOnly && (isAdmin || res.userEmail === currentUserEmail);
+                        const canEdit = !readOnly && (canManageDriver || res.userEmail === currentUserEmail);
                         const isPending = res.status === 'PENDING';
                         const isUnassigned = res.userName === 'Chauffeur non décidé';
 
@@ -306,7 +309,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                             ✏️ Modifier
                                         </button>
                                     )}
-                                    {canValidate && isPending && (
+                                    {!readOnly && canValidate && isPending && (
                                         <button
                                             onClick={() => handleValidate(res.id)}
                                             className={styles.validateBtn}

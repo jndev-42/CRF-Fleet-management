@@ -13,6 +13,7 @@ export const ROLES = {
     PRESIDENT:   'PRESIDENT',
     TRESORIER:   'TRESORIER',
     CADRE:       'CADRE',
+    DT:          'DT',
     CHVPSP:      'CHVPSP',
     CHVL:        'CHVL',
     CI_RPAPS:    'CI/RPAPS',
@@ -28,6 +29,7 @@ export const MANAGEABLE_ROLES: Role[] = [
     ROLES.PRESIDENT,
     ROLES.TRESORIER,
     ROLES.CADRE,
+    ROLES.DT,
     ROLES.CHVPSP,
     ROLES.CHVL,
     ROLES.CI_RPAPS,
@@ -40,6 +42,7 @@ export const ROLE_LABELS: Record<Role, string> = {
     [ROLES.PRESIDENT]:   'Président',
     [ROLES.TRESORIER]:   'Trésorier',
     [ROLES.CADRE]:       'Cadre',
+    [ROLES.DT]:          'Direction Territoriale (DT)',
     [ROLES.CHVPSP]:      'Chauffeur VPSP',
     [ROLES.CHVL]:        'Chauffeur VL',
     [ROLES.CI_RPAPS]:    'CI / RPAPS',
@@ -66,6 +69,11 @@ export function isAdminOrAbove(roles: string[]): boolean {
 /** Trésorier : accès aux notes de frais en attente de paiement */
 export function isTresorier(roles: string[]): boolean {
     return roles.includes(ROLES.TRESORIER);
+}
+
+/** Rôle DT : accès à la vision DT des véhicules */
+export function hasDTRole(roles: string[]): boolean {
+    return roles.includes(ROLES.DT) || isSuperAdmin(roles);
 }
 
 /** Président ou Cadre : accès en lecture seule dans leur UL */

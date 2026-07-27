@@ -336,7 +336,8 @@ async function createTables() {
     slug TEXT NOT NULL UNIQUE,
     phoneNumbers TEXT,
     defaultParkingSpots TEXT,
-    stampImage TEXT
+    stampImage TEXT,
+    dtCode TEXT
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "UserUL" (

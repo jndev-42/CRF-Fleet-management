@@ -69,7 +69,11 @@ const MONTH_NAMES = [
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
-export default function VehicleCalendar() {
+interface VehicleCalendarProps {
+  dtView?: boolean;
+}
+
+export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps) {
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('ALL');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -106,6 +110,9 @@ export default function VehicleCalendar() {
     setLoading(true);
     try {
       let url = `/api/vehicles/calendar?month=${monthParam}`;
+      if (dtView) {
+        url += `&view=dt`;
+      }
       if (selectedVehicleId !== 'ALL') {
         url += `&vehicleId=${encodeURIComponent(selectedVehicleId)}`;
       }
@@ -121,7 +128,7 @@ export default function VehicleCalendar() {
     } finally {
       setLoading(false);
     }
-  }, [monthParam, selectedVehicleId]);
+  }, [monthParam, selectedVehicleId, dtView]);
 
   useEffect(() => {
     if (showCalendar) {

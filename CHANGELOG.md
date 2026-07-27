@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.7.0] — 27 juillet 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Notion de DT de rattachement pour les ULs** — Ajout d'une notion de Délégation Territoriale (DT) de rattachement pour les Unités Locales (ex: DT 75, DT 69).
+  - Gestion du champ `dtCode` dans les formulaires d'administration des ULs (création et édition).
+  - Badges visuels DT sur les cartes des ULs dans l'onglet Administration.
+- **Vision DT de la Flotte de Véhicules & Calendrier** — Bascule d'affichage "Vue UL / Vue DT" sur le tableau de bord des véhicules pour les utilisateurs disposant du rôle `DT` :
+  - Consultation globale de la flotte et du calendrier de toutes les ULs rattachées à la même DT.
+  - Mode lecture seule complet appliqué à la vision DT (désactivation des emprunts, restitutions, incidents, maintenances et réservations cross-UL avec bannière d'information).
+
 ## [4.6.0] — 22 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités

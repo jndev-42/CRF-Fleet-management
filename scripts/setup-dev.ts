@@ -79,7 +79,8 @@ async function main() {
             "slug" TEXT NOT NULL UNIQUE,
             "phoneNumbers" TEXT,
             "defaultParkingSpots" TEXT,
-            "stampImage" TEXT
+            "stampImage" TEXT,
+            "dtCode" TEXT
         )
     `);
 
@@ -89,6 +90,9 @@ async function main() {
     }
     if (!ulCols.rows.some(r => r.name === 'stampImage')) {
         await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "stampImage" TEXT`);
+    }
+    if (!ulCols.rows.some(r => r.name === 'dtCode')) {
+        await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "dtCode" TEXT`);
     }
 
     await db.execute(`
