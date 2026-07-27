@@ -218,3 +218,120 @@ describe('POST /api/vehicles — duplicate checks', () => {
   });
 });
 
+describe('PATCH /api/vehicles/[id] — édition des informations du véhicule (ADMIN & SUPER_ADMIN)', () => {
+  it('met à jour le nom, la plaque, le VIN et les intervalles de révision par un ADMIN', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+
+    await seedVehicle({ id: 'v-100', name: 'VL999', plate: 'XX-123-YY', vin: 'OLDVIN' });
+
+    const res = await PATCH(
+      new Request('http://localhost/api/vehicles/VL999', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'VL999-NEW',
+          plate: 'ZZ-999-ZZ',
+          vin: 'NEWVIN123456789',
+          revisionKmInterval: 20000,
+          revisionYearInterval: 2,
+        }),
+      }),
+      { params: Promise.resolve({ id: 'VL999' }) }
+    );
+    expect(res.status).toBe(200);
+
+    const row = await db.execute({
+      sql: `SELECT name, plate, vin, revisionKmInterval, revisionYearInterval FROM "Vehicle" WHERE id = ?`,
+      args: ['v-100'],
+    });
+    expect(row.rows[0].name).toBe('VL999-NEW');
+    expect(row.rows[0].plate).toBe('ZZ-999-ZZ');
+    expect(row.rows[0].vin).toBe('NEWVIN123456789');
+    expect(row.rows[0].revisionKmInterval).toBe(20000);
+    expect(row.rows[0].revisionYearInterval).toBe(2);
+  });
+
+  it('met à jour les informations par un SUPER_ADMIN', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'superadmin@dev.local', roles: ['SUPER_ADMIN'] } } as never);
+
+    await seedVehicle({ id: 'v-101', name: 'VL888', plate: 'WW-111-WW' });
+
+    const res = await PATCH(
+      new Request('http://localhost/api/vehicles/VL888', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          parkingSpot: 'Place A-12',
+          notes: 'Notes mises à jour par superadmin',
+        }),
+      }),
+      { params: Promise.resolve({ id: 'VL888' }) }
+    );
+    expect(res.status).toBe(200);
+
+    const row = await db.execute({
+      sql: `SELECT parkingSpot, notes FROM "Vehicle" WHERE id = ?`,
+      args: ['v-101'],
+    });
+    expect(row.rows[0].parkingSpot).toBe('Place A-12');
+    expect(row.rows[0].notes).toBe('Notes mises à jour par superadmin');
+  });
+
+  it('retourne 400 en cas de nom en doublon avec un autre véhicule', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+
+    await seedVehicle({ id: 'v-201', name: 'VL100', plate: 'AA-100-AA' });
+    await seedVehicle({ id: 'v-202', name: 'VL200', plate: 'BB-200-BB' });
+
+    const res = await PATCH(
+      new Request('http://localhost/api/vehicles/VL100', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'VL200' }),
+      }),
+      { params: Promise.resolve({ id: 'VL100' }) }
+    );
+    expect(res.status).toBe(400);
+
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe('Un véhicule avec ce nom existe déjà.');
+  });
+
+  it('retourne 400 en cas de plaque en doublon avec un autre véhicule', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+
+    await seedVehicle({ id: 'v-301', name: 'VL300', plate: 'AA-300-AA' });
+    await seedVehicle({ id: 'v-302', name: 'VL400', plate: 'BB-400-BB' });
+
+    const res = await PATCH(
+      new Request('http://localhost/api/vehicles/VL300', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plate: 'BB-400-BB' }),
+      }),
+      { params: Promise.resolve({ id: 'VL300' }) }
+    );
+    expect(res.status).toBe(400);
+
+    const body = await res.json() as { error: string };
+    expect(body.error).toBe("Un véhicule avec cette plaque d'immatriculation existe déjà.");
+  });
+
+  it('retourne 403 pour un utilisateur sans privilège admin (ex: CHVL)', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'user@dev.local', roles: ['CHVL'] } } as never);
+
+    await seedVehicle({ id: 'v-401', name: 'VL500', plate: 'CC-500-CC' });
+
+    const res = await PATCH(
+      new Request('http://localhost/api/vehicles/VL500', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'VL500-EDITED' }),
+      }),
+      { params: Promise.resolve({ id: 'VL500' }) }
+    );
+    expect(res.status).toBe(403);
+  });
+});
+
+

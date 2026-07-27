@@ -199,14 +199,48 @@ export async function PATCH(
         const body = await request.json();
         const data = updateVehicleSchema.parse(body);
 
-        // Fetch the current vehicle state (UUID + hasDSA) so we can sync DSA checklist items
+        // Fetch the current vehicle state (UUID, name, plate, hasDSA)
         const currentVehicleRes = await db.execute({
-            sql: `SELECT id, hasDSA FROM Vehicle WHERE name = ?`,
+            sql: `SELECT id, name, plate, hasDSA FROM Vehicle WHERE name = ?`,
             args: [id]
         });
-        const currentVehicle = currentVehicleRes.rows[0] ?? null;
-        const vehicleUuid = currentVehicle?.id as string | undefined;
-        const previousHasDSA = currentVehicle ? !!currentVehicle.hasDSA : null;
+        if (currentVehicleRes.rows.length === 0) {
+            return NextResponse.json(
+                { error: 'Véhicule non trouvé' },
+                { status: 404 }
+            );
+        }
+        const currentVehicle = currentVehicleRes.rows[0];
+        const vehicleUuid = currentVehicle.id as string;
+        const previousHasDSA = !!currentVehicle.hasDSA;
+
+        // Check if updating name and another vehicle already uses that name
+        if (data.name !== undefined && data.name.trim().toUpperCase() !== String(currentVehicle.name).toUpperCase()) {
+            const existingName = await db.execute({
+                sql: `SELECT id FROM Vehicle WHERE UPPER(name) = UPPER(?) AND id != ?`,
+                args: [data.name.trim(), vehicleUuid]
+            });
+            if (existingName.rows.length > 0) {
+                return NextResponse.json(
+                    { error: 'Un véhicule avec ce nom existe déjà.' },
+                    { status: 400 }
+                );
+            }
+        }
+
+        // Check if updating plate and another vehicle already uses that plate
+        if (data.plate !== undefined && data.plate.trim().toUpperCase() !== String(currentVehicle.plate).toUpperCase()) {
+            const existingPlate = await db.execute({
+                sql: `SELECT id FROM Vehicle WHERE UPPER(plate) = UPPER(?) AND id != ?`,
+                args: [data.plate.trim(), vehicleUuid]
+            });
+            if (existingPlate.rows.length > 0) {
+                return NextResponse.json(
+                    { error: "Un véhicule avec cette plaque d'immatriculation existe déjà." },
+                    { status: 400 }
+                );
+            }
+        }
 
         const setClauses = [];
         const args = [];
@@ -222,10 +256,10 @@ export async function PATCH(
             const timestamp = new Date().toISOString();
             setClauses.push(`updatedAt = ?`);
             args.push(timestamp);
-            args.push(id);
+            args.push(vehicleUuid);
 
             await db.execute({
-                sql: `UPDATE Vehicle SET ${setClauses.join(', ')} WHERE name = ?`,
+                sql: `UPDATE Vehicle SET ${setClauses.join(', ')} WHERE id = ?`,
                 args
             });
 

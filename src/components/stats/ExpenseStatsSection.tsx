@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { DollarSign, CheckCircle, Clock, Receipt, FileText, AlertCircle } from 'lucide-react';
+import { DollarSign, CheckCircle, Clock, Receipt } from 'lucide-react';
 import { ExpenseStatsDataResult } from '@/lib/stats';
 import {
   ResponsiveContainer,
@@ -203,7 +203,7 @@ export default function ExpenseStatsSection({
                         <XAxis dataKey="label" stroke="var(--text-secondary)" fontSize={12} />
                         <YAxis stroke="var(--text-secondary)" fontSize={12} unit="€" />
                         <Tooltip
-                          formatter={(value: any) => [
+                          formatter={(value: unknown) => [
                             typeof value === 'number' ? `${value.toFixed(2)} €` : `${value ?? 0} €`,
                             'Montant',
                           ]}
@@ -230,14 +230,14 @@ export default function ExpenseStatsSection({
                           outerRadius={80}
                           innerRadius={45}
                           paddingAngle={3}
-                          label={(entry: any) => `${entry.imputation || entry.name || ''}: ${Number(entry.amount || entry.value || 0).toFixed(0)}€`}
+                          label={(entry: { imputation?: string; name?: string; amount?: number; value?: number }) => `${entry.imputation || entry.name || ''}: ${Number(entry.amount || entry.value || 0).toFixed(0)}€`}
                         >
                           {data.byImputation.map((_, index) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>
                         <Tooltip
-                          formatter={(value: any) => [
+                          formatter={(value: unknown) => [
                             typeof value === 'number' ? `${value.toFixed(2)} €` : `${value ?? 0} €`,
                             'Montant',
                           ]}

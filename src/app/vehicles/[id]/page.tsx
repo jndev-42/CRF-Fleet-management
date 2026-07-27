@@ -31,6 +31,7 @@ import EditRevisionIntervalsModal from '@/components/vehicle/modals/EditRevision
 import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal';
 import IncidentHistoryModal from '@/components/vehicle/modals/IncidentHistoryModal';
 import EditCheckOutModal from '@/components/vehicle/modals/EditCheckOutModal';
+import EditVehicleModal from '@/components/vehicle/modals/EditVehicleModal';
 import { isAdminOrAbove } from '@/lib/roles';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 /**
@@ -80,6 +81,7 @@ export default function VehicleDetailPage() {
     const [showPutInMaintenanceModal, setShowPutInMaintenanceModal] = useState(false);
     const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
     const [showEditRevisionModal, setShowEditRevisionModal] = useState(false);
+    const [showEditVehicleModal, setShowEditVehicleModal] = useState(false);
     const [editingCheckOutTrip, setEditingCheckOutTrip] = useState<Trip | null>(null);
     const [licenseBlocked, setLicenseBlocked] = useState(false);
     const router = useRouter();
@@ -432,7 +434,15 @@ export default function VehicleDetailPage() {
                             {vehicle.status === 'MAINTENANCE' ? '✅ Remettre en service' : '🔧 Maintenance'}
                         </button>
                     )}
-                    {userRoles.includes('ADMIN') && (
+                    {isAdminOrAbove(userRoles) && (
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => setShowEditVehicleModal(true)}
+                        >
+                            ✏️ Éditer le véhicule
+                        </button>
+                    )}
+                    {isAdminOrAbove(userRoles) && (
                         <button
                             className="btn btn-secondary"
                             onClick={() => setShowChecklistManager(true)}
@@ -992,6 +1002,23 @@ export default function VehicleDetailPage() {
                         setVehicle(prev => prev ? { ...prev, ...updatedVehicle } : updatedVehicle);
                         setShowEditRevisionModal(false);
                         showToast('Intervalles de révision mis à jour !');
+                    }}
+                />
+            )}
+
+            {showEditVehicleModal && vehicle && (
+                <EditVehicleModal
+                    vehicle={vehicle}
+                    isOpen={showEditVehicleModal}
+                    onClose={() => setShowEditVehicleModal(false)}
+                    onSuccess={(updatedData) => {
+                        showToast('Véhicule modifié avec succès !');
+                        setShowEditVehicleModal(false);
+                        if (updatedData.name && updatedData.name !== vehicle.name) {
+                            router.push(`/vehicles/${encodeURIComponent(updatedData.name)}`);
+                        } else {
+                            fetchVehicle();
+                        }
                     }}
                 />
             )}
