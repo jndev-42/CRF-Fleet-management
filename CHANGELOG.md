@@ -22,6 +22,10 @@
   - Les occurrences individuelles restent modifiables et supprimables indépendamment.
   - Migration DB : ajout de la colonne `recurrenceGroupId` sur la table `Reservation` (index inclus).
 
+### 🐛 Correctifs
+
+- **Rafraîchissement automatique du calendrier lors du changement d'UL** — Le calendrier des véhicules se rafraîchit désormais automatiquement lors du changement d'Unité Logistique via le sélecteur d'UL.
+
 ## [4.6.0] — 22 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités

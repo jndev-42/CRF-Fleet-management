@@ -81,7 +81,7 @@ export default function VehiclesPage() {
         setIsAdmin(true);
       }
     }
-  }, [status, session, isDtView]);
+  }, [status, session, isDtView, activeUL?.id]);
 
   async function fetchVehicles(dtMode = false) {
     setLoading(true);
