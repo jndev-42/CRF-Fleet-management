@@ -331,6 +331,7 @@ export default function UsersTab({
                 <AddUserModal
                     availableRoles={availableRoles}
                     availableULs={availableULs}
+                    userUlId={session?.user?.ulId}
                     onClose={() => setShowAddModal(false)}
                     onSuccess={async (email, name, roles, ulId) => {
                         try {
@@ -401,17 +402,32 @@ export default function UsersTab({
 function AddUserModal({
     availableRoles,
     availableULs,
+    userUlId,
     onClose,
     onSuccess
 }: {
     availableRoles: string[];
     availableULs: ULEntry[];
+    userUlId?: string;
     onClose: () => void;
     onSuccess: (email: string, name: string, roles: string[], ulId: string | null) => Promise<void>;
 }) {
-    const [form, setForm] = useState({ email: '', name: '', ulId: '' });
+    const initialUlId = userUlId && availableULs.some(u => u.id === userUlId)
+        ? userUlId
+        : (availableULs.length > 0 ? availableULs[0].id : '');
+    const [form, setForm] = useState({ email: '', name: '', ulId: initialUlId });
     const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!form.ulId) {
+            if (userUlId && availableULs.some(u => u.id === userUlId)) {
+                setForm(f => ({ ...f, ulId: userUlId }));
+            } else if (availableULs.length > 0) {
+                setForm(f => ({ ...f, ulId: availableULs[0].id }));
+            }
+        }
+    }, [userUlId, availableULs, form.ulId]);
 
     function toggleRole(role: string) {
         setSelectedRoles(prev =>

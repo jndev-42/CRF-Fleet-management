@@ -152,8 +152,16 @@ export async function POST(request: Request) {
         }
 
         const isSuper = isSuperAdmin(roles);
+        const userUlId = session?.user?.ulId;
+
+        // Si l'UL n'est pas fournie explicitement par un admin local, on utilise son UL
+        let targetUlId = data.ulId || null;
+        if (!isSuper && !targetUlId && userUlId) {
+            targetUlId = userUlId;
+        }
+
         if (!isSuper) {
-            if (data.ulId !== session?.user?.ulId) {
+            if (targetUlId && targetUlId !== userUlId) {
                 return NextResponse.json({ error: 'Un administrateur local ne peut créer un utilisateur que pour sa propre Unité Locale.' }, { status: 403 });
             }
         }
@@ -182,8 +190,8 @@ export async function POST(request: Request) {
             const resolvedRoles = resolveRoles(data.roles);
             for (const roleName of resolvedRoles) {
                 const roleRes = await tx.execute({
-                    sql: 'SELECT id FROM "Role" WHERE name = ?',
-                    args: [roleName]
+                    sql: 'SELECT id FROM "Role" WHERE name = ? OR id = ?',
+                    args: [roleName, roleName]
                 });
                 if (roleRes.rows.length > 0) {
                     await tx.execute({
@@ -194,16 +202,16 @@ export async function POST(request: Request) {
             }
 
             // Assign UL
-            if (data.ulId) {
+            if (targetUlId) {
                 const ulRes = await tx.execute({
-                    sql: 'SELECT name FROM "UniteLocale" WHERE id = ?',
-                    args: [data.ulId]
+                    sql: 'SELECT name FROM "UniteLocale" WHERE id = ? OR slug = ?',
+                    args: [targetUlId, targetUlId]
                 });
                 if (ulRes.rows.length > 0) {
                     ulName = ulRes.rows[0].name as string;
                     await tx.execute({
-                        sql: 'INSERT INTO "UserUL" (userId, ulId, is_home) VALUES (?, ?, 1)',
-                        args: [userId, data.ulId]
+                        sql: 'INSERT INTO "UserUL" (userId, ulId, is_home, roles) VALUES (?, ?, 1, ?)',
+                        args: [userId, targetUlId, resolvedRoles.join(',')]
                     });
                 }
             }

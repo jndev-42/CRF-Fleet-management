@@ -123,18 +123,20 @@ export default function AdminPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erreur');
+        const effectiveUlId = ulId || session?.user?.ulId || null;
+        const isDriver = roles.some(r => r === 'CHVL' || r === 'CHVPSP');
         const newUser: User = {
             id: data.id,
             email,
             name,
             createdAt: new Date().toISOString(),
             roles,
-            papiers_valides: 1,
+            papiers_valides: isDriver ? 0 : 1,
             last_validation: null,
-            start_date_invalidation_process: null,
+            start_date_invalidation_process: isDriver ? new Date().toISOString().slice(0, 10) : null,
             validated_by: null,
-            homeUlId: ulId || null,
-            homeUlName: ulId ? data.ulName || null : null
+            homeUlId: effectiveUlId,
+            homeUlName: data.ulName || null
         };
         setUsers(prev => [...prev, newUser].sort((a, b) => a.email.localeCompare(b.email)));
     }
