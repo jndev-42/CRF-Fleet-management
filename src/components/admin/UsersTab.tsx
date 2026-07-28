@@ -31,6 +31,7 @@ interface UsersTabProps {
     showToast: (message: string, type?: 'success' | 'error') => void;
     originalUserEmail?: string;
     onImpersonate?: (email: string) => Promise<void>;
+    userUlId?: string;
 }
 
 interface ULEntry {
@@ -52,6 +53,7 @@ export default function UsersTab({
     showToast,
     originalUserEmail,
     onImpersonate,
+    userUlId,
 }: UsersTabProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -331,7 +333,7 @@ export default function UsersTab({
                 <AddUserModal
                     availableRoles={availableRoles}
                     availableULs={availableULs}
-                    userUlId={session?.user?.ulId}
+                    userUlId={userUlId}
                     onClose={() => setShowAddModal(false)}
                     onSuccess={async (email, name, roles, ulId) => {
                         try {
