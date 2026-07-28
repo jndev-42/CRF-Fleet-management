@@ -39,9 +39,6 @@ interface ULEntry {
     name: string;
     slug: string;
 }
-
-const DRIVER_ROLES = ['CHVL', 'CHVPSP'];
-
 export default function UsersTab({
     users,
     availableRoles,
@@ -170,7 +167,6 @@ export default function UsersTab({
                                 </tr>
                             ) : (
                                 currentUsers.map(user => {
-                                    const isDriver = user.roles.some(r => DRIVER_ROLES.includes(r));
                                     const papersValid = user.papiers_valides === 1;
 
                                     return (
@@ -202,9 +198,7 @@ export default function UsersTab({
                                             )}
 
                                             <td style={{ padding: '16px' }}>
-                                                {!isDriver ? (
-                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>—</span>
-                                                ) : papersValid ? (
+                                                {papersValid ? (
                                                     <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                                         <span style={{ color: '#22C55E', fontSize: '13px', fontWeight: 600 }}>
                                                             ✅ Valides{user.last_validation ? ` (${user.last_validation})` : ''}
@@ -236,7 +230,7 @@ export default function UsersTab({
                                                             <UserIcon size={16} />
                                                         </button>
                                                     )}
-                                                    {isDriver && !papersValid && (
+                                                    {!papersValid && (
                                                         <button
                                                             className="btn btn-secondary"
                                                             style={{ fontSize: '13px', padding: '6px 12px' }}
