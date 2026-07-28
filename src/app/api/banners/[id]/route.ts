@@ -1,0 +1,182 @@
+import { NextResponse } from 'next/server';
+import { z } from 'zod';
+import { db } from '@/lib/db';
+import { auth } from '@/auth';
+import { canAccessAdminPanel, isSuperAdmin } from '@/lib/roles';
+
+const updateBannerSchema = z.object({
+    title: z.string().optional().nullable(),
+    message: z.string().min(1, 'Le message est requis').optional(),
+    target_page: z.enum(['ALL', 'VEHICLES', 'MISSIONS', 'INVENTORY']).optional(),
+    type: z.enum(['info', 'warning', 'danger', 'success']).optional(),
+    is_global: z.boolean().optional(),
+    is_active: z.boolean().optional(),
+    ul_id: z.string().optional().nullable(),
+});
+
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+        }
+
+        const roles = (session.user.roles || []) as string[];
+        if (!canAccessAdminPanel(roles)) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+        }
+
+        const { id } = await params;
+        const existingRes = await db.execute({
+            sql: 'SELECT * FROM "CommunicationBanner" WHERE id = ?',
+            args: [id]
+        });
+
+        if (existingRes.rows.length === 0) {
+            return NextResponse.json({ error: 'Bandeau non trouvé' }, { status: 404 });
+        }
+
+        const existing = existingRes.rows[0];
+        const isSuper = isSuperAdmin(roles);
+        const userUlId = session.user.ulId;
+
+        // Non-super-admins can only modify banners belonging to their UL
+        if (!isSuper) {
+            if (existing.ul_id !== userUlId && existing.created_by !== session.user.id) {
+                return NextResponse.json({ error: 'Vous ne pouvez modifier que les bandeaux de votre Unité Locale.' }, { status: 403 });
+            }
+        }
+
+        const body = await request.json();
+        let data: z.infer<typeof updateBannerSchema>;
+        try {
+            data = updateBannerSchema.parse(body);
+        } catch (zodErr) {
+            if (zodErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Données invalides', details: zodErr.issues }, { status: 400 });
+            }
+            throw zodErr;
+        }
+
+        if (!isSuper && data.is_global === true) {
+            return NextResponse.json({ error: 'Seuls les Super Administrateurs peuvent définir un bandeau global.' }, { status: 403 });
+        }
+
+        let newIsGlobal = existing.is_global;
+        if (data.is_global !== undefined) {
+            newIsGlobal = isSuper ? (data.is_global ? 1 : 0) : 0;
+        }
+
+        let newUlId = existing.ul_id;
+        if (newIsGlobal === 1) {
+            newUlId = null;
+        } else if (data.ul_id !== undefined) {
+            newUlId = isSuper ? data.ul_id : (userUlId || null);
+        }
+
+        const now = new Date().toISOString();
+
+        const updatedTitle = data.title !== undefined ? data.title : existing.title;
+        const updatedMessage = data.message !== undefined ? data.message : existing.message;
+        const updatedTargetPage = data.target_page !== undefined ? data.target_page : existing.target_page;
+        const updatedType = data.type !== undefined ? data.type : existing.type;
+        const updatedIsActive = data.is_active !== undefined ? (data.is_active ? 1 : 0) : existing.is_active;
+
+        await db.execute({
+            sql: `
+                UPDATE "CommunicationBanner"
+                SET 
+                    title = ?,
+                    message = ?,
+                    target_page = ?,
+                    type = ?,
+                    ul_id = ?,
+                    is_global = ?,
+                    is_active = ?,
+                    updated_at = ?
+                WHERE id = ?
+            `,
+            args: [
+                updatedTitle,
+                updatedMessage,
+                updatedTargetPage,
+                updatedType,
+                newUlId,
+                newIsGlobal,
+                updatedIsActive,
+                now,
+                id
+            ]
+        });
+
+        return NextResponse.json({
+            success: true,
+            banner: {
+                id,
+                title: updatedTitle,
+                message: updatedMessage,
+                target_page: updatedTargetPage,
+                type: updatedType,
+                ul_id: newUlId,
+                is_global: Number(newIsGlobal) === 1,
+                is_active: Number(updatedIsActive) === 1,
+                updated_at: now
+            }
+        });
+
+    } catch (error) {
+        console.error('Error updating banner:', error);
+        return NextResponse.json({ error: 'Erreur lors de la mise à jour du bandeau' }, { status: 500 });
+    }
+}
+
+export async function DELETE(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const session = await auth();
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+        }
+
+        const roles = (session.user.roles || []) as string[];
+        if (!canAccessAdminPanel(roles)) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+        }
+
+        const { id } = await params;
+        const existingRes = await db.execute({
+            sql: 'SELECT * FROM "CommunicationBanner" WHERE id = ?',
+            args: [id]
+        });
+
+        if (existingRes.rows.length === 0) {
+            return NextResponse.json({ error: 'Bandeau non trouvé' }, { status: 404 });
+        }
+
+        const existing = existingRes.rows[0];
+        const isSuper = isSuperAdmin(roles);
+        const userUlId = session.user.ulId;
+
+        if (!isSuper) {
+            if (existing.ul_id !== userUlId && existing.created_by !== session.user.id) {
+                return NextResponse.json({ error: 'Vous ne pouvez supprimer que les bandeaux de votre Unité Locale.' }, { status: 403 });
+            }
+        }
+
+        await db.execute({
+            sql: 'DELETE FROM "CommunicationBanner" WHERE id = ?',
+            args: [id]
+        });
+
+        return NextResponse.json({ success: true, message: 'Bandeau supprimé' });
+
+    } catch (error) {
+        console.error('Error deleting banner:', error);
+        return NextResponse.json({ error: 'Erreur lors de la suppression du bandeau' }, { status: 500 });
+    }
+}

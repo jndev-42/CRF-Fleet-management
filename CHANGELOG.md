@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.8.0] — 28 juillet 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Bandeaux de communication administrables** — Outil dans le menu Administration (`/users`) permettant de configurer des bandeaux d'information affichés en haut de l'application.
+  - **Permissions & Scoping** : accessible aux rôles `SUPER_ADMIN`, `ADMIN`, `PRESIDENT` et `CADRE`. Les `SUPER_ADMIN` peuvent créer des bandeaux communs à toutes les ULs (`is_global`), tandis que les autres rôles sont restreints à leur Unité Locale.
+  - **Ciblage par page** : possibilité de diffuser le bandeau partout (`ALL`), ou uniquement sur les pages Véhicules (`VEHICLES`), Missions (`MISSIONS`) ou Inventaire (`INVENTORY`).
+  - **Pagination intelligente** : en cas de pluralité de bandeaux actifs sur le même écran, une barre de pagination (`‹ 1/N ›`) s'affiche automatiquement dans le bandeau pour naviguer entre les messages.
+
 ## [4.7.0] — 27 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités

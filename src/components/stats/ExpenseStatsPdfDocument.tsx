@@ -176,7 +176,7 @@ export default function ExpenseStatsPdfDocument({
         {/* Header */}
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Image src={logoSrc} style={{ width: 36, height: 36 }} />
+            <Image src={logoSrc} style={{ width: 36, height: 36 }} alt="Logo Croix-Rouge française" />
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.headerTitle}>Croix-Rouge française</Text>
               <Text style={styles.headerSubtitle}>{ulName}</Text>

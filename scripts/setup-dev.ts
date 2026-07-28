@@ -664,6 +664,29 @@ async function main() {
         ON "ExpenseReport"("ulId")
     `);
 
+    // ── Bandeaux de communication ─────────────────────────────────
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "CommunicationBanner" (
+            "id"              TEXT NOT NULL PRIMARY KEY,
+            "title"           TEXT,
+            "message"         TEXT NOT NULL,
+            "target_page"     TEXT NOT NULL DEFAULT 'ALL',
+            "type"            TEXT NOT NULL DEFAULT 'info',
+            "ul_id"           TEXT REFERENCES "UniteLocale"("id") ON DELETE CASCADE,
+            "is_global"       INTEGER NOT NULL DEFAULT 0,
+            "is_active"       INTEGER NOT NULL DEFAULT 1,
+            "created_by"      TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+            "created_by_name" TEXT,
+            "created_at"      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updated_at"      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    await db.execute(`
+        CREATE INDEX IF NOT EXISTS "CommunicationBanner_active_ul_idx"
+        ON "CommunicationBanner"("is_active", "ul_id", "is_global")
+    `);
 
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['stats', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['inventory', 'available'] });

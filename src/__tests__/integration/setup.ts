@@ -107,6 +107,16 @@ async function createTables() {
     FOREIGN KEY (vehicleId) REFERENCES Vehicle(id)
   )`);
 
+  await db.execute(`CREATE TABLE IF NOT EXISTS "UniteLocale" (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    slug TEXT NOT NULL UNIQUE,
+    phoneNumbers TEXT,
+    defaultParkingSpots TEXT,
+    stampImage TEXT,
+    dtCode TEXT
+  )`);
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "Role" (
     id TEXT PRIMARY KEY,
     name TEXT UNIQUE NOT NULL
@@ -276,6 +286,21 @@ async function createTables() {
     visibility TEXT NOT NULL DEFAULT 'available'
                CHECK (visibility IN ('available', 'admin_only', 'disabled')),
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "CommunicationBanner" (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT,
+    message TEXT NOT NULL,
+    target_page TEXT NOT NULL DEFAULT 'ALL',
+    type TEXT NOT NULL DEFAULT 'info',
+    ul_id TEXT REFERENCES "UniteLocale"(id) ON DELETE CASCADE,
+    is_global INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_by TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+    created_by_name TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "IncidentReport" (
@@ -711,4 +736,22 @@ export async function seedInvStock(overrides: Partial<{
     args: [stock.id, stock.locationId, stock.itemId, stock.quantity, stock.status, stock.expiryDate, stock.criticalThreshold],
   });
   return stock;
+}
+
+export async function seedUniteLocale(overrides: Partial<{
+  id: string;
+  name: string;
+  slug: string;
+}> = {}) {
+  const ul = {
+    id: 'ul-paris-18',
+    name: 'Paris 18',
+    slug: 'paris-18',
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO "UniteLocale" (id, name, slug) VALUES (?, ?, ?)`,
+    args: [ul.id, ul.name, ul.slug],
+  });
+  return ul;
 }
