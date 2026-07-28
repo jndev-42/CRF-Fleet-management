@@ -265,6 +265,7 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
             if (token.originalEmail === 'jeannoel.durand@croix-rouge.fr') {
                 if (session.impersonateEmail !== undefined) {
                     token.impersonatedEmail = session.impersonateEmail; // string or null
+                    delete token.ulId; // Reset active UL when starting/stopping impersonation
                 }
             }
             // Allow any authenticated user to switch active UL
@@ -340,7 +341,9 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
             // Load UL data for dev users if not yet set
             if (!token.availableULs && token.userId) {
                 token.availableULs = await fetchUserULs(token.userId as string);
-                if (!token.ulId) {
+            }
+            if (token.availableULs) {
+                if (!token.ulId || !token.availableULs.some(ul => ul.id === token.ulId)) {
                     token.ulId = resolveActiveUL(token.availableULs);
                 }
             }
@@ -365,7 +368,7 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
 
                     // Load UL data (always refresh on sign-in, keep ulId if already set via switch)
                     token.availableULs = await fetchUserULs(token.userId as string);
-                    if (!token.ulId) {
+                    if (!token.ulId || !token.availableULs.some(ul => ul.id === token.ulId)) {
                         token.ulId = resolveActiveUL(token.availableULs);
                     }
 

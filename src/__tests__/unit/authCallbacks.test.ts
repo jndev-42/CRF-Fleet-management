@@ -51,19 +51,22 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.roles).toContain('CHVL');
         });
 
-        it('should allow jeannoel.durand@croix-rouge.fr to impersonate another user', async () => {
+        it('should allow jeannoel.durand@croix-rouge.fr to impersonate another user and switch active ulId', async () => {
             const token = {
                 originalEmail: 'jeannoel.durand@croix-rouge.fr',
                 email: 'jeannoel.durand@croix-rouge.fr',
+                ulId: 'ul-paris-18', // Active UL prior to impersonation
             };
 
-            // Mock DB lookup for target user: id, UL list, and roles
+            // Mock DB lookup for target user: id, UL list (UL Paris 17), and roles
             mockExecute.mockResolvedValueOnce({
                 rows: [{ id: 'target-user-id' }]
             }).mockResolvedValueOnce({
-                rows: [] // no ULs
+                rows: [{ id: 'ul-paris-17', name: 'UL Paris 17', slug: 'paris-17', is_home: 1, roles: 'CHVL' }]
             }).mockResolvedValueOnce({
-                rows: [{ name: 'CHVL' }, { name: 'CADRE' }]
+                rows: [{ name: 'CHVL' }]
+            }).mockResolvedValueOnce({
+                rows: [{ roles: 'CHVL' }]
             });
 
             const result = await authCallbacks.jwt({
@@ -76,8 +79,8 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.impersonatedEmail).toBe('target@croix-rouge.fr');
             expect(result.email).toBe('target@croix-rouge.fr');
             expect(result.userId).toBe('target-user-id');
+            expect(result.ulId).toBe('ul-paris-17');
             expect(result.roles).toContain('CHVL');
-            expect(result.roles).toContain('CADRE');
         });
 
         it('should NOT allow other users to impersonate', async () => {
@@ -108,20 +111,23 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.roles).toContain('SUPER_ADMIN');
         });
 
-        it('should allow jeannoel to stop impersonating', async () => {
+        it('should allow jeannoel to stop impersonating and restore original home ulId', async () => {
             const token = {
                 originalEmail: 'jeannoel.durand@croix-rouge.fr',
                 impersonatedEmail: 'target@croix-rouge.fr',
                 email: 'target@croix-rouge.fr',
+                ulId: 'ul-paris-17', // Active UL during impersonation
             };
 
             // Mock DB lookup for original user (jeannoel)
             mockExecute.mockResolvedValueOnce({
                 rows: [{ id: 'jeannoel-id' }]
             }).mockResolvedValueOnce({
-                rows: [] // no ULs
+                rows: [{ id: 'ul-paris-18', name: 'UL Paris 18', slug: 'paris-18', is_home: 1, roles: 'SUPER_ADMIN' }]
             }).mockResolvedValueOnce({
                 rows: [{ name: 'SUPER_ADMIN' }]
+            }).mockResolvedValueOnce({
+                rows: [{ roles: 'SUPER_ADMIN' }]
             });
 
             const result = await authCallbacks.jwt({
@@ -134,6 +140,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.impersonatedEmail).toBeNull();
             expect(result.email).toBe('jeannoel.durand@croix-rouge.fr');
             expect(result.userId).toBe('jeannoel-id');
+            expect(result.ulId).toBe('ul-paris-18');
             expect(result.roles).toContain('SUPER_ADMIN');
         });
     });
