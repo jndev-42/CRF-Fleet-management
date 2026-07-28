@@ -177,13 +177,14 @@ export async function POST(request: Request) {
 
         const userId = crypto.randomUUID();
         const now = new Date().toISOString();
+        const today = now.slice(0, 10);
         let ulName: string | null = null;
 
         const tx = await db.transaction('write');
         try {
             await tx.execute({
-                sql: 'INSERT INTO "User" (id, email, name, createdAt) VALUES (?, ?, ?, ?)',
-                args: [userId, data.email, data.name, now]
+                sql: 'INSERT INTO "User" (id, email, name, papiers_valides, start_date_invalidation_process, createdAt) VALUES (?, ?, ?, 0, ?, ?)',
+                args: [userId, data.email, data.name, today, now]
             });
 
             // Assign initial roles
@@ -214,20 +215,6 @@ export async function POST(request: Request) {
                         args: [userId, targetUlId, resolvedRoles.join(',')]
                     });
                 }
-            }
-
-            // Si l'utilisateur est créé avec un rôle CHVL ou CHVPSP,
-            // invalider les papiers par défaut.
-            const isDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
-            if (isDriver) {
-                const today = new Date().toISOString().slice(0, 10);
-                await tx.execute({
-                    sql: `UPDATE "User"
-                          SET papiers_valides = 0,
-                               start_date_invalidation_process = ?
-                          WHERE id = ?`,
-                    args: [today, userId],
-                });
             }
 
             await tx.commit();
