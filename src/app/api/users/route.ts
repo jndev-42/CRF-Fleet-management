@@ -59,6 +59,7 @@ export async function GET(request: Request) {
                             u.validated_by,
                             GROUP_CONCAT(r.name) as roles,
                             home_ul.ulId as homeUlId,
+                            home_ul.roles as homeUlRoles,
                             home_ul_info.name as homeUlName
                         FROM "User" u
                         LEFT JOIN "UserRole" ur ON u.id = ur.userId
@@ -88,6 +89,7 @@ export async function GET(request: Request) {
                         u.validated_by,
                         GROUP_CONCAT(r.name) as roles,
                         home_ul.ulId as homeUlId,
+                        home_ul.roles as homeUlRoles,
                         home_ul_info.name as homeUlName
                     FROM "User" u
                     LEFT JOIN "UserRole" ur ON u.id = ur.userId
@@ -106,19 +108,25 @@ export async function GET(request: Request) {
             .filter(roleName => dbRoles.has(roleName))
             .filter(roleName => isSuper || roleName !== 'SUPER_ADMIN');
 
-        const users = usersRes.rows.map(row => ({
-            id: row.id,
-            email: row.email,
-            name: row.name,
-            createdAt: row.createdAt,
-            papiers_valides: row.papiers_valides !== null ? Number(row.papiers_valides) : 1,
-            last_validation: row.last_validation ?? null,
-            start_date_invalidation_process: row.start_date_invalidation_process ?? null,
-            validated_by: row.validated_by ?? null,
-            roles: row.roles ? (row.roles as string).split(',') : [],
-            homeUlId: row.homeUlId ?? null,
-            homeUlName: row.homeUlName ?? null,
-        }));
+        const users = usersRes.rows.map(row => {
+            const globalRolesList = row.roles ? (row.roles as string).split(',').map(x => x.trim()).filter(Boolean) : [];
+            const homeUlRolesList = row.homeUlRoles ? (row.homeUlRoles as string).split(',').map(x => x.trim()).filter(Boolean) : [];
+            const combinedRoles = Array.from(new Set([...globalRolesList, ...homeUlRolesList]));
+
+            return {
+                id: row.id,
+                email: row.email,
+                name: row.name,
+                createdAt: row.createdAt,
+                papiers_valides: row.papiers_valides !== null ? Number(row.papiers_valides) : 1,
+                last_validation: row.last_validation ?? null,
+                start_date_invalidation_process: row.start_date_invalidation_process ?? null,
+                validated_by: row.validated_by ?? null,
+                roles: combinedRoles,
+                homeUlId: row.homeUlId ?? null,
+                homeUlName: row.homeUlName ?? null,
+            };
+        });
 
         return NextResponse.json({ users, availableRoles });
     } catch (error) {

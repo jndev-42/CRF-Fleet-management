@@ -228,6 +228,7 @@ export default function AdminPage() {
                     showToast={showToast}
                     originalUserEmail={session?.user?.originalEmail}
                     onImpersonate={impersonateUser}
+                    onRefreshUsers={fetchUsers}
                 />
             )}
 

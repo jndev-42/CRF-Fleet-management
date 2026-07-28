@@ -32,6 +32,7 @@ interface UsersTabProps {
     originalUserEmail?: string;
     onImpersonate?: (email: string) => Promise<void>;
     userUlId?: string;
+    onRefreshUsers?: () => void;
 }
 
 interface ULEntry {
@@ -39,6 +40,9 @@ interface ULEntry {
     name: string;
     slug: string;
 }
+
+const DRIVER_ROLES = ['CHVL', 'CHVPSP'];
+
 export default function UsersTab({
     users,
     availableRoles,
@@ -51,6 +55,7 @@ export default function UsersTab({
     originalUserEmail,
     onImpersonate,
     userUlId,
+    onRefreshUsers,
 }: UsersTabProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -167,6 +172,7 @@ export default function UsersTab({
                                 </tr>
                             ) : (
                                 currentUsers.map(user => {
+                                    const isDriver = user.roles.some(r => DRIVER_ROLES.includes(r));
                                     const papersValid = user.papiers_valides === 1;
 
                                     return (
@@ -198,7 +204,9 @@ export default function UsersTab({
                                             )}
 
                                             <td style={{ padding: '16px' }}>
-                                                {papersValid ? (
+                                                {!isDriver ? (
+                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>—</span>
+                                                ) : papersValid ? (
                                                     <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                                         <span style={{ color: '#22C55E', fontSize: '13px', fontWeight: 600 }}>
                                                             ✅ Valides{user.last_validation ? ` (${user.last_validation})` : ''}
@@ -230,7 +238,7 @@ export default function UsersTab({
                                                             <UserIcon size={16} />
                                                         </button>
                                                     )}
-                                                    {!papersValid && (
+                                                    {isDriver && !papersValid && (
                                                         <button
                                                             className="btn btn-secondary"
                                                             style={{ fontSize: '13px', padding: '6px 12px' }}
@@ -389,6 +397,7 @@ export default function UsersTab({
                         setSelectedUserForULs(null);
                     }}
                     showToast={showToast}
+                    onRefreshUsers={onRefreshUsers}
                 />
             )}
         </>
@@ -560,12 +569,14 @@ function ManageUserULsModal({
     availableRoles,
     onClose,
     showToast,
+    onRefreshUsers,
 }: {
     user: User;
     availableULs: ULEntry[];
     availableRoles: string[];
     onClose: () => void;
     showToast: (msg: string, type?: 'success' | 'error') => void;
+    onRefreshUsers?: () => void;
 }) {
     const { data: session, update } = useSession();
     const [uls, setUls] = useState<UserULPermission[]>([]);
@@ -636,6 +647,9 @@ function ManageUserULsModal({
             showToast("Droits UL mis à jour avec succès");
             if (user.email === session?.user?.email) {
                 await update();
+            }
+            if (onRefreshUsers) {
+                onRefreshUsers();
             }
             onClose();
         } catch (err: unknown) {
