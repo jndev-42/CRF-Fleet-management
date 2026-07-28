@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import UsersTab from '@/components/admin/UsersTab';
 import MenusTab from '@/components/admin/MenusTab';
 import ULsTab from '@/components/admin/ULsTab';
+import BannersTab from '@/components/admin/BannersTab';
 import { isSuperAdmin, isAdminOrAbove, isReadOnlyManager, canAccessAdminPanel } from '@/lib/roles';
 
 interface User {
@@ -22,7 +23,7 @@ interface User {
     homeUlName?: string | null;
 }
 
-type TabId = 'users' | 'menus' | 'uls';
+type TabId = 'users' | 'menus' | 'uls' | 'banners';
 
 export default function AdminPage() {
     const [users, setUsers] = useState<User[]>([]);
@@ -203,6 +204,14 @@ export default function AdminPage() {
                         Unités Locales
                     </button>
                 )}
+                <button
+                    role="tab"
+                    aria-selected={activeTab === 'banners'}
+                    className={`tab-btn${activeTab === 'banners' ? ' active' : ''}`}
+                    onClick={() => setActiveTab('banners')}
+                >
+                    Bandeaux
+                </button>
             </div>
 
             {activeTab === 'users' && (
@@ -226,6 +235,14 @@ export default function AdminPage() {
                 <ULsTab
                     isSuperAdmin={isSuperAdminUser}
                     userUlId={session?.user?.ulId}
+                />
+            )}
+
+            {activeTab === 'banners' && (
+                <BannersTab
+                    isSuperAdmin={isSuperAdminUser}
+                    userUlId={session?.user?.ulId}
+                    showToast={showToast}
                 />
             )}
         </div>

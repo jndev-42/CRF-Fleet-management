@@ -176,6 +176,7 @@ export default function ExpenseStatsPdfDocument({
         {/* Header */}
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf/renderer Image does not take an alt prop */}
             <Image src={logoSrc} style={{ width: 36, height: 36 }} />
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.headerTitle}>Croix-Rouge française</Text>

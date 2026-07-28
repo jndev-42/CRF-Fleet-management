@@ -20,6 +20,7 @@ import GuidedTour from "@/components/GuidedTour";
 import KonamiEasterEgg from "@/components/KonamiEasterEgg";
 import BugReportButton from "@/components/BugReportButton";
 import LicenseBanner from "@/components/LicenseBanner";
+import CommunicationBanner from "@/components/CommunicationBanner";
 import ImpersonationBanner from "@/components/admin/ImpersonationBanner";
 import { MenuSettingsProvider } from "@/lib/contexts/MenuSettingsContext";
 import { DemoProvider } from "@/lib/contexts/DemoContext";
@@ -74,6 +75,7 @@ export default async function RootLayout({
                   <Navbar user={session?.user} />
                   {session?.user && <ImpersonationBanner />}
                   {session?.user && <LicenseBanner />}
+                  <CommunicationBanner />
                   <main id="main-content" className="main-content" role="main" style={{ flexGrow: 1 }}>
                     {children}
                   </main>
