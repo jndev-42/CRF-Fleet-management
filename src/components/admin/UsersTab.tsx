@@ -31,6 +31,8 @@ interface UsersTabProps {
     showToast: (message: string, type?: 'success' | 'error') => void;
     originalUserEmail?: string;
     onImpersonate?: (email: string) => Promise<void>;
+    userUlId?: string;
+    onRefreshUsers?: () => void;
 }
 
 interface ULEntry {
@@ -52,6 +54,8 @@ export default function UsersTab({
     showToast,
     originalUserEmail,
     onImpersonate,
+    userUlId,
+    onRefreshUsers,
 }: UsersTabProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -331,6 +335,7 @@ export default function UsersTab({
                 <AddUserModal
                     availableRoles={availableRoles}
                     availableULs={availableULs}
+                    userUlId={userUlId}
                     onClose={() => setShowAddModal(false)}
                     onSuccess={async (email, name, roles, ulId) => {
                         try {
@@ -392,6 +397,7 @@ export default function UsersTab({
                         setSelectedUserForULs(null);
                     }}
                     showToast={showToast}
+                    onRefreshUsers={onRefreshUsers}
                 />
             )}
         </>
@@ -401,17 +407,32 @@ export default function UsersTab({
 function AddUserModal({
     availableRoles,
     availableULs,
+    userUlId,
     onClose,
     onSuccess
 }: {
     availableRoles: string[];
     availableULs: ULEntry[];
+    userUlId?: string;
     onClose: () => void;
     onSuccess: (email: string, name: string, roles: string[], ulId: string | null) => Promise<void>;
 }) {
-    const [form, setForm] = useState({ email: '', name: '', ulId: '' });
+    const initialUlId = userUlId && availableULs.some(u => u.id === userUlId)
+        ? userUlId
+        : (availableULs.length > 0 ? availableULs[0].id : '');
+    const [form, setForm] = useState({ email: '', name: '', ulId: initialUlId });
     const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (!form.ulId) {
+            if (userUlId && availableULs.some(u => u.id === userUlId)) {
+                setForm(f => ({ ...f, ulId: userUlId }));
+            } else if (availableULs.length > 0) {
+                setForm(f => ({ ...f, ulId: availableULs[0].id }));
+            }
+        }
+    }, [userUlId, availableULs, form.ulId]);
 
     function toggleRole(role: string) {
         setSelectedRoles(prev =>
@@ -548,12 +569,14 @@ function ManageUserULsModal({
     availableRoles,
     onClose,
     showToast,
+    onRefreshUsers,
 }: {
     user: User;
     availableULs: ULEntry[];
     availableRoles: string[];
     onClose: () => void;
     showToast: (msg: string, type?: 'success' | 'error') => void;
+    onRefreshUsers?: () => void;
 }) {
     const { data: session, update } = useSession();
     const [uls, setUls] = useState<UserULPermission[]>([]);
@@ -624,6 +647,9 @@ function ManageUserULsModal({
             showToast("Droits UL mis à jour avec succès");
             if (user.email === session?.user?.email) {
                 await update();
+            }
+            if (onRefreshUsers) {
+                onRefreshUsers();
             }
             onClose();
         } catch (err: unknown) {

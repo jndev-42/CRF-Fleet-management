@@ -123,20 +123,22 @@ export default function AdminPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Erreur');
+        const effectiveUlId = ulId || session?.user?.ulId || null;
+        const today = new Date().toISOString().slice(0, 10);
         const newUser: User = {
             id: data.id,
             email,
             name,
             createdAt: new Date().toISOString(),
             roles,
-            papiers_valides: 1,
+            papiers_valides: 0,
             last_validation: null,
-            start_date_invalidation_process: null,
+            start_date_invalidation_process: today,
             validated_by: null,
-            homeUlId: ulId || null,
-            homeUlName: ulId ? data.ulName || null : null
+            homeUlId: effectiveUlId,
+            homeUlName: data.ulName || null
         };
-        setUsers(prev => [...prev, newUser].sort((a, b) => a.email.localeCompare(b.email)));
+        setUsers(prev => [...prev, newUser].sort((a, b) => (a.email || '').localeCompare(b.email || '')));
     }
 
     async function deleteUser(email: string) {
@@ -226,6 +228,7 @@ export default function AdminPage() {
                     showToast={showToast}
                     originalUserEmail={session?.user?.originalEmail}
                     onImpersonate={impersonateUser}
+                    onRefreshUsers={fetchUsers}
                 />
             )}
 

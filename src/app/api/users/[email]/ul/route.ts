@@ -220,8 +220,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
                     // Insérer les nouveaux rôles globaux
                     for (const roleName of item.roles) {
                         const roleRes = await tx.execute({
-                            sql: 'SELECT id FROM "Role" WHERE name = ?',
-                            args: [roleName]
+                            sql: 'SELECT id FROM "Role" WHERE name = ? OR id = ?',
+                            args: [roleName, roleName]
                         });
                         if (roleRes.rows.length > 0) {
                             await tx.execute({
@@ -231,6 +231,21 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
                         }
                     }
                 }
+            }
+
+            // Si un rôle chauffeur (CHVL / CHVPSP) est présent et les papiers n'ont jamais été validés,
+            // s'assurer que papiers_valides = 0 et start_date_invalidation_process est initialisé.
+            const allAssignedRoles = mergedUls.flatMap(u => u.roles);
+            const isDriverNow = allAssignedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
+            if (isDriverNow) {
+                const today = new Date().toISOString().slice(0, 10);
+                await tx.execute({
+                    sql: `UPDATE "User"
+                          SET papiers_valides = 0,
+                              start_date_invalidation_process = COALESCE(start_date_invalidation_process, ?)
+                          WHERE id = ? AND last_validation IS NULL`,
+                    args: [today, userId],
+                });
             }
 
             await tx.commit();

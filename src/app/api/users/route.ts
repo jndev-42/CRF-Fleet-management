@@ -59,6 +59,7 @@ export async function GET(request: Request) {
                             u.validated_by,
                             GROUP_CONCAT(r.name) as roles,
                             home_ul.ulId as homeUlId,
+                            home_ul.roles as homeUlRoles,
                             home_ul_info.name as homeUlName
                         FROM "User" u
                         LEFT JOIN "UserRole" ur ON u.id = ur.userId
@@ -88,6 +89,7 @@ export async function GET(request: Request) {
                         u.validated_by,
                         GROUP_CONCAT(r.name) as roles,
                         home_ul.ulId as homeUlId,
+                        home_ul.roles as homeUlRoles,
                         home_ul_info.name as homeUlName
                     FROM "User" u
                     LEFT JOIN "UserRole" ur ON u.id = ur.userId
@@ -106,19 +108,25 @@ export async function GET(request: Request) {
             .filter(roleName => dbRoles.has(roleName))
             .filter(roleName => isSuper || roleName !== 'SUPER_ADMIN');
 
-        const users = usersRes.rows.map(row => ({
-            id: row.id,
-            email: row.email,
-            name: row.name,
-            createdAt: row.createdAt,
-            papiers_valides: row.papiers_valides !== null ? Number(row.papiers_valides) : 1,
-            last_validation: row.last_validation ?? null,
-            start_date_invalidation_process: row.start_date_invalidation_process ?? null,
-            validated_by: row.validated_by ?? null,
-            roles: row.roles ? (row.roles as string).split(',') : [],
-            homeUlId: row.homeUlId ?? null,
-            homeUlName: row.homeUlName ?? null,
-        }));
+        const users = usersRes.rows.map(row => {
+            const globalRolesList = row.roles ? (row.roles as string).split(',').map(x => x.trim()).filter(Boolean) : [];
+            const homeUlRolesList = row.homeUlRoles ? (row.homeUlRoles as string).split(',').map(x => x.trim()).filter(Boolean) : [];
+            const combinedRoles = Array.from(new Set([...globalRolesList, ...homeUlRolesList]));
+
+            return {
+                id: row.id,
+                email: row.email,
+                name: row.name,
+                createdAt: row.createdAt,
+                papiers_valides: row.papiers_valides !== null ? Number(row.papiers_valides) : 1,
+                last_validation: row.last_validation ?? null,
+                start_date_invalidation_process: row.start_date_invalidation_process ?? null,
+                validated_by: row.validated_by ?? null,
+                roles: combinedRoles,
+                homeUlId: row.homeUlId ?? null,
+                homeUlName: row.homeUlName ?? null,
+            };
+        });
 
         return NextResponse.json({ users, availableRoles });
     } catch (error) {
@@ -152,8 +160,16 @@ export async function POST(request: Request) {
         }
 
         const isSuper = isSuperAdmin(roles);
+        const userUlId = session?.user?.ulId;
+
+        // Si l'UL n'est pas fournie explicitement par un admin local, on utilise son UL
+        let targetUlId = data.ulId || null;
+        if (!isSuper && !targetUlId && userUlId) {
+            targetUlId = userUlId;
+        }
+
         if (!isSuper) {
-            if (data.ulId !== session?.user?.ulId) {
+            if (targetUlId && targetUlId !== userUlId) {
                 return NextResponse.json({ error: 'Un administrateur local ne peut créer un utilisateur que pour sa propre Unité Locale.' }, { status: 403 });
             }
         }
@@ -169,21 +185,22 @@ export async function POST(request: Request) {
 
         const userId = crypto.randomUUID();
         const now = new Date().toISOString();
+        const today = now.slice(0, 10);
         let ulName: string | null = null;
 
         const tx = await db.transaction('write');
         try {
             await tx.execute({
-                sql: 'INSERT INTO "User" (id, email, name, createdAt) VALUES (?, ?, ?, ?)',
-                args: [userId, data.email, data.name, now]
+                sql: 'INSERT INTO "User" (id, email, name, papiers_valides, start_date_invalidation_process, createdAt) VALUES (?, ?, ?, 0, ?, ?)',
+                args: [userId, data.email, data.name, today, now]
             });
 
             // Assign initial roles
             const resolvedRoles = resolveRoles(data.roles);
             for (const roleName of resolvedRoles) {
                 const roleRes = await tx.execute({
-                    sql: 'SELECT id FROM "Role" WHERE name = ?',
-                    args: [roleName]
+                    sql: 'SELECT id FROM "Role" WHERE name = ? OR id = ?',
+                    args: [roleName, roleName]
                 });
                 if (roleRes.rows.length > 0) {
                     await tx.execute({
@@ -194,32 +211,18 @@ export async function POST(request: Request) {
             }
 
             // Assign UL
-            if (data.ulId) {
+            if (targetUlId) {
                 const ulRes = await tx.execute({
-                    sql: 'SELECT name FROM "UniteLocale" WHERE id = ?',
-                    args: [data.ulId]
+                    sql: 'SELECT name FROM "UniteLocale" WHERE id = ? OR slug = ?',
+                    args: [targetUlId, targetUlId]
                 });
                 if (ulRes.rows.length > 0) {
                     ulName = ulRes.rows[0].name as string;
                     await tx.execute({
-                        sql: 'INSERT INTO "UserUL" (userId, ulId, is_home) VALUES (?, ?, 1)',
-                        args: [userId, data.ulId]
+                        sql: 'INSERT INTO "UserUL" (userId, ulId, is_home, roles) VALUES (?, ?, 1, ?)',
+                        args: [userId, targetUlId, resolvedRoles.join(',')]
                     });
                 }
-            }
-
-            // Si l'utilisateur est créé avec un rôle CHVL ou CHVPSP,
-            // invalider les papiers par défaut.
-            const isDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
-            if (isDriver) {
-                const today = new Date().toISOString().slice(0, 10);
-                await tx.execute({
-                    sql: `UPDATE "User"
-                          SET papiers_valides = 0,
-                               start_date_invalidation_process = ?
-                          WHERE id = ?`,
-                    args: [today, userId],
-                });
             }
 
             await tx.commit();
