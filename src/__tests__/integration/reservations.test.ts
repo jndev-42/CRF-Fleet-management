@@ -29,7 +29,8 @@ vi.mock('@/auth', () => ({ auth: vi.fn() }));
 vi.mock('@/lib/onesignal', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
 
 import { POST } from '@/app/api/vehicles/[id]/reservations/route';
-import { PATCH as PATCH_RESERVATION } from '@/app/api/reservations/[id]/route';
+import { PATCH as PATCH_RESERVATION, DELETE as DELETE_RESERVATION } from '@/app/api/reservations/[id]/route';
+import { DELETE as DELETE_RECURRENCE } from '@/app/api/reservations/recurrence/[groupId]/route';
 import { auth } from '@/auth';
 import { db, seedVehicle, seedUser } from './setup';
 
@@ -397,4 +398,82 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
         expect(body.error).toContain('chevauche');
     });
 });
+
+describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
+    it('20. CADRE crée une réservation → statut VALIDATED directement', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
+        const { startTime, endTime } = futureWindow(80, 2);
+        const res = await POST(makeRequest({ startTime, endTime, reason: 'Mission Cadre' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        expect(res.status).toBe(201);
+        const body = await res.json();
+        expect(body.status).toBe('VALIDATED');
+    });
+
+    it('21. PRESIDENT crée une réservation → statut VALIDATED directement', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'president@dev.local', name: 'President Test', roles: ['PRESIDENT'] } } as never);
+        const { startTime, endTime } = futureWindow(85, 2);
+        const res = await POST(makeRequest({ startTime, endTime, reason: 'Mission Président' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        expect(res.status).toBe(201);
+        const body = await res.json();
+        expect(body.status).toBe('VALIDATED');
+    });
+
+    it('22. CADRE et PRESIDENT peuvent valider une réservation PENDING créée par un chauffeur', async () => {
+        const { startTime, endTime } = futureWindow(90, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-pending-chvl', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'PENDING']
+        });
+
+        // Test valider avec CADRE
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
+        const reqCadre = new Request('http://localhost/api/reservations/res-pending-chvl', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'validate' })
+        });
+        const resCadre = await PATCH_RESERVATION(reqCadre, { params: Promise.resolve({ id: 'res-pending-chvl' }) });
+        expect(resCadre.status).toBe(200);
+
+        const checkCadre = await db.execute({ sql: `SELECT status FROM "Reservation" WHERE id = 'res-pending-chvl'`, args: [] });
+        expect(checkCadre.rows[0].status).toBe('VALIDATED');
+    });
+
+    it('23. CADRE et PRESIDENT peuvent supprimer une réservation d\'un autre chauffeur', async () => {
+        const { startTime, endTime } = futureWindow(95, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-to-delete-cadre', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
+        const reqDelete = new Request('http://localhost/api/reservations/res-to-delete-cadre', { method: 'DELETE' });
+        const resDelete = await DELETE_RESERVATION(reqDelete, { params: Promise.resolve({ id: 'res-to-delete-cadre' }) });
+        expect(resDelete.status).toBe(200);
+
+        const checkDelete = await db.execute({ sql: `SELECT * FROM "Reservation" WHERE id = 'res-to-delete-cadre'`, args: [] });
+        expect(checkDelete.rows.length).toBe(0);
+    });
+
+    it('24. PRESIDENT peut annuler un groupe de récurrence créé par un autre chauffeur', async () => {
+        const { startTime, endTime } = futureWindow(100, 2);
+        const groupId = 'group-to-delete-president';
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status, recurrenceGroupId)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-rec-1', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'VALIDATED', groupId]
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'president@dev.local', name: 'President Test', roles: ['PRESIDENT'] } } as never);
+        const reqRecDelete = new Request(`http://localhost/api/reservations/recurrence/${groupId}`, { method: 'DELETE' });
+        const resRecDelete = await DELETE_RECURRENCE(reqRecDelete, { params: Promise.resolve({ groupId }) });
+        expect(resRecDelete.status).toBe(200);
+
+        const checkGroup = await db.execute({ sql: `SELECT * FROM "Reservation" WHERE recurrenceGroupId = ?`, args: [groupId] });
+        expect(checkGroup.rows.length).toBe(0);
+    });
+});
+
 

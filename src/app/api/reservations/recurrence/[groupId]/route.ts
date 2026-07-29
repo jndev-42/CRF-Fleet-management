@@ -38,9 +38,10 @@ export async function DELETE(
         }
 
         const ownerEmail = checkResult.rows[0].userEmail as string;
-        const isAdmin = session.user.roles?.includes('ADMIN') || session.user.roles?.includes('SUPER_ADMIN');
+        const userRoles: string[] = session.user.roles || [];
+        const canManage = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
 
-        if (ownerEmail !== session.user.email && !isAdmin) {
+        if (ownerEmail !== session.user.email && !canManage) {
             return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
