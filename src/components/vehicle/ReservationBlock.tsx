@@ -366,13 +366,13 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                     <button
                         className={`btn btn-secondary ${styles.addBtn}`}
                         onClick={() => {
-                            if (!licenseBlocked || isAdmin) {
+                            if (!licenseBlocked || canManageDriver) {
                                 setDriverSelection('');
                                 setShowModal(true);
                             }
                         }}
-                        disabled={licenseBlocked && !isAdmin}
-                        title={licenseBlocked && !isAdmin ? "Vos papiers n'ont pas été validés — réservation bloquée." : undefined}
+                        disabled={licenseBlocked && !canManageDriver}
+                        title={licenseBlocked && !canManageDriver ? "Vos papiers n'ont pas été validés — réservation bloquée." : undefined}
                     >
                         + Réserver
                     </button>
@@ -397,13 +397,13 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                         {pagedReservations.map(res => {
                             const start = new Date(res.startTime);
                             const end = new Date(res.endTime);
-                            const canDelete = !readOnly && (isAdmin || res.userEmail === currentUserEmail);
+                            const canDelete = !readOnly && (canManageDriver || res.userEmail === currentUserEmail);
                             const canEdit = !readOnly && (canManageDriver || res.userEmail === currentUserEmail);
                             const isPending = res.status === 'PENDING';
                             const isUnassigned = res.userName === 'Chauffeur non décidé';
                             const isRecurring = !!res.recurrenceGroupId;
                             const groupId = res.recurrenceGroupId!;
-                            const canActOnGroup = !readOnly && (isAdmin || canAccessAdminPanel(userRoles) || isRespo || res.userEmail === currentUserEmail);
+                            const canActOnGroup = !readOnly && (canManageDriver || res.userEmail === currentUserEmail);
 
                             // Determine if group has any pending future occurrences visible (for group-validate button)
                             const groupHasPending = isRecurring && upcomingReservations.some(

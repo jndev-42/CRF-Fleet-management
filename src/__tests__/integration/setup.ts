@@ -103,6 +103,7 @@ async function createTables() {
     endTime DATETIME NOT NULL,
     reason TEXT,
     status TEXT NOT NULL DEFAULT 'PENDING',
+    recurrenceGroupId TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (vehicleId) REFERENCES Vehicle(id)
   )`);

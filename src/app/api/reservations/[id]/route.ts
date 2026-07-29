@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { canAccessAdminPanel } from '@/lib/roles';
 
 export async function DELETE(request: Request, props: { params: Promise<{ id: string }> }) {
     try {
@@ -12,7 +13,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
         const params = await props.params;
         const reservationId = params.id;
 
-        // Verify that the user owns the reservation or is an ADMIN
+        // Verify that the user owns the reservation or has manager rights
         const checkResult = await db.execute({
             sql: `
                 SELECT r.userEmail 
@@ -27,9 +28,10 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
         }
 
         const ownerEmail = checkResult.rows[0].userEmail as string;
-        const isAdmin = session.user.roles?.includes('ADMIN');
+        const userRoles: string[] = session.user.roles || [];
+        const canManage = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
 
-        if (ownerEmail !== session.user.email && !isAdmin) {
+        if (ownerEmail !== session.user.email && !canManage) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -49,7 +51,6 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 }
 
 import { z } from 'zod';
-import { canAccessAdminPanel } from '@/lib/roles';
 
 const updateReservationSchema = z.object({
     startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }).optional(),
