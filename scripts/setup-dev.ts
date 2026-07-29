@@ -676,6 +676,8 @@ async function main() {
             "ul_id"           TEXT REFERENCES "UniteLocale"("id") ON DELETE CASCADE,
             "is_global"       INTEGER NOT NULL DEFAULT 0,
             "is_active"       INTEGER NOT NULL DEFAULT 1,
+            "link_url"        TEXT,
+            "link_label"      TEXT,
             "created_by"      TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
             "created_by_name" TEXT,
             "created_at"      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

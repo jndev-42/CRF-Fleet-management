@@ -15,6 +15,8 @@ export interface BannerItem {
     ul_id: string | null;
     is_global: boolean;
     is_active: boolean;
+    link_url?: string | null;
+    link_label?: string | null;
     created_at?: string;
 }
 
@@ -120,7 +122,19 @@ export default function CommunicationBanner() {
                     {currentBanner.title && (
                         <span className={styles.title}>{currentBanner.title}</span>
                     )}
-                    <span className={styles.message}>{currentBanner.message}</span>
+                    <span className={styles.message}>
+                        {currentBanner.message}
+                        {currentBanner.link_url && (
+                            <a
+                                href={currentBanner.link_url}
+                                target={currentBanner.link_url.startsWith('http') ? '_blank' : undefined}
+                                rel={currentBanner.link_url.startsWith('http') ? 'noopener noreferrer' : undefined}
+                                className={styles.link}
+                            >
+                                {currentBanner.link_label?.trim() || 'En savoir plus'} →
+                            </a>
+                        )}
+                    </span>
                 </div>
             </div>
 

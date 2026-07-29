@@ -12,6 +12,8 @@ const updateBannerSchema = z.object({
     is_global: z.boolean().optional(),
     is_active: z.boolean().optional(),
     ul_id: z.string().optional().nullable(),
+    link_url: z.string().optional().nullable(),
+    link_label: z.string().optional().nullable(),
 });
 
 export async function PATCH(
@@ -84,6 +86,8 @@ export async function PATCH(
         const updatedTargetPage = data.target_page !== undefined ? data.target_page : existing.target_page;
         const updatedType = data.type !== undefined ? data.type : existing.type;
         const updatedIsActive = data.is_active !== undefined ? (data.is_active ? 1 : 0) : existing.is_active;
+        const updatedLinkUrl = data.link_url !== undefined ? data.link_url : existing.link_url;
+        const updatedLinkLabel = data.link_label !== undefined ? data.link_label : existing.link_label;
 
         await db.execute({
             sql: `
@@ -96,6 +100,8 @@ export async function PATCH(
                     ul_id = ?,
                     is_global = ?,
                     is_active = ?,
+                    link_url = ?,
+                    link_label = ?,
                     updated_at = ?
                 WHERE id = ?
             `,
@@ -107,6 +113,8 @@ export async function PATCH(
                 newUlId,
                 newIsGlobal,
                 updatedIsActive,
+                updatedLinkUrl,
+                updatedLinkLabel,
                 now,
                 id
             ]
@@ -123,6 +131,8 @@ export async function PATCH(
                 ul_id: newUlId,
                 is_global: Number(newIsGlobal) === 1,
                 is_active: Number(updatedIsActive) === 1,
+                link_url: updatedLinkUrl || null,
+                link_label: updatedLinkLabel || null,
                 updated_at: now
             }
         });
