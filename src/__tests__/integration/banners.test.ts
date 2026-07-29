@@ -280,4 +280,42 @@ describe('PATCH & DELETE /api/banners/[id]', () => {
         });
         expect(check.rows).toHaveLength(0);
     });
+
+    it('creates and updates banner with link_url and link_label', async () => {
+        mockedAuth.mockResolvedValue({
+            user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-1' }
+        } as never);
+
+        const postReq = new Request('http://localhost/api/banners', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: 'Guide Bénévoles',
+                message: 'Consultez la charte.',
+                link_url: 'https://croix-rouge.fr/charte',
+                link_label: 'Lire la charte',
+            })
+        });
+
+        const postRes = await POST(postReq);
+        expect(postRes.status).toBe(201);
+        const postData = await postRes.json();
+        expect(postData.banner.link_url).toBe('https://croix-rouge.fr/charte');
+        expect(postData.banner.link_label).toBe('Lire la charte');
+
+        const patchReq = new Request(`http://localhost/api/banners/${postData.banner.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                link_url: '/missions',
+                link_label: 'Voir les missions',
+            })
+        });
+
+        const patchRes = await PATCH(patchReq, { params: Promise.resolve({ id: postData.banner.id }) });
+        expect(patchRes.status).toBe(200);
+        const patchData = await patchRes.json();
+        expect(patchData.banner.link_url).toBe('/missions');
+        expect(patchData.banner.link_label).toBe('Voir les missions');
+    });
 });

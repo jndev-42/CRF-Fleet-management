@@ -12,6 +12,8 @@ export interface Banner {
     ul_name?: string | null;
     is_global: boolean;
     is_active: boolean;
+    link_url?: string | null;
+    link_label?: string | null;
     created_by?: string;
     created_by_name?: string | null;
     created_at?: string;
@@ -47,6 +49,8 @@ export default function BannersTab({
     const [formIsGlobal, setFormIsGlobal] = useState(false);
     const [formIsActive, setFormIsActive] = useState(true);
     const [formUlId, setFormUlId] = useState('');
+    const [formLinkUrl, setFormLinkUrl] = useState('');
+    const [formLinkLabel, setFormLinkLabel] = useState('');
 
     async function fetchBanners() {
         try {
@@ -93,6 +97,8 @@ export default function BannersTab({
             setFormIsGlobal(banner.is_global);
             setFormIsActive(banner.is_active);
             setFormUlId(banner.ul_id || userUlId || '');
+            setFormLinkUrl(banner.link_url || '');
+            setFormLinkLabel(banner.link_label || '');
         } else {
             setEditingBanner(null);
             setFormTitle('');
@@ -102,6 +108,8 @@ export default function BannersTab({
             setFormIsGlobal(false);
             setFormIsActive(true);
             setFormUlId(userUlId || '');
+            setFormLinkUrl('');
+            setFormLinkLabel('');
         }
         setIsModalOpen(true);
     }
@@ -123,6 +131,8 @@ export default function BannersTab({
                 is_global: isSuperAdmin ? formIsGlobal : false,
                 is_active: formIsActive,
                 ul_id: formIsGlobal ? null : (isSuperAdmin ? (formUlId || userUlId) : userUlId),
+                link_url: formLinkUrl.trim() || null,
+                link_label: formLinkLabel.trim() || null,
             };
 
             const url = editingBanner ? `/api/banners/${editingBanner.id}` : '/api/banners';
@@ -406,6 +416,19 @@ export default function BannersTab({
                                     <div style={{ fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
                                         {banner.message}
                                     </div>
+                                    {banner.link_url && (
+                                        <div style={{ fontSize: '12px', marginTop: '6px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span>🔗 Lien :</span>
+                                            <a
+                                                href={banner.link_url}
+                                                target={banner.link_url.startsWith('http') ? '_blank' : undefined}
+                                                rel={banner.link_url.startsWith('http') ? 'noopener noreferrer' : undefined}
+                                                style={{ color: 'var(--text-accent, #3b82f6)', textDecoration: 'underline' }}
+                                            >
+                                                {banner.link_label?.trim() || banner.link_url}
+                                            </a>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {banner.created_by_name && (
@@ -483,6 +506,36 @@ export default function BannersTab({
                                     onChange={e => setFormMessage(e.target.value)}
                                     required
                                 />
+                            </div>
+
+                            {/* Lien cliquable & Libellé */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>
+                                        Lien cliquable (optionnel)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Ex: https://... ou /missions"
+                                        value={formLinkUrl}
+                                        onChange={e => setFormLinkUrl(e.target.value)}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>
+                                        Texte du lien (optionnel)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        placeholder="Ex: En savoir plus"
+                                        value={formLinkLabel}
+                                        onChange={e => setFormLinkLabel(e.target.value)}
+                                        maxLength={50}
+                                    />
+                                </div>
                             </div>
 
                             {/* Page cible & Type */}

@@ -171,4 +171,36 @@ describe('CommunicationBanner component', () => {
 
         expect(container.firstChild).toBeNull();
     });
+
+    it('renders clickable link when link_url is present', async () => {
+        (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+            ok: true,
+            json: async () => ({
+                banners: [
+                    {
+                        id: 'b-link',
+                        title: 'Info avec lien',
+                        message: 'Consultez la fiche de mission.',
+                        target_page: 'ALL',
+                        type: 'info',
+                        ul_id: 'ul-paris-18',
+                        is_global: false,
+                        is_active: true,
+                        link_url: 'https://example.com/doc',
+                        link_label: 'Voir le document',
+                    }
+                ]
+            }),
+        });
+
+        render(<CommunicationBanner />);
+
+        await waitFor(() => {
+            const linkElement = screen.getByRole('link', { name: /Voir le document/i });
+            expect(linkElement).toBeTruthy();
+            expect(linkElement.getAttribute('href')).toBe('https://example.com/doc');
+            expect(linkElement.getAttribute('target')).toBe('_blank');
+            expect(linkElement.getAttribute('rel')).toBe('noopener noreferrer');
+        });
+    });
 });

@@ -22,6 +22,8 @@ async function main() {
                 "ul_id"           TEXT REFERENCES "UniteLocale"("id") ON DELETE CASCADE,
                 "is_global"       INTEGER NOT NULL DEFAULT 0,
                 "is_active"       INTEGER NOT NULL DEFAULT 1,
+                "link_url"        TEXT,
+                "link_label"      TEXT,
                 "created_by"      TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
                 "created_by_name" TEXT,
                 "created_at"      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -35,6 +37,20 @@ async function main() {
             ON "CommunicationBanner"("is_active", "ul_id", "is_global")
         `);
         console.log("Created index for CommunicationBanner table.");
+
+        const tableInfo = await db.execute(`PRAGMA table_info("CommunicationBanner")`);
+        if (tableInfo?.rows) {
+            const hasLinkUrl = tableInfo.rows.some((r: Record<string, unknown>) => r.name === 'link_url');
+            if (!hasLinkUrl) {
+                await db.execute(`ALTER TABLE "CommunicationBanner" ADD COLUMN "link_url" TEXT`);
+                console.log("Added column link_url to CommunicationBanner.");
+            }
+            const hasLinkLabel = tableInfo.rows.some((r: Record<string, unknown>) => r.name === 'link_label');
+            if (!hasLinkLabel) {
+                await db.execute(`ALTER TABLE "CommunicationBanner" ADD COLUMN "link_label" TEXT`);
+                console.log("Added column link_label to CommunicationBanner.");
+            }
+        }
 
     } catch (error) {
         console.error("Migration failed:", error);
