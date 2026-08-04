@@ -38,11 +38,22 @@ export async function GET(request: Request) {
 
         const scope = (scopeParam === 'my' || (!isManager && !isTresorier)) ? 'my' : 'ul';
 
+        const selectColumns = `
+            er.id, er.userId, er.submittedAt, er.status, er.imputation, er.customImputation,
+            er.requestRefund, er.noReceiptDeclaration, er.driveFolderId, er.total, er.items,
+            er.ulId, er.validatedAt, er.validatedBy, er.rejectionComment, er.rejectedAt,
+            er.rejectedBy, er.paidAt, er.paidBy, er.userFunction, er.createdAt, er.updatedAt,
+            u.name as userName, u.email as userEmail,
+            val.name as validatorName,
+            rej.name as rejectorName,
+            pay.name as payerName
+        `;
+
         let result;
         if (scope === 'my') {
             result = await db.execute({
                 sql: `
-                    SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
+                    SELECT ${selectColumns}
                     FROM "ExpenseReport" er
                     LEFT JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
@@ -57,7 +68,7 @@ export async function GET(request: Request) {
             if (includeProcessed) {
                 result = await db.execute({
                     sql: `
-                        SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
+                        SELECT ${selectColumns}
                         FROM "ExpenseReport" er
                         LEFT JOIN "User" u ON u.id = er.userId
                         LEFT JOIN "User" val ON val.id = er.validatedBy
@@ -71,7 +82,7 @@ export async function GET(request: Request) {
             } else {
                 result = await db.execute({
                     sql: `
-                        SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
+                        SELECT ${selectColumns}
                         FROM "ExpenseReport" er
                         LEFT JOIN "User" u ON u.id = er.userId
                         LEFT JOIN "User" val ON val.id = er.validatedBy
@@ -86,7 +97,7 @@ export async function GET(request: Request) {
         } else if (isTresorier) {
             result = await db.execute({
                 sql: `
-                    SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
+                    SELECT ${selectColumns}
                     FROM "ExpenseReport" er
                     LEFT JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
@@ -100,7 +111,7 @@ export async function GET(request: Request) {
         } else {
             result = await db.execute({
                 sql: `
-                    SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
+                    SELECT ${selectColumns}
                     FROM "ExpenseReport" er
                     LEFT JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy

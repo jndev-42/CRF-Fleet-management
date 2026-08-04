@@ -81,19 +81,12 @@ export default function ExpensesPage() {
         }
     }, [status, isManager, isTresorier, hasInitializedScope]);
 
-    const fetchReports = useCallback(async (scope?: 'ul' | 'my', incProc?: boolean, isInitial = false) => {
-        const targetScope = scope !== undefined ? scope : viewScope;
-        const targetIncProc = incProc !== undefined ? incProc : includeProcessed;
-
+    const fetchReports = useCallback(async () => {
         try {
-            if (isInitial) {
-                setLoading(true);
-            } else {
-                setTableLoading(true);
-            }
+            setTableLoading(true);
             const params = new URLSearchParams();
-            params.set('scope', targetScope);
-            if (targetIncProc) params.set('includeProcessed', 'true');
+            params.set('scope', viewScope);
+            if (includeProcessed) params.set('includeProcessed', 'true');
 
             const res = await fetch(`/api/expenses?${params.toString()}`);
             if (res.ok) {
@@ -110,9 +103,9 @@ export default function ExpensesPage() {
 
     useEffect(() => {
         if (status === 'authenticated' && hasInitializedScope) {
-            fetchReports(viewScope, includeProcessed);
+            fetchReports();
         }
-    }, [status, hasInitializedScope, viewScope, includeProcessed, fetchReports]);
+    }, [status, hasInitializedScope, fetchReports]);
 
     // Fetch photos for selected report
     useEffect(() => {
@@ -491,10 +484,7 @@ export default function ExpensesPage() {
                     <div className="expense-scope-tabs">
                         <button
                             type="button"
-                            onClick={() => {
-                                setViewScope('ul');
-                                fetchReports('ul', includeProcessed);
-                            }}
+                            onClick={() => setViewScope('ul')}
                             className="expense-scope-btn"
                             style={{
                                 background: viewScope === 'ul' ? 'var(--red-primary, #ef4444)' : 'transparent',
@@ -505,10 +495,7 @@ export default function ExpensesPage() {
                         </button>
                         <button
                             type="button"
-                            onClick={() => {
-                                setViewScope('my');
-                                fetchReports('my', includeProcessed);
-                            }}
+                            onClick={() => setViewScope('my')}
                             className="expense-scope-btn"
                             style={{
                                 background: viewScope === 'my' ? 'var(--red-primary, #ef4444)' : 'transparent',
@@ -532,11 +519,7 @@ export default function ExpensesPage() {
                             <input
                                 type="checkbox"
                                 checked={includeProcessed}
-                                onChange={(e) => {
-                                    const checked = e.target.checked;
-                                    setIncludeProcessed(checked);
-                                    fetchReports(viewScope, checked);
-                                }}
+                                onChange={(e) => setIncludeProcessed(e.target.checked)}
                                 style={{ cursor: 'pointer' }}
                             />
                             <span>Afficher toutes les notes (y compris déjà traitées)</span>

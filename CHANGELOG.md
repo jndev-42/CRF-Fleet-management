@@ -4,10 +4,11 @@
 
 ### 🐛 Correctifs
 
-- **Fix du chargement infini lors de l'affichage de toutes les notes de frais** — Résolution du blocage sur l'écran des notes de frais (`/expenses`) lors du cochage du filtre *"Afficher toutes les notes (y compris déjà traitées)"* :
-  - **Requête SQL & Jointures** : Remplacement des `JOIN` stricts par des `LEFT JOIN` sur la table `User` dans `/api/expenses` afin d'éviter tout rejet si l'utilisateur lié n'est plus en base.
-  - **Parsing & Sécurisation** : Sécurisation du parsing JSON du champ `items` et du champ `total` pour éviter tout crash de composant React sur des données `null`.
-  - **Gestion du chargement** : Séparation de l'état de chargement initial et du rafraîchissement dynamique du tableau (`tableLoading`), préservant la barre de filtres et les contrôles interactifs.
+- **Fix du chargement infini lors de l'affichage de toutes les notes de frais** — Résolution du blocage/timeout réseau sur l'écran des notes de frais (`/expenses`) lors du cochage du filtre *"Afficher toutes les notes (y compris déjà traitées)"* :
+  - **Optimisation du payload SQL** : Remplacement de `SELECT er.*` par une sélection explicite de colonnes dans `/api/expenses`. Les chaînes base64 très lourdes des signatures manuscrites (`userSignature`, `validatorSignature`) des notes traitées ne sont plus rapatriées inutilement dans la liste globale, réduisant la réponse réseau de plusieurs mégaoctets à quelques kilo-octets (temps de réponse sous les 170ms).
+  - **Requête SQL & Jointures** : Remplacement des `JOIN` stricts par des `LEFT JOIN` sur la table `User` afin d'éviter tout blocage si l'utilisateur lié n'est plus présent en base.
+  - **Parsing & Sécurisation** : Sécurisation du parsing JSON du champ `items` et du montant `total` pour parer aux données `null`.
+  - **Gestion réactive du chargement** : Déclenchement réactif de `fetchReports` sur les changements d'état (`viewScope`, `includeProcessed`) avec gestion de `tableLoading` sans démontage de la page.
 - **Remise en attente de validation lors de la modification de date de réservation** — Lorsqu'une réservation déjà validée voit sa date ou son horaire modifié, son statut repasse automatiquement en attente de validation (`PENDING`).
 
 ### 📱 Améliorations & Responsivité
