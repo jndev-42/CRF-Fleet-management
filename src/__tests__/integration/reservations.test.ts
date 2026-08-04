@@ -291,6 +291,34 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
         expect(rows.rows[0].reason).toBe('Motif mis à jour');
         expect(rows.rows[0].startTime).toBe(newStart);
         expect(rows.rows[0].endTime).toBe(newEnd);
+        expect(rows.rows[0].status).toBe('PENDING');
+    });
+
+    it('15b. conserve le statut VALIDATED si seule la raison est modifiée sans changer la date', async () => {
+        const { startTime, endTime } = futureWindow(52, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, reason, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-no-date-change', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'Initial Reason', 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+
+        const patchReq = new Request('http://localhost/api/reservations/res-no-date-change', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'update',
+                reason: 'Nouveau motif uniquement'
+            })
+        });
+
+        const res = await PATCH_RESERVATION(patchReq, { params: Promise.resolve({ id: 'res-no-date-change' }) });
+        expect(res.status).toBe(200);
+
+        const rows = await db.execute({ sql: `SELECT * FROM "Reservation" WHERE id = 'res-no-date-change'`, args: [] });
+        expect(rows.rows[0].reason).toBe('Nouveau motif uniquement');
+        expect(rows.rows[0].status).toBe('VALIDATED');
     });
 
     it('16. empêche un utilisateur simple de modifier le chauffeur d\'une réservation (403)', async () => {

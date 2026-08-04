@@ -2,6 +2,10 @@
 
 ## [4.8.1] — 4 août 2026
 
+### 🐛 Correctifs
+
+- **Remise en attente de validation lors de la modification de date de réservation** — Lorsqu'une réservation déjà validée voit sa date ou son horaire modifié, son statut repasse automatiquement en attente de validation (`PENDING`).
+
 ### 📱 Améliorations & Responsivité
 
 - **Ergonomie et responsivité de la Saisie de Note de Frais** — Optimisation complète de l'écran de saisie et de gestion des notes de frais pour l'utilisation sur mobile et tablette (`/expenses`) :

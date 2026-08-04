@@ -183,16 +183,21 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
                 }
             }
 
+            // Si les dates/heures ont été modifiées, la réservation repasse en attente de validation ('PENDING')
+            const isDateChanged = newStart.getTime() !== new Date(reservation.startTime as string).getTime() ||
+                newEnd.getTime() !== new Date(reservation.endTime as string).getTime();
+            const newStatus = isDateChanged ? 'PENDING' : (reservation.status as string);
+
             await db.execute({
                 sql: `
                     UPDATE "Reservation"
-                    SET startTime = ?, endTime = ?, reason = ?, userName = ?, userEmail = ?
+                    SET startTime = ?, endTime = ?, reason = ?, userName = ?, userEmail = ?, status = ?
                     WHERE id = ?
                 `,
-                args: [newStart.toISOString(), newEnd.toISOString(), newReason || null, newUserName, newUserEmail, reservationId]
+                args: [newStart.toISOString(), newEnd.toISOString(), newReason || null, newUserName, newUserEmail, newStatus, reservationId]
             });
 
-            return NextResponse.json({ success: true });
+            return NextResponse.json({ success: true, status: newStatus });
         } else {
             // Action is Validation (legacy or action === 'validate')
             if (!canManageDriver) {
