@@ -430,9 +430,9 @@ export default function ExpensesPage() {
     }
 
     return (
-        <div style={{ padding: '24px 16px', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div className="expenses-container">
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                 <div>
                     <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                         Notes de frais
@@ -449,7 +449,7 @@ export default function ExpensesPage() {
                     <button
                         onClick={() => setIsCreating(true)}
                         className="btn btn-primary"
-                        style={{ gap: '8px' }}
+                        style={{ gap: '8px', whiteSpace: 'nowrap' }}
                     >
                         <Plus size={16} /> Nouvelle note de frais
                     </button>
@@ -469,20 +469,14 @@ export default function ExpensesPage() {
                     borderRadius: 'var(--radius-lg)',
                     border: '1px solid var(--border-primary)'
                 }}>
-                    <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-primary)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-primary)' }}>
+                    <div className="expense-scope-tabs">
                         <button
                             type="button"
                             onClick={() => setViewScope('ul')}
+                            className="expense-scope-btn"
                             style={{
-                                padding: '6px 14px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: 'none',
-                                fontSize: '0.8125rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
                                 background: viewScope === 'ul' ? 'var(--red-primary, #ef4444)' : 'transparent',
                                 color: viewScope === 'ul' ? '#ffffff' : 'var(--text-secondary)',
-                                transition: 'all 0.2s ease'
                             }}
                         >
                             {isManager ? 'Notes à traiter (UL)' : 'Notes en attente de paiement'}
@@ -490,16 +484,10 @@ export default function ExpensesPage() {
                         <button
                             type="button"
                             onClick={() => setViewScope('my')}
+                            className="expense-scope-btn"
                             style={{
-                                padding: '6px 14px',
-                                borderRadius: 'var(--radius-sm)',
-                                border: 'none',
-                                fontSize: '0.8125rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
                                 background: viewScope === 'my' ? 'var(--red-primary, #ef4444)' : 'transparent',
                                 color: viewScope === 'my' ? '#ffffff' : 'var(--text-secondary)',
-                                transition: 'all 0.2s ease'
                             }}
                         >
                             Mes notes de frais
@@ -545,13 +533,15 @@ export default function ExpensesPage() {
                     }}
                 />
             ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: selectedReport ? '1fr 400px' : '1fr', gap: '24px', alignItems: 'start' }}>
+                <div className={`expenses-grid ${selectedReport ? 'has-selected' : ''}`}>
                     {/* List Section */}
                     <div style={{
                         background: 'var(--bg-primary)',
                         borderRadius: 'var(--radius-lg)',
                         border: '1px solid var(--border-primary)',
-                        overflow: 'hidden'
+                        overflow: 'hidden',
+                        width: '100%',
+                        boxSizing: 'border-box'
                     }}>
                         {reports.length === 0 ? (
                             <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>

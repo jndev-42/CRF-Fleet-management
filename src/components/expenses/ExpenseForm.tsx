@@ -223,18 +223,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
     };
 
     return (
-        <div style={{
-            background: 'var(--bg-primary)',
-            borderRadius: 'var(--radius-lg)',
-            border: '1px solid var(--border-primary)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-lg)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-            maxWidth: '650px',
-            margin: '0 auto'
-        }}>
+        <div className="expense-form-card">
             <div>
                 <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                     {initialData ? 'Modifier la note de frais' : 'Nouvelle note de frais'}
@@ -264,10 +253,10 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
             {/* Imputation de la dépense */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label className="form-label" style={{ fontWeight: 600, margin: 0 }}>Imputation de la dépense</label>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center' }}>
                     <select
                         className="form-input"
-                        style={{ flex: 1 }}
+                        style={{ flex: '1 1 140px' }}
                         value={imputation}
                         onChange={(e) => setImputation(e.target.value as 'DLUS' | 'DLAS' | 'UL' | 'Autre')}
                         disabled={loading}
@@ -281,7 +270,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                         <input
                             type="text"
                             className="form-input"
-                            style={{ flex: 1.5 }}
+                            style={{ flex: '1 1 180px' }}
                             placeholder="Précisez l'imputation..."
                             value={customImputation}
                             onChange={(e) => setCustomImputation(e.target.value)}
@@ -294,7 +283,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
 
             {/* Dépenses */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                     <label className="form-label" style={{ fontWeight: 600, margin: 0 }}>Dépenses</label>
                     <button
                         type="button"
@@ -308,40 +297,41 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {items.map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                        <div key={idx} className="expense-item-row">
                             <input
                                 type="text"
-                                className="form-input"
-                                style={{ flex: 3 }}
+                                className="form-input expense-item-desc"
                                 placeholder="Description (ex: Essence, Billet de train...)"
                                 value={item.label}
                                 onChange={e => handleItemChange(idx, 'label', e.target.value)}
                                 disabled={loading}
                                 required
                             />
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    style={{ textAlign: 'right' }}
-                                    placeholder="0.00"
-                                    value={item.amount}
-                                    onChange={e => handleItemChange(idx, 'amount', e.target.value)}
+                            <div className="expense-item-amount-group">
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+                                    <input
+                                        type="text"
+                                        className="form-input"
+                                        style={{ textAlign: 'right', width: '100%', minWidth: 0 }}
+                                        placeholder="0.00"
+                                        value={item.amount}
+                                        onChange={e => handleItemChange(idx, 'amount', e.target.value)}
+                                        disabled={loading}
+                                        required
+                                    />
+                                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>€</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    className="btn btn-danger"
+                                    style={{ padding: '8px 12px', visibility: items.length > 1 ? 'visible' : 'hidden', flexShrink: 0 }}
+                                    onClick={() => handleRemoveItem(idx)}
                                     disabled={loading}
-                                    required
-                                />
-                                <span style={{ color: 'var(--text-secondary)' }}>€</span>
+                                    aria-label="Supprimer la dépense"
+                                >
+                                    <Trash size={16} />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                className="btn btn-danger"
-                                style={{ padding: '8px 12px', visibility: items.length > 1 ? 'visible' : 'hidden' }}
-                                onClick={() => handleRemoveItem(idx)}
-                                disabled={loading}
-                                aria-label="Supprimer la dépense"
-                            >
-                                <Trash size={16} />
-                            </button>
                         </div>
                     ))}
                 </div>
@@ -373,14 +363,14 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 borderRadius: 'var(--radius-md)',
                 border: '1px solid var(--border-primary)',
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ flex: 1 }}>
                         <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Demande de remboursement</span>
                         <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
                             Activez pour demander la restitution de ces frais.
                         </p>
                     </div>
-                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px' }}>
+                    <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '48px', height: '24px', flexShrink: 0 }}>
                         <input
                             type="checkbox"
                             checked={requestRefund}
@@ -454,7 +444,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
             </div>
 
             {/* Actions */}
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+            <div className="expense-form-actions">
                 <button
                     type="button"
                     onClick={onClose}

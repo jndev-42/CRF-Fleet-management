@@ -91,8 +91,11 @@ export default function YousignSignatureModal({
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
+        const scaleX = canvas.width / (rect.width || 1);
+        const scaleY = canvas.height / (rect.height || 1);
+
         ctx.beginPath();
-        ctx.moveTo(clientX - rect.left, clientY - rect.top);
+        ctx.moveTo((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
     };
 
     const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -105,7 +108,10 @@ export default function YousignSignatureModal({
         const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
         const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
 
-        ctx.lineTo(clientX - rect.left, clientY - rect.top);
+        const scaleX = canvas.width / (rect.width || 1);
+        const scaleY = canvas.height / (rect.height || 1);
+
+        ctx.lineTo((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
         ctx.stroke();
     };
 
@@ -197,7 +203,8 @@ export default function YousignSignatureModal({
                 boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
                 width: '100%',
                 maxWidth: '540px',
-                overflow: 'hidden',
+                maxHeight: '90vh',
+                overflowY: 'auto',
                 display: 'flex',
                 flexDirection: 'column'
             }}>

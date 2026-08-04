@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.8.1] — 4 août 2026
+
+### 📱 Améliorations & Responsivité
+
+- **Ergonomie et responsivité de la Saisie de Note de Frais** — Optimisation complète de l'écran de saisie et de gestion des notes de frais pour l'utilisation sur mobile et tablette (`/expenses`) :
+  - **Empilement intelligent des dépenses** : Ajustement automatique (`flex-wrap`) des lignes de dépenses sur les écrans mobiles (< 640px). La description s'affiche sur la première ligne et le montant avec bouton de suppression sur la seconde, garantissant un accès sans défilement horizontal ni tronquage de la partie droite.
+  - **Actions et formulaires adaptés** : Mise en forme responsive du sélecteur d'imputation et alignement vertical des boutons d'action ("Annuler", "Brouillon", "Signer et Soumettre") sur mobile pour faciliter la saisie tactile.
+  - **Grille adaptative & Modales** : Bascule dynamique en 1 colonne sur mobile pour la vue tableau et le panneau de détails, ajustement du défilement des modales et correction de l'échelle des coordonnées tactiles du canvas de signature manuscrite Yousign.
+
 ## [4.8.0] — 28 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
