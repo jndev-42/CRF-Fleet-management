@@ -61,8 +61,10 @@ export default function ExpensesPage() {
     const isTresorier = userRoles.includes('TRESORIER');
     const canPay = userRoles.includes('TRESORIER') || userRoles.includes('SUPER_ADMIN');
 
-    const [viewScope, setViewScope] = useState<'ul' | 'my'>(() => (isManager || isTresorier ? 'ul' : 'my'));
+    const [viewScope, setViewScope] = useState<'ul' | 'my'>('my');
+    const [hasInitializedScope, setHasInitializedScope] = useState(false);
     const [includeProcessed, setIncludeProcessed] = useState(false);
+    const [tableLoading, setTableLoading] = useState(false);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -70,30 +72,47 @@ export default function ExpensesPage() {
         }
     }, [status, router]);
 
-    const fetchReports = useCallback(async (scope = viewScope, incProc = includeProcessed) => {
+    useEffect(() => {
+        if (status === 'authenticated' && !hasInitializedScope) {
+            if (isManager || isTresorier) {
+                setViewScope('ul');
+            }
+            setHasInitializedScope(true);
+        }
+    }, [status, isManager, isTresorier, hasInitializedScope]);
+
+    const fetchReports = useCallback(async (scope?: 'ul' | 'my', incProc?: boolean, isInitial = false) => {
+        const targetScope = scope !== undefined ? scope : viewScope;
+        const targetIncProc = incProc !== undefined ? incProc : includeProcessed;
+
         try {
-            setLoading(true);
+            if (isInitial) {
+                setLoading(true);
+            } else {
+                setTableLoading(true);
+            }
             const params = new URLSearchParams();
-            params.set('scope', scope);
-            if (incProc) params.set('includeProcessed', 'true');
+            params.set('scope', targetScope);
+            if (targetIncProc) params.set('includeProcessed', 'true');
 
             const res = await fetch(`/api/expenses?${params.toString()}`);
             if (res.ok) {
                 const data = await res.json();
-                setReports(data);
+                setReports(Array.isArray(data) ? data : []);
             }
         } catch (error) {
             console.error('Failed to fetch expense reports', error);
         } finally {
             setLoading(false);
+            setTableLoading(false);
         }
     }, [viewScope, includeProcessed]);
 
     useEffect(() => {
-        if (status === 'authenticated') {
+        if (status === 'authenticated' && hasInitializedScope) {
             fetchReports(viewScope, includeProcessed);
         }
-    }, [status, viewScope, includeProcessed, fetchReports]);
+    }, [status, hasInitializedScope, viewScope, includeProcessed, fetchReports]);
 
     // Fetch photos for selected report
     useEffect(() => {
@@ -155,12 +174,12 @@ export default function ExpensesPage() {
                     valB = ((b.imputation === 'Autre' ? b.customImputation : b.imputation) || '').toLowerCase();
                     break;
                 case 'description':
-                    valA = (a.items.map(i => i.label).join(', ')).toLowerCase();
-                    valB = (b.items.map(i => i.label).join(', ')).toLowerCase();
+                    valA = ((a.items || []).map(i => i.label || '').join(', ')).toLowerCase();
+                    valB = ((b.items || []).map(i => i.label || '').join(', ')).toLowerCase();
                     break;
                 case 'total':
-                    valA = a.total;
-                    valB = b.total;
+                    valA = a.total ?? 0;
+                    valB = b.total ?? 0;
                     break;
                 case 'requestRefund':
                     valA = a.requestRefund ? 1 : 0;
@@ -472,7 +491,10 @@ export default function ExpensesPage() {
                     <div className="expense-scope-tabs">
                         <button
                             type="button"
-                            onClick={() => setViewScope('ul')}
+                            onClick={() => {
+                                setViewScope('ul');
+                                fetchReports('ul', includeProcessed);
+                            }}
                             className="expense-scope-btn"
                             style={{
                                 background: viewScope === 'ul' ? 'var(--red-primary, #ef4444)' : 'transparent',
@@ -483,7 +505,10 @@ export default function ExpensesPage() {
                         </button>
                         <button
                             type="button"
-                            onClick={() => setViewScope('my')}
+                            onClick={() => {
+                                setViewScope('my');
+                                fetchReports('my', includeProcessed);
+                            }}
                             className="expense-scope-btn"
                             style={{
                                 background: viewScope === 'my' ? 'var(--red-primary, #ef4444)' : 'transparent',
@@ -507,7 +532,11 @@ export default function ExpensesPage() {
                             <input
                                 type="checkbox"
                                 checked={includeProcessed}
-                                onChange={(e) => setIncludeProcessed(e.target.checked)}
+                                onChange={(e) => {
+                                    const checked = e.target.checked;
+                                    setIncludeProcessed(checked);
+                                    fetchReports(viewScope, checked);
+                                }}
                                 style={{ cursor: 'pointer' }}
                             />
                             <span>Afficher toutes les notes (y compris déjà traitées)</span>
@@ -541,7 +570,9 @@ export default function ExpensesPage() {
                         border: '1px solid var(--border-primary)',
                         overflow: 'hidden',
                         width: '100%',
-                        boxSizing: 'border-box'
+                        boxSizing: 'border-box',
+                        opacity: tableLoading ? 0.6 : 1,
+                        transition: 'opacity 0.2s'
                     }}>
                         {reports.length === 0 ? (
                             <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -591,10 +622,10 @@ export default function ExpensesPage() {
                                                     {report.imputation === 'Autre' ? (report.customImputation || 'Autre') : report.imputation}
                                                 </td>
                                                 <td style={{ padding: '16px', color: 'var(--text-primary)' }}>
-                                                    {report.items.map(item => item.label).join(', ')}
+                                                    {(report.items || []).map(item => item.label).join(', ')}
                                                 </td>
                                                 <td style={{ padding: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                                    {report.total.toFixed(2)} €
+                                                    {(report.total ?? 0).toFixed(2)} €
                                                 </td>
                                                 <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>
                                                     {report.requestRefund ? 'Demandé' : 'Non demandé'}
@@ -898,10 +929,10 @@ export default function ExpensesPage() {
                                     Dépenses détaillées
                                 </span>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                    {selectedReport.items.map((item, idx) => (
+                                    {(selectedReport.items || []).map((item, idx) => (
                                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
                                             <span style={{ color: 'var(--text-secondary)' }}>{item.label}</span>
-                                            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{item.amount.toFixed(2)} €</span>
+                                            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{(item.amount ?? 0).toFixed(2)} €</span>
                                         </div>
                                     ))}
                                 </div>
@@ -916,7 +947,7 @@ export default function ExpensesPage() {
                                     color: 'var(--text-primary)'
                                 }}>
                                     <span>Total</span>
-                                    <span>{selectedReport.total.toFixed(2)} €</span>
+                                    <span>{(selectedReport.total ?? 0).toFixed(2)} €</span>
                                 </div>
                             </div>
 

@@ -44,7 +44,7 @@ export async function GET(request: Request) {
                 sql: `
                     SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
                     FROM "ExpenseReport" er
-                    JOIN "User" u ON u.id = er.userId
+                    LEFT JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
                     LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                     LEFT JOIN "User" pay ON pay.id = er.paidBy
@@ -59,7 +59,7 @@ export async function GET(request: Request) {
                     sql: `
                         SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
                         FROM "ExpenseReport" er
-                        JOIN "User" u ON u.id = er.userId
+                        LEFT JOIN "User" u ON u.id = er.userId
                         LEFT JOIN "User" val ON val.id = er.validatedBy
                         LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                         LEFT JOIN "User" pay ON pay.id = er.paidBy
@@ -73,7 +73,7 @@ export async function GET(request: Request) {
                     sql: `
                         SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
                         FROM "ExpenseReport" er
-                        JOIN "User" u ON u.id = er.userId
+                        LEFT JOIN "User" u ON u.id = er.userId
                         LEFT JOIN "User" val ON val.id = er.validatedBy
                         LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                         LEFT JOIN "User" pay ON pay.id = er.paidBy
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
                 sql: `
                     SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
                     FROM "ExpenseReport" er
-                    JOIN "User" u ON u.id = er.userId
+                    LEFT JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
                     LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                     LEFT JOIN "User" pay ON pay.id = er.paidBy
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
                 sql: `
                     SELECT er.*, u.name as userName, u.email as userEmail, val.name as validatorName, rej.name as rejectorName, pay.name as payerName
                     FROM "ExpenseReport" er
-                    JOIN "User" u ON u.id = er.userId
+                    LEFT JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
                     LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                     LEFT JOIN "User" pay ON pay.id = er.paidBy
@@ -114,43 +114,50 @@ export async function GET(request: Request) {
         }
 
         const reports = result.rows.map(row => {
-            let parsedItems = [];
+            let parsedItems: { label: string; amount: number }[] = [];
             try {
-                parsedItems = JSON.parse(row.items as string);
+                if (typeof row.items === 'string') {
+                    const parsed = JSON.parse(row.items);
+                    if (Array.isArray(parsed)) {
+                        parsedItems = parsed;
+                    }
+                } else if (Array.isArray(row.items)) {
+                    parsedItems = row.items as { label: string; amount: number }[];
+                }
             } catch (e) {
                 console.error('Failed to parse expense report items', e);
             }
 
             return {
-                id: row.id,
-                userId: row.userId,
-                userName: row.userName,
-                userEmail: row.userEmail,
-                submittedAt: row.submittedAt,
-                status: row.status,
+                id: String(row.id),
+                userId: String(row.userId || ''),
+                userName: String(row.userName || 'Utilisateur inconnu'),
+                userEmail: String(row.userEmail || ''),
+                submittedAt: row.submittedAt ? String(row.submittedAt) : '',
+                status: (row.status as string) || 'brouillon',
                 imputation: (row.imputation as string) || 'DLUS',
                 customImputation: (row.customImputation as string) || null,
-                requestRefund: row.requestRefund === 1,
-                noReceiptDeclaration: row.noReceiptDeclaration === 1,
-                driveFolderId: row.driveFolderId,
-                total: Number(row.total),
+                requestRefund: row.requestRefund === 1 || row.requestRefund === '1' || String(row.requestRefund) === 'true',
+                noReceiptDeclaration: row.noReceiptDeclaration === 1 || row.noReceiptDeclaration === '1' || String(row.noReceiptDeclaration) === 'true',
+                driveFolderId: row.driveFolderId ? String(row.driveFolderId) : null,
+                total: Number(row.total) || 0,
                 items: parsedItems,
-                ulId: row.ulId,
-                validatedAt: row.validatedAt,
-                validatedBy: row.validatedBy,
-                validatorName: row.validatorName,
+                ulId: String(row.ulId || ''),
+                validatedAt: row.validatedAt ? String(row.validatedAt) : null,
+                validatedBy: row.validatedBy ? String(row.validatedBy) : null,
+                validatorName: row.validatorName ? String(row.validatorName) : null,
                 rejectionComment: (row.rejectionComment as string) || null,
-                rejectedAt: (row.rejectedAt as string) || null,
-                rejectedBy: (row.rejectedBy as string) || null,
-                rejectorName: (row.rejectorName as string) || null,
-                paidAt: (row.paidAt as string) || null,
-                paidBy: (row.paidBy as string) || null,
-                payerName: (row.payerName as string) || null,
+                rejectedAt: row.rejectedAt ? String(row.rejectedAt) : null,
+                rejectedBy: row.rejectedBy ? String(row.rejectedBy) : null,
+                rejectorName: row.rejectorName ? String(row.rejectorName) : null,
+                paidAt: row.paidAt ? String(row.paidAt) : null,
+                paidBy: row.paidBy ? String(row.paidBy) : null,
+                payerName: row.payerName ? String(row.payerName) : null,
                 userSignature: (row.userSignature as string) || null,
                 userFunction: (row.userFunction as string) || null,
                 validatorSignature: (row.validatorSignature as string) || null,
-                createdAt: row.createdAt,
-                updatedAt: row.updatedAt,
+                createdAt: row.createdAt ? String(row.createdAt) : '',
+                updatedAt: row.updatedAt ? String(row.updatedAt) : '',
             };
         });
 
