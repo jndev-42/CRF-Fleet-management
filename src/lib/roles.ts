@@ -76,9 +76,9 @@ export function hasDTRole(roles: string[]): boolean {
     return roles.includes(ROLES.DT) || isSuperAdmin(roles);
 }
 
-/** Président ou Cadre : accès en lecture seule dans leur UL */
+/** Président ou Cadre : accès en lecture seule dans leur UL (sans rôle d'administration supérieur) */
 export function isReadOnlyManager(roles: string[]): boolean {
-    return roles.includes(ROLES.PRESIDENT) || roles.includes(ROLES.CADRE);
+    return (roles.includes(ROLES.PRESIDENT) || roles.includes(ROLES.CADRE)) && !isAdminOrAbove(roles);
 }
 
 /** Super Admin, Admin, Président ou Cadre : peut accéder au panneau d'administration */

@@ -36,10 +36,8 @@ export default function MissionsPage() {
     const [typeFilter, setTypeFilter] = useState('');
 
     const roles = (session?.user?.roles || ['GUEST']) as string[];
-    const isManager = isAdminOrAbove(roles) || isReadOnlyManager(roles) || roles.includes('CI/RPAPS');
-    const isDriver = roles.includes('CHVL') || roles.includes('CHVPSP');
-    const canAccess = isManager || isDriver;
-    const canCreate = !isReadOnlyManager(roles) && (isAdminOrAbove(roles) || roles.includes('CI/RPAPS') || isDriver);
+    const canAccess = isAdminOrAbove(roles) || isReadOnlyManager(roles) || roles.includes('CI/RPAPS');
+    const canCreate = isAdminOrAbove(roles) || roles.includes('CI/RPAPS');
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {

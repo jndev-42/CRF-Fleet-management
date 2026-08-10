@@ -177,6 +177,22 @@ describe('POST /api/missions', () => {
         expect(res.status).toBe(403);
     });
 
+    it('returns 201 when user has multi-roles including CADRE and ADMIN/CI_RPAPS', async () => {
+        await seedUser({ id: 'user-multirole', email: 'multirole@test.com', name: 'MultiRole Test' });
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue({
+            user: {
+                id: 'user-multirole',
+                email: 'multirole@test.com',
+                roles: ['SUPER_ADMIN', 'ADMIN', 'CADRE', 'CHVL', 'CI/RPAPS'],
+                ulId: 'ul-paris-18',
+            },
+        });
+
+        const res = await postCreate(makePostRequest(validPayload));
+        expect(res.status).toBe(201);
+    });
+
     it('returns 400 when mission_type is missing', async () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(adminSession);
