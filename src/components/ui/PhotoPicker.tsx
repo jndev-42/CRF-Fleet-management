@@ -27,7 +27,7 @@ export default function PhotoPicker({
     file,
     onFileChange,
     maxFiles = Infinity,
-    maxSizeMB = 10,
+    maxSizeMB = 15,
     maxTotalSizeMB = 150,
     accept = "image/*",
     label,
@@ -62,7 +62,7 @@ export default function PhotoPicker({
 
             for (const f of incoming) {
                 if (f.size > maxSize) {
-                    errs.push(`"${f.name}" (${(f.size / (1024 * 1024)).toFixed(1)} Mo) dépasse 10 Mo.`);
+                    errs.push(`"${f.name}" (${(f.size / (1024 * 1024)).toFixed(1)} Mo) dépasse ${maxSizeMB} Mo.`);
                     continue;
                 }
                 if (currentTotal + f.size > maxTotalSize) {

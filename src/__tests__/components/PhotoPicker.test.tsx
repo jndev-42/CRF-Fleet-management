@@ -16,13 +16,13 @@ describe('PhotoPicker — validation des tailles et limites', () => {
         expect(screen.getByText(/Taille totale : 5\.0 Mo \/ 150 Mo/i)).toBeTruthy();
     });
 
-    it('refuse un fichier individuel qui dépasse 10 Mo', () => {
+    it('refuse un fichier individuel qui dépasse 15 Mo', () => {
         const onPhotosChange = vi.fn();
         const { container } = render(
             <PhotoPicker
                 photos={[]}
                 onPhotosChange={onPhotosChange}
-                maxSizeMB={10}
+                maxSizeMB={15}
                 maxTotalSizeMB={150}
             />
         );
@@ -30,13 +30,13 @@ describe('PhotoPicker — validation des tailles et limites', () => {
         const input = container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
         expect(input).toBeTruthy();
 
-        // 11 MB file
-        const bigFile = new File(['x'.repeat(11 * 1024 * 1024)], 'trop_gros.jpg', { type: 'image/jpeg' });
+        // 16 MB file
+        const bigFile = new File(['x'.repeat(16 * 1024 * 1024)], 'trop_gros.jpg', { type: 'image/jpeg' });
 
         fireEvent.change(input, { target: { files: [bigFile] } });
 
         expect(onPhotosChange).not.toHaveBeenCalled();
-        expect(screen.getByText(/dépasse 10 Mo/i)).toBeTruthy();
+        expect(screen.getByText(/dépasse 15 Mo/i)).toBeTruthy();
     });
 
     it('refuse d\'ajouter des fichiers si la taille totale dépasse 150 Mo', () => {
@@ -50,7 +50,7 @@ describe('PhotoPicker — validation des tailles et limites', () => {
             <PhotoPicker
                 photos={[existing145MB]}
                 onPhotosChange={onPhotosChange}
-                maxSizeMB={10}
+                maxSizeMB={15}
                 maxTotalSizeMB={150}
             />
         );
@@ -73,7 +73,7 @@ describe('PhotoPicker — validation des tailles et limites', () => {
             <PhotoPicker
                 photos={[]}
                 onPhotosChange={onPhotosChange}
-                maxSizeMB={10}
+                maxSizeMB={15}
                 maxTotalSizeMB={150}
             />
         );
@@ -92,23 +92,23 @@ describe('PhotoPicker — validation des tailles et limites', () => {
         expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    it('en mode single file, refuse un fichier de plus de 10 Mo', () => {
+    it('en mode single file, refuse un fichier de plus de 15 Mo', () => {
         const onFileChange = vi.fn();
         const { container } = render(
             <PhotoPicker
                 file={null}
                 onFileChange={onFileChange}
-                maxSizeMB={10}
+                maxSizeMB={15}
                 maxTotalSizeMB={150}
             />
         );
 
         const input = container.querySelector('input[type="file"]:not([multiple])') as HTMLInputElement;
-        const bigFile = new File(['x'.repeat(12 * 1024 * 1024)], 'big_pdf.pdf', { type: 'application/pdf' });
+        const bigFile = new File(['x'.repeat(16 * 1024 * 1024)], 'big_pdf.pdf', { type: 'application/pdf' });
 
         fireEvent.change(input, { target: { files: [bigFile] } });
 
         expect(onFileChange).not.toHaveBeenCalled();
-        expect(screen.getByText(/dépasse la limite de 10 Mo/i)).toBeTruthy();
+        expect(screen.getByText(/dépasse la limite de 15 Mo/i)).toBeTruthy();
     });
 });

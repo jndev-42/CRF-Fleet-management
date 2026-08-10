@@ -19,9 +19,9 @@ describe('Drive Upload API — validation de la taille des fichiers', () => {
         vi.restoreAllMocks();
     });
 
-    it('retourne une erreur 400 si un fichier dépasse 10 Mo', async () => {
+    it('retourne une erreur 400 si un fichier dépasse 15 Mo', async () => {
         const bigFile = new File(['x'.repeat(100)], 'big_photo.jpg', { type: 'image/jpeg' });
-        Object.defineProperty(bigFile, 'size', { value: 11 * 1024 * 1024, configurable: true });
+        Object.defineProperty(bigFile, 'size', { value: 16 * 1024 * 1024, configurable: true });
 
         const formData = new FormData();
         formData.append('vehicleName', 'VSAV 01');
@@ -35,7 +35,7 @@ describe('Drive Upload API — validation de la taille des fichiers', () => {
         const data = await res.json();
 
         expect(res.status).toBe(400);
-        expect(data.error).toMatch(/dépasse la taille maximale autorisée de 10 Mo/i);
+        expect(data.error).toMatch(/dépasse la taille maximale autorisée de 15 Mo/i);
     });
 
     it('retourne une erreur 400 si la taille totale des fichiers dépasse 150 Mo', async () => {
@@ -65,9 +65,9 @@ describe('Expenses Upload API — validation de la taille des fichiers', () => {
         vi.restoreAllMocks();
     });
 
-    it('retourne une erreur 400 si un justificatif dépasse 10 Mo', async () => {
+    it('retourne une erreur 400 si un justificatif dépasse 15 Mo', async () => {
         const bigReceipt = new File(['x'.repeat(100)], 'facture.pdf', { type: 'application/pdf' });
-        Object.defineProperty(bigReceipt, 'size', { value: 12 * 1024 * 1024, configurable: true });
+        Object.defineProperty(bigReceipt, 'size', { value: 16 * 1024 * 1024, configurable: true });
 
         const formData = new FormData();
         formData.append('files', bigReceipt);
@@ -78,7 +78,7 @@ describe('Expenses Upload API — validation de la taille des fichiers', () => {
         const data = await res.json();
 
         expect(res.status).toBe(400);
-        expect(data.error).toMatch(/dépasse la taille maximale autorisée de 10 Mo/i);
+        expect(data.error).toMatch(/dépasse la taille maximale autorisée de 15 Mo/i);
     });
 
     it('retourne une erreur 400 si le total des justificatifs dépasse 150 Mo', async () => {

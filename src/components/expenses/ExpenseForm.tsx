@@ -151,7 +151,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
 
                 if (!uploadRes.ok) {
                     if (uploadRes.status === 413) {
-                        throw new Error('Taille des justificatifs trop importante pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (10 Mo max par fichier).');
+                        throw new Error('Taille des justificatifs trop importante pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (15 Mo max par fichier).');
                     }
                     const errData = await uploadRes.json().catch(() => ({}));
                     throw new Error(errData.error || 'Erreur lors de l\'envoi des justificatifs sur Google Drive.');
@@ -410,9 +410,9 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                             photos={photos}
                             onPhotosChange={setPhotos}
                             label="Justificatifs (Photos ou PDF)"
-                            hint="Importez des photos ou des fichiers PDF de vos reçus. Maximum 10 Mo par fichier · 150 Mo max au total."
+                            hint="Importez des photos ou des fichiers PDF de vos reçus. Maximum 15 Mo par fichier · 150 Mo max au total."
                             accept="image/*,application/pdf"
-                            maxSizeMB={10}
+                            maxSizeMB={15}
                             maxTotalSizeMB={150}
                         />
 

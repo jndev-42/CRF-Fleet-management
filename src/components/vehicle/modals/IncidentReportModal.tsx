@@ -204,7 +204,7 @@ export default function IncidentReportModal({
                 } else {
                     let errorMsg = 'Erreur lors de l\'upload des photos d\'incident.';
                     if (uploadRes.status === 413) {
-                        errorMsg = 'Taille totale des photos trop volumineuse pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (10 Mo max par photo).';
+                        errorMsg = 'Taille totale des photos trop volumineuse pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (15 Mo max par photo).';
                     } else {
                         try {
                             const uploadData = await uploadRes.json();
@@ -433,8 +433,8 @@ export default function IncidentReportModal({
                                 <textarea className="form-textarea" value={commonData.retrospection} onChange={e => setCommonData({ ...commonData, retrospection: e.target.value })} placeholder="Comment auriez-vous pu éviter cet incident ?" />
                             </div>
 
-                            <PhotoPicker label="📸 Photos des dégâts" photos={photosDamages} onPhotosChange={setPhotosDamages} maxSizeMB={10} maxTotalSizeMB={150} />
-                            {actions.reportMade && <PhotoPicker label="📝 Photo du constat" photos={photosReport} onPhotosChange={setPhotosReport} maxSizeMB={10} maxTotalSizeMB={150} />}
+                            <PhotoPicker label="📸 Photos des dégâts" photos={photosDamages} onPhotosChange={setPhotosDamages} maxSizeMB={15} maxTotalSizeMB={150} />
+                            {actions.reportMade && <PhotoPicker label="📝 Photo du constat" photos={photosReport} onPhotosChange={setPhotosReport} maxSizeMB={15} maxTotalSizeMB={150} />}
                         </div>
                     )}
 

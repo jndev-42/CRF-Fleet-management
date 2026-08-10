@@ -163,7 +163,7 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
                 if (!uploadRes.ok) {
                     let errMsg = 'Erreur lors de l\'upload du rapport signé.';
                     if (uploadRes.status === 413) {
-                        errMsg = 'Le fichier est trop volumineux pour le serveur (Erreur 413 Payload Too Large). Limite : 10 Mo par fichier, 150 Mo au total.';
+                        errMsg = 'Le fichier est trop volumineux pour le serveur (Erreur 413 Payload Too Large). Limite : 15 Mo par fichier, 150 Mo au total.';
                     } else {
                         try {
                             const d = await uploadRes.json();
@@ -197,7 +197,7 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
                 if (!uploadRes.ok) {
                     let errMsg = 'Erreur lors de l\'upload des photos.';
                     if (uploadRes.status === 413) {
-                        errMsg = 'Taille totale des photos trop volumineuse (Erreur 413 Payload Too Large). Limite : 150 Mo au total (10 Mo max par photo).';
+                        errMsg = 'Taille totale des photos trop volumineuse (Erreur 413 Payload Too Large). Limite : 150 Mo au total (15 Mo max par photo).';
                     } else {
                         try {
                             const d = await uploadRes.json();

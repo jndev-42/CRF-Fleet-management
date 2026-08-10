@@ -30,7 +30,7 @@ async function getPreviewRootFolderId(): Promise<string> {
     return created.data.id!;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB per file
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB per file
 const MAX_TOTAL_SIZE = 150 * 1024 * 1024; // 150 MB total max per request
 
 export async function POST(request: Request) {
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         for (const file of files) {
             if (file.size > MAX_FILE_SIZE) {
                 return NextResponse.json(
-                    { error: `Le fichier "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} Mo) dépasse la taille maximale autorisée de 10 Mo par fichier.` },
+                    { error: `Le fichier "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} Mo) dépasse la taille maximale autorisée de 15 Mo par fichier.` },
                     { status: 400 }
                 );
             }
