@@ -3,8 +3,6 @@
 import styles from '../MissionWizard.module.css';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 
-const MAX_FILES = 10;
-
 export interface Step8PhotosProps {
     photos: File[];
     onPhotosChange: (files: File[]) => void;
@@ -25,12 +23,12 @@ export default function Step8Photos({ photos, onPhotosChange, uploadError }: Ste
 
             <div className="form-group" style={{ marginTop: '1.25rem' }}>
                 <PhotoPicker
-                    label={`Ajouter des photos (${photos.length}/${MAX_FILES})`}
-                    hint={`Maximum ${MAX_FILES} fichiers · 10 Mo par photo · Formats : JPEG, PNG, WEBP...`}
+                    label={`Ajouter des photos (${photos.length})`}
+                    hint="10 Mo max par photo · 150 Mo max au total"
                     photos={photos}
                     onPhotosChange={onPhotosChange}
-                    maxFiles={MAX_FILES}
                     maxSizeMB={10}
+                    maxTotalSizeMB={150}
                 />
             </div>
 

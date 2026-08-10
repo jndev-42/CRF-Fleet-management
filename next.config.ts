@@ -11,6 +11,12 @@ const nextConfig: NextConfig = {
   // @react-pdf/renderer uses Node.js internals — prevent Next.js from bundling it
   serverExternalPackages: ['@react-pdf/renderer'],
 
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '150mb',
+    },
+  },
+
   async headers() {
     return [
       {

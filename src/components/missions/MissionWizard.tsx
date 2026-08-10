@@ -161,8 +161,16 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
 
                 const uploadRes = await fetch('/api/drive/upload', { method: 'POST', body: fd });
                 if (!uploadRes.ok) {
-                    const d = await uploadRes.json();
-                    setUploadError(d.error || 'Erreur lors de l\'upload du rapport signé.');
+                    let errMsg = 'Erreur lors de l\'upload du rapport signé.';
+                    if (uploadRes.status === 413) {
+                        errMsg = 'Le fichier est trop volumineux pour le serveur (Erreur 413 Payload Too Large). Limite : 10 Mo par fichier, 150 Mo au total.';
+                    } else {
+                        try {
+                            const d = await uploadRes.json();
+                            errMsg = d.error || errMsg;
+                        } catch {}
+                    }
+                    setUploadError(errMsg);
                     setSubmitting(false);
                     return;
                 }
@@ -187,8 +195,16 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
 
                 const uploadRes = await fetch('/api/drive/upload', { method: 'POST', body: fd });
                 if (!uploadRes.ok) {
-                    const d = await uploadRes.json();
-                    setUploadError(d.error || 'Erreur lors de l\'upload des photos.');
+                    let errMsg = 'Erreur lors de l\'upload des photos.';
+                    if (uploadRes.status === 413) {
+                        errMsg = 'Taille totale des photos trop volumineuse (Erreur 413 Payload Too Large). Limite : 150 Mo au total (10 Mo max par photo).';
+                    } else {
+                        try {
+                            const d = await uploadRes.json();
+                            errMsg = d.error || errMsg;
+                        } catch {}
+                    }
+                    setUploadError(errMsg);
                     setSubmitting(false);
                     return;
                 }

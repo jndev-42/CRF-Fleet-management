@@ -201,6 +201,19 @@ export default function IncidentReportModal({
                 if (uploadRes.ok) {
                     const uploadData = await uploadRes.json();
                     driveFolderId = uploadData.subfolderId || uploadData.folderId;
+                } else {
+                    let errorMsg = 'Erreur lors de l\'upload des photos d\'incident.';
+                    if (uploadRes.status === 413) {
+                        errorMsg = 'Taille totale des photos trop volumineuse pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (10 Mo max par photo).';
+                    } else {
+                        try {
+                            const uploadData = await uploadRes.json();
+                            errorMsg = uploadData.error || errorMsg;
+                        } catch {}
+                    }
+                    setError(errorMsg);
+                    setSubmitting(false);
+                    return;
                 }
             }
 
@@ -420,8 +433,8 @@ export default function IncidentReportModal({
                                 <textarea className="form-textarea" value={commonData.retrospection} onChange={e => setCommonData({ ...commonData, retrospection: e.target.value })} placeholder="Comment auriez-vous pu éviter cet incident ?" />
                             </div>
 
-                            <PhotoPicker label="📸 Photos des dégâts" photos={photosDamages} onPhotosChange={setPhotosDamages} maxFiles={5} />
-                            {actions.reportMade && <PhotoPicker label="📝 Photo du constat" photos={photosReport} onPhotosChange={setPhotosReport} maxFiles={2} />}
+                            <PhotoPicker label="📸 Photos des dégâts" photos={photosDamages} onPhotosChange={setPhotosDamages} maxSizeMB={10} maxTotalSizeMB={150} />
+                            {actions.reportMade && <PhotoPicker label="📝 Photo du constat" photos={photosReport} onPhotosChange={setPhotosReport} maxSizeMB={10} maxTotalSizeMB={150} />}
                         </div>
                     )}
 

@@ -37,8 +37,8 @@ async function getPreviewRootFolderId(): Promise<string> {
     return created.data.id!;
 }
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
-const MAX_FILES = 10;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB per file
+const MAX_TOTAL_SIZE = 150 * 1024 * 1024; // 150 MB total max per request
 const ALLOWED_MIME_PREFIX = 'image/';
 
 export async function POST(request: Request) {
@@ -79,22 +79,24 @@ export async function POST(request: Request) {
         }
 
         // Server-side file validation
-        if (files.length > MAX_FILES) {
+        const totalSize = files.reduce((acc, f) => acc + f.size, 0);
+        if (totalSize > MAX_TOTAL_SIZE) {
             return NextResponse.json(
-                { error: `Trop de fichiers. Maximum ${MAX_FILES} fichiers autorisés.` },
+                { error: `La taille totale des fichiers (${(totalSize / (1024 * 1024)).toFixed(1)} Mo) dépasse la limite maximale de 150 Mo par envoi.` },
                 { status: 400 }
             );
         }
+
         for (const file of files) {
             if (file.size > MAX_FILE_SIZE) {
                 return NextResponse.json(
-                    { error: `Le fichier "${file.name}" dépasse la taille maximale de 10 Mo.` },
+                    { error: `Le fichier "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} Mo) dépasse la taille maximale autorisée de 10 Mo par fichier.` },
                     { status: 400 }
                 );
             }
             if (!file.type.startsWith(ALLOWED_MIME_PREFIX) && !(allowPdf && file.type === 'application/pdf')) {
                 return NextResponse.json(
-                    { error: `Le fichier "${file.name}" n'est pas une image valide.` },
+                    { error: `Le fichier "${file.name}" n'est pas une image ou un fichier PDF valide.` },
                     { status: 400 }
                 );
             }

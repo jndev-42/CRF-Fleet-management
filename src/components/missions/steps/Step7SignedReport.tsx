@@ -24,9 +24,10 @@ export default function Step7SignedReport({ file, onChange }: Step7SignedReportP
                 <PhotoPicker
                     file={file}
                     onFileChange={onChange}
-                    maxSizeMB={20}
+                    maxSizeMB={10}
+                    maxTotalSizeMB={150}
                     accept="image/*,application/pdf"
-                    hint="Formats acceptés : JPEG, PNG, WEBP, PDF · Maximum 20 Mo"
+                    hint="Formats acceptés : JPEG, PNG, WEBP, PDF · Maximum 10 Mo par fichier"
                 />
             )}
 

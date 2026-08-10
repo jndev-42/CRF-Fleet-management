@@ -158,8 +158,16 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                 });
 
                 if (!uploadRes.ok) {
-                    const errorData = await uploadRes.json();
-                    alert(`Erreur lors de l'upload des photos: ${errorData.error || uploadRes.statusText}`);
+                    let errorMsg = 'Erreur lors de l\'upload des photos.';
+                    if (uploadRes.status === 413) {
+                        errorMsg = 'Taille totale des photos trop volumineuse pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (10 Mo max par photo).';
+                    } else {
+                        try {
+                            const errorData = await uploadRes.json();
+                            errorMsg = errorData.error || errorMsg;
+                        } catch {}
+                    }
+                    alert(errorMsg);
                     setSubmitting(false);
                     return;
                 }
@@ -441,11 +449,11 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         <div className="form-group" style={{ marginTop: 16 }}>
                             <PhotoPicker
                                 label="📸 Photos avant départ (Optionnel)"
-                                hint="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo."
+                                hint="Ces photos seront envoyées sur un Google Drive. Maximum 10 Mo par photo · 150 Mo max au total."
                                 photos={photos}
                                 onPhotosChange={setPhotos}
-                                maxFiles={10}
                                 maxSizeMB={10}
+                                maxTotalSizeMB={150}
                             />
                         </div>
                     </div>

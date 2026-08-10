@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useRef } from 'react';
-import { Camera, Image as ImageIcon, X, FileText } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Camera, Image as ImageIcon, X, FileText, AlertTriangle } from 'lucide-react';
 
 interface PhotoPickerProps {
     /** Multiple mode: for vehicle checkout/checkin and mission photos */
@@ -13,10 +13,12 @@ interface PhotoPickerProps {
     
     maxFiles?: number;
     maxSizeMB?: number;
+    maxTotalSizeMB?: number;
     accept?: string;
     label?: string;
     hint?: string;
     className?: string;
+    onError?: (error: string | null) => void;
 }
 
 export default function PhotoPicker({
@@ -24,43 +26,78 @@ export default function PhotoPicker({
     onPhotosChange,
     file,
     onFileChange,
-    maxFiles = 10,
+    maxFiles = Infinity,
     maxSizeMB = 10,
+    maxTotalSizeMB = 150,
     accept = "image/*",
     label,
     hint,
-    className
+    className,
+    onError,
 }: PhotoPickerProps) {
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const isMultiple = !!onPhotosChange;
     const currentPhotos = photos || [];
     const canAddMore = !isMultiple || currentPhotos.length < maxFiles;
     const maxSize = maxSizeMB * 1024 * 1024;
+    const maxTotalSize = maxTotalSizeMB * 1024 * 1024;
+
+    const setErr = (msg: string | null) => {
+        setErrorMessage(msg);
+        onError?.(msg);
+    };
 
     const handleFiles = (newFiles: FileList | null) => {
-        if (!newFiles) return;
+        if (!newFiles || newFiles.length === 0) return;
+        setErr(null);
         const incoming = Array.from(newFiles);
 
         if (isMultiple) {
-            const validFiles = incoming.filter(f => {
+            let currentTotal = currentPhotos.reduce((acc, f) => acc + f.size, 0);
+            const validFiles: File[] = [];
+            const errs: string[] = [];
+
+            for (const f of incoming) {
                 if (f.size > maxSize) {
-                    alert(`Le fichier ${f.name} dépasse ${maxSizeMB} Mo.`);
-                    return false;
+                    errs.push(`"${f.name}" (${(f.size / (1024 * 1024)).toFixed(1)} Mo) dépasse 10 Mo.`);
+                    continue;
                 }
-                return true;
-            });
-            
-            const combined = [...currentPhotos, ...validFiles].slice(0, maxFiles);
-            onPhotosChange?.(combined);
+                if (currentTotal + f.size > maxTotalSize) {
+                    errs.push(`Ajout de "${f.name}" (${(f.size / (1024 * 1024)).toFixed(1)} Mo) dépasse la limite totale de ${maxTotalSizeMB} Mo.`);
+                    continue;
+                }
+                if (maxFiles !== Infinity && currentPhotos.length + validFiles.length >= maxFiles) {
+                    errs.push(`Limite de ${maxFiles} fichiers atteinte.`);
+                    break;
+                }
+                currentTotal += f.size;
+                validFiles.push(f);
+            }
+
+            if (errs.length > 0) {
+                setErr(errs.join(' '));
+            }
+
+            if (validFiles.length > 0) {
+                const combined = [...currentPhotos, ...validFiles];
+                onPhotosChange?.(combined);
+            }
         } else {
             const selected = incoming[0];
-            if (selected && selected.size > maxSize) {
-                alert(`Le fichier dépasse ${maxSizeMB} Mo.`);
-                return;
+            if (selected) {
+                if (selected.size > maxSize) {
+                    setErr(`Le fichier "${selected.name}" (${(selected.size / (1024 * 1024)).toFixed(1)} Mo) dépasse la limite de ${maxSizeMB} Mo par fichier.`);
+                    return;
+                }
+                if (selected.size > maxTotalSize) {
+                    setErr(`Le fichier "${selected.name}" (${(selected.size / (1024 * 1024)).toFixed(1)} Mo) dépasse la limite totale de ${maxTotalSizeMB} Mo.`);
+                    return;
+                }
+                onFileChange?.(selected);
             }
-            onFileChange?.(selected || null);
         }
 
         // Reset inputs to allow selecting same file again
@@ -69,6 +106,7 @@ export default function PhotoPicker({
     };
 
     const removePhoto = (index: number) => {
+        setErr(null);
         if (isMultiple) {
             const updated = currentPhotos.filter((_, i) => i !== index);
             onPhotosChange?.(updated);
@@ -79,9 +117,23 @@ export default function PhotoPicker({
 
     const isPdfFile = (f: File) => f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
 
+    const totalBytes = isMultiple
+        ? currentPhotos.reduce((acc, p) => acc + p.size, 0)
+        : (file ? file.size : 0);
+    const totalMB = (totalBytes / (1024 * 1024)).toFixed(1);
+
     return (
         <div className={className} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {label && <label className="form-label">{label}</label>}
+            {label && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="form-label" style={{ margin: 0 }}>{label}</label>
+                    {totalBytes > 0 && (
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: totalBytes > maxTotalSize ? 'var(--red-primary, #ef4444)' : 'var(--text-secondary)' }}>
+                            Taille totale : {totalMB} Mo / {maxTotalSizeMB} Mo
+                        </span>
+                    )}
+                </div>
+            )}
             
             {canAddMore && (
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -124,6 +176,42 @@ export default function PhotoPicker({
             />
 
             {hint && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '-4px' }}>{hint}</span>}
+
+            {errorMessage && (
+                <div
+                    role="alert"
+                    style={{
+                        padding: '10px 12px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: '6px',
+                        color: 'var(--red-primary, #ef4444)',
+                        fontSize: '13px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                    }}
+                >
+                    <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontWeight: 500 }}>{errorMessage}</span>
+                    <button
+                        type="button"
+                        onClick={() => setErr(null)}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--red-primary, #ef4444)',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            padding: 0,
+                            lineHeight: 1,
+                        }}
+                        aria-label="Fermer l'erreur"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
 
             {/* Preview for multiple mode */}
             {isMultiple && currentPhotos.length > 0 && (
@@ -222,3 +310,4 @@ export default function PhotoPicker({
         </div>
     );
 }
+
