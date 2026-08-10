@@ -20,63 +20,76 @@ export async function compressImage(
         return file;
     }
 
-    // Skip canvas if window/document isn't defined (SSR environment)
-    if (typeof window === 'undefined' || typeof document === 'undefined') {
+    // Skip canvas if window/document/URL isn't defined (SSR environment)
+    if (typeof window === 'undefined' || typeof document === 'undefined' || !window.URL?.createObjectURL) {
         return file;
     }
 
     return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
+        try {
+            const objectUrl = URL.createObjectURL(file);
             const img = new Image();
+
             img.onload = () => {
-                let { width, height } = img;
+                try {
+                    let { width, height } = img;
 
-                if (width > maxDimension || height > maxDimension) {
-                    if (width > height) {
-                        height = Math.round((height * maxDimension) / width);
-                        width = maxDimension;
-                    } else {
-                        width = Math.round((width * maxDimension) / height);
-                        height = maxDimension;
-                    }
-                }
-
-                const canvas = document.createElement('canvas');
-                canvas.width = width;
-                canvas.height = height;
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) {
-                    resolve(file);
-                    return;
-                }
-
-                ctx.drawImage(img, 0, 0, width, height);
-
-                canvas.toBlob(
-                    (blob) => {
-                        if (!blob || blob.size >= file.size) {
-                            // Si la compression n'a pas réduit la taille, garder le fichier original
-                            resolve(file);
-                            return;
+                    if (width > maxDimension || height > maxDimension) {
+                        if (width > height) {
+                            height = Math.round((height * maxDimension) / width);
+                            width = maxDimension;
+                        } else {
+                            width = Math.round((width * maxDimension) / height);
+                            height = maxDimension;
                         }
-                        const newFileName = file.name.replace(/\.[^/.]+$/, '.jpg');
-                        const compressedFile = new File([blob], newFileName, {
-                            type: 'image/jpeg',
-                            lastModified: Date.now(),
-                        });
-                        resolve(compressedFile);
-                    },
-                    'image/jpeg',
-                    quality
-                );
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        URL.revokeObjectURL(objectUrl);
+                        resolve(file);
+                        return;
+                    }
+
+                    ctx.drawImage(img, 0, 0, width, height);
+                    URL.revokeObjectURL(objectUrl);
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (!blob || blob.size >= file.size) {
+                                // Si la compression n'a pas réduit la taille, garder le fichier original
+                                resolve(file);
+                                return;
+                            }
+                            const newFileName = file.name.replace(/\.[^/.]+$/, '.jpg');
+                            const compressedFile = new File([blob], newFileName, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now(),
+                            });
+                            resolve(compressedFile);
+                        },
+                        'image/jpeg',
+                        quality
+                    );
+                } catch {
+                    URL.revokeObjectURL(objectUrl);
+                    resolve(file);
+                }
             };
-            img.onerror = () => resolve(file);
-            img.src = e.target?.result as string;
-        };
-        reader.onerror = () => resolve(file);
-        reader.readAsDataURL(file);
+
+            img.onerror = () => {
+                URL.revokeObjectURL(objectUrl);
+                resolve(file);
+            };
+
+            img.src = objectUrl;
+        } catch {
+            resolve(file);
+        }
     });
 }
 
@@ -166,10 +179,30 @@ export async function uploadFilesToDriveSafely(params: UploadDriveParams): Promi
 
         batchFiles.forEach(f => fd.append('files', f));
 
-        const res = await fetch('/api/drive/upload', {
-            method: 'POST',
-            body: fd,
-        });
+        let res: Response;
+        try {
+            res = await fetch('/api/drive/upload', {
+                method: 'POST',
+                body: fd,
+            });
+        } catch {
+            // Reconnexion réseau mobile ou transition rapide depuis l'appareil photo : pause de 400ms et retry
+            await new Promise(r => setTimeout(r, 400));
+            try {
+                res = await fetch('/api/drive/upload', {
+                    method: 'POST',
+                    body: fd,
+                });
+            } catch {
+                return {
+                    success: false,
+                    folderId: parentFolderId || '',
+                    subfolderId: targetSubfolderId,
+                    fileIds: allFileIds,
+                    error: 'Erreur réseau lors de l\'envoi des photos. Veuillez vérifier votre connexion.',
+                };
+            }
+        }
 
         if (!res.ok) {
             let errMsg = `Erreur HTTP ${res.status} lors de l'upload des fichiers.`;
