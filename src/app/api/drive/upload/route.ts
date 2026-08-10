@@ -37,8 +37,8 @@ async function getPreviewRootFolderId(): Promise<string> {
     return created.data.id!;
 }
 
-const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15 MB per file
-const MAX_TOTAL_SIZE = 150 * 1024 * 1024; // 150 MB total max per request
+const MAX_FILE_SIZE = 4.2 * 1024 * 1024; // 4.2 MB per file (Serverless function body limit ~4.5 MB)
+const MAX_TOTAL_SIZE = 4.2 * 1024 * 1024; // 4.2 MB total max per request
 const ALLOWED_MIME_PREFIX = 'image/';
 
 export async function POST(request: Request) {
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
         const totalSize = files.reduce((acc, f) => acc + f.size, 0);
         if (totalSize > MAX_TOTAL_SIZE) {
             return NextResponse.json(
-                { error: `La taille totale des fichiers (${(totalSize / (1024 * 1024)).toFixed(1)} Mo) dépasse la limite maximale de 150 Mo par envoi.` },
+                { error: `La taille totale des fichiers (${(totalSize / (1024 * 1024)).toFixed(1)} Mo) dépasse la limite Serverless de 4.2 Mo par envoi.` },
                 { status: 400 }
             );
         }
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
         for (const file of files) {
             if (file.size > MAX_FILE_SIZE) {
                 return NextResponse.json(
-                    { error: `Le fichier "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} Mo) dépasse la taille maximale autorisée de 15 Mo par fichier.` },
+                    { error: `Le fichier "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} Mo) dépasse la taille maximale autorisée de 4.2 Mo par fichier.` },
                     { status: 400 }
                 );
             }

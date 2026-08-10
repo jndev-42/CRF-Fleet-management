@@ -12,6 +12,7 @@ import Step7SignedReport from './steps/Step7SignedReport';
 import Step8Photos from './steps/Step8Photos';
 import styles from './MissionWizard.module.css';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
+import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 
 export interface MissionFormData {
     mission_type: 'RESEAU' | 'DPS' | 'PAPS';
@@ -151,70 +152,38 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
         // Upload the signed report (mandatory for DPS/PAPS)
         let signedReportDriveId: string | null = null;
         if (showReportStep && signedReportFile) {
-            try {
-                const fd = new FormData();
-                fd.append('missionName', formData.mission_name);
-                fd.append('date', formData.mission_date);
-                fd.append('rootFolderId', SIGNED_REPORTS_FOLDER_ID);
-                fd.append('allowPdf', 'true');
-                fd.append('files', signedReportFile);
+            const uploadResult = await uploadFilesToDriveSafely({
+                files: [signedReportFile],
+                missionName: formData.mission_name,
+                date: formData.mission_date,
+                rootFolderId: SIGNED_REPORTS_FOLDER_ID,
+                allowPdf: true,
+            });
 
-                const uploadRes = await fetch('/api/drive/upload', { method: 'POST', body: fd });
-                if (!uploadRes.ok) {
-                    let errMsg = 'Erreur lors de l\'upload du rapport signé.';
-                    if (uploadRes.status === 413) {
-                        errMsg = 'Le fichier est trop volumineux pour le serveur (Erreur 413 Payload Too Large). Limite : 15 Mo par fichier, 150 Mo au total.';
-                    } else {
-                        try {
-                            const d = await uploadRes.json();
-                            errMsg = d.error || errMsg;
-                        } catch {}
-                    }
-                    setUploadError(errMsg);
-                    setSubmitting(false);
-                    return;
-                }
-                const uploadData = await uploadRes.json();
-                signedReportDriveId = uploadData.fileIds?.[0] ?? null;
-            } catch {
-                setUploadError('Erreur réseau lors de l\'upload du rapport signé.');
+            if (!uploadResult.success) {
+                setUploadError(uploadResult.error || 'Erreur lors de l\'upload du rapport signé.');
                 setSubmitting(false);
                 return;
             }
+            signedReportDriveId = uploadResult.fileIds[0] ?? null;
         }
 
         // Upload communication photos to Drive if any were selected
         let driveFolderId: string | null = null;
         if (photos.length > 0) {
-            try {
-                const fd = new FormData();
-                fd.append('missionName', formData.mission_name);
-                fd.append('date', formData.mission_date);
-                fd.append('rootFolderId', MISSION_COMM_FOLDER_ID);
-                photos.forEach(f => fd.append('files', f));
+            const uploadResult = await uploadFilesToDriveSafely({
+                files: photos,
+                missionName: formData.mission_name,
+                date: formData.mission_date,
+                rootFolderId: MISSION_COMM_FOLDER_ID,
+            });
 
-                const uploadRes = await fetch('/api/drive/upload', { method: 'POST', body: fd });
-                if (!uploadRes.ok) {
-                    let errMsg = 'Erreur lors de l\'upload des photos.';
-                    if (uploadRes.status === 413) {
-                        errMsg = 'Taille totale des photos trop volumineuse (Erreur 413 Payload Too Large). Limite : 150 Mo au total (15 Mo max par photo).';
-                    } else {
-                        try {
-                            const d = await uploadRes.json();
-                            errMsg = d.error || errMsg;
-                        } catch {}
-                    }
-                    setUploadError(errMsg);
-                    setSubmitting(false);
-                    return;
-                }
-                const uploadData = await uploadRes.json();
-                driveFolderId = uploadData.folderId ?? null;
-            } catch {
-                setUploadError('Erreur réseau lors de l\'upload des photos.');
+            if (!uploadResult.success) {
+                setUploadError(uploadResult.error || 'Erreur lors de l\'upload des photos.');
                 setSubmitting(false);
                 return;
             }
+            driveFolderId = uploadResult.folderId || null;
         }
 
         try {

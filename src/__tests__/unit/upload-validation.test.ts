@@ -19,9 +19,9 @@ describe('Drive Upload API — validation de la taille des fichiers', () => {
         vi.restoreAllMocks();
     });
 
-    it('retourne une erreur 400 si un fichier dépasse 15 Mo', async () => {
+    it('retourne une erreur 400 si un fichier dépasse 4.2 Mo', async () => {
         const bigFile = new File(['x'.repeat(100)], 'big_photo.jpg', { type: 'image/jpeg' });
-        Object.defineProperty(bigFile, 'size', { value: 16 * 1024 * 1024, configurable: true });
+        Object.defineProperty(bigFile, 'size', { value: 5 * 1024 * 1024, configurable: true });
 
         const formData = new FormData();
         formData.append('vehicleName', 'VSAV 01');
@@ -35,14 +35,14 @@ describe('Drive Upload API — validation de la taille des fichiers', () => {
         const data = await res.json();
 
         expect(res.status).toBe(400);
-        expect(data.error).toMatch(/dépasse la taille maximale autorisée de 15 Mo/i);
+        expect(data.error).toMatch(/dépasse la limite Serverless de 4.2 Mo/i);
     });
 
-    it('retourne une erreur 400 si la taille totale des fichiers dépasse 150 Mo', async () => {
+    it('retourne une erreur 400 si la taille totale des fichiers dépasse 4.2 Mo', async () => {
         const file1 = new File(['a'.repeat(100)], 'photo1.jpg', { type: 'image/jpeg' });
         const file2 = new File(['b'.repeat(100)], 'photo2.jpg', { type: 'image/jpeg' });
-        Object.defineProperty(file1, 'size', { value: 100 * 1024 * 1024, configurable: true });
-        Object.defineProperty(file2, 'size', { value: 60 * 1024 * 1024, configurable: true });
+        Object.defineProperty(file1, 'size', { value: 3 * 1024 * 1024, configurable: true });
+        Object.defineProperty(file2, 'size', { value: 2 * 1024 * 1024, configurable: true });
 
         const formData = new FormData();
         formData.append('missionName', 'Mission Secours');
@@ -56,7 +56,7 @@ describe('Drive Upload API — validation de la taille des fichiers', () => {
         const data = await res.json();
 
         expect(res.status).toBe(400);
-        expect(data.error).toMatch(/dépasse la limite maximale de 150 Mo/i);
+        expect(data.error).toMatch(/dépasse la limite Serverless de 4.2 Mo/i);
     });
 });
 
@@ -65,9 +65,9 @@ describe('Expenses Upload API — validation de la taille des fichiers', () => {
         vi.restoreAllMocks();
     });
 
-    it('retourne une erreur 400 si un justificatif dépasse 15 Mo', async () => {
+    it('retourne une erreur 400 si un justificatif dépasse 4.2 Mo', async () => {
         const bigReceipt = new File(['x'.repeat(100)], 'facture.pdf', { type: 'application/pdf' });
-        Object.defineProperty(bigReceipt, 'size', { value: 16 * 1024 * 1024, configurable: true });
+        Object.defineProperty(bigReceipt, 'size', { value: 5 * 1024 * 1024, configurable: true });
 
         const formData = new FormData();
         formData.append('files', bigReceipt);
@@ -78,14 +78,14 @@ describe('Expenses Upload API — validation de la taille des fichiers', () => {
         const data = await res.json();
 
         expect(res.status).toBe(400);
-        expect(data.error).toMatch(/dépasse la taille maximale autorisée de 15 Mo/i);
+        expect(data.error).toMatch(/dépasse la limite Serverless de 4.2 Mo/i);
     });
 
-    it('retourne une erreur 400 si le total des justificatifs dépasse 150 Mo', async () => {
+    it('retourne une erreur 400 si le total des justificatifs dépasse 4.2 Mo', async () => {
         const file1 = new File(['a'.repeat(100)], 'receipt1.pdf', { type: 'application/pdf' });
         const file2 = new File(['b'.repeat(100)], 'receipt2.pdf', { type: 'application/pdf' });
-        Object.defineProperty(file1, 'size', { value: 100 * 1024 * 1024, configurable: true });
-        Object.defineProperty(file2, 'size', { value: 60 * 1024 * 1024, configurable: true });
+        Object.defineProperty(file1, 'size', { value: 3 * 1024 * 1024, configurable: true });
+        Object.defineProperty(file2, 'size', { value: 2 * 1024 * 1024, configurable: true });
 
         const formData = new FormData();
         formData.append('files', file1);
@@ -97,6 +97,6 @@ describe('Expenses Upload API — validation de la taille des fichiers', () => {
         const data = await res.json();
 
         expect(res.status).toBe(400);
-        expect(data.error).toMatch(/dépasse la limite maximale de 150 Mo/i);
+        expect(data.error).toMatch(/dépasse la limite Serverless de 4.2 Mo/i);
     });
 });

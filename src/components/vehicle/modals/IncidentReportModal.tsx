@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import IncidentGuidelines from '@/components/vehicle/IncidentGuidelines';
 import VehicleInteractiveSVG from '@/components/vehicle/VehicleInteractiveSVG';
 import PhotoPicker from '@/components/ui/PhotoPicker';
+import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 
 interface IncidentReportModalProps {
     vehicle: { id: string; name: string };
@@ -187,31 +188,18 @@ export default function IncidentReportModal({
             // Upload photos if any and not already uploaded
             let driveFolderId = null;
             if ((photosDamages.length > 0 || photosReport.length > 0) && isFinal) {
-                const formData = new FormData();
-                formData.append('vehicleName', vehicle.name);
-                formData.append('date', commonData.occurredAt);
-                formData.append('stage', `incident-${reportId.substring(0, 8)}`);
-                photosDamages.forEach(f => formData.append('files', f));
-                photosReport.forEach(f => formData.append('files', f));
-
-                const uploadRes = await fetch('/api/drive/upload', {
-                    method: 'POST',
-                    body: formData
+                const allPhotos = [...photosDamages, ...photosReport];
+                const uploadResult = await uploadFilesToDriveSafely({
+                    files: allPhotos,
+                    vehicleName: vehicle.name,
+                    date: commonData.occurredAt,
+                    stage: `incident-${reportId.substring(0, 8)}`,
                 });
-                if (uploadRes.ok) {
-                    const uploadData = await uploadRes.json();
-                    driveFolderId = uploadData.subfolderId || uploadData.folderId;
+
+                if (uploadResult.success) {
+                    driveFolderId = uploadResult.subfolderId || uploadResult.folderId;
                 } else {
-                    let errorMsg = 'Erreur lors de l\'upload des photos d\'incident.';
-                    if (uploadRes.status === 413) {
-                        errorMsg = 'Taille totale des photos trop volumineuse pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (15 Mo max par photo).';
-                    } else {
-                        try {
-                            const uploadData = await uploadRes.json();
-                            errorMsg = uploadData.error || errorMsg;
-                        } catch {}
-                    }
-                    setError(errorMsg);
+                    setError(uploadResult.error || 'Erreur lors de l\'upload des photos d\'incident.');
                     setSubmitting(false);
                     return;
                 }

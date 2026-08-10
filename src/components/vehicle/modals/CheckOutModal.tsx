@@ -6,6 +6,7 @@ import FuelBar from '@/components/vehicle/FuelBar';
 import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
+import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 
 interface CheckOutModalProps {
     vehicle: Vehicle;
@@ -134,46 +135,28 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         try {
             let driveFolderId: string | undefined = undefined;
             if (photos.length > 0) {
-                const formData = new FormData();
-                formData.append('vehicleName', vehicle.name);
-
                 const now = new Date();
                 const year = now.getFullYear();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
                 const day = String(now.getDate()).padStart(2, '0');
                 const hours = String(now.getHours()).padStart(2, '0');
                 const minutes = String(now.getMinutes()).padStart(2, '0');
-                const dateStr = `${year} -${month} -${day}_${hours} -${minutes} `;
+                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
 
-                formData.append('date', dateStr);
-                formData.append('stage', 'emprunt');
-
-                photos.forEach((file) => {
-                    formData.append('files', file);
+                const uploadResult = await uploadFilesToDriveSafely({
+                    files: photos,
+                    vehicleName: vehicle.name,
+                    date: dateStr,
+                    stage: 'emprunt',
                 });
 
-                const uploadRes = await fetch('/api/drive/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (!uploadRes.ok) {
-                    let errorMsg = 'Erreur lors de l\'upload des photos.';
-                    if (uploadRes.status === 413) {
-                        errorMsg = 'Taille totale des photos trop volumineuse pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (15 Mo max par photo).';
-                    } else {
-                        try {
-                            const errorData = await uploadRes.json();
-                            errorMsg = errorData.error || errorMsg;
-                        } catch {}
-                    }
-                    alert(errorMsg);
+                if (!uploadResult.success) {
+                    alert(uploadResult.error || 'Erreur lors de l\'upload des photos.');
                     setSubmitting(false);
                     return;
                 }
 
-                const uploadData = await uploadRes.json();
-                driveFolderId = uploadData.folderId;
+                driveFolderId = uploadResult.folderId;
             }
 
             const isDsaChecked = checklistOut[`dsa-checkout-${vehicle.id}`] || false;

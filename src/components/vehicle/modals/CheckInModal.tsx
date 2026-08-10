@@ -8,6 +8,7 @@ import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
+import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 
 interface CheckInModalProps {
     vehicle: Vehicle;
@@ -158,50 +159,29 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
             let driveFolderId: string | undefined = undefined;
             if (photos.length > 0) {
-                const formData = new FormData();
-                formData.append('vehicleName', vehicle.name);
-
                 const checkOutDate = new Date(trip.checkOutAt);
                 const year = checkOutDate.getFullYear();
                 const month = String(checkOutDate.getMonth() + 1).padStart(2, '0');
                 const day = String(checkOutDate.getDate()).padStart(2, '0');
                 const hours = String(checkOutDate.getHours()).padStart(2, '0');
                 const minutes = String(checkOutDate.getMinutes()).padStart(2, '0');
-                const dateStr = `${year} -${month} -${day}_${hours} -${minutes} `;
+                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
 
-                formData.append('date', dateStr);
-                formData.append('stage', 'rendu');
-
-                if (trip.driveFolderId) {
-                    formData.append('existingDriveFolderId', trip.driveFolderId);
-                }
-
-                photos.forEach((file) => {
-                    formData.append('files', file);
+                const uploadResult = await uploadFilesToDriveSafely({
+                    files: photos,
+                    vehicleName: vehicle.name,
+                    date: dateStr,
+                    stage: 'rendu',
+                    existingFolderId: trip.driveFolderId || null,
                 });
 
-                const uploadRes = await fetch('/api/drive/upload', {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                if (!uploadRes.ok) {
-                    let errorMsg = 'Erreur lors de l\'upload des photos.';
-                    if (uploadRes.status === 413) {
-                        errorMsg = 'Taille totale des photos trop volumineuse pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (15 Mo max par photo).';
-                    } else {
-                        try {
-                            const errorData = await uploadRes.json();
-                            errorMsg = errorData.error || errorMsg;
-                        } catch {}
-                    }
-                    alert(errorMsg);
+                if (!uploadResult.success) {
+                    alert(uploadResult.error || 'Erreur lors de l\'upload des photos.');
                     setSubmitting(false);
                     return;
                 }
 
-                const uploadData = await uploadRes.json();
-                driveFolderId = uploadData.folderId;
+                driveFolderId = uploadResult.folderId;
             }
 
             const desinfResponsableUser = users.find(u => u.id === desinfResponsableId);
