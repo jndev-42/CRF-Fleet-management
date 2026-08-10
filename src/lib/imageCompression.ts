@@ -154,25 +154,14 @@ export async function uploadFilesToDriveSafely(params: UploadDriveParams): Promi
         const fd = new FormData();
 
         fd.append('date', params.date);
+        if (params.vehicleName) fd.append('vehicleName', params.vehicleName);
+        if (params.stage) fd.append('stage', params.stage);
+        if (params.missionName) fd.append('missionName', params.missionName);
+        if (params.rootFolderId) fd.append('rootFolderId', params.rootFolderId);
+        if (params.allowPdf) fd.append('allowPdf', 'true');
 
-        if (i === 0 && !parentFolderId) {
-            // Premier lot : transmettre les métadonnées de création de dossier
-            if (params.vehicleName) fd.append('vehicleName', params.vehicleName);
-            if (params.stage) fd.append('stage', params.stage);
-            if (params.missionName) fd.append('missionName', params.missionName);
-            if (params.rootFolderId) fd.append('rootFolderId', params.rootFolderId);
-        } else {
-            // Lots suivants (ou si un dossier existe déjà) : cibler le dossier existant
-            const targetId = targetSubfolderId || parentFolderId;
-            if (targetId) {
-                fd.append('existingFolderId', targetId);
-            }
-            if (params.vehicleName) fd.append('vehicleName', params.vehicleName);
-            if (params.missionName) fd.append('missionName', params.missionName);
-        }
-
-        if (params.allowPdf) {
-            fd.append('allowPdf', 'true');
+        if (parentFolderId) {
+            fd.append('existingFolderId', parentFolderId);
         }
 
         batchFiles.forEach(f => fd.append('files', f));
