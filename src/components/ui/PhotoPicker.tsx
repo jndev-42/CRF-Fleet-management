@@ -2,6 +2,7 @@
 
 import React, { useRef, useState } from 'react';
 import { Camera, Image as ImageIcon, X, FileText, AlertTriangle } from 'lucide-react';
+import { compressImage, compressImages } from '@/lib/imageCompression';
 
 interface PhotoPickerProps {
     /** Multiple mode: for vehicle checkout/checkin and mission photos */
@@ -50,17 +51,20 @@ export default function PhotoPicker({
         onError?.(msg);
     };
 
-    const handleFiles = (newFiles: FileList | null) => {
+    const handleFiles = async (newFiles: FileList | null) => {
         if (!newFiles || newFiles.length === 0) return;
         setErr(null);
         const incoming = Array.from(newFiles);
+
+        // Pre-compress images in background so submit is instant
+        const compressedIncoming = await compressImages(incoming);
 
         if (isMultiple) {
             let currentTotal = currentPhotos.reduce((acc, f) => acc + f.size, 0);
             const validFiles: File[] = [];
             const errs: string[] = [];
 
-            for (const f of incoming) {
+            for (const f of compressedIncoming) {
                 if (f.size > maxSize) {
                     errs.push(`"${f.name}" (${(f.size / (1024 * 1024)).toFixed(1)} Mo) dépasse ${maxSizeMB} Mo.`);
                     continue;
@@ -86,8 +90,9 @@ export default function PhotoPicker({
                 onPhotosChange?.(combined);
             }
         } else {
-            const selected = incoming[0];
-            if (selected) {
+            const rawSelected = compressedIncoming[0];
+            if (rawSelected) {
+                const selected = await compressImage(rawSelected);
                 if (selected.size > maxSize) {
                     setErr(`Le fichier "${selected.name}" (${(selected.size / (1024 * 1024)).toFixed(1)} Mo) dépasse la limite de ${maxSizeMB} Mo par fichier.`);
                     return;

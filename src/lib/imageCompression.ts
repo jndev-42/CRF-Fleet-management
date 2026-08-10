@@ -13,10 +13,15 @@
  */
 export async function compressImage(
     file: File,
-    maxDimension = 2048,
-    quality = 0.82
+    maxDimension = 1600,
+    quality = 0.78
 ): Promise<File> {
     if (!file.type.startsWith('image/')) {
+        return file;
+    }
+
+    // Bypass instantané si le fichier fait déjà moins de 800 Ko
+    if (file.size < 800 * 1024) {
         return file;
     }
 
