@@ -1,8 +1,17 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
+
+const adjustSchema = z.object({
+    itemId: z.string().min(1),
+    change: z.number(),
+    note: z.string().optional().nullable(),
+    expiryDate: z.string().optional().nullable(),
+    deductFromNoDate: z.boolean().optional(),
+});
 
 export async function POST(request: Request) {
     try {
@@ -17,11 +26,16 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { itemId, change, note, expiryDate, deductFromNoDate } = body;
-
-        if (!itemId || typeof change !== 'number') {
-            return NextResponse.json({ error: 'Données invalides' }, { status: 400 });
+        let parsed: z.infer<typeof adjustSchema>;
+        try {
+            parsed = adjustSchema.parse(body);
+        } catch (zodErr) {
+            if (zodErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Données invalides', details: zodErr.issues }, { status: 400 });
+            }
+            throw zodErr;
         }
+        const { itemId, change, note, expiryDate, deductFromNoDate } = parsed;
 
         const ulId = session.user.ulId || 'default';
         const itemCheck = await db.execute({
@@ -118,7 +132,7 @@ export async function POST(request: Request) {
         // 2. Log the change
         await db.execute({
             sql: `INSERT INTO "InvStockLog" (id, itemId, "change", userName, note) VALUES (?, ?, ?, ?, ?)`,
-            args: [crypto.randomUUID(), itemId, change, session.user.name || session.user.email, note || null],
+            args: [crypto.randomUUID(), itemId, change, session.user.name || session.user.email || null, note || null],
         });
 
         return NextResponse.json({

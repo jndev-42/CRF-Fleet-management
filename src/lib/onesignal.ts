@@ -39,11 +39,12 @@ export async function sendPushNotification({
             let res;
             if (ulId && ulId !== 'default') {
                 const placeholders = expandedRoleNames.map(() => '?').join(',');
-                const roleConditions = expandedRoleNames.map(role => `',' || uu.roles || ',' LIKE '%,${role},%'`).join(' OR ');
+                const roleConditions = expandedRoleNames.map(() => `',' || uu.roles || ',' LIKE ?`).join(' OR ');
+                const roleLikeArgs = expandedRoleNames.map(role => `%,${role},%`);
 
                 res = await db.execute({
                     sql: `
-                        SELECT DISTINCT u.id 
+                        SELECT DISTINCT u.id
                         FROM "User" u
                         JOIN "UserUL" uu ON u.id = uu.userId
                         WHERE uu.ulId = ?
@@ -51,13 +52,13 @@ export async function sendPushNotification({
                             (uu.roles IS NOT NULL AND uu.roles != '' AND (${roleConditions}))
                             OR
                             ((uu.roles IS NULL OR uu.roles = '') AND EXISTS (
-                               SELECT 1 FROM "UserRole" ur 
-                               JOIN "Role" r ON ur.roleId = r.id 
+                               SELECT 1 FROM "UserRole" ur
+                               JOIN "Role" r ON ur.roleId = r.id
                                WHERE ur.userId = u.id AND r.name IN (${placeholders})
                             ))
                           )
                     `,
-                    args: [ulId, ...expandedRoleNames]
+                    args: [ulId, ...roleLikeArgs, ...expandedRoleNames]
                 });
             } else {
                 const placeholders = expandedRoleNames.map(() => '?').join(',');

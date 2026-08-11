@@ -52,7 +52,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 
 import { z } from 'zod';
 
-const updateReservationSchema = z.object({
+const updateReservationSchema = z.strictObject({
     startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }).optional(),
     endTime: z.string().datetime({ message: 'endTime doit être une date ISO valide' }).optional(),
     reason: z.string().max(500).optional().nullable(),
@@ -99,13 +99,10 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
             // body remain empty object
         }
 
-        // If body has edit fields (startTime, endTime, reason, onBehalfOfUserId, isUnassignedDriver) or action === 'update'
-        const hasEditFields = body.startTime !== undefined ||
-            body.endTime !== undefined ||
-            body.reason !== undefined ||
-            body.onBehalfOfUserId !== undefined ||
-            body.isUnassignedDriver !== undefined ||
-            body.action === 'update';
+        // Un body vide (bouton "valider", cf. ReservationBlock.tsx) route vers la validation ;
+        // tout body non vide est traité comme une édition et validé strictement par Zod
+        // (un champ inconnu échoue proprement en 400 au lieu d'être silencieusement réinterprété comme une validation).
+        const hasEditFields = Object.keys(body).length > 0 && body.action !== 'validate';
 
         if (hasEditFields) {
             // Check editing permissions: owner or manager

@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.8.4] — 11 août 2026
+
+### 🔒 Sécurité
+
+Correctifs des vulnérabilités **Moyenne** et **Faible** de l'audit de sécurité (voir `docs/code-review-2026-08-11.md`) — #10 à #15. Les #8 (cron fail-open) et #9 (admin local sans UL home) sont volontairement laissées de côté.
+
+- **SQL non paramétré (#10)** — `/api/vehicles` (requête 100% construite par interpolation), la clause d'UL dans `/api/vehicles/calendar`, et les conditions `LIKE` de rôle dans `src/lib/onesignal.ts` sont désormais entièrement paramétrés.
+- **Incohérence de gate stats (#11)** — `/api/stats/trips` (route morte, non appelée par le frontend) alignée sur la gate de `/api/stats` (la route réellement utilisée par la page `/stats`, qui autorise déjà CHVL/CHVPSP) — aucun changement sur `/api/stats` lui-même.
+- **Validation Zod manquante (#12)** — schémas ajoutés sur `/api/ul/[id]` (PATCH), `/api/users/[email]` (PATCH), `/api/inventory/adjust`, `/api/inventory/stocks` (POST/PATCH) et `/api/inventory/batches` (PATCH). Les 8 autres routes citées par le rapport n'avaient en réalité aucun body à valider.
+- **Changelog non authentifié (#13)** — `/api/changelog` exige désormais une session.
+- **Logs Drive verbeux (#14)** — `/api/drive/upload`, `/api/expenses/upload` et `/api/drive/photos` journalisent un message d'erreur borné au lieu du corps de réponse Google brut.
+- **Branchement PATCH ambigu (#15)** — `/api/reservations/[id]` : un body non vide est désormais strictement validé par Zod (clés inconnues rejetées en 400) au lieu d'être silencieusement réinterprété comme une action de validation en cas de champ mal orthographié.
+
 ## [4.8.3] — 11 août 2026
 
 ### 🔒 Sécurité

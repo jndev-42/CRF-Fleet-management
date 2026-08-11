@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
+
+const adjustBatchSchema = z.object({
+    batchId: z.string().min(1),
+    change: z.number(),
+});
 
 export async function GET(request: Request) {
     try {
@@ -126,11 +132,16 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { batchId, change } = body;
-
-        if (!batchId || typeof change !== 'number') {
-            return NextResponse.json({ error: 'Données invalides' }, { status: 400 });
+        let parsed: z.infer<typeof adjustBatchSchema>;
+        try {
+            parsed = adjustBatchSchema.parse(body);
+        } catch (zodErr) {
+            if (zodErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Données invalides', details: zodErr.issues }, { status: 400 });
+            }
+            throw zodErr;
         }
+        const { batchId, change } = parsed;
 
         // Récupérer le lot pour connaître l'itemId, la quantité et la date de péremption
         const batchRes = await db.execute({

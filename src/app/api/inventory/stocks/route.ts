@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
 import { getOrCreateDefaultStock } from '@/lib/inventory/stocks';
+
+const createStockSchema = z.object({
+    name: z.string().min(1),
+});
+
+const renameStockSchema = z.object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+});
 
 export async function GET() {
     try {
@@ -40,9 +50,17 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const { name } = body;
-
-        if (!name || typeof name !== 'string' || !name.trim()) {
+        let parsed: z.infer<typeof createStockSchema>;
+        try {
+            parsed = createStockSchema.parse(body);
+        } catch (zodErr) {
+            if (zodErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Le nom du stock est requis', details: zodErr.issues }, { status: 400 });
+            }
+            throw zodErr;
+        }
+        const { name } = parsed;
+        if (!name.trim()) {
             return NextResponse.json({ error: 'Le nom du stock est requis' }, { status: 400 });
         }
 
@@ -77,9 +95,17 @@ export async function PATCH(request: Request) {
         }
 
         const body = await request.json();
-        const { id, name } = body;
-
-        if (!id || !name || typeof name !== 'string' || !name.trim()) {
+        let parsed: z.infer<typeof renameStockSchema>;
+        try {
+            parsed = renameStockSchema.parse(body);
+        } catch (zodErr) {
+            if (zodErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Identifiant et nom valides requis', details: zodErr.issues }, { status: 400 });
+            }
+            throw zodErr;
+        }
+        const { id, name } = parsed;
+        if (!name.trim()) {
             return NextResponse.json({ error: 'Identifiant et nom valides requis' }, { status: 400 });
         }
 

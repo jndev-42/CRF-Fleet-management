@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, canAssignRole, resolveRoles, isSuperAdmin } from '@/lib/roles';
+
+const updateRolesSchema = z.object({
+    roles: z.array(z.string()),
+});
 
 export async function PATCH(
     request: Request,
@@ -15,11 +20,16 @@ export async function PATCH(
         }
 
         const body = await request.json();
-        const { roles } = body;
-
-        if (!Array.isArray(roles)) {
-            return NextResponse.json({ error: 'Format invalide' }, { status: 400 });
+        let parsed: z.infer<typeof updateRolesSchema>;
+        try {
+            parsed = updateRolesSchema.parse(body);
+        } catch (zodErr) {
+            if (zodErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Format invalide', details: zodErr.issues }, { status: 400 });
+            }
+            throw zodErr;
         }
+        const { roles } = parsed;
 
         const { email: emailParam } = await params;
         const email = decodeURIComponent(emailParam);

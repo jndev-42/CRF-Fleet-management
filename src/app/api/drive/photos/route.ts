@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
 import { canAccessDriveFolder } from '@/lib/driveAuth';
+import { getErrorMessage } from '@/lib/utils/error';
 import type { drive_v3 } from 'googleapis';
 
 export async function GET(request: Request) {
@@ -93,8 +94,7 @@ export async function GET(request: Request) {
         return NextResponse.json(photoData);
 
     } catch (error: unknown) {
-        const err = error as { response?: { data?: unknown }; message?: string };
-        console.error('Google Drive Photos Fetch Error:', err?.response?.data ?? err?.message);
+        console.error('Google Drive Photos Fetch Error:', getErrorMessage(error));
 
         return NextResponse.json({ error: 'Erreur lors de la récupération des photos' }, { status: 500 });
     }

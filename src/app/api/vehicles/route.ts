@@ -67,8 +67,9 @@ export async function GET(request: Request) {
         const todayDate = nowISO.split('T')[0];
 
         const whereClause = isDtView && dtCode
-            ? `WHERE v.ulId IN (SELECT id FROM "UniteLocale" WHERE dtCode = '${dtCode}')`
-            : `WHERE v.ulId = '${ulId}'`;
+            ? `WHERE v.ulId IN (SELECT id FROM "UniteLocale" WHERE dtCode = ?)`
+            : `WHERE v.ulId = ?`;
+        const ulArg = isDtView && dtCode ? dtCode : ulId;
 
         const sql = `SELECT
                 v.*,
@@ -83,18 +84,21 @@ export async function GET(request: Request) {
             LEFT JOIN User u2 ON u2.id = t.secondDriverId
             LEFT JOIN VehicleMaintenance m ON m.vehicleId = v.id
               AND (
-                (m.startDate LIKE '%T%' AND m.startDate <= '${nowISO}') OR
-                (m.startDate NOT LIKE '%T%' AND m.startDate <= '${todayDate}')
+                (m.startDate LIKE '%T%' AND m.startDate <= ?) OR
+                (m.startDate NOT LIKE '%T%' AND m.startDate <= ?)
               )
               AND (
                 m.endDate IS NULL OR
-                (m.endDate LIKE '%T%' AND m.endDate > '${nowISO}') OR
-                (m.endDate NOT LIKE '%T%' AND m.endDate >= '${todayDate}')
+                (m.endDate LIKE '%T%' AND m.endDate > ?) OR
+                (m.endDate NOT LIKE '%T%' AND m.endDate >= ?)
               )
             ${whereClause}
             ORDER BY v.name ASC`;
 
-        const result = await db.execute(sql);
+        const result = await db.execute({
+            sql,
+            args: [nowISO, todayDate, nowISO, todayDate, ulArg],
+        });
 
         // Group the results manually to match Prisma's output structure
         const vehiclesMap = new Map();
