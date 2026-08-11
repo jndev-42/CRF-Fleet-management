@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { deleteDriveFolder } from '@/lib/drive';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 
 export async function DELETE(
     request: Request,
@@ -10,11 +10,25 @@ export async function DELETE(
 ) {
     try {
         const session = await auth();
-        if (!isAdminOrAbove(session?.user?.roles || [])) {
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        }
+        if (!isAdminOrAbove(session.user.roles || [])) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
         const { id } = await params;
+
+        const vehicleResult = await db.execute({
+            sql: `SELECT ulId FROM Vehicle WHERE id = ?`,
+            args: [id],
+        });
+        if (vehicleResult.rows.length === 0) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
+        }
+        if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== vehicleResult.rows[0].ulId) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+        }
 
         // Fetch all trips for this vehicle to delete their Drive folders
         const tripsRes = await db.execute({

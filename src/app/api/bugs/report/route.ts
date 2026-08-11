@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { isInactive } from '@/lib/roles';
 
 const reportSchema = z.object({
   title: z.string().min(1).max(200),
@@ -18,8 +19,7 @@ export async function POST(request: Request) {
   }
 
   const roles = session.user.roles || ['INACTIF'];
-  const isInactive = (r: string) => r === 'INACTIF' || r === 'GUEST';
-  if (roles.length > 0 && roles.every(isInactive)) {
+  if (isInactive(roles)) {
     return NextResponse.json({ error: 'Interdit' }, { status: 403 });
   }
 

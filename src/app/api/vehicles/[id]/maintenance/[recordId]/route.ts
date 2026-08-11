@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 
 export async function DELETE(
     _request: Request,
@@ -22,12 +22,16 @@ export async function DELETE(
 
         // Resolve vehicle by name to get its UUID
         const vehicleResult = await db.execute({
-            sql: `SELECT id FROM "Vehicle" WHERE name = ?`,
+            sql: `SELECT id, ulId FROM "Vehicle" WHERE name = ?`,
             args: [id],
         });
 
         if (vehicleResult.rows.length === 0) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
+        }
+
+        if (!isSuperAdmin(roles) && session.user.ulId !== vehicleResult.rows[0].ulId) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
         const vehicleId = vehicleResult.rows[0].id as string;

@@ -7,6 +7,7 @@ import IncidentPdfDocument from '@/components/incident/IncidentPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
 import { getDriveClient } from '@/lib/drive';
+import { isAdminOrAbove } from '@/lib/roles';
 
 async function generateIncidentPdf(reportId: string): Promise<Buffer> {
   const result = await db.execute({
@@ -121,8 +122,22 @@ export async function GET(
     try {
         const { id } = await params;
         const session = await auth();
-        if (!session?.user) {
+        if (!session?.user?.id) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+        }
+
+        const ownershipRes = await db.execute({
+            sql: `SELECT userId FROM IncidentReport WHERE id = ?`,
+            args: [id],
+        });
+        const ownershipRow = ownershipRes.rows[0];
+        if (!ownershipRow) {
+            return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
+        }
+
+        const isOwner = ownershipRow.userId === session.user.id;
+        if (!isOwner && !isAdminOrAbove(session.user.roles || [])) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
         const buffer = await generateIncidentPdf(id);

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +52,15 @@ export async function GET(
         }
 
         const row = vehicleResult.rows[0];
+
+        // Pas de fuite d'existence inter-UL : un véhicule d'une autre UL renvoie
+        // un 404 identique à "non trouvé" (l'accès via QR code reste séparé, cf. /api/qr/[token]/vehicle)
+        if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== row.ulId) {
+            return NextResponse.json(
+                { error: 'Véhicule non trouvé' },
+                { status: 404 }
+            );
+        }
 
         // Fetch trips using the actual vehicle UUID — JOIN User to get display name/email
         const tripsResult = await db.execute({
@@ -201,7 +210,7 @@ export async function PATCH(
 
         // Fetch the current vehicle state (UUID, name, plate, hasDSA)
         const currentVehicleRes = await db.execute({
-            sql: `SELECT id, name, plate, hasDSA FROM Vehicle WHERE name = ?`,
+            sql: `SELECT id, name, plate, hasDSA, ulId FROM Vehicle WHERE name = ?`,
             args: [id]
         });
         if (currentVehicleRes.rows.length === 0) {
@@ -211,6 +220,11 @@ export async function PATCH(
             );
         }
         const currentVehicle = currentVehicleRes.rows[0];
+
+        if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== currentVehicle.ulId) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+        }
+
         const vehicleUuid = currentVehicle.id as string;
         const previousHasDSA = !!currentVehicle.hasDSA;
 
@@ -324,7 +338,7 @@ export async function DELETE(
 
         // Find the vehicle by name first to get its UUID
         const vehicleResult = await db.execute({
-            sql: `SELECT id FROM Vehicle WHERE name = ?`,
+            sql: `SELECT id, ulId FROM Vehicle WHERE name = ?`,
             args: [id]
         });
 
@@ -333,6 +347,10 @@ export async function DELETE(
                 { error: 'Véhicule non trouvé' },
                 { status: 404 }
             );
+        }
+
+        if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== vehicleResult.rows[0].ulId) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
         const realId = vehicleResult.rows[0].id;

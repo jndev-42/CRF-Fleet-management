@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 
 const patchItemSchema = z.object({
     label: z.string().min(1).max(200).optional(),
@@ -25,6 +25,18 @@ export async function PATCH(
         }
 
         const { itemId } = await params;
+
+        const ownerRes = await db.execute({
+            sql: `SELECT v.ulId as ulId FROM "VehicleChecklistItem" vc JOIN Vehicle v ON v.id = vc.vehicleId WHERE vc.id = ?`,
+            args: [itemId],
+        });
+        if (ownerRes.rows.length === 0) {
+            return NextResponse.json({ error: 'Élément non trouvé' }, { status: 404 });
+        }
+        if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== ownerRes.rows[0].ulId) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+        }
+
         const body = await request.json();
 
         let data: z.infer<typeof patchItemSchema>;
@@ -91,6 +103,17 @@ export async function DELETE(
 
         if (itemId.startsWith('dsa-')) {
             return NextResponse.json({ error: 'Le DSA ne peut pas être supprimé. Désactivez-le dans les paramètres du véhicule.' }, { status: 400 });
+        }
+
+        const ownerRes = await db.execute({
+            sql: `SELECT v.ulId as ulId FROM "VehicleChecklistItem" vc JOIN Vehicle v ON v.id = vc.vehicleId WHERE vc.id = ?`,
+            args: [itemId],
+        });
+        if (ownerRes.rows.length === 0) {
+            return NextResponse.json({ error: 'Élément non trouvé' }, { status: 404 });
+        }
+        if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== ownerRes.rows[0].ulId) {
+            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
         }
 
         await db.execute({

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 
 const PAGE_SIZE = 5;
 
@@ -93,12 +93,16 @@ export async function POST(
         const data = createMaintenanceSchema.parse(body);
 
         const vehicleResult = await db.execute({
-            sql: `SELECT id FROM "Vehicle" WHERE name = ?`,
+            sql: `SELECT id, ulId FROM "Vehicle" WHERE name = ?`,
             args: [id],
         });
 
         if (vehicleResult.rows.length === 0) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
+        }
+
+        if (!isSuperAdmin(roles) && session.user.ulId !== vehicleResult.rows[0].ulId) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
         const vehicleId = vehicleResult.rows[0].id as string;

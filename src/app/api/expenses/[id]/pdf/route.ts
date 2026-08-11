@@ -89,8 +89,25 @@ export async function GET(
     try {
         const { id } = await params;
         const session = await auth();
-        if (!session?.user) {
+        if (!session?.user?.id) {
             return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+        }
+
+        const ownershipRes = await db.execute({
+            sql: `SELECT userId, status FROM "ExpenseReport" WHERE id = ?`,
+            args: [id],
+        });
+        const ownershipRow = ownershipRes.rows[0];
+        if (!ownershipRow) {
+            return NextResponse.json({ error: 'Note de frais non trouvée' }, { status: 404 });
+        }
+
+        const roles = session.user.roles || [];
+        const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
+        const isTresorier = roles.includes('TRESORIER');
+        const isOwner = ownershipRow.userId === session.user.id;
+        if (!isManager && !isOwner && !(isTresorier && ownershipRow.status === 'en_attente_paiement')) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
         const buffer = await generateExpensePdf(id);

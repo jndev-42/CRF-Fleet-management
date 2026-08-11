@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.8.3] — 11 août 2026
+
+### 🔒 Sécurité
+
+Correctifs des vulnérabilités **Haute** de l'audit de sécurité (voir `docs/code-review-2026-08-11.md`).
+
+- **Comptes sans rôle traités comme actifs** — `isInactive([])` renvoyait `false`, permettant à tout compte `@croix-rouge.fr` auto-provisionné sans rôle de contourner la politique deny-by-default (checkout de véhicules, stats flotte, `/api/bugs/report`). Corrigé dans `src/lib/roles.ts` ; suppression d'une réimplémentation locale du même bug dans `/api/bugs/report`.
+- **IDOR sur les exports PDF** — `/api/expenses/[id]/pdf` et `/api/incidents/[id]/pdf` ne vérifiaient que l'authentification, contrairement à leurs routes JSON équivalentes. Alignement sur le même contrôle de propriété (propriétaire, manager, ou trésorier pour les notes de frais en attente de paiement ; propriétaire ou admin pour les incidents).
+- **Exposition de données inter-UL** :
+  - `/api/vehicles/[id]` et `/api/vehicles/[id]/desinfections` renvoient désormais 404 (au lieu d'exposer les données) pour un véhicule d'une autre Unité Locale — l'accès via QR code reste inchangé, c'est un mécanisme séparé et volontairement sans restriction d'UL.
+  - `/api/incidents/[id]` (GET) et `/api/renault/[vin]` vérifient désormais l'appartenance à l'UL avant de renvoyer les données (403 sinon).
+- **Actions destructrices admin sans contrôle d'UL** — un `ADMIN` local pouvait modifier/supprimer des véhicules, purger l'historique de trajets, gérer la maintenance ou la checklist d'un véhicule appartenant à une autre Unité Locale. Ajout du contrôle d'appartenance UL (bypass réservé à `SUPER_ADMIN`) sur `/api/vehicles/[id]` (PATCH/DELETE), `/api/vehicles/[id]/trips` (DELETE), `/api/vehicles/[id]/maintenance` (POST), `/api/vehicles/[id]/maintenance/[recordId]` (DELETE) et `/api/checklist/[itemId]` (PATCH/DELETE).
+
 ## [4.8.2] — 11 août 2026
 
 ### 🔒 Sécurité
