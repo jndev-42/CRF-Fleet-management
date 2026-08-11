@@ -91,7 +91,7 @@ export async function GET(request: Request) {
     }));
 
     // If vehicleIdParam specified, use it for filtering
-    const vehicleFilterClause = vehicleIdParam ? ` AND v.id = '${vehicleIdParam}'` : '';
+    const vehicleFilterClause = vehicleIdParam ? ` AND v.id = ?` : '';
 
     // 2. Fetch reservations
     const reservationsSql = `
@@ -106,9 +106,13 @@ export async function GET(request: Request) {
       ORDER BY r.startTime ASC
     `;
 
+    const reservationsArgs = vehicleIdParam
+      ? [vehicleIdParam, windowEndISO, windowStartISO]
+      : [windowEndISO, windowStartISO];
+
     const reservationsResult = await db.execute({
       sql: reservationsSql,
-      args: [windowEndISO, windowStartISO],
+      args: reservationsArgs,
     });
 
     const reservations = reservationsResult.rows.map(row => ({
@@ -141,9 +145,13 @@ export async function GET(request: Request) {
       ORDER BY t.checkOutAt ASC
     `;
 
+    const tripsArgs = vehicleIdParam
+      ? [vehicleIdParam, windowEndISO, windowStartISO]
+      : [windowEndISO, windowStartISO];
+
     const tripsResult = await db.execute({
       sql: tripsSql,
-      args: [windowEndISO, windowStartISO],
+      args: tripsArgs,
     });
 
     const trips = tripsResult.rows.map(row => ({
@@ -177,9 +185,13 @@ export async function GET(request: Request) {
       ORDER BY m.startDate ASC
     `;
 
+    const maintenanceArgs = vehicleIdParam
+      ? [vehicleIdParam, windowEndDay, windowStartDay]
+      : [windowEndDay, windowStartDay];
+
     const maintenanceResult = await db.execute({
       sql: maintenanceSql,
-      args: [windowEndDay, windowStartDay],
+      args: maintenanceArgs,
     });
 
     const maintenances = maintenanceResult.rows.map(row => ({

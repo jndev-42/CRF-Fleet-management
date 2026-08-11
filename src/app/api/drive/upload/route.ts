@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
+import { canAccessDriveFolder } from '@/lib/driveAuth';
 import { Readable } from 'stream';
 
 const SHARED_FOLDER_ID = '11UwzHHOzNhn--f16eMaoWk9NgvOwOt2G';
@@ -58,7 +59,6 @@ export async function POST(request: Request) {
         const stage = formData.get('stage') as string | null; // 'emprunt' or 'rendu' — optional for mission flow
         const existingFolderId = formData.get('existingFolderId') as string | null;
         const missionName = formData.get('missionName') as string | null; // used when stage is absent
-        const rootFolderId = (formData.get('rootFolderId') as string | null) ?? SHARED_FOLDER_ID;
         const allowPdf = formData.get('allowPdf') === 'true';
 
         const files = formData.getAll('files') as File[];
@@ -112,26 +112,29 @@ export async function POST(request: Request) {
         const drive = getDriveClient();
 
         // En mode preview : utiliser le dossier PREVIEW/ comme racine pour TOUS les uploads.
-        // Cela remplace aussi le rootFolderId passé par le client (ex: MissionWizard),
-        // afin que les rapports signés et photos de mission soient également sous PREVIEW/.
+        // La racine est toujours résolue côté serveur (jamais fournie par le client) pour
+        // empêcher l'écriture dans un dossier Drive arbitraire.
         const effectiveSharedFolderId = isPreview
             ? await getPreviewRootFolderId()
             : SHARED_FOLDER_ID;
-        const effectiveRootFolderId = isPreview ? effectiveSharedFolderId : rootFolderId;
 
         // 1. Get or Create Parent Folder
         let parentFolderId = existingFolderId;
+
+        if (parentFolderId && parentFolderId !== 'null') {
+            if (!(await canAccessDriveFolder(session, parentFolderId))) {
+                return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            }
+        }
 
         if (!parentFolderId || parentFolderId === 'null') {
             const folderName = stage
                 ? `${vehicleName}-${dateStr}`
                 : `${missionName}-${dateStr}`;
 
-            const effectiveRootFolder = stage ? effectiveSharedFolderId : effectiveRootFolderId;
-
             // Try to find if it already exists just in case
             const searchRes = await drive.files.list({
-                q: `name='${folderName}' and '${effectiveRootFolder}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+                q: `name='${folderName}' and '${effectiveSharedFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
                 fields: 'files(id)',
                 spaces: 'drive',
             });
@@ -143,7 +146,7 @@ export async function POST(request: Request) {
                 const folderMetadata = {
                     name: folderName,
                     mimeType: 'application/vnd.google-apps.folder',
-                    parents: [effectiveRootFolder],
+                    parents: [effectiveSharedFolderId],
                 };
                 const folderRes = await drive.files.create({
                     requestBody: folderMetadata,

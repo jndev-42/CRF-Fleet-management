@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
+import { canAccessDriveFolder } from '@/lib/driveAuth';
 import { Readable } from 'stream';
 
 const SHARED_FOLDER_ID = '11UwzHHOzNhn--f16eMaoWk9NgvOwOt2G';
@@ -78,6 +79,12 @@ export async function POST(request: Request) {
             const uploadTargetId = existingFolderId || `mock-folder-expense-${Date.now()}`;
             const fileIds = files.map((_, i) => `mock-file-${i}-${Date.now()}`);
             return NextResponse.json({ success: true, folderId: uploadTargetId, fileIds });
+        }
+
+        if (existingFolderId && existingFolderId !== 'null') {
+            if (!(await canAccessDriveFolder(session, existingFolderId))) {
+                return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            }
         }
 
         const drive = getDriveClient();

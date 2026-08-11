@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
+import { canAccessDriveFolder } from '@/lib/driveAuth';
 import type { drive_v3 } from 'googleapis';
 
 export async function GET(request: Request) {
@@ -31,6 +32,10 @@ export async function GET(request: Request) {
                 emprunt: [{ id: 'mock-photo-1', name: 'photo_emprunt.jpg', mimeType: 'image/jpeg' }],
                 rendu: [{ id: 'mock-photo-2', name: 'photo_rendu.jpg', mimeType: 'image/jpeg' }]
             });
+        }
+
+        if (!(await canAccessDriveFolder(session, folderId))) {
+            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
         }
 
         const drive = getDriveClient();

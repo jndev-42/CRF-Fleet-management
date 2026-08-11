@@ -173,7 +173,7 @@ export async function PATCH(
                     data.incident || null,
                     data.commentsIn || null,
                     data.parkingPhoto || null,
-                    data.driveFolderId || trip.driveFolderId || null,
+                    trip.driveFolderId || data.driveFolderId || null,
                     data.checklistIn ? JSON.stringify(data.checklistIn) : null,
                     renaultDataValidated,
                     renaultDataValidated !== null ? timestamp : null,

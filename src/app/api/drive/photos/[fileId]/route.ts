@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
+import { canAccessDriveFolder } from '@/lib/driveAuth';
 
 export async function GET(
     request: Request,
@@ -43,6 +44,33 @@ export async function GET(
         }
 
         const drive = getDriveClient();
+
+        // Vérifie que ce fichier appartient à une ressource accessible à l'utilisateur,
+        // en remontant jusqu'à 2 niveaux de dossiers parents (les photos sont nichées
+        // sous <driveFolderId>/emprunt|rendu/, ou directement sous <driveFolderId>).
+        const fileParentsRes = await drive.files.get({ fileId, fields: 'parents' });
+        const immediateParents = fileParentsRes.data.parents || [];
+
+        let authorized = false;
+        for (const parentId of immediateParents) {
+            if (await canAccessDriveFolder(session, parentId)) {
+                authorized = true;
+                break;
+            }
+            const parentRes = await drive.files.get({ fileId: parentId, fields: 'parents' });
+            const grandParents = parentRes.data.parents || [];
+            for (const grandParentId of grandParents) {
+                if (await canAccessDriveFolder(session, grandParentId)) {
+                    authorized = true;
+                    break;
+                }
+            }
+            if (authorized) break;
+        }
+
+        if (!authorized) {
+            return new Response('Forbidden', { status: 403 });
+        }
 
         // Fetch file metadata to get MIME type
         const fileMetadata = await drive.files.get({

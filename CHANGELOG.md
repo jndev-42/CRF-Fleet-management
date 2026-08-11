@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.8.2] — 11 août 2026
+
+### 🔒 Sécurité
+
+Correctifs issus d'un audit de sécurité complet du dépôt (voir `docs/code-review-2026-08-11.md`).
+
+- **Injection SQL sur le calendrier des véhicules** (`/api/vehicles/calendar`) — le paramètre `vehicleId` était interpolé directement dans les requêtes SQL des réservations, trajets et maintenances, permettant de contourner l'isolation par Unité Locale (UL) et d'exposer les données de toutes les UL. Le filtre est désormais entièrement paramétré.
+- **Lecture/écriture arbitraire sur Google Drive** — les routes `/api/drive/photos`, `/api/drive/photos/[fileId]`, `/api/drive/upload` et `/api/expenses/upload` acceptaient un `fileId`/`folderId` fourni par le client sans vérifier qu'il appartenait à une ressource (trajet, note de frais, incident) de l'UL ou du propriétaire de l'appelant :
+  - Nouveau module `src/lib/driveAuth.ts` : résout le propriétaire réel (`Trip`/`IncidentReport` via l'UL du véhicule, `ExpenseReport` via propriétaire/manager/trésorier) d'un `driveFolderId` et vérifie les droits d'accès.
+  - Lecture (liste de photos, téléchargement de fichier) et écriture (upload dans un dossier existant) renvoient désormais 403 si l'utilisateur n'est pas autorisé sur la ressource.
+  - `/api/drive/upload` n'accepte plus de `rootFolderId` fourni par le client pour le flux mission — la racine est toujours résolue côté serveur, comme pour le flux véhicule.
+  - `/api/trips/[id]/checkin` : le `driveFolderId` déjà enregistré en base fait désormais foi, le client ne peut plus l'écraser.
+
 ## [4.8.1] — 4 août 2026
 
 ### 🐛 Correctifs
