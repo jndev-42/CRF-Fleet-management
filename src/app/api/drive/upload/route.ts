@@ -129,28 +129,17 @@ export async function POST(request: Request) {
 
             const effectiveRootFolder = stage ? effectiveSharedFolderId : effectiveRootFolderId;
 
-            // Try to find if it already exists just in case
-            const searchRes = await drive.files.list({
-                q: `name='${folderName}' and '${effectiveRootFolder}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                fields: 'files(id)',
-                spaces: 'drive',
+            // Direct creation without slow search scan
+            const folderMetadata = {
+                name: folderName,
+                mimeType: 'application/vnd.google-apps.folder',
+                parents: [effectiveRootFolder],
+            };
+            const folderRes = await drive.files.create({
+                requestBody: folderMetadata,
+                fields: 'id',
             });
-
-            if (searchRes.data.files && searchRes.data.files.length > 0) {
-                parentFolderId = searchRes.data.files[0].id!;
-            } else {
-                // Create it
-                const folderMetadata = {
-                    name: folderName,
-                    mimeType: 'application/vnd.google-apps.folder',
-                    parents: [effectiveRootFolder],
-                };
-                const folderRes = await drive.files.create({
-                    requestBody: folderMetadata,
-                    fields: 'id',
-                });
-                parentFolderId = folderRes.data.id!;
-            }
+            parentFolderId = folderRes.data.id!;
         }
 
         // 2. For vehicle flow: create stage subfolder and upload into it.
@@ -158,27 +147,17 @@ export async function POST(request: Request) {
         let uploadTargetId: string;
 
         if (stage) {
-            // Try to find if the subfolder already exists
-            const subSearchRes = await drive.files.list({
-                q: `name='${stage}' and '${parentFolderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-                fields: 'files(id)',
-                spaces: 'drive',
+            // Direct subfolder creation without slow search scan
+            const subfolderMetadata = {
+                name: stage,
+                mimeType: 'application/vnd.google-apps.folder',
+                parents: [parentFolderId],
+            };
+            const subfolderRes = await drive.files.create({
+                requestBody: subfolderMetadata,
+                fields: 'id',
             });
-
-            if (subSearchRes.data.files && subSearchRes.data.files.length > 0) {
-                uploadTargetId = subSearchRes.data.files[0].id!;
-            } else {
-                const subfolderMetadata = {
-                    name: stage,
-                    mimeType: 'application/vnd.google-apps.folder',
-                    parents: [parentFolderId],
-                };
-                const subfolderRes = await drive.files.create({
-                    requestBody: subfolderMetadata,
-                    fields: 'id',
-                });
-                uploadTargetId = subfolderRes.data.id!;
-            }
+            uploadTargetId = subfolderRes.data.id!;
         } else {
             uploadTargetId = parentFolderId;
         }
