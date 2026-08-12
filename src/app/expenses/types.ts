@@ -1,0 +1,30 @@
+export interface ExpenseReport {
+    id: string;
+    userId: string;
+    userName: string;
+    userEmail: string;
+    submittedAt: string;
+    status: 'brouillon' | 'soumis' | 'en_attente_paiement' | 'traité' | 'refusé';
+    imputation: 'DLUS' | 'DLAS' | 'UL' | 'Autre';
+    customImputation: string | null;
+    requestRefund: boolean;
+    noReceiptDeclaration: boolean;
+    driveFolderId: string | null;
+    total: number;
+    items: { label: string; amount: number }[];
+    ulId: string;
+    userFunction?: string | null;
+    userSignature?: string | null;
+    validatorSignature?: string | null;
+    validatedAt: string | null;
+    validatedBy: string | null;
+    validatorName: string | null;
+    rejectionComment: string | null;
+    rejectedAt: string | null;
+    rejectedBy: string | null;
+    rejectorName: string | null;
+    paidAt: string | null;
+    paidBy: string | null;
+    payerName: string | null;
+    createdAt: string;
+}

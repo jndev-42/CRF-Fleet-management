@@ -61,45 +61,123 @@ async function prodCloneMode(): Promise<void> {
   const prod = createClient({ url: prodUrl, authToken: prodToken ?? '' });
   const local = createClient({ url: CONTAINER_DB_URL });
 
-  // Enumerate all user tables from prod
+  // Enumerate all user tables + their schema SQL from prod up front
   const tablesResult = await prod.execute(
-    `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
+    `SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
   );
-  const tables = tablesResult.rows.map((r) => r.name as string);
-  console.log(`[dev-db-init] Found ${tables.length} tables: ${tables.join(', ')}`);
+  const tableDefs = tablesResult.rows.map((r) => ({
+    name: r.name as string,
+    sql: r.sql as string | null,
+  }));
+  console.log(`[dev-db-init] Found ${tableDefs.length} tables: ${tableDefs.map((t) => t.name).join(', ')}`);
 
-  for (const table of tables) {
-    // Recreate schema in container
-    const schemaResult = await prod.execute({
-      sql: `SELECT sql FROM sqlite_master WHERE type='table' AND name=?`,
-      args: [table],
-    });
-    const schemaSql = schemaResult.rows[0]?.sql as string | undefined;
-    if (!schemaSql) {
-      console.log(`[dev-db-init]   ${table}: no schema found, skipping`);
-      continue;
+  // sqld's HTTP/Hrana bridge does not appear to honor `PRAGMA foreign_keys =
+  // OFF`, even when issued inside the same transaction (verified: FK checks
+  // still fire, and fire against tables that don't exist yet — SQLite then
+  // reports "no such table" rather than a constraint error). So instead of
+  // relying on disabling FK enforcement, row inserts must run in dependency
+  // order (parents before children). Build that order from each table's
+  // REFERENCES clauses.
+  const tableNames = new Set(tableDefs.map((t) => t.name));
+  const dependsOn = new Map<string, Set<string>>();
+  for (const { name, sql } of tableDefs) {
+    const deps = new Set<string>();
+    if (sql) {
+      for (const m of sql.matchAll(/REFERENCES\s+"([A-Za-z0-9_]+)"/g)) {
+        const dep = m[1];
+        if (dep !== name && tableNames.has(dep)) deps.add(dep);
+      }
     }
-    await local.execute(
-      schemaSql.replace(/^CREATE TABLE\b/, 'CREATE TABLE IF NOT EXISTS')
-    );
+    dependsOn.set(name, deps);
+  }
+  const insertOrder: string[] = [];
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+  function visit(name: string): void {
+    if (visited.has(name)) return;
+    if (visiting.has(name)) return; // cycle — break it, order among the cycle no longer matters much
+    visiting.add(name);
+    for (const dep of dependsOn.get(name) ?? []) visit(dep);
+    visiting.delete(name);
+    visited.add(name);
+    insertOrder.push(name);
+  }
+  for (const { name } of tableDefs) visit(name);
 
-    // Read all rows from prod
-    const rows = await prod.execute(`SELECT * FROM "${table}"`);
-    if (rows.rows.length === 0) {
-      console.log(`[dev-db-init]   ${table}: empty`);
-      continue;
+  // Row reads from prod are paginated rather than one unbounded `SELECT *`.
+  // The installed @libsql/client (0.5.6) HTTP transport silently kills the
+  // process — no rejection, no error, just a clean exit — once a single
+  // response crosses a few KB (observed: fine at 50 narrow-ish rows, dead at
+  // 55; unrelated to row content, purely response size, so wide tables like
+  // Trip die at far fewer rows than narrow ones like User). A small page
+  // size keeps every response well under that threshold.
+  const PAGE_SIZE = 20;
+
+  const schemaByName = new Map(tableDefs.map((t) => [t.name, t.sql]));
+
+  const tx = await local.transaction('write');
+  try {
+    // Phase 1a: drop existing local tables in reverse dependency order
+    // (children before parents). sqld enforces FK checks on DROP TABLE
+    // itself (unlike vanilla SQLite) — dropping a parent while a child
+    // table still holds rows referencing it fails with a FOREIGN KEY
+    // constraint error, so children must be gone first. Drop is needed so a
+    // stale local table (older/fewer columns from a prior seed run or prior
+    // clone) doesn't linger and break the row copy below with "no column
+    // named X".
+    for (const table of [...insertOrder].reverse()) {
+      await tx.execute(`DROP TABLE IF EXISTS "${table}"`);
     }
 
-    // Get column names from result columns
-    const cols = rows.columns;
-    const placeholders = cols.map(() => '?').join(', ');
-    const insertSql = `INSERT OR REPLACE INTO "${table}" (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
-
-    for (const row of rows.rows) {
-      const args = cols.map((col) => row[col] ?? null);
-      await local.execute({ sql: insertSql, args });
+    // Phase 1b: recreate every table's schema from prod, parents first (not
+    // strictly required for CREATE, but keeps this symmetric with the drop).
+    for (const table of insertOrder) {
+      const sql = schemaByName.get(table);
+      if (!sql) {
+        console.log(`[dev-db-init]   ${table}: no schema found, skipping`);
+        continue;
+      }
+      await tx.execute(sql.replace(/^CREATE TABLE\b/, 'CREATE TABLE IF NOT EXISTS'));
     }
-    console.log(`[dev-db-init]   ${table}: ${rows.rows.length} rows cloned`);
+
+    // Phase 2: copy rows in dependency order so a child row's FK target
+    // already has its parent row inserted.
+    for (const table of insertOrder) {
+      if (!schemaByName.get(table)) continue;
+
+      let insertSql: string | undefined;
+      let totalRows = 0;
+      for (let offset = 0; ; offset += PAGE_SIZE) {
+        const page = await prod.execute(
+          `SELECT * FROM "${table}" ORDER BY rowid LIMIT ${PAGE_SIZE} OFFSET ${offset}`
+        );
+        if (page.rows.length === 0) break;
+
+        if (!insertSql) {
+          const cols = page.columns;
+          const placeholders = cols.map(() => '?').join(', ');
+          insertSql = `INSERT OR REPLACE INTO "${table}" (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
+        }
+        for (const row of page.rows) {
+          const args = page.columns.map((col) => row[col] ?? null);
+          await tx.execute({ sql: insertSql, args });
+        }
+        totalRows += page.rows.length;
+
+        if (page.rows.length < PAGE_SIZE) break;
+      }
+
+      if (totalRows === 0) {
+        console.log(`[dev-db-init]   ${table}: empty`);
+      } else {
+        console.log(`[dev-db-init]   ${table}: ${totalRows} rows cloned`);
+      }
+    }
+
+    await tx.commit();
+  } catch (e) {
+    await tx.rollback();
+    throw e;
   }
 
   console.log('[dev-db-init] Prod clone complete.');

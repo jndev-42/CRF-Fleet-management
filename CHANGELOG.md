@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.8.7] — 12 août 2026
+
+### 🏗️ Qualité & Architecture
+
+- **Décomposition des 4 composants "Dieu" (M1)** — extraction de la logique data-fetching en hooks dédiés et d'une section UI par composant, conformément à la règle déjà documentée dans `src/app/CLAUDE.md` :
+  - `src/components/admin/UsersTab.tsx` : 866 → 204 lignes (`UsersTable`, `modals/AddUserModal`, `modals/DeleteUserModal`, `modals/ManageUserULsModal`).
+  - `src/app/qr/[token]/page.tsx` : 879 → 259 lignes (`CheckOutForm`, `CheckInForm`, `VehicleInfoCard`, `QRActions`).
+  - `src/app/vehicles/[id]/page.tsx` : 1088 → 494 lignes (`useVehicleDetail`, `VehicleDetailHeader`, `ActiveTripBanner`, `MaintenanceBanner`, `VehicleDetailGrid`, `TripHistoryList`).
+  - `src/app/expenses/page.tsx` : 1273 → 370 lignes (`useExpenseReports`, `ExpensesFilters`, `ExpensesTable`, `ExpenseDetailSidebar`, `ExpensePhotosPanel`, `JustificatifsModal`, `PhotoLightbox`).
+  - Corrigé au passage : `EditRevisionIntervalsModal.tsx` appelait `PATCH /api/vehicles/${vehicle.id}` (UUID) au lieu de `${vehicle.name}` (attendu par la route) — "Véhicule non trouvé" à chaque modification des intervalles de révision. Bug pré-existant, découvert lors des tests manuels de cette phase.
+
 ## [4.8.6] — 12 août 2026
 
 ### 🏗️ Qualité & Architecture

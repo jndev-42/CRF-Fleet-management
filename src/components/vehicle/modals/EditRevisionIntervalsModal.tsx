@@ -29,7 +29,7 @@ export default function EditRevisionIntervalsModal({ vehicle, onClose, onSuccess
         if (revisionYearInterval !== '') payload.revisionYearInterval = revisionYearInterval;
 
         try {
-            const res = await fetch(`/api/vehicles/${vehicle.id}`, {
+            const res = await fetch(`/api/vehicles/${encodeURIComponent(vehicle.name)}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
