@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.8.6] — 12 août 2026
+
+### 🏗️ Qualité & Architecture
+
+- **Annulation de requête / garde de démontage (H3)** — introduction du pattern `AbortController` (absent du dépôt jusqu'ici) sur les effets de récupération de données susceptibles de se déclencher plusieurs fois pendant la vie d'un composant :
+  - `/inventory` — corrige le bug concret identifié par l'audit : changer rapidement de stock pouvait afficher les catégories ou articles d'un stock précédemment sélectionné si sa réponse arrivait après. Corrige aussi au passage la dépendance d'effet trop large signalée en L3 (le chargement des stocks se re-déclenchait inutilement).
+  - `/vehicles/[id]`, `/expenses` (liste + photos du rapport sélectionné), `/qr/[token]`, `/stats` (filtres) — même protection sur leurs requêtes principales.
+
 ## [4.8.5] — 12 août 2026
 
 ### 🏗️ Qualité & Architecture

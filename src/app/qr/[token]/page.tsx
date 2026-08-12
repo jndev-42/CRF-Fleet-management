@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import FuelBar from '@/components/vehicle/FuelBar';
 import ChecklistItems from '@/components/vehicle/ChecklistItems';
@@ -547,10 +547,15 @@ export default function QRVehiclePage() {
         setTimeout(() => setToast(null), 4000);
     }
 
+    const fetchVehicleAbortRef = useRef<AbortController | null>(null);
+
     const fetchVehicle = useCallback(async () => {
+        fetchVehicleAbortRef.current?.abort();
+        const controller = new AbortController();
+        fetchVehicleAbortRef.current = controller;
         setLoading(true);
         try {
-            const res = await fetch(`/api/qr/${token}/vehicle`);
+            const res = await fetch(`/api/qr/${token}/vehicle`, { signal: controller.signal });
             if (res.status === 401) {
                 router.push(`/login?callbackUrl=${encodeURIComponent(`/qr/${token}`)}`);
                 return;
@@ -562,10 +567,11 @@ export default function QRVehiclePage() {
             }
             const data = await res.json();
             setVehicle(data);
-        } catch {
+        } catch (e) {
+            if (e instanceof Error && e.name === 'AbortError') return;
             setError('Erreur de connexion');
         } finally {
-            setLoading(false);
+            if (fetchVehicleAbortRef.current === controller) setLoading(false);
         }
     }, [token, router]);
 
@@ -577,6 +583,7 @@ export default function QRVehiclePage() {
             .catch(console.error);
 
         fetchVehicle();
+        return () => fetchVehicleAbortRef.current?.abort();
     }, [fetchVehicle]);
 
     const activeTrip = vehicle?.activeTrip;

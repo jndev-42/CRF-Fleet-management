@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -118,8 +118,13 @@ export default function StatsPage() {
     }).catch((err) => console.error('Failed to load filter options', err));
   }, [status]);
 
+  const fetchStatsAbortRef = useRef<AbortController | null>(null);
+
   const fetchStats = useCallback(async () => {
     if (rangeError) return;
+    fetchStatsAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchStatsAbortRef.current = controller;
     setLoading(true);
     setError(null);
     try {
@@ -131,7 +136,7 @@ export default function StatsPage() {
       if (driverIds.length > 0) params.set('driverId', driverIds.join(','));
       if (missionType) params.set('missionType', missionType);
 
-      const res = await fetch(`/api/stats?${params.toString()}`);
+      const res = await fetch(`/api/stats?${params.toString()}`, { signal: controller.signal });
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? 'Erreur lors du chargement des statistiques');
@@ -140,11 +145,12 @@ export default function StatsPage() {
         setData(json.data);
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error(err);
       setError('Erreur réseau');
       setData(null);
     } finally {
-      setLoading(false);
+      if (fetchStatsAbortRef.current === controller) setLoading(false);
     }
   }, [dateFrom, dateTo, vehicleId, driverIds, missionType, rangeError]);
 
@@ -152,6 +158,7 @@ export default function StatsPage() {
     if (status === 'authenticated' && activeTab === 'vehicles') {
       fetchStats();
     }
+    return () => fetchStatsAbortRef.current?.abort();
   }, [status, fetchStats, activeTab]);
 
   const [exportDownloadUrl, setExportDownloadUrl] = useState<string | undefined>(undefined);

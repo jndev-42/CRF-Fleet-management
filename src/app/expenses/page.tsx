@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { FileText, Plus, Trash, Check, Eye, X, Receipt, CheckCircle, Clock, AlertCircle, Send, Edit, XCircle, DollarSign, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download } from 'lucide-react';
@@ -81,23 +81,31 @@ export default function ExpensesPage() {
         }
     }, [status, isManager, isTresorier, hasInitializedScope]);
 
+    const fetchReportsAbortRef = useRef<AbortController | null>(null);
+
     const fetchReports = useCallback(async () => {
+        fetchReportsAbortRef.current?.abort();
+        const controller = new AbortController();
+        fetchReportsAbortRef.current = controller;
         try {
             setTableLoading(true);
             const params = new URLSearchParams();
             params.set('scope', viewScope);
             if (includeProcessed) params.set('includeProcessed', 'true');
 
-            const res = await fetch(`/api/expenses?${params.toString()}`);
+            const res = await fetch(`/api/expenses?${params.toString()}`, { signal: controller.signal });
             if (res.ok) {
                 const data = await res.json();
                 setReports(Array.isArray(data) ? data : []);
             }
         } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return;
             console.error('Failed to fetch expense reports', error);
         } finally {
-            setLoading(false);
-            setTableLoading(false);
+            if (fetchReportsAbortRef.current === controller) {
+                setLoading(false);
+                setTableLoading(false);
+            }
         }
     }, [viewScope, includeProcessed]);
 
@@ -105,22 +113,26 @@ export default function ExpensesPage() {
         if (status === 'authenticated' && hasInitializedScope) {
             fetchReports();
         }
+        return () => fetchReportsAbortRef.current?.abort();
     }, [status, hasInitializedScope, fetchReports]);
 
-    // Fetch photos for selected report
+    // Fetch photos for selected report — annule la requête précédente pour éviter
+    // qu'une réponse tardive n'écrase les photos du rapport nouvellement sélectionné.
     useEffect(() => {
         if (selectedReport?.driveFolderId) {
             setPhotosLoading(true);
             setPhotos([]);
-            fetch(`/api/drive/photos?folderId=${selectedReport.driveFolderId}&flat=true`)
+            const controller = new AbortController();
+            fetch(`/api/drive/photos?folderId=${selectedReport.driveFolderId}&flat=true`, { signal: controller.signal })
                 .then(res => res.json())
                 .then(data => {
                     if (data.photos) {
                         setPhotos(data.photos);
                     }
                 })
-                .catch(err => console.error('Failed to fetch photos', err))
+                .catch(err => { if (err.name !== 'AbortError') console.error('Failed to fetch photos', err); })
                 .finally(() => setPhotosLoading(false));
+            return () => controller.abort();
         } else {
             setPhotos([]);
         }

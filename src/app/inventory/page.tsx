@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import AddItemModal from '@/components/inventory/modals/AddItemModal';
@@ -69,35 +69,45 @@ export default function InventoryPage() {
         }
     }, [status, router]);
 
-    // Charger les stocks
+    // Charger les stocks (une seule fois — ne doit pas se re-déclencher quand
+    // cet effet vient lui-même de définir activeStockId, cf. audit L3)
     useEffect(() => {
         if (status !== 'authenticated') return;
-        fetch('/api/inventory/stocks')
+        const controller = new AbortController();
+        fetch('/api/inventory/stocks', { signal: controller.signal })
             .then(r => r.json())
             .then(d => {
                 const list: InvStockListRow[] = d.stocks ?? [];
                 setStocks(list);
-                if (list.length > 0 && !activeStockId) {
-                    setActiveStockId(list[0].id);
-                }
+                setActiveStockId(prev => prev || (list.length > 0 ? list[0].id : prev));
             })
-            .catch(e => console.error('Erreur fetch stocks:', e));
-    }, [status, activeStockId]);
+            .catch(e => { if (e.name !== 'AbortError') console.error('Erreur fetch stocks:', e); });
+        return () => controller.abort();
+    }, [status]);
 
-    // Charger la liste des catégories à chaque changement de stock actif
+    // Charger la liste des catégories à chaque changement de stock actif —
+    // annule la requête précédente pour éviter qu'une réponse tardive de
+    // l'ancien stock n'écrase les catégories du stock nouvellement sélectionné.
     useEffect(() => {
         if (status !== 'authenticated' || !activeStockId) return;
-        fetch(`/api/inventory?categoriesOnly=1&stockId=${encodeURIComponent(activeStockId)}`)
+        const controller = new AbortController();
+        fetch(`/api/inventory?categoriesOnly=1&stockId=${encodeURIComponent(activeStockId)}`, { signal: controller.signal })
             .then(r => r.json())
             .then(d => setCategories(d.categories ?? []))
-            .catch(() => {});
+            .catch(e => { if (e.name !== 'AbortError') console.error('Erreur fetch catégories:', e); });
+        return () => controller.abort();
     }, [status, activeStockId]);
 
     const userRoles = (session?.user?.roles ?? ['GUEST']) as string[];
     const isAdmin = isAdminOrAbove(userRoles);
 
+    const fetchInventoryAbortRef = useRef<AbortController | null>(null);
+
     const fetchInventory = useCallback(async () => {
         if (!activeStockId) return;
+        fetchInventoryAbortRef.current?.abort();
+        const controller = new AbortController();
+        fetchInventoryAbortRef.current = controller;
         setLoading(true);
         try {
             const params = new URLSearchParams();
@@ -107,16 +117,17 @@ export default function InventoryPage() {
             params.set('page', page.toString());
             params.set('pageSize', '20');
 
-            const res = await fetch(`/api/inventory?${params.toString()}`);
+            const res = await fetch(`/api/inventory?${params.toString()}`, { signal: controller.signal });
             if (res.ok) {
                 const data = await res.json();
                 setItems(data.items);
                 setPagination(data.pagination);
             }
         } catch (e) {
+            if (e instanceof Error && e.name === 'AbortError') return;
             console.error('Erreur fetch inventaire:', e);
         } finally {
-            setLoading(false);
+            if (fetchInventoryAbortRef.current === controller) setLoading(false);
         }
     }, [search, categoryFilter, page, activeStockId]);
 
@@ -124,6 +135,7 @@ export default function InventoryPage() {
         if (status === 'authenticated' && activeStockId) {
             fetchInventory();
         }
+        return () => fetchInventoryAbortRef.current?.abort();
     }, [status, activeStockId, fetchInventory]);
 
     const handleCreateStock = async (name: string) => {

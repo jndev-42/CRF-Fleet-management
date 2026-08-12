@@ -2,7 +2,7 @@
 
 import { QrCode } from 'lucide-react';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { RenaultVehicleData } from '@/lib/renault';
@@ -116,9 +116,14 @@ export default function VehicleDetailPage() {
      * Fetches the detailed vehicle data from the database.
      * Re-runs whenever the page is refreshed or immediately after modifying a trip.
      */
+    const fetchVehicleAbortRef = useRef<AbortController | null>(null);
+
     const fetchVehicle = useCallback(async () => {
+        fetchVehicleAbortRef.current?.abort();
+        const controller = new AbortController();
+        fetchVehicleAbortRef.current = controller;
         try {
-            const res = await fetch(`/api/vehicles/${id}?t=${Date.now()}`, { cache: 'no-store' });
+            const res = await fetch(`/api/vehicles/${id}?t=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
             const data = await res.json();
             if (!res.ok) {
                 if (res.status === 401) {
@@ -129,14 +134,16 @@ export default function VehicleDetailPage() {
             }
             setVehicle(data);
         } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return;
             console.error('Erreur:', error);
         } finally {
-            setLoading(false);
+            if (fetchVehicleAbortRef.current === controller) setLoading(false);
         }
     }, [id, router]);
 
     useEffect(() => {
         fetchVehicle();
+        return () => fetchVehicleAbortRef.current?.abort();
     }, [fetchVehicle]);
 
     useEffect(() => {
