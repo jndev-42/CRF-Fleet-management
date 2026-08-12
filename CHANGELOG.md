@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.9.6] — 12 août 2026
+
+### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 1)
+
+Tests RTL pour 10 composants supplémentaires : `admin/AddVehicleModal`, `inventory/ChecklistManager`, `inventory/EditItemModal`, `GuidedTour`, `inventory/ItemBatchesModal`, `vehicle/modals/MaintenanceHistoryModal`, `NotificationBell`, `vehicle/modals/QRCodeModal`, `admin/ULsTab`, `expenses/YousignSignatureModal`.
+
+- **`MaintenanceHistoryModal.tsx`** — corrige le même bug d'accessibilité `aria-hidden="true"` déjà identifié sur `CheckInModal`/`CheckOutModal` en 4.9.5. Il reste 5 modales concernées (`DesinfHistoryModal`, `DesinfPreCheckinModal`, `EditCheckOutModal`, `IncidentHistoryModal`, `IncidentReportModal`), à traiter dans une prochaine passe.
+- 76 nouveaux tests, suite complète toujours à 0 échec (821 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
+- Reste à traiter : ~36 composants de priorité 2, sur de prochains lots.
+
 ## [4.9.5] — 12 août 2026
 
 ### 🧪 Couverture de tests — Phase 5 (1/2) : composants à état prioritaires (React Testing Library)

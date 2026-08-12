@@ -133,7 +133,7 @@ export default function MaintenanceHistoryModal({
     const showMileage = form.type === 'REVISION' || form.type === 'CT_REVISION';
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 className="modal"
                 role="dialog"
