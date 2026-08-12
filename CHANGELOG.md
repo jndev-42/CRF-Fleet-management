@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.9.5] — 12 août 2026
+
+### 🧪 Couverture de tests — Phase 5 (1/2) : composants à état prioritaires (React Testing Library)
+
+Tests RTL pour les 10 composants à état les plus à risque identifiés par l'audit (densité de hooks) : `vehicle/ReservationBlock`, `vehicle/modals/CheckInModal`, `vehicle/modals/CheckOutModal`, `admin/UsersTab`, `admin/UsersTable`, `admin/modals/AddUserModal`, `admin/modals/ManageUserULsModal`, `admin/BannersTab`, `expenses/ExpenseForm`, `missions/MissionWizard`.
+
+- **`CheckInModal.tsx` / `CheckOutModal.tsx`** — bug d'accessibilité réel découvert en écrivant les tests : le conteneur `.modal-overlay` portait `aria-hidden="true"`, masquant **toute** la modale (formulaire, boutons, sous-modale de signalement d'incident) aux technologies d'assistance alors qu'elle reste visible et interactive à l'écran. Corrigé sur ces deux fichiers. Le même défaut existe sur 6 autres modales (`DesinfHistoryModal`, `DesinfPreCheckinModal`, `EditCheckOutModal`, `IncidentHistoryModal`, `IncidentReportModal`, `MaintenanceHistoryModal`) — hors périmètre de ce lot, à corriger dans une prochaine passe.
+- 81 nouveaux tests, suite complète toujours à 0 échec (745 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
+- Reste à traiter : ~46 composants de priorité 2 (par risque décroissant), sur un prochain lot.
+
 ## [4.9.4] — 12 août 2026
 
 ### 🧪 Couverture de tests — Phase 4 : modules lib non couverts
