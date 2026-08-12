@@ -113,7 +113,7 @@ export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: 
     }
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose} style={{ zIndex: 10001 }}>
+        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
             <div className="modal" role="dialog" aria-modal="true" style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">Historique des incidents - {vehicle.name}</h2>

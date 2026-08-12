@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.9.8] — 12 août 2026
+
+### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 3)
+
+Tests RTL pour 12 composants supplémentaires : `inventory/modals/ExpiringSoonModal`, `FooterChangelog`, `vehicle/modals/IncidentHistoryModal`, `inventory/modals/InventoryHistoryModal`, `KonamiEasterEgg`, `LicenseBanner`, `inventory/modals/LowStockModal`, `ui/MarineApprovedOverlay`, `admin/MenusTab`, `missions/MissionPhotosModal`, `missions/MissionPhotosSection`, `stats/MultiSelectDropdown`.
+
+- **`IncidentHistoryModal.tsx`** — corrige le même bug d'accessibilité `aria-hidden="true"` sur `.modal-overlay` identifié depuis 4.9.5. C'était la dernière modale connue affectée par ce défaut — le correctif est maintenant complet sur toutes les modales de l'application.
+- 60 nouveaux tests, suite complète toujours à 0 échec (945 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
+- Reste à traiter : ~11 composants de priorité 2, sur un dernier lot.
+
 ## [4.9.7] — 12 août 2026
 
 ### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 2)
