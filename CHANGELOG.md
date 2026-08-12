@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.9.2] — 12 août 2026
+
+### 🧪 Couverture de tests — Phase 3 (1/2) : nouvelles routes API sans test
+
+Premier lot de 7 routes (sur 24) sans aucun test d'intégration : `changelog`, `checklist/[itemId]` + `vehicles/[id]/checklist`, `cron/daily-mileage-check`, `drive/photos` + `[fileId]`, `expenses/[id]/pdf`, `incidents/[id]` + `[id]/pdf`, `notifications` + `[id]`.
+
+- **`cron/daily-mileage-check`** — bug réel découvert en écrivant le test : la requête SQL sélectionnait une colonne `Vehicle.isMaintenance` qui n'existe pas dans le schéma (500 en production pour tout véhicule connecté avec un VIN). Corrigé : dérivation depuis `Vehicle.status === 'MAINTENANCE'`. Le test documente aussi volontairement le comportement fail-open si `CRON_SECRET` n'est pas configuré (finding sécurité #8, non corrigé par choix explicite).
+- **`setup.ts`** — ajout de la table `VehicleChecklistItem` et de 4 nouveaux helpers de seed (`seedChecklistItem`, `seedIncident`, `seedNotification`, `seedExpenseReport`) pour couvrir ce lot de routes.
+- 55 nouveaux tests, suite complète toujours à 0 échec (505 tests).
+
 ## [4.9.1] — 12 août 2026
 
 ### 🧪 Couverture de tests — Phase 2 : tests existants incomplets
