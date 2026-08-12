@@ -47,7 +47,7 @@ function makeDeleteRequest(vehicleName: string, recordId: string): Request {
 }
 
 const adminSession = {
-    user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'] },
+    user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
 };
 
 const userSession = {

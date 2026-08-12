@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.9.0] — 12 août 2026
+
+### 🧪 Couverture de tests — Phase 1 : suite verte
+
+Début du chapitre "Couverture de tests" de l'audit (`docs/code-review-2026-08-11.md`). `npm run test` était à 16 échecs sur 46 fichiers ; passe désormais à **0 échec, 441 tests**.
+
+- **11 régressions introduites par les correctifs de sécurité Haute de cette session** (`vehicles.test.ts`, `maintenance.test.ts`, `desinf.test.ts`) — le contrôle d'appartenance UL ajouté à `vehicles/[id]` (PATCH), `maintenance` et `desinfections` faisait échouer des tests dont le mock de session n'avait pas de `ulId` correspondant au véhicule seedé. Corrigé en alignant les fixtures, pas le code produit (le contrôle est légitime).
+- **`PhotoPicker.test.tsx` (4 tests)** — cause réelle non liée à jsdom/React 19 comme le supposait l'audit : `handleFiles` est devenu asynchrone (pré-compression en arrière-plan, commit antérieur `443c8ff`), et jsdom ne déclenche jamais `onload`/`onerror` sur un `<img>` chargé depuis un blob: URL, bloquant indéfiniment la Promise de compression réelle. Le module `@/lib/imageCompression` est désormais mocké dans le test pour isoler la logique de validation de taille.
+- **`VehicleCalendar.test.tsx` (1 test)** — les données de test étaient figées sur juillet 2026 alors que le composant affiche le mois réel par défaut (`new Date()`) ; la dérive du temps a fini par désynchroniser la réservation de test du mois affiché. Dates de la réservation calculées dynamiquement par rapport au mois courant.
+- **`zod-schemas.test.ts`** — recopiait localement `checkOutSchema`/`checkInSchema` au lieu d'importer les vrais schémas (dérive déjà réelle : le schéma réel de check-in a 3 champs désinfection absents de la copie). Schémas extraits dans `trips/schema.ts` et `trips/[id]/checkin/schema.ts` (un fichier `route.ts` Next.js ne peut exporter que des handlers HTTP, pas des consts arbitraires) et importés directement par le test et les routes.
+- **`e2e/verify_user_deletion.test.ts` supprimé** — script de debug (pas un vrai test Playwright), doublon de `verify_user_deletion.spec.ts`, collecté par erreur par le glob `**/*.test.ts`.
+
 ## [4.8.9] — 12 août 2026
 
 ### ⚛️ Patterns Next.js 16 / React 19

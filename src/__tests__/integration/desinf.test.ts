@@ -383,7 +383,7 @@ describe('Désinfection — historique (GET /api/vehicles/[id]/desinfections)', 
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'], ulId: 'ul-paris-18' },
     });
 
     const res = await GET_DESINF(makeGetRequest(), { params: Promise.resolve({ id: 'VPSP01' }) });
@@ -441,7 +441,7 @@ describe('Désinfection — historique (GET /api/vehicles/[id]/desinfections)', 
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'], ulId: 'ul-paris-18' },
     });
 
     const res = await GET_DESINF(makeGetRequest(), { params: Promise.resolve({ id: 'VPSP01' }) });

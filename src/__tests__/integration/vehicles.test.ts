@@ -151,7 +151,7 @@ describe('POST /api/vehicles — happy path EV avec maxBatteryCapacityKwh', () =
 
 describe('PATCH /api/vehicles/[id] — mise à jour maxFuelCapacity', () => {
   it('met à jour maxFuelCapacity de 56 vers 80 et vérifie en DB', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
 
     // Seed a vehicle with maxFuelCapacity = 56
     await seedVehicle({ id: 'VL001', name: 'VL186', maxFuelCapacity: 56 });
@@ -172,7 +172,7 @@ describe('PATCH /api/vehicles/[id] — mise à jour maxFuelCapacity', () => {
 
 describe('PATCH /api/vehicles/[id] — mise à jour maxBatteryCapacityKwh', () => {
   it('met à jour maxBatteryCapacityKwh et vérifie en DB', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
 
     await seedVehicle({ id: 'VL001', name: 'VL186', maxBatteryCapacityKwh: 40 });
 
@@ -220,7 +220,7 @@ describe('POST /api/vehicles — duplicate checks', () => {
 
 describe('PATCH /api/vehicles/[id] — édition des informations du véhicule (ADMIN & SUPER_ADMIN)', () => {
   it('met à jour le nom, la plaque, le VIN et les intervalles de révision par un ADMIN', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
 
     await seedVehicle({ id: 'v-100', name: 'VL999', plate: 'XX-123-YY', vin: 'OLDVIN' });
 
@@ -278,7 +278,7 @@ describe('PATCH /api/vehicles/[id] — édition des informations du véhicule (A
   });
 
   it('retourne 400 en cas de nom en doublon avec un autre véhicule', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
 
     await seedVehicle({ id: 'v-201', name: 'VL100', plate: 'AA-100-AA' });
     await seedVehicle({ id: 'v-202', name: 'VL200', plate: 'BB-200-BB' });
@@ -298,7 +298,7 @@ describe('PATCH /api/vehicles/[id] — édition des informations du véhicule (A
   });
 
   it('retourne 400 en cas de plaque en doublon avec un autre véhicule', async () => {
-    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
 
     await seedVehicle({ id: 'v-301', name: 'VL300', plate: 'AA-300-AA' });
     await seedVehicle({ id: 'v-302', name: 'VL400', plate: 'BB-400-BB' });
