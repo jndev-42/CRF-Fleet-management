@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 // Increase duration limits for Vercel Serverless Functions
 export const maxDuration = 30; // 30 seconds max duration
 
@@ -33,7 +34,7 @@ export async function PATCH(
         const userId = session?.user?.id;
 
         if (!userId) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRoles = session.user.roles || [];
@@ -70,10 +71,7 @@ export async function PATCH(
         const isSecondDriver = userId === trip.secondDriverId;
 
         if (!isAdmin && !isFirstDriver && !isSecondDriver) {
-            return NextResponse.json(
-                { error: "Vous n'êtes pas autorisé à rendre ce véhicule. Seul l'emprunteur ou un administrateur peut le faire." },
-                { status: 403 }
-            );
+            return forbiddenResponse("Vous n'êtes pas autorisé à rendre ce véhicule. Seul l'emprunteur ou un administrateur peut le faire.");
         }
 
         const vehicleResult = await db.execute({

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function DELETE(
     _request: Request,
@@ -10,12 +11,12 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = session.user.roles || ['INACTIF'];
         if (!isAdminOrAbove(roles)) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id, recordId } = await params;
@@ -31,7 +32,7 @@ export async function DELETE(
         }
 
         if (!isSuperAdmin(roles) && session.user.ulId !== vehicleResult.rows[0].ulId) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const vehicleId = vehicleResult.rows[0].id as string;

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { sendPushNotification } from '@/lib/onesignal';
 import { canAccessAdminPanel } from '@/lib/roles';
+import { forbiddenResponse } from '@/lib/apiAuth';
 
 const updateMetricsSchema = z.object({
     mileage: z.number().min(0).optional(),
@@ -20,7 +21,7 @@ export async function PATCH(
         const isAuthorized = canAccessAdminPanel(roles);
 
         if (!session?.user || !isAuthorized) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id: vehicleId } = await params;
@@ -48,9 +49,7 @@ export async function PATCH(
 
         // VERIFICATION: No manual edit if vehicle has a VIN (connected vehicle)
         if (vehicle.vin) {
-            return NextResponse.json({
-                error: 'Interdit : les métriques d\'un véhicule connecté (avec VIN) ne peuvent pas être modifiées manuellement.'
-            }, { status: 403 });
+            return forbiddenResponse('Interdit : les métriques d\'un véhicule connecté (avec VIN) ne peuvent pas être modifiées manuellement.');
         }
 
         // Build update query

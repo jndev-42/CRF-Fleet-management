@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { deleteDriveFolder } from '@/lib/drive';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function DELETE(
     request: Request,
@@ -11,10 +12,10 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
         if (!isAdminOrAbove(session.user.roles || [])) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id } = await params;
@@ -27,7 +28,7 @@ export async function DELETE(
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
         if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== vehicleResult.rows[0].ulId) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         // Fetch all trips for this vehicle to delete their Drive folders

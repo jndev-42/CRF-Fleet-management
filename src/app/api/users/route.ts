@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, canAccessAdminPanel, resolveRoles, isSuperAdmin, MANAGEABLE_ROLES } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 /** Zod schema for creating a new user */
 const createUserSchema = z.object({
@@ -18,13 +19,13 @@ export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = session.user.roles || [];
         const canView = canAccessAdminPanel(roles);
         if (!canView) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         // Auto-seed missing system roles (such as TRESORIER) into the "Role" table
@@ -144,7 +145,7 @@ export async function POST(request: Request) {
         const session = await auth();
         const roles = session?.user?.roles || [];
         if (!isAdminOrAbove(roles)) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
@@ -170,7 +171,7 @@ export async function POST(request: Request) {
 
         if (!isSuper) {
             if (targetUlId && targetUlId !== userUlId) {
-                return NextResponse.json({ error: 'Un administrateur local ne peut créer un utilisateur que pour sa propre Unité Locale.' }, { status: 403 });
+                return forbiddenResponse('Un administrateur local ne peut créer un utilisateur que pour sa propre Unité Locale.');
             }
         }
 

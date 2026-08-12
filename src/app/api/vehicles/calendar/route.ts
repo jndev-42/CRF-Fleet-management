@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { hasDTRole } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function GET(request: Request) {
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const ulId = session.user.ulId;
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     let dtCode: string | null = null;
     if (isDtView) {
       if (!hasDTRole(userRoles)) {
-        return NextResponse.json({ error: 'Accès réservé au rôle DT' }, { status: 403 });
+        return forbiddenResponse('Accès réservé au rôle DT');
       }
       const ulRes = await db.execute({
         sql: `SELECT dtCode FROM "UniteLocale" WHERE id = ?`,

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import crypto from 'crypto';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 const incidentSchema = z.object({
     vehicleId: z.string().min(1),
@@ -26,7 +27,7 @@ const incidentSchema = z.object({
 export async function POST(request: Request) {
     const session = await auth();
     if (!session?.user?.id) {
-        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     try {

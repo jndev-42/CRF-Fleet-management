@@ -7,7 +7,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const params = await props.params;
@@ -32,7 +32,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
         const canManage = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
 
         if (ownerEmail !== session.user.email && !canManage) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         await db.execute({
@@ -51,6 +51,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 }
 
 import { z } from 'zod';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const updateReservationSchema = z.strictObject({
     startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }).optional(),
@@ -65,7 +66,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const params = await props.params;
@@ -107,7 +108,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         if (hasEditFields) {
             // Check editing permissions: owner or manager
             if (!isOwner && !canManageDriver) {
-                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                return forbiddenResponse();
             }
 
             let parsed: z.infer<typeof updateReservationSchema>;
@@ -123,7 +124,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
             // Check if user is attempting to change driver without management role
             const isChangingDriver = parsed.isUnassignedDriver !== undefined || parsed.onBehalfOfUserId !== undefined;
             if (isChangingDriver && !canManageDriver) {
-                return NextResponse.json({ error: 'Seul un responsable peut modifier le chauffeur de la réservation.' }, { status: 403 });
+                return forbiddenResponse('Seul un responsable peut modifier le chauffeur de la réservation.');
             }
 
             const newStartStr = parsed.startTime || (reservation.startTime as string);
@@ -198,7 +199,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         } else {
             // Action is Validation (legacy or action === 'validate')
             if (!canManageDriver) {
-                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                return forbiddenResponse();
             }
 
             if (reservation.status === 'VALIDATED') {

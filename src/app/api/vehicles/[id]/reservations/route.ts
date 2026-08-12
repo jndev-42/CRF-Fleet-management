@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 /** Validates incoming POST body for creating a reservation */
 const createReservationSchema = z.object({
@@ -62,7 +63,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const params = await props.params;
@@ -102,7 +103,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const params = await props.params;
@@ -148,9 +149,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
             }
 
             if ((recurrenceData.onBehalfOfUserId || recurrenceData.isUnassignedDriver) && !canManageDriver) {
-                return NextResponse.json({
-                    error: 'Seul un responsable peut réserver au nom d\'un autre chauffeur ou déclarer "Chauffeur non décidé".',
-                }, { status: 403 });
+                return forbiddenResponse('Seul un responsable peut réserver au nom d\'un autre chauffeur ou déclarer "Chauffeur non décidé".');
             }
 
             // Résolution du chauffeur
@@ -297,7 +296,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         }
 
         if ((data.onBehalfOfUserId || data.isUnassignedDriver) && !canManageDriver) {
-            return NextResponse.json({ error: 'Seul un responsable peut réserver au nom d\'un autre chauffeur ou déclarer "Chauffeur non décidé".' }, { status: 403 });
+            return forbiddenResponse('Seul un responsable peut réserver au nom d\'un autre chauffeur ou déclarer "Chauffeur non décidé".');
         }
 
         const start = new Date(data.startTime);

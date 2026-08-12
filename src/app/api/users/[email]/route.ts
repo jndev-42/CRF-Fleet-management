@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, canAssignRole, resolveRoles, isSuperAdmin } from '@/lib/roles';
+import { forbiddenResponse } from '@/lib/apiAuth';
 
 const updateRolesSchema = z.object({
     roles: z.array(z.string()),
@@ -16,7 +17,7 @@ export async function PATCH(
         const session = await auth();
         const actorRoles = session?.user?.roles || [];
         if (!isAdminOrAbove(actorRoles)) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
@@ -59,7 +60,7 @@ export async function PATCH(
                 const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
                 if (userHomeUlId && userHomeUlId !== actorUlId) {
                     await tx.rollback();
-                    return NextResponse.json({ error: "Un administrateur local ne peut modifier les rôles globaux d'un utilisateur appartenant à une autre Unité Locale." }, { status: 403 });
+                    return forbiddenResponse("Un administrateur local ne peut modifier les rôles globaux d'un utilisateur appartenant à une autre Unité Locale.");
                 }
             }
 
@@ -74,10 +75,7 @@ export async function PATCH(
             for (const roleName of resolvedRoles) {
                 if (!canAssignRole(actorRoles, roleName)) {
                     await tx.rollback();
-                    return NextResponse.json(
-                        { error: `Seul un Super Administrateur peut attribuer le rôle "${roleName}"` },
-                        { status: 403 }
-                    );
+                    return forbiddenResponse(`Seul un Super Administrateur peut attribuer le rôle "${roleName}"`);
                 }
             }
             for (const roleName of resolvedRoles) {
@@ -130,7 +128,7 @@ export async function DELETE(
         const session = await auth();
         const actorRoles = session?.user?.roles || [];
         if (!isAdminOrAbove(actorRoles)) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { email: emailParam } = await params;
@@ -161,7 +159,7 @@ export async function DELETE(
                 const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
                 if (userHomeUlId && userHomeUlId !== actorUlId) {
                     await tx.rollback();
-                    return NextResponse.json({ error: "Un administrateur local ne peut supprimer qu'un utilisateur appartenant à sa propre Unité Locale." }, { status: 403 });
+                    return forbiddenResponse("Un administrateur local ne peut supprimer qu'un utilisateur appartenant à sa propre Unité Locale.");
                 }
             }
 

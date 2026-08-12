@@ -3,6 +3,7 @@ import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { isSuperAdmin } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function GET(
     request: Request,
@@ -11,7 +12,7 @@ export async function GET(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { vin } = await params;
@@ -24,7 +25,7 @@ export async function GET(
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
         if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== vehicleResult.rows[0].ulId) {
-            return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const data = await getRenaultVehicleData(vin);

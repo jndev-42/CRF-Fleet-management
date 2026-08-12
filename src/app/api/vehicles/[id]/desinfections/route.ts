@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
 import type { DesinfectionRecord } from '@/app/vehicles/[id]/types';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 /**
  * GET /api/vehicles/[id]/desinfections
@@ -19,7 +20,7 @@ export async function GET(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { id } = await params;

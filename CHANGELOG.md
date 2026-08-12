@@ -1,6 +1,12 @@
 # Changelog
 
-## [4.8.4] — 11 août 2026
+## [4.8.5] — 12 août 2026
+
+### 🏗️ Qualité & Architecture
+
+Début des correctifs du chapitre "Qualité & Architecture" de l'audit (voir `docs/code-review-2026-08-11.md`) — H1 (store de jobs en mémoire) volontairement exclu, traité séparément plus tard.
+
+- **Helper d'auth/autorisation partagé (H2)** — nouveau `src/lib/apiAuth.ts` (`unauthorizedResponse()` / `forbiddenResponse()`), reprenant le pattern déjà documenté dans `src/app/api/CLAUDE.md`. Migration d'environ 65 routes API : les 6+ variantes de corps de réponse générique (`Interdit`, `Non autorisé`, `Permissions insuffisantes`, `Accès refusé`, `Accès non autorisé`, `Forbidden`, `Unauthorized`...) sont désormais unifiées vers 2 corps canoniques (`'Non authentifié'` en 401, `'Interdit'` en 403). Les messages 403 métier spécifiques (ex. raisons de refus détaillées) sont conservés tels quels, simplement acheminés via le même helper. Vérifié : aucun code frontend ne teste le texte exact d'un corps d'erreur (uniquement le code de statut HTTP), migration donc sans risque de régression.
 
 ### 🔒 Sécurité
 

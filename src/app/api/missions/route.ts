@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
 import { isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const supplySchema = z.object({
     category: z.enum(['SAC_PRIMAIRE', 'BRULURE', 'HEMORRHAGIE', 'KIT_DSA', 'HYGIENE', 'OXYGENE']),
@@ -52,13 +53,13 @@ export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
         const canView = ALLOWED_ROLES.some(r => roles.includes(r)) || isAdminOrAbove(roles) || isReadOnlyManager(roles);
         if (!canView) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const ulId = session.user.ulId as string | undefined;
@@ -165,13 +166,13 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
         const canSubmit = ALLOWED_ROLES.some(r => roles.includes(r)) || isAdminOrAbove(roles);
         if (!canSubmit) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
@@ -189,14 +190,14 @@ export async function POST(request: Request) {
         // Resolve the actual DB User.id from email — session.user.id may be an email fallback in dev
         const userEmail = session.user.email;
         if (!userEmail) {
-            return NextResponse.json({ error: 'Session invalide — veuillez vous reconnecter.' }, { status: 401 });
+            return unauthorizedResponse('Session invalide — veuillez vous reconnecter.');
         }
         const userRes = await db.execute({
             sql: `SELECT id FROM "User" WHERE email = ?`,
             args: [userEmail],
         });
         if (userRes.rows.length === 0) {
-            return NextResponse.json({ error: 'Utilisateur introuvable — veuillez vous reconnecter.' }, { status: 401 });
+            return unauthorizedResponse('Utilisateur introuvable — veuillez vous reconnecter.');
         }
         const submittedBy = userRes.rows[0].id as string;
 

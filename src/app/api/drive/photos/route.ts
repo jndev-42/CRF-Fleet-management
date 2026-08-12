@@ -4,12 +4,13 @@ import { getDriveClient } from '@/lib/drive';
 import { canAccessDriveFolder } from '@/lib/driveAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import type { drive_v3 } from 'googleapis';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { searchParams } = new URL(request.url);
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
         }
 
         if (!(await canAccessDriveFolder(session, folderId))) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const drive = getDriveClient();

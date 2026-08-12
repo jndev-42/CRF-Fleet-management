@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 declare global {
   var __expenseCsvJobs: Map<string, { buffer: Buffer; createdAt: number }> | undefined;
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const roles = (session.user.roles || []) as string[];
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
     const isTresorier = roles.includes('TRESORIER');
 
     if (!isManager && !isTresorier) {
-      return NextResponse.json({ error: 'Accès réservé aux gestionnaires (Président, Trésorier, Super Admin)' }, { status: 403 });
+      return forbiddenResponse('Accès réservé aux gestionnaires (Président, Trésorier, Super Admin)');
     }
 
     const ulId = (session.user.ulId as string) || 'ul-paris-18';
@@ -166,7 +167,7 @@ export async function GET(request: Request) {
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const roles = (session.user.roles || []) as string[];
@@ -174,7 +175,7 @@ export async function GET(request: Request) {
     const isTresorier = roles.includes('TRESORIER');
 
     if (!isManager && !isTresorier) {
-      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
+      return forbiddenResponse();
     }
 
     const { searchParams } = new URL(request.url);

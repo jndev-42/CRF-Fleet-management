@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 // Fetch all notifications for the authenticated user
 export async function GET() {
     try {
         const session = await auth();
         if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         // Find user ID from email
@@ -59,7 +60,7 @@ export async function DELETE() {
     try {
         const session = await auth();
         if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRes = await db.execute({

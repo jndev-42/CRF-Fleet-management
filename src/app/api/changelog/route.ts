@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { auth } from '@/auth';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 export async function GET() {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const changelogPath = path.join(process.cwd(), 'CHANGELOG.md');

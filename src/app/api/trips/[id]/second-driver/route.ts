@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const updateSecondDriverSchema = z.object({
     secondDriverId: z.string().min(1, 'L\'identifiant du 2ème conducteur est requis'),
@@ -15,7 +16,7 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { id } = await params;
@@ -36,7 +37,7 @@ export async function PATCH(
         const isPrimaryDriver = session.user.id === tripRes.rows[0].driverId;
 
         if (!isAdmin && !isPrimaryDriver) {
-            return NextResponse.json({ error: 'Non autorisé à modifier ce trajet' }, { status: 403 });
+            return forbiddenResponse('Non autorisé à modifier ce trajet');
         }
 
         // Verify the secondDriver user exists

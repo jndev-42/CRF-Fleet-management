@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { forbiddenResponse } from '@/lib/apiAuth';
 
 const patchItemSchema = z.object({
     label: z.string().min(1).max(200).optional(),
@@ -21,7 +22,7 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!isAdminOrAbove(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { itemId } = await params;
@@ -34,7 +35,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Élément non trouvé' }, { status: 404 });
         }
         if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== ownerRes.rows[0].ulId) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
@@ -96,7 +97,7 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!isAdminOrAbove(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { itemId } = await params;
@@ -113,7 +114,7 @@ export async function DELETE(
             return NextResponse.json({ error: 'Élément non trouvé' }, { status: 404 });
         }
         if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== ownerRes.rows[0].ulId) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         await db.execute({

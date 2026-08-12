@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, canAccessAdminPanel, isSuperAdmin } from '@/lib/roles';
+import { forbiddenResponse } from '@/lib/apiAuth';
 
 const ulAssignSchema = z.object({
     ulId: z.string().nullable(),        // null = retirer l'UL d'appartenance
@@ -23,7 +24,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ema
     try {
         const session = await auth();
         if (!canAccessAdminPanel(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { email } = await params;
@@ -61,7 +62,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ em
         const session = await auth();
         const actorRoles = session?.user?.roles || [];
         if (!isAdminOrAbove(actorRoles)) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { email } = await params;
@@ -79,7 +80,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ em
 
         if (!isSuper) {
             if (data.ulId !== actorUlId) {
-                return NextResponse.json({ error: "Un administrateur local ne peut gérer les rattachements que pour sa propre Unité Locale." }, { status: 403 });
+                return forbiddenResponse("Un administrateur local ne peut gérer les rattachements que pour sa propre Unité Locale.");
             }
             if (data.isHome) {
                 const userHomeUlRes = await db.execute({
@@ -88,7 +89,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ em
                 });
                 const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
                 if (userHomeUlId && userHomeUlId !== actorUlId) {
-                    return NextResponse.json({ error: "L'utilisateur appartient déjà à une autre Unité Locale." }, { status: 403 });
+                    return forbiddenResponse("L'utilisateur appartient déjà à une autre Unité Locale.");
                 }
             }
         }
@@ -134,7 +135,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
         const session = await auth();
         const actorRoles = session?.user?.roles || [];
         if (!isAdminOrAbove(actorRoles)) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { email } = await params;
@@ -173,7 +174,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
             mergedUls = data.uls;
         } else {
             if (!actorUlId) {
-                return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+                return forbiddenResponse();
             }
             // Keep all existing entries for other ULs exactly as-is
             for (const [uId, entry] of existingMap.entries()) {

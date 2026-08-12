@@ -8,6 +8,7 @@ import path from 'path';
 import sharp from 'sharp';
 import { getDriveClient } from '@/lib/drive';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 async function generateIncidentPdf(reportId: string): Promise<Buffer> {
   const result = await db.execute({
@@ -123,7 +124,7 @@ export async function GET(
         const { id } = await params;
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const ownershipRes = await db.execute({
@@ -137,7 +138,7 @@ export async function GET(
 
         const isOwner = ownershipRow.userId === session.user.id;
         if (!isOwner && !isAdminOrAbove(session.user.roles || [])) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const buffer = await generateIncidentPdf(id);

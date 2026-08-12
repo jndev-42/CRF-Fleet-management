@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
 import { compressStampImage } from '@/lib/stamp';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const createULSchema = z.object({
     name: z.string().min(1, 'Le nom est requis'),
@@ -22,7 +23,7 @@ export async function GET() {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const res = await db.execute(`SELECT id, name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode FROM "UniteLocale" ORDER BY name ASC`);
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
         if (!isSuperAdmin(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
 import { isAdminOrAbove, isSuperAdmin, isReadOnlyManager } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,7 +13,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { id } = await params;
@@ -50,7 +51,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         const isSubmitter = (roles.includes('CI/RPAPS') || roles.includes('CHVL') || roles.includes('CHVPSP')) && row.submitted_by === session.user.id;
 
         if (!isSuper && !isLocalAdmin && !isLocalManager && !isSubmitter) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         // Fetch supplies
@@ -121,12 +122,12 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
         if (!isAdminOrAbove(roles)) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id } = await params;

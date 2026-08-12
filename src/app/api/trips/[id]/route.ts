@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { deleteDriveFolder } from '@/lib/drive';
 import { isAdminOrAbove } from '@/lib/roles';
+import { forbiddenResponse } from '@/lib/apiAuth';
 
 export async function DELETE(
     request: Request,
@@ -11,7 +12,7 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!isAdminOrAbove(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id } = await params;

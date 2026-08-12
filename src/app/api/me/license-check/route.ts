@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 const DRIVER_ROLES = ['CHVL', 'CHVPSP'];
 const INVALIDATION_GRACE_DAYS = 14;
@@ -24,7 +25,7 @@ export async function GET() {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = session.user.roles || [];

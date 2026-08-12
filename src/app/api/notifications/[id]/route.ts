@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 export async function DELETE(
     request: Request,
@@ -9,7 +10,7 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!session?.user?.email) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const notificationId = (await params).id;

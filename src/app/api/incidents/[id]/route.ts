@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const updateIncidentSchema = z.object({
     type: z.enum(['ACCIDENT', 'FLASH']).optional().nullable(),
@@ -27,7 +28,7 @@ export async function GET(
     const { id } = await params;
     const session = await auth();
     if (!session?.user) {
-        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     try {
@@ -45,7 +46,7 @@ export async function GET(
         }
 
         if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== result.rows[0].vehicleUlId) {
-            return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic DB row
@@ -77,7 +78,7 @@ export async function PATCH(
     const { id } = await params;
     const session = await auth();
     if (!session?.user?.id) {
-        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     try {
@@ -102,7 +103,7 @@ export async function PATCH(
 
         const isAdmin = isAdminOrAbove(session.user.roles);
         if (check.rows[0].userId !== session.user.id && !isAdmin) {
-            return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         // Build dynamic update
@@ -146,7 +147,7 @@ export async function DELETE(
     const { id } = await params;
     const session = await auth();
     if (!session?.user?.id) {
-        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     try {
@@ -161,7 +162,7 @@ export async function DELETE(
 
         const isAdmin = isAdminOrAbove(session.user.roles);
         if (check.rows[0].userId !== session.user.id && !isAdmin) {
-            return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         await db.execute({

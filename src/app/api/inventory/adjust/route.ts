@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const adjustSchema = z.object({
     itemId: z.string().min(1),
@@ -17,12 +18,12 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
         if (!isAdminOrAbove(userRoles)) {
-            return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();

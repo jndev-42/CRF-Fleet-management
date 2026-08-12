@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin, isAdminOrAbove } from '@/lib/roles';
 import { compressStampImage } from '@/lib/stamp';
+import { forbiddenResponse } from '@/lib/apiAuth';
 
 const updateUlSchema = z.object({
     name: z.string().min(1).optional(),
@@ -19,7 +20,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
     try {
         const session = await auth();
         if (!isSuperAdmin(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id } = await params;
@@ -49,7 +50,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const isLocalAdmin = isAdminOrAbove(roles) && id === session?.user?.ulId;
 
         if (!isSuper && !isLocalAdmin) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();

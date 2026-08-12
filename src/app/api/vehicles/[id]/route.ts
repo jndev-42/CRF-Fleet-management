@@ -33,7 +33,7 @@ export async function GET(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { id } = await params;
@@ -201,7 +201,7 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!isAdminOrAbove(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id } = await params;
@@ -222,7 +222,7 @@ export async function PATCH(
         const currentVehicle = currentVehicleRes.rows[0];
 
         if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== currentVehicle.ulId) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const vehicleUuid = currentVehicle.id as string;
@@ -323,6 +323,7 @@ export async function PATCH(
 }
 
 import { deleteDriveFolder } from '@/lib/drive';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function DELETE(
     _request: Request,
@@ -331,7 +332,7 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!isAdminOrAbove(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id } = await params;
@@ -350,7 +351,7 @@ export async function DELETE(
         }
 
         if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== vehicleResult.rows[0].ulId) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const realId = vehicleResult.rows[0].id;

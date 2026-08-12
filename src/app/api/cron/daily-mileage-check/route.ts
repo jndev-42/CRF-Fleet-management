@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 // Route sécurisée par Vercel Cron. On n'associe pas d'auth NextAuth ici.
 export async function GET(request: Request) {
     // Optional: Protect route from external access if not from Vercel CRON.
     const authHeader = request.headers.get('authorization');
     if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     try {

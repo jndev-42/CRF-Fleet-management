@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,12 +20,12 @@ export async function POST(
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const roles = session.user.roles || ['INACTIF'];
     if (!isAdminOrAbove(roles)) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+      return forbiddenResponse();
     }
 
     const { id } = await params;
@@ -99,12 +100,12 @@ export async function PATCH(
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const roles = session.user.roles || ['INACTIF'];
     if (!isAdminOrAbove(roles)) {
-      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+      return forbiddenResponse();
     }
 
     const { id } = await params;

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 const checkOutSchema = z.object({
     vehicleId: z.string().min(1),
     missionType: z.string().min(1, 'Le type de mission est requis'),
@@ -26,10 +27,7 @@ export async function POST(request: Request) {
         // Auth check must happen before any body parsing or DB queries
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json(
-                { error: 'Non authentifié' },
-                { status: 401 }
-            );
+            return unauthorizedResponse();
         }
 
         const body = await request.json();
@@ -78,10 +76,7 @@ export async function POST(request: Request) {
         else if (isCHVL && !isVPSP) canBorrow = true;
 
         if (!canBorrow) {
-            return NextResponse.json(
-                { error: 'Vous n\'avez pas les droits pour emprunter ce véhicule' },
-                { status: 403 }
-            );
+            return forbiddenResponse('Vous n\'avez pas les droits pour emprunter ce véhicule');
         }
 
         // Fetch live Renault data if vehicle is connected (has a VIN)

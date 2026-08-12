@@ -4,6 +4,7 @@ import { getDriveClient } from '@/lib/drive';
 import { canAccessDriveFolder } from '@/lib/driveAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { Readable } from 'stream';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const SHARED_FOLDER_ID = '11UwzHHOzNhn--f16eMaoWk9NgvOwOt2G';
 const PREVIEW_FOLDER_NAME = 'PREVIEW';
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const formData = await request.formData();
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
 
         if (existingFolderId && existingFolderId !== 'null') {
             if (!(await canAccessDriveFolder(session, existingFolderId))) {
-                return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+                return forbiddenResponse();
             }
         }
 
