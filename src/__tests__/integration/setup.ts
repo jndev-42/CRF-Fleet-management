@@ -153,6 +153,13 @@ async function createTables() {
     FOREIGN KEY (userId) REFERENCES "User"(id) ON DELETE CASCADE
   )`);
 
+  await db.execute(`CREATE TABLE IF NOT EXISTS "RenaultSession" (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    idToken TEXT NOT NULL,
+    accountId TEXT NOT NULL,
+    expiresAt INTEGER NOT NULL
+  )`);
+
   // ── Nouveau système d'inventaire ────────────────────────────────────────────
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "InvStockList" (
@@ -439,6 +446,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "InvItem"`);
   await db.execute(`DELETE FROM "InvGroupe"`);
   await db.execute(`DELETE FROM "Notification"`);
+  await db.execute(`DELETE FROM "RenaultSession"`);
   await db.execute(`DELETE FROM "IncidentReport"`);
   await db.execute(`DELETE FROM "UserRole"`);
   await db.execute(`DELETE FROM "UserUL"`);

@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.9.4] — 12 août 2026
+
+### 🧪 Couverture de tests — Phase 4 : modules lib non couverts
+
+Tests unitaires/intégration pour les 14 modules `src/lib/**` sans aucune couverture identifiés par l'audit : `apiAuth.ts`, `driveAuth.ts`, `drive.ts`, `email.ts`, `renault.ts`, `onesignal.ts`, `inventory/stocks.ts`, `mission-supplies.ts`, `preview-accounts.ts`, `stamp.ts`, `demo/DemoDB.ts`, `demo/fetchInterceptor.ts`, `contexts/DemoContext.tsx`, `contexts/MenuSettingsContext.tsx`. `stats-expenses.ts` (15ᵉ module de la liste) était déjà exercé indirectement par `expense-stats.test.ts` — pas de fichier dédié nécessaire, même traitement que `stats-trips.ts`.
+
+- **`demo/DemoDB.ts`** — bug réel découvert en écrivant le test : `INITIAL_VEHICLES`/`INITIAL_USERS`/`INITIAL_MISSIONS` étaient passés par référence (pas de copie) dans les données initiales stockées en `localStorage`. Toute mutation (ex. `updateVehicle`) corrompait alors les constantes du module en mémoire, si bien que `DemoDB.reset()` ne restaurait plus les données de démo d'origine tant que la page n'était pas rechargée. Corrigé via `structuredClone()`.
+- **DB-touching modules** (`driveAuth.ts`, `inventory/stocks.ts`, `renault.ts`, `onesignal.ts`) placés en `integration/` (DB SQLite réelle, jamais mockée) plutôt qu'en `unit/`, conformément à la convention du projet.
+- **`setup.ts`** — ajout de la table `RenaultSession` (cache de session Gigya/Kamereon) et extension de `seedInvItem`/ajout de `seedInvBatch`.
+- 82 nouveaux tests, suite complète toujours à 0 échec (664 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
+
 ## [4.9.3] — 12 août 2026
 
 ### 🧪 Couverture de tests — Phase 3 (2/2) : nouvelles routes API sans test
