@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { RenaultVehicleData } from '@/lib/renault';
+import type { RenaultVehicleData } from '@/lib/renault';
 import { DashboardSkeletons } from '@/components/ui/Skeleton';
 import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
 import VehicleCalendar from '@/components/vehicle/VehicleCalendar';

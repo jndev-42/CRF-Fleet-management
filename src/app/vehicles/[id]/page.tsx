@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -40,6 +40,15 @@ import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
  * and wires everything together.
  */
 export default function VehicleDetailPage() {
+    return (
+        <Suspense fallback={<div style={{ padding: '24px 0' }}><VehicleDetailSkeleton /></div>}>
+            <VehicleDetailPageContent />
+        </Suspense>
+    );
+}
+
+// useSearchParams() below requires a Suspense boundary (Next.js App Router) — the wrapper above provides it.
+function VehicleDetailPageContent() {
     const params = useParams();
     const id = params.id as string;
     const router = useRouter();
@@ -69,6 +78,7 @@ export default function VehicleDetailPage() {
     const [showDesinfHistoryModal, setShowDesinfHistoryModal] = useState(false);
     const [isReservedByOther, setIsReservedByOther] = useState(false);
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showDesinfPre, setShowDesinfPre] = useState(false);
     const [showIncidentReport, setShowIncidentReport] = useState(false);
@@ -84,8 +94,9 @@ export default function VehicleDetailPage() {
      * Reusable toast notification triggered from child components or modal callbacks
      */
     function showToast(message: string, type: string = 'success') {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         setToast({ message, type });
-        setTimeout(() => setToast(null), 4000);
+        toastTimerRef.current = setTimeout(() => setToast(null), 4000);
     }
 
     /**

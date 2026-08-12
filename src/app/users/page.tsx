@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import UsersTab from '@/components/admin/UsersTab';
@@ -30,6 +30,7 @@ export default function AdminPage() {
     const [availableRoles, setAvailableRoles] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [activeTab, setActiveTab] = useState<TabId>('users');
     const { data: session, status, update } = useSession();
     const router = useRouter();
@@ -72,8 +73,9 @@ export default function AdminPage() {
     }
 
     function showToast(message: string, type: 'success' | 'error' = 'success') {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         setToast({ message, type });
-        setTimeout(() => setToast(null), 4000);
+        toastTimerRef.current = setTimeout(() => setToast(null), 4000);
     }
 
     async function impersonateUser(targetEmail: string) {

@@ -37,7 +37,7 @@ export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: 
 
     useEffect(() => {
         fetchIncidents();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchIncidents est redéfinie à chaque rendu ; seul vehicle.name doit déclencher un refetch
     }, [vehicle.name]);
 
     async function fetchIncidents() {

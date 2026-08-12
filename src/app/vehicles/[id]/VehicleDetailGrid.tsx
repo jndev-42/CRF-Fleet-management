@@ -1,4 +1,4 @@
-import { RenaultVehicleData } from '@/lib/renault';
+import type { RenaultVehicleData } from '@/lib/renault';
 import FuelBar from '@/components/vehicle/FuelBar';
 import DetailCard from '@/components/vehicle/DetailCard';
 import MaintenanceCard from '@/components/vehicle/MaintenanceCard';

@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.8.9] — 12 août 2026
+
+### ⚛️ Patterns Next.js 16 / React 19
+
+Chapitre "Patterns Next.js 16 / React 19" de l'audit (`docs/code-review-2026-08-11.md`) — les points #3, #4 (déjà corrigés avec le chapitre précédent) et #11 (qualifié "pas une anomalie" par l'audit) sont hors scope.
+
+- **Import valeur d'un module server-only (#1)** — `RenaultVehicleData` passé en `import type` sur les 4 sites qui l'utilisent uniquement comme type (`vehicles/page.tsx`, `vehicles/[id]/useVehicleDetail.ts`, `vehicles/[id]/VehicleDetailGrid.tsx`, `RenaultConnectBlock.tsx`), pour éviter que le client libSQL et les credentials Renault ne finissent dans le bundle client si une valeur venait un jour à être importée du même module.
+- **Aucune error boundary (#2)** — nouveau `src/app/error.tsx` (bouton "Réessayer" + retour au dashboard) pour contenir les erreurs de rendu sans perdre toute la coquille applicative.
+- **`exhaustive-deps` sans justification (#6)** — commentaires ajoutés sur les 3 sites signalés (`IncidentHistoryModal.tsx`, `QRCodeModal.tsx`, `BannersTab.tsx`), conformément à `.claude/rules/lint.md`.
+- **`useSearchParams` sans `Suspense` (#7)** — `vehicles/[id]/page.tsx` et `NotificationBell.tsx` enveloppent désormais leur contenu dans une frontière `Suspense`, préventif pour une future activation de PPR/`cacheComponents`.
+- **`<img>` sur un asset statique (#8)** — le logo de `qr/[token]/page.tsx` utilise désormais `<Image>` de `next/image`.
+- **Timers de toast jamais nettoyés (#9)** — `qr/[token]/page.tsx`, `users/page.tsx`, `vehicles/[id]/page.tsx`, `ULsTab.tsx` : le timer précédent est annulé avant d'en poser un nouveau, deux toasts rapprochés ne se tronquent plus.
+- **Effet avec sa propre sortie en dépendance (#10)** — `useVehicleDetail.ts` : l'effet Renault Connect suit le VIN déjà récupéré via une ref au lieu de lire `renaultData` dans sa garde, retirant la dépendance auto-référentielle sans désactiver le linter.
+
 ## [4.8.8] — 12 août 2026
 
 ### 🏗️ Qualité & Architecture

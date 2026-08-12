@@ -84,7 +84,7 @@ export default function BannersTab({
     useEffect(() => {
         fetchBanners();
         fetchULs();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchBanners/fetchULs sont redéfinies à chaque rendu ; cet effet ne doit s'exécuter qu'une fois au montage
     }, []);
 
     function handleOpenModal(banner: Banner | null = null) {

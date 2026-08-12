@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal';
 import CheckOutForm from './CheckOutForm';
 import CheckInForm from './CheckInForm';
@@ -24,10 +25,12 @@ export default function QRVehiclePage() {
     const [step, setStep] = useState<'view' | 'checkout' | 'checkin'>('view');
     const [done, setDone] = useState<'checkedout' | 'checkedin' | null>(null);
     const [showIncidentReport, setShowIncidentReport] = useState(false);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     function showToast(message: string, type = 'success') {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         setToast({ message, type });
-        setTimeout(() => setToast(null), 4000);
+        toastTimerRef.current = setTimeout(() => setToast(null), 4000);
     }
 
     const fetchVehicleAbortRef = useRef<AbortController | null>(null);
@@ -83,11 +86,12 @@ export default function QRVehiclePage() {
         }}>
             {/* Header branding */}
             <div style={{ marginBottom: 32, textAlign: 'center' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                     src="/crf-logo.svg"
                     alt="Croix-Rouge française"
-                    style={{ width: 56, height: 56, marginBottom: 8 }}
+                    width={56}
+                    height={56}
+                    style={{ marginBottom: 8 }}
                 />
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', letterSpacing: 1, textTransform: 'uppercase' }}>
                     Accès QR Code

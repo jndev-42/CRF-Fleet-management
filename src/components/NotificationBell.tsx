@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Bell, Trash2 } from 'lucide-react';
 import { useUL } from '@/lib/contexts/ULContext';
@@ -28,6 +28,15 @@ type OneSignalWindow = Window & {
 };
 
 export function NotificationBell() {
+    return (
+        <Suspense fallback={null}>
+            <NotificationBellContent />
+        </Suspense>
+    );
+}
+
+// useSearchParams() below requires a Suspense boundary (Next.js App Router) — the wrapper above provides it.
+function NotificationBellContent() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);

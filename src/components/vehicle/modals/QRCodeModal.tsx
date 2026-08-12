@@ -60,7 +60,7 @@ export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles
 
     useEffect(() => {
         fetchToken();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchToken est redéfinie à chaque rendu ; seul vehicleId doit déclencher un refetch
     }, [vehicleId]);
 
     const downloadQRCode = () => {

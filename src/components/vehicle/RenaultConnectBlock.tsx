@@ -1,5 +1,5 @@
 import React from 'react';
-import { RenaultVehicleData } from '@/lib/renault';
+import type { RenaultVehicleData } from '@/lib/renault';
 import { getFuelClass, formatDate } from '@/app/vehicles/[id]/utils';
 import DetailCard from './DetailCard';
 
