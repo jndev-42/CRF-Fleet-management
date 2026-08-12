@@ -200,7 +200,10 @@ export async function PATCH(
 ) {
     try {
         const session = await auth();
-        if (!isAdminOrAbove(session?.user?.roles || [])) {
+        if (!session?.user) {
+            return unauthorizedResponse();
+        }
+        if (!isAdminOrAbove(session.user.roles || [])) {
             return forbiddenResponse();
         }
 
@@ -331,7 +334,10 @@ export async function DELETE(
 ) {
     try {
         const session = await auth();
-        if (!isAdminOrAbove(session?.user?.roles || [])) {
+        if (!session?.user) {
+            return unauthorizedResponse();
+        }
+        if (!isAdminOrAbove(session.user.roles || [])) {
             return forbiddenResponse();
         }
 

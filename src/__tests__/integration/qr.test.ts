@@ -39,6 +39,48 @@ describe('QR Code API Flow', () => {
     await seedUser({ id: 'usr-driver-1', email: 'driver1@croix-rouge.fr' });
   });
 
+  it('GET /api/qr/[token]/vehicle returns 401 when not authenticated', async () => {
+    mockedAuth.mockResolvedValue(null);
+    await seedVehicle({ id: 'VL401', name: 'Véhicule 401', type: 'VL', status: 'AVAILABLE', qrToken: 'token-401' });
+
+    const req = new Request('http://localhost/api/qr/token-401/vehicle');
+    const res = await GET_QR_VEHICLE(req, { params: Promise.resolve({ token: 'token-401' }) });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /api/qr/[token]/vehicle returns 403 for an inactive account', async () => {
+    mockedAuth.mockResolvedValue({
+      user: {
+        id: 'usr-inactif',
+        name: 'Inactif',
+        email: 'inactif@croix-rouge.fr',
+        roles: ['INACTIF'],
+        ulId: 'ul-paris-18',
+      },
+      expires: '2026-01-01',
+    });
+    await seedVehicle({ id: 'VL403', name: 'Véhicule 403', type: 'VL', status: 'AVAILABLE', qrToken: 'token-403' });
+
+    const req = new Request('http://localhost/api/qr/token-403/vehicle');
+    const res = await GET_QR_VEHICLE(req, { params: Promise.resolve({ token: 'token-403' }) });
+
+    expect(res.status).toBe(403);
+  });
+
+  it('POST /api/qr/[token]/checkout returns 400 when conditionOut is missing (Zod)', async () => {
+    await seedVehicle({ id: 'VL400', name: 'Véhicule 400', type: 'VL', status: 'AVAILABLE', qrToken: 'token-400' });
+
+    const req = new Request('http://localhost/api/qr/token-400/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS' }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-400' }) });
+    expect(res.status).toBe(400);
+  });
+
   it('GET /api/qr/[token]/vehicle returns desinfTracking property', async () => {
     await seedVehicle({ id: 'VPSP01', name: 'VPSP Paris 18', type: 'VPSP', status: 'AVAILABLE', desinfTracking: true, qrToken: 'token-vpsp-01' });
 

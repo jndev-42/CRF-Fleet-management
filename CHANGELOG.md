@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.9.1] — 12 août 2026
+
+### 🧪 Couverture de tests — Phase 2 : tests existants incomplets
+
+- **`qr.test.ts`** — ajout de 401 (sans session), 403 (compte inactif) et 400 (Zod) sur les routes QR.
+- **`ul-parking.test.ts`** — ajout de 401 (GET), 403 (POST non-SUPER_ADMIN) et 400 (slug invalide).
+- **`upload-validation.test.ts`** — ajout d'un cas 401 réel sur `drive/upload` et `expenses/upload` (l'auth était mockée en permanence authentifiée).
+- **`vehicles.test.ts`** — ajout d'un vrai test 401. A révélé un bug réel au passage : `POST`/`PATCH`/`DELETE /api/vehicles` ne vérifiaient jamais l'absence de session séparément du rôle (`isAdminOrAbove(session?.user?.roles || [])` renvoie 403 aussi bien pour "pas de session" que pour "mauvais rôle"), contrairement à l'ordre documenté dans `src/app/api/CLAUDE.md` (401 avant 403). Corrigé sur les 3 handlers.
+- **`stats.test.ts`** — vérifié : teste `fetchStatsData` (couche lib, pas de session en jeu) ; la route `/api/stats` elle-même a déjà sa couverture 401/403/400 dans `stats-filters.test.ts`. Rien à ajouter.
+- **`repro_bug.test.ts`** — vérifié : test de non-régression ciblé sur `POST /api/users`, déjà couvert en 401/403/400 par `users.test.ts`. Laissé tel quel pour ne pas diluer son objet.
+
 ## [4.9.0] — 12 août 2026
 
 ### 🧪 Couverture de tests — Phase 1 : suite verte

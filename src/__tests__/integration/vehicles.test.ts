@@ -62,11 +62,11 @@ const validVehicleBody = {
 };
 
 describe('POST /api/vehicles — auth & authorization', () => {
-  it('retourne 403 sans session (route protégée par rôle ADMIN uniquement)', async () => {
+  it('retourne 401 sans session', async () => {
     // @ts-expect-error — null session for test
     mockedAuth.mockResolvedValue(null);
     const res = await POST(makePostRequest(validVehicleBody));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
   });
 
   it('retourne 403 pour un utilisateur non-ADMIN (rôle CHVL)', async () => {
@@ -315,6 +315,23 @@ describe('PATCH /api/vehicles/[id] — édition des informations du véhicule (A
 
     const body = await res.json() as { error: string };
     expect(body.error).toBe("Un véhicule avec cette plaque d'immatriculation existe déjà.");
+  });
+
+  it('retourne 401 sans session (PATCH)', async () => {
+    // @ts-expect-error — null session for test
+    mockedAuth.mockResolvedValue(null);
+
+    await seedVehicle({ id: 'v-402', name: 'VL501', plate: 'DD-501-DD' });
+
+    const res = await PATCH(
+      new Request('http://localhost/api/vehicles/VL501', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'VL501-EDITED' }),
+      }),
+      { params: Promise.resolve({ id: 'VL501' }) }
+    );
+    expect(res.status).toBe(401);
   });
 
   it('retourne 403 pour un utilisateur sans privilège admin (ex: CHVL)', async () => {

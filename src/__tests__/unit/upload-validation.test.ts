@@ -1,12 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST as driveUploadPOST } from '@/app/api/drive/upload/route';
 import { POST as expensesUploadPOST } from '@/app/api/expenses/upload/route';
+import { auth } from '@/auth';
 
 vi.mock('@/auth', () => ({
     auth: vi.fn().mockResolvedValue({
         user: { name: 'Test User', email: 'test@example.com' },
     }),
 }));
+
+const mockedAuth = vi.mocked(auth);
 
 function createMockRequest(formData: FormData): Request {
     return {
@@ -17,6 +20,18 @@ function createMockRequest(formData: FormData): Request {
 describe('Drive Upload API — validation de la taille des fichiers', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        mockedAuth.mockResolvedValue({
+            user: { name: 'Test User', email: 'test@example.com' },
+        } as never);
+    });
+
+    it('retourne 401 sans session', async () => {
+        mockedAuth.mockResolvedValueOnce(null as never);
+
+        const request = createMockRequest(new FormData());
+        const res = await driveUploadPOST(request);
+
+        expect(res.status).toBe(401);
     });
 
     it('retourne une erreur 400 si un fichier dépasse 4.2 Mo', async () => {
@@ -63,6 +78,18 @@ describe('Drive Upload API — validation de la taille des fichiers', () => {
 describe('Expenses Upload API — validation de la taille des fichiers', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        mockedAuth.mockResolvedValue({
+            user: { name: 'Test User', email: 'test@example.com' },
+        } as never);
+    });
+
+    it('retourne 401 sans session', async () => {
+        mockedAuth.mockResolvedValueOnce(null as never);
+
+        const request = createMockRequest(new FormData());
+        const res = await expensesUploadPOST(request);
+
+        expect(res.status).toBe(401);
     });
 
     it('retourne une erreur 400 si un justificatif dépasse 4.2 Mo', async () => {

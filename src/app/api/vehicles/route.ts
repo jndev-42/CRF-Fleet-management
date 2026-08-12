@@ -153,7 +153,10 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
     try {
         const session = await auth();
-        if (!isAdminOrAbove(session?.user?.roles || [])) {
+        if (!session?.user) {
+            return unauthorizedResponse();
+        }
+        if (!isAdminOrAbove(session.user.roles || [])) {
             return forbiddenResponse();
         }
 
