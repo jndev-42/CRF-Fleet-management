@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import RoleLegend from '@/components/users/RoleLegend';
 import { isSuperAdmin } from '@/lib/roles';
 import type { User, ULEntry } from '../types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface UserULPermission {
     ulId: string;
@@ -29,6 +30,7 @@ export default function ManageUserULsModal({
     showToast,
     onRefreshUsers,
 }: ManageUserULsModalProps) {
+    useEscapeKey(onClose);
     const { data: session, update } = useSession();
     const [uls, setUls] = useState<UserULPermission[]>([]);
     const [loading, setLoading] = useState(true);

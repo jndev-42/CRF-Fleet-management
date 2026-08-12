@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface InvStockLog {
     id: string;
@@ -18,12 +19,13 @@ interface Props {
 }
 
 export default function InventoryHistoryModal({ itemId, itemName, onClose }: Props) {
+    useEscapeKey(onClose);
     const [logs, setLogs] = useState<InvStockLog[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetch(`/api/inventory/history?itemId=${itemId}`)
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => {
                 setLogs(data.logs || []);
                 setLoading(false);

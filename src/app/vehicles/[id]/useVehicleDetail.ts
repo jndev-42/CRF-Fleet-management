@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { RenaultVehicleData } from '@/lib/renault';
 import { MaintenanceRecord, Vehicle } from './types';
@@ -9,39 +10,25 @@ import { MaintenanceRecord, Vehicle } from './types';
  */
 export function useVehicleDetail(id: string) {
     const router = useRouter();
+    const { data: session } = useSession();
 
     const [vehicle, setVehicle] = useState<Vehicle | null>(null);
     const [renaultData, setRenaultData] = useState<RenaultVehicleData | null>(null);
     const [loading, setLoading] = useState(true);
     const [loadingRenault, setLoadingRenault] = useState(false);
-    const [userRoles, setUserRoles] = useState<string[]>([]);
-    const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
-    const [currentUserUlId, setCurrentUserUlId] = useState<string | null>(null);
     const [licenseBlocked, setLicenseBlocked] = useState(false);
     const [users, setUsers] = useState<{ id: string, name: string, email: string }[]>([]);
     const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
     const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
 
-    useEffect(() => {
-        // Fetch the current session to determine if the user has specific roles (e.g., ADMIN)
-        fetch('/api/auth/session')
-            .then(res => res.json())
-            .then(session => {
-                if (session?.user?.roles) {
-                    setUserRoles(session.user.roles);
-                }
-                if (session?.user?.email) {
-                    setCurrentUserEmail(session.user.email);
-                }
-                if (session?.user?.ulId) {
-                    setCurrentUserUlId(session.user.ulId);
-                }
-            })
-            .catch(console.error);
+    const userRoles = session?.user?.roles ?? [];
+    const currentUserEmail = session?.user?.email ?? null;
+    const currentUserUlId = session?.user?.ulId ?? null;
 
+    useEffect(() => {
         // Check license validity for drivers
         fetch('/api/me/license-check')
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.blocked) setLicenseBlocked(true); })
             .catch(console.error);
     }, []);
@@ -83,7 +70,7 @@ export function useVehicleDetail(id: string) {
     useEffect(() => {
         if (!vehicle?.type) return;
         fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
     }, [vehicle?.type]);
@@ -114,7 +101,7 @@ export function useVehicleDetail(id: string) {
         if (vehicle?.vin && !renaultData) {
             setLoadingRenault(true);
             fetch(`/api/renault/${encodeURIComponent(vehicle.vin)}`)
-                .then(r => r.json())
+                .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
                 .then(rData => {
                     if (!rData.error) setRenaultData(rData);
                 })
@@ -130,7 +117,7 @@ export function useVehicleDetail(id: string) {
         if (!unvalidatedTrip) return;
 
         fetch(`/api/trips/${unvalidatedTrip.id}/refresh-renault`, { method: 'PATCH' })
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
             .then(result => {
                 if (result.validated) {
                     fetchVehicle();

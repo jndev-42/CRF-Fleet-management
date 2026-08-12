@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import UserCombobox from '@/components/ui/UserCombobox';
 import FuelBar from '@/components/vehicle/FuelBar';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface EditCheckOutModalProps {
     trip: Trip;
@@ -14,6 +15,7 @@ interface EditCheckOutModalProps {
  * Modal for ADMIN / SUPER_ADMIN to edit departure details of an active trip.
  */
 export default function EditCheckOutModal({ trip, vehicle, onClose, onSuccess }: EditCheckOutModalProps) {
+    useEscapeKey(onClose);
     const [form, setForm] = useState({
         driverId: trip.driverId || '',
         secondDriverId: trip.secondDriverId || '',
@@ -34,7 +36,7 @@ export default function EditCheckOutModal({ trip, vehicle, onClose, onSuccess }:
 
     useEffect(() => {
         fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => {
                 if (data.users) setUsers(data.users);
             })

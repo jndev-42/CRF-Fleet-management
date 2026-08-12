@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface LowStockItem {
     id: string;
@@ -17,13 +18,14 @@ interface LowStockModalProps {
 }
 
 export default function LowStockModal({ stockId, onClose, onOpenBatches }: LowStockModalProps) {
+    useEscapeKey(onClose);
     const [items, setItems] = useState<LowStockItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const url = stockId ? `/api/inventory/low-stock?stockId=${encodeURIComponent(stockId)}` : '/api/inventory/low-stock';
         fetch(url)
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
             .then(d => setItems(d.items ?? []))
             .catch(e => console.error(e))
             .finally(() => setLoading(false));

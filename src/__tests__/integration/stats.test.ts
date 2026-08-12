@@ -1,5 +1,5 @@
 /**
- * Tests d'intégration pour fetchStatsData (src/lib/stats.ts).
+ * Tests d'intégration pour fetchStatsData (src/lib/stats-trips.ts).
  *
  * Vérifie :
  * - avgFuelConsumption : exclut les trajets où le niveau a monté (recharge / plein)
@@ -13,7 +13,7 @@ vi.mock('@/lib/db', async () => {
   return { db };
 });
 
-import { fetchStatsData } from '@/lib/stats';
+import { fetchStatsData } from '@/lib/stats-trips';
 import { db, seedVehicle, seedUser, seedTrip } from './setup';
 
 const TODAY = new Date().toISOString().slice(0, 10);

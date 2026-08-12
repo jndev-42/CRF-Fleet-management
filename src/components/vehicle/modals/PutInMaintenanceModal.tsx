@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface PutInMaintenanceModalProps {
   vehicleName: string;
@@ -15,6 +16,7 @@ export default function PutInMaintenanceModal({
   onSuccess,
   showToast,
 }: PutInMaintenanceModalProps) {
+    useEscapeKey(onClose);
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
   const todayDateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface EditRevisionIntervalsModalProps {
     vehicle: Vehicle;
@@ -8,6 +9,7 @@ interface EditRevisionIntervalsModalProps {
 }
 
 export default function EditRevisionIntervalsModal({ vehicle, onClose, onSuccess }: EditRevisionIntervalsModalProps) {
+    useEscapeKey(onClose);
     const [firstRegistrationDate, setFirstRegistrationDate] = useState<string>(vehicle.firstRegistrationDate ?? '');
     const [revisionKmInterval, setRevisionKmInterval] = useState<number | ''>(vehicle.revisionKmInterval ?? '');
     const [revisionYearInterval, setRevisionYearInterval] = useState<number | ''>(vehicle.revisionYearInterval ?? '');

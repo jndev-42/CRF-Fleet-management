@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { DollarSign, CheckCircle, Clock, Receipt } from 'lucide-react';
-import { ExpenseStatsDataResult } from '@/lib/stats';
+import { ExpenseStatsDataResult } from '@/lib/stats-expenses';
 import {
   ResponsiveContainer,
   BarChart,

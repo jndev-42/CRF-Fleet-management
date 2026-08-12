@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface ExpiringItem {
     batchId: string;
@@ -18,6 +19,7 @@ interface ExpiringSoonModalProps {
 }
 
 export default function ExpiringSoonModal({ stockId, onClose, onOpenBatches }: ExpiringSoonModalProps) {
+    useEscapeKey(onClose);
     const [items, setItems] = useState<ExpiringItem[]>([]);
     const [loading, setLoading] = useState(true);
 

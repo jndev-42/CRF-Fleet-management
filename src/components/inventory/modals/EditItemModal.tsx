@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface InvItem {
     id: string;
@@ -20,6 +21,7 @@ interface EditItemModalProps {
 const CATEGORY_OPTIONS = ['Consommable', 'Matériel', 'Médicament', 'Protection', 'Pansements', 'Oxygénothérapie', 'Général'];
 
 export default function EditItemModal({ isOpen, item, onClose, onSuccess }: EditItemModalProps) {
+    useEscapeKey(onClose, isOpen);
     const [name, setName] = useState(item?.name ?? '');
     const [category, setCategory] = useState(item?.category ?? '');
     const [notes, setNotes] = useState(item?.notes ?? '');

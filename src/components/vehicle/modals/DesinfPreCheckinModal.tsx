@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import UserCombobox from '@/components/ui/UserCombobox';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface DesinfPreCheckinModalProps {
     tripId: string;
@@ -12,6 +13,7 @@ interface DesinfPreCheckinModalProps {
  * before the actual vehicle check-in. Persists data to DB via API.
  */
 export default function DesinfPreCheckinModal({ tripId, onClose, onConfirm }: DesinfPreCheckinModalProps) {
+    useEscapeKey(onClose);
     const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
     const [responsableId, setResponsableId] = useState('');
     const [lotNumber, setLotNumber] = useState('');
@@ -20,7 +22,7 @@ export default function DesinfPreCheckinModal({ tripId, onClose, onConfirm }: De
 
     useEffect(() => {
         fetch('/api/users')
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
     }, []);

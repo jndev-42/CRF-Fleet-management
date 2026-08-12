@@ -1,5 +1,7 @@
 'use client';
 
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+
 interface DeleteUserModalProps {
     userToDelete: { email: string; name: string | null };
     onClose: () => void;
@@ -7,6 +9,7 @@ interface DeleteUserModalProps {
 }
 
 export default function DeleteUserModal({ userToDelete, onClose, onConfirm }: DeleteUserModalProps) {
+    useEscapeKey(onClose);
     return (
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>

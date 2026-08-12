@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { fetchExpenseStatsData } from '@/lib/stats';
+import { fetchExpenseStatsData } from '@/lib/stats-expenses';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import crypto from 'crypto';

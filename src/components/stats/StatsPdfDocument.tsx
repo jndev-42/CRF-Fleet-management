@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Image,
 } from '@react-pdf/renderer';
-import type { StatsDataResult } from '@/lib/stats';
+import type { StatsDataResult } from '@/lib/stats-trips';
 
 // ── Color palette ──────────────────────────────────────────────────────────
 const RED = '#E30613';

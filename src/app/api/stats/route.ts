@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { fetchStatsData } from '@/lib/stats';
+import { fetchStatsData } from '@/lib/stats-trips';
 import { z } from 'zod';
 import { isInactive } from '@/lib/roles';
 

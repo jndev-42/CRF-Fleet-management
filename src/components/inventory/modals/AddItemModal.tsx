@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface AddItemModalProps {
     isOpen: boolean;
@@ -21,6 +22,7 @@ const DEFAULT_FORM = {
 const CATEGORY_OPTIONS = ['Consommable', 'Matériel', 'Médicament', 'Protection', 'Pansements', 'Oxygénothérapie'];
 
 export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: AddItemModalProps) {
+    useEscapeKey(onClose, isOpen);
     const [form, setForm] = useState(DEFAULT_FORM);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');

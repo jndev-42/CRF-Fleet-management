@@ -5,6 +5,7 @@ import IncidentGuidelines from '@/components/vehicle/IncidentGuidelines';
 import VehicleInteractiveSVG from '@/components/vehicle/VehicleInteractiveSVG';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface IncidentReportModalProps {
     vehicle: { id: string; name: string };
@@ -25,6 +26,7 @@ export default function IncidentReportModal({
     onClose,
     onSuccess,
 }: IncidentReportModalProps) {
+    useEscapeKey(onClose);
     const [step, setStep] = useState<Step>('GUIDELINES_PROMPT');
     const [selectedType, setSelectedType] = useState<'FLASH' | 'ACCIDENT' | null>(null);
     const [reportId, setReportId] = useState<string | null>(existingDraftId || null);

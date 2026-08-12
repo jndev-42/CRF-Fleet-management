@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.8.8] — 12 août 2026
+
+### 🏗️ Qualité & Architecture
+
+Derniers correctifs Moyenne/Faible du chapitre "Qualité & Architecture" — H1 reste volontairement exclu.
+
+- **`fetch` sans vérification `res.ok` (M2)** — les listes peuplées via `.then(r => r.json())` sans contrôle de statut (utilisateurs, UL, historique désinfection/inventaire, stock faible, photos, catégories/stocks) journalisent désormais une erreur au lieu d'afficher silencieusement une liste vide en cas d'échec.
+- **Lookups de rôle N+1 (M3)** — `/api/users/[email]` (PATCH) et `/api/users/[email]/ul` (PUT) : un seul `WHERE name IN (...)` batché au lieu d'une requête par rôle.
+- **Couleur codée en dur cassant le dark mode (M4)** — badge Diesel de `VehicleBadges.tsx` : texte fixe `#374151` remplacé par `var(--text-secondary)`.
+- **`fetch('/api/auth/session')` au lieu de `useSession` (M6)** — `qr/[token]/page.tsx` et `vehicles/[id]/useVehicleDetail.ts` migrés vers `useSession()`. `CheckOutModal.tsx` conservé tel quel : ce pattern est le comportement documenté pour les modals (`src/components/vehicle/CLAUDE.md`).
+- **Client Google Drive reconstruit à chaque appel (M7)** — `getDriveClient()` met désormais en cache l'instance au niveau module (le token OAuth2 est rafraîchi automatiquement par `googleapis`, pas de risque de token périmé).
+- **Modals sans fermeture au clavier (M8)** — nouveau hook `useEscapeKey()` (`src/lib/hooks/`) appliqué aux 32 modals du dépôt ; support d'un flag `enabled` pour les modals qui restent montés mais cachés (`isOpen`/`return null`) afin qu'Échap ne se déclenche pas alors qu'ils sont invisibles.
+- **`CLAUDE.md` obsolète (L1)** — référence à `src/middleware.ts` corrigée en `src/proxy.ts`.
+- **Erreurs silencieusement avalées (L2)** — `aide/page.tsx` et `UsersTab.tsx` journalisent désormais l'erreur au lieu d'un `.catch(() => {})` vide.
+- **`console.log` verbeux (L4)** — `fetchInterceptor.ts` ne journalise plus le corps des requêtes interceptées en mode démo, uniquement la méthode HTTP.
+- **`src/lib/stats.ts` mélangeait deux domaines (L5)** — scindé en `stats-trips.ts` (`buildTripWhere`, `fetchStatsData`) et `stats-expenses.ts` (`fetchExpenseStatsData`), imports mis à jour sur les 9 sites concernés.
+
 ## [4.8.7] — 12 août 2026
 
 ### 🏗️ Qualité & Architecture

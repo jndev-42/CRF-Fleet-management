@@ -75,7 +75,7 @@ export default function InventoryPage() {
         if (status !== 'authenticated') return;
         const controller = new AbortController();
         fetch('/api/inventory/stocks', { signal: controller.signal })
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
             .then(d => {
                 const list: InvStockListRow[] = d.stocks ?? [];
                 setStocks(list);
@@ -92,7 +92,7 @@ export default function InventoryPage() {
         if (status !== 'authenticated' || !activeStockId) return;
         const controller = new AbortController();
         fetch(`/api/inventory?categoriesOnly=1&stockId=${encodeURIComponent(activeStockId)}`, { signal: controller.signal })
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
             .then(d => setCategories(d.categories ?? []))
             .catch(e => { if (e.name !== 'AbortError') console.error('Erreur fetch catégories:', e); });
         return () => controller.abort();

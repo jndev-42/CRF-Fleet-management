@@ -57,7 +57,7 @@ export default function ExpensesPage() {
             setPhotos([]);
             const controller = new AbortController();
             fetch(`/api/drive/photos?folderId=${selectedReport.driveFolderId}&flat=true`, { signal: controller.signal })
-                .then(res => res.json())
+                .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
                 .then(data => {
                     if (data.photos) {
                         setPhotos(data.photos);

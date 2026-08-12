@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import { formatDate } from '@/app/vehicles/[id]/utils';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface Incident {
     id: string;
@@ -27,6 +28,7 @@ interface IncidentHistoryModalProps {
 }
 
 export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: IncidentHistoryModalProps) {
+    useEscapeKey(onClose);
     const [incidents, setIncidents] = useState<Incident[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

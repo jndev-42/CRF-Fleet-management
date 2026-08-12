@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { X, CheckCircle, ShieldCheck, RefreshCw, Edit3, Type } from 'lucide-react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 export interface SignatureData {
     mode: 'draw' | 'typed';
@@ -34,6 +35,7 @@ export default function YousignSignatureModal({
     initialFunction = 'Bénévole local',
     loading = false,
 }: YousignSignatureModalProps) {
+    useEscapeKey(onClose, isOpen);
     const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
     const [mode, setMode] = useState<'draw' | 'typed'>('typed');
     const [typedText, setTypedText] = useState(signerName || '');

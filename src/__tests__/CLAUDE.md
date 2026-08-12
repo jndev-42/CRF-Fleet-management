@@ -52,4 +52,4 @@ function makeRequest(body: Record<string, unknown>): Request {
 
 ## Unit tests
 Keep pure — import the function, test inputs/outputs, no mocking needed.
-Stats functions in `src/lib/stats.ts` must have unit test coverage.
+Stats functions in `src/lib/stats-trips.ts` / `src/lib/stats-expenses.ts` must have unit test coverage.

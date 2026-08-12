@@ -39,7 +39,7 @@ export default function CheckInForm({
     useEffect(() => {
         if (!isDesinf && !hasDesinfTracking) return;
         fetch('/api/users')
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
     }, [isDesinf, hasDesinfTracking]);

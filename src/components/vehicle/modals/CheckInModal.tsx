@@ -9,6 +9,7 @@ import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface CheckInModalProps {
     vehicle: Vehicle;
@@ -31,6 +32,7 @@ interface CheckInModalProps {
  * Collects returning mileage, condition, issues, and photos.
  */
 export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch, initialDesinfResponsableId = '', initialDesinfLotNumber = '', currentUserUlId }: CheckInModalProps) {
+    useEscapeKey(onClose);
     const { activeUL } = useUL();
     const [form, setForm] = useState<{
         mileageIn: number | '';
@@ -56,7 +58,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
     useEffect(() => {
         fetch('/api/ul')
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
             .then(ulData => {
                 const targetUlId = currentUserUlId || activeUL?.id || vehicle.ulId;
                 const uls: Array<{ id: string; defaultParkingSpots?: string[] }> = ulData?.uls || [];
@@ -106,7 +108,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     useEffect(() => {
         if (!isDesinf && !hasDesinfTracking) return;
         fetch('/api/users')
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
     }, [isDesinf, hasDesinfTracking, vehicle.type]);
@@ -114,7 +116,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     useEffect(() => {
         if (isConnected(vehicle.vin)) {
             fetch(`/api/renault/${encodeURIComponent(vehicle.vin!)}`)
-                .then(r => r.json())
+                .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
                 .then(rData => {
                     if (rData.error) {
                         setRenaultError(true);

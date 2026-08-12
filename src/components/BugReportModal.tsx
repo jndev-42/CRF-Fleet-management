@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { CheckCircle, ChevronDown } from 'lucide-react';
 import type { ConsoleLogEntry, NetworkLogEntry } from '@/lib/bugReportLogger';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface BugReportModalProps {
   consoleLogs: ConsoleLogEntry[];
@@ -11,6 +12,7 @@ interface BugReportModalProps {
 }
 
 export default function BugReportModal({ consoleLogs, networkLogs, onClose }: BugReportModalProps) {
+    useEscapeKey(onClose);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);

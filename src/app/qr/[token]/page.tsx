@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { useParams, useRouter } from 'next/navigation';
 import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal';
 import CheckOutForm from './CheckOutForm';
@@ -17,7 +18,8 @@ export default function QRVehiclePage() {
     const [vehicle, setVehicle] = useState<QRVehicle | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const { data: session } = useSession();
+    const currentUserId = session?.user?.id ?? null;
     const [toast, setToast] = useState<{ message: string; type: string } | null>(null);
     const [step, setStep] = useState<'view' | 'checkout' | 'checkin'>('view');
     const [done, setDone] = useState<'checkedout' | 'checkedin' | null>(null);
@@ -57,12 +59,6 @@ export default function QRVehiclePage() {
     }, [token, router]);
 
     useEffect(() => {
-        // Get current user id for "can check in" logic
-        fetch('/api/auth/session')
-            .then(r => r.json())
-            .then(s => { if (s?.user?.id) setCurrentUserId(s.user.id); })
-            .catch(console.error);
-
         fetchVehicle();
         return () => fetchVehicleAbortRef.current?.abort();
     }, [fetchVehicle]);

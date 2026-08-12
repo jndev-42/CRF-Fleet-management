@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { canAccessAdminPanel } from '@/lib/roles';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface QRCodeModalProps {
     onClose: () => void;
@@ -14,6 +15,7 @@ interface QRCodeModalProps {
 }
 
 export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles }: QRCodeModalProps) {
+    useEscapeKey(onClose);
     const [token, setToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

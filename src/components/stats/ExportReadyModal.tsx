@@ -1,5 +1,7 @@
 'use client';
 
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+
 interface ExportReadyModalProps {
   type: 'csv' | 'pdf';
   jobId: string;
@@ -25,6 +27,7 @@ const config = {
 };
 
 export default function ExportReadyModal({ type, jobId, downloadUrl, onClose }: ExportReadyModalProps) {
+    useEscapeKey(onClose);
   const c = config[type];
 
   function handleDownload() {

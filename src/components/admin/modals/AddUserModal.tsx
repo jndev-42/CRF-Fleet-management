@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { ULEntry } from '../types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface AddUserModalProps {
     availableRoles: string[];
@@ -18,6 +19,7 @@ export default function AddUserModal({
     onClose,
     onSuccess
 }: AddUserModalProps) {
+    useEscapeKey(onClose);
     const initialUlId = userUlId && availableULs.some(u => u.id === userUlId)
         ? userUlId
         : (availableULs.length > 0 ? availableULs[0].id : '');

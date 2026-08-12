@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import FuelBar from '@/components/vehicle/FuelBar';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface EditMetricsModalProps {
     vehicle: Vehicle;
@@ -9,6 +10,7 @@ interface EditMetricsModalProps {
 }
 
 export default function EditMetricsModal({ vehicle, onClose, onSuccess }: EditMetricsModalProps) {
+    useEscapeKey(onClose);
     const [mileage, setMileage] = useState<number | ''>(vehicle.mileage);
     const [fuelLevel, setFuelLevel] = useState<number | ''>(vehicle.fuelLevel);
     const [loading, setLoading] = useState(false);

@@ -62,7 +62,7 @@ export default function UsersTab({
         fetch('/api/ul')
             .then(r => r.ok ? r.json() : { uls: [] })
             .then(data => setAvailableULs(data.uls ?? []))
-            .catch(() => {});
+            .catch(e => console.error('Erreur fetch UL:', e));
     }, [isAdmin]);
 
     async function assignUL(email: string, ulId: string) {

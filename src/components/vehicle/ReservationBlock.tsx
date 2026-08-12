@@ -110,7 +110,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     useEffect(() => {
         if (!canManageDriver) return;
         fetch(`/api/users?vehicleType=${encodeURIComponent(vehicleType)}`)
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
     }, [canManageDriver, vehicleType]);

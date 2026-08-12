@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface StockModalProps {
     isOpen: boolean;
@@ -11,6 +12,7 @@ interface StockModalProps {
 }
 
 export default function StockModal({ isOpen, mode, initialName = '', onClose, onSubmit }: StockModalProps) {
+    useEscapeKey(onClose, isOpen);
     const [name, setName] = useState(initialName);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');

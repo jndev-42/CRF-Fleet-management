@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUL } from '@/lib/contexts/ULContext';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface AddVehicleModalProps {
     isOpen: boolean;
@@ -8,6 +9,7 @@ interface AddVehicleModalProps {
 }
 
 export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehicleModalProps) {
+    useEscapeKey(onClose, isOpen);
     const { activeUL } = useUL();
     const [form, setForm] = useState({
         name: '',
@@ -34,7 +36,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
     useEffect(() => {
         if (!isOpen) return;
         fetch('/api/ul')
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
             .then(ulData => {
                 const uls: Array<{ id: string; defaultParkingSpots?: string[] }> = ulData?.uls || [];
                 const currentUlId = activeUL?.id;

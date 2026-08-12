@@ -218,17 +218,26 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
                         args: [userId],
                     });
 
-                    // Insérer les nouveaux rôles globaux
-                    for (const roleName of item.roles) {
+                    // Insérer les nouveaux rôles globaux — un seul lookup batché au lieu d'un par rôle
+                    if (item.roles.length > 0) {
+                        const placeholders = item.roles.map(() => '?').join(', ');
                         const roleRes = await tx.execute({
-                            sql: 'SELECT id FROM "Role" WHERE name = ? OR id = ?',
-                            args: [roleName, roleName]
+                            sql: `SELECT id, name FROM "Role" WHERE name IN (${placeholders}) OR id IN (${placeholders})`,
+                            args: [...item.roles, ...item.roles],
                         });
-                        if (roleRes.rows.length > 0) {
-                            await tx.execute({
-                                sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
-                                args: [userId, roleRes.rows[0].id]
-                            });
+                        const roleIdByNameOrId = new Map<string, string>();
+                        for (const r of roleRes.rows) {
+                            roleIdByNameOrId.set(r.name as string, r.id as string);
+                            roleIdByNameOrId.set(r.id as string, r.id as string);
+                        }
+                        for (const roleName of item.roles) {
+                            const roleId = roleIdByNameOrId.get(roleName);
+                            if (roleId) {
+                                await tx.execute({
+                                    sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
+                                    args: [userId, roleId]
+                                });
+                            }
                         }
                     }
                 }

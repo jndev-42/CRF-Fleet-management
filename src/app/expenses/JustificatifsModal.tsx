@@ -1,5 +1,6 @@
 import { FileText, Receipt, X, Download } from 'lucide-react';
 import { isPdfItem } from './utils';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface JustificatifsModalProps {
     photos: { id: string; name: string; mimeType?: string }[];
@@ -8,6 +9,7 @@ interface JustificatifsModalProps {
 }
 
 export default function JustificatifsModal({ photos, onClose, onImageClick }: JustificatifsModalProps) {
+    useEscapeKey(onClose);
     return (
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 9999, backdropFilter: 'blur(5px)' }}>
             <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 750, width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>

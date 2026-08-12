@@ -1,11 +1,14 @@
 'use client';
 
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+
 interface PdfReadyModalProps {
   jobId: string;
   onClose: () => void;
 }
 
 export default function PdfReadyModal({ jobId, onClose }: PdfReadyModalProps) {
+    useEscapeKey(onClose);
   function handleDownload() {
     window.open(`/api/stats/pdf?jobId=${encodeURIComponent(jobId)}`, '_blank');
     onClose();

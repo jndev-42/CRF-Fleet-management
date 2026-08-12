@@ -78,18 +78,22 @@ export async function PATCH(
                     return forbiddenResponse(`Seul un Super Administrateur peut attribuer le rôle "${roleName}"`);
                 }
             }
-            for (const roleName of resolvedRoles) {
-                const roleRes = await tx.execute({
-                    sql: 'SELECT id FROM "Role" WHERE name = ?',
-                    args: [roleName]
+            if (resolvedRoles.length > 0) {
+                const placeholders = resolvedRoles.map(() => '?').join(', ');
+                const rolesRes = await tx.execute({
+                    sql: `SELECT id, name FROM "Role" WHERE name IN (${placeholders})`,
+                    args: resolvedRoles,
                 });
+                const roleIdByName = new Map(rolesRes.rows.map(r => [r.name as string, r.id]));
 
-                if (roleRes.rows.length > 0) {
-                    const roleId = roleRes.rows[0].id;
-                    await tx.execute({
-                        sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
-                        args: [userId, roleId]
-                    });
+                for (const roleName of resolvedRoles) {
+                    const roleId = roleIdByName.get(roleName);
+                    if (roleId) {
+                        await tx.execute({
+                            sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
+                            args: [userId, roleId]
+                        });
+                    }
                 }
             }
 

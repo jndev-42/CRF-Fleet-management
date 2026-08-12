@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface DeleteConfirmationModalProps {
     vehicle: Vehicle;
@@ -12,6 +13,7 @@ interface DeleteConfirmationModalProps {
  * and its trip history from the database.
  */
 export default function DeleteConfirmationModal({ vehicle, onClose, onSuccess }: DeleteConfirmationModalProps) {
+    useEscapeKey(onClose);
     const [confirmName, setConfirmName] = useState('');
     const [submitting, setSubmitting] = useState(false);
 

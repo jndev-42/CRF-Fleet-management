@@ -109,7 +109,7 @@ export default function VehicleBadges({ vehicle, userRoles, onToggleDSA, onDelet
                     ⚡ Électrique
                 </span>
             ) : vehicle.fuelType === 'Diesel' ? (
-                <span className="vehicle-type-badge" style={{ background: 'rgba(107, 114, 128, 0.1)', color: '#374151' }}>
+                <span className="vehicle-type-badge" style={{ background: 'rgba(107, 114, 128, 0.1)', color: 'var(--text-secondary)' }}>
                     ⛽ Diesel
                 </span>
             ) : vehicle.fuelType === 'Essence' ? (

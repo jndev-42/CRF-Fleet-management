@@ -1,6 +1,13 @@
 import { google } from 'googleapis';
 
+// Instance mise en cache au niveau module — réutilisée entre les appels d'un
+// même lambda "chaud" (le token OAuth2 est rafraîchi automatiquement par
+// googleapis en cas d'expiration, donc pas de risque de token périmé).
+let cachedDriveClient: ReturnType<typeof google.drive> | null = null;
+
 export function getDriveClient() {
+    if (cachedDriveClient) return cachedDriveClient;
+
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
     const refreshToken = process.env.GOOGLE_DRIVE_REFRESH_TOKEN;
@@ -18,7 +25,8 @@ export function getDriveClient() {
         refresh_token: refreshToken
     });
 
-    return google.drive({ version: 'v3', auth });
+    cachedDriveClient = google.drive({ version: 'v3', auth });
+    return cachedDriveClient;
 }
 
 export async function deleteDriveFolder(folderId: string) {

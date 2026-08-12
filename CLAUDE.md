@@ -27,7 +27,7 @@ npx tsx scripts/renault-login-test.ts   # Test Renault Connect auth
 - `src/app/` — pages and API routes; `src/app/api/` — REST endpoints
 - `src/components/` — shared UI; `src/components/vehicle/` — vehicle-specific
 - `src/lib/` — singletons (db, renault, onesignal, drive, email)
-- `src/auth.ts` — full auth config; `src/middleware.ts` — route protection
+- `src/auth.ts` — full auth config; `src/proxy.ts` — route protection
 
 **Database:** Direct SQL via `@libsql/client` — no ORM. Always parameterized: `{ sql: "... WHERE id = ?", args: [id] }`.
 

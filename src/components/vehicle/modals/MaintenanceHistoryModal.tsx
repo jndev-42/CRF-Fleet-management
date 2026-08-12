@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Vehicle, MaintenanceRecord } from '@/app/vehicles/[id]/types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface MaintenanceHistoryModalProps {
     vehicle: Vehicle;
@@ -36,6 +37,7 @@ export default function MaintenanceHistoryModal({
     onClose,
     onSuccess,
 }: MaintenanceHistoryModalProps) {
+    useEscapeKey(onClose);
     const [records, setRecords] = useState<MaintenanceRecord[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);

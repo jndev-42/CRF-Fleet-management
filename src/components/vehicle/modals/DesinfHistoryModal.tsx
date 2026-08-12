@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { DesinfectionRecord } from '@/app/vehicles/[id]/types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface DesinfHistoryModalProps {
     vehicleId: string;
@@ -14,13 +15,14 @@ interface DesinfHistoryModalProps {
  * Fetche GET /api/vehicles/[name]/desinfections et affiche un tableau.
  */
 export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: DesinfHistoryModalProps) {
+    useEscapeKey(onClose);
     const [desinfections, setDesinfections] = useState<DesinfectionRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetch(`/api/vehicles/${encodeURIComponent(vehicleName)}/desinfections`)
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => {
                 if (data.desinfections) {
                     setDesinfections(data.desinfections);

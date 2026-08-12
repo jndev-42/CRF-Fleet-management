@@ -7,6 +7,7 @@ import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface CheckOutModalProps {
     vehicle: Vehicle;
@@ -23,6 +24,7 @@ interface CheckOutModalProps {
  * onSuccess is called only after the API request completes successfully.
  */
 export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }: CheckOutModalProps) {
+    useEscapeKey(onClose);
     // Find the last completed trip to pre-fill condition and cleanliness
     const lastTrip = vehicle.trips?.find(t => t.checkInAt);
 
@@ -56,7 +58,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
     useEffect(() => {
         const sessionPromise = fetch('/api/auth/session')
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(session => {
                 if (session?.user) {
                     setForm(f => ({
@@ -71,7 +73,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
             .finally(() => setSessionLoading(false));
 
         fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => {
                 if (data.users) setUsers(data.users);
             })
@@ -80,7 +82,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         // Fetch Renault data if connected
         if (vehicle.vin) {
             fetch(`/api/renault/${encodeURIComponent(vehicle.vin)}`)
-                .then(r => r.json())
+                .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
                 .then(rData => {
                     if (rData.error) {
                         setRenaultError(true);
@@ -105,7 +107,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         // Pre-fill missionName from the user's closest reservation (by startTime)
         Promise.all([
             sessionPromise,
-            fetch(`/api/vehicles/${vehicle.id}/reservations`).then(r => r.json()).catch(() => null),
+            fetch(`/api/vehicles/${vehicle.id}/reservations`).then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); }).catch(() => null),
         ]).then(([session, reservationsData]) => {
             const email = session?.user?.email;
             const reservations: Array<{ userEmail: string; reason?: string | null; startTime: string }> =
