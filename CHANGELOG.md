@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.9.3] — 12 août 2026
+
+### 🧪 Couverture de tests — Phase 3 (2/2) : nouvelles routes API sans test
+
+Second et dernier lot de routes API sans aucun test d'intégration : `inventory/batches`, `inventory/expiring-soon`, `inventory/history`, `inventory/low-stock`, `renault/[vin]`, `stats/csv`, `stats/pdf`, `stats/trips`, `trips/[id]/refresh-renault`, `trips/[id]/second-driver`, `vehicles/[id]/metrics`, `vehicles/[id]/qr-token`, `vehicles/[id]/trips`. Les 24 routes identifiées par l'audit sont désormais toutes couvertes.
+
+- **`vehicles/[id]/metrics` (PATCH)** — bug réel découvert en écrivant le test : la route renvoyait 403 aussi bien pour "pas de session" que pour "rôle insuffisant" (`forbiddenResponse()` unique), au lieu de distinguer 401/403 comme l'exige `src/app/api/CLAUDE.md`. Corrigé (même anti-pattern déjà corrigé sur `vehicles/route.ts` en phase précédente).
+- **`setup.ts`** — extension de `seedInvItem` (`minStock`, `stockId`, `ulId`) et ajout de `seedInvBatch` pour couvrir les routes d'inventaire.
+- 77 nouveaux tests, suite complète toujours à 0 échec (582 tests). `npx tsc --noEmit` : 105 erreurs préexistantes (dette technique dans `authCallbacks.test.ts`, antérieure à cette session, hors périmètre) — vérifié à l'identique avant/après ce lot, aucune régression introduite.
+
 ## [4.9.2] — 12 août 2026
 
 ### 🧪 Couverture de tests — Phase 3 (1/2) : nouvelles routes API sans test

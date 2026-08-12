@@ -650,6 +650,9 @@ export async function seedInvItem(overrides: Partial<{
   category: string | null;
   notes: string | null;
   quantity: number;
+  minStock: number | null;
+  stockId: string | null;
+  ulId: string | null;
 }> = {}) {
   const item = {
     id: 'inv-item-1',
@@ -657,13 +660,36 @@ export async function seedInvItem(overrides: Partial<{
     category: 'Test',
     notes: null,
     quantity: 0,
+    minStock: null,
+    stockId: null,
+    ulId: 'ul-paris-18',
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, quantity, notes) VALUES (?,?,?,?,?)`,
-    args: [item.id, item.name, item.category, item.quantity, item.notes],
+    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, quantity, notes, minStock, stockId, ulId) VALUES (?,?,?,?,?,?,?,?)`,
+    args: [item.id, item.name, item.category, item.quantity, item.notes, item.minStock, item.stockId, item.ulId],
   });
   return item;
+}
+
+export async function seedInvBatch(overrides: Partial<{
+  id: string;
+  itemId: string;
+  quantity: number;
+  expiryDate: string | null;
+}> = {}) {
+  const batch = {
+    id: 'inv-batch-1',
+    itemId: 'inv-item-1',
+    quantity: 10,
+    expiryDate: null,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO "InvBatch" (id, itemId, quantity, expiryDate) VALUES (?,?,?,?)`,
+    args: [batch.id, batch.itemId, batch.quantity, batch.expiryDate],
+  });
+  return batch;
 }
 
 export async function seedInvLocation(overrides: Partial<{

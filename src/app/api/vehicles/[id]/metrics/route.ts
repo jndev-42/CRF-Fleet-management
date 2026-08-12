@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { sendPushNotification } from '@/lib/onesignal';
 import { canAccessAdminPanel } from '@/lib/roles';
-import { forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const updateMetricsSchema = z.object({
     mileage: z.number().min(0).optional(),
@@ -17,10 +17,12 @@ export async function PATCH(
 ) {
     try {
         const session = await auth();
-        const roles = session?.user?.roles || [];
-        const isAuthorized = canAccessAdminPanel(roles);
+        if (!session?.user) {
+            return unauthorizedResponse();
+        }
 
-        if (!session?.user || !isAuthorized) {
+        const roles = session.user.roles || [];
+        if (!canAccessAdminPanel(roles)) {
             return forbiddenResponse();
         }
 
