@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.9.7] — 12 août 2026
+
+### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 2)
+
+Tests RTL pour 12 composants supplémentaires : `inventory/modals/AddItemModal`, `BugReportButton`, `vehicle/ChecklistItems`, `vehicle/modals/DeleteConfirmationModal`, `vehicle/modals/DesinfHistoryModal`, `vehicle/modals/DesinfPreCheckinModal`, `ui/UserCombobox`, `stats/DriverBreakdown`, `vehicle/modals/EditCheckOutModal`, `vehicle/modals/EditMetricsModal`, `vehicle/modals/EditRevisionIntervalsModal`, `stats/ExpenseStatsSection`.
+
+- **`DesinfHistoryModal.tsx` / `DesinfPreCheckinModal.tsx` / `EditCheckOutModal.tsx`** — corrigent le même bug d'accessibilité `aria-hidden="true"` sur `.modal-overlay` déjà identifié en 4.9.5/4.9.6.
+- **`IncidentReportModal.tsx`** — même correctif appliqué en bonus : ce composant était déjà testé (lot antérieur) mais son bug `aria-hidden` avait été manqué à l'époque (son test ne vérifiait pas l'accessibilité de la modale). Vérifié que ses 11 tests existants passent toujours après correction.
+- Il ne reste plus qu'`IncidentHistoryModal` avec ce défaut — prévu dans le prochain lot.
+- 64 nouveaux tests, suite complète toujours à 0 échec (885 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
+- Reste à traiter : ~23 composants de priorité 2, sur de prochains lots.
+
 ## [4.9.6] — 12 août 2026
 
 ### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 1)

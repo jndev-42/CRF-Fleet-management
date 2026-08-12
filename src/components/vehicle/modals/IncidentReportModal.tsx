@@ -263,7 +263,7 @@ export default function IncidentReportModal({
     };
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose} style={{ zIndex: 10001 }}>
+        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
             <div className="modal" role="dialog" aria-modal="true" style={{ maxWidth: step.startsWith('FORM') || step === 'SUMMARY' ? '800px' : '500px' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">{titles[step]}</h2>

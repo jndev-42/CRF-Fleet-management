@@ -43,7 +43,7 @@ export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: 
     }
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 className="modal"
                 role="dialog"

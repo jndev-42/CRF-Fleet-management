@@ -81,7 +81,7 @@ export default function EditCheckOutModal({ trip, vehicle, onClose, onSuccess }:
     }
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 className="modal"
                 role="dialog"

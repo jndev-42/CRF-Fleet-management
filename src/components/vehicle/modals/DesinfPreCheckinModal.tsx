@@ -53,7 +53,7 @@ export default function DesinfPreCheckinModal({ tripId, onClose, onConfirm }: De
     }
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 className="modal"
                 role="dialog"
