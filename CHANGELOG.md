@@ -1,234 +1,40 @@
 # Changelog
 
-## [4.10.1] — 13 août 2026
+## [4.9.2] — 13 août 2026
 
-### 🪝 Hook Claude Code de garde-fou avant commit
+### 🐛 Corrections
 
-Nouveau hook `PreToolUse` (projet, partagé via git) qui intercepte tout `git commit` lancé par Claude via l'outil Bash et bloque le commit si :
-- `npm run lint` (`eslint --max-warnings=0`) n'est pas 100% propre ;
-- la suite `npm run test` n'est pas 100% verte ;
-- du code source (`src/**/*.ts(x)`, hors `__tests__`) est modifié sans qu'aucun fichier de test ne le soit dans le même commit ;
-- la couverture des **lignes ajoutées/modifiées** (pas du fichier entier) tombe sous 80%, calculée en croisant `git diff --cached` avec le rapport `coverage-final.json` (format Istanbul) généré par `vitest run --coverage`.
-
-- **`.claude/settings.json`** (nouveau) — enregistre le hook, **`.claude/hooks/pre-commit-check.mjs`** (nouveau) — logique de vérification.
-- **`@vitest/coverage-v8`** ajouté en devDependency (absent jusqu'ici, nécessaire pour générer le rapport de couverture).
-- Ne s'applique qu'aux commits exécutés par Claude (outil Bash) — un `git commit` tapé directement par un humain dans son terminal reste couvert uniquement par le hook Husky existant (`lint-staged`, ESLint seul).
-- Aucune échappatoire (pas de variable d'environnement de contournement) — choix explicite de l'utilisateur : un faux positif se corrige en ajustant le hook, pas en le contournant.
-- Vérifié empiriquement avec des scénarios réels (fichier source sans test → bloqué ; lint cassé → bloqué ; branche non couverte sous le seuil → bloqué ; commit entièrement conforme → autorisé) — un bug de calcul de couverture par ligne a été trouvé et corrigé pendant cette vérification (un statement englobant, comme le bloc d'un `if`, comptait comme "couvert" dès que la condition était évaluée, masquant un corps de branche jamais exécuté ; corrigé en donnant la priorité au statement le plus étroit pour chaque ligne).
-
-## [4.10.0] — 13 août 2026
-
-### 🐛 Correction du finding H1 de l'audit — store de jobs en mémoire
-
-Dernier finding non traité de `docs/code-review-2026-08-11.md` : les 4 routes d'export stats (`stats/pdf`, `stats/csv`, `stats/expenses/pdf`, `stats/expenses/csv`) stockaient le fichier généré dans une `Map` globale en mémoire sous un `jobId`, puis le client faisait un second appel `GET ?jobId=...` pour le télécharger. Sur Vercel serverless, `POST` et `GET` peuvent atterrir sur des instances lambda différentes → 404 intermittent en production, invisible en local.
-
-- **Correctif** : le fichier généré (déjà 100% synchrone côté serveur) est désormais retourné directement par le `POST` — plus de `Map` globale, plus de `GET` de polling, plus de TTL/cleanup à gérer. Une seule requête HTTP ne peut plus jamais atterrir sur la mauvaise instance.
-- **Client** (`src/app/stats/page.tsx`) : `res.blob()` → `URL.createObjectURL()` au lieu de parser un `jobId`. `ExportReadyModal.tsx` déclenche le téléchargement via un `<a download>` temporaire (fiable pour une `blob:` URL, contrairement à `window.open()` qui ne préserve pas le nom de fichier) — le nom de fichier est lu depuis l'en-tête `Content-Disposition` renvoyé par le serveur plutôt que dupliqué côté client.
-- **Nettoyage** : suppression de `PdfReadyModal.tsx` (doublon mort de `ExportReadyModal`, jamais importé, suivait l'ancien pattern à base de `jobId`).
-- Tests mis à jour (`stats-pdf.test.ts`, `stats-csv.test.ts`, `expense-stats.test.ts`) pour la nouvelle réponse synchrone. `npm run test` : 1000 tests, 0 échec. `npm run lint` : 0/0. `npx tsc --noEmit` : 105 erreurs préexistantes identiques (hors périmètre). `npm run build` : vérifié localement sans secrets réels, succès.
-- **Chantier d'audit du 2026-08-11 entièrement clos** : tous les findings sont désormais soit corrigés, soit explicitement non corrigés par décision assumée (aucun report restant).
-
-## [4.9.9] — 13 août 2026
-
-### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 4, dernier lot)
-
-Tests RTL pour les 11 derniers composants à état identifiés sans couverture : `OneSignalProvider`, `PhotoViewer`, `vehicle/modals/PutInMaintenanceModal`, `users/RoleLegend`, `missions/SignedReportLightbox`, `missions/steps/Step2Vehicle`, `missions/steps/Step3Supplies`, `inventory/modals/StockModal`, `ThemeToggle`, `vehicle/VehicleNotes`, `Navbar`.
-
-Le chapitre **"Couverture de tests"** de l'audit (`docs/code-review-2026-08-11.md`) est désormais intégralement traité : les 24 routes API (TQ-3), les 15 modules `src/lib/**` (TQ-4) et les 45 composants à état (TQ-5, 5 lots) identifiés sans test en ont maintenant tous — en plus des correctifs de la suite existante (TQ-1/TQ-2). Le chapitre 5 "Incohérences documentaires" de l'audit se réduisait entièrement à ce chapitre (cf. contexte du plan de remédiation).
-
-- 63 nouveaux tests, suite complète toujours à 0 échec (**1008 tests**, contre 46 fichiers/16 échecs en début de chantier). `npm run lint` : 0 erreur/0 warning. `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après sur l'ensemble du chantier (dette technique dans `authCallbacks.test.ts`, antérieure à cette session, hors périmètre — vérifié à chaque lot).
-- Au fil de ce chantier de couverture de tests, **4 bugs de production réels** ont été découverts et corrigés en écrivant les tests (et non recherchés a priori) : requête SQL du cron référençant une colonne inexistante (`4.9.2`), confusion 401/403 sur `vehicles/[id]/metrics` (`4.9.3`), données de démo partagées par référence empêchant `DemoDB.reset()` de fonctionner (`4.9.4`), et le bug d'accessibilité `aria-hidden` sur les overlays de modales, présent sur 8 modales et corrigé au fil des lots 4.9.5 à 4.9.8.
-
-## [4.9.8] — 12 août 2026
-
-### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 3)
-
-Tests RTL pour 12 composants supplémentaires : `inventory/modals/ExpiringSoonModal`, `FooterChangelog`, `vehicle/modals/IncidentHistoryModal`, `inventory/modals/InventoryHistoryModal`, `KonamiEasterEgg`, `LicenseBanner`, `inventory/modals/LowStockModal`, `ui/MarineApprovedOverlay`, `admin/MenusTab`, `missions/MissionPhotosModal`, `missions/MissionPhotosSection`, `stats/MultiSelectDropdown`.
-
-- **`IncidentHistoryModal.tsx`** — corrige le même bug d'accessibilité `aria-hidden="true"` sur `.modal-overlay` identifié depuis 4.9.5. C'était la dernière modale connue affectée par ce défaut — le correctif est maintenant complet sur toutes les modales de l'application.
-- 60 nouveaux tests, suite complète toujours à 0 échec (945 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
-- Reste à traiter : ~11 composants de priorité 2, sur un dernier lot.
-
-## [4.9.7] — 12 août 2026
-
-### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 2)
-
-Tests RTL pour 12 composants supplémentaires : `inventory/modals/AddItemModal`, `BugReportButton`, `vehicle/ChecklistItems`, `vehicle/modals/DeleteConfirmationModal`, `vehicle/modals/DesinfHistoryModal`, `vehicle/modals/DesinfPreCheckinModal`, `ui/UserCombobox`, `stats/DriverBreakdown`, `vehicle/modals/EditCheckOutModal`, `vehicle/modals/EditMetricsModal`, `vehicle/modals/EditRevisionIntervalsModal`, `stats/ExpenseStatsSection`.
-
-- **`DesinfHistoryModal.tsx` / `DesinfPreCheckinModal.tsx` / `EditCheckOutModal.tsx`** — corrigent le même bug d'accessibilité `aria-hidden="true"` sur `.modal-overlay` déjà identifié en 4.9.5/4.9.6.
-- **`IncidentReportModal.tsx`** — même correctif appliqué en bonus : ce composant était déjà testé (lot antérieur) mais son bug `aria-hidden` avait été manqué à l'époque (son test ne vérifiait pas l'accessibilité de la modale). Vérifié que ses 11 tests existants passent toujours après correction.
-- Il ne reste plus qu'`IncidentHistoryModal` avec ce défaut — prévu dans le prochain lot.
-- 64 nouveaux tests, suite complète toujours à 0 échec (885 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
-- Reste à traiter : ~23 composants de priorité 2, sur de prochains lots.
-
-## [4.9.6] — 12 août 2026
-
-### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 1)
-
-Tests RTL pour 10 composants supplémentaires : `admin/AddVehicleModal`, `inventory/ChecklistManager`, `inventory/EditItemModal`, `GuidedTour`, `inventory/ItemBatchesModal`, `vehicle/modals/MaintenanceHistoryModal`, `NotificationBell`, `vehicle/modals/QRCodeModal`, `admin/ULsTab`, `expenses/YousignSignatureModal`.
-
-- **`MaintenanceHistoryModal.tsx`** — corrige le même bug d'accessibilité `aria-hidden="true"` déjà identifié sur `CheckInModal`/`CheckOutModal` en 4.9.5. Il reste 5 modales concernées (`DesinfHistoryModal`, `DesinfPreCheckinModal`, `EditCheckOutModal`, `IncidentHistoryModal`, `IncidentReportModal`), à traiter dans une prochaine passe.
-- 76 nouveaux tests, suite complète toujours à 0 échec (821 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
-- Reste à traiter : ~36 composants de priorité 2, sur de prochains lots.
-
-## [4.9.5] — 12 août 2026
-
-### 🧪 Couverture de tests — Phase 5 (1/2) : composants à état prioritaires (React Testing Library)
-
-Tests RTL pour les 10 composants à état les plus à risque identifiés par l'audit (densité de hooks) : `vehicle/ReservationBlock`, `vehicle/modals/CheckInModal`, `vehicle/modals/CheckOutModal`, `admin/UsersTab`, `admin/UsersTable`, `admin/modals/AddUserModal`, `admin/modals/ManageUserULsModal`, `admin/BannersTab`, `expenses/ExpenseForm`, `missions/MissionWizard`.
-
-- **`CheckInModal.tsx` / `CheckOutModal.tsx`** — bug d'accessibilité réel découvert en écrivant les tests : le conteneur `.modal-overlay` portait `aria-hidden="true"`, masquant **toute** la modale (formulaire, boutons, sous-modale de signalement d'incident) aux technologies d'assistance alors qu'elle reste visible et interactive à l'écran. Corrigé sur ces deux fichiers. Le même défaut existe sur 6 autres modales (`DesinfHistoryModal`, `DesinfPreCheckinModal`, `EditCheckOutModal`, `IncidentHistoryModal`, `IncidentReportModal`, `MaintenanceHistoryModal`) — hors périmètre de ce lot, à corriger dans une prochaine passe.
-- 81 nouveaux tests, suite complète toujours à 0 échec (745 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
-- Reste à traiter : ~46 composants de priorité 2 (par risque décroissant), sur un prochain lot.
-
-## [4.9.4] — 12 août 2026
-
-### 🧪 Couverture de tests — Phase 4 : modules lib non couverts
-
-Tests unitaires/intégration pour les 14 modules `src/lib/**` sans aucune couverture identifiés par l'audit : `apiAuth.ts`, `driveAuth.ts`, `drive.ts`, `email.ts`, `renault.ts`, `onesignal.ts`, `inventory/stocks.ts`, `mission-supplies.ts`, `preview-accounts.ts`, `stamp.ts`, `demo/DemoDB.ts`, `demo/fetchInterceptor.ts`, `contexts/DemoContext.tsx`, `contexts/MenuSettingsContext.tsx`. `stats-expenses.ts` (15ᵉ module de la liste) était déjà exercé indirectement par `expense-stats.test.ts` — pas de fichier dédié nécessaire, même traitement que `stats-trips.ts`.
-
-- **`demo/DemoDB.ts`** — bug réel découvert en écrivant le test : `INITIAL_VEHICLES`/`INITIAL_USERS`/`INITIAL_MISSIONS` étaient passés par référence (pas de copie) dans les données initiales stockées en `localStorage`. Toute mutation (ex. `updateVehicle`) corrompait alors les constantes du module en mémoire, si bien que `DemoDB.reset()` ne restaurait plus les données de démo d'origine tant que la page n'était pas rechargée. Corrigé via `structuredClone()`.
-- **DB-touching modules** (`driveAuth.ts`, `inventory/stocks.ts`, `renault.ts`, `onesignal.ts`) placés en `integration/` (DB SQLite réelle, jamais mockée) plutôt qu'en `unit/`, conformément à la convention du projet.
-- **`setup.ts`** — ajout de la table `RenaultSession` (cache de session Gigya/Kamereon) et extension de `seedInvItem`/ajout de `seedInvBatch`.
-- 82 nouveaux tests, suite complète toujours à 0 échec (664 tests). `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après (dette technique hors périmètre, cf. 4.9.3).
-
-## [4.9.3] — 12 août 2026
-
-### 🧪 Couverture de tests — Phase 3 (2/2) : nouvelles routes API sans test
-
-Second et dernier lot de routes API sans aucun test d'intégration : `inventory/batches`, `inventory/expiring-soon`, `inventory/history`, `inventory/low-stock`, `renault/[vin]`, `stats/csv`, `stats/pdf`, `stats/trips`, `trips/[id]/refresh-renault`, `trips/[id]/second-driver`, `vehicles/[id]/metrics`, `vehicles/[id]/qr-token`, `vehicles/[id]/trips`. Les 24 routes identifiées par l'audit sont désormais toutes couvertes.
-
-- **`vehicles/[id]/metrics` (PATCH)** — bug réel découvert en écrivant le test : la route renvoyait 403 aussi bien pour "pas de session" que pour "rôle insuffisant" (`forbiddenResponse()` unique), au lieu de distinguer 401/403 comme l'exige `src/app/api/CLAUDE.md`. Corrigé (même anti-pattern déjà corrigé sur `vehicles/route.ts` en phase précédente).
-- **`setup.ts`** — extension de `seedInvItem` (`minStock`, `stockId`, `ulId`) et ajout de `seedInvBatch` pour couvrir les routes d'inventaire.
-- 77 nouveaux tests, suite complète toujours à 0 échec (582 tests). `npx tsc --noEmit` : 105 erreurs préexistantes (dette technique dans `authCallbacks.test.ts`, antérieure à cette session, hors périmètre) — vérifié à l'identique avant/après ce lot, aucune régression introduite.
-
-## [4.9.2] — 12 août 2026
-
-### 🧪 Couverture de tests — Phase 3 (1/2) : nouvelles routes API sans test
-
-Premier lot de 7 routes (sur 24) sans aucun test d'intégration : `changelog`, `checklist/[itemId]` + `vehicles/[id]/checklist`, `cron/daily-mileage-check`, `drive/photos` + `[fileId]`, `expenses/[id]/pdf`, `incidents/[id]` + `[id]/pdf`, `notifications` + `[id]`.
-
-- **`cron/daily-mileage-check`** — bug réel découvert en écrivant le test : la requête SQL sélectionnait une colonne `Vehicle.isMaintenance` qui n'existe pas dans le schéma (500 en production pour tout véhicule connecté avec un VIN). Corrigé : dérivation depuis `Vehicle.status === 'MAINTENANCE'`. Le test documente aussi volontairement le comportement fail-open si `CRON_SECRET` n'est pas configuré (finding sécurité #8, non corrigé par choix explicite).
-- **`setup.ts`** — ajout de la table `VehicleChecklistItem` et de 4 nouveaux helpers de seed (`seedChecklistItem`, `seedIncident`, `seedNotification`, `seedExpenseReport`) pour couvrir ce lot de routes.
-- 55 nouveaux tests, suite complète toujours à 0 échec (505 tests).
+- **Export des statistiques (PDF/CSV)** — l'export échouait parfois de façon intermittente en production ("fichier non trouvé"). Corrigé, l'export est désormais fiable à chaque fois.
 
 ## [4.9.1] — 12 août 2026
 
-### 🧪 Couverture de tests — Phase 2 : tests existants incomplets
+### 🐛 Corrections
 
-- **`qr.test.ts`** — ajout de 401 (sans session), 403 (compte inactif) et 400 (Zod) sur les routes QR.
-- **`ul-parking.test.ts`** — ajout de 401 (GET), 403 (POST non-SUPER_ADMIN) et 400 (slug invalide).
-- **`upload-validation.test.ts`** — ajout d'un cas 401 réel sur `drive/upload` et `expenses/upload` (l'auth était mockée en permanence authentifiée).
-- **`vehicles.test.ts`** — ajout d'un vrai test 401. A révélé un bug réel au passage : `POST`/`PATCH`/`DELETE /api/vehicles` ne vérifiaient jamais l'absence de session séparément du rôle (`isAdminOrAbove(session?.user?.roles || [])` renvoie 403 aussi bien pour "pas de session" que pour "mauvais rôle"), contrairement à l'ordre documenté dans `src/app/api/CLAUDE.md` (401 avant 403). Corrigé sur les 3 handlers.
-- **`stats.test.ts`** — vérifié : teste `fetchStatsData` (couche lib, pas de session en jeu) ; la route `/api/stats` elle-même a déjà sa couverture 401/403/400 dans `stats-filters.test.ts`. Rien à ajouter.
-- **`repro_bug.test.ts`** — vérifié : test de non-régression ciblé sur `POST /api/users`, déjà couvert en 401/403/400 par `users.test.ts`. Laissé tel quel pour ne pas diluer son objet.
+- **Modification des intervalles de révision d'un véhicule** — l'enregistrement échouait systématiquement ("Véhicule non trouvé"). Corrigé.
+- **Page Inventaire** — changer rapidement de stock pouvait afficher les articles du stock précédemment sélectionné au lieu du bon. Corrigé.
+- **Badge carburant Diesel illisible en mode sombre** — corrigé.
+- **Notifications (toasts) qui se coupaient** — deux notifications rapprochées pouvaient se tronquer l'une l'autre. Corrigé.
+- **Mode démo** — le bouton "Réinitialiser" ne restaurait pas toujours correctement les données d'origine. Corrigé.
+- **Vérification quotidienne du kilométrage** — la tâche automatique échouait dès qu'un véhicule connecté était en maintenance, empêchant les alertes de fonctionner pour toute la flotte ce jour-là. Corrigé.
 
-## [4.9.0] — 12 août 2026
+### ♿ Accessibilité
 
-### 🧪 Couverture de tests — Phase 1 : suite verte
+- **Fenêtres modales** (prise/retour de véhicule, désinfection, incidents, maintenance) — le contenu était partiellement inaccessible aux lecteurs d'écran. Corrigé sur l'ensemble de l'application.
+- Les fenêtres modales peuvent désormais être fermées avec la touche **Échap**.
 
-Début du chapitre "Couverture de tests" de l'audit (`docs/code-review-2026-08-11.md`). `npm run test` était à 16 échecs sur 46 fichiers ; passe désormais à **0 échec, 441 tests**.
+### 🛠️ Fiabilité
 
-- **11 régressions introduites par les correctifs de sécurité Haute de cette session** (`vehicles.test.ts`, `maintenance.test.ts`, `desinf.test.ts`) — le contrôle d'appartenance UL ajouté à `vehicles/[id]` (PATCH), `maintenance` et `desinfections` faisait échouer des tests dont le mock de session n'avait pas de `ulId` correspondant au véhicule seedé. Corrigé en alignant les fixtures, pas le code produit (le contrôle est légitime).
-- **`PhotoPicker.test.tsx` (4 tests)** — cause réelle non liée à jsdom/React 19 comme le supposait l'audit : `handleFiles` est devenu asynchrone (pré-compression en arrière-plan, commit antérieur `443c8ff`), et jsdom ne déclenche jamais `onload`/`onerror` sur un `<img>` chargé depuis un blob: URL, bloquant indéfiniment la Promise de compression réelle. Le module `@/lib/imageCompression` est désormais mocké dans le test pour isoler la logique de validation de taille.
-- **`VehicleCalendar.test.tsx` (1 test)** — les données de test étaient figées sur juillet 2026 alors que le composant affiche le mois réel par défaut (`new Date()`) ; la dérive du temps a fini par désynchroniser la réservation de test du mois affiché. Dates de la réservation calculées dynamiquement par rapport au mois courant.
-- **`zod-schemas.test.ts`** — recopiait localement `checkOutSchema`/`checkInSchema` au lieu d'importer les vrais schémas (dérive déjà réelle : le schéma réel de check-in a 3 champs désinfection absents de la copie). Schémas extraits dans `trips/schema.ts` et `trips/[id]/checkin/schema.ts` (un fichier `route.ts` Next.js ne peut exporter que des handlers HTTP, pas des consts arbitraires) et importés directement par le test et les routes.
-- **`e2e/verify_user_deletion.test.ts` supprimé** — script de debug (pas un vrai test Playwright), doublon de `verify_user_deletion.spec.ts`, collecté par erreur par le glob `**/*.test.ts`.
+- **Écran de récupération en cas d'erreur inattendue** — un bouton "Réessayer" s'affiche désormais au lieu d'une page blanche.
 
-## [4.8.9] — 12 août 2026
-
-### ⚛️ Patterns Next.js 16 / React 19
-
-Chapitre "Patterns Next.js 16 / React 19" de l'audit (`docs/code-review-2026-08-11.md`) — les points #3, #4 (déjà corrigés avec le chapitre précédent) et #11 (qualifié "pas une anomalie" par l'audit) sont hors scope.
-
-- **Import valeur d'un module server-only (#1)** — `RenaultVehicleData` passé en `import type` sur les 4 sites qui l'utilisent uniquement comme type (`vehicles/page.tsx`, `vehicles/[id]/useVehicleDetail.ts`, `vehicles/[id]/VehicleDetailGrid.tsx`, `RenaultConnectBlock.tsx`), pour éviter que le client libSQL et les credentials Renault ne finissent dans le bundle client si une valeur venait un jour à être importée du même module.
-- **Aucune error boundary (#2)** — nouveau `src/app/error.tsx` (bouton "Réessayer" + retour au dashboard) pour contenir les erreurs de rendu sans perdre toute la coquille applicative.
-- **`exhaustive-deps` sans justification (#6)** — commentaires ajoutés sur les 3 sites signalés (`IncidentHistoryModal.tsx`, `QRCodeModal.tsx`, `BannersTab.tsx`), conformément à `.claude/rules/lint.md`.
-- **`useSearchParams` sans `Suspense` (#7)** — `vehicles/[id]/page.tsx` et `NotificationBell.tsx` enveloppent désormais leur contenu dans une frontière `Suspense`, préventif pour une future activation de PPR/`cacheComponents`.
-- **`<img>` sur un asset statique (#8)** — le logo de `qr/[token]/page.tsx` utilise désormais `<Image>` de `next/image`.
-- **Timers de toast jamais nettoyés (#9)** — `qr/[token]/page.tsx`, `users/page.tsx`, `vehicles/[id]/page.tsx`, `ULsTab.tsx` : le timer précédent est annulé avant d'en poser un nouveau, deux toasts rapprochés ne se tronquent plus.
-- **Effet avec sa propre sortie en dépendance (#10)** — `useVehicleDetail.ts` : l'effet Renault Connect suit le VIN déjà récupéré via une ref au lieu de lire `renaultData` dans sa garde, retirant la dépendance auto-référentielle sans désactiver le linter.
-
-## [4.8.8] — 12 août 2026
-
-### 🏗️ Qualité & Architecture
-
-Derniers correctifs Moyenne/Faible du chapitre "Qualité & Architecture" — H1 reste volontairement exclu.
-
-- **`fetch` sans vérification `res.ok` (M2)** — les listes peuplées via `.then(r => r.json())` sans contrôle de statut (utilisateurs, UL, historique désinfection/inventaire, stock faible, photos, catégories/stocks) journalisent désormais une erreur au lieu d'afficher silencieusement une liste vide en cas d'échec.
-- **Lookups de rôle N+1 (M3)** — `/api/users/[email]` (PATCH) et `/api/users/[email]/ul` (PUT) : un seul `WHERE name IN (...)` batché au lieu d'une requête par rôle.
-- **Couleur codée en dur cassant le dark mode (M4)** — badge Diesel de `VehicleBadges.tsx` : texte fixe `#374151` remplacé par `var(--text-secondary)`.
-- **`fetch('/api/auth/session')` au lieu de `useSession` (M6)** — `qr/[token]/page.tsx` et `vehicles/[id]/useVehicleDetail.ts` migrés vers `useSession()`. `CheckOutModal.tsx` conservé tel quel : ce pattern est le comportement documenté pour les modals (`src/components/vehicle/CLAUDE.md`).
-- **Client Google Drive reconstruit à chaque appel (M7)** — `getDriveClient()` met désormais en cache l'instance au niveau module (le token OAuth2 est rafraîchi automatiquement par `googleapis`, pas de risque de token périmé).
-- **Modals sans fermeture au clavier (M8)** — nouveau hook `useEscapeKey()` (`src/lib/hooks/`) appliqué aux 32 modals du dépôt ; support d'un flag `enabled` pour les modals qui restent montés mais cachés (`isOpen`/`return null`) afin qu'Échap ne se déclenche pas alors qu'ils sont invisibles.
-- **`CLAUDE.md` obsolète (L1)** — référence à `src/middleware.ts` corrigée en `src/proxy.ts`.
-- **Erreurs silencieusement avalées (L2)** — `aide/page.tsx` et `UsersTab.tsx` journalisent désormais l'erreur au lieu d'un `.catch(() => {})` vide.
-- **`console.log` verbeux (L4)** — `fetchInterceptor.ts` ne journalise plus le corps des requêtes interceptées en mode démo, uniquement la méthode HTTP.
-- **`src/lib/stats.ts` mélangeait deux domaines (L5)** — scindé en `stats-trips.ts` (`buildTripWhere`, `fetchStatsData`) et `stats-expenses.ts` (`fetchExpenseStatsData`), imports mis à jour sur les 9 sites concernés.
-
-## [4.8.7] — 12 août 2026
-
-### 🏗️ Qualité & Architecture
-
-- **Décomposition des 4 composants "Dieu" (M1)** — extraction de la logique data-fetching en hooks dédiés et d'une section UI par composant, conformément à la règle déjà documentée dans `src/app/CLAUDE.md` :
-  - `src/components/admin/UsersTab.tsx` : 866 → 204 lignes (`UsersTable`, `modals/AddUserModal`, `modals/DeleteUserModal`, `modals/ManageUserULsModal`).
-  - `src/app/qr/[token]/page.tsx` : 879 → 259 lignes (`CheckOutForm`, `CheckInForm`, `VehicleInfoCard`, `QRActions`).
-  - `src/app/vehicles/[id]/page.tsx` : 1088 → 494 lignes (`useVehicleDetail`, `VehicleDetailHeader`, `ActiveTripBanner`, `MaintenanceBanner`, `VehicleDetailGrid`, `TripHistoryList`).
-  - `src/app/expenses/page.tsx` : 1273 → 370 lignes (`useExpenseReports`, `ExpensesFilters`, `ExpensesTable`, `ExpenseDetailSidebar`, `ExpensePhotosPanel`, `JustificatifsModal`, `PhotoLightbox`).
-  - Corrigé au passage : `EditRevisionIntervalsModal.tsx` appelait `PATCH /api/vehicles/${vehicle.id}` (UUID) au lieu de `${vehicle.name}` (attendu par la route) — "Véhicule non trouvé" à chaque modification des intervalles de révision. Bug pré-existant, découvert lors des tests manuels de cette phase.
-
-## [4.8.6] — 12 août 2026
-
-### 🏗️ Qualité & Architecture
-
-- **Annulation de requête / garde de démontage (H3)** — introduction du pattern `AbortController` (absent du dépôt jusqu'ici) sur les effets de récupération de données susceptibles de se déclencher plusieurs fois pendant la vie d'un composant :
-  - `/inventory` — corrige le bug concret identifié par l'audit : changer rapidement de stock pouvait afficher les catégories ou articles d'un stock précédemment sélectionné si sa réponse arrivait après. Corrige aussi au passage la dépendance d'effet trop large signalée en L3 (le chargement des stocks se re-déclenchait inutilement).
-  - `/vehicles/[id]`, `/expenses` (liste + photos du rapport sélectionné), `/qr/[token]`, `/stats` (filtres) — même protection sur leurs requêtes principales.
-
-## [4.8.5] — 12 août 2026
-
-### 🏗️ Qualité & Architecture
-
-Début des correctifs du chapitre "Qualité & Architecture" de l'audit (voir `docs/code-review-2026-08-11.md`) — H1 (store de jobs en mémoire) volontairement exclu, traité séparément plus tard.
-
-- **Helper d'auth/autorisation partagé (H2)** — nouveau `src/lib/apiAuth.ts` (`unauthorizedResponse()` / `forbiddenResponse()`), reprenant le pattern déjà documenté dans `src/app/api/CLAUDE.md`. Migration d'environ 65 routes API : les 6+ variantes de corps de réponse générique (`Interdit`, `Non autorisé`, `Permissions insuffisantes`, `Accès refusé`, `Accès non autorisé`, `Forbidden`, `Unauthorized`...) sont désormais unifiées vers 2 corps canoniques (`'Non authentifié'` en 401, `'Interdit'` en 403). Les messages 403 métier spécifiques (ex. raisons de refus détaillées) sont conservés tels quels, simplement acheminés via le même helper. Vérifié : aucun code frontend ne teste le texte exact d'un corps d'erreur (uniquement le code de statut HTTP), migration donc sans risque de régression.
+## [4.9.0] — 11 août 2026
 
 ### 🔒 Sécurité
 
-Correctifs des vulnérabilités **Moyenne** et **Faible** de l'audit de sécurité (voir `docs/code-review-2026-08-11.md`) — #10 à #15. Les #8 (cron fail-open) et #9 (admin local sans UL home) sont volontairement laissées de côté.
-
-- **SQL non paramétré (#10)** — `/api/vehicles` (requête 100% construite par interpolation), la clause d'UL dans `/api/vehicles/calendar`, et les conditions `LIKE` de rôle dans `src/lib/onesignal.ts` sont désormais entièrement paramétrés.
-- **Incohérence de gate stats (#11)** — `/api/stats/trips` (route morte, non appelée par le frontend) alignée sur la gate de `/api/stats` (la route réellement utilisée par la page `/stats`, qui autorise déjà CHVL/CHVPSP) — aucun changement sur `/api/stats` lui-même.
-- **Validation Zod manquante (#12)** — schémas ajoutés sur `/api/ul/[id]` (PATCH), `/api/users/[email]` (PATCH), `/api/inventory/adjust`, `/api/inventory/stocks` (POST/PATCH) et `/api/inventory/batches` (PATCH). Les 8 autres routes citées par le rapport n'avaient en réalité aucun body à valider.
-- **Changelog non authentifié (#13)** — `/api/changelog` exige désormais une session.
-- **Logs Drive verbeux (#14)** — `/api/drive/upload`, `/api/expenses/upload` et `/api/drive/photos` journalisent un message d'erreur borné au lieu du corps de réponse Google brut.
-- **Branchement PATCH ambigu (#15)** — `/api/reservations/[id]` : un body non vide est désormais strictement validé par Zod (clés inconnues rejetées en 400) au lieu d'être silencieusement réinterprété comme une action de validation en cas de champ mal orthographié.
-
-## [4.8.3] — 11 août 2026
-
-### 🔒 Sécurité
-
-Correctifs des vulnérabilités **Haute** de l'audit de sécurité (voir `docs/code-review-2026-08-11.md`).
-
-- **Comptes sans rôle traités comme actifs** — `isInactive([])` renvoyait `false`, permettant à tout compte `@croix-rouge.fr` auto-provisionné sans rôle de contourner la politique deny-by-default (checkout de véhicules, stats flotte, `/api/bugs/report`). Corrigé dans `src/lib/roles.ts` ; suppression d'une réimplémentation locale du même bug dans `/api/bugs/report`.
-- **IDOR sur les exports PDF** — `/api/expenses/[id]/pdf` et `/api/incidents/[id]/pdf` ne vérifiaient que l'authentification, contrairement à leurs routes JSON équivalentes. Alignement sur le même contrôle de propriété (propriétaire, manager, ou trésorier pour les notes de frais en attente de paiement ; propriétaire ou admin pour les incidents).
-- **Exposition de données inter-UL** :
-  - `/api/vehicles/[id]` et `/api/vehicles/[id]/desinfections` renvoient désormais 404 (au lieu d'exposer les données) pour un véhicule d'une autre Unité Locale — l'accès via QR code reste inchangé, c'est un mécanisme séparé et volontairement sans restriction d'UL.
-  - `/api/incidents/[id]` (GET) et `/api/renault/[vin]` vérifient désormais l'appartenance à l'UL avant de renvoyer les données (403 sinon).
-- **Actions destructrices admin sans contrôle d'UL** — un `ADMIN` local pouvait modifier/supprimer des véhicules, purger l'historique de trajets, gérer la maintenance ou la checklist d'un véhicule appartenant à une autre Unité Locale. Ajout du contrôle d'appartenance UL (bypass réservé à `SUPER_ADMIN`) sur `/api/vehicles/[id]` (PATCH/DELETE), `/api/vehicles/[id]/trips` (DELETE), `/api/vehicles/[id]/maintenance` (POST), `/api/vehicles/[id]/maintenance/[recordId]` (DELETE) et `/api/checklist/[itemId]` (PATCH/DELETE).
-
-## [4.8.2] — 11 août 2026
-
-### 🔒 Sécurité
-
-Correctifs issus d'un audit de sécurité complet du dépôt (voir `docs/code-review-2026-08-11.md`).
-
-- **Injection SQL sur le calendrier des véhicules** (`/api/vehicles/calendar`) — le paramètre `vehicleId` était interpolé directement dans les requêtes SQL des réservations, trajets et maintenances, permettant de contourner l'isolation par Unité Locale (UL) et d'exposer les données de toutes les UL. Le filtre est désormais entièrement paramétré.
-- **Lecture/écriture arbitraire sur Google Drive** — les routes `/api/drive/photos`, `/api/drive/photos/[fileId]`, `/api/drive/upload` et `/api/expenses/upload` acceptaient un `fileId`/`folderId` fourni par le client sans vérifier qu'il appartenait à une ressource (trajet, note de frais, incident) de l'UL ou du propriétaire de l'appelant :
-  - Nouveau module `src/lib/driveAuth.ts` : résout le propriétaire réel (`Trip`/`IncidentReport` via l'UL du véhicule, `ExpenseReport` via propriétaire/manager/trésorier) d'un `driveFolderId` et vérifie les droits d'accès.
-  - Lecture (liste de photos, téléchargement de fichier) et écriture (upload dans un dossier existant) renvoient désormais 403 si l'utilisateur n'est pas autorisé sur la ressource.
-  - `/api/drive/upload` n'accepte plus de `rootFolderId` fourni par le client pour le flux mission — la racine est toujours résolue côté serveur, comme pour le flux véhicule.
-  - `/api/trips/[id]/checkin` : le `driveFolderId` déjà enregistré en base fait désormais foi, le client ne peut plus l'écraser.
+- **Isolation entre Unités Locales renforcée** — plusieurs écrans (calendrier des véhicules, fiche véhicule, désinfections, incidents, télémétrie Renault) pouvaient exposer ou permettre de modifier des données d'une autre Unité Locale. Corrigé.
+- **Accès aux photos et justificatifs Google Drive restreint** — un utilisateur ne peut désormais accéder qu'aux photos/justificatifs de ses propres trajets, incidents ou notes de frais.
+- **Comptes nouvellement créés sans rôle attribué** — pouvaient auparavant accéder à certaines fonctionnalités réservées. L'accès est désormais bloqué tant qu'aucun rôle n'est attribué.
+- **Exports PDF de notes de frais et d'incidents** — sécurisés avec le même contrôle d'accès que leurs équivalents à l'écran.
+- **Actions administratives destructrices** — un administrateur local ne peut plus modifier ou supprimer des véhicules, trajets ou maintenances d'une autre Unité Locale.
 
 ## [4.8.1] — 4 août 2026
 
