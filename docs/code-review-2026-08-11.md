@@ -21,14 +21,21 @@ Le contenu original de l'audit ci-dessous est **conservé intégralement** (find
 | Qualité & Architecture + Next.js 16/React 19 | v4.8.5 → v4.8.9 | Chapitres 2 et 3 |
 | Couverture de tests | v4.9.0 → v4.9.9 | Chapitres 4 et 5 |
 
-**Seul H1** (store de jobs en mémoire, incompatible Vercel serverless) reste explicitement différé — décision assumée par l'utilisateur en cours de chantier ("nous verrons par la suite"), pas un oubli.
+**Mise à jour du 13 août 2026 (soir) : H1 est désormais corrigé lui aussi** (v4.10.0, commit `eb4636e`) — c'était le dernier finding de tout l'audit encore en état de "report". **Le chantier de remédiation est maintenant intégralement clos** : chaque finding est soit corrigé, soit explicitement laissé tel quel par une décision assumée et documentée (plus aucun report en attente).
 
 **État actuel vérifié (2026-08-13) :**
 - `npm run lint` — 0 erreur, 0 warning (inchangé, déjà propre à l'audit).
-- `npm run test` — **1008 tests, 0 échec** (135 fichiers, contre 46 fichiers/16 échecs — l'audit avait mesuré 435/5 échecs, un décompte différent effectué avant les corrections de sécurité Haute de cette session qui avaient introduit 11 régressions de fixtures, corrigées en v4.9.0).
-- `npx tsc --noEmit` — 105 erreurs préexistantes dans `authCallbacks.test.ts`, antérieures à ce chantier et non liées à l'audit (dette technique hors périmètre, vérifiées identiques avant/après chaque lot de travail).
+- `npm run test` — **1000 tests, 0 échec** (135 fichiers, contre 46 fichiers/16 échecs — l'audit avait mesuré 435/5 échecs, un décompte différent effectué avant les corrections de sécurité Haute de cette session qui avaient introduit 11 régressions de fixtures, corrigées en v4.9.0 ; le total est repassé de 1008 à 1000 lors du correctif H1, qui a consolidé plusieurs tests en un seul par route désormais synchrone).
+- `npx tsc --noEmit` — 105 erreurs préexistantes dans `authCallbacks.test.ts`, antérieures à ce chantier et non liées à l'audit (dette technique hors périmètre, vérifiées identiques avant/après chaque lot de travail, y compris le correctif H1).
+- `npm run build` — vérifié localement sans secrets réels (simule l'environnement CI), succès.
 - Couverture de tests recomptée sur le code actuel : **70/71 routes API (99%)**, **23/25 modules lib (92%)**, **60/60 composants avec état (100%)**. Détail en fin de chapitre 4.
 - **4 bugs de production réels** ont été découverts et corrigés en écrivant les tests du chapitre 4 (non recherchés a priori) — détaillés en fin de chapitre 4.
+- Une CI (`.github/workflows/ci.yml`) exécute désormais lint/test/build sur chaque PR et chaque push sur `main`. **Non encore appliquée en "required check"** : la protection de branche sur `main` doit être activée manuellement (réglage GitHub, hors périmètre d'un fichier de code) pour qu'une PR ne puisse pas être mergée si la CI est rouge.
+
+**Dette technique restante, volontairement non traitée :** au-delà des findings sécurité #8/#9/#12 (partiels, différés par choix explicite), 3 points identifiés par l'audit qualité restent ouverts et méritent d'être gardés à l'esprit pour un futur chantier séparé — aucun n'est un bug, ce sont des choix de périmètre assumés :
+1. **M5 — 1418 occurrences de `style={{...}}`** contredisant la convention CSS Modules documentée dans `CLAUDE.md` (1415 à l'audit ; la légère hausse vient du nouveau code écrit pendant ce chantier). Jamais engagé, refonte trop large pour ce périmètre de remédiation.
+2. **M4 — 115 couleurs hex codées en dur** cassant potentiellement le dark mode ailleurs dans l'app (103 à l'audit). Seul le bug concret démontré par l'audit (badge Diesel illisible) a été corrigé ; le reste n'a pas été audité individuellement.
+3. **Couverture e2e quasi nulle** — `checkout-checkin.spec.ts` ne teste qu'une redirection de login ; aucun vrai parcours réservation/check-in/checkout/note de frais n'est couvert par Playwright, contrairement aux 1000 tests Vitest/RTL désormais verts (chapitre 4). Un vrai test e2e nécessite un serveur de dev démarré, jugé hors périmètre d'un chantier de tests unitaires/intégration/composants.
 
 ---
 
@@ -41,7 +48,7 @@ Le code est globalement discipliné : SQL paramétré presque partout, validatio
 2. Sécurité Haute #4 (`isInactive([])` renvoie `false`) — inverse la politique deny-by-default pour tout compte nouvellement provisionné
 3. Les 5 tests actuellement rouges (non détectés faute de CI)
 
-> **✅ Mise à jour :** les 3 points ci-dessus sont traités — #1 et #3 corrigés (v4.8.2), #2 confirmé comme comportement voulu (non corrigé intentionnellement), #4 corrigé (v4.8.3), et la suite de tests est passée de 5 échecs à 1008 tests verts (v4.9.0 et suivants). Voir annotations détaillées ci-dessous.
+> **✅ Mise à jour :** les 3 points ci-dessus sont traités — #1 et #3 corrigés (v4.8.2), #2 confirmé comme comportement voulu (non corrigé intentionnellement), #4 corrigé (v4.8.3), et la suite de tests est passée de 5 échecs à 1000 tests verts (v4.9.0 et suivants). Voir annotations détaillées ci-dessous.
 
 ---
 
@@ -153,7 +160,7 @@ Aucun `eval`, `new Function`, `child_process`, ou `dangerouslySetInnerHTML`. Auc
 **H1 — Store de jobs en mémoire (`global`) incompatible avec le serverless Vercel**
 `stats/pdf/route.ts`, `stats/csv/route.ts`, `stats/expenses/pdf/route.ts`, `stats/expenses/csv/route.ts` stockent les buffers générés dans une `Map` globale, puis le client poll un `jobId`. Sur Vercel, le `POST` et le `GET` de poll peuvent atterrir sur des instances lambda différentes → 404 intermittent en production, invisible en local. Nécessite un stockage externe (ligne Turso, blob store) ou une réponse streamée synchrone.
 
-> **➖ DIFFÉRÉ — décision assumée** — Traitement explicitement reporté par l'utilisateur en cours de chantier ("nous verrons par la suite"). Aucun correctif appliqué ; le risque de 404 intermittent en production sur Vercel reste entier. **Seul finding non traité de tout l'audit sans que ce soit une décision "ne pas corriger" — c'est un report, à reprendre.**
+> **✅ CORRIGÉ — v4.10.0 (`eb4636e`)** — Différé un temps (décision assumée en cours de chantier), puis traité : la génération du fichier étant déjà 100% synchrone côté serveur, le `jobId`/`Map` globale ne servait à rien — le `POST` renvoie désormais directement le fichier, le `GET` de polling et le store en mémoire ont été supprimés. Plus aucune requête ne peut atterrir sur la mauvaise instance lambda puisqu'il n'y a plus qu'une seule requête. Client mis à jour pour consommer un `Blob` (`URL.createObjectURL`) et déclencher le téléchargement via un `<a download>`. **Dernier finding de tout l'audit à être passé de "report" à "corrigé" — plus aucun report en attente.**
 
 **H2 — Aucun helper d'auth/autorisation partagé : 89 blocs auth faits main sur 68 routes**
 6 corps de réponse 401 différents, 22 corps 403 différents (`'Non autorisé'` sert aux deux, empêchant le client de distinguer les deux cas). C'est le mécanisme par lequel une future route peut silencieusement partir sans contrôle de rôle — cf. plusieurs findings sécurité ci-dessus.
@@ -394,6 +401,7 @@ Conformément au périmètre "audit only", ces incohérences sont listées mais 
 - Le pattern Client Component + `useEffect` (M-4 différé) est un choix assumé, non un oubli — non recommandé de le "corriger".
 
 **Mise à jour (2026-08-13) :**
-- `npm run test` : 1008 tests, 0 échec (135 fichiers).
-- `npx tsc --noEmit` : 105 erreurs, toutes préexistantes dans `authCallbacks.test.ts`, antérieures à ce chantier et non liées à l'audit — vérifiées identiques avant/après chaque lot de travail du chapitre 4, aucune régression introduite.
-- Findings restants non corrigés, tous par décision assumée : sécurité #2 (comportement voulu), #8 et #9 (différés), #12 (partiel) ; qualité H1 (différé, à reprendre), M4/M6/M7 (partiels), M5 (non traité) ; chapitre 4, points e2e (`checkout-checkin.spec.ts`, `setup.ts`) non traités.
+- `npm run test` : 1000 tests, 0 échec (135 fichiers).
+- `npx tsc --noEmit` : 105 erreurs, toutes préexistantes dans `authCallbacks.test.ts`, antérieures à ce chantier et non liées à l'audit — vérifiées identiques avant/après chaque lot de travail, y compris le correctif H1 (v4.10.0), aucune régression introduite.
+- `npm run build` : vérifié localement sans secrets réels, succès.
+- **Chantier de remédiation intégralement clos (v4.10.0)** : plus aucun finding en état de "report". Findings restants non corrigés, tous par décision assumée et documentée : sécurité #2 (comportement voulu), #8 et #9 (non traités), #12 (partiel) ; qualité M4/M6/M7 (partiels), M5 (non traité — 1418 `style={{...}}`) ; chapitre 4, points e2e (`checkout-checkin.spec.ts`, `setup.ts`) non traités. CI (`ci.yml`) active mais pas encore en "required check" sur `main` (réglage GitHub à activer manuellement).
