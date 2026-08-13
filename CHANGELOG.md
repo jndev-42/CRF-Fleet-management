@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.9.9] — 13 août 2026
+
+### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 4, dernier lot)
+
+Tests RTL pour les 11 derniers composants à état identifiés sans couverture : `OneSignalProvider`, `PhotoViewer`, `vehicle/modals/PutInMaintenanceModal`, `users/RoleLegend`, `missions/SignedReportLightbox`, `missions/steps/Step2Vehicle`, `missions/steps/Step3Supplies`, `inventory/modals/StockModal`, `ThemeToggle`, `vehicle/VehicleNotes`, `Navbar`.
+
+Le chapitre **"Couverture de tests"** de l'audit (`docs/code-review-2026-08-11.md`) est désormais intégralement traité : les 24 routes API (TQ-3), les 15 modules `src/lib/**` (TQ-4) et les 45 composants à état (TQ-5, 5 lots) identifiés sans test en ont maintenant tous — en plus des correctifs de la suite existante (TQ-1/TQ-2). Le chapitre 5 "Incohérences documentaires" de l'audit se réduisait entièrement à ce chapitre (cf. contexte du plan de remédiation).
+
+- 63 nouveaux tests, suite complète toujours à 0 échec (**1008 tests**, contre 46 fichiers/16 échecs en début de chantier). `npm run lint` : 0 erreur/0 warning. `npx tsc --noEmit` : 105 erreurs préexistantes identiques avant/après sur l'ensemble du chantier (dette technique dans `authCallbacks.test.ts`, antérieure à cette session, hors périmètre — vérifié à chaque lot).
+- Au fil de ce chantier de couverture de tests, **4 bugs de production réels** ont été découverts et corrigés en écrivant les tests (et non recherchés a priori) : requête SQL du cron référençant une colonne inexistante (`4.9.2`), confusion 401/403 sur `vehicles/[id]/metrics` (`4.9.3`), données de démo partagées par référence empêchant `DemoDB.reset()` de fonctionner (`4.9.4`), et le bug d'accessibilité `aria-hidden` sur les overlays de modales, présent sur 8 modales et corrigé au fil des lots 4.9.5 à 4.9.8.
+
 ## [4.9.8] — 12 août 2026
 
 ### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 3)
