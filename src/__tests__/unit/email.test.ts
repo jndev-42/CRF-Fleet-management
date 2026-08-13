@@ -62,4 +62,20 @@ describe('sendEmailViaWebhook', () => {
         const result = await sendEmailViaWebhook({ to: ['dest@test.com'], subject: 'Test', body: 'body' });
         expect(result).toBe(false);
     });
+
+    it('réutilise le même transporter entre deux appels (mis en cache au niveau module)', async () => {
+        process.env.SMTP_USER = 'sender@gmail.com';
+        process.env.SMTP_PASS = 'secret';
+        mockSendMail.mockResolvedValue({ messageId: 'msg-cache' });
+
+        vi.resetModules();
+        mockCreateTransport.mockClear();
+        const { sendEmailViaWebhook: freshSend } = await import('@/lib/email');
+
+        await freshSend({ to: ['dest@test.com'], subject: 'Test', body: 'body' });
+        await freshSend({ to: ['dest@test.com'], subject: 'Test', body: 'body' });
+
+        expect(mockCreateTransport).toHaveBeenCalledTimes(1);
+        expect(mockSendMail).toHaveBeenCalledTimes(2);
+    });
 });

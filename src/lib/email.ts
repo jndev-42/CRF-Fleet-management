@@ -1,5 +1,22 @@
 import nodemailer from 'nodemailer';
 
+// Instance mise en cache au niveau module — réutilisée entre les appels d'un
+// même lambda "chaud", à l'image de src/lib/drive.ts::getDriveClient.
+let cachedTransporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+
+function getTransporter() {
+    if (cachedTransporter) return cachedTransporter;
+
+    cachedTransporter = nodemailer.createTransport({
+        service: 'gmail', // par défaut pour une adresse gmail
+        auth: {
+            user: process.env.SMTP_USER,
+            pass: process.env.SMTP_PASS,
+        },
+    });
+    return cachedTransporter;
+}
+
 export async function sendEmailViaWebhook({
     to,
     subject,
@@ -15,13 +32,7 @@ export async function sendEmailViaWebhook({
     }
 
     try {
-        const transporter = nodemailer.createTransport({
-            service: 'gmail', // par défaut pour une adresse gmail
-            auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
-            },
-        });
+        const transporter = getTransporter();
 
         const info = await transporter.sendMail({
             from: `"Martine" <${process.env.SMTP_USER}>`,

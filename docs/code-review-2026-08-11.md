@@ -130,7 +130,7 @@ Aucun filtre `session.user.ulId` sur : `vehicles/[id]/route.ts` (véhicule + 20 
 
 **12. Validation Zod manquante sur plusieurs routes de mutation** — `users/[email]/route.ts`, `ul/[id]`, `trips/[id]`, `notifications/[id]`, `vehicles/[id]/qr-token`, `inventory/{adjust,stocks,batches}`, `missions/[id]`, `users/[email]/validate-papers`, `trips/[id]/refresh-renault`, `vehicles/[id]/trips`, `vehicles/[id]/maintenance/[recordId]`.
 
-> **⚠️ PARTIELLEMENT CORRIGÉ — v4.8.4 (`3c7a9e9`)** — `users/[email]`, `ul/[id]`, `inventory/adjust`, `inventory/stocks`, `inventory/batches` ont désormais un schéma Zod. Les autres routes listées (`trips/[id]`, `notifications/[id]`, `vehicles/[id]/qr-token`, `missions/[id]`, `users/[email]/validate-papers`, `trips/[id]/refresh-renault`, `vehicles/[id]/trips`, `vehicles/[id]/maintenance/[recordId]`) n'ont toujours pas de schéma Zod dédié (vérifié sur le code actuel) — à réévaluer au cas par cas, certaines de ces routes n'ayant pas nécessairement de corps de requête substantiel à valider.
+> **✅ VÉRIFIÉ NON APPLICABLE — 13 août 2026** — `users/[email]`, `ul/[id]`, `inventory/adjust`, `inventory/stocks`, `inventory/batches` ont un schéma Zod depuis v4.8.4. Les 8 routes restantes (`trips/[id]`, `notifications/[id]`, `vehicles/[id]/qr-token`, `missions/[id]`, `users/[email]/validate-papers`, `trips/[id]/refresh-renault`, `vehicles/[id]/trips`, `vehicles/[id]/maintenance/[recordId]`) ont été relues intégralement une à une : aucune n'appelle `request.json()` ni `request.formData()` — ce sont toutes des GET/PATCH/DELETE pilotées uniquement par les paramètres d'URL (`params`), sans corps de requête. Il n'y a donc rien à valider avec Zod sur ces 8 routes ; le finding se clôt par cette vérification, pas par l'ajout de schémas qui n'auraient rien à parser.
 
 ### FAIBLE
 
@@ -200,7 +200,7 @@ Aucun `eval`, `new Function`, `child_process`, ou `dangerouslySetInnerHTML`. Auc
 
 - **M7** — Les "singletons" de `src/lib` (`drive.ts`, `email.ts`) sont en réalité reconstruits à chaque appel, perdant le cache de token OAuth.
 
-  > **⚠️ PARTIELLEMENT CORRIGÉ — v4.8.8 (`bbdc6c1`)** — `drive.ts` met désormais son client en cache au niveau module. `email.ts` recrée toujours un transporter Nodemailer à chaque appel (vérifié, non corrigé).
+  > **✅ CORRIGÉ — 13 août 2026 (soir)** — `drive.ts` met son client en cache au niveau module depuis v4.8.8. `email.ts` réplique désormais le même pattern (`cachedTransporter` module-level) au lieu de recréer un transporter Nodemailer à chaque appel. Testé (`email.test.ts`, nouveau cas vérifiant qu'un seul transporter est créé sur deux appels successifs).
 
 - **M8** — 28 composants modaux sans primitive partagée ; `Escape` n'apparaît nulle part dans `src/components` — aucun modal ne se ferme au clavier.
 
