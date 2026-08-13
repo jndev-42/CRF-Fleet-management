@@ -49,7 +49,7 @@ export default function MaintenanceBanner({ vehicle, userRoles, onEndMaintenance
             {userRoles.includes('ADMIN') && (
                 <button
                     className="btn btn-primary"
-                    style={{ backgroundColor: '#10B981', borderColor: '#10B981' }}
+                    style={{ backgroundColor: 'var(--status-available)', borderColor: 'var(--status-available)' }}
                     onClick={onEndMaintenance}
                 >
                     ✅ Remettre en service

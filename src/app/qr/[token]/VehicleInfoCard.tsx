@@ -23,8 +23,8 @@ export default function VehicleInfoCard({ vehicle }: { vehicle: QRVehicle }) {
                             ? 'rgba(16,185,129,0.15)' : vehicle.status === 'IN_USE'
                                 ? 'rgba(245,158,11,0.15)' : 'rgba(100,116,139,0.15)',
                         color: vehicle.status === 'AVAILABLE'
-                            ? '#059669' : vehicle.status === 'IN_USE'
-                                ? '#D97706' : '#64748B',
+                            ? 'var(--status-available)' : vehicle.status === 'IN_USE'
+                                ? 'var(--status-inuse)' : '#64748B',
                     }}>
                         {vehicle.status === 'AVAILABLE' ? 'Disponible' :
                             vehicle.status === 'IN_USE' ? 'En mission' : 'Indisponible'}

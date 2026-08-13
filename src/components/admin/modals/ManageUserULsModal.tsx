@@ -252,7 +252,7 @@ export default function ManageUserULsModal({
                                                                     ))}
                                                                 </select>
                                                                 {!isRowDisabled && (
-                                                                    <button type="button" className="btn btn-danger" style={{ padding: '6px 10px', fontSize: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }} onClick={() => removeRow(idx)}>
+                                                                    <button type="button" className="btn btn-danger" style={{ padding: '6px 10px', fontSize: '12px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--status-maintenance)', border: '1px solid rgba(239, 68, 68, 0.2)' }} onClick={() => removeRow(idx)}>
                                                                         Supprimer
                                                                     </button>
                                                                 )}

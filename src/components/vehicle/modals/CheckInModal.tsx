@@ -266,8 +266,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     <label className="form-label" htmlFor="checkin-mileage">
                                         Kilométrage actuel *
                                         {loadingRenault && <span style={{ marginLeft: 8, fontSize: 11 }}>⌛ Chargement...</span>}
-                                        {isConnected(vehicle.vin) && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: '#059669', fontSize: 11 }}>📡 Connecté</span>}
-                                        {renaultError && <span style={{ marginLeft: 8, color: '#DC2626', fontSize: 11 }}>⚠️ Renault injoignable</span>}
+                                        {isConnected(vehicle.vin) && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
+                                        {renaultError && <span style={{ marginLeft: 8, color: 'var(--error-text)', fontSize: 11 }}>⚠️ Renault injoignable</span>}
                                     </label>
                                     <input
                                         id="checkin-mileage"
@@ -402,7 +402,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     border: '1px solid rgba(16, 185, 129, 0.3)',
                                 }}
                             >
-                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: '#059669' }}>
+                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: 'var(--status-available)' }}>
                                     🧴 Informations de désinfection
                                 </div>
                                 <div className="form-group" style={{ marginBottom: 12 }}>
@@ -445,7 +445,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     border: '1px solid rgba(16, 185, 129, 0.3)',
                                 }}
                             >
-                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: '#059669' }}>
+                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: 'var(--status-available)' }}>
                                     🧴 Désinfection du véhicule
                                 </div>
                                 <div className="form-group" style={{ marginBottom: 12 }}>
@@ -522,7 +522,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                            style={{ color: 'var(--status-maintenance)', borderColor: 'rgba(220, 38, 38, 0.3)' }}
                             onClick={() => setShowIncidentReport(true)}
                         >
                             🚨 Signaler incident

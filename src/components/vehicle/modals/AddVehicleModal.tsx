@@ -275,7 +275,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                         type="checkbox"
                                         checked={form.desinfTracking}
                                         onChange={(e) => setForm({ ...form, desinfTracking: e.target.checked })}
-                                        style={{ width: 18, height: 18, accentColor: '#059669' }}
+                                        style={{ width: 18, height: 18, accentColor: 'var(--status-available)' }}
                                     />
                                     <div>
                                         <span style={{ fontSize: 14, fontWeight: 500 }}>🧴 Activer le suivi de la désinfection</span>

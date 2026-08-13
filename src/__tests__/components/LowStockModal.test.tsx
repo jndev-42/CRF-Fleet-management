@@ -26,6 +26,18 @@ describe('LowStockModal', () => {
         expect(screen.getByText('-5')).toBeTruthy();
     });
 
+    it('utilise les variables de thème (pas de hex en dur) pour la couleur du déficit', async () => {
+        vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ items }), { status: 200 }));
+        render(<LowStockModal onClose={vi.fn()} onOpenBatches={vi.fn()} />);
+
+        // jsdom ne résout pas var(--x, ...) sur .style.color (retombe sur une valeur
+        // par défaut) — on vérifie donc l'attribut style brut, tel qu'écrit par React.
+        // Gants : 2/10 = ratio 0.2 (< 0.5, > 0) → orange
+        expect((await screen.findByText('-8')).getAttribute('style')).toContain('var(--status-inuse)');
+        // Masques : 0/5 = ratio 0 (<= 0) → rouge
+        expect(screen.getByText('-5').getAttribute('style')).toContain('var(--status-maintenance)');
+    });
+
     it('affiche un état vide si tous les stocks sont suffisants', async () => {
         vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ items: [] }), { status: 200 }));
         render(<LowStockModal onClose={vi.fn()} onOpenBatches={vi.fn()} />);

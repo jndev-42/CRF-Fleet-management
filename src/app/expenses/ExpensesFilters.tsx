@@ -31,7 +31,7 @@ export default function ExpensesFilters({
                     onClick={() => setViewScope('ul')}
                     className="expense-scope-btn"
                     style={{
-                        background: viewScope === 'ul' ? 'var(--red-primary, #ef4444)' : 'transparent',
+                        background: viewScope === 'ul' ? 'var(--crf-red)' : 'transparent',
                         color: viewScope === 'ul' ? '#ffffff' : 'var(--text-secondary)',
                     }}
                 >
@@ -42,7 +42,7 @@ export default function ExpensesFilters({
                     onClick={() => setViewScope('my')}
                     className="expense-scope-btn"
                     style={{
-                        background: viewScope === 'my' ? 'var(--red-primary, #ef4444)' : 'transparent',
+                        background: viewScope === 'my' ? 'var(--crf-red)' : 'transparent',
                         color: viewScope === 'my' ? '#ffffff' : 'var(--text-secondary)',
                     }}
                 >

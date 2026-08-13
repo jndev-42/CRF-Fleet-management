@@ -130,7 +130,7 @@ export default function MenusTab() {
                                         fontWeight: currentValue === opt.value ? 600 : 400,
                                         background: currentValue === opt.value ? 'var(--bg-primary)' : 'transparent',
                                         color: currentValue === opt.value
-                                            ? (opt.value === 'disabled' ? '#EF4444' : opt.value === 'admin_only' ? '#F59E0B' : '#22C55E')
+                                            ? (opt.value === 'disabled' ? 'var(--status-maintenance)' : opt.value === 'admin_only' ? 'var(--status-inuse)' : 'var(--status-available)')
                                             : 'var(--text-secondary)',
                                         cursor: isUpdating ? 'not-allowed' : 'pointer',
                                         transition: 'all 0.15s',

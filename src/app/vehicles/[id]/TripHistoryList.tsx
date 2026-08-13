@@ -31,7 +31,7 @@ export default function TripHistoryList({
                     {userRoles.includes('ADMIN') && vehicle.trips.length > 0 && (
                         <button
                             className="btn btn-secondary"
-                            style={{ color: '#EF4444', borderColor: 'rgba(239, 68, 68, 0.3)', padding: '4px 10px', fontSize: 13 }}
+                            style={{ color: 'var(--status-maintenance)', borderColor: 'rgba(239, 68, 68, 0.3)', padding: '4px 10px', fontSize: 13 }}
                             onClick={async () => {
                                 if (window.confirm("Voulez-vous vraiment effacer TOUT l'historique de ce véhicule ? Cette action est irréversible.")) {
                                     await onClearHistory();

@@ -99,7 +99,7 @@ export default function ActiveTripBanner({
                     <div style={{ marginTop: 12 }}>
                         <button
                             className="btn btn-secondary"
-                            style={{ fontSize: 13, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6, borderColor: 'rgba(16, 185, 129, 0.4)', color: '#059669' }}
+                            style={{ fontSize: 13, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 6, borderColor: 'rgba(16, 185, 129, 0.4)', color: 'var(--status-available)' }}
                             onClick={onShowDesinfPre}
                         >
                             🧴 {activeTrip.desinfResponsable ? '✅ Infos désinf. saisies' : 'Saisir infos désinf.'}

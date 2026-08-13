@@ -263,9 +263,9 @@ export default function InventoryPage() {
         const day = String(expiry.getDate()).padStart(2, '0');
         const label = `${year}/${month}/${day}`;
 
-        if (diffDays < 0) return { label, color: '#dc2626' };    // rouge — périmé
-        if (diffDays <= 31) return { label, color: '#d97706' };   // orange — ≤ 1 mois
-        return { label, color: '#16a34a' };                        // vert — > 1 mois
+        if (diffDays < 0) return { label, color: 'var(--status-maintenance)' };    // rouge — périmé
+        if (diffDays <= 31) return { label, color: 'var(--status-inuse)' };   // orange — ≤ 1 mois
+        return { label, color: 'var(--status-available)' };                        // vert — > 1 mois
     }
 
     return (
@@ -324,7 +324,7 @@ export default function InventoryPage() {
                                 padding: '5px 14px',
                                 borderRadius: '20px',
                                 border: '1.5px solid',
-                                borderColor: categoryFilter === '' ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
+                                borderColor: categoryFilter === '' ? 'var(--primary, #2563eb)' : 'var(--border-primary)',
                                 background: categoryFilter === '' ? 'var(--primary, #2563eb)' : 'transparent',
                                 color: categoryFilter === '' ? '#fff' : 'inherit',
                                 cursor: 'pointer',
@@ -344,7 +344,7 @@ export default function InventoryPage() {
                                     padding: '5px 14px',
                                     borderRadius: '20px',
                                     border: '1.5px solid',
-                                    borderColor: categoryFilter === cat ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
+                                    borderColor: categoryFilter === cat ? 'var(--primary, #2563eb)' : 'var(--border-primary)',
                                     background: categoryFilter === cat ? 'var(--primary, #2563eb)' : 'transparent',
                                     color: categoryFilter === cat ? '#fff' : 'inherit',
                                     cursor: 'pointer',

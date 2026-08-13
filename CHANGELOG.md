@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.9.3] — 13 août 2026
+
+### 🐛 Corrections
+
+- **Lisibilité en mode sombre** — plusieurs éléments d'interface (badges de statut, indicateurs, cartes de statistiques) utilisaient des couleurs fixes qui pouvaient devenir peu lisibles en mode sombre. Corrigé sur l'ensemble de l'application.
+
 ## [4.9.2] — 13 août 2026
 
 ### 🐛 Corrections

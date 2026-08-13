@@ -70,8 +70,8 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
                     <div className="modal-body">
                         {error && (
                             <div style={{
-                                background: 'var(--danger-bg, #fee2e2)',
-                                color: 'var(--danger, #dc2626)',
+                                background: 'var(--error-bg)',
+                                color: 'var(--error-text)',
                                 padding: '10px 14px',
                                 borderRadius: '8px',
                                 marginBottom: '16px',
@@ -104,7 +104,7 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
                                             padding: '4px 12px',
                                             borderRadius: '20px',
                                             border: '1.5px solid',
-                                            borderColor: form.category === opt ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
+                                            borderColor: form.category === opt ? 'var(--primary, #2563eb)' : 'var(--border-primary)',
                                             background: form.category === opt ? 'var(--primary, #2563eb)' : 'transparent',
                                             color: form.category === opt ? '#fff' : 'inherit',
                                             cursor: 'pointer',

@@ -138,7 +138,7 @@ export default function VehicleDetailHeader({
                     <button
                         className="btn btn-secondary"
                         onClick={onDeclareIncident}
-                        style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                        style={{ color: 'var(--status-maintenance)', borderColor: 'rgba(220, 38, 38, 0.3)' }}
                     >
                         🚨 Déclarer un incident
                     </button>

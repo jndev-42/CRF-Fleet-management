@@ -75,7 +75,7 @@ export default function CheckOutForm({
             {error && (
                 <div style={{
                     background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)',
-                    borderRadius: 8, padding: '10px 14px', color: '#EF4444', fontSize: 14
+                    borderRadius: 8, padding: '10px 14px', color: 'var(--error-text)', fontSize: 14
                 }}>
                     {error}
                 </div>

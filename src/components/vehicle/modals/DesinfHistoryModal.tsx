@@ -69,7 +69,7 @@ export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: 
                     )}
 
                     {!loading && error && (
-                        <div style={{ color: '#EF4444', padding: 16 }}>{error}</div>
+                        <div style={{ color: 'var(--error-text)', padding: 16 }}>{error}</div>
                     )}
 
                     {!loading && !error && desinfections.length === 0 && (
@@ -109,7 +109,7 @@ export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: 
                                                         padding: '2px 8px',
                                                         borderRadius: 99,
                                                         background: d.desinfType === 'complète' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.1)',
-                                                        color: d.desinfType === 'complète' ? '#059669' : '#3B82F6',
+                                                        color: d.desinfType === 'complète' ? 'var(--status-available)' : '#3B82F6',
                                                     }}>
                                                         {d.desinfType === 'complète' ? '✨ Complète' : '🧼 Simple'}
                                                     </span>

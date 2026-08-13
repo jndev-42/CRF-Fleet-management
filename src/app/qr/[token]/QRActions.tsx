@@ -59,7 +59,7 @@ export default function QRActions({
             <button
                 className="btn btn-secondary"
                 onClick={onDeclareIncident}
-                style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)', width: '100%' }}
+                style={{ color: 'var(--status-maintenance)', borderColor: 'rgba(220, 38, 38, 0.3)', width: '100%' }}
             >
                 🚨 Déclarer un incident
             </button>

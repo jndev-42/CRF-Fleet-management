@@ -105,17 +105,17 @@ export default function VehicleDetailGrid({
                         desinfValue = `En retard (${Math.abs(diffDays)}j)`;
                         bgColor = 'rgba(239, 68, 68, 0.07)';
                         borderColor = 'rgba(239, 68, 68, 0.4)';
-                        valueColor = '#DC2626';
+                        valueColor = 'var(--status-maintenance)';
                     } else if (diffDays <= 14) {
                         desinfValue = `dans ${diffDays}j`;
                         bgColor = 'rgba(245, 158, 11, 0.07)';
                         borderColor = 'rgba(245, 158, 11, 0.4)';
-                        valueColor = '#D97706';
+                        valueColor = 'var(--status-inuse)';
                     } else {
                         desinfValue = `dans ${diffDays}j`;
                         bgColor = 'rgba(16, 185, 129, 0.07)';
                         borderColor = 'rgba(16, 185, 129, 0.3)';
-                        valueColor = '#059669';
+                        valueColor = 'var(--status-available)';
                     }
                 } else {
                     desinfValue = 'Non planifiée';
@@ -140,7 +140,7 @@ export default function VehicleDetailGrid({
                     subtitle="Suivi activé"
                     backgroundColor="rgba(16, 185, 129, 0.05)"
                     borderColor="rgba(16, 185, 129, 0.3)"
-                    valueStyle={{ color: '#059669', fontSize: 13 }}
+                    valueStyle={{ color: 'var(--status-available)', fontSize: 13 }}
                     onClick={onShowDesinfHistory}
                 />
             )}

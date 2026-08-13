@@ -86,6 +86,10 @@ describe('ManageUserULsModal', () => {
         fireEvent.click(screen.getByRole('button', { name: '➕ Ajouter des droits externes' }));
 
         expect(screen.getByText('Choisir une Unité Locale...')).toBeTruthy();
+
+        // Un SUPER_ADMIN peut retirer la ligne qu'il vient d'ajouter.
+        fireEvent.click(screen.getByRole('button', { name: 'Supprimer' }));
+        expect(screen.queryByText('Choisir une Unité Locale...')).toBeNull();
     });
 
     it('enregistre les droits UL et ferme la modale (happy path)', async () => {

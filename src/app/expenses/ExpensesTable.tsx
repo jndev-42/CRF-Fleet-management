@@ -119,7 +119,7 @@ export default function ExpensesTable({
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
                     <span>{label}</span>
                     {isActive ? (
-                        sortOrder === 'asc' ? <ArrowUp size={14} color="var(--red-primary, #ef4444)" /> : <ArrowDown size={14} color="var(--red-primary, #ef4444)" />
+                        sortOrder === 'asc' ? <ArrowUp size={14} color="var(--crf-red)" /> : <ArrowDown size={14} color="var(--crf-red)" />
                     ) : (
                         <ArrowUpDown size={13} style={{ opacity: 0.4 }} />
                     )}
@@ -235,7 +235,7 @@ export default function ExpensesTable({
                                                         <button
                                                             onClick={() => onSubmitDraft(report.id)}
                                                             className="btn btn-primary"
-                                                            style={{ padding: '6px 10px', background: '#f97316', borderColor: '#f97316' }}
+                                                            style={{ padding: '6px 10px', background: 'var(--status-inuse)', borderColor: 'var(--status-inuse)' }}
                                                             disabled={actionLoading === report.id}
                                                             title="Soumettre la note de frais"
                                                         >
@@ -257,7 +257,7 @@ export default function ExpensesTable({
                                                         <button
                                                             onClick={() => onOpenValidate(report)}
                                                             className="btn btn-primary"
-                                                            style={{ padding: '6px 10px', background: '#22c55e', borderColor: '#22c55e' }}
+                                                            style={{ padding: '6px 10px', background: 'var(--status-available)', borderColor: 'var(--status-available)' }}
                                                             disabled={actionLoading === report.id}
                                                             title="Valider"
                                                         >

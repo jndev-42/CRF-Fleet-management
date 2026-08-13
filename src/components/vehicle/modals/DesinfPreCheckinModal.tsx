@@ -90,7 +90,7 @@ export default function DesinfPreCheckinModal({ tripId, onClose, onConfirm }: De
                                     border: '1px solid rgba(239, 68, 68, 0.3)',
                                     marginBottom: 16,
                                     fontSize: 13,
-                                    color: '#DC2626',
+                                    color: 'var(--error-text)',
                                 }}
                             >
                                 {error}

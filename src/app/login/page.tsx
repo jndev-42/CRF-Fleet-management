@@ -146,7 +146,7 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
                 <div style={{
                     background: 'rgba(239, 68, 68, 0.1)',
                     border: '1px solid rgba(239, 68, 68, 0.2)',
-                    color: '#EF4444',
+                    color: 'var(--error-text)',
                     padding: '12px 16px',
                     borderRadius: 'var(--radius-sm)',
                     maxWidth: 400,

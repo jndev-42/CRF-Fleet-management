@@ -101,7 +101,7 @@ export default function UsersTable({
                                                 <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>—</span>
                                             ) : papersValid ? (
                                                 <span style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    <span style={{ color: '#22C55E', fontSize: '13px', fontWeight: 600 }}>
+                                                    <span style={{ color: 'var(--status-available)', fontSize: '13px', fontWeight: 600 }}>
                                                         ✅ Valides{user.last_validation ? ` (${user.last_validation})` : ''}
                                                     </span>
                                                     {user.validated_by && (
@@ -111,7 +111,7 @@ export default function UsersTable({
                                                     )}
                                                 </span>
                                             ) : (
-                                                <span style={{ color: '#EF4444', fontSize: '13px', fontWeight: 600 }}>
+                                                <span style={{ color: 'var(--status-maintenance)', fontSize: '13px', fontWeight: 600 }}>
                                                     ❌ Non validés
                                                     {user.start_date_invalidation_process
                                                         ? ` — depuis ${user.start_date_invalidation_process}`
@@ -154,7 +154,7 @@ export default function UsersTable({
                                                 {isAdmin && !isReadOnly && (
                                                     <button
                                                         className="btn btn-danger"
-                                                        style={{ fontSize: '13px', padding: '6px 12px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                                                        style={{ fontSize: '13px', padding: '6px 12px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--status-maintenance)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
                                                         onClick={() => onRequestDelete(user.email, user.name)}
                                                         title="Supprimer l'utilisateur"
                                                     >

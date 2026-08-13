@@ -22,20 +22,20 @@ function ctColor(days: number): { bg: string; border: string; value: string } {
         return {
             bg: 'rgba(239, 68, 68, 0.07)',
             border: 'rgba(239, 68, 68, 0.4)',
-            value: '#DC2626',
+            value: 'var(--status-maintenance)',
         };
     }
     if (days <= 30) {
         return {
             bg: 'rgba(245, 158, 11, 0.07)',
             border: 'rgba(245, 158, 11, 0.4)',
-            value: '#D97706',
+            value: 'var(--status-inuse)',
         };
     }
     return {
         bg: 'rgba(16, 185, 129, 0.07)',
         border: 'rgba(16, 185, 129, 0.3)',
-        value: '#059669',
+        value: 'var(--status-available)',
     };
 }
 

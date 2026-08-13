@@ -108,7 +108,7 @@ export default function ExpenseDetailSidebar({
                     background: 'rgba(239, 68, 68, 0.08)',
                     border: '1px solid rgba(239, 68, 68, 0.3)',
                     borderRadius: 'var(--radius-md)',
-                    color: '#ef4444'
+                    color: 'var(--error-text)'
                 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.8125rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <XCircle size={14} /> Motif du refus
@@ -230,7 +230,7 @@ export default function ExpenseDetailSidebar({
                     <button
                         onClick={() => onOpenValidate(report)}
                         className="btn btn-primary"
-                        style={{ flex: 1, background: '#22c55e', borderColor: '#22c55e', gap: '6px' }}
+                        style={{ flex: 1, background: 'var(--status-available)', borderColor: 'var(--status-available)', gap: '6px' }}
                         disabled={actionLoading === report.id}
                     >
                         <Check size={16} /> Valider
@@ -263,7 +263,7 @@ export default function ExpenseDetailSidebar({
                         <button
                             onClick={() => onSubmitDraft(report.id)}
                             className="btn btn-primary"
-                            style={{ flex: 1, background: '#f97316', borderColor: '#f97316', gap: '6px' }}
+                            style={{ flex: 1, background: 'var(--status-inuse)', borderColor: 'var(--status-inuse)', gap: '6px' }}
                             disabled={actionLoading === report.id}
                         >
                             <Send size={14} /> Soumettre

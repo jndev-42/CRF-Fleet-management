@@ -33,7 +33,7 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                             padding: '2px 8px',
                             borderRadius: 99,
                             background: trip.desinfType === 'complète' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.1)',
-                            color: trip.desinfType === 'complète' ? '#059669' : '#3B82F6',
+                            color: trip.desinfType === 'complète' ? 'var(--status-available)' : '#3B82F6',
                         }}>
                             {trip.desinfType === 'complète' ? '✨ Désinf. complète' : '🧼 Désinf. simple'}
                         </span>
@@ -146,7 +146,7 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                         <span className="trip-detail-label">Désinfection</span>
                         <span className="trip-detail-value">
                             {trip.desinfType ? (
-                                <span style={{ fontWeight: 600, color: trip.desinfType === 'complète' ? '#059669' : '#3B82F6' }}>
+                                <span style={{ fontWeight: 600, color: trip.desinfType === 'complète' ? 'var(--status-available)' : '#3B82F6' }}>
                                     {trip.desinfType === 'complète' ? '✨ Complète' : '🧼 Simple'}
                                 </span>
                             ) : (

@@ -226,8 +226,8 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                             <div><strong>Immatriculation :</strong> {vehicle.plate}</div>
                             <div>
                                 <strong>Kilométrage :</strong> {loadingRenault ? '...' : (dataIncorrect ? correctedMileage : (vehicle.mileage)).toLocaleString('fr-FR')} km
-                                {vehicle.vin && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: '#059669', fontSize: 11 }}>📡 Connecté</span>}
-                                {renaultError && <span style={{ marginLeft: 8, color: '#DC2626', fontSize: 11 }}>⚠️ Renault injoignable</span>}
+                                {vehicle.vin && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
+                                {renaultError && <span style={{ marginLeft: 8, color: 'var(--error-text)', fontSize: 11 }}>⚠️ Renault injoignable</span>}
                             </div>
                             <div>
                                 <strong>{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} :</strong> {loadingRenault ? '...' : (dataIncorrect ? correctedFuel : vehicle.fuelLevel)}%
@@ -446,7 +446,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                            style={{ color: 'var(--status-maintenance)', borderColor: 'rgba(220, 38, 38, 0.3)' }}
                             onClick={() => setShowIncidentReport(true)}
                         >
                             🚨 Signaler incident

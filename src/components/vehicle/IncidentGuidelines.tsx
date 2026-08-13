@@ -18,7 +18,7 @@ export default function IncidentGuidelines() {
                     marginBottom: 16,
                     fontSize: 13,
                     fontWeight: 500,
-                    color: '#DC2626',
+                    color: 'var(--error-text)',
                 }}
             >
                 ⚠️ En cas de danger immédiat, appelez le <strong>15 (SAMU)</strong> ou le <strong>18 (Pompiers)</strong> en priorité.

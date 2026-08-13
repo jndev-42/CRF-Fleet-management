@@ -262,11 +262,11 @@ export default function YousignSignatureModal({
                         gap: '8px'
                     }}>
                         <div>
-                            <span style={{ color: 'var(--text-tertiary, #64748b)', fontSize: '0.75rem' }}>Signataire</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Signataire</span>
                             <div style={{ fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>{signerName}</div>
                         </div>
                         <div>
-                            <span style={{ color: 'var(--text-tertiary, #64748b)', fontSize: '0.75rem' }}>Email</span>
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Email</span>
                             <div style={{ fontWeight: 600, color: 'var(--text-primary, #0f172a)', wordBreak: 'break-all' }}>{signerEmail}</div>
                         </div>
                     </div>
@@ -306,9 +306,9 @@ export default function YousignSignatureModal({
                                     flex: 1,
                                     padding: '8px 12px',
                                     borderRadius: '6px',
-                                    border: mode === 'typed' ? '2px solid #ef4444' : '1px solid var(--border-primary, #cbd5e1)',
+                                    border: mode === 'typed' ? '2px solid var(--crf-red)' : '1px solid var(--border-primary, #cbd5e1)',
                                     background: mode === 'typed' ? 'rgba(239, 68, 68, 0.08)' : 'transparent',
-                                    color: mode === 'typed' ? '#ef4444' : 'var(--text-secondary, #475569)',
+                                    color: mode === 'typed' ? 'var(--crf-red)' : 'var(--text-secondary, #475569)',
                                     fontWeight: 600,
                                     fontSize: '0.8125rem',
                                     display: 'flex',
@@ -327,9 +327,9 @@ export default function YousignSignatureModal({
                                     flex: 1,
                                     padding: '8px 12px',
                                     borderRadius: '6px',
-                                    border: mode === 'draw' ? '2px solid #ef4444' : '1px solid var(--border-primary, #cbd5e1)',
+                                    border: mode === 'draw' ? '2px solid var(--crf-red)' : '1px solid var(--border-primary, #cbd5e1)',
                                     background: mode === 'draw' ? 'rgba(239, 68, 68, 0.08)' : 'transparent',
-                                    color: mode === 'draw' ? '#ef4444' : 'var(--text-secondary, #475569)',
+                                    color: mode === 'draw' ? 'var(--crf-red)' : 'var(--text-secondary, #475569)',
                                     fontWeight: 600,
                                     fontSize: '0.8125rem',
                                     display: 'flex',
@@ -375,8 +375,8 @@ export default function YousignSignatureModal({
                                     fontFamily: 'Georgia, Times New Roman, serif',
                                     fontStyle: 'italic',
                                     fontSize: '1.75rem',
-                                    color: '#0f172a',
-                                    borderBottom: '2px solid #ef4444',
+                                    color: 'var(--text-primary)',
+                                    borderBottom: '2px solid var(--crf-red)',
                                     paddingBottom: '4px',
                                     paddingLeft: '16px',
                                     paddingRight: '16px'
@@ -415,7 +415,7 @@ export default function YousignSignatureModal({
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        color: '#94a3b8',
+                                        color: 'var(--text-muted)',
                                         fontSize: '0.8125rem',
                                         pointerEvents: 'none'
                                     }}>
@@ -430,7 +430,7 @@ export default function YousignSignatureModal({
                                     style={{
                                         background: 'none',
                                         border: 'none',
-                                        color: '#64748b',
+                                        color: 'var(--text-muted)',
                                         fontSize: '0.75rem',
                                         cursor: 'pointer',
                                         display: 'flex',
@@ -486,8 +486,8 @@ export default function YousignSignatureModal({
                             padding: '8px 16px',
                             borderRadius: '6px',
                             border: '1px solid var(--border-primary, #cbd5e1)',
-                            background: '#ffffff',
-                            color: '#475569',
+                            background: 'var(--bg-secondary)',
+                            color: 'var(--text-secondary)',
                             fontWeight: 600,
                             fontSize: '0.875rem',
                             cursor: 'pointer'
@@ -503,7 +503,7 @@ export default function YousignSignatureModal({
                             padding: '8px 18px',
                             borderRadius: '6px',
                             border: 'none',
-                            background: '#ef4444',
+                            background: 'var(--crf-red)',
                             color: '#ffffff',
                             fontWeight: 600,
                             fontSize: '0.875rem',

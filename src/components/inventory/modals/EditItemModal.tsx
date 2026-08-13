@@ -84,8 +84,8 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
                     <div className="modal-body">
                         {error && (
                             <div style={{
-                                background: 'var(--danger-bg, #fee2e2)',
-                                color: 'var(--danger, #dc2626)',
+                                background: 'var(--error-bg)',
+                                color: 'var(--error-text)',
                                 padding: '10px 14px',
                                 borderRadius: '8px',
                                 marginBottom: '16px',
@@ -118,7 +118,7 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
                                             padding: '4px 12px',
                                             borderRadius: '20px',
                                             border: '1.5px solid',
-                                            borderColor: category === opt ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
+                                            borderColor: category === opt ? 'var(--primary, #2563eb)' : 'var(--border-primary)',
                                             background: category === opt ? 'var(--primary, #2563eb)' : 'transparent',
                                             color: category === opt ? '#fff' : 'inherit',
                                             cursor: 'pointer',

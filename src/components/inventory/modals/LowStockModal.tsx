@@ -35,8 +35,8 @@ export default function LowStockModal({ stockId, onClose, onOpenBatches }: LowSt
 
     const deficitColor = (item: LowStockItem) => {
         const ratio = item.quantity / item.minStock;
-        if (ratio <= 0) return '#dc2626';      // rouge — stock vide
-        if (ratio < 0.5) return '#d97706';     // orange — moins de 50 %
+        if (ratio <= 0) return 'var(--status-maintenance)';      // rouge — stock vide
+        if (ratio < 0.5) return 'var(--status-inuse)';     // orange — moins de 50 %
         return '#854d0e';                       // brun foncé — entre 50 % et 100 %
     };
 
@@ -51,7 +51,7 @@ export default function LowStockModal({ stockId, onClose, onOpenBatches }: LowSt
                     {loading ? (
                         <p>Chargement...</p>
                     ) : items.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '2rem', color: '#16a34a' }}>
+                        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--status-available)' }}>
                             <div style={{ fontSize: '2rem', marginBottom: '8px' }}>✅</div>
                             <p>Tous les stocks sont au-dessus du seuil minimum.</p>
                         </div>

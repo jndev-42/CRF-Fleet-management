@@ -21,7 +21,7 @@ export default function DeleteUserModal({ userToDelete, onClose, onConfirm }: De
                     <p style={{ marginBottom: '16px', lineHeight: '1.5' }}>
                         Êtes-vous sûr de vouloir supprimer l&apos;utilisateur <strong>{userToDelete.name || userToDelete.email}</strong> ?
                     </p>
-                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: '13px', color: '#EF4444' }}>
+                    <div style={{ background: 'rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)', fontSize: '13px', color: 'var(--error-text)' }}>
                         ℹ️ Cette action est irréversible. Les données liées aux missions (conducteur) seront anonymisées mais le compte sera définitivement supprimé.
                     </div>
                 </div>
@@ -31,7 +31,7 @@ export default function DeleteUserModal({ userToDelete, onClose, onConfirm }: De
                     </button>
                     <button
                         className="btn"
-                        style={{ background: '#EF4444', color: 'white' }}
+                        style={{ background: 'var(--status-maintenance)', color: 'white' }}
                         onClick={onConfirm}
                     >
                         Supprimer définitivement

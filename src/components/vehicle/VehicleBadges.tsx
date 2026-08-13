@@ -36,7 +36,7 @@ export default function VehicleBadges({ vehicle, userRoles, onToggleDSA, onDelet
                     title={isAdmin && showAdminDsaToggle ? 'Cliquer pour retirer le DSA' : undefined}
                     style={{
                         background: 'rgba(34, 197, 94, 0.1)',
-                        color: '#22C55E',
+                        color: 'var(--status-available)',
                         cursor: isAdmin && showAdminDsaToggle ? 'pointer' : 'default',
                         userSelect: 'none',
                         transition: 'opacity 0.15s',
@@ -96,7 +96,7 @@ export default function VehicleBadges({ vehicle, userRoles, onToggleDSA, onDelet
                     className="vehicle-type-badge"
                     style={{
                         background: 'rgba(16, 185, 129, 0.1)',
-                        color: '#059669',
+                        color: 'var(--status-available)',
                     }}
                 >
                     🧴 Suivi désinf.
@@ -113,7 +113,7 @@ export default function VehicleBadges({ vehicle, userRoles, onToggleDSA, onDelet
                     ⛽ Diesel
                 </span>
             ) : vehicle.fuelType === 'Essence' ? (
-                <span className="vehicle-type-badge" style={{ background: 'rgba(249, 115, 22, 0.1)', color: '#F97316' }}>
+                <span className="vehicle-type-badge" style={{ background: 'rgba(249, 115, 22, 0.1)', color: 'var(--status-inuse)' }}>
                     ⛽ Essence
                 </span>
             ) : null}
@@ -130,7 +130,7 @@ export default function VehicleBadges({ vehicle, userRoles, onToggleDSA, onDelet
                         fontSize: 12,
                         cursor: 'pointer',
                         fontWeight: 600,
-                        color: '#EF4444'
+                        color: 'var(--status-maintenance)'
                     }}
                 >
                     🗑️ Supprimer

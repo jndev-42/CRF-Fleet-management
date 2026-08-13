@@ -23,19 +23,20 @@ Le contenu original de l'audit ci-dessous est **conservé intégralement** (find
 
 **Mise à jour du 13 août 2026 (soir) : H1 est désormais corrigé lui aussi** (v4.10.0, commit `eb4636e`) — c'était le dernier finding de tout l'audit encore en état de "report". **Le chantier de remédiation est maintenant intégralement clos** : chaque finding est soit corrigé, soit explicitement laissé tel quel par une décision assumée et documentée (plus aucun report en attente).
 
-**État actuel vérifié (2026-08-13) :**
-- `npm run lint` — 0 erreur, 0 warning (inchangé, déjà propre à l'audit).
-- `npm run test` — **1000 tests, 0 échec** (135 fichiers, contre 46 fichiers/16 échecs — l'audit avait mesuré 435/5 échecs, un décompte différent effectué avant les corrections de sécurité Haute de cette session qui avaient introduit 11 régressions de fixtures, corrigées en v4.9.0 ; le total est repassé de 1008 à 1000 lors du correctif H1, qui a consolidé plusieurs tests en un seul par route désormais synchrone).
-- `npx tsc --noEmit` — 105 erreurs préexistantes dans `authCallbacks.test.ts`, antérieures à ce chantier et non liées à l'audit (dette technique hors périmètre, vérifiées identiques avant/après chaque lot de travail, y compris le correctif H1).
+**Mise à jour du 13 août 2026 (soir, suite) — deuxième passe sur la dette technique restante :** 4 des points listés ci-dessous comme "volontairement non traités" ont été repris : sécurité #12 (vérifié non applicable), M7 (email.ts), M4 (couleurs hex), et la couverture e2e. Détails dans les annotations des findings concernés. Seuls #8, #9 (décisions déjà assumées, non rouvertes) et M5 (refonte jugée toujours trop large) restent hors périmètre.
+
+**État actuel vérifié (2026-08-13, soir) :**
+- `npm run lint` — 0 erreur, 0 warning.
+- `npm run test` — **1001 tests, 0 échec** (135 fichiers ; +1 test depuis la mise à jour précédente, couvrant la mise en cache du transporter `email.ts`).
+- `npx tsc --noEmit` — 105 erreurs préexistantes dans `authCallbacks.test.ts`, antérieures à ce chantier et non liées à l'audit (dette technique hors périmètre, inchangées).
 - `npm run build` — vérifié localement sans secrets réels (simule l'environnement CI), succès.
+- `npm run test:e2e` — les 4 specs (`auth-redirect`, `checkout-checkin` réécrit, `reservation`, `expense`, nouveaux/réécrits cette passe) exécutés réellement contre le serveur de dev et la vraie DB, tous verts.
 - Couverture de tests recomptée sur le code actuel : **70/71 routes API (99%)**, **23/25 modules lib (92%)**, **60/60 composants avec état (100%)**. Détail en fin de chapitre 4.
 - **4 bugs de production réels** ont été découverts et corrigés en écrivant les tests du chapitre 4 (non recherchés a priori) — détaillés en fin de chapitre 4.
 - Une CI (`.github/workflows/ci.yml`) exécute désormais lint/test/build sur chaque PR et chaque push sur `main`. **Non encore appliquée en "required check"** : la protection de branche sur `main` doit être activée manuellement (réglage GitHub, hors périmètre d'un fichier de code) pour qu'une PR ne puisse pas être mergée si la CI est rouge.
 
-**Dette technique restante, volontairement non traitée :** au-delà des findings sécurité #8/#9/#12 (partiels, différés par choix explicite), 3 points identifiés par l'audit qualité restent ouverts et méritent d'être gardés à l'esprit pour un futur chantier séparé — aucun n'est un bug, ce sont des choix de périmètre assumés :
-1. **M5 — 1418 occurrences de `style={{...}}`** contredisant la convention CSS Modules documentée dans `CLAUDE.md` (1415 à l'audit ; la légère hausse vient du nouveau code écrit pendant ce chantier). Jamais engagé, refonte trop large pour ce périmètre de remédiation.
-2. **M4 — 115 couleurs hex codées en dur** cassant potentiellement le dark mode ailleurs dans l'app (103 à l'audit). Seul le bug concret démontré par l'audit (badge Diesel illisible) a été corrigé ; le reste n'a pas été audité individuellement.
-3. **Couverture e2e quasi nulle** — `checkout-checkin.spec.ts` ne teste qu'une redirection de login ; aucun vrai parcours réservation/check-in/checkout/note de frais n'est couvert par Playwright, contrairement aux 1000 tests Vitest/RTL désormais verts (chapitre 4). Un vrai test e2e nécessite un serveur de dev démarré, jugé hors périmètre d'un chantier de tests unitaires/intégration/composants.
+**Dette technique restante, volontairement non traitée :** au-delà des findings sécurité #8/#9 (décisions explicitement assumées, non rouvertes), un seul point identifié par l'audit qualité reste ouvert :
+1. **M5 — occurrences de `style={{...}}`** contredisant la convention CSS Modules documentée dans `CLAUDE.md` (1415 à l'audit, 1418 recomptées le 13 août). Jamais engagé — refonte jugée trop large pour un correctif de dette technique ponctuel, à traiter comme un chantier séparé si souhaité.
 
 ---
 
@@ -188,7 +189,7 @@ Aucun `eval`, `new Function`, `child_process`, ou `dangerouslySetInnerHTML`. Auc
 
 - **M4** — 103 couleurs codées en dur dans des styles inline cassent le système de thème sombre/clair ; bug concret : badge Diesel illisible en dark mode (`VehicleBadges.tsx:112`).
 
-  > **⚠️ PARTIELLEMENT CORRIGÉ — v4.8.8 (`bbdc6c1`)** — Le bug concret cité (badge Diesel) est corrigé. La refonte systématique n'a pas été engagée : 115 couleurs hex codées en dur subsistent dans des `style={{}}` (recompté sur le code actuel — légère hausse par rapport aux 103 de l'audit, due au nouveau code écrit pendant ce chantier).
+  > **✅ CORRIGÉ — 13 août 2026 (soir)** — Le bug concret cité (badge Diesel) était déjà corrigé (v4.8.8). Le recomptage sur le code actuel donnait en réalité 434 occurrences sur 72 fichiers (pas 115) : l'écart vient de faux positifs légitimes que l'audit n'avait pas isolés — documents PDF (`@react-pdf/renderer`, ~6 fichiers, aucune notion de dark mode), génération de QR code (canvas + `qrcode.react`, doit rester noir/blanc pur pour la scannabilité), logo Google SVG (couleurs de marque), palettes de séries Recharts (`COLORS`/`PIE_COLORS`, couleurs de données), et badges de rôle intentionnellement multicolores (`RoleLegend.tsx`, `preview-accounts.ts`, panneau dev de `login/page.tsx`). Une fois ces catégories exclues, ~63 fichiers de vrais composants UI ont été traités un par un : couleur hex remplacée par la variable `globals.css` correspondante uniquement quand la correspondance sémantique était claire (`--status-available`, `--status-inuse`, `--status-maintenance`, `--error-text`, `--crf-red`, `--text-muted`, etc.) ; laissée telle quelle sinon (aucune correspondance forcée). Au passage, plusieurs `var(--nom, #fallback)` référençaient des variables jamais définies dans `globals.css` (`--red-primary`, `--danger`, `--text-tertiary`, `--primary`…) — reliées vers la variable réellement existante la plus proche quand la teinte correspondait ; laissées inchangées sinon (ex. `--primary` restait bleu sans variable de thème bleue existante — pas de substitution forcée vers une couleur de teinte différente).
 
 - **M5** — 1415 occurrences de `style={{...}}` sur 85 fichiers, contredisant la convention CSS Modules affichée dans `CLAUDE.md`.
 
@@ -361,7 +362,7 @@ Aucun de ces bugs n'a été recherché a priori — tous sont apparus naturellem
 
 3. **`e2e/checkout-checkin.spec.ts`**, malgré son nom, ne teste qu'une redirection de login — aucune couverture e2e réelle de réservation, check-in/checkout ou note de frais.
 
-   > **➖ NON TRAITÉ** — Un vrai test e2e Playwright nécessite un serveur de dev démarré, jugé hors périmètre du chantier "tests manquants" (Vitest/RTL) mené ici. À traiter séparément si souhaité.
+   > **✅ CORRIGÉ — 13 août 2026 (soir)** — `e2e/checkout-checkin.spec.ts` réécrit pour tester le vrai flux (check-out puis check-in, véhicule disponible repéré dynamiquement). Deux nouveaux specs : `e2e/reservation.spec.ts` (création de réservation) et `e2e/expense.spec.ts` (note de frais en brouillon). Les vérifications triviales de redirection non-authentifiée (ex-contenu de `checkout-checkin.spec.ts` et de `stats.spec.ts`) ont été regroupées dans `e2e/auth-redirect.spec.ts`. Exécutés réellement via `npm run test:e2e` contre le serveur de dev et la vraie DB (pas seulement relus) — deux bugs de test découverts et corrigés au passage : (1) `useSession()` reste dans un état obsolète après une navigation client-side juste après la connexion via le panneau dev (form action serveur) — contournement en utilisant `page.goto()` plutôt qu'un clic sur un lien de nav pour la première navigation post-connexion ; (2) "Rendre le véhicule" est un sous-texte de "Prendre le véhicule" (P-**rendre**), un match non exact sur le premier collisionne avec le second — corrigé avec `exact: true` sur les noms de bouton complets.
 
 4. `setup.ts` recrée 30 `CREATE TABLE` à la main, maintenus séparément des migrations de prod — peut dériver silencieusement.
 
@@ -400,8 +401,9 @@ Conformément au périmètre "audit only", ces incohérences sont listées mais 
 - Les 38 routes dynamiques Next.js 16 gèrent correctement `params` comme une Promise.
 - Le pattern Client Component + `useEffect` (M-4 différé) est un choix assumé, non un oubli — non recommandé de le "corriger".
 
-**Mise à jour (2026-08-13) :**
-- `npm run test` : 1000 tests, 0 échec (135 fichiers).
-- `npx tsc --noEmit` : 105 erreurs, toutes préexistantes dans `authCallbacks.test.ts`, antérieures à ce chantier et non liées à l'audit — vérifiées identiques avant/après chaque lot de travail, y compris le correctif H1 (v4.10.0), aucune régression introduite.
+**Mise à jour (2026-08-13, soir) :**
+- `npm run test` : 1001 tests, 0 échec (135 fichiers).
+- `npx tsc --noEmit` : 105 erreurs, toutes préexistantes dans `authCallbacks.test.ts`, antérieures à ce chantier et non liées à l'audit — vérifiées identiques avant/après chaque lot de travail, aucune régression introduite.
 - `npm run build` : vérifié localement sans secrets réels, succès.
-- **Chantier de remédiation intégralement clos (v4.10.0)** : plus aucun finding en état de "report". Findings restants non corrigés, tous par décision assumée et documentée : sécurité #2 (comportement voulu), #8 et #9 (non traités), #12 (partiel) ; qualité M4/M6/M7 (partiels), M5 (non traité — 1418 `style={{...}}`) ; chapitre 4, points e2e (`checkout-checkin.spec.ts`, `setup.ts`) non traités. CI (`ci.yml`) active mais pas encore en "required check" sur `main` (réglage GitHub à activer manuellement).
+- `npm run test:e2e` : 4 specs (`auth-redirect`, `checkout-checkin`, `reservation`, `expense`) exécutés réellement contre le serveur de dev et la vraie DB, tous verts.
+- **Chantier de remédiation intégralement clos (v4.10.0), puis deuxième passe sur la dette technique restante (13 août, soir)** : sécurité #12 (vérifié non applicable — aucune des 8 routes citées n'a de corps de requête), qualité M7 (email.ts corrigé), M4 (couleurs hex — ~63 fichiers traités au cas par cas), et le point e2e du chapitre 4 (vrais tests réservation/check-out/check-in/note de frais) sont désormais résolus. Findings restants non corrigés, tous par décision assumée et documentée : sécurité #2 (comportement voulu), #8 et #9 (non traités) ; qualité M6 (partiel — `CheckOutModal.tsx` conserve intentionnellement `fetch('/api/auth/session')`), M5 (non traité — 1418 `style={{...}}`) ; chapitre 4, `setup.ts` (dérive schéma test/prod, non traité). CI (`ci.yml`) active mais pas encore en "required check" sur `main` (réglage GitHub à activer manuellement).

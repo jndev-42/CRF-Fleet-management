@@ -76,7 +76,7 @@ export default function RenaultConnectBlock({ renaultData, loadingRenault }: Ren
                             <DetailCard
                                 title="Carburant estimé"
                                 value={`${renaultData.fuelQuantity} L`}
-                                titleColor="#EA580C"
+                                titleColor="var(--status-inuse)"
                                 backgroundColor="rgba(249, 115, 22, 0.05)"
                                 borderColor="rgba(249, 115, 22, 0.2)"
                             />

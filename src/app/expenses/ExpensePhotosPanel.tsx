@@ -18,7 +18,7 @@ export default function ExpensePhotosPanel({ photos, photosLoading, onViewAll }:
                     <button
                         type="button"
                         onClick={onViewAll}
-                        style={{ background: 'none', border: 'none', color: 'var(--red-primary, #ef4444)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
+                        style={{ background: 'none', border: 'none', color: 'var(--crf-red)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', padding: 0 }}
                     >
                         Voir tout
                     </button>
@@ -57,7 +57,7 @@ export default function ExpensePhotosPanel({ photos, photosLoading, onViewAll }:
                                     }}
                                     title={`Ouvrir/Télécharger ${photo.name}`}
                                 >
-                                    <FileText size={20} color="var(--red-primary, #ef4444)" />
+                                    <FileText size={20} color="var(--crf-red)" />
                                     <span style={{ fontSize: '8px', fontWeight: 600, color: 'var(--text-primary)', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {photo.name}
                                     </span>

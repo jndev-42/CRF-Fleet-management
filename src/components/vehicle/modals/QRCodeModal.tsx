@@ -121,13 +121,13 @@ export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles
                     <div style={{
                         padding: '12px 16px', marginBottom: 20,
                         background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)',
-                        borderRadius: 8, color: '#EF4444', fontSize: 13,
+                        borderRadius: 8, color: 'var(--error-text)', fontSize: 13,
                     }}>
                         {error}
                         <button
                             onClick={fetchToken}
                             style={{ marginLeft: 8, textDecoration: 'underline', cursor: 'pointer',
-                                background: 'none', border: 'none', color: '#EF4444', fontSize: 13 }}
+                                background: 'none', border: 'none', color: 'var(--error-text)', fontSize: 13 }}
                         >
                             Réessayer
                         </button>
@@ -185,7 +185,7 @@ export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles
                                 ...(copied ? {
                                     background: 'rgba(16,185,129,0.12)',
                                     borderColor: 'rgba(16,185,129,0.5)',
-                                    color: '#059669',
+                                    color: 'var(--status-available)',
                                 } : {}),
                             }}
                         >

@@ -22,10 +22,10 @@ export function formatDate(isoString: string) {
 export function getStatusBadge(status: ExpenseReport['status']) {
     const styles: Record<ExpenseReport['status'], React.CSSProperties> = {
         brouillon: { background: 'rgba(107, 114, 128, 0.15)', color: '#9ca3af', border: '1px solid rgba(107, 114, 128, 0.3)' },
-        soumis: { background: 'rgba(249, 115, 22, 0.15)', color: '#f97316', border: '1px solid rgba(249, 115, 22, 0.3)' },
+        soumis: { background: 'rgba(249, 115, 22, 0.15)', color: 'var(--status-inuse)', border: '1px solid rgba(249, 115, 22, 0.3)' },
         en_attente_paiement: { background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' },
-        traité: { background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' },
-        refusé: { background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }
+        traité: { background: 'rgba(34, 197, 94, 0.15)', color: 'var(--status-available)', border: '1px solid rgba(34, 197, 94, 0.3)' },
+        refusé: { background: 'rgba(239, 68, 68, 0.15)', color: 'var(--status-maintenance)', border: '1px solid rgba(239, 68, 68, 0.3)' }
     };
 
     const labels: Record<ExpenseReport['status'], string> = {

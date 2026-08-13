@@ -46,7 +46,7 @@ export default function JustificatifsModal({ photos, onClose, onImageClick }: Ju
                                         {pdf ? (
                                             <div style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center', flex: 1 }}>
                                                 <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    <FileText size={28} color="var(--red-primary, #ef4444)" />
+                                                    <FileText size={28} color="var(--crf-red)" />
                                                 </div>
                                                 <div>
                                                     <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-word' }}>

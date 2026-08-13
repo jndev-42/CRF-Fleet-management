@@ -639,7 +639,7 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
                     <span className={styles.detailLabel}>Date de retour</span>
                     <span className={styles.detailValue}>
                       {selectedEvent.isOngoing ? (
-                        <span style={{ color: '#15803D', fontWeight: 700 }}>
+                        <span style={{ color: 'var(--status-available)', fontWeight: 700 }}>
                           ⏳ En cours (non restitué)
                         </span>
                       ) : (
@@ -668,7 +668,7 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
                       {selectedEvent.data.endDate ? (
                         formatDateFull(selectedEvent.data.endDate)
                       ) : (
-                        <span style={{ color: '#DC2626', fontWeight: 700 }}>
+                        <span style={{ color: 'var(--status-maintenance)', fontWeight: 700 }}>
                           Date de fin inconnue
                         </span>
                       )}

@@ -165,6 +165,20 @@ describe('BannersTab', () => {
         expect(screen.queryByText('Info importante')).toBeNull();
     });
 
+    it('applique la variable de thème correspondante au badge selon le type de bandeau', async () => {
+        const banners: Banner[] = [
+            { ...baseBanner, id: 'b-warning', type: 'warning' },
+            { ...baseBanner, id: 'b-danger', type: 'danger' },
+            { ...baseBanner, id: 'b-success', type: 'success' },
+        ];
+        mockFetch(async () => new Response(JSON.stringify({ banners }), { status: 200 }));
+        render(<BannersTab showToast={vi.fn()} />);
+
+        expect((await screen.findByText('Avertissement')).getAttribute('style')).toContain('var(--status-inuse)');
+        expect(screen.getByText('Urgent / Danger').getAttribute('style')).toContain('var(--status-maintenance)');
+        expect(screen.getByText('Succès').getAttribute('style')).toContain('var(--status-available)');
+    });
+
     it('ne charge pas la liste des UL pour un non-SUPER_ADMIN', async () => {
         const fetchMock = mockFetch();
         render(<BannersTab showToast={vi.fn()} isSuperAdmin={false} />);

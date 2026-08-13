@@ -109,7 +109,7 @@ export default function CheckInForm({
             {error && (
                 <div style={{
                     background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)',
-                    borderRadius: 8, padding: '10px 14px', color: '#EF4444', fontSize: 14
+                    borderRadius: 8, padding: '10px 14px', color: 'var(--error-text)', fontSize: 14
                 }}>
                     {error}
                 </div>
@@ -150,7 +150,7 @@ export default function CheckInForm({
             {isConnected && (
                 <div style={{
                     background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.3)',
-                    borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#059669'
+                    borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--status-available)'
                 }}>
                     📡 Véhicule connecté — kilométrage et carburant récupérés automatiquement.
                 </div>
@@ -200,7 +200,7 @@ export default function CheckInForm({
                         border: '1px solid rgba(16, 185, 129, 0.3)',
                     }}
                 >
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: '#059669' }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: 'var(--status-available)' }}>
                         🧴 Informations de désinfection
                     </div>
                     <div style={{ marginBottom: 12 }}>
@@ -241,7 +241,7 @@ export default function CheckInForm({
                         border: '1px solid rgba(16, 185, 129, 0.3)',
                     }}
                 >
-                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: '#059669' }}>
+                    <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: 'var(--status-available)' }}>
                         🧴 Suivi de désinfection
                     </div>
                     <div style={{ marginBottom: 12 }}>

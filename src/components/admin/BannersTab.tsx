@@ -219,9 +219,9 @@ export default function BannersTab({
     const getTypeStyle = (type: Banner['type']) => {
         switch (type) {
             case 'info': return { bg: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', border: 'rgba(59, 130, 246, 0.3)' };
-            case 'warning': return { bg: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)' };
-            case 'danger': return { bg: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: 'rgba(239, 68, 68, 0.3)' };
-            case 'success': return { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: 'rgba(34, 197, 94, 0.3)' };
+            case 'warning': return { bg: 'rgba(245, 158, 11, 0.15)', color: 'var(--status-inuse)', border: 'rgba(245, 158, 11, 0.3)' };
+            case 'danger': return { bg: 'rgba(239, 68, 68, 0.15)', color: 'var(--status-maintenance)', border: 'rgba(239, 68, 68, 0.3)' };
+            case 'success': return { bg: 'rgba(34, 197, 94, 0.15)', color: 'var(--status-available)', border: 'rgba(34, 197, 94, 0.3)' };
         }
     };
 
@@ -351,7 +351,7 @@ export default function BannersTab({
                                             fontSize: '11px',
                                             fontWeight: 600,
                                             background: banner.is_active ? 'rgba(34, 197, 94, 0.15)' : 'var(--bg-tertiary)',
-                                            color: banner.is_active ? '#22c55e' : 'var(--text-tertiary)',
+                                            color: banner.is_active ? 'var(--status-available)' : 'var(--text-tertiary)',
                                         }}>
                                             {banner.is_active ? '● Actif' : '○ Inactif'}
                                         </span>
@@ -398,7 +398,7 @@ export default function BannersTab({
                                                 borderRadius: 'var(--radius-sm)',
                                                 border: '1px solid rgba(239, 68, 68, 0.4)',
                                                 background: 'rgba(239, 68, 68, 0.1)',
-                                                color: '#ef4444',
+                                                color: 'var(--status-maintenance)',
                                                 cursor: 'pointer',
                                             }}
                                         >
@@ -496,7 +496,7 @@ export default function BannersTab({
                             {/* Message obligatoire */}
                             <div>
                                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, marginBottom: '4px' }}>
-                                    Message <span style={{ color: '#ef4444' }}>*</span>
+                                    Message <span style={{ color: 'var(--status-maintenance)' }}>*</span>
                                 </label>
                                 <textarea
                                     className="form-input"

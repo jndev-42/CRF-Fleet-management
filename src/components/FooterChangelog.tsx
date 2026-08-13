@@ -117,7 +117,7 @@ export default function FooterChangelog() {
                             {error && (
                                 <div className="empty-state">
                                     <div style={{ fontSize: 32, marginBottom: 12 }}>❌</div>
-                                    <div className="empty-state-title" style={{ color: '#EF4444' }}>{error}</div>
+                                    <div className="empty-state-title" style={{ color: 'var(--error-text)' }}>{error}</div>
                                 </div>
                             )}
                             {!loading && !error && content && (

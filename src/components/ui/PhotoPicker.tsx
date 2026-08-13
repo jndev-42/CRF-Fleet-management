@@ -133,7 +133,7 @@ export default function PhotoPicker({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label className="form-label" style={{ margin: 0 }}>{label}</label>
                     {totalBytes > 0 && (
-                        <span style={{ fontSize: '11px', fontWeight: 600, color: totalBytes > maxTotalSize ? 'var(--red-primary, #ef4444)' : 'var(--text-secondary)' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, color: totalBytes > maxTotalSize ? 'var(--crf-red)' : 'var(--text-secondary)' }}>
                             Taille totale : {totalMB} Mo / {maxTotalSizeMB} Mo
                         </span>
                     )}
@@ -190,7 +190,7 @@ export default function PhotoPicker({
                         background: 'rgba(239, 68, 68, 0.1)',
                         border: '1px solid rgba(239, 68, 68, 0.3)',
                         borderRadius: '6px',
-                        color: 'var(--red-primary, #ef4444)',
+                        color: 'var(--crf-red)',
                         fontSize: '13px',
                         display: 'flex',
                         alignItems: 'center',
@@ -205,7 +205,7 @@ export default function PhotoPicker({
                         style={{
                             background: 'none',
                             border: 'none',
-                            color: 'var(--red-primary, #ef4444)',
+                            color: 'var(--crf-red)',
                             cursor: 'pointer',
                             fontSize: '14px',
                             padding: 0,
@@ -225,7 +225,7 @@ export default function PhotoPicker({
                         <div key={i} style={{ position: 'relative', width: '75px', height: '75px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)' }}>
                             {isPdfFile(p) ? (
                                 <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px', gap: '2px', textAlign: 'center' }}>
-                                    <FileText size={22} color="var(--red-primary, #ef4444)" />
+                                    <FileText size={22} color="var(--crf-red)" />
                                     <span style={{ fontSize: '9px', fontWeight: 600, color: 'var(--text-primary)', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {p.name}
                                     </span>
@@ -271,7 +271,7 @@ export default function PhotoPicker({
                 <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)' }}>
                      {isPdfFile(file) ? (
                          <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4px', gap: '2px', textAlign: 'center' }}>
-                             <FileText size={24} color="var(--red-primary, #ef4444)" />
+                             <FileText size={24} color="var(--crf-red)" />
                              <span style={{ fontSize: '9px', fontWeight: 600, color: 'var(--text-primary)', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                  {file.name}
                              </span>

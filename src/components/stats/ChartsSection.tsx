@@ -140,8 +140,8 @@ export default function ChartsSection({ byDriver, kmOverTime, byMissionType }: C
             <AreaChart data={lineData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="kmGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#E30613" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#E30613" stopOpacity={0} />
+                  <stop offset="0%" stopColor="var(--crf-red)" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="var(--crf-red)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
@@ -170,11 +170,11 @@ export default function ChartsSection({ byDriver, kmOverTime, byMissionType }: C
               <Area
                 type="monotone"
                 dataKey="Km"
-                stroke="#E30613"
+                stroke="var(--crf-red)"
                 strokeWidth={2.5}
                 fill="url(#kmGradient)"
                 dot={false}
-                activeDot={{ r: 4, fill: '#E30613' }}
+                activeDot={{ r: 4, fill: 'var(--crf-red)' }}
               />
             </AreaChart>
           </ResponsiveContainer>
