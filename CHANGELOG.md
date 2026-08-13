@@ -1,5 +1,21 @@
 # Changelog
 
+## [4.10.1] — 13 août 2026
+
+### 🪝 Hook Claude Code de garde-fou avant commit
+
+Nouveau hook `PreToolUse` (projet, partagé via git) qui intercepte tout `git commit` lancé par Claude via l'outil Bash et bloque le commit si :
+- `npm run lint` (`eslint --max-warnings=0`) n'est pas 100% propre ;
+- la suite `npm run test` n'est pas 100% verte ;
+- du code source (`src/**/*.ts(x)`, hors `__tests__`) est modifié sans qu'aucun fichier de test ne le soit dans le même commit ;
+- la couverture des **lignes ajoutées/modifiées** (pas du fichier entier) tombe sous 80%, calculée en croisant `git diff --cached` avec le rapport `coverage-final.json` (format Istanbul) généré par `vitest run --coverage`.
+
+- **`.claude/settings.json`** (nouveau) — enregistre le hook, **`.claude/hooks/pre-commit-check.mjs`** (nouveau) — logique de vérification.
+- **`@vitest/coverage-v8`** ajouté en devDependency (absent jusqu'ici, nécessaire pour générer le rapport de couverture).
+- Ne s'applique qu'aux commits exécutés par Claude (outil Bash) — un `git commit` tapé directement par un humain dans son terminal reste couvert uniquement par le hook Husky existant (`lint-staged`, ESLint seul).
+- Aucune échappatoire (pas de variable d'environnement de contournement) — choix explicite de l'utilisateur : un faux positif se corrige en ajustant le hook, pas en le contournant.
+- Vérifié empiriquement avec des scénarios réels (fichier source sans test → bloqué ; lint cassé → bloqué ; branche non couverte sous le seuil → bloqué ; commit entièrement conforme → autorisé) — un bug de calcul de couverture par ligne a été trouvé et corrigé pendant cette vérification (un statement englobant, comme le bloc d'un `if`, comptait comme "couvert" dès que la condition était évaluée, masquant un corps de branche jamais exécuté ; corrigé en donnant la priorité au statement le plus étroit pour chaque ligne).
+
 ## [4.10.0] — 13 août 2026
 
 ### 🐛 Correction du finding H1 de l'audit — store de jobs en mémoire
