@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-commit-check.mjs\""
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/pre-commit-check.mjs",
+            "args": []
           }
         ]
       }
