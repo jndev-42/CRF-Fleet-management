@@ -68,7 +68,6 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState<'csv' | 'pdf' | null>(null);
-  const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [exportReadyType, setExportReadyType] = useState<'csv' | 'pdf' | null>(null);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -162,12 +161,19 @@ export default function StatsPage() {
   }, [status, fetchStats, activeTab]);
 
   const [exportDownloadUrl, setExportDownloadUrl] = useState<string | undefined>(undefined);
+  const [exportFilename, setExportFilename] = useState<string | undefined>(undefined);
+
+  function extractFilename(res: Response, fallback: string): string {
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    return match ? match[1] : fallback;
+  }
 
   async function handleExportCSV(from: string, to: string) {
     setShowExportModal(null);
     setExportingCsv(true);
-    setExportJobId(null);
     setExportReadyType(null);
+    if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
     setExportDownloadUrl(undefined);
     try {
       const endpoint = activeTab === 'expenses' ? '/api/stats/expenses/csv' : '/api/stats/csv';
@@ -176,15 +182,15 @@ export default function StatsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dateFrom: from, dateTo: to }),
       });
-      const json = await res.json();
       if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
         alert(json.error ?? 'Erreur lors de la génération du CSV');
         return;
       }
-      setExportJobId(json.jobId);
-      if (activeTab === 'expenses') {
-        setExportDownloadUrl(`/api/stats/expenses/csv?jobId=${encodeURIComponent(json.jobId)}`);
-      }
+      const filename = extractFilename(res, activeTab === 'expenses' ? 'notes-de-frais-martine.csv' : 'trips-martine.csv');
+      const blob = await res.blob();
+      setExportDownloadUrl(URL.createObjectURL(blob));
+      setExportFilename(filename);
       setExportReadyType('csv');
     } catch (err) {
       console.error(err);
@@ -197,8 +203,8 @@ export default function StatsPage() {
   async function handleExportPDF(from: string, to: string) {
     setShowExportModal(null);
     setExportingPdf(true);
-    setExportJobId(null);
     setExportReadyType(null);
+    if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
     setExportDownloadUrl(undefined);
     try {
       const endpoint = activeTab === 'expenses' ? '/api/stats/expenses/pdf' : '/api/stats/pdf';
@@ -207,15 +213,15 @@ export default function StatsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dateFrom: from, dateTo: to }),
       });
-      const json = await res.json();
       if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
         alert(json.error ?? 'Erreur lors de la génération du PDF');
         return;
       }
-      setExportJobId(json.jobId);
-      if (activeTab === 'expenses') {
-        setExportDownloadUrl(`/api/stats/expenses/pdf?jobId=${encodeURIComponent(json.jobId)}`);
-      }
+      const filename = extractFilename(res, activeTab === 'expenses' ? 'stats-notes-de-frais-martine.pdf' : 'stats-martine.pdf');
+      const blob = await res.blob();
+      setExportDownloadUrl(URL.createObjectURL(blob));
+      setExportFilename(filename);
       setExportReadyType('pdf');
     } catch (err) {
       console.error(err);
@@ -469,15 +475,16 @@ export default function StatsPage() {
       )}
 
       {/* Export ready modal (CSV or PDF) */}
-      {exportReadyType && exportJobId && (
+      {exportReadyType && exportDownloadUrl && exportFilename && (
         <ExportReadyModal
           type={exportReadyType}
-          jobId={exportJobId}
           downloadUrl={exportDownloadUrl}
+          filename={exportFilename}
           onClose={() => {
             setExportReadyType(null);
-            setExportJobId(null);
+            URL.revokeObjectURL(exportDownloadUrl);
             setExportDownloadUrl(undefined);
+            setExportFilename(undefined);
           }}
         />
       )}

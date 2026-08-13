@@ -8,8 +8,8 @@ vi.mock('@/auth', () => ({ auth: vi.fn() }));
 
 import { auth } from '@/auth';
 import { GET as getExpenseStats } from '@/app/api/stats/expenses/route';
-import { POST as postExpenseCsv, GET as getExpenseCsv } from '@/app/api/stats/expenses/csv/route';
-import { POST as postExpensePdf, GET as getExpensePdf } from '@/app/api/stats/expenses/pdf/route';
+import { POST as postExpenseCsv } from '@/app/api/stats/expenses/csv/route';
+import { POST as postExpensePdf } from '@/app/api/stats/expenses/pdf/route';
 import { seedRoles, seedUser, seedUserRole, db } from './setup';
 
 const mockedAuth = vi.mocked(auth);
@@ -111,7 +111,7 @@ describe('GET /api/stats/expenses', () => {
 });
 
 describe('POST /api/stats/expenses/csv', () => {
-  it('generates CSV export job for PRESIDENT', async () => {
+  it('génère et retourne directement le CSV pour PRESIDENT (réponse synchrone, plus de job store — H1)', async () => {
     mockedAuth.mockResolvedValue({
       user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'], ulId: 'ul-paris-18' }
     } as never);
@@ -124,20 +124,15 @@ describe('POST /api/stats/expenses/csv', () => {
 
     const res = await postExpenseCsv(req);
     expect(res.status).toBe(200);
-
-    const json = await res.json();
-    expect(json.jobId).toBeDefined();
-
-    // Fetch generated CSV
-    const getReq = new Request(`http://localhost/api/stats/expenses/csv?jobId=${json.jobId}`);
-    const getRes = await getExpenseCsv(getReq);
-    expect(getRes.status).toBe(200);
-    expect(getRes.headers.get('Content-Type')).toContain('text/csv');
+    expect(res.headers.get('Content-Type')).toContain('text/csv');
+    expect(res.headers.get('Content-Disposition')).toContain('notes-de-frais-martine.csv');
+    const text = await res.text();
+    expect(text.length).toBeGreaterThan(0);
   });
 });
 
 describe('POST /api/stats/expenses/pdf', () => {
-  it('generates PDF export job for TRESORIER', async () => {
+  it('génère et retourne directement le PDF pour TRESORIER (réponse synchrone, plus de job store — H1)', async () => {
     mockedAuth.mockResolvedValue({
       user: { id: 'user-tresorier', email: 'tresorier@test.com', roles: ['TRESORIER'], ulId: 'ul-paris-18' }
     } as never);
@@ -150,15 +145,10 @@ describe('POST /api/stats/expenses/pdf', () => {
 
     const res = await postExpensePdf(req);
     expect(res.status).toBe(200);
-
-    const json = await res.json();
-    expect(json.jobId).toBeDefined();
-
-    // Fetch generated PDF
-    const getReq = new Request(`http://localhost/api/stats/expenses/pdf?jobId=${json.jobId}`);
-    const getRes = await getExpensePdf(getReq);
-    expect(getRes.status).toBe(200);
-    expect(getRes.headers.get('Content-Type')).toContain('application/pdf');
+    expect(res.headers.get('Content-Type')).toContain('application/pdf');
+    expect(res.headers.get('Content-Disposition')).toContain('stats-notes-de-frais-martine.pdf');
+    const buffer = await res.arrayBuffer();
+    expect(buffer.byteLength).toBeGreaterThan(0);
   });
 });
 

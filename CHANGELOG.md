@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.10.0] — 13 août 2026
+
+### 🐛 Correction du finding H1 de l'audit — store de jobs en mémoire
+
+Dernier finding non traité de `docs/code-review-2026-08-11.md` : les 4 routes d'export stats (`stats/pdf`, `stats/csv`, `stats/expenses/pdf`, `stats/expenses/csv`) stockaient le fichier généré dans une `Map` globale en mémoire sous un `jobId`, puis le client faisait un second appel `GET ?jobId=...` pour le télécharger. Sur Vercel serverless, `POST` et `GET` peuvent atterrir sur des instances lambda différentes → 404 intermittent en production, invisible en local.
+
+- **Correctif** : le fichier généré (déjà 100% synchrone côté serveur) est désormais retourné directement par le `POST` — plus de `Map` globale, plus de `GET` de polling, plus de TTL/cleanup à gérer. Une seule requête HTTP ne peut plus jamais atterrir sur la mauvaise instance.
+- **Client** (`src/app/stats/page.tsx`) : `res.blob()` → `URL.createObjectURL()` au lieu de parser un `jobId`. `ExportReadyModal.tsx` déclenche le téléchargement via un `<a download>` temporaire (fiable pour une `blob:` URL, contrairement à `window.open()` qui ne préserve pas le nom de fichier) — le nom de fichier est lu depuis l'en-tête `Content-Disposition` renvoyé par le serveur plutôt que dupliqué côté client.
+- **Nettoyage** : suppression de `PdfReadyModal.tsx` (doublon mort de `ExportReadyModal`, jamais importé, suivait l'ancien pattern à base de `jobId`).
+- Tests mis à jour (`stats-pdf.test.ts`, `stats-csv.test.ts`, `expense-stats.test.ts`) pour la nouvelle réponse synchrone. `npm run test` : 1000 tests, 0 échec. `npm run lint` : 0/0. `npx tsc --noEmit` : 105 erreurs préexistantes identiques (hors périmètre). `npm run build` : vérifié localement sans secrets réels, succès.
+- **Chantier d'audit du 2026-08-11 entièrement clos** : tous les findings sont désormais soit corrigés, soit explicitement non corrigés par décision assumée (aucun report restant).
+
 ## [4.9.9] — 13 août 2026
 
 ### 🧪 Couverture de tests — Phase 5 (2/2) : composants de priorité 2 (lot 4, dernier lot)
