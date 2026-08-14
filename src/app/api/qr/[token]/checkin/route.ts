@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isInactive, isAdminOrAbove } from '@/lib/roles';
 import { getRenaultVehicleData } from '@/lib/renault';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 /**
  * POST /api/qr/[token]/checkin
@@ -33,11 +34,11 @@ export async function POST(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         if (isInactive(session.user.roles || [])) {
-            return NextResponse.json({ error: 'Compte inactif — accès refusé' }, { status: 403 });
+            return forbiddenResponse('Compte inactif — accès refusé');
         }
 
         const { token } = await params;
@@ -75,9 +76,7 @@ export async function POST(
         const isSecondDriver = userId === trip.secondDriverId;
 
         if (!isAdmin && !isFirstDriver && !isSecondDriver) {
-            return NextResponse.json({
-                error: "Vous n'êtes pas autorisé à rendre ce véhicule. Seul l'emprunteur peut le faire via ce QR Code.",
-            }, { status: 403 });
+            return forbiddenResponse("Vous n'êtes pas autorisé à rendre ce véhicule. Seul l'emprunteur peut le faire via ce QR Code.");
         }
 
         // Fetch live Renault data if connected and data not supplied

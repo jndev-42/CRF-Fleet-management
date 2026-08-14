@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const createItemSchema = z.object({
     label: z.string().min(1, 'Le libellé est requis').max(200),
@@ -22,7 +23,7 @@ export async function GET(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { id: vehicleId } = await params;
@@ -68,7 +69,7 @@ export async function POST(
     try {
         const session = await auth();
         if (!isAdminOrAbove(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id: vehicleId } = await params;

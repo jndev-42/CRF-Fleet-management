@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { hasDTRole } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function GET(request: Request) {
   try {
     const session = await auth();
     if (!session?.user) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+      return unauthorizedResponse();
     }
 
     const ulId = session.user.ulId;
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     let dtCode: string | null = null;
     if (isDtView) {
       if (!hasDTRole(userRoles)) {
-        return NextResponse.json({ error: 'Accès réservé au rôle DT' }, { status: 403 });
+        return forbiddenResponse('Accès réservé au rôle DT');
       }
       const ulRes = await db.execute({
         sql: `SELECT dtCode FROM "UniteLocale" WHERE id = ?`,
@@ -64,12 +65,13 @@ export async function GET(request: Request) {
     const windowEndISO = windowEnd.toISOString();
 
     const ulWhereClause = isDtView && dtCode
-      ? `v.ulId IN (SELECT id FROM "UniteLocale" WHERE dtCode = '${dtCode}')`
-      : `v.ulId = '${ulId}'`;
+      ? `v.ulId IN (SELECT id FROM "UniteLocale" WHERE dtCode = ?)`
+      : `v.ulId = ?`;
+    const ulWhereArg = isDtView && dtCode ? dtCode : ulId;
 
     // 1. Fetch vehicles
     let vehiclesSql = `SELECT v.id, v.name, v.plate, v.type, v.status, ul.name as ulName FROM Vehicle v LEFT JOIN "UniteLocale" ul ON ul.id = v.ulId WHERE ${ulWhereClause}`;
-    const vehiclesArgs: (string | null)[] = [];
+    const vehiclesArgs: (string | null)[] = [ulWhereArg];
     if (vehicleIdParam) {
       vehiclesSql += ` AND v.id = ?`;
       vehiclesArgs.push(vehicleIdParam);
@@ -91,7 +93,7 @@ export async function GET(request: Request) {
     }));
 
     // If vehicleIdParam specified, use it for filtering
-    const vehicleFilterClause = vehicleIdParam ? ` AND v.id = '${vehicleIdParam}'` : '';
+    const vehicleFilterClause = vehicleIdParam ? ` AND v.id = ?` : '';
 
     // 2. Fetch reservations
     const reservationsSql = `
@@ -106,9 +108,13 @@ export async function GET(request: Request) {
       ORDER BY r.startTime ASC
     `;
 
+    const reservationsArgs = vehicleIdParam
+      ? [ulWhereArg, vehicleIdParam, windowEndISO, windowStartISO]
+      : [ulWhereArg, windowEndISO, windowStartISO];
+
     const reservationsResult = await db.execute({
       sql: reservationsSql,
-      args: [windowEndISO, windowStartISO],
+      args: reservationsArgs,
     });
 
     const reservations = reservationsResult.rows.map(row => ({
@@ -141,9 +147,13 @@ export async function GET(request: Request) {
       ORDER BY t.checkOutAt ASC
     `;
 
+    const tripsArgs = vehicleIdParam
+      ? [ulWhereArg, vehicleIdParam, windowEndISO, windowStartISO]
+      : [ulWhereArg, windowEndISO, windowStartISO];
+
     const tripsResult = await db.execute({
       sql: tripsSql,
-      args: [windowEndISO, windowStartISO],
+      args: tripsArgs,
     });
 
     const trips = tripsResult.rows.map(row => ({
@@ -177,9 +187,13 @@ export async function GET(request: Request) {
       ORDER BY m.startDate ASC
     `;
 
+    const maintenanceArgs = vehicleIdParam
+      ? [ulWhereArg, vehicleIdParam, windowEndDay, windowStartDay]
+      : [ulWhereArg, windowEndDay, windowStartDay];
+
     const maintenanceResult = await db.execute({
       sql: maintenanceSql,
-      args: [windowEndDay, windowStartDay],
+      args: maintenanceArgs,
     });
 
     const maintenances = maintenanceResult.rows.map(row => ({

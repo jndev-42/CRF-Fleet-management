@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import FuelBar from '@/components/vehicle/FuelBar';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface EditMetricsModalProps {
     vehicle: Vehicle;
@@ -9,6 +10,7 @@ interface EditMetricsModalProps {
 }
 
 export default function EditMetricsModal({ vehicle, onClose, onSuccess }: EditMetricsModalProps) {
+    useEscapeKey(onClose);
     const [mileage, setMileage] = useState<number | ''>(vehicle.mileage);
     const [fuelLevel, setFuelLevel] = useState<number | ''>(vehicle.fuelLevel);
     const [loading, setLoading] = useState(false);
@@ -60,7 +62,7 @@ export default function EditMetricsModal({ vehicle, onClose, onSuccess }: EditMe
                 </div>
                 <form className="modal-body" onSubmit={handleSubmit}>
                     {error && (
-                        <div style={{ padding: '10px 14px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', borderRadius: 'var(--radius-sm)', marginBottom: 16, fontSize: 14 }}>
+                        <div style={{ padding: '10px 14px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error-text)', borderRadius: 'var(--radius-sm)', marginBottom: 16, fontSize: 14 }}>
                             {error}
                         </div>
                     )}

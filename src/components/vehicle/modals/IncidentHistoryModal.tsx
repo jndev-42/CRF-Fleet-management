@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import { formatDate } from '@/app/vehicles/[id]/utils';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface Incident {
     id: string;
@@ -27,6 +28,7 @@ interface IncidentHistoryModalProps {
 }
 
 export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: IncidentHistoryModalProps) {
+    useEscapeKey(onClose);
     const [incidents, setIncidents] = useState<Incident[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -35,7 +37,7 @@ export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: 
 
     useEffect(() => {
         fetchIncidents();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchIncidents est redéfinie à chaque rendu ; seul vehicle.name doit déclencher un refetch
     }, [vehicle.name]);
 
     async function fetchIncidents() {
@@ -111,7 +113,7 @@ export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: 
     }
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose} style={{ zIndex: 10001 }}>
+        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
             <div className="modal" role="dialog" aria-modal="true" style={{ maxWidth: '800px' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">Historique des incidents - {vehicle.name}</h2>
@@ -122,7 +124,7 @@ export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: 
                     {loading ? (
                         <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>Chargement...</div>
                     ) : error ? (
-                        <div className="error-banner" style={{ padding: '10px', background: 'rgba(239, 68, 68, 0.1)', color: '#DC2626', borderRadius: '4px', marginBottom: '15px' }}>
+                        <div className="error-banner" style={{ padding: '10px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error-text)', borderRadius: '4px', marginBottom: '15px' }}>
                             {error}
                         </div>
                     ) : incidents.length === 0 ? (
@@ -174,7 +176,7 @@ export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: 
                                                     className="btn btn-secondary"
                                                     onClick={() => handleDeleteDraft(incident.id)}
                                                     disabled={deletingId === incident.id}
-                                                    style={{ fontSize: '13px', padding: '6px 12px', color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                                                    style={{ fontSize: '13px', padding: '6px 12px', color: 'var(--status-maintenance)', borderColor: 'rgba(220, 38, 38, 0.3)' }}
                                                 >
                                                     {deletingId === incident.id ? '...' : '🗑️'}
                                                 </button>
@@ -198,8 +200,8 @@ export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: 
                 .incident-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
                 .incident-type { font-weight: 600; font-size: 15px; }
                 .status-badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; font-weight: 600; text-transform: uppercase; }
-                .status-submitted { background: rgba(16, 185, 129, 0.1); color: #059669; }
-                .status-draft { background: rgba(245, 158, 11, 0.1); color: #D97706; }
+                .status-submitted { background: rgba(16, 185, 129, 0.1); color: var(--status-available); }
+                .status-draft { background: rgba(245, 158, 11, 0.1); color: var(--status-inuse); }
                 .incident-details { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 13px; color: var(--text-secondary); }
                 .incident-actions { display: flex; flex-direction: column; gap: 8px; }
             `}</style>

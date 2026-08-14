@@ -30,7 +30,7 @@ export default function AidePage() {
             .then(data => {
                 setUls(data.uls || []);
             })
-            .catch(() => {})
+            .catch(e => console.error('Erreur fetch UL:', e))
             .finally(() => setLoading(false));
     }, []);
 

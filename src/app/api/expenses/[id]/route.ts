@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const updateExpenseReportSchema = z.object({
     action: z.enum(['update', 'submit', 'validate', 'reject', 'pay']),
@@ -28,7 +29,7 @@ export async function GET(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const resolvedParams = await params;
@@ -59,7 +60,7 @@ export async function GET(
         const isOwner = row.userId === session.user.id;
 
         if (!isManager && !isOwner && !(isTresorier && row.status === 'en_attente_paiement')) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         let parsedItems = [];
@@ -115,7 +116,7 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const resolvedParams = await params;
@@ -152,7 +153,7 @@ export async function PATCH(
         if (action === 'validate') {
             // Check roles
             if (!isManager) {
-                return NextResponse.json({ error: 'Seuls le Président et les Super Administrateurs peuvent valider des notes de frais.' }, { status: 403 });
+                return forbiddenResponse('Seuls le Président et les Super Administrateurs peuvent valider des notes de frais.');
             }
 
             if (report.status !== 'soumis') {
@@ -198,7 +199,7 @@ export async function PATCH(
             return NextResponse.json({ success: true, status: nextStatus });
         } else if (action === 'reject') {
             if (!isManager) {
-                return NextResponse.json({ error: 'Seuls le Président et les Super Administrateurs peuvent refuser des notes de frais.' }, { status: 403 });
+                return forbiddenResponse('Seuls le Président et les Super Administrateurs peuvent refuser des notes de frais.');
             }
 
             if (report.status !== 'soumis') {
@@ -222,7 +223,7 @@ export async function PATCH(
         } else if (action === 'pay') {
             const canPay = roles.includes('TRESORIER') || roles.includes('SUPER_ADMIN');
             if (!canPay) {
-                return NextResponse.json({ error: 'Seuls le Trésorier et les Super Administrateurs peuvent marquer une note comme payée.' }, { status: 403 });
+                return forbiddenResponse('Seuls le Trésorier et les Super Administrateurs peuvent marquer une note comme payée.');
             }
 
             if (report.status !== 'en_attente_paiement') {
@@ -242,7 +243,7 @@ export async function PATCH(
         } else {
             // update or submit action by the owner
             if (!isOwner) {
-                return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+                return forbiddenResponse();
             }
 
             if (report.status !== 'brouillon') {
@@ -328,7 +329,7 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const resolvedParams = await params;
@@ -350,7 +351,7 @@ export async function DELETE(
 
         // Owners can delete drafts.
         if (!isOwner && !isSuperAdmin) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         if (report.status !== 'brouillon' && !isSuperAdmin) {

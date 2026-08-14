@@ -91,9 +91,9 @@ export function isDriverRole(roles: string[]): boolean {
     return roles.includes(ROLES.CHVL) || roles.includes(ROLES.CHVPSP);
 }
 
-/** Vérifie si l'utilisateur est inactif */
+/** Vérifie si l'utilisateur est inactif (aucun rôle actif = inactif, deny-by-default) */
 export function isInactive(roles: string[]): boolean {
-    return roles.length > 0 && roles.every(r => r === ROLES.INACTIF || r === 'GUEST');
+    return roles.length === 0 || roles.every(r => r === ROLES.INACTIF || r === 'GUEST');
 }
 
 /**

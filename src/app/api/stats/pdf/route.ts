@@ -1,36 +1,13 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { fetchStatsData } from '@/lib/stats';
+import { fetchStatsData } from '@/lib/stats-trips';
 import { db } from '@/lib/db';
 import { z } from 'zod';
-import crypto from 'crypto';
 import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer';
 import { createElement, type JSXElementConstructor, type ReactElement } from 'react';
 import StatsPdfDocument from '@/components/stats/StatsPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
-
-declare global {
-  var __pdfJobs: Map<string, { buffer: Buffer; createdAt: number }> | undefined;
-}
-
-function getJobsMap(): Map<string, { buffer: Buffer; createdAt: number }> {
-  if (!global.__pdfJobs) {
-    global.__pdfJobs = new Map();
-  }
-  return global.__pdfJobs;
-}
-
-function cleanupOldJobs() {
-  const jobs = getJobsMap();
-  const tenMinutes = 10 * 60 * 1000;
-  const now = Date.now();
-  for (const [id, job] of jobs.entries()) {
-    if (now - job.createdAt > tenMinutes) {
-      jobs.delete(id);
-    }
-  }
-}
 
 const postSchema = z.object({
   dateFrom: z.string().min(1),
@@ -104,57 +81,19 @@ export async function POST(request: Request) {
 
     const { dateFrom, dateTo } = parsed.data;
 
-    cleanupOldJobs();
-
     const buffer = await generatePdf(dateFrom, dateTo);
 
-    const jobId = crypto.randomUUID();
-    getJobsMap().set(jobId, { buffer, createdAt: Date.now() });
-
-    return NextResponse.json({ success: true, jobId, status: 'ready' });
-  } catch (error) {
-    console.error('[POST /api/stats/pdf]', error);
-    return NextResponse.json({ success: false, error: 'Erreur lors de la génération du PDF' }, { status: 500 });
-  }
-}
-
-export async function GET(request: Request) {
-  try {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ success: false, error: 'Non autorisé' }, { status: 401 });
-    }
-
-    const roles = (session.user.roles || ['INACTIF']) as string[];
-    if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
-      return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const jobId = searchParams.get('jobId');
-
-    if (!jobId) {
-      return NextResponse.json({ success: false, error: 'jobId manquant' }, { status: 400 });
-    }
-
-    const jobs = getJobsMap();
-    const job = jobs.get(jobId);
-
-    if (!job) {
-      return NextResponse.json({ success: false, error: 'PDF non trouvé ou expiré' }, { status: 404 });
-    }
-
     // NextResponse body must be BodyInit-compatible — convert Buffer to Uint8Array
-    return new NextResponse(new Uint8Array(job.buffer), {
+    return new NextResponse(new Uint8Array(buffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
         'Content-Disposition': 'attachment; filename="stats-martine.pdf"',
-        'Content-Length': String(job.buffer.length),
+        'Content-Length': String(buffer.length),
       },
     });
   } catch (error) {
-    console.error('[GET /api/stats/pdf]', error);
-    return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 });
+    console.error('[POST /api/stats/pdf]', error);
+    return NextResponse.json({ success: false, error: 'Erreur lors de la génération du PDF' }, { status: 500 });
   }
 }

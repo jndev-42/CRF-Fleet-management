@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import { useUL } from '@/lib/contexts/ULContext';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface EditVehicleModalProps {
     isOpen: boolean;
@@ -10,6 +11,7 @@ interface EditVehicleModalProps {
 }
 
 export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }: EditVehicleModalProps) {
+    useEscapeKey(onClose, isOpen);
     const { activeUL } = useUL();
     const [form, setForm] = useState({
         name: vehicle.name || '',
@@ -41,7 +43,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
 
         // Fetch parking spots from active UL
         fetch('/api/ul')
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
             .then(ulData => {
                 const uls: Array<{ id: string; defaultParkingSpots?: string[] }> = ulData?.uls || [];
                 const currentUlId = activeUL?.id;
@@ -140,7 +142,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
                 <form onSubmit={handleSubmit} data-testid="edit-vehicle-form">
                     <div className="modal-body">
                         {errorMsg && (
-                            <div style={{ padding: '10px 14px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-sm)', color: '#EF4444', fontSize: 14, marginBottom: 16 }}>
+                            <div style={{ padding: '10px 14px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 'var(--radius-sm)', color: 'var(--error-text)', fontSize: 14, marginBottom: 16 }}>
                                 {errorMsg}
                             </div>
                         )}
@@ -305,7 +307,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
                                         type="checkbox"
                                         checked={form.desinfTracking}
                                         onChange={(e) => setForm({ ...form, desinfTracking: e.target.checked })}
-                                        style={{ width: 18, height: 18, accentColor: '#059669' }}
+                                        style={{ width: 18, height: 18, accentColor: 'var(--status-available)' }}
                                     />
                                     <div>
                                         <span style={{ fontSize: 14, fontWeight: 500 }}>🧴 Activer le suivi de la désinfection</span>

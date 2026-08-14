@@ -7,7 +7,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const params = await props.params;
@@ -32,7 +32,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
         const canManage = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
 
         if (ownerEmail !== session.user.email && !canManage) {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         await db.execute({
@@ -51,8 +51,9 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 }
 
 import { z } from 'zod';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
-const updateReservationSchema = z.object({
+const updateReservationSchema = z.strictObject({
     startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }).optional(),
     endTime: z.string().datetime({ message: 'endTime doit être une date ISO valide' }).optional(),
     reason: z.string().max(500).optional().nullable(),
@@ -65,7 +66,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const params = await props.params;
@@ -99,18 +100,15 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
             // body remain empty object
         }
 
-        // If body has edit fields (startTime, endTime, reason, onBehalfOfUserId, isUnassignedDriver) or action === 'update'
-        const hasEditFields = body.startTime !== undefined ||
-            body.endTime !== undefined ||
-            body.reason !== undefined ||
-            body.onBehalfOfUserId !== undefined ||
-            body.isUnassignedDriver !== undefined ||
-            body.action === 'update';
+        // Un body vide (bouton "valider", cf. ReservationBlock.tsx) route vers la validation ;
+        // tout body non vide est traité comme une édition et validé strictement par Zod
+        // (un champ inconnu échoue proprement en 400 au lieu d'être silencieusement réinterprété comme une validation).
+        const hasEditFields = Object.keys(body).length > 0 && body.action !== 'validate';
 
         if (hasEditFields) {
             // Check editing permissions: owner or manager
             if (!isOwner && !canManageDriver) {
-                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                return forbiddenResponse();
             }
 
             let parsed: z.infer<typeof updateReservationSchema>;
@@ -126,7 +124,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
             // Check if user is attempting to change driver without management role
             const isChangingDriver = parsed.isUnassignedDriver !== undefined || parsed.onBehalfOfUserId !== undefined;
             if (isChangingDriver && !canManageDriver) {
-                return NextResponse.json({ error: 'Seul un responsable peut modifier le chauffeur de la réservation.' }, { status: 403 });
+                return forbiddenResponse('Seul un responsable peut modifier le chauffeur de la réservation.');
             }
 
             const newStartStr = parsed.startTime || (reservation.startTime as string);
@@ -201,7 +199,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
         } else {
             // Action is Validation (legacy or action === 'validate')
             if (!canManageDriver) {
-                return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+                return forbiddenResponse();
             }
 
             if (reservation.status === 'VALIDATED') {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { RenaultVehicleData } from '@/lib/renault';
+import type { RenaultVehicleData } from '@/lib/renault';
 import { getFuelClass, formatDate } from '@/app/vehicles/[id]/utils';
 import DetailCard from './DetailCard';
 
@@ -76,7 +76,7 @@ export default function RenaultConnectBlock({ renaultData, loadingRenault }: Ren
                             <DetailCard
                                 title="Carburant estimé"
                                 value={`${renaultData.fuelQuantity} L`}
-                                titleColor="#EA580C"
+                                titleColor="var(--status-inuse)"
                                 backgroundColor="rgba(249, 115, 22, 0.05)"
                                 borderColor="rgba(249, 115, 22, 0.2)"
                             />

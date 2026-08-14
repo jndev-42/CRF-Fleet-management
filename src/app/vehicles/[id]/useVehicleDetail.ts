@@ -1,0 +1,148 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import type { RenaultVehicleData } from '@/lib/renault';
+import { MaintenanceRecord, Vehicle } from './types';
+
+/**
+ * Owns all data-fetching for the vehicle detail page: the vehicle entity itself,
+ * session/role info, Renault Connect telemetry, and maintenance history.
+ */
+export function useVehicleDetail(id: string) {
+    const router = useRouter();
+    const { data: session } = useSession();
+
+    const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+    const [renaultData, setRenaultData] = useState<RenaultVehicleData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [loadingRenault, setLoadingRenault] = useState(false);
+    const [licenseBlocked, setLicenseBlocked] = useState(false);
+    const [users, setUsers] = useState<{ id: string, name: string, email: string }[]>([]);
+    const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
+    const [maintenanceRefreshKey, setMaintenanceRefreshKey] = useState(0);
+
+    const userRoles = session?.user?.roles ?? [];
+    const currentUserEmail = session?.user?.email ?? null;
+    const currentUserUlId = session?.user?.ulId ?? null;
+
+    useEffect(() => {
+        // Check license validity for drivers
+        fetch('/api/me/license-check')
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
+            .then(data => { if (data.blocked) setLicenseBlocked(true); })
+            .catch(console.error);
+    }, []);
+
+    /**
+     * Fetches the detailed vehicle data from the database.
+     * Re-runs whenever the page is refreshed or immediately after modifying a trip.
+     */
+    const fetchVehicleAbortRef = useRef<AbortController | null>(null);
+
+    const fetchVehicle = useCallback(async () => {
+        fetchVehicleAbortRef.current?.abort();
+        const controller = new AbortController();
+        fetchVehicleAbortRef.current = controller;
+        try {
+            const res = await fetch(`/api/vehicles/${id}?t=${Date.now()}`, { cache: 'no-store', signal: controller.signal });
+            const data = await res.json();
+            if (!res.ok) {
+                if (res.status === 401) {
+                    router.push(`/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`);
+                    return;
+                }
+                throw new Error(data.error || 'Erreur lors de la récupération');
+            }
+            setVehicle(data);
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return;
+            console.error('Erreur:', error);
+        } finally {
+            if (fetchVehicleAbortRef.current === controller) setLoading(false);
+        }
+    }, [id, router]);
+
+    useEffect(() => {
+        fetchVehicle();
+        return () => fetchVehicleAbortRef.current?.abort();
+    }, [fetchVehicle]);
+
+    useEffect(() => {
+        if (!vehicle?.type) return;
+        fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
+            .then(data => { if (data.users) setUsers(data.users); })
+            .catch(console.error);
+    }, [vehicle?.type]);
+
+    // Fetch all maintenance records for the vehicle (used for CT/revision calculations)
+    const fetchAllMaintenanceRecords = useCallback(async () => {
+        const allRecords: MaintenanceRecord[] = [];
+        const fetchPage = async (p: number): Promise<void> => {
+            const res = await fetch(`/api/vehicles/${id}/maintenance?page=${p}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            allRecords.push(...data.records);
+            if (p < data.totalPages) {
+                await fetchPage(p + 1);
+            }
+        };
+        await fetchPage(1);
+        setMaintenanceRecords(allRecords);
+    }, [id]);
+
+    useEffect(() => {
+        if (!vehicle?.firstRegistrationDate) return;
+        fetchAllMaintenanceRecords().catch(console.error);
+    }, [fetchAllMaintenanceRecords, vehicle?.firstRegistrationDate, maintenanceRefreshKey]);
+
+    // Fetch Renault Connect telemetry for connected vehicles (those with a VIN).
+    // Tracks the vin already fetched in a ref instead of reading renaultData in the
+    // guard, so the effect doesn't need its own output as a dependency.
+    const fetchedRenaultForVinRef = useRef<string | null>(null);
+    useEffect(() => {
+        if (vehicle?.vin && fetchedRenaultForVinRef.current !== vehicle.vin) {
+            fetchedRenaultForVinRef.current = vehicle.vin;
+            setLoadingRenault(true);
+            fetch(`/api/renault/${encodeURIComponent(vehicle.vin)}`)
+                .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
+                .then(rData => {
+                    if (!rData.error) setRenaultData(rData);
+                })
+                .catch(e => console.error('Failed to get Renault data:', e))
+                .finally(() => setLoadingRenault(false));
+        }
+    }, [vehicle?.vin]);
+
+    // Trigger refresh of unvalidated Renault data for completed trips
+    useEffect(() => {
+        if (!vehicle) return;
+        const unvalidatedTrip = vehicle.trips.find(t => t.checkInAt && t.renaultDataValidated === 0);
+        if (!unvalidatedTrip) return;
+
+        fetch(`/api/trips/${unvalidatedTrip.id}/refresh-renault`, { method: 'PATCH' })
+            .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
+            .then(result => {
+                if (result.validated) {
+                    fetchVehicle();
+                }
+            })
+            .catch(console.error);
+    }, [vehicle, fetchVehicle]);
+
+    return {
+        vehicle,
+        setVehicle,
+        renaultData,
+        loading,
+        loadingRenault,
+        userRoles,
+        currentUserEmail,
+        currentUserUlId,
+        licenseBlocked,
+        users,
+        maintenanceRecords,
+        fetchVehicle,
+        bumpMaintenanceRefresh: () => setMaintenanceRefreshKey(k => k + 1),
+    };
+}

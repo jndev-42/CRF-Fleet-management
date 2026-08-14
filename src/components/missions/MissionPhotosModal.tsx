@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { X, Camera } from 'lucide-react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface PhotoEntry {
     id: string;
@@ -14,6 +15,7 @@ interface MissionPhotosModalProps {
 }
 
 export default function MissionPhotosModal({ folderId, onClose }: MissionPhotosModalProps) {
+    useEscapeKey(onClose);
     const [photos, setPhotos] = useState<PhotoEntry[]>([]);
     const [loading, setLoading] = useState(true);
 

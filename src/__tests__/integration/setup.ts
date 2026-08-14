@@ -45,6 +45,16 @@ async function createTables() {
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleChecklistItem" (
+    id TEXT PRIMARY KEY,
+    vehicleId TEXT NOT NULL REFERENCES "Vehicle"(id) ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    type TEXT NOT NULL,
+    required INTEGER NOT NULL DEFAULT 0,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "User" (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
@@ -141,6 +151,13 @@ async function createTables() {
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     ulId TEXT,
     FOREIGN KEY (userId) REFERENCES "User"(id) ON DELETE CASCADE
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "RenaultSession" (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    idToken TEXT NOT NULL,
+    accountId TEXT NOT NULL,
+    expiresAt INTEGER NOT NULL
   )`);
 
   // ── Nouveau système d'inventaire ────────────────────────────────────────────
@@ -429,6 +446,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "InvItem"`);
   await db.execute(`DELETE FROM "InvGroupe"`);
   await db.execute(`DELETE FROM "Notification"`);
+  await db.execute(`DELETE FROM "RenaultSession"`);
   await db.execute(`DELETE FROM "IncidentReport"`);
   await db.execute(`DELETE FROM "UserRole"`);
   await db.execute(`DELETE FROM "UserUL"`);
@@ -437,6 +455,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "Reservation"`);
   await db.execute(`DELETE FROM "VehicleMaintenanceRecord"`);
   await db.execute(`DELETE FROM "VehicleMaintenance"`);
+  await db.execute(`DELETE FROM "VehicleChecklistItem"`);
   await db.execute(`DELETE FROM "Vehicle"`);
   await db.execute(`DELETE FROM "User"`);
   await db.execute(`DELETE FROM "Role"`);
@@ -639,6 +658,9 @@ export async function seedInvItem(overrides: Partial<{
   category: string | null;
   notes: string | null;
   quantity: number;
+  minStock: number | null;
+  stockId: string | null;
+  ulId: string | null;
 }> = {}) {
   const item = {
     id: 'inv-item-1',
@@ -646,13 +668,36 @@ export async function seedInvItem(overrides: Partial<{
     category: 'Test',
     notes: null,
     quantity: 0,
+    minStock: null,
+    stockId: null,
+    ulId: 'ul-paris-18',
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, quantity, notes) VALUES (?,?,?,?,?)`,
-    args: [item.id, item.name, item.category, item.quantity, item.notes],
+    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, quantity, notes, minStock, stockId, ulId) VALUES (?,?,?,?,?,?,?,?)`,
+    args: [item.id, item.name, item.category, item.quantity, item.notes, item.minStock, item.stockId, item.ulId],
   });
   return item;
+}
+
+export async function seedInvBatch(overrides: Partial<{
+  id: string;
+  itemId: string;
+  quantity: number;
+  expiryDate: string | null;
+}> = {}) {
+  const batch = {
+    id: 'inv-batch-1',
+    itemId: 'inv-item-1',
+    quantity: 10,
+    expiryDate: null,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT OR IGNORE INTO "InvBatch" (id, itemId, quantity, expiryDate) VALUES (?,?,?,?)`,
+    args: [batch.id, batch.itemId, batch.quantity, batch.expiryDate],
+  });
+  return batch;
 }
 
 export async function seedInvLocation(overrides: Partial<{
@@ -757,4 +802,109 @@ export async function seedUniteLocale(overrides: Partial<{
     args: [ul.id, ul.name, ul.slug],
   });
   return ul;
+}
+
+export async function seedChecklistItem(overrides: Partial<{
+  id: string;
+  vehicleId: string;
+  label: string;
+  type: 'checkout' | 'checkin';
+  required: boolean;
+  order: number;
+}> = {}) {
+  const item = {
+    id: 'checklist-item-1',
+    vehicleId: 'VL001',
+    label: 'Pneus vérifiés',
+    type: 'checkout' as const,
+    required: false,
+    order: 0,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT INTO "VehicleChecklistItem" (id, vehicleId, label, type, required, "order") VALUES (?,?,?,?,?,?)`,
+    args: [item.id, item.vehicleId, item.label, item.type, item.required ? 1 : 0, item.order],
+  });
+  return item;
+}
+
+export async function seedIncident(overrides: Partial<{
+  id: string;
+  vehicleId: string;
+  userId: string;
+  tripId: string | null;
+  type: 'ACCIDENT' | 'FLASH' | null;
+  status: 'DRAFT' | 'SUBMITTED';
+}> = {}) {
+  const incident = {
+    id: 'incident-1',
+    vehicleId: 'VL001',
+    userId: 'user-1',
+    tripId: null,
+    type: 'FLASH' as const,
+    status: 'DRAFT' as const,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT INTO "IncidentReport" (id, vehicleId, userId, tripId, type, status) VALUES (?,?,?,?,?,?)`,
+    args: [incident.id, incident.vehicleId, incident.userId, incident.tripId, incident.type, incident.status],
+  });
+  return incident;
+}
+
+export async function seedNotification(overrides: Partial<{
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  url: string | null;
+  isRead: boolean;
+  ulId: string;
+}> = {}) {
+  const notif = {
+    id: 'notif-1',
+    userId: 'user-1',
+    title: 'Titre',
+    message: 'Message',
+    url: null,
+    isRead: false,
+    ulId: 'default',
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT INTO "Notification" (id, userId, title, message, url, isRead, ulId) VALUES (?,?,?,?,?,?,?)`,
+    args: [notif.id, notif.userId, notif.title, notif.message, notif.url, notif.isRead ? 1 : 0, notif.ulId],
+  });
+  return notif;
+}
+
+export async function seedExpenseReport(overrides: Partial<{
+  id: string;
+  userId: string;
+  submittedAt: string;
+  status: string;
+  imputation: string;
+  total: number;
+  items: { label: string; amount: number }[];
+  ulId: string;
+  validatedBy: string | null;
+}> = {}) {
+  const report = {
+    id: 'expense-1',
+    userId: 'user-1',
+    submittedAt: new Date().toISOString(),
+    status: 'soumis',
+    imputation: 'DLUS',
+    total: 42.5,
+    items: [{ label: 'Péage', amount: 42.5 }],
+    ulId: 'ul-paris-18',
+    validatedBy: null,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, validatedBy)
+          VALUES (?,?,?,?,?,?,?,?,?)`,
+    args: [report.id, report.userId, report.submittedAt, report.status, report.imputation, report.total, JSON.stringify(report.items), report.ulId, report.validatedBy],
+  });
+  return report;
 }

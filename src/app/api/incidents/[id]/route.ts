@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const updateIncidentSchema = z.object({
     type: z.enum(['ACCIDENT', 'FLASH']).optional().nullable(),
@@ -27,12 +28,12 @@ export async function GET(
     const { id } = await params;
     const session = await auth();
     if (!session?.user) {
-        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     try {
         const result = await db.execute({
-            sql: `SELECT ir.*, v.name as vehicleName, u.name as userName
+            sql: `SELECT ir.*, v.name as vehicleName, v.ulId as vehicleUlId, u.name as userName
                   FROM IncidentReport ir
                   JOIN Vehicle v ON v.id = ir.vehicleId
                   JOIN User u ON u.id = ir.userId
@@ -42,6 +43,10 @@ export async function GET(
 
         if (result.rows.length === 0) {
             return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
+        }
+
+        if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== result.rows[0].vehicleUlId) {
+            return forbiddenResponse();
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic DB row
@@ -73,7 +78,7 @@ export async function PATCH(
     const { id } = await params;
     const session = await auth();
     if (!session?.user?.id) {
-        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     try {
@@ -98,7 +103,7 @@ export async function PATCH(
 
         const isAdmin = isAdminOrAbove(session.user.roles);
         if (check.rows[0].userId !== session.user.id && !isAdmin) {
-            return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         // Build dynamic update
@@ -142,7 +147,7 @@ export async function DELETE(
     const { id } = await params;
     const session = await auth();
     if (!session?.user?.id) {
-        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     try {
@@ -157,7 +162,7 @@ export async function DELETE(
 
         const isAdmin = isAdminOrAbove(session.user.roles);
         if (check.rows[0].userId !== session.user.id && !isAdmin) {
-            return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         await db.execute({

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { DollarSign, CheckCircle, Clock, Receipt } from 'lucide-react';
-import { ExpenseStatsDataResult } from '@/lib/stats';
+import { ExpenseStatsDataResult } from '@/lib/stats-expenses';
 import {
   ResponsiveContainer,
   BarChart,
@@ -130,10 +130,10 @@ export default function ExpenseStatsSection({
         <>
           {/* KPI Cards */}
           <div className="kpi-grid">
-            <div className="kpi-card" style={{ borderLeft: '4px solid var(--red-primary, #ef4444)' }}>
+            <div className="kpi-card" style={{ borderLeft: '4px solid var(--crf-red)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="kpi-title">Total des dépenses</span>
-                <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
+                <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--crf-red)' }}>
                   <DollarSign size={20} />
                 </div>
               </div>
@@ -143,28 +143,28 @@ export default function ExpenseStatsSection({
               </div>
             </div>
 
-            <div className="kpi-card" style={{ borderLeft: '4px solid #22c55e' }}>
+            <div className="kpi-card" style={{ borderLeft: '4px solid var(--status-available)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="kpi-title">Remboursé / Payé</span>
-                <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' }}>
+                <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.1)', color: 'var(--status-available)' }}>
                   <CheckCircle size={20} />
                 </div>
               </div>
               <div className="kpi-value">{data.global.totalRefundedAmount.toFixed(2)} €</div>
-              <div className="kpi-sub" style={{ color: '#22c55e' }}>
+              <div className="kpi-sub" style={{ color: 'var(--status-available)' }}>
                 Notes traitées et comptabilisées
               </div>
             </div>
 
-            <div className="kpi-card" style={{ borderLeft: '4px solid #f97316' }}>
+            <div className="kpi-card" style={{ borderLeft: '4px solid var(--status-inuse)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="kpi-title">En attente de paiement</span>
-                <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(249, 115, 22, 0.1)', color: '#f97316' }}>
+                <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(249, 115, 22, 0.1)', color: 'var(--status-inuse)' }}>
                   <Clock size={20} />
                 </div>
               </div>
               <div className="kpi-value">{data.global.totalPendingAmount.toFixed(2)} €</div>
-              <div className="kpi-sub" style={{ color: '#f97316' }}>
+              <div className="kpi-sub" style={{ color: 'var(--status-inuse)' }}>
                 Soumis ou à régler
               </div>
             </div>
@@ -209,7 +209,7 @@ export default function ExpenseStatsSection({
                           ]}
                           contentStyle={{ background: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: '8px' }}
                         />
-                        <Bar dataKey="amount" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="amount" fill="var(--crf-red)" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -284,7 +284,7 @@ export default function ExpenseStatsSection({
                           <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--text-primary)' }}>
                             {user.totalAmount.toFixed(2)} €
                           </td>
-                          <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: '#22c55e' }}>
+                          <td style={{ padding: '12px 16px', textAlign: 'right', fontWeight: 700, color: 'var(--status-available)' }}>
                             {user.paidAmount.toFixed(2)} €
                           </td>
                         </tr>

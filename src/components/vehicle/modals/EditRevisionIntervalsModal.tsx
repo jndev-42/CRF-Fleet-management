@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface EditRevisionIntervalsModalProps {
     vehicle: Vehicle;
@@ -8,6 +9,7 @@ interface EditRevisionIntervalsModalProps {
 }
 
 export default function EditRevisionIntervalsModal({ vehicle, onClose, onSuccess }: EditRevisionIntervalsModalProps) {
+    useEscapeKey(onClose);
     const [firstRegistrationDate, setFirstRegistrationDate] = useState<string>(vehicle.firstRegistrationDate ?? '');
     const [revisionKmInterval, setRevisionKmInterval] = useState<number | ''>(vehicle.revisionKmInterval ?? '');
     const [revisionYearInterval, setRevisionYearInterval] = useState<number | ''>(vehicle.revisionYearInterval ?? '');
@@ -29,7 +31,7 @@ export default function EditRevisionIntervalsModal({ vehicle, onClose, onSuccess
         if (revisionYearInterval !== '') payload.revisionYearInterval = revisionYearInterval;
 
         try {
-            const res = await fetch(`/api/vehicles/${vehicle.id}`, {
+            const res = await fetch(`/api/vehicles/${encodeURIComponent(vehicle.name)}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
@@ -57,7 +59,7 @@ export default function EditRevisionIntervalsModal({ vehicle, onClose, onSuccess
                 </div>
                 <form className="modal-body" onSubmit={handleSubmit}>
                     {error && (
-                        <div style={{ padding: '10px 14px', background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', borderRadius: 'var(--radius-sm)', marginBottom: 16, fontSize: 14 }}>
+                        <div style={{ padding: '10px 14px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--error-text)', borderRadius: 'var(--radius-sm)', marginBottom: 16, fontSize: 14 }}>
                             {error}
                         </div>
                     )}

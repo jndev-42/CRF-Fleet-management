@@ -245,7 +245,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     background: 'rgba(239, 68, 68, 0.1)',
                     border: '1px solid rgba(239, 68, 68, 0.3)',
                     borderRadius: 'var(--radius-md)',
-                    color: 'var(--red-primary, #ef4444)',
+                    color: 'var(--error-text)',
                     fontSize: '0.875rem'
                 }}>
                     <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
@@ -385,7 +385,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                             position: 'absolute',
                             cursor: 'pointer',
                             top: 0, left: 0, right: 0, bottom: 0,
-                            backgroundColor: requestRefund ? 'var(--red-primary, #ef4444)' : 'var(--border-primary)',
+                            backgroundColor: requestRefund ? 'var(--crf-red)' : 'var(--border-primary)',
                             borderRadius: '24px',
                             transition: '0.3s'
                         }}>

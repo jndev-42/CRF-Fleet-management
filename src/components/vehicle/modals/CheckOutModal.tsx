@@ -7,6 +7,7 @@ import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface CheckOutModalProps {
     vehicle: Vehicle;
@@ -23,6 +24,7 @@ interface CheckOutModalProps {
  * onSuccess is called only after the API request completes successfully.
  */
 export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }: CheckOutModalProps) {
+    useEscapeKey(onClose);
     // Find the last completed trip to pre-fill condition and cleanliness
     const lastTrip = vehicle.trips?.find(t => t.checkInAt);
 
@@ -56,7 +58,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
     useEffect(() => {
         const sessionPromise = fetch('/api/auth/session')
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(session => {
                 if (session?.user) {
                     setForm(f => ({
@@ -71,7 +73,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
             .finally(() => setSessionLoading(false));
 
         fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => {
                 if (data.users) setUsers(data.users);
             })
@@ -80,7 +82,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         // Fetch Renault data if connected
         if (vehicle.vin) {
             fetch(`/api/renault/${encodeURIComponent(vehicle.vin)}`)
-                .then(r => r.json())
+                .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
                 .then(rData => {
                     if (rData.error) {
                         setRenaultError(true);
@@ -105,7 +107,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         // Pre-fill missionName from the user's closest reservation (by startTime)
         Promise.all([
             sessionPromise,
-            fetch(`/api/vehicles/${vehicle.id}/reservations`).then(r => r.json()).catch(() => null),
+            fetch(`/api/vehicles/${vehicle.id}/reservations`).then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); }).catch(() => null),
         ]).then(([session, reservationsData]) => {
             const email = session?.user?.email;
             const reservations: Array<{ userEmail: string; reason?: string | null; startTime: string }> =
@@ -197,7 +199,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
     }
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 className="modal"
                 role="dialog"
@@ -224,8 +226,8 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                             <div><strong>Immatriculation :</strong> {vehicle.plate}</div>
                             <div>
                                 <strong>Kilométrage :</strong> {loadingRenault ? '...' : (dataIncorrect ? correctedMileage : (vehicle.mileage)).toLocaleString('fr-FR')} km
-                                {vehicle.vin && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: '#059669', fontSize: 11 }}>📡 Connecté</span>}
-                                {renaultError && <span style={{ marginLeft: 8, color: '#DC2626', fontSize: 11 }}>⚠️ Renault injoignable</span>}
+                                {vehicle.vin && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
+                                {renaultError && <span style={{ marginLeft: 8, color: 'var(--error-text)', fontSize: 11 }}>⚠️ Renault injoignable</span>}
                             </div>
                             <div>
                                 <strong>{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} :</strong> {loadingRenault ? '...' : (dataIncorrect ? correctedFuel : vehicle.fuelLevel)}%
@@ -444,7 +446,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                            style={{ color: 'var(--status-maintenance)', borderColor: 'rgba(220, 38, 38, 0.3)' }}
                             onClick={() => setShowIncidentReport(true)}
                         >
                             🚨 Signaler incident

@@ -1,5 +1,47 @@
 # Changelog
 
+## [4.9.3] — 13 août 2026
+
+### 🐛 Corrections
+
+- **Lisibilité en mode sombre** — plusieurs éléments d'interface (badges de statut, indicateurs, cartes de statistiques) utilisaient des couleurs fixes qui pouvaient devenir peu lisibles en mode sombre. Corrigé sur l'ensemble de l'application.
+
+## [4.9.2] — 13 août 2026
+
+### 🐛 Corrections
+
+- **Export des statistiques (PDF/CSV)** — l'export échouait parfois de façon intermittente en production ("fichier non trouvé"). Corrigé, l'export est désormais fiable à chaque fois.
+
+## [4.9.1] — 12 août 2026
+
+### 🐛 Corrections
+
+- **Modification des intervalles de révision d'un véhicule** — l'enregistrement échouait systématiquement ("Véhicule non trouvé"). Corrigé.
+- **Page Inventaire** — changer rapidement de stock pouvait afficher les articles du stock précédemment sélectionné au lieu du bon. Corrigé.
+- **Badge carburant Diesel illisible en mode sombre** — corrigé.
+- **Notifications (toasts) qui se coupaient** — deux notifications rapprochées pouvaient se tronquer l'une l'autre. Corrigé.
+- **Mode démo** — le bouton "Réinitialiser" ne restaurait pas toujours correctement les données d'origine. Corrigé.
+- **Vérification quotidienne du kilométrage** — la tâche automatique échouait dès qu'un véhicule connecté était en maintenance, empêchant les alertes de fonctionner pour toute la flotte ce jour-là. Corrigé.
+
+### ♿ Accessibilité
+
+- **Fenêtres modales** (prise/retour de véhicule, désinfection, incidents, maintenance) — le contenu était partiellement inaccessible aux lecteurs d'écran. Corrigé sur l'ensemble de l'application.
+- Les fenêtres modales peuvent désormais être fermées avec la touche **Échap**.
+
+### 🛠️ Fiabilité
+
+- **Écran de récupération en cas d'erreur inattendue** — un bouton "Réessayer" s'affiche désormais au lieu d'une page blanche.
+
+## [4.9.0] — 11 août 2026
+
+### 🔒 Sécurité
+
+- **Isolation entre Unités Locales renforcée** — plusieurs écrans (calendrier des véhicules, fiche véhicule, désinfections, incidents, télémétrie Renault) pouvaient exposer ou permettre de modifier des données d'une autre Unité Locale. Corrigé.
+- **Accès aux photos et justificatifs Google Drive restreint** — un utilisateur ne peut désormais accéder qu'aux photos/justificatifs de ses propres trajets, incidents ou notes de frais.
+- **Comptes nouvellement créés sans rôle attribué** — pouvaient auparavant accéder à certaines fonctionnalités réservées. L'accès est désormais bloqué tant qu'aucun rôle n'est attribué.
+- **Exports PDF de notes de frais et d'incidents** — sécurisés avec le même contrôle d'accès que leurs équivalents à l'écran.
+- **Actions administratives destructrices** — un administrateur local ne peut plus modifier ou supprimer des véhicules, trajets ou maintenances d'une autre Unité Locale.
+
 ## [4.8.1] — 4 août 2026
 
 ### 🐛 Correctifs

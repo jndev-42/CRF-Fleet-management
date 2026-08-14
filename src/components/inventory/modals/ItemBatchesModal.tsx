@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { isAdminOrAbove } from '@/lib/roles';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface Batch {
     id: string;
@@ -18,6 +19,7 @@ interface ItemBatchesModalProps {
 }
 
 export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDeleted }: ItemBatchesModalProps) {
+    useEscapeKey(onClose);
     const { data: session } = useSession();
     const isAdmin = isAdminOrAbove((session?.user?.roles ?? []) as string[]);
 
@@ -182,7 +184,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                                     <td style={{ padding: '8px' }}>
                                                         <span style={{
                                                             fontWeight: expired ? 600 : 400,
-                                                            color: expired ? '#dc2626' : undefined,
+                                                            color: expired ? 'var(--status-maintenance)' : undefined,
                                                         }}>
                                                             {formatDate(batch.expiryDate)}
                                                             {expired && ' ⚠️ Périmé'}
@@ -293,8 +295,8 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                                                     disabled={deleting[batch.id]}
                                                                     style={{
                                                                         background: 'none',
-                                                                        border: '1px solid #dc2626',
-                                                                        color: '#dc2626',
+                                                                        border: '1px solid var(--status-maintenance)',
+                                                                        color: 'var(--status-maintenance)',
                                                                         borderRadius: '6px',
                                                                         padding: '3px 10px',
                                                                         fontSize: '0.8rem',

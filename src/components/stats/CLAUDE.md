@@ -24,10 +24,15 @@ Logic lives in `src/__tests__/unit/fun-factor.test.ts` — keep it tested.
 
 ## Export modals
 - `ExportModal` — date range picker (type="date" only, no time), triggers CSV or PDF
-- `ExportReadyModal` — shown when CSV is ready
-- `PdfReadyModal` — shown when PDF job is ready (polls GET /api/stats/pdf?jobId=xxx)
+- `ExportReadyModal` — shown when the file is ready (CSV or PDF), unified for both
 
-PDF generation uses a job pattern: POST → get jobId → poll GET → stream buffer.
+CSV/PDF export is a single synchronous request: `POST` generates the file and returns it
+directly as the response body (no job store, no polling `GET`) — this was H1 in the audit
+(`docs/code-review-2026-08-11.md`): an in-memory `Map` keyed by `jobId` broke on Vercel
+serverless whenever `POST` and the polling `GET` landed on different lambda instances.
+The client turns the response into a `Blob` (`res.blob()` → `URL.createObjectURL`) and
+triggers the download via a temporary `<a download>` click when the user confirms in
+`ExportReadyModal` — revoke the object URL on modal close to avoid leaking memory.
 `StatsPdfDocument.tsx` is a `@react-pdf/renderer` template — it runs client-side, no Node.js APIs.
 
 ## Size rule

@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
+import { isSuperAdmin } from '@/lib/roles';
 import type { DesinfectionRecord } from '@/app/vehicles/[id]/types';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 /**
  * GET /api/vehicles/[id]/desinfections
@@ -18,18 +20,22 @@ export async function GET(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { id } = await params;
 
         // Résoudre l'UUID du véhicule à partir de son nom et récupérer son type
         const vehicleResult = await db.execute({
-            sql: `SELECT id, type, desinfTracking FROM "Vehicle" WHERE name = ?`,
+            sql: `SELECT id, type, desinfTracking, ulId FROM "Vehicle" WHERE name = ?`,
             args: [id],
         });
 
         if (vehicleResult.rows.length === 0) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
+        }
+
+        if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== vehicleResult.rows[0].ulId) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 

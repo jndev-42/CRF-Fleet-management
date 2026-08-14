@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import crypto from 'crypto';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 const expenseReportSchema = z.object({
     status: z.enum(['brouillon', 'soumis']),
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { searchParams } = new URL(request.url);
@@ -183,7 +184,7 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const body = await request.json();

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 export async function GET(
     _request: Request,
@@ -10,7 +11,7 @@ export async function GET(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { id } = await params;

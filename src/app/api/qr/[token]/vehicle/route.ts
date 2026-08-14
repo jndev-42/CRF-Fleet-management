@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isInactive } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 /**
  * GET /api/qr/[token]/vehicle
@@ -16,12 +17,12 @@ export async function GET(
 ) {
     const session = await auth();
     if (!session?.user) {
-        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     // Block inactive users
     if (isInactive(session.user.roles || [])) {
-        return NextResponse.json({ error: 'Compte inactif' }, { status: 403 });
+        return forbiddenResponse('Compte inactif');
     }
 
     const { token } = await params;

@@ -2,25 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { z } from 'zod';
-import crypto from 'crypto';
-
-declare global {
-    var __csvJobs: Map<string, { buffer: Buffer; createdAt: number }> | undefined;
-}
-
-function getJobsMap(): Map<string, { buffer: Buffer; createdAt: number }> {
-    if (!global.__csvJobs) global.__csvJobs = new Map();
-    return global.__csvJobs;
-}
-
-function cleanupOldJobs() {
-    const jobs = getJobsMap();
-    const tenMinutes = 10 * 60 * 1000;
-    const now = Date.now();
-    for (const [id, job] of jobs.entries()) {
-        if (now - job.createdAt > tenMinutes) jobs.delete(id);
-    }
-}
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 function csvEscape(value: unknown): string {
     const str = value == null ? '' : String(value);
@@ -49,12 +31,12 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
         if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
-            return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
@@ -136,51 +118,16 @@ export async function POST(request: Request) {
         const csv = [headers.map(csvEscape).join(','), ...rows].join('\n');
         const buffer = Buffer.from('\uFEFF' + csv, 'utf-8');
 
-        cleanupOldJobs();
-        const jobId = crypto.randomUUID();
-        getJobsMap().set(jobId, { buffer, createdAt: Date.now() });
-
-        return NextResponse.json({ jobId, status: 'ready' });
-    } catch (error) {
-        console.error('[POST /api/stats/csv]', error);
-        return NextResponse.json({ error: 'Erreur lors de la génération du CSV' }, { status: 500 });
-    }
-}
-
-export async function GET(request: Request) {
-    try {
-        const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-        }
-
-        const roles = (session.user.roles || ['INACTIF']) as string[];
-        if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
-            return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
-        }
-
-        const { searchParams } = new URL(request.url);
-        const jobId = searchParams.get('jobId');
-        if (!jobId) return NextResponse.json({ error: 'jobId manquant' }, { status: 400 });
-
-        // Validate jobId format to prevent enumeration attacks
-        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(jobId)) {
-            return NextResponse.json({ error: 'jobId invalide' }, { status: 400 });
-        }
-
-        const job = getJobsMap().get(jobId);
-        if (!job) return NextResponse.json({ error: 'Export non trouvé ou expiré' }, { status: 404 });
-
-        return new NextResponse(new Uint8Array(job.buffer), {
+        return new NextResponse(new Uint8Array(buffer), {
             status: 200,
             headers: {
                 'Content-Type': 'text/csv; charset=utf-8',
                 'Content-Disposition': `attachment; filename="trips-martine.csv"`,
-                'Content-Length': String(job.buffer.length),
+                'Content-Length': String(buffer.length),
             },
         });
     } catch (error) {
-        console.error('[GET /api/stats/csv]', error);
-        return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+        console.error('[POST /api/stats/csv]', error);
+        return NextResponse.json({ error: 'Erreur lors de la génération du CSV' }, { status: 500 });
     }
 }

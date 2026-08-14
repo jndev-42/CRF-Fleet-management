@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 /** PATCH /api/users/[email]/validate-papers
  *
@@ -20,13 +21,13 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = session.user.roles || [];
         const canValidate = canAccessAdminPanel(roles);
         if (!canValidate) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { email: userId } = await params;

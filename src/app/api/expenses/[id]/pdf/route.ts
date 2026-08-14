@@ -7,6 +7,7 @@ import ExpensePdfDocument from '@/components/expenses/ExpensePdfDocument';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 
 
@@ -89,8 +90,25 @@ export async function GET(
     try {
         const { id } = await params;
         const session = await auth();
-        if (!session?.user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+        if (!session?.user?.id) {
+            return unauthorizedResponse();
+        }
+
+        const ownershipRes = await db.execute({
+            sql: `SELECT userId, status FROM "ExpenseReport" WHERE id = ?`,
+            args: [id],
+        });
+        const ownershipRow = ownershipRes.rows[0];
+        if (!ownershipRow) {
+            return NextResponse.json({ error: 'Note de frais non trouvée' }, { status: 404 });
+        }
+
+        const roles = session.user.roles || [];
+        const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
+        const isTresorier = roles.includes('TRESORIER');
+        const isOwner = ownershipRow.userId === session.user.id;
+        if (!isManager && !isOwner && !(isTresorier && ownershipRow.status === 'en_attente_paiement')) {
+            return forbiddenResponse();
         }
 
         const buffer = await generateExpensePdf(id);

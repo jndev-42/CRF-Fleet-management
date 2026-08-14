@@ -139,16 +139,16 @@ export class DemoDB {
         if (stored) {
             const data = JSON.parse(stored);
             // Ensure newly added fields exist for existing demo databases
-            if (!data.missions) data.missions = INITIAL_MISSIONS;
+            if (!data.missions) data.missions = structuredClone(INITIAL_MISSIONS);
             if (!data.maintenance) data.maintenance = [];
             return data;
         }
         
         const initial: DemoData = {
-            vehicles: INITIAL_VEHICLES,
+            vehicles: structuredClone(INITIAL_VEHICLES),
             trips: [],
-            users: INITIAL_USERS,
-            missions: INITIAL_MISSIONS,
+            users: structuredClone(INITIAL_USERS),
+            missions: structuredClone(INITIAL_MISSIONS),
             maintenance: []
         };
         this.saveData(initial);

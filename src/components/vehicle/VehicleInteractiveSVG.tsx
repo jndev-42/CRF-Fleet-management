@@ -45,7 +45,7 @@ export default function VehicleInteractiveSVG({
                     <path
                         key={zone.id}
                         d={zone.d}
-                        fill={selectedZones.includes(zone.id) ? '#EF4444' : 'var(--bg-card)'}
+                        fill={selectedZones.includes(zone.id) ? 'var(--status-maintenance)' : 'var(--bg-card)'}
                         stroke={selectedZones.includes(zone.id) ? '#B91C1C' : 'var(--border-primary)'}
                         strokeWidth="1"
                         onClick={() => onZoneClick(zone.id)}
@@ -66,9 +66,9 @@ export default function VehicleInteractiveSVG({
                             padding: '2px 6px',
                             borderRadius: 4,
                             border: '1px solid',
-                            borderColor: selectedZones.includes(zone.id) ? '#EF4444' : 'var(--border-primary)',
+                            borderColor: selectedZones.includes(zone.id) ? 'var(--status-maintenance)' : 'var(--border-primary)',
                             background: selectedZones.includes(zone.id) ? 'rgba(239, 68, 68, 0.1)' : 'var(--bg-card)',
-                            color: selectedZones.includes(zone.id) ? '#EF4444' : 'var(--text-secondary)',
+                            color: selectedZones.includes(zone.id) ? 'var(--status-maintenance)' : 'var(--text-secondary)',
                             cursor: 'pointer'
                         }}
                     >

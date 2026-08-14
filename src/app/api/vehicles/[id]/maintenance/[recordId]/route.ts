@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function DELETE(
     _request: Request,
@@ -10,24 +11,28 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = session.user.roles || ['INACTIF'];
         if (!isAdminOrAbove(roles)) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id, recordId } = await params;
 
         // Resolve vehicle by name to get its UUID
         const vehicleResult = await db.execute({
-            sql: `SELECT id FROM "Vehicle" WHERE name = ?`,
+            sql: `SELECT id, ulId FROM "Vehicle" WHERE name = ?`,
             args: [id],
         });
 
         if (vehicleResult.rows.length === 0) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
+        }
+
+        if (!isSuperAdmin(roles) && session.user.ulId !== vehicleResult.rows[0].ulId) {
+            return forbiddenResponse();
         }
 
         const vehicleId = vehicleResult.rows[0].id as string;

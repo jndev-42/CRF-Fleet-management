@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -68,7 +68,6 @@ export default function StatsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState<'csv' | 'pdf' | null>(null);
-  const [exportJobId, setExportJobId] = useState<string | null>(null);
   const [exportReadyType, setExportReadyType] = useState<'csv' | 'pdf' | null>(null);
   const [exportingCsv, setExportingCsv] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -118,8 +117,13 @@ export default function StatsPage() {
     }).catch((err) => console.error('Failed to load filter options', err));
   }, [status]);
 
+  const fetchStatsAbortRef = useRef<AbortController | null>(null);
+
   const fetchStats = useCallback(async () => {
     if (rangeError) return;
+    fetchStatsAbortRef.current?.abort();
+    const controller = new AbortController();
+    fetchStatsAbortRef.current = controller;
     setLoading(true);
     setError(null);
     try {
@@ -131,7 +135,7 @@ export default function StatsPage() {
       if (driverIds.length > 0) params.set('driverId', driverIds.join(','));
       if (missionType) params.set('missionType', missionType);
 
-      const res = await fetch(`/api/stats?${params.toString()}`);
+      const res = await fetch(`/api/stats?${params.toString()}`, { signal: controller.signal });
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? 'Erreur lors du chargement des statistiques');
@@ -140,11 +144,12 @@ export default function StatsPage() {
         setData(json.data);
       }
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') return;
       console.error(err);
       setError('Erreur réseau');
       setData(null);
     } finally {
-      setLoading(false);
+      if (fetchStatsAbortRef.current === controller) setLoading(false);
     }
   }, [dateFrom, dateTo, vehicleId, driverIds, missionType, rangeError]);
 
@@ -152,15 +157,23 @@ export default function StatsPage() {
     if (status === 'authenticated' && activeTab === 'vehicles') {
       fetchStats();
     }
+    return () => fetchStatsAbortRef.current?.abort();
   }, [status, fetchStats, activeTab]);
 
   const [exportDownloadUrl, setExportDownloadUrl] = useState<string | undefined>(undefined);
+  const [exportFilename, setExportFilename] = useState<string | undefined>(undefined);
+
+  function extractFilename(res: Response, fallback: string): string {
+    const disposition = res.headers.get('Content-Disposition') || '';
+    const match = disposition.match(/filename="([^"]+)"/);
+    return match ? match[1] : fallback;
+  }
 
   async function handleExportCSV(from: string, to: string) {
     setShowExportModal(null);
     setExportingCsv(true);
-    setExportJobId(null);
     setExportReadyType(null);
+    if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
     setExportDownloadUrl(undefined);
     try {
       const endpoint = activeTab === 'expenses' ? '/api/stats/expenses/csv' : '/api/stats/csv';
@@ -169,15 +182,15 @@ export default function StatsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dateFrom: from, dateTo: to }),
       });
-      const json = await res.json();
       if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
         alert(json.error ?? 'Erreur lors de la génération du CSV');
         return;
       }
-      setExportJobId(json.jobId);
-      if (activeTab === 'expenses') {
-        setExportDownloadUrl(`/api/stats/expenses/csv?jobId=${encodeURIComponent(json.jobId)}`);
-      }
+      const filename = extractFilename(res, activeTab === 'expenses' ? 'notes-de-frais-martine.csv' : 'trips-martine.csv');
+      const blob = await res.blob();
+      setExportDownloadUrl(URL.createObjectURL(blob));
+      setExportFilename(filename);
       setExportReadyType('csv');
     } catch (err) {
       console.error(err);
@@ -190,8 +203,8 @@ export default function StatsPage() {
   async function handleExportPDF(from: string, to: string) {
     setShowExportModal(null);
     setExportingPdf(true);
-    setExportJobId(null);
     setExportReadyType(null);
+    if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
     setExportDownloadUrl(undefined);
     try {
       const endpoint = activeTab === 'expenses' ? '/api/stats/expenses/pdf' : '/api/stats/pdf';
@@ -200,15 +213,15 @@ export default function StatsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dateFrom: from, dateTo: to }),
       });
-      const json = await res.json();
       if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
         alert(json.error ?? 'Erreur lors de la génération du PDF');
         return;
       }
-      setExportJobId(json.jobId);
-      if (activeTab === 'expenses') {
-        setExportDownloadUrl(`/api/stats/expenses/pdf?jobId=${encodeURIComponent(json.jobId)}`);
-      }
+      const filename = extractFilename(res, activeTab === 'expenses' ? 'stats-notes-de-frais-martine.pdf' : 'stats-martine.pdf');
+      const blob = await res.blob();
+      setExportDownloadUrl(URL.createObjectURL(blob));
+      setExportFilename(filename);
       setExportReadyType('pdf');
     } catch (err) {
       console.error(err);
@@ -261,7 +274,7 @@ export default function StatsPage() {
             fontSize: '0.875rem',
             fontWeight: 600,
             cursor: 'pointer',
-            background: activeTab === 'vehicles' ? 'var(--red-primary, #ef4444)' : 'var(--bg-secondary)',
+            background: activeTab === 'vehicles' ? 'var(--crf-red)' : 'var(--bg-secondary)',
             color: activeTab === 'vehicles' ? '#ffffff' : 'var(--text-secondary)',
             transition: 'all 0.2s ease',
             display: 'inline-flex',
@@ -283,7 +296,7 @@ export default function StatsPage() {
               fontSize: '0.875rem',
               fontWeight: 600,
               cursor: 'pointer',
-              background: activeTab === 'expenses' ? 'var(--red-primary, #ef4444)' : 'var(--bg-secondary)',
+              background: activeTab === 'expenses' ? 'var(--crf-red)' : 'var(--bg-secondary)',
               color: activeTab === 'expenses' ? '#ffffff' : 'var(--text-secondary)',
               transition: 'all 0.2s ease',
               display: 'inline-flex',
@@ -462,15 +475,16 @@ export default function StatsPage() {
       )}
 
       {/* Export ready modal (CSV or PDF) */}
-      {exportReadyType && exportJobId && (
+      {exportReadyType && exportDownloadUrl && exportFilename && (
         <ExportReadyModal
           type={exportReadyType}
-          jobId={exportJobId}
           downloadUrl={exportDownloadUrl}
+          filename={exportFilename}
           onClose={() => {
             setExportReadyType(null);
-            setExportJobId(null);
+            URL.revokeObjectURL(exportDownloadUrl);
             setExportDownloadUrl(undefined);
+            setExportFilename(undefined);
           }}
         />
       )}

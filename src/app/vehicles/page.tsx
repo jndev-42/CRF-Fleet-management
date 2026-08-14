@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { RenaultVehicleData } from '@/lib/renault';
+import type { RenaultVehicleData } from '@/lib/renault';
 import { DashboardSkeletons } from '@/components/ui/Skeleton';
 import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
 import VehicleCalendar from '@/components/vehicle/VehicleCalendar';
@@ -303,15 +303,15 @@ export default function VehiclesPage() {
                 )}
 
                 {vehicle.hasDSA && (
-                  <div style={{ fontSize: 12, color: '#22C55E', marginBottom: 8, fontWeight: 600 }}>🫀 DSA</div>
+                  <div style={{ fontSize: 12, color: 'var(--status-available)', marginBottom: 8, fontWeight: 600 }}>🫀 DSA</div>
                 )}
 
                 {vehicle.fuelType === 'Électrique' ? (
                   <div style={{ fontSize: 12, color: '#3B82F6', marginBottom: 8, fontWeight: 600 }}>⚡ Électrique</div>
                 ) : vehicle.fuelType === 'Diesel' ? (
-                  <div style={{ fontSize: 12, color: '#374151', marginBottom: 8, fontWeight: 600 }}>⛽ Diesel</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 600 }}>⛽ Diesel</div>
                 ) : vehicle.fuelType === 'Essence' ? (
-                  <div style={{ fontSize: 12, color: '#F97316', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
+                  <div style={{ fontSize: 12, color: 'var(--status-inuse)', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
                 ) : null}
 
                 <div className="vehicle-meta">
@@ -347,7 +347,7 @@ export default function VehiclesPage() {
                     return (
                       <div className="fuel-bar-container" {...(isFirstVehicle ? { 'data-tour': 'fuel-bar' } : {})}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span className="meta-label" style={{ color: isElec ? '#2563EB' : '#EA580C', fontWeight: 600 }}>{label}</span>
+                          <span className="meta-label" style={{ color: isElec ? '#2563EB' : 'var(--status-inuse)', fontWeight: 600 }}>{label}</span>
                           <span className="meta-label" style={{ fontWeight: 600 }}>{displayVal}</span>
                         </div>
                         <div className="fuel-bar">

@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, canAssignRole, resolveRoles, isSuperAdmin } from '@/lib/roles';
+import { forbiddenResponse } from '@/lib/apiAuth';
+
+const updateRolesSchema = z.object({
+    roles: z.array(z.string()),
+});
 
 export async function PATCH(
     request: Request,
@@ -11,15 +17,20 @@ export async function PATCH(
         const session = await auth();
         const actorRoles = session?.user?.roles || [];
         if (!isAdminOrAbove(actorRoles)) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
-        const { roles } = body;
-
-        if (!Array.isArray(roles)) {
-            return NextResponse.json({ error: 'Format invalide' }, { status: 400 });
+        let parsed: z.infer<typeof updateRolesSchema>;
+        try {
+            parsed = updateRolesSchema.parse(body);
+        } catch (zodErr) {
+            if (zodErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Format invalide', details: zodErr.issues }, { status: 400 });
+            }
+            throw zodErr;
         }
+        const { roles } = parsed;
 
         const { email: emailParam } = await params;
         const email = decodeURIComponent(emailParam);
@@ -49,7 +60,7 @@ export async function PATCH(
                 const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
                 if (userHomeUlId && userHomeUlId !== actorUlId) {
                     await tx.rollback();
-                    return NextResponse.json({ error: "Un administrateur local ne peut modifier les rôles globaux d'un utilisateur appartenant à une autre Unité Locale." }, { status: 403 });
+                    return forbiddenResponse("Un administrateur local ne peut modifier les rôles globaux d'un utilisateur appartenant à une autre Unité Locale.");
                 }
             }
 
@@ -64,24 +75,25 @@ export async function PATCH(
             for (const roleName of resolvedRoles) {
                 if (!canAssignRole(actorRoles, roleName)) {
                     await tx.rollback();
-                    return NextResponse.json(
-                        { error: `Seul un Super Administrateur peut attribuer le rôle "${roleName}"` },
-                        { status: 403 }
-                    );
+                    return forbiddenResponse(`Seul un Super Administrateur peut attribuer le rôle "${roleName}"`);
                 }
             }
-            for (const roleName of resolvedRoles) {
-                const roleRes = await tx.execute({
-                    sql: 'SELECT id FROM "Role" WHERE name = ?',
-                    args: [roleName]
+            if (resolvedRoles.length > 0) {
+                const placeholders = resolvedRoles.map(() => '?').join(', ');
+                const rolesRes = await tx.execute({
+                    sql: `SELECT id, name FROM "Role" WHERE name IN (${placeholders})`,
+                    args: resolvedRoles,
                 });
+                const roleIdByName = new Map(rolesRes.rows.map(r => [r.name as string, r.id]));
 
-                if (roleRes.rows.length > 0) {
-                    const roleId = roleRes.rows[0].id;
-                    await tx.execute({
-                        sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
-                        args: [userId, roleId]
-                    });
+                for (const roleName of resolvedRoles) {
+                    const roleId = roleIdByName.get(roleName);
+                    if (roleId) {
+                        await tx.execute({
+                            sql: 'INSERT INTO "UserRole" (userId, roleId) VALUES (?, ?)',
+                            args: [userId, roleId]
+                        });
+                    }
                 }
             }
 
@@ -120,7 +132,7 @@ export async function DELETE(
         const session = await auth();
         const actorRoles = session?.user?.roles || [];
         if (!isAdminOrAbove(actorRoles)) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { email: emailParam } = await params;
@@ -151,7 +163,7 @@ export async function DELETE(
                 const userHomeUlId = userHomeUlRes.rows[0]?.ulId as string | undefined;
                 if (userHomeUlId && userHomeUlId !== actorUlId) {
                     await tx.rollback();
-                    return NextResponse.json({ error: "Un administrateur local ne peut supprimer qu'un utilisateur appartenant à sa propre Unité Locale." }, { status: 403 });
+                    return forbiddenResponse("Un administrateur local ne peut supprimer qu'un utilisateur appartenant à sa propre Unité Locale.");
                 }
             }
 

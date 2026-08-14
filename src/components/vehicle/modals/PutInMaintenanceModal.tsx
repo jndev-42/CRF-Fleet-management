@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface PutInMaintenanceModalProps {
   vehicleName: string;
@@ -15,6 +16,7 @@ export default function PutInMaintenanceModal({
   onSuccess,
   showToast,
 }: PutInMaintenanceModalProps) {
+    useEscapeKey(onClose);
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, '0');
   const todayDateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
@@ -144,7 +146,7 @@ export default function PutInMaintenanceModal({
           {/* Start Date & Time */}
           <div>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.375rem' }}>
-              Début de la maintenance <span style={{ color: '#EF4444' }}>*</span>
+              Début de la maintenance <span style={{ color: 'var(--status-maintenance)' }}>*</span>
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 85px 85px', gap: '0.5rem', alignItems: 'center' }}>
               <input
@@ -269,7 +271,7 @@ export default function PutInMaintenanceModal({
           {/* Reason */}
           <div>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.375rem' }}>
-              Raison / Motif de la maintenance <span style={{ color: '#EF4444' }}>*</span>
+              Raison / Motif de la maintenance <span style={{ color: 'var(--status-maintenance)' }}>*</span>
             </label>
             <textarea
               className="form-input"

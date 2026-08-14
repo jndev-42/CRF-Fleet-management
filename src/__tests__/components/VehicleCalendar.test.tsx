@@ -11,8 +11,18 @@ beforeEach(() => {
   vi.restoreAllMocks();
 });
 
+// VehicleCalendar affiche le mois courant par défaut (Date réelle, non mockable
+// sans risque de casser waitFor) — les dates de la réservation doivent donc rester
+// dans le mois en cours pour que le filtrage par jour de la grille les inclue.
+// Contrairement aux emprunts en cours / maintenances (isOngoing / isEndDateUnknown),
+// qui restent visibles jusqu'à "aujourd'hui" quel que soit le mois affiché.
+const now = new Date();
+const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+const reservationDay = new Date(now.getFullYear(), now.getMonth(), 10, 10, 0, 0);
+const reservationDayEnd = new Date(now.getFullYear(), now.getMonth(), 10, 18, 0, 0);
+
 const mockCalendarData = {
-  month: '2026-07',
+  month: currentMonthStr,
   vehicles: [
     { id: 'v-1', name: 'VSAV 01', plate: 'AB-123-CD', type: 'VPSP', status: 'AVAILABLE' },
   ],
@@ -24,11 +34,11 @@ const mockCalendarData = {
       vehiclePlate: 'AB-123-CD',
       userEmail: 'jean@crf.fr',
       userName: 'Jean Dupont',
-      startTime: '2026-07-10T10:00:00.000Z',
-      endTime: '2026-07-10T18:00:00.000Z',
+      startTime: reservationDay.toISOString(),
+      endTime: reservationDayEnd.toISOString(),
       reason: 'Urgence sanitaire',
       status: 'VALIDATED',
-      createdAt: '2026-07-01T00:00:00.000Z',
+      createdAt: reservationDay.toISOString(),
     },
   ],
   trips: [

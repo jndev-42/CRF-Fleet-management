@@ -5,12 +5,13 @@ import { getErrorMessage } from '@/lib/utils/error';
 import type { InValue } from '@libsql/client';
 import { isAdminOrAbove } from '@/lib/roles';
 import { getOrCreateDefaultStock } from '@/lib/inventory/stocks';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { searchParams } = new URL(request.url);
@@ -94,12 +95,12 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
         if (!isAdminOrAbove(userRoles)) {
-            return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
@@ -150,12 +151,12 @@ export async function PATCH(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
         if (!isAdminOrAbove(userRoles)) {
-            return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
@@ -191,12 +192,12 @@ export async function DELETE(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
         if (!isAdminOrAbove(userRoles)) {
-            return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { searchParams } = new URL(request.url);

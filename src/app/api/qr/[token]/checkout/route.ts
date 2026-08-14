@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isInactive } from '@/lib/roles';
 import { getRenaultVehicleData } from '@/lib/renault';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 /**
  * POST /api/qr/[token]/checkout
@@ -33,11 +34,11 @@ export async function POST(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         if (isInactive(session.user.roles || [])) {
-            return NextResponse.json({ error: 'Compte inactif — accès refusé' }, { status: 403 });
+            return forbiddenResponse('Compte inactif — accès refusé');
         }
 
         const { token } = await params;

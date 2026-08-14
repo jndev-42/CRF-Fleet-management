@@ -2,6 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 
+// jsdom ne déclenche jamais onload/onerror sur un <img> chargé depuis un blob: URL,
+// ce qui bloquerait indéfiniment la Promise de compression réelle (voir imageCompression.ts).
+// On mocke le module pour isoler la logique de validation de taille de PhotoPicker,
+// qui est ce que ces tests vérifient réellement.
+vi.mock('@/lib/imageCompression', () => ({
+    compressImage: vi.fn((f: File) => Promise.resolve(f)),
+    compressImages: vi.fn((files: File[]) => Promise.resolve(files)),
+}));
+
 describe('PhotoPicker — validation des tailles et limites', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
@@ -16,7 +25,7 @@ describe('PhotoPicker — validation des tailles et limites', () => {
         expect(screen.getByText(/Taille totale : 5\.0 Mo \/ 150 Mo/i)).toBeTruthy();
     });
 
-    it('refuse un fichier individuel qui dépasse 15 Mo', () => {
+    it('refuse un fichier individuel qui dépasse 15 Mo', async () => {
         const onPhotosChange = vi.fn();
         const { container } = render(
             <PhotoPicker
@@ -35,11 +44,11 @@ describe('PhotoPicker — validation des tailles et limites', () => {
 
         fireEvent.change(input, { target: { files: [bigFile] } });
 
+        expect(await screen.findByText(/dépasse 15 Mo/i)).toBeTruthy();
         expect(onPhotosChange).not.toHaveBeenCalled();
-        expect(screen.getByText(/dépasse 15 Mo/i)).toBeTruthy();
     });
 
-    it('refuse d\'ajouter des fichiers si la taille totale dépasse 150 Mo', () => {
+    it('refuse d\'ajouter des fichiers si la taille totale dépasse 150 Mo', async () => {
         const onPhotosChange = vi.fn();
 
         // Simulate 145 MB already selected
@@ -63,11 +72,11 @@ describe('PhotoPicker — validation des tailles et limites', () => {
 
         fireEvent.change(input, { target: { files: [new8MBFile] } });
 
+        expect(await screen.findByText(/dépasse la limite totale de 150 Mo/i)).toBeTruthy();
         expect(onPhotosChange).not.toHaveBeenCalled();
-        expect(screen.getByText(/dépasse la limite totale de 150 Mo/i)).toBeTruthy();
     });
 
-    it('accepte les fichiers valides en dessous des limites sans restreindre le nombre de fichiers', () => {
+    it('accepte les fichiers valides en dessous des limites sans restreindre le nombre de fichiers', async () => {
         const onPhotosChange = vi.fn();
         const { container } = render(
             <PhotoPicker
@@ -88,11 +97,11 @@ describe('PhotoPicker — validation des tailles et limites', () => {
 
         fireEvent.change(input, { target: { files } });
 
-        expect(onPhotosChange).toHaveBeenCalledWith(files);
+        await vi.waitFor(() => expect(onPhotosChange).toHaveBeenCalledWith(files));
         expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    it('en mode single file, refuse un fichier de plus de 15 Mo', () => {
+    it('en mode single file, refuse un fichier de plus de 15 Mo', async () => {
         const onFileChange = vi.fn();
         const { container } = render(
             <PhotoPicker
@@ -108,7 +117,7 @@ describe('PhotoPicker — validation des tailles et limites', () => {
 
         fireEvent.change(input, { target: { files: [bigFile] } });
 
+        expect(await screen.findByText(/dépasse la limite de 15 Mo/i)).toBeTruthy();
         expect(onFileChange).not.toHaveBeenCalled();
-        expect(screen.getByText(/dépasse la limite de 15 Mo/i)).toBeTruthy();
     });
 });

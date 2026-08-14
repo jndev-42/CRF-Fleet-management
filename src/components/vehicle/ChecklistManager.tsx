@@ -238,7 +238,7 @@ export default function ChecklistManager({ vehicleId, vehicleName, onClose }: Ch
                                             <button
                                                 onClick={() => handleDeleteItem(item.id)}
                                                 style={{
-                                                    background: 'none', border: 'none', color: '#EF4444',
+                                                    background: 'none', border: 'none', color: 'var(--status-maintenance)',
                                                     cursor: 'pointer', padding: 4, opacity: 0.7
                                                 }}
                                                 onMouseOver={e => e.currentTarget.style.opacity = '1'}

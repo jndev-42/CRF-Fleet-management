@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface PhoneNum {
     label: string;
@@ -27,6 +27,7 @@ export default function ULsTab({
     const [uls, setUls] = useState<UL[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,8 +41,9 @@ export default function ULsTab({
     const [submitting, setSubmitting] = useState(false);
 
     function showToast(message: string, type: 'success' | 'error' = 'success') {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
         setToast({ message, type });
-        setTimeout(() => setToast(null), 4000);
+        toastTimerRef.current = setTimeout(() => setToast(null), 4000);
     }
 
     async function fetchULs() {

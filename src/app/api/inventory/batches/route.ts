@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+
+const adjustBatchSchema = z.object({
+    batchId: z.string().min(1),
+    change: z.number(),
+});
 
 export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { searchParams } = new URL(request.url);
@@ -47,12 +54,12 @@ export async function DELETE(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
         if (!isAdminOrAbove(userRoles)) {
-            return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { searchParams } = new URL(request.url);
@@ -117,20 +124,25 @@ export async function PATCH(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
         if (!isAdminOrAbove(userRoles)) {
-            return NextResponse.json({ error: 'Permissions insuffisantes' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
-        const { batchId, change } = body;
-
-        if (!batchId || typeof change !== 'number') {
-            return NextResponse.json({ error: 'Données invalides' }, { status: 400 });
+        let parsed: z.infer<typeof adjustBatchSchema>;
+        try {
+            parsed = adjustBatchSchema.parse(body);
+        } catch (zodErr) {
+            if (zodErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Données invalides', details: zodErr.issues }, { status: 400 });
+            }
+            throw zodErr;
         }
+        const { batchId, change } = parsed;
 
         // Récupérer le lot pour connaître l'itemId, la quantité et la date de péremption
         const batchRes = await db.execute({

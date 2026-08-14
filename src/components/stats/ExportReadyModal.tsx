@@ -1,9 +1,11 @@
 'use client';
 
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+
 interface ExportReadyModalProps {
   type: 'csv' | 'pdf';
-  jobId: string;
-  downloadUrl?: string;
+  downloadUrl: string;
+  filename: string;
   onClose: () => void;
 }
 
@@ -13,23 +15,28 @@ const config = {
     title: 'Votre CSV est prêt !',
     description: 'Le fichier a été généré avec succès.\nCliquez pour le télécharger.',
     label: 'Télécharger le CSV',
-    url: (jobId: string) => `/api/stats/csv?jobId=${encodeURIComponent(jobId)}`,
   },
   pdf: {
     icon: '✅',
     title: 'Votre PDF est prêt !',
     description: 'Le rapport a été généré avec succès.\nCliquez pour le télécharger.',
     label: 'Télécharger le PDF',
-    url: (jobId: string) => `/api/stats/pdf?jobId=${encodeURIComponent(jobId)}`,
   },
 };
 
-export default function ExportReadyModal({ type, jobId, downloadUrl, onClose }: ExportReadyModalProps) {
+export default function ExportReadyModal({ type, downloadUrl, filename, onClose }: ExportReadyModalProps) {
+    useEscapeKey(onClose);
   const c = config[type];
 
   function handleDownload() {
-    const targetUrl = downloadUrl || c.url(jobId);
-    window.open(targetUrl, '_blank');
+    // Blob URL : window.open() ne préserve pas le nom de fichier —
+    // un <a download> déclenché par clic reste fiable cross-browser.
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     onClose();
   }
 

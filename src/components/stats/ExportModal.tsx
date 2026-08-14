@@ -1,5 +1,7 @@
 'use client';
 
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+
 interface ExportModalProps {
   type: 'csv' | 'pdf';
   defaultFrom: string;
@@ -9,6 +11,7 @@ interface ExportModalProps {
 }
 
 export default function ExportModal({ type, defaultFrom, defaultTo, onConfirm, onClose }: ExportModalProps) {
+    useEscapeKey(onClose);
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 380 }}>

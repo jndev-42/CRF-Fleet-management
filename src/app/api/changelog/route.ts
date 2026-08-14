@@ -1,9 +1,16 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
+import { auth } from '@/auth';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 export async function GET() {
     try {
+        const session = await auth();
+        if (!session?.user) {
+            return unauthorizedResponse();
+        }
+
         const changelogPath = path.join(process.cwd(), 'CHANGELOG.md');
         const content = fs.readFileSync(changelogPath, 'utf-8');
         return new NextResponse(content, {

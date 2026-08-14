@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel, isSuperAdmin } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const updateBannerSchema = z.object({
     title: z.string().optional().nullable(),
@@ -23,12 +24,12 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = (session.user.roles || []) as string[];
         if (!canAccessAdminPanel(roles)) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id } = await params;
@@ -48,7 +49,7 @@ export async function PATCH(
         // Non-super-admins can only modify banners belonging to their UL
         if (!isSuper) {
             if (existing.ul_id !== userUlId && existing.created_by !== session.user.id) {
-                return NextResponse.json({ error: 'Vous ne pouvez modifier que les bandeaux de votre Unité Locale.' }, { status: 403 });
+                return forbiddenResponse('Vous ne pouvez modifier que les bandeaux de votre Unité Locale.');
             }
         }
 
@@ -64,7 +65,7 @@ export async function PATCH(
         }
 
         if (!isSuper && data.is_global === true) {
-            return NextResponse.json({ error: 'Seuls les Super Administrateurs peuvent définir un bandeau global.' }, { status: 403 });
+            return forbiddenResponse('Seuls les Super Administrateurs peuvent définir un bandeau global.');
         }
 
         let newIsGlobal = existing.is_global;
@@ -150,12 +151,12 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = (session.user.roles || []) as string[];
         if (!canAccessAdminPanel(roles)) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id } = await params;
@@ -174,7 +175,7 @@ export async function DELETE(
 
         if (!isSuper) {
             if (existing.ul_id !== userUlId && existing.created_by !== session.user.id) {
-                return NextResponse.json({ error: 'Vous ne pouvez supprimer que les bandeaux de votre Unité Locale.' }, { status: 403 });
+                return forbiddenResponse('Vous ne pouvez supprimer que les bandeaux de votre Unité Locale.');
             }
         }
 

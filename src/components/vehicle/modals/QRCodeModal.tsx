@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { canAccessAdminPanel } from '@/lib/roles';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface QRCodeModalProps {
     onClose: () => void;
@@ -14,6 +15,7 @@ interface QRCodeModalProps {
 }
 
 export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles }: QRCodeModalProps) {
+    useEscapeKey(onClose);
     const [token, setToken] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles
 
     useEffect(() => {
         fetchToken();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchToken est redéfinie à chaque rendu ; seul vehicleId doit déclencher un refetch
     }, [vehicleId]);
 
     const downloadQRCode = () => {
@@ -119,13 +121,13 @@ export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles
                     <div style={{
                         padding: '12px 16px', marginBottom: 20,
                         background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)',
-                        borderRadius: 8, color: '#EF4444', fontSize: 13,
+                        borderRadius: 8, color: 'var(--error-text)', fontSize: 13,
                     }}>
                         {error}
                         <button
                             onClick={fetchToken}
                             style={{ marginLeft: 8, textDecoration: 'underline', cursor: 'pointer',
-                                background: 'none', border: 'none', color: '#EF4444', fontSize: 13 }}
+                                background: 'none', border: 'none', color: 'var(--error-text)', fontSize: 13 }}
                         >
                             Réessayer
                         </button>
@@ -183,7 +185,7 @@ export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles
                                 ...(copied ? {
                                     background: 'rgba(16,185,129,0.12)',
                                     borderColor: 'rgba(16,185,129,0.5)',
-                                    color: '#059669',
+                                    color: 'var(--status-available)',
                                 } : {}),
                             }}
                         >

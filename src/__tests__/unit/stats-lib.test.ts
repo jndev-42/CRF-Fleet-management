@@ -5,7 +5,7 @@
  * - fleetUtilizationRate: activeDays / periodDays * 100, capped at 100
  */
 import { describe, it, expect } from 'vitest';
-import { buildTripWhere } from '@/lib/stats';
+import { buildTripWhere } from '@/lib/stats-trips';
 
 describe('buildTripWhere', () => {
   it('returns base date clause with no filters', () => {

@@ -21,6 +21,42 @@ describe('UL default parking spots API (/api/ul)', () => {
     await db.execute(`DELETE FROM "UniteLocale"`);
   });
 
+  it('retourne 401 sans session (GET /api/ul)', async () => {
+    mockedAuth.mockResolvedValue(null as never);
+    const res = await GET();
+    expect(res.status).toBe(401);
+  });
+
+  it('retourne 403 pour un non-SUPER_ADMIN (POST /api/ul)', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { email: 'user@test.com', roles: ['ADMIN'] },
+    } as never);
+
+    const req = new Request('http://localhost/api/ul', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'UL Refused', slug: 'ul-refused' }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(403);
+  });
+
+  it('retourne 400 si le slug est invalide (POST /api/ul)', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] },
+    } as never);
+
+    const req = new Request('http://localhost/api/ul', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'UL Invalide', slug: 'Slug Invalide !' }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(400);
+  });
+
   it('crée une UL avec des emplacements de parking par défaut (POST /api/ul)', async () => {
     mockedAuth.mockResolvedValue({
       user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] },

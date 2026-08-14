@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface DeleteConfirmationModalProps {
     vehicle: Vehicle;
@@ -12,6 +13,7 @@ interface DeleteConfirmationModalProps {
  * and its trip history from the database.
  */
 export default function DeleteConfirmationModal({ vehicle, onClose, onSuccess }: DeleteConfirmationModalProps) {
+    useEscapeKey(onClose);
     const [confirmName, setConfirmName] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
@@ -42,7 +44,7 @@ export default function DeleteConfirmationModal({ vehicle, onClose, onSuccess }:
         <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
             <div className="modal" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2 className="modal-title" style={{ color: '#EF4444' }}>⚠️ Supprimer {vehicle.name}</h2>
+                    <h2 className="modal-title" style={{ color: 'var(--status-maintenance)' }}>⚠️ Supprimer {vehicle.name}</h2>
                     <button className="modal-close" onClick={onClose}>✕</button>
                 </div>
                 <form onSubmit={handleDelete}>
@@ -52,7 +54,7 @@ export default function DeleteConfirmationModal({ vehicle, onClose, onSuccess }:
                             Cette action supprimera également tout l&apos;historique de ses trajets ({vehicle.trips.length} trajets associés).
                         </p>
                         <div className="form-group">
-                            <label className="form-label" style={{ color: '#EF4444' }}>
+                            <label className="form-label" style={{ color: 'var(--status-maintenance)' }}>
                                 Veuillez taper <strong>{vehicle.name}</strong> pour confirmer :
                             </label>
                             <input
@@ -60,7 +62,7 @@ export default function DeleteConfirmationModal({ vehicle, onClose, onSuccess }:
                                 value={confirmName}
                                 onChange={(e) => setConfirmName(e.target.value)}
                                 placeholder={vehicle.name}
-                                style={{ borderColor: isMatch ? '#22C55E' : 'var(--border-primary)' }}
+                                style={{ borderColor: isMatch ? 'var(--status-available)' : 'var(--border-primary)' }}
                                 required
                             />
                         </div>
@@ -72,7 +74,7 @@ export default function DeleteConfirmationModal({ vehicle, onClose, onSuccess }:
                         <button
                             type="submit"
                             className="btn btn-primary"
-                            style={{ background: '#EF4444', opacity: (!isMatch || submitting) ? 0.5 : 1 }}
+                            style={{ background: 'var(--status-maintenance)', opacity: (!isMatch || submitting) ? 0.5 : 1 }}
                             disabled={!isMatch || submitting}
                         >
                             {submitting ? 'Suppression...' : 'Confirmer la suppression'}

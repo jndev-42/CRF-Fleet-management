@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { CheckCircle, ChevronDown } from 'lucide-react';
 import type { ConsoleLogEntry, NetworkLogEntry } from '@/lib/bugReportLogger';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface BugReportModalProps {
   consoleLogs: ConsoleLogEntry[];
@@ -11,6 +12,7 @@ interface BugReportModalProps {
 }
 
 export default function BugReportModal({ consoleLogs, networkLogs, onClose }: BugReportModalProps) {
+    useEscapeKey(onClose);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -62,7 +64,7 @@ export default function BugReportModal({ consoleLogs, networkLogs, onClose }: Bu
 
         {submitted ? (
           <div className="modal-body" style={{ textAlign: 'center', padding: '40px 24px' }}>
-            <CheckCircle size={48} style={{ color: '#22C55E', marginBottom: 16 }} />
+            <CheckCircle size={48} style={{ color: 'var(--status-available)', marginBottom: 16 }} />
             <p style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 8 }}>Rapport envoyé !</p>
             <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
               Merci pour votre signalement. Un ticket a été créé.
@@ -132,7 +134,7 @@ export default function BugReportModal({ consoleLogs, networkLogs, onClose }: Bu
               </div>
 
               {error && (
-                <p style={{ color: '#EF4444', fontSize: '0.875rem', marginTop: 8 }}>{error}</p>
+                <p style={{ color: 'var(--error-text)', fontSize: '0.875rem', marginTop: 8 }}>{error}</p>
               )}
             </div>
             <div className="modal-footer">

@@ -1,15 +1,26 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin, isAdminOrAbove } from '@/lib/roles';
 import { compressStampImage } from '@/lib/stamp';
+import { forbiddenResponse } from '@/lib/apiAuth';
+
+const updateUlSchema = z.object({
+    name: z.string().min(1).optional(),
+    slug: z.string().min(1).optional(),
+    phoneNumbers: z.array(z.object({ label: z.string(), number: z.string() })).optional(),
+    defaultParkingSpots: z.array(z.string()).optional(),
+    stampImage: z.string().nullable().optional(),
+    dtCode: z.string().nullable().optional(),
+});
 
 /** DELETE /api/ul/[id] — Supprimer une UL (ADMIN uniquement) */
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!isSuperAdmin(session?.user?.roles || [])) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { id } = await params;
@@ -39,18 +50,20 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         const isLocalAdmin = isAdminOrAbove(roles) && id === session?.user?.ulId;
 
         if (!isSuper && !isLocalAdmin) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();
-        const { name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode } = body as {
-            name?: string;
-            slug?: string;
-            phoneNumbers?: Array<{ label: string; number: string }>;
-            defaultParkingSpots?: string[];
-            stampImage?: string | null;
-            dtCode?: string | null;
-        };
+        let parsed: z.infer<typeof updateUlSchema>;
+        try {
+            parsed = updateUlSchema.parse(body);
+        } catch (zodErr) {
+            if (zodErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Données invalides', details: zodErr.issues }, { status: 400 });
+            }
+            throw zodErr;
+        }
+        const { name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode } = parsed;
 
         if (!name && !slug && !phoneNumbers && !defaultParkingSpots && stampImage === undefined && dtCode === undefined) {
             return NextResponse.json({ error: 'Aucune donnée à modifier' }, { status: 400 });

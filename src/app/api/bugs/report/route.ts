@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
+import { isInactive } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const reportSchema = z.object({
   title: z.string().min(1).max(200),
@@ -14,13 +16,12 @@ const reportSchema = z.object({
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user) {
-    return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    return unauthorizedResponse();
   }
 
   const roles = session.user.roles || ['INACTIF'];
-  const isInactive = (r: string) => r === 'INACTIF' || r === 'GUEST';
-  if (roles.length > 0 && roles.every(isInactive)) {
-    return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+  if (isInactive(roles)) {
+    return forbiddenResponse();
   }
 
   let data: z.infer<typeof reportSchema>;

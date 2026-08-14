@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
+import { canAccessDriveFolder } from '@/lib/driveAuth';
+import { getErrorMessage } from '@/lib/utils/error';
 import { Readable } from 'stream';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const SHARED_FOLDER_ID = '11UwzHHOzNhn--f16eMaoWk9NgvOwOt2G';
 const PREVIEW_FOLDER_NAME = 'PREVIEW';
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié.' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const formData = await request.formData();
@@ -78,6 +81,12 @@ export async function POST(request: Request) {
             const uploadTargetId = existingFolderId || `mock-folder-expense-${Date.now()}`;
             const fileIds = files.map((_, i) => `mock-file-${i}-${Date.now()}`);
             return NextResponse.json({ success: true, folderId: uploadTargetId, fileIds });
+        }
+
+        if (existingFolderId && existingFolderId !== 'null') {
+            if (!(await canAccessDriveFolder(session, existingFolderId))) {
+                return forbiddenResponse();
+            }
         }
 
         const drive = getDriveClient();
@@ -157,8 +166,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ success: true, folderId: uploadTargetId, fileIds });
 
     } catch (error: unknown) {
-        const err = error as { response?: { data?: unknown }; message?: string };
-        console.error('Google Drive Upload Error for Expense Report:', err?.response?.data ?? err?.message);
+        console.error('Google Drive Upload Error for Expense Report:', getErrorMessage(error));
 
         return NextResponse.json(
             { error: 'Erreur lors de la création du dossier ou de l\'envoi des justificatifs.' },

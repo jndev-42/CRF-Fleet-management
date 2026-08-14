@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
+import { canAccessDriveFolder } from '@/lib/driveAuth';
+import { getErrorMessage } from '@/lib/utils/error';
 import type { drive_v3 } from 'googleapis';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const { searchParams } = new URL(request.url);
@@ -31,6 +34,10 @@ export async function GET(request: Request) {
                 emprunt: [{ id: 'mock-photo-1', name: 'photo_emprunt.jpg', mimeType: 'image/jpeg' }],
                 rendu: [{ id: 'mock-photo-2', name: 'photo_rendu.jpg', mimeType: 'image/jpeg' }]
             });
+        }
+
+        if (!(await canAccessDriveFolder(session, folderId))) {
+            return forbiddenResponse();
         }
 
         const drive = getDriveClient();
@@ -88,8 +95,7 @@ export async function GET(request: Request) {
         return NextResponse.json(photoData);
 
     } catch (error: unknown) {
-        const err = error as { response?: { data?: unknown }; message?: string };
-        console.error('Google Drive Photos Fetch Error:', err?.response?.data ?? err?.message);
+        console.error('Google Drive Photos Fetch Error:', getErrorMessage(error));
 
         return NextResponse.json({ error: 'Erreur lors de la récupération des photos' }, { status: 500 });
     }

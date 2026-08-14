@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel, isSuperAdmin } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const bannerSchema = z.object({
     title: z.string().optional().nullable(),
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         await ensureBannerColumns();
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
 
         if (isAdminMode) {
             if (!canAccessAdminPanel(roles)) {
-                return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+                return forbiddenResponse();
             }
 
             const isSuper = isSuperAdmin(roles);
@@ -175,14 +176,14 @@ export async function POST(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         await ensureBannerColumns();
 
         const roles = (session.user.roles || []) as string[];
         if (!canAccessAdminPanel(roles)) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const body = await request.json();

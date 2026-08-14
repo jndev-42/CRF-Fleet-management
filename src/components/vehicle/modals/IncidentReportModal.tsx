@@ -5,6 +5,7 @@ import IncidentGuidelines from '@/components/vehicle/IncidentGuidelines';
 import VehicleInteractiveSVG from '@/components/vehicle/VehicleInteractiveSVG';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface IncidentReportModalProps {
     vehicle: { id: string; name: string };
@@ -25,6 +26,7 @@ export default function IncidentReportModal({
     onClose,
     onSuccess,
 }: IncidentReportModalProps) {
+    useEscapeKey(onClose);
     const [step, setStep] = useState<Step>('GUIDELINES_PROMPT');
     const [selectedType, setSelectedType] = useState<'FLASH' | 'ACCIDENT' | null>(null);
     const [reportId, setReportId] = useState<string | null>(existingDraftId || null);
@@ -261,7 +263,7 @@ export default function IncidentReportModal({
     };
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose} style={{ zIndex: 10001 }}>
+        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10001 }}>
             <div className="modal" role="dialog" aria-modal="true" style={{ maxWidth: step.startsWith('FORM') || step === 'SUMMARY' ? '800px' : '500px' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">{titles[step]}</h2>
@@ -386,7 +388,7 @@ export default function IncidentReportModal({
                                 <label className="checkbox-label"><input type="checkbox" checked={victims.crf} onChange={e => setVictims({ ...victims, crf: e.target.checked })} /> <span>Victime CRF</span></label>
                                 <label className="checkbox-label"><input type="checkbox" checked={victims.thirdParty} onChange={e => setVictims({ ...victims, thirdParty: e.target.checked })} /> <span>Victime Tiers</span></label>
                                 {(victims.crf || victims.thirdParty) && (
-                                    <label className="checkbox-label" style={{ color: '#EF4444' }}><input type="checkbox" checked={victims.severity} onChange={e => setVictims({ ...victims, severity: e.target.checked })} /> <span>Urgence absolue / Grave</span></label>
+                                    <label className="checkbox-label" style={{ color: 'var(--status-maintenance)' }}><input type="checkbox" checked={victims.severity} onChange={e => setVictims({ ...victims, severity: e.target.checked })} /> <span>Urgence absolue / Grave</span></label>
                                 )}
                             </div>
 
@@ -486,14 +488,14 @@ export default function IncidentReportModal({
                         <>
                             <button className="btn btn-secondary" onClick={onClose}>Annuler</button>
                             <button className="btn btn-secondary" onClick={() => setStep('GUIDELINES_VIEW')}>Oui, voir les consignes</button>
-                            <button className="btn btn-primary" style={{ background: '#DC2626' }} onClick={handleStartDeclaration} disabled={loading}>{loading ? '...' : 'Non, déclarer directement'}</button>
+                            <button className="btn btn-primary" style={{ background: 'var(--status-maintenance)' }} onClick={handleStartDeclaration} disabled={loading}>{loading ? '...' : 'Non, déclarer directement'}</button>
                         </>
                     )}
                     {step === 'GUIDELINES_VIEW' && (
                         <>
                             <button className="btn btn-secondary" onClick={() => setStep('GUIDELINES_PROMPT')}>Retour</button>
                             <button className="btn btn-secondary" onClick={onClose}>Annuler</button>
-                            <button className="btn btn-primary" style={{ background: '#DC2626' }} onClick={handleStartDeclaration} disabled={loading}>{loading ? '...' : '🚨 Déclarer l\'incident'}</button>
+                            <button className="btn btn-primary" style={{ background: 'var(--status-maintenance)' }} onClick={handleStartDeclaration} disabled={loading}>{loading ? '...' : '🚨 Déclarer l\'incident'}</button>
                         </>
                     )}
                     {step === 'TYPE_SELECTION' && (
@@ -518,7 +520,7 @@ export default function IncidentReportModal({
             </div>
 
             <style jsx>{`
-                .error-banner { padding: 10px; background: rgba(239, 68, 68, 0.1); color: #DC2626; border-radius: 4px; margin-bottom: 15px; font-size: 13px; }
+                .error-banner { padding: 10px; background: rgba(239, 68, 68, 0.1); color: var(--error-text); border-radius: 4px; margin-bottom: 15px; font-size: 13px; }
                 .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
                 .type-card { display: flex; align-items: center; gap: 15px; padding: 20px; border: 1px solid var(--border-primary); border-radius: 8px; background: var(--bg-card); cursor: pointer; text-align: left; transition: all 0.2s; }
                 .type-card:hover { border-color: var(--status-inuse); background: var(--bg-secondary); }

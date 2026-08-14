@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface AddItemModalProps {
     isOpen: boolean;
@@ -21,6 +22,7 @@ const DEFAULT_FORM = {
 const CATEGORY_OPTIONS = ['Consommable', 'Matériel', 'Médicament', 'Protection', 'Pansements', 'Oxygénothérapie'];
 
 export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: AddItemModalProps) {
+    useEscapeKey(onClose, isOpen);
     const [form, setForm] = useState(DEFAULT_FORM);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState('');
@@ -68,8 +70,8 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
                     <div className="modal-body">
                         {error && (
                             <div style={{
-                                background: 'var(--danger-bg, #fee2e2)',
-                                color: 'var(--danger, #dc2626)',
+                                background: 'var(--error-bg)',
+                                color: 'var(--error-text)',
                                 padding: '10px 14px',
                                 borderRadius: '8px',
                                 marginBottom: '16px',
@@ -102,7 +104,7 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
                                             padding: '4px 12px',
                                             borderRadius: '20px',
                                             border: '1.5px solid',
-                                            borderColor: form.category === opt ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
+                                            borderColor: form.category === opt ? 'var(--primary, #2563eb)' : 'var(--border-primary)',
                                             background: form.category === opt ? 'var(--primary, #2563eb)' : 'transparent',
                                             color: form.category === opt ? '#fff' : 'inherit',
                                             cursor: 'pointer',

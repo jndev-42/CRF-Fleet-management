@@ -17,7 +17,7 @@ export function setupFetchInterceptor() {
                 return originalFetch(input, init);
             }
 
-            console.log(`[DemoMode] Intercepting ${url}`, init);
+            console.log(`[DemoMode] Intercepting ${url}`, init?.method || 'GET');
 
             try {
                 // --- LICENSE CHECK ---

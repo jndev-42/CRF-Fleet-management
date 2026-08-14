@@ -223,7 +223,7 @@ export default function KonamiEasterEgg() {
                     onClick={handleStop}
                     style={{
                         padding: '8px 16px',
-                        background: '#EF4444',
+                        background: 'var(--status-maintenance)',
                         color: 'white',
                         border: 'none',
                         borderRadius: 'var(--radius-md)',

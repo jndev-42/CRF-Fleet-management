@@ -25,7 +25,7 @@ Quota errors are non-fatal — log and continue.
 Nodemailer over SMTP. Use for async notifications (reservation approved, etc.).
 Non-fatal — always wrap in try/catch, never block the main response on email delivery.
 
-## stats.ts
-Pure computation functions — no DB queries, no side effects.
-All filtering/aggregation helpers live here and are unit-tested.
-If you add a new stats calculation, add it here and write a unit test.
+## stats-trips.ts / stats-expenses.ts
+Split by domain: trip stats (`buildTripWhere`, `fetchStatsData`) vs expense-report stats (`fetchExpenseStatsData`).
+Filtering/aggregation helpers live here and are unit-tested.
+If you add a new stats calculation, add it to the matching file and write a unit test.

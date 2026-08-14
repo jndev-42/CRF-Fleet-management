@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const VALID_KEYS = ['stats', 'inventory', 'missions'] as const;
 
@@ -18,12 +19,12 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
         if (!isSuperAdmin(roles)) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const { key } = await params;

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 /**
  * DELETE /api/reservations/recurrence/:groupId
@@ -16,7 +17,7 @@ export async function DELETE(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const params = await props.params;
@@ -42,7 +43,7 @@ export async function DELETE(
         const canManage = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
 
         if (ownerEmail !== session.user.email && !canManage) {
-            return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+            return forbiddenResponse();
         }
 
         const now = new Date().toISOString();
@@ -83,13 +84,13 @@ export async function PATCH(
     try {
         const session = await auth();
         if (!session?.user) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRoles: string[] = session.user.roles || [];
         const canValidate = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
         if (!canValidate) {
-            return NextResponse.json({ error: 'Seul un responsable peut valider des réservations.' }, { status: 403 });
+            return forbiddenResponse('Seul un responsable peut valider des réservations.');
         }
 
         const params = await props.params;

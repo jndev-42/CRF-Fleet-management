@@ -1,49 +1,14 @@
 /**
  * Tests unitaires des schémas Zod de validation des formulaires de prise/retour.
  *
- * Les schémas ne sont pas exportés depuis les routes Next.js (ils sont définis
- * en local dans chaque fichier route). On les recopie ici pour tester le contrat
- * de validation sans modifier le code de production.
- *
- * Fichiers sources : src/app/api/trips/route.ts (checkOutSchema)
- *                    src/app/api/trips/[id]/checkin/route.ts (checkInSchema)
- *
- * Si un schéma change en production, ce fichier doit être mis à jour en parallèle.
+ * Importe les vrais schémas depuis leurs fichiers dédiés (extraits des routes
+ * dans schema.ts — un fichier route.ts Next.js ne peut exporter que des handlers
+ * HTTP/config, pas des consts arbitraires) plutôt que d'en garder une copie
+ * locale, pour que ces tests échouent si le contrat de validation réel change.
  */
 import { describe, it, expect } from 'vitest';
-import { z } from 'zod';
-
-// Copie du checkOutSchema depuis src/app/api/trips/route.ts
-const checkOutSchema = z.object({
-  vehicleId: z.string().min(1),
-  missionType: z.string().min(1, 'Le type de mission est requis'),
-  missionName: z.string().optional(),
-  conditionOut: z.string().min(1, "L'état du véhicule est requis"),
-  cleanlinessOut: z.string().optional(),
-  parkingOut: z.string().optional(),
-  dsaChecked: z.boolean(),
-  commentsOut: z.string().optional(),
-  secondDriverId: z.string().optional().nullable(),
-  driveFolderId: z.string().optional(),
-  checklistOut: z.record(z.string(), z.boolean()).optional(),
-  dataIncorrect: z.boolean().optional(),
-  correctedMileage: z.number().int().min(0).optional(),
-  correctedFuel: z.number().int().min(0).max(100).optional(),
-});
-
-// Copie du checkInSchema depuis src/app/api/trips/[id]/checkin/route.ts
-const checkInSchema = z.object({
-  mileageIn: z.number().min(0).optional(),
-  fuelIn: z.number().min(0).max(100).optional(),
-  parkingIn: z.string().optional(),
-  conditionIn: z.string().min(1, "L'état du véhicule est requis"),
-  cleanlinessIn: z.string().optional(),
-  incident: z.string().optional(),
-  commentsIn: z.string().optional(),
-  parkingPhoto: z.string().optional(),
-  driveFolderId: z.string().optional(),
-  checklistIn: z.record(z.string(), z.boolean()).optional(),
-});
+import { checkOutSchema } from '@/app/api/trips/schema';
+import { checkInSchema } from '@/app/api/trips/[id]/checkin/schema';
 
 const validCheckOut = {
   vehicleId: 'VL001',
@@ -121,6 +86,16 @@ describe('checkInSchema', () => {
 
   it('parses a full valid checkin object', () => {
     const result = checkInSchema.safeParse(validCheckIn);
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts optional desinfection fields', () => {
+    const result = checkInSchema.safeParse({
+      ...validCheckIn,
+      desinfResponsable: 'Marc Dupont',
+      desinfLotNumber: 'LOT-2026-001',
+      desinfType: 'simple',
+    });
     expect(result.success).toBe(true);
   });
 

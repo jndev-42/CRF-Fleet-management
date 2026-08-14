@@ -9,6 +9,7 @@ import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface CheckInModalProps {
     vehicle: Vehicle;
@@ -31,6 +32,7 @@ interface CheckInModalProps {
  * Collects returning mileage, condition, issues, and photos.
  */
 export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch, initialDesinfResponsableId = '', initialDesinfLotNumber = '', currentUserUlId }: CheckInModalProps) {
+    useEscapeKey(onClose);
     const { activeUL } = useUL();
     const [form, setForm] = useState<{
         mileageIn: number | '';
@@ -56,7 +58,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
     useEffect(() => {
         fetch('/api/ul')
-            .then(r => r.json())
+            .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
             .then(ulData => {
                 const targetUlId = currentUserUlId || activeUL?.id || vehicle.ulId;
                 const uls: Array<{ id: string; defaultParkingSpots?: string[] }> = ulData?.uls || [];
@@ -106,7 +108,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     useEffect(() => {
         if (!isDesinf && !hasDesinfTracking) return;
         fetch('/api/users')
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
     }, [isDesinf, hasDesinfTracking, vehicle.type]);
@@ -114,7 +116,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     useEffect(() => {
         if (isConnected(vehicle.vin)) {
             fetch(`/api/renault/${encodeURIComponent(vehicle.vin!)}`)
-                .then(r => r.json())
+                .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
                 .then(rData => {
                     if (rData.error) {
                         setRenaultError(true);
@@ -227,7 +229,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     }
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 className="modal"
                 role="dialog"
@@ -264,8 +266,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     <label className="form-label" htmlFor="checkin-mileage">
                                         Kilométrage actuel *
                                         {loadingRenault && <span style={{ marginLeft: 8, fontSize: 11 }}>⌛ Chargement...</span>}
-                                        {isConnected(vehicle.vin) && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: '#059669', fontSize: 11 }}>📡 Connecté</span>}
-                                        {renaultError && <span style={{ marginLeft: 8, color: '#DC2626', fontSize: 11 }}>⚠️ Renault injoignable</span>}
+                                        {isConnected(vehicle.vin) && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
+                                        {renaultError && <span style={{ marginLeft: 8, color: 'var(--error-text)', fontSize: 11 }}>⚠️ Renault injoignable</span>}
                                     </label>
                                     <input
                                         id="checkin-mileage"
@@ -400,7 +402,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     border: '1px solid rgba(16, 185, 129, 0.3)',
                                 }}
                             >
-                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: '#059669' }}>
+                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: 'var(--status-available)' }}>
                                     🧴 Informations de désinfection
                                 </div>
                                 <div className="form-group" style={{ marginBottom: 12 }}>
@@ -443,7 +445,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     border: '1px solid rgba(16, 185, 129, 0.3)',
                                 }}
                             >
-                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: '#059669' }}>
+                                <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 12, color: 'var(--status-available)' }}>
                                     🧴 Désinfection du véhicule
                                 </div>
                                 <div className="form-group" style={{ marginBottom: 12 }}>
@@ -520,7 +522,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         <button
                             type="button"
                             className="btn btn-secondary"
-                            style={{ color: '#DC2626', borderColor: 'rgba(220, 38, 38, 0.3)' }}
+                            style={{ color: 'var(--status-maintenance)', borderColor: 'rgba(220, 38, 38, 0.3)' }}
                             onClick={() => setShowIncidentReport(true)}
                         >
                             🚨 Signaler incident

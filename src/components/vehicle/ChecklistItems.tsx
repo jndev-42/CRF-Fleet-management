@@ -78,7 +78,7 @@ export default function ChecklistItems({ vehicleId, type, responses, onChange }:
                         />
                         <span style={{ fontSize: 14, fontWeight: 500, flex: 1 }}>
                             {item.label}
-                            {item.required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
+                            {item.required && <span style={{ color: 'var(--status-maintenance)', marginLeft: 4 }}>*</span>}
                         </span>
                     </label>
                 ))}

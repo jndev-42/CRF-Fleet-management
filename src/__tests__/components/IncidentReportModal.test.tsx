@@ -220,6 +220,33 @@ describe('IncidentReportModal', () => {
         expect(screen.getByText('🚨 Déclarer un incident')).toBeTruthy();
     });
 
+    it('cocher une victime affiche le champ de gravité avec la variable de thème', async () => {
+        mockFetchSuccess();
+
+        render(
+            <IncidentReportModal
+                vehicle={mockVehicle}
+                onClose={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByText('Non, déclarer directement'));
+        await waitFor(() => screen.getByText('Accident / Incident de circulation'));
+        fireEvent.click(screen.getByText('Accident / Incident de circulation'));
+
+        await waitFor(() => screen.getByText('Victime CRF'));
+        expect(screen.queryByText('Urgence absolue / Grave')).toBeNull();
+
+        fireEvent.click(screen.getByLabelText('Victime CRF'));
+
+        const severityLabel = await screen.findByText('Urgence absolue / Grave');
+        expect(severityLabel.closest('label')?.getAttribute('style')).toContain('var(--status-maintenance)');
+
+        // Coche aussi la case de gravité elle-même (déclenche son onChange).
+        fireEvent.click(screen.getByLabelText('Urgence absolue / Grave'));
+        expect((screen.getByLabelText('Urgence absolue / Grave') as HTMLInputElement).checked).toBe(true);
+    });
+
     it('TYPE_SELECTION affiche les options disponibles', async () => {
         mockFetchSuccess();
 

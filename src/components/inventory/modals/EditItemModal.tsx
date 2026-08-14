@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface InvItem {
     id: string;
@@ -20,6 +21,7 @@ interface EditItemModalProps {
 const CATEGORY_OPTIONS = ['Consommable', 'Matériel', 'Médicament', 'Protection', 'Pansements', 'Oxygénothérapie', 'Général'];
 
 export default function EditItemModal({ isOpen, item, onClose, onSuccess }: EditItemModalProps) {
+    useEscapeKey(onClose, isOpen);
     const [name, setName] = useState(item?.name ?? '');
     const [category, setCategory] = useState(item?.category ?? '');
     const [notes, setNotes] = useState(item?.notes ?? '');
@@ -82,8 +84,8 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
                     <div className="modal-body">
                         {error && (
                             <div style={{
-                                background: 'var(--danger-bg, #fee2e2)',
-                                color: 'var(--danger, #dc2626)',
+                                background: 'var(--error-bg)',
+                                color: 'var(--error-text)',
                                 padding: '10px 14px',
                                 borderRadius: '8px',
                                 marginBottom: '16px',
@@ -116,7 +118,7 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
                                             padding: '4px 12px',
                                             borderRadius: '20px',
                                             border: '1.5px solid',
-                                            borderColor: category === opt ? 'var(--primary, #2563eb)' : 'var(--border, #e2e8f0)',
+                                            borderColor: category === opt ? 'var(--primary, #2563eb)' : 'var(--border-primary)',
                                             background: category === opt ? 'var(--primary, #2563eb)' : 'transparent',
                                             color: category === opt ? '#fff' : 'inherit',
                                             cursor: 'pointer',

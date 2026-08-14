@@ -4,24 +4,10 @@ import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { checkInSchema } from './schema';
 // Increase duration limits for Vercel Serverless Functions
 export const maxDuration = 30; // 30 seconds max duration
-
-const checkInSchema = z.object({
-    mileageIn: z.number().min(0).optional(),
-    fuelIn: z.number().min(0).max(100).optional(),
-    parkingIn: z.string().optional(),
-    conditionIn: z.string().min(1, "L'état du véhicule est requis"),
-    cleanlinessIn: z.string().optional(),
-    incident: z.string().optional(),
-    commentsIn: z.string().optional(),
-    parkingPhoto: z.string().optional(),
-    driveFolderId: z.string().optional(),
-    checklistIn: z.record(z.string(), z.boolean()).optional(),
-    desinfResponsable: z.string().optional(),
-    desinfLotNumber: z.string().optional(),
-    desinfType: z.string().optional(),
-});
 
 export async function PATCH(
     request: Request,
@@ -33,7 +19,7 @@ export async function PATCH(
         const userId = session?.user?.id;
 
         if (!userId) {
-            return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+            return unauthorizedResponse();
         }
 
         const userRoles = session.user.roles || [];
@@ -70,10 +56,7 @@ export async function PATCH(
         const isSecondDriver = userId === trip.secondDriverId;
 
         if (!isAdmin && !isFirstDriver && !isSecondDriver) {
-            return NextResponse.json(
-                { error: "Vous n'êtes pas autorisé à rendre ce véhicule. Seul l'emprunteur ou un administrateur peut le faire." },
-                { status: 403 }
-            );
+            return forbiddenResponse("Vous n'êtes pas autorisé à rendre ce véhicule. Seul l'emprunteur ou un administrateur peut le faire.");
         }
 
         const vehicleResult = await db.execute({
@@ -173,7 +156,7 @@ export async function PATCH(
                     data.incident || null,
                     data.commentsIn || null,
                     data.parkingPhoto || null,
-                    data.driveFolderId || trip.driveFolderId || null,
+                    trip.driveFolderId || data.driveFolderId || null,
                     data.checklistIn ? JSON.stringify(data.checklistIn) : null,
                     renaultDataValidated,
                     renaultDataValidated !== null ? timestamp : null,

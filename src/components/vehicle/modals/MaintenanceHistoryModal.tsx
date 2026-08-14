@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { Vehicle, MaintenanceRecord } from '@/app/vehicles/[id]/types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface MaintenanceHistoryModalProps {
     vehicle: Vehicle;
@@ -36,6 +37,7 @@ export default function MaintenanceHistoryModal({
     onClose,
     onSuccess,
 }: MaintenanceHistoryModalProps) {
+    useEscapeKey(onClose);
     const [records, setRecords] = useState<MaintenanceRecord[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -131,7 +133,7 @@ export default function MaintenanceHistoryModal({
     const showMileage = form.type === 'REVISION' || form.type === 'CT_REVISION';
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 className="modal"
                 role="dialog"
@@ -219,7 +221,7 @@ export default function MaintenanceHistoryModal({
                     )}
 
                     {!loading && error && (
-                        <div style={{ color: '#EF4444', padding: 16 }}>{error}</div>
+                        <div style={{ color: 'var(--error-text)', padding: 16 }}>{error}</div>
                     )}
 
                     {!loading && !error && total === 0 && (
@@ -259,7 +261,7 @@ export default function MaintenanceHistoryModal({
                                                     <td style={{ padding: '10px 12px', textAlign: 'right' }}>
                                                         <button
                                                             className="btn btn-secondary"
-                                                            style={{ fontSize: 12, padding: '3px 8px', color: '#EF4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                                                            style={{ fontSize: 12, padding: '3px 8px', color: 'var(--error-text)', borderColor: 'rgba(239,68,68,0.3)' }}
                                                             onClick={() => handleDelete(r.id)}
                                                             disabled={deleting === r.id}
                                                             aria-label="Supprimer cet enregistrement"

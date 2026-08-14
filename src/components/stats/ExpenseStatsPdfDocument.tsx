@@ -7,7 +7,7 @@ import {
   StyleSheet,
   Image,
 } from '@react-pdf/renderer';
-import type { ExpenseStatsDataResult } from '@/lib/stats';
+import type { ExpenseStatsDataResult } from '@/lib/stats-expenses';
 
 const RED = '#E30613';
 const WHITE = '#FFFFFF';

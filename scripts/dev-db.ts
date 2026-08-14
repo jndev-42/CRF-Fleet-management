@@ -141,20 +141,40 @@ async function main(): Promise<void> {
   console.log(`[dev-db] Container state: ${state}`);
 
   if (state === 'running') {
-    console.log('[dev-db] Container already running — skipping init.');
+    if (initMode === 'seed') {
+      console.log('[dev-db] Container already running — skipping init.');
+      return;
+    }
+    // prod-clone is explicitly requested each time it's run — always re-sync,
+    // even on an already-running container, otherwise stale local schema/data
+    // silently persists and `npm run dev:prod` looks like a no-op.
+    console.log('[dev-db] Container already running — re-cloning prod data...');
+    runInit(initMode);
     return;
   }
 
   if (state === 'stopped') {
+    let restarted = false;
     try {
       startContainer();
       await waitForReady();
-      // Data persists in .dev-db/ — no re-init needed
-      console.log('[dev-db] Container restarted with existing data.');
-      return;
+      restarted = true;
     } catch {
       // Apple Container reported stopped but start failed (stale state) — fall through to create
       console.log('[dev-db] Start failed (stale state), recreating container...');
+    }
+    if (restarted) {
+      if (initMode === 'seed') {
+        // Data persists in .dev-db/ — no re-init needed
+        console.log('[dev-db] Container restarted with existing data.');
+        return;
+      }
+      // Run outside the try/catch above — a real clone failure here must
+      // surface as-is, not get swallowed and misreported as a stale
+      // container that needs recreating.
+      console.log('[dev-db] Container restarted — re-cloning prod data...');
+      runInit(initMode);
+      return;
     }
   }
 

@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 // Route sécurisée par Vercel Cron. On n'associe pas d'auth NextAuth ici.
 export async function GET(request: Request) {
     // Optional: Protect route from external access if not from Vercel CRON.
     const authHeader = request.headers.get('authorization');
     if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     try {
@@ -34,8 +35,8 @@ export async function GET(request: Request) {
 
         // On cherche les véhicules qui sont connectés
         const connectedVehiclesObj = await db.execute(`
-            SELECT id, name, mileage, status, isMaintenance, vin, ulId 
-            FROM Vehicle 
+            SELECT id, name, mileage, status, vin, ulId
+            FROM Vehicle
             WHERE vin IS NOT NULL AND vin != ''
         `);
         const vehicles = connectedVehiclesObj.rows;
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
             const vehicleId = v.id as string;
             const name = v.name as string;
             const currentDbMileage = (v.mileage as number) || 0;
-            const isMaintenance = v.isMaintenance as number === 1;
+            const isMaintenance = v.status === 'MAINTENANCE';
 
             if (isMaintenance) {
                 continue; // Pas d'alerte pour les véhicules en maintenance

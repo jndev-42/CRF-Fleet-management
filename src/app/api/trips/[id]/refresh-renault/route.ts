@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 export const maxDuration = 30;
 
@@ -15,7 +16,7 @@ export async function PATCH(
 ) {
     const session = await auth();
     if (!session?.user?.email) {
-        return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+        return unauthorizedResponse();
     }
 
     const { id } = await params;

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { DesinfectionRecord } from '@/app/vehicles/[id]/types';
+import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface DesinfHistoryModalProps {
     vehicleId: string;
@@ -14,13 +15,14 @@ interface DesinfHistoryModalProps {
  * Fetche GET /api/vehicles/[name]/desinfections et affiche un tableau.
  */
 export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: DesinfHistoryModalProps) {
+    useEscapeKey(onClose);
     const [desinfections, setDesinfections] = useState<DesinfectionRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         fetch(`/api/vehicles/${encodeURIComponent(vehicleName)}/desinfections`)
-            .then(res => res.json())
+            .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => {
                 if (data.desinfections) {
                     setDesinfections(data.desinfections);
@@ -41,7 +43,7 @@ export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: 
     }
 
     return (
-        <div className="modal-overlay" aria-hidden="true" onClick={onClose}>
+        <div className="modal-overlay" onClick={onClose}>
             <div
                 className="modal"
                 role="dialog"
@@ -67,7 +69,7 @@ export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: 
                     )}
 
                     {!loading && error && (
-                        <div style={{ color: '#EF4444', padding: 16 }}>{error}</div>
+                        <div style={{ color: 'var(--error-text)', padding: 16 }}>{error}</div>
                     )}
 
                     {!loading && !error && desinfections.length === 0 && (
@@ -107,7 +109,7 @@ export default function DesinfHistoryModal({ vehicleId, vehicleName, onClose }: 
                                                         padding: '2px 8px',
                                                         borderRadius: 99,
                                                         background: d.desinfType === 'complète' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(59, 130, 246, 0.1)',
-                                                        color: d.desinfType === 'complète' ? '#059669' : '#3B82F6',
+                                                        color: d.desinfType === 'complète' ? 'var(--status-available)' : '#3B82F6',
                                                     }}>
                                                         {d.desinfType === 'complète' ? '✨ Complète' : '🧼 Simple'}
                                                     </span>
