@@ -6,6 +6,8 @@ import styles from '../MissionWizard.module.css';
 interface Step5Props {
     data: MissionFormData;
     onChange: (patch: Partial<MissionFormData>) => void;
+    /** Name of the submitter's home UL — used to label the presence toggle. Falls back to "mon UL" when unavailable. */
+    currentUserUlName?: string;
 }
 
 type TeamDynamics = 'BIEN' | 'PLUTOT_BIEN' | 'PEUT_MIEUX' | 'SUJET';
@@ -17,27 +19,28 @@ const TEAM_DYNAMICS_OPTIONS: Array<{ value: TeamDynamics; label: string }> = [
     { value: 'SUJET', label: 'Sujet à traiter' },
 ];
 
-export default function Step5Team({ data, onChange }: Step5Props) {
-    const showDynamicsFields = data.ul18_present === true;
+export default function Step5Team({ data, onChange, currentUserUlName }: Step5Props) {
+    const showDynamicsFields = data.presence_ul === true;
+    const ulLabel = currentUserUlName ? `UL ${currentUserUlName}` : 'mon UL';
 
     return (
         <div className={styles.stepContent}>
             <h2 className={styles.stepTitle}>Composition et dynamique d&apos;équipe</h2>
 
             <div className="form-group">
-                <label className="form-label">Présence UL 18 ?</label>
+                <label className="form-label">Présence {ulLabel} ?</label>
                 <div className={styles.toggleRow}>
                     <button
                         type="button"
-                        className={`${styles.toggleBtn} ${data.ul18_present === true ? styles.toggleBtnActive : ''}`}
-                        onClick={() => onChange({ ul18_present: true })}
+                        className={`${styles.toggleBtn} ${data.presence_ul === true ? styles.toggleBtnActive : ''}`}
+                        onClick={() => onChange({ presence_ul: true })}
                     >
                         Oui
                     </button>
                     <button
                         type="button"
-                        className={`${styles.toggleBtn} ${data.ul18_present === false ? styles.toggleBtnActive : ''}`}
-                        onClick={() => onChange({ ul18_present: false, team_dynamics: null, all_found_place: null, member_difficulties: null, free_comment: null })}
+                        className={`${styles.toggleBtn} ${data.presence_ul === false ? styles.toggleBtnActive : ''}`}
+                        onClick={() => onChange({ presence_ul: false, team_dynamics: null, all_found_place: null, member_difficulties: null, free_comment: null })}
                     >
                         Non
                     </button>

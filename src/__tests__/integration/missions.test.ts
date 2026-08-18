@@ -21,7 +21,7 @@ vi.mock('@/auth', () => ({
 import { GET as getList, POST as postCreate } from '@/app/api/missions/route';
 import { GET as getDetail, DELETE as deleteReport } from '@/app/api/missions/[id]/route';
 import { auth } from '@/auth';
-import { db, seedUser, seedVehicle, seedRoles } from './setup';
+import { db, seedUser, seedVehicle, seedRoles, seedUniteLocale } from './setup';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -79,11 +79,12 @@ const validPayload = {
     vehicle_id: null,
     driver_id: null,
     victim_count: 2,
-    ul18_present: null,
+    presence_ul: null,
     team_dynamics: null,
     all_found_place: null,
     member_difficulties: null,
     free_comment: null,
+    mission_comment: null,
     had_acr: false,
     had_hemorrhage: false,
     had_complex_care: false,
@@ -111,11 +112,12 @@ async function createMissionReportTable() {
             "vehicle_id"            TEXT,
             "driver_id"             TEXT,
             "victim_count"          INTEGER NOT NULL DEFAULT 0,
-            "ul18_present"          INTEGER,
+            "presence_ul"           INTEGER,
             "team_dynamics"         TEXT,
             "all_found_place"       INTEGER,
             "member_difficulties"   INTEGER,
             "free_comment"          TEXT,
+            "mission_comment"       TEXT,
             "had_acr"               INTEGER NOT NULL DEFAULT 0,
             "had_hemorrhage"        INTEGER NOT NULL DEFAULT 0,
             "had_complex_care"      INTEGER NOT NULL DEFAULT 0,
@@ -277,6 +279,53 @@ describe('POST /api/missions', () => {
         });
         expect(mRes.rows[0].drive_folder_id).toBeNull();
     });
+
+    it('returns 201 and persists mission_comment when provided', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = { ...validPayload, mission_comment: 'RAS, mission calme.' };
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(201);
+
+        const body = await res.json();
+        const mRes = await db.execute({
+            sql: `SELECT mission_comment FROM "mission_reports" WHERE id = ?`,
+            args: [body.id],
+        });
+        expect(mRes.rows[0].mission_comment).toBe('RAS, mission calme.');
+    });
+
+    it('returns 201 with null mission_comment when not provided', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest(validPayload));
+        expect(res.status).toBe(201);
+
+        const body = await res.json();
+        const mRes = await db.execute({
+            sql: `SELECT mission_comment FROM "mission_reports" WHERE id = ?`,
+            args: [body.id],
+        });
+        expect(mRes.rows[0].mission_comment).toBeNull();
+    });
+
+    it('returns 201 and persists presence_ul (renamed from ul18_present) when provided', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = { ...validPayload, presence_ul: true };
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(201);
+
+        const body = await res.json();
+        const mRes = await db.execute({
+            sql: `SELECT presence_ul FROM "mission_reports" WHERE id = ?`,
+            args: [body.id],
+        });
+        expect(Boolean(Number(mRes.rows[0].presence_ul))).toBe(true);
+    });
 });
 
 // ── GET list ──────────────────────────────────────────────────────────────────
@@ -429,6 +478,33 @@ describe('GET /api/missions/[id] (detail)', () => {
         expect(body.drive_folder_id).toBeNull();
     });
 
+    it('returns mission_comment in response when set', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        await db.execute({
+            sql: `UPDATE "mission_reports" SET mission_comment = ? WHERE id = 'report-1'`,
+            args: ['Observation utile'],
+        });
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.mission_comment).toBe('Observation utile');
+    });
+
+    it('returns null mission_comment when not set', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.mission_comment).toBeNull();
+    });
+
     it('returns 200 for CI/RPAPS accessing their own report', async () => {
         // report-1 is submitted by user-admin; create a report by user-ci
         await db.execute({
@@ -451,6 +527,38 @@ describe('GET /api/missions/[id] (detail)', () => {
         // report-1 belongs to user-admin, not user-ci
         const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
         expect(res.status).toBe(403);
+    });
+
+    it('returns the report\'s own ulName (joined from UniteLocale via ulId), independent of the viewer\'s UL', async () => {
+        // adminSession's own ulId is 'ul-paris-18' — assign the report to a DIFFERENT UL
+        // to prove ulName reflects the report's ulId, not the viewer's session ulId.
+        await seedUniteLocale({ id: 'ul-lyon', name: 'Lyon', slug: 'lyon' });
+
+        await db.execute({
+            sql: `UPDATE "mission_reports" SET ulId = ? WHERE id = 'report-1'`,
+            args: ['ul-lyon'],
+        });
+
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.ulName).toBe('Lyon');
+    });
+
+    it('returns null ulName when the report has no matching UniteLocale', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        // report-1 has no ulId set in this describe block's beforeEach
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.ulName).toBeNull();
     });
 });
 

@@ -36,17 +36,20 @@ interface MissionDetail {
     driver_name: string | null;
     driver_email: string | null;
     victim_count: number;
-    ul18_present: boolean | null;
+    presence_ul: boolean | null;
     team_dynamics: string | null;
     all_found_place: boolean | null;
     member_difficulties: boolean | null;
     free_comment: string | null;
+    mission_comment: string | null;
     had_acr: boolean;
     had_hemorrhage: boolean;
     had_complex_care: boolean;
     needs_followup: boolean;
     drive_folder_id: string | null;
     signed_report_drive_id: string | null;
+    /** Name of the UL the report belongs to (mr.ulId) — null if the UL could not be resolved */
+    ulName: string | null;
     supplies: Record<string, SupplyEntry[]>;
 }
 
@@ -222,16 +225,24 @@ export default function MissionDetailPage() {
                 )}
 
                 {/* Dynamique équipe */}
-                {report.ul18_present === true && (
+                {report.presence_ul === true && (
                     <div className="card">
                         <h2 className={styles.cardTitle}>Dynamique d&apos;équipe</h2>
                         <dl className={styles.dl}>
-                            <dt>Présence UL 18</dt><dd>Oui</dd>
+                            <dt>{report.ulName ? `Présence UL ${report.ulName}` : 'Présence UL'}</dt><dd>Oui</dd>
                             {report.team_dynamics && <><dt>Dynamique</dt><dd>{TEAM_DYNAMICS_LABELS[report.team_dynamics] ?? report.team_dynamics}</dd></>}
                             <dt>Chacun a trouvé sa place</dt><dd>{boolLabel(report.all_found_place)}</dd>
                             <dt>Membres en difficulté</dt><dd>{boolLabel(report.member_difficulties)}</dd>
                             {report.free_comment && <><dt>Commentaire</dt><dd>{report.free_comment}</dd></>}
                         </dl>
+                    </div>
+                )}
+
+                {/* Commentaire libre mission */}
+                {report.mission_comment && (
+                    <div className="card">
+                        <h2 className={styles.cardTitle}>Commentaire</h2>
+                        <p style={{ whiteSpace: 'pre-wrap' }}>{report.mission_comment}</p>
                     </div>
                 )}
             </div>

@@ -4,7 +4,7 @@
 # steps
 
 ## Purpose
-The eight step panels of the mission-report wizard. Each is a presentational panel rendered one at a time by `../MissionWizard.tsx`, which owns all of the state; the steps only read `data`/`supplies` and emit patches.
+The nine step panels of the mission-report wizard. Each is a presentational panel rendered one at a time by `../MissionWizard.tsx`, which owns all of the state; the steps only read `data`/`supplies` and emit patches.
 
 ## Key Files
 | File | Description |
@@ -13,10 +13,11 @@ The eight step panels of the mission-report wizard. Each is a presentational pan
 | `Step2Vehicle.tsx` | Vehicle select (DB vehicles + `EXTERNAL_VEHICLES`), driver select, Pegass toggle, volunteers textarea. The only step that fetches. |
 | `Step3Supplies.tsx` | Consumed-supplies accordion by category (`SAC_PRIMAIRE` open by default), one number input per item, per-category total badge. |
 | `Step4Oxygen.tsx` | Same quantity-input pattern restricted to the oxygen category. |
-| `Step5Team.tsx` | UL 18 presence toggle; when true, reveals team dynamics radios (`BIEN`/`PLUTOT_BIEN`/`PEUT_MIEUX`/`SUJET`), two yes/no toggles, and a free comment. |
+| `Step5Team.tsx` | Submitter's home-UL presence toggle (label built from `currentUserUlName` prop, e.g. "Présence UL Paris 18 ?", falls back to "Présence mon UL ?"); when true, reveals team dynamics radios (`BIEN`/`PLUTOT_BIEN`/`PEUT_MIEUX`/`SUJET`), two yes/no toggles, and a free comment. |
 | `Step6Incidents.tsx` | Three critical-incident checkboxes (ACR, hémorragie grave, prise en charge complexe); the follow-up question appears only if one is checked. |
 | `Step7SignedReport.tsx` | Single-file `PhotoPicker` (image or PDF) for the mandatory signed report on DPS/PAPS missions. |
 | `Step8Photos.tsx` | Multi-file `PhotoPicker` for communication photos; displays `uploadError` from the wizard. |
+| `Step9Comment.tsx` | Free-text `mission_comment` textarea — optional, always shown (not conditionally gated), positioned right before Photos. Distinct from `Step5Team`'s `free_comment`. |
 
 ## For AI Agents
 
@@ -25,7 +26,7 @@ The eight step panels of the mission-report wizard. Each is a presentational pan
 
 **The supplies key convention is `` `${CATEGORY}__${item.name}` ``** — the wizard splits on that `__` separator when building the API payload, so any new supply input must use it. Quantities are clamped with `Math.max(0, parseInt(v, 10) || 0)`.
 
-**Conditional reveals are one-way clears.** `Step5Team` resets the dependent fields to `null` when UL 18 presence is set to "Non" (`ul18_present: false, team_dynamics: null, all_found_place: null, member_difficulties: null, free_comment: null`) so a hidden field can never be submitted with a stale value. Follow that pattern for any new conditional block. `Step6Incidents` hides (but does not clear) `needs_followup` when no incident is checked.
+**Conditional reveals are one-way clears.** `Step5Team` resets the dependent fields to `null` when UL presence is set to "Non" (`presence_ul: false, team_dynamics: null, all_found_place: null, member_difficulties: null, free_comment: null`) so a hidden field can never be submitted with a stale value. Follow that pattern for any new conditional block. `Step6Incidents` hides (but does not clear) `needs_followup` when no incident is checked.
 
 **`Step2Vehicle` is the exception that fetches** — `GET /api/vehicles` and `GET /api/users?drivers=true` in parallel on mount, tolerating both an array and `{ vehicles }` response shape. It also holds the VPSP rule: when the selected vehicle is VPSP (`type === 'VPSP'` or `EXTERNAL_VPSP`), the driver list is filtered to holders of the `CHVPSP` role, including the "Moi" option. Changing the vehicle resets `driver_id` to `null`.
 

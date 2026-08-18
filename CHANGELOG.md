@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.10.1] — 18 août 2026
+
+### 🐛 Corrections & Améliorations
+
+- **Compte rendu de mission — présence UL dynamique** — le champ "Présence UL 18 ?" de l'étape Équipe affichait ce libellé pour tous les utilisateurs, quelle que soit leur unité locale réelle. Il affiche désormais le nom de l'UL d'appartenance du soumetteur (ex. "Présence UL Paris 18 ?"). La colonne UL du tableau des comptes rendus et la fiche détaillée d'un compte rendu affichent également le nom réel de l'UL concernée au lieu de "18" en dur. Le champ en base de données a été renommé de `ul18_present` en `presence_ul` pour refléter cette généralisation.
+
+## [4.10.0] — 18 août 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Compte rendu de mission — étape Commentaire** — ajout d'une nouvelle étape "Commentaire" dans le formulaire de compte rendu de mission, juste avant l'étape Photos. Permet d'ajouter une observation libre sur la mission, quel que soit le type de mission. Le commentaire est visible dans une section dédiée sur la page de consultation du compte rendu.
+
 ## [4.9.3] — 13 août 2026
 
 ### 🐛 Corrections

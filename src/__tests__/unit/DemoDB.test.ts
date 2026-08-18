@@ -73,7 +73,7 @@ describe('DemoDB — missions', () => {
             location: 'Paris',
             volunteers: 'Jean',
             pegass_ok: true,
-            ul18_present: true,
+            presence_ul: true,
             team_dynamics: 'BIEN',
             all_found_place: true,
             member_difficulties: false,
@@ -83,6 +83,46 @@ describe('DemoDB — missions', () => {
 
         DemoDB.deleteMission(mission.id);
         expect(DemoDB.getMissions()).toHaveLength(1);
+    });
+
+    it('crée une mission avec un mission_comment', () => {
+        const mission = DemoDB.createMission({
+            vehicle_id: 'VPSP - 18-01',
+            driver_id: 'demo-user-1',
+            mission_type: 'RESEAU',
+            mission_name: 'Test commentaire',
+            mission_date: '2026-01-02',
+            location: 'Paris',
+            volunteers: 'Jean',
+            pegass_ok: true,
+            presence_ul: null,
+            team_dynamics: null,
+            all_found_place: null,
+            member_difficulties: null,
+            free_comment: null,
+            mission_comment: 'Observation utile sur la mission.',
+        });
+        expect(mission.mission_comment).toBe('Observation utile sur la mission.');
+        expect(DemoDB.getMission(mission.id)?.mission_comment).toBe('Observation utile sur la mission.');
+    });
+
+    it('utilise null par défaut pour mission_comment quand non fourni', () => {
+        const mission = DemoDB.createMission({
+            vehicle_id: 'VPSP - 18-01',
+            driver_id: 'demo-user-1',
+            mission_type: 'RESEAU',
+            mission_name: 'Test sans commentaire',
+            mission_date: '2026-01-03',
+            location: 'Paris',
+            volunteers: 'Jean',
+            pegass_ok: true,
+            presence_ul: null,
+            team_dynamics: null,
+            all_found_place: null,
+            member_difficulties: null,
+            free_comment: null,
+        });
+        expect(mission.mission_comment).toBeNull();
     });
 });
 

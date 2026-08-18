@@ -4,7 +4,7 @@
 # missions/[id]
 
 ## Purpose
-Mission report detail view (`/missions/{id}`) — read-only display of one *compte rendu de mission*: mission info (type, date, location, victim count, Pegass registration, vehicle, driver, volunteers), a critical-incidents card (ACR / hémorragie grave / prise en charge complexe, plus follow-up flag), the signed report scan or PDF, the UL 18 team-dynamics section, and consumed supplies grouped by category. ADMIN also gets a delete action.
+Mission report detail view (`/missions/{id}`) — read-only display of one *compte rendu de mission*: mission info (type, date, location, victim count, Pegass registration, vehicle, driver, volunteers), a critical-incidents card (ACR / hémorragie grave / prise en charge complexe, plus follow-up flag), the signed report scan or PDF, the team-dynamics section (labelled with the report's own UL name, e.g. "Présence UL Paris 18"), and consumed supplies grouped by category. ADMIN also gets a delete action.
 
 ## Key Files
 | File | Description |
@@ -22,7 +22,7 @@ Delete is `ADMIN`-only, checked with a bare `roles.includes('ADMIN')` (note: **n
 Conditional sections — do not render them unconditionally:
 - Photos button + `MissionPhotosModal` only when `report.drive_folder_id` is set.
 - Signed-report card + `SignedReportLightbox` only when `report.signed_report_drive_id` is set.
-- Team-dynamics card only when `report.ul18_present === true` (strict — `null` and `false` both hide it).
+- Team-dynamics card only when `report.presence_ul === true` (strict — `null` and `false` both hide it). Its heading uses `report.ulName` (joined server-side from the report's own `ulId`, not the viewer's) — falls back to plain "Présence UL" when `ulName` is null.
 - Supplies section only when `Object.keys(report.supplies).length > 0`.
 
 **PDF-vs-image detection is a deliberate hack:** the signed report renders as `<img src="/api/drive/photos/{id}">` and its `onError` handler flips `signedReportIsPdf` to `true`, swapping in a `FileText` placeholder. There is no MIME check — the failed image load *is* the detection. The `<img>` carries an `@next/next/no-img-element` disable because the URL is a dynamic Drive proxy.

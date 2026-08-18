@@ -46,7 +46,7 @@ Manages mission reports (comptes rendus de mission) submitted by CRF volunteers.
 - `@/lib/mission-supplies` — `EXTERNAL_VEHICLES` lookup table
 
 ### Tables Touched
-- `mission_reports` — main report store (id, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, ul18_present, team_dynamics, all_found_place, member_difficulties, free_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup, supplies, drive_folder_id, signed_report_drive_id, ulId, submitted_by, submitted_at)
+- `mission_reports` — main report store (id, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, presence_ul, team_dynamics, all_found_place, member_difficulties, free_comment, mission_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup, supplies, drive_folder_id, signed_report_drive_id, ulId, submitted_by, submitted_at)
 - `mission_report_supplies` — supplies per report (id, report_id, category, item_name, quantity_used)
 - `User` — submitter/driver lookups (LEFT JOIN)
 - `Vehicle` — vehicle name fallback via EXTERNAL_VEHICLES (LEFT JOIN)
