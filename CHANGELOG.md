@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.10.0] — 18 août 2026
+
+### ✨ Nouveautés
+
+- **Token de test preview pour outils automatisés** — en environnement preview uniquement, les routes API acceptent désormais un token bearer (`Authorization: Bearer $PREVIEW_TEST_TOKEN`) qui ouvre une session équivalente au compte `preview-chvl`. Pensé pour les scanners/outils de pentest headless qui ne peuvent pas passer par le formulaire de connexion. Sans effet en production ou en développement local.
+
 ## [4.9.3] — 13 août 2026
 
 ### 🐛 Corrections

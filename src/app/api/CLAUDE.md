@@ -29,3 +29,13 @@ if (!roles.includes('ADMIN')) return NextResponse.json({ error: 'Interdit' }, { 
 ```ts
 const { sendPushNotification } = await import('@/lib/onesignal');
 ```
+
+## Preview test token (headless auth for automated/pentest tools)
+In **preview only**, `await auth()` (exported from `src/auth.ts`) also accepts
+`Authorization: Bearer $PREVIEW_TEST_TOKEN` and resolves it to a real session
+for the fixed `preview-chvl@preview.local` account (see `src/lib/previewToken.ts`).
+Fail-closed by design: requires `NEXT_PUBLIC_APP_ENV=preview` (hard-coded gate,
+dead in production even if the secret leaks) **and** `PREVIEW_TEST_TOKEN` to be
+set — unlike the `CRON_SECRET` check (`src/app/api/cron/`), which fails open
+when unset. No route code changes are needed to support it; it's invisible to
+business logic. No UI/cookie session is created — API access only.

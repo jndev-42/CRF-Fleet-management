@@ -29,3 +29,10 @@ Non-fatal — always wrap in try/catch, never block the main response on email d
 Split by domain: trip stats (`buildTripWhere`, `fetchStatsData`) vs expense-report stats (`fetchExpenseStatsData`).
 Filtering/aggregation helpers live here and are unit-tested.
 If you add a new stats calculation, add it to the matching file and write a unit test.
+
+## previewToken.ts
+`isValidPreviewTestToken(authHeader)` — gates the preview-only bearer token used by
+automated/pentest tools (see `src/auth.ts`'s `auth()` wrapper). Fail-closed: requires
+`isPreview` (from `env.ts`) **and** `process.env.PREVIEW_TEST_TOKEN` to be set. Never
+add a code path that accepts this token outside preview.
+

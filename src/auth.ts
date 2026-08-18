@@ -1,9 +1,11 @@
-import NextAuth, { type DefaultSession, type NextAuthConfig } from "next-auth";
+import NextAuth, { type DefaultSession, type NextAuthConfig, type Session } from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { isPreview, isDev as isDevEnv } from "@/lib/env";
 import { PREVIEW_ACCOUNTS } from "@/lib/preview-accounts";
+import { isValidPreviewTestToken, PREVIEW_TEST_USER_EMAIL } from "@/lib/previewToken";
 
 declare module "next-auth" {
     interface Session {
@@ -416,7 +418,7 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
     },
 };
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const { handlers, signIn, signOut, auth: nextAuthAuth } = NextAuth({
     providers,
     pages: {
         signIn: "/login",
@@ -424,3 +426,84 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     callbacks: authCallbacks,
 });
+
+/**
+ * Construit une session équivalente à celle d'un login normal pour le compte
+ * preview fixe ciblé par le token de test (voir src/lib/previewToken.ts).
+ * Réutilise les mêmes helpers (fetchUserULs, resolveActiveUL) et la même
+ * requête de rôles que authCallbacks.session — le token doit donner exactement
+ * ce qu'un login one-click `preview-chvl` donnerait, pas un raccourci différent.
+ * Retourne null si le seed preview (scripts/seed-preview-users.ts) n'a pas
+ * encore été exécuté sur cette base.
+ */
+async function buildPreviewBearerSession(): Promise<Session | null> {
+    const userRes = await db.execute({
+        sql: 'SELECT id, name FROM "User" WHERE email = ?',
+        args: [PREVIEW_TEST_USER_EMAIL],
+    });
+    if (userRes.rows.length === 0) return null;
+
+    const userId = userRes.rows[0].id as string;
+    const name = (userRes.rows[0].name as string) || "Preview Test";
+
+    const availableULs = await fetchUserULs(userId);
+    const ulId = resolveActiveUL(availableULs);
+
+    const globalRolesRes = await db.execute({
+        sql: `
+            SELECT r.name
+            FROM "UserRole" ur
+            JOIN "Role" r ON ur.roleId = r.id
+            WHERE ur.userId = ?
+        `,
+        args: [userId],
+    });
+    const globalRoles = globalRolesRes.rows.map(row => row.name as string);
+
+    let roles: string[] = [];
+    if (ulId !== "default") {
+        const ulRoleRes = await db.execute({
+            sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND ulId = ?',
+            args: [userId, ulId],
+        });
+        if (ulRoleRes.rows.length > 0 && ulRoleRes.rows[0].roles) {
+            roles = (ulRoleRes.rows[0].roles as string).split(',').map(r => r.trim()).filter(Boolean);
+        }
+    }
+    if (roles.length === 0) roles = globalRoles;
+
+    return {
+        user: {
+            id: userId,
+            email: PREVIEW_TEST_USER_EMAIL,
+            name,
+            roles,
+            ulId,
+            availableULs,
+        },
+        expires: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    } as Session;
+}
+
+/**
+ * Wrapper autour de l'`auth()` NextAuth : reconnaît un token bearer preview
+ * (Authorization: Bearer $PREVIEW_TEST_TOKEN) et court-circuite vers une
+ * session synthétique pour le compte de test, sans toucher aux ~70 routes
+ * API qui appellent `await auth()`. En dehors du cas token valide, délègue
+ * intégralement à NextAuth (comportement inchangé en dev/preview/prod).
+ */
+export async function auth(): Promise<Session | null> {
+    try {
+        const hdrs = await headers();
+        if (isValidPreviewTestToken(hdrs.get("authorization"))) {
+            const bearerSession = await buildPreviewBearerSession();
+            if (bearerSession) return bearerSession;
+        }
+    } catch {
+        // headers() indisponible hors contexte de requête (ex. rendu statique) —
+        // on retombe sur le comportement NextAuth standard.
+    }
+    return nextAuthAuth();
+}
+
+export { handlers, signIn, signOut };
