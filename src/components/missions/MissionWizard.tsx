@@ -10,6 +10,7 @@ import Step5Team from './steps/Step5Team';
 import Step6Incidents from './steps/Step6Incidents';
 import Step7SignedReport from './steps/Step7SignedReport';
 import Step8Photos from './steps/Step8Photos';
+import Step9Comment from './steps/Step9Comment';
 import styles from './MissionWizard.module.css';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
@@ -24,11 +25,12 @@ export interface MissionFormData {
     vehicle_id: string | null;
     driver_id: string | null;
     victim_count: number;
-    ul18_present: boolean | null;
+    presence_ul: boolean | null;
     team_dynamics: 'BIEN' | 'PLUTOT_BIEN' | 'PEUT_MIEUX' | 'SUJET' | null;
     all_found_place: boolean | null;
     member_difficulties: boolean | null;
     free_comment: string | null;
+    mission_comment: string | null;
     had_acr: boolean;
     had_hemorrhage: boolean;
     had_complex_care: boolean;
@@ -45,11 +47,12 @@ const INITIAL_FORM: MissionFormData = {
     vehicle_id: null,
     driver_id: null,
     victim_count: 0,
-    ul18_present: null,
+    presence_ul: null,
     team_dynamics: null,
     all_found_place: null,
     member_difficulties: null,
     free_comment: null,
+    mission_comment: null,
     had_acr: false,
     had_hemorrhage: false,
     had_complex_care: false,
@@ -64,10 +67,12 @@ interface MissionWizardProps {
     currentUserName?: string;
     /** UL ID of the current user — animation only shown for Paris 18 */
     currentUserUlId?: string;
+    /** Name of the submitter's home UL — used to label the "Présence UL ?" toggle in Step5Team */
+    currentUserUlName?: string;
     onSuccess: (id: string) => void;
 }
 
-export default function MissionWizard({ currentUserId, currentUserName, currentUserUlId, onSuccess }: MissionWizardProps) {
+export default function MissionWizard({ currentUserId, currentUserName, currentUserUlId, currentUserUlName, onSuccess }: MissionWizardProps) {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<MissionFormData>(INITIAL_FORM);
     const [supplies, setSupplies] = useState<Record<string, number>>({});
@@ -89,6 +94,7 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
         'Équipe',
         'Incidents',
         ...(showReportStep ? ['Rapport signé'] : []),
+        'Commentaire',
         'Photos',
     ];
 
@@ -249,9 +255,10 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
             {currentStepLabel === 'Équipage' && <Step2Vehicle data={formData} onChange={patchFormData} currentUserId={currentUserId} currentUserName={currentUserName} />}
             {currentStepLabel === 'Matériel' && <Step3Supplies supplies={supplies} onSupplyChange={handleSupplyChange} />}
             {currentStepLabel === 'Oxygène' && <Step4Oxygen supplies={supplies} onSupplyChange={handleSupplyChange} />}
-            {currentStepLabel === 'Équipe' && <Step5Team data={formData} onChange={patchFormData} />}
+            {currentStepLabel === 'Équipe' && <Step5Team data={formData} onChange={patchFormData} currentUserUlName={currentUserUlName} />}
             {currentStepLabel === 'Incidents' && <Step6Incidents data={formData} onChange={patchFormData} />}
             {currentStepLabel === 'Rapport signé' && <Step7SignedReport file={signedReportFile} onChange={setSignedReportFile} />}
+            {currentStepLabel === 'Commentaire' && <Step9Comment data={formData} onChange={patchFormData} />}
             {currentStepLabel === 'Photos' && <Step8Photos photos={photos} onPhotosChange={setPhotos} uploadError={uploadError} />}
 
             {/* Navigation */}

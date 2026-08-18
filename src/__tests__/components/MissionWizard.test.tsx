@@ -31,8 +31,8 @@ function fillStep1() {
 
 function goToLastStep() {
     fillStep1();
-    // Général -> Équipage -> Matériel -> Oxygène -> Équipe -> Incidents -> Photos (7 étapes par défaut, RESEAU)
-    for (let i = 0; i < 6; i++) {
+    // Général -> Équipage -> Matériel -> Oxygène -> Équipe -> Incidents -> Commentaire -> Photos (8 étapes par défaut, RESEAU)
+    for (let i = 0; i < 7; i++) {
         fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
     }
 }
@@ -52,7 +52,8 @@ describe('MissionWizard', () => {
         const items = screen.getAllByRole('listitem').map(el => el.textContent);
         expect(items).toContain('1. Général');
         expect(items).toContain('3. Matériel');
-        expect(items).toContain('7. Photos');
+        expect(items).toContain('7. Commentaire');
+        expect(items).toContain('8. Photos');
         expect(items.some(t => t?.includes('Rapport signé'))).toBe(false);
     });
 
@@ -102,6 +103,29 @@ describe('MissionWizard', () => {
         const body = JSON.parse((postCall![1] as RequestInit).body as string);
         expect(body.mission_name).toBe('Poste Secours Test');
         expect(body.location).toBe('Local UL 18');
+    });
+
+    it('affiche l\'étape Commentaire juste avant Photos et inclut la saisie dans la soumission', async () => {
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'mission-1' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard onSuccess={onSuccess} currentUserUlId="ul-lyon-3" />);
+        fillStep1();
+        // Général -> Équipage -> Matériel -> Oxygène -> Équipe -> Incidents -> Commentaire (6 clics)
+        for (let i = 0; i < 6; i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        expect(screen.getByText('Commentaire libre')).toBeTruthy();
+
+        fireEvent.change(screen.getByLabelText('Commentaire'), { target: { value: 'RAS, mission calme.' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-1'));
+
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/missions' && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body.mission_comment).toBe('RAS, mission calme.');
     });
 
     it('affiche l\'animation de succès au lieu d\'appeler onSuccess immédiatement pour l\'UL Paris 18', async () => {

@@ -33,7 +33,7 @@ async function main() {
             "vehicle_id"            TEXT REFERENCES "Vehicle"(id),
             "driver_id"             TEXT REFERENCES "User"(id),
             "victim_count"          INTEGER NOT NULL DEFAULT 0,
-            "ul18_present"          INTEGER,
+            "presence_ul"           INTEGER,
             "team_dynamics"         TEXT,
             "all_found_place"       INTEGER,
             "member_difficulties"   INTEGER,

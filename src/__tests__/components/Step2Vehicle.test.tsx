@@ -6,8 +6,8 @@ import type { MissionFormData } from '@/components/missions/MissionWizard';
 const baseData: MissionFormData = {
     mission_type: 'DPS', mission_name: '', mission_date: '2026-01-01', location: '',
     volunteers: '', pegass_ok: true, vehicle_id: null, driver_id: null, victim_count: 0,
-    ul18_present: null, team_dynamics: null, all_found_place: null, member_difficulties: null,
-    free_comment: null, had_acr: false, had_hemorrhage: false, had_complex_care: false, needs_followup: false,
+    presence_ul: null, team_dynamics: null, all_found_place: null, member_difficulties: null,
+    free_comment: null, mission_comment: null, had_acr: false, had_hemorrhage: false, had_complex_care: false, needs_followup: false,
 };
 
 const vehicles = [{ id: 'VL001', name: 'VL186', type: 'VL' }, { id: 'VPSP001', name: 'VPSP-1', type: 'VPSP' }];

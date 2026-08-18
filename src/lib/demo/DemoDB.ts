@@ -76,11 +76,12 @@ const INITIAL_MISSIONS: MissionDetail[] = [
         driver_name: 'Jean Démo',
         driver_email: 'jean.demo@croix-rouge.fr',
         victim_count: 2,
-        ul18_present: true,
+        presence_ul: true,
         team_dynamics: 'BIEN',
         all_found_place: true,
         member_difficulties: false,
         free_comment: 'RAS',
+        mission_comment: null,
         had_acr: false,
         had_hemorrhage: false,
         had_complex_care: false,
@@ -110,11 +111,12 @@ interface MissionDetail {
     driver_name: string | null;
     driver_email: string | null;
     victim_count: number;
-    ul18_present: boolean | null;
+    presence_ul: boolean | null;
     team_dynamics: string | null;
     all_found_place: boolean | null;
     member_difficulties: boolean | null;
     free_comment: string | null;
+    mission_comment: string | null;
     had_acr: boolean;
     had_hemorrhage: boolean;
     had_complex_care: boolean;
@@ -369,11 +371,12 @@ export class DemoDB {
         volunteers: string;
         pegass_ok: boolean;
         victim_count?: number;
-        ul18_present: boolean | null;
+        presence_ul: boolean | null;
         team_dynamics: string | null;
         all_found_place: boolean | null;
         member_difficulties: boolean | null;
         free_comment: string | null;
+        mission_comment?: string | null;
         had_acr?: boolean;
         had_hemorrhage?: boolean;
         had_complex_care?: boolean;
@@ -404,11 +407,12 @@ export class DemoDB {
             driver_name: driver?.name || null,
             driver_email: driver?.email || null,
             victim_count: payload.victim_count || 0,
-            ul18_present: payload.ul18_present,
+            presence_ul: payload.presence_ul,
             team_dynamics: payload.team_dynamics,
             all_found_place: payload.all_found_place,
             member_difficulties: payload.member_difficulties,
             free_comment: payload.free_comment,
+            mission_comment: payload.mission_comment ?? null,
             had_acr: payload.had_acr || false,
             had_hemorrhage: payload.had_hemorrhage || false,
             had_complex_care: payload.had_complex_care || false,

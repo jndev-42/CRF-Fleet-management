@@ -14,6 +14,10 @@ export default function NewMissionPage() {
     const roles = (session?.user?.roles || ['GUEST']) as string[];
     const canAccess = isAdminOrAbove(roles) || roles.includes('CI/RPAPS');
 
+    const availableULs = session?.user?.availableULs ?? [];
+    const currentUserUlName = availableULs.find(ul => ul.isHome)?.name
+        ?? availableULs.find(ul => ul.id === session?.user?.ulId)?.name;
+
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {
             router.push('/');
@@ -38,6 +42,7 @@ export default function NewMissionPage() {
                 currentUserId={session?.user?.id}
                 currentUserName={session?.user?.name ?? undefined}
                 currentUserUlId={session?.user?.ulId ?? undefined}
+                currentUserUlName={currentUserUlName}
                 onSuccess={handleSuccess}
             />
         </main>

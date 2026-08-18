@@ -27,11 +27,13 @@ export async function GET(_request: Request, { params }: RouteContext) {
                     v.name   AS vehicle_name,
                     v.type   AS vehicle_type,
                     d.name   AS driver_name,
-                    d.email  AS driver_email
+                    d.email  AS driver_email,
+                    ul.name  AS ul_name
                 FROM "mission_reports" mr
                 LEFT JOIN "User"    u ON u.id = mr.submitted_by
                 LEFT JOIN "Vehicle" v ON v.id = mr.vehicle_id
                 LEFT JOIN "User"    d ON d.id = mr.driver_id
+                LEFT JOIN "UniteLocale" ul ON ul.id = mr.ulId
                 WHERE mr.id = ?
             `,
             args: [id],
@@ -95,11 +97,13 @@ export async function GET(_request: Request, { params }: RouteContext) {
             driver_name: row.driver_name,
             driver_email: row.driver_email,
             victim_count: Number(row.victim_count),
-            ul18_present: row.ul18_present !== null ? Boolean(Number(row.ul18_present)) : null,
+            presence_ul: row.presence_ul !== null ? Boolean(Number(row.presence_ul)) : null,
+            ulName: (row.ul_name as string | null) ?? null,
             team_dynamics: row.team_dynamics,
             all_found_place: row.all_found_place !== null ? Boolean(Number(row.all_found_place)) : null,
             member_difficulties: row.member_difficulties !== null ? Boolean(Number(row.member_difficulties)) : null,
             free_comment: row.free_comment,
+            mission_comment: row.mission_comment,
             had_acr: Boolean(Number(row.had_acr)),
             had_hemorrhage: Boolean(Number(row.had_hemorrhage)),
             had_complex_care: Boolean(Number(row.had_complex_care)),

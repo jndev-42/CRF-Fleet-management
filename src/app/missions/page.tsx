@@ -16,7 +16,7 @@ interface MissionReport {
     mission_date: string;
     location: string;
     victim_count: number;
-    ul18_present: boolean | null;
+    presence_ul: boolean | null;
     had_acr: boolean;
     had_hemorrhage: boolean;
     had_complex_care: boolean;
@@ -38,6 +38,11 @@ export default function MissionsPage() {
     const roles = (session?.user?.roles || ['GUEST']) as string[];
     const canAccess = isAdminOrAbove(roles) || isReadOnlyManager(roles) || roles.includes('CI/RPAPS');
     const canCreate = isAdminOrAbove(roles) || roles.includes('CI/RPAPS');
+
+    const availableULs = session?.user?.availableULs ?? [];
+    const currentUserUlName = availableULs.find(ul => ul.isHome)?.name
+        ?? availableULs.find(ul => ul.id === session?.user?.ulId)?.name;
+    const ulColumnLabel = currentUserUlName ? `UL ${currentUserUlName}` : 'UL';
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {
@@ -126,7 +131,7 @@ export default function MissionsPage() {
                                 <th>Mission</th>
                                 <th>Lieu</th>
                                 <th className={styles.centerCol}>Victimes</th>
-                                <th className={styles.centerCol}>UL 18</th>
+                                <th className={styles.centerCol}>{ulColumnLabel}</th>
                                 <th className={styles.centerCol}>Incidents</th>
                                 <th></th>
                             </tr>
@@ -149,7 +154,7 @@ export default function MissionsPage() {
                                     <td className={styles.locationCell}>{r.location}</td>
                                     <td className={styles.centerCol}>{r.victim_count > 0 ? r.victim_count : '—'}</td>
                                     <td className={styles.centerCol}>
-                                        {r.ul18_present === null ? '—' : r.ul18_present ? 'Oui' : 'Non'}
+                                        {r.presence_ul === null ? '—' : r.presence_ul ? 'Oui' : 'Non'}
                                     </td>
                                     <td className={styles.centerCol}>
                                         {hasIncidents(r) ? (
