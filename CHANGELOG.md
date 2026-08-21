@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.10.2] — 21 août 2026
+
+### 🐛 Corrections & Améliorations
+
+- **Véhicule — champ VIN restreint à l'UL Paris 18** — le champ "Numéro de châssis / VIN" (création et édition de véhicule) n'est désormais visible que pour les véhicules de l'unité locale Paris 18, la seule à utiliser l'intégration Renault Connect.
+
 ## [4.10.1] — 18 août 2026
 
 ### 🐛 Corrections & Améliorations

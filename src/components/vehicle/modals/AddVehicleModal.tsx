@@ -185,21 +185,23 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                     <option value="Non applicable">Non applicable</option>
                                 </select>
                             </div>
-                            <div className="form-group">
-                                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    Numéro de châssis / VIN (Optionnel)
-                                    <span
-                                        title="Permet de récupérer automatiquement les données utiles via l'API Renault pour les véhicules connectés (kilométrage et batterie/carburant)."
-                                        style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}
-                                    >?</span>
-                                </label>
-                                <input
-                                    className="form-input"
-                                    placeholder="ex: VF1..."
-                                    value={form.vin}
-                                    onChange={(e) => setForm({ ...form, vin: e.target.value })}
-                                />
-                            </div>
+                            {activeUL?.id === 'ul-paris-18' && (
+                                <div className="form-group">
+                                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        Numéro de châssis / VIN (Optionnel)
+                                        <span
+                                            title="Permet de récupérer automatiquement les données utiles via l'API Renault pour les véhicules connectés (kilométrage et batterie/carburant)."
+                                            style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}
+                                        >?</span>
+                                    </label>
+                                    <input
+                                        className="form-input"
+                                        placeholder="ex: VF1..."
+                                        value={form.vin}
+                                        onChange={(e) => setForm({ ...form, vin: e.target.value })}
+                                    />
+                                </div>
+                            )}
                         </div>
                         <div className="form-row">
                             <div className="form-group">

@@ -16,6 +16,7 @@ const mockVehicle: Vehicle = {
     desinfTracking: true,
     notes: 'Note initiale',
     vin: 'VF11234567890',
+    ulId: 'ul-paris-18',
     fuelType: 'Essence',
     maxFuelCapacity: 50,
     maxBatteryCapacityKwh: null,
