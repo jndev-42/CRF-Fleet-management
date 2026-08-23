@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.11.0] — 23 août 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Note de frais — nom et date de mission** — ajout de deux champs obligatoires "Nom de la mission" et "Date de la mission" lors de la création ou de la modification d'une note de frais. La date de mission est distincte de la date de soumission, la note pouvant être saisie plusieurs jours après la mission ; elle ne peut pas être postérieure à la date du jour. Ces informations alimentent la colonne "Date et objet de la mission" du PDF généré et sont affichées dans le détail de la note. Les notes de frais déjà générées ne sont pas impactées : leur PDF conserve son rendu d'origine.
+
 ## [4.10.2] — 21 août 2026
 
 ### 🐛 Corrections & Améliorations

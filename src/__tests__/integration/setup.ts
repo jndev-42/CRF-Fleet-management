@@ -360,6 +360,8 @@ async function createTables() {
     total                  REAL NOT NULL DEFAULT 0.0,
     items                  TEXT NOT NULL,
     ulId                   TEXT NOT NULL DEFAULT 'ul-paris-18',
+    missionName            TEXT,
+    missionDate            TEXT,
     validatedAt            TEXT,
     validatedBy            TEXT REFERENCES "User"(id) ON DELETE SET NULL,
     rejectionComment       TEXT,
@@ -889,6 +891,8 @@ export async function seedExpenseReport(overrides: Partial<{
   items: { label: string; amount: number }[];
   ulId: string;
   validatedBy: string | null;
+  missionName: string | null;
+  missionDate: string | null;
 }> = {}) {
   const report = {
     id: 'expense-1',
@@ -900,12 +904,15 @@ export async function seedExpenseReport(overrides: Partial<{
     items: [{ label: 'Péage', amount: 42.5 }],
     ulId: 'ul-paris-18',
     validatedBy: null,
+    // null par défaut : représente une note de frais créée avant l'ajout du champ mission.
+    missionName: null as string | null,
+    missionDate: null as string | null,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, validatedBy)
-          VALUES (?,?,?,?,?,?,?,?,?)`,
-    args: [report.id, report.userId, report.submittedAt, report.status, report.imputation, report.total, JSON.stringify(report.items), report.ulId, report.validatedBy],
+    sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, validatedBy, missionName, missionDate)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [report.id, report.userId, report.submittedAt, report.status, report.imputation, report.total, JSON.stringify(report.items), report.ulId, report.validatedBy, report.missionName, report.missionDate],
   });
   return report;
 }

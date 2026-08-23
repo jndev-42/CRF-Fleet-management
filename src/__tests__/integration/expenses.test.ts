@@ -44,11 +44,12 @@ beforeEach(async () => {
 });
 
 // Helper functions for mock requests
+// missionName / missionDate sont obligatoires : valeurs par défaut ici, surchargeables par test.
 function makePostRequest(body: Record<string, unknown>): Request {
     return new Request('http://localhost/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ missionName: 'Maraude Nord', missionDate: '2026-03-12', ...body }),
     });
 }
 
@@ -121,6 +122,67 @@ describe('Expense Report integration tests', () => {
             expect(dbCheck.rows[0].customImputation).toBe('Projet Formation 2026');
             expect(dbCheck.rows[0].total).toBe(75.50);
             expect(JSON.parse(dbCheck.rows[0].items as string)).toHaveLength(2);
+        });
+
+        it('retourne 400 si le nom de la mission est absent', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
+            const req = makePostRequest({
+                missionName: '   ',
+                status: 'soumis',
+                imputation: 'DLUS',
+                requestRefund: true,
+                noReceiptDeclaration: false,
+                items: [{ label: 'Essence', amount: 30 }]
+            });
+            const res = await createReport(req);
+            expect(res.status).toBe(400);
+        });
+
+        it('retourne 400 si la date de la mission est absente ou mal formatée', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
+
+            const missing = await createReport(makePostRequest({
+                missionDate: undefined,
+                status: 'soumis',
+                imputation: 'DLUS',
+                requestRefund: true,
+                noReceiptDeclaration: false,
+                items: [{ label: 'Essence', amount: 30 }]
+            }));
+            expect(missing.status).toBe(400);
+
+            const malformed = await createReport(makePostRequest({
+                missionDate: '12/03/2026',
+                status: 'soumis',
+                imputation: 'DLUS',
+                requestRefund: true,
+                noReceiptDeclaration: false,
+                items: [{ label: 'Essence', amount: 30 }]
+            }));
+            expect(malformed.status).toBe(400);
+        });
+
+        it('persiste le nom et la date de mission en base', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
+            const req = makePostRequest({
+                missionName: '  Poste de secours Marathon  ',
+                missionDate: '2026-04-05',
+                status: 'brouillon',
+                imputation: 'DLUS',
+                requestRefund: true,
+                noReceiptDeclaration: false,
+                items: [{ label: 'Repas', amount: 12 }]
+            });
+            const res = await createReport(req);
+            expect(res.status).toBe(201);
+            const { id } = await res.json();
+
+            const dbCheck = await db.execute({
+                sql: 'SELECT missionName, missionDate FROM "ExpenseReport" WHERE id = ?',
+                args: [id]
+            });
+            expect(dbCheck.rows[0].missionName).toBe('Poste de secours Marathon');
+            expect(dbCheck.rows[0].missionDate).toBe('2026-04-05');
         });
 
         it('creates a notification for PRESIDENT when a report is submitted', async () => {
@@ -344,6 +406,68 @@ describe('Expense Report integration tests', () => {
             expect(res.status).toBe(200);
             expect(res.headers.get('Content-Type')).toBe('application/pdf');
             expect(res.headers.get('Content-Disposition')).toContain('note-de-frais-exp-pdf-test.pdf');
+        });
+    });
+
+    describe('PATCH /api/expenses/[id] — mission obligatoire', () => {
+        beforeEach(async () => {
+            // Brouillon créé avant l'ajout du champ mission : missionName / missionDate à NULL.
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
+                      VALUES ('exp-draft', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0, '[{"label":"Repas","amount":20.0}]', 'ul-paris-18', 1)`,
+                args: [],
+            });
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
+        });
+
+        it('retourne 400 lors de la mise à jour d\'un brouillon sans nom de mission', async () => {
+            const req = makePatchRequest({
+                action: 'update',
+                status: 'brouillon',
+                items: [{ label: 'Repas', amount: 20 }],
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(400);
+        });
+
+        it('retourne 400 lors de la soumission d\'un brouillon sans date de mission', async () => {
+            const req = makePatchRequest({
+                action: 'submit',
+                missionName: 'Maraude Nord',
+                items: [{ label: 'Repas', amount: 20 }],
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(400);
+        });
+
+        it('met à jour le brouillon et persiste la mission (happy path)', async () => {
+            const req = makePatchRequest({
+                action: 'update',
+                status: 'brouillon',
+                missionName: '  Maraude Nord  ',
+                missionDate: '2026-03-12',
+                items: [{ label: 'Repas', amount: 20 }],
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(200);
+
+            const dbCheck = await db.execute({
+                sql: 'SELECT missionName, missionDate FROM "ExpenseReport" WHERE id = ?',
+                args: ['exp-draft'],
+            });
+            expect(dbCheck.rows[0].missionName).toBe('Maraude Nord');
+            expect(dbCheck.rows[0].missionDate).toBe('2026-03-12');
+        });
+
+        it('n\'exige pas la mission pour les actions de validation', async () => {
+            await db.execute({
+                sql: `UPDATE "ExpenseReport" SET status = 'soumis' WHERE id = 'exp-draft'`,
+                args: [],
+            });
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'], ulId: 'ul-paris-18' } } as never);
+
+            const res = await updateReport(makePatchRequest({ action: 'validate' }), { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(200);
         });
     });
 });

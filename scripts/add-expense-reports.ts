@@ -35,6 +35,8 @@ async function run() {
             "total"                  REAL NOT NULL DEFAULT 0.0,
             "items"                  TEXT NOT NULL, -- JSON string: Array<{ label: string, amount: number }>
             "ulId"                   TEXT NOT NULL DEFAULT 'ul-paris-18',
+            "missionName"            TEXT, -- Nom / objet de la mission (nullable : notes antérieures)
+            "missionDate"            TEXT, -- Date de la mission (ISO yyyy-MM-dd), distincte de submittedAt
             "validatedAt"            TEXT,
             "validatedBy"            TEXT REFERENCES "User"(id) ON DELETE SET NULL,
             "rejectionComment"       TEXT,
@@ -61,6 +63,12 @@ async function run() {
     }
     if (!expColNames.includes('validatorSignature')) {
         await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "validatorSignature" TEXT`);
+    }
+    if (!expColNames.includes('missionName')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "missionName" TEXT`);
+    }
+    if (!expColNames.includes('missionDate')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "missionDate" TEXT`);
     }
 
     await db.execute(`

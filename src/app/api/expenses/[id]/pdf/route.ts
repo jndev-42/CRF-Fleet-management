@@ -43,6 +43,8 @@ async function generateExpensePdf(reportId: string): Promise<Buffer> {
         userName: row.userName as string,
         userEmail: row.userEmail as string,
         submittedAt: row.submittedAt as string,
+        missionName: (row.missionName as string) || null,
+        missionDate: (row.missionDate as string) || null,
         status: row.status as string,
         imputation: (row.imputation as string) || 'DLUS',
         customImputation: (row.customImputation as string) || null,

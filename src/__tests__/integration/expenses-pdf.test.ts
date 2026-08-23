@@ -61,4 +61,33 @@ describe('GET /api/expenses/[id]/pdf', () => {
         const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
         expect(res.status).toBe(200);
     });
+
+    it('génère le PDF d\'une note antérieure sans mission (non-régression)', async () => {
+        mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'owner@test.com', roles: ['CHVL'] } } as never);
+        await seedUser({ id: 'user-1', email: 'owner@test.com' });
+        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', missionName: null, missionDate: null });
+
+        const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
+        expect(res.status).toBe(200);
+        expect(res.headers.get('Content-Type')).toBe('application/pdf');
+        const buffer = Buffer.from(await res.arrayBuffer());
+        expect(buffer.length).toBeGreaterThan(0);
+    });
+
+    it('génère le PDF d\'une note portant un nom et une date de mission', async () => {
+        mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'owner@test.com', roles: ['CHVL'] } } as never);
+        await seedUser({ id: 'user-1', email: 'owner@test.com' });
+        await seedExpenseReport({
+            id: 'expense-1',
+            userId: 'user-1',
+            missionName: 'Maraude Nord',
+            missionDate: '2026-03-12',
+        });
+
+        const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
+        expect(res.status).toBe(200);
+        expect(res.headers.get('Content-Type')).toBe('application/pdf');
+        const buffer = Buffer.from(await res.arrayBuffer());
+        expect(buffer.length).toBeGreaterThan(0);
+    });
 });
