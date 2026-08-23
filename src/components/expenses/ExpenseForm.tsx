@@ -312,7 +312,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     required
                 />
                 <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                    Date à laquelle la mission a eu lieu, si différente de la date du jour.
+                    Date à laquelle la mission a eu lieu.
                 </p>
             </div>
 
