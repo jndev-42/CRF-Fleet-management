@@ -7,6 +7,8 @@ import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 const updateExpenseReportSchema = z.object({
     action: z.enum(['update', 'submit', 'validate', 'reject', 'pay']),
     status: z.enum(['brouillon', 'soumis', 'en_attente_paiement', 'traité', 'refusé']).optional(),
+    missionName: z.string().optional().nullable(),
+    missionDate: z.string().optional().nullable(),
     imputation: z.enum(['DLUS', 'DLAS', 'UL', 'Autre']).optional(),
     customImputation: z.string().optional().nullable(),
     rejectionComment: z.string().optional().nullable(),
@@ -20,6 +22,25 @@ const updateExpenseReportSchema = z.object({
         label: z.string().min(1),
         amount: z.number().positive()
     })).optional(),
+}).superRefine((data, ctx) => {
+    // Le nom et la date de mission sont obligatoires dès que le demandeur modifie ou
+    // soumet sa note de frais — y compris pour un brouillon créé avant l'ajout du champ.
+    if (data.action !== 'update' && data.action !== 'submit') return;
+
+    if (!data.missionName || !data.missionName.trim()) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['missionName'],
+            message: 'Le nom de la mission est requis',
+        });
+    }
+    if (!data.missionDate || !/^\d{4}-\d{2}-\d{2}$/.test(data.missionDate)) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['missionDate'],
+            message: 'La date de la mission est requise (format AAAA-MM-JJ)',
+        });
+    }
 });
 
 export async function GET(
@@ -76,6 +97,8 @@ export async function GET(
             userName: row.userName,
             userEmail: row.userEmail,
             submittedAt: row.submittedAt,
+            missionName: (row.missionName as string) || null,
+            missionDate: (row.missionDate as string) || null,
             status: row.status,
             imputation: (row.imputation as string) || 'DLUS',
             customImputation: (row.customImputation as string) || null,
@@ -144,7 +167,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Données invalides', details: parsed.error.issues }, { status: 400 });
         }
 
-        const { action, status, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, userSignature, userFunction, validatorSignature, driveFolderId, items } = parsed.data;
+        const { action, status, missionName, missionDate, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, userSignature, userFunction, validatorSignature, driveFolderId, items } = parsed.data;
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
         const isOwner = report.userId === session.user.id;
@@ -263,6 +286,9 @@ export async function PATCH(
                 ? JSON.stringify(userSignature)
                 : (userSignature !== undefined ? (userSignature || null) : (report.userSignature as string || null));
             const finalUserFunction = userFunction !== undefined ? (userFunction || null) : (report.userFunction as string || null);
+            // Garantis non vides par le superRefine du schéma pour les actions update/submit.
+            const finalMissionName = (missionName ?? '').trim();
+            const finalMissionDate = missionDate ?? '';
 
             let finalItemsStr = report.items as string;
             let finalTotal = Number(report.total);
@@ -274,7 +300,7 @@ export async function PATCH(
             await db.execute({
                 sql: `
                     UPDATE "ExpenseReport"
-                    SET status = ?, imputation = ?, customImputation = ?, requestRefund = ?, noReceiptDeclaration = ?, driveFolderId = ?, total = ?, items = ?, userSignature = ?, userFunction = ?, submittedAt = ?, updatedAt = ?
+                    SET status = ?, imputation = ?, customImputation = ?, requestRefund = ?, noReceiptDeclaration = ?, driveFolderId = ?, total = ?, items = ?, userSignature = ?, userFunction = ?, missionName = ?, missionDate = ?, submittedAt = ?, updatedAt = ?
                     WHERE id = ?
                 `,
                 args: [
@@ -288,6 +314,8 @@ export async function PATCH(
                     finalItemsStr,
                     userSigStr,
                     finalUserFunction,
+                    finalMissionName,
+                    finalMissionDate,
                     now,
                     now,
                     id

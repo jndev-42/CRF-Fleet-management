@@ -1,6 +1,7 @@
 import { X, XCircle, AlertCircle, Check, DollarSign, Send, Trash, Edit, Download } from 'lucide-react';
 import ExpensePhotosPanel from './ExpensePhotosPanel';
 import { formatDate, getStatusBadge } from './utils';
+import { formatIsoDayFr } from '@/lib/utils/date';
 import type { ExpenseReport } from './types';
 
 interface ExpenseDetailSidebarProps {
@@ -76,6 +77,23 @@ export default function ExpenseDetailSidebar({
                     {report.userEmail}
                 </div>
             </div>
+
+            {/* Mission */}
+            {report.missionName && (
+                <div style={{ borderBottom: '1px solid var(--border-primary)', paddingBottom: '12px' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                        Mission
+                    </span>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--text-primary)', fontWeight: 600, marginTop: '2px' }}>
+                        {report.missionName}
+                    </div>
+                    {report.missionDate && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            le {formatIsoDayFr(report.missionDate)}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Date, Imputation & Status */}
             <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid var(--border-primary)', paddingBottom: '12px' }}>

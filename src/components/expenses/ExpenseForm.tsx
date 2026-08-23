@@ -14,6 +14,8 @@ interface ExpenseFormProps {
     onSuccess: () => void;
     initialData?: {
         id: string;
+        missionName?: string | null;
+        missionDate?: string | null;
         imputation?: 'DLUS' | 'DLAS' | 'UL' | 'Autre';
         customImputation?: string | null;
         requestRefund: boolean;
@@ -27,6 +29,8 @@ interface ExpenseFormProps {
 
 export default function ExpenseForm({ onClose, onSuccess, initialData }: ExpenseFormProps) {
     const { data: session } = useSession();
+    const [missionName, setMissionName] = useState<string>(initialData?.missionName || '');
+    const [missionDate, setMissionDate] = useState<string>(initialData?.missionDate || '');
     const [items, setItems] = useState<ExpenseItem[]>(
         initialData
             ? initialData.items.map(item => ({ label: item.label, amount: item.amount.toString() }))
@@ -53,6 +57,9 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
     const [photos, setPhotos] = useState<File[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Une mission ne peut pas être datée dans le futur.
+    const todayIso = new Date().toISOString().slice(0, 10);
 
     // Calculate total whenever items change
     const [total, setTotal] = useState(0);
@@ -88,6 +95,22 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
 
     const validateForm = (): boolean => {
         setError(null);
+
+        if (!missionName.trim()) {
+            setError('Veuillez renseigner le nom de la mission.');
+            return false;
+        }
+
+        if (!missionDate) {
+            setError('Veuillez renseigner la date de la mission.');
+            return false;
+        }
+
+        if (missionDate > todayIso) {
+            setError('La date de la mission ne peut pas être dans le futur.');
+            return false;
+        }
+
         const validItems = items.filter(item => item.label.trim() && parseFloat(item.amount) > 0);
         if (validItems.length === 0) {
             setError('Veuillez ajouter au moins une dépense valide avec un libellé et un montant supérieur à 0.');
@@ -165,6 +188,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 const payload = {
                     action: submitStatus === 'soumis' ? 'submit' : 'update',
                     status: submitStatus,
+                    missionName: missionName.trim(),
+                    missionDate: missionDate,
                     imputation: imputation,
                     customImputation: imputation === 'Autre' ? customImputation.trim() : null,
                     requestRefund: requestRefund,
@@ -191,6 +216,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
             } else {
                 const payload = {
                     status: submitStatus,
+                    missionName: missionName.trim(),
+                    missionDate: missionDate,
                     imputation: imputation,
                     customImputation: imputation === 'Autre' ? customImputation.trim() : null,
                     requestRefund: requestRefund,
@@ -252,6 +279,42 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     <div>{error}</div>
                 </div>
             )}
+
+            {/* Mission */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label className="form-label" htmlFor="missionName" style={{ fontWeight: 600, margin: 0 }}>
+                    Nom de la mission <span style={{ color: 'var(--crf-red)' }}>*</span>
+                </label>
+                <input
+                    id="missionName"
+                    type="text"
+                    className="form-input"
+                    placeholder="Ex : Maraude Nord, Poste de secours Marathon..."
+                    value={missionName}
+                    onChange={(e) => setMissionName(e.target.value)}
+                    disabled={loading}
+                    required
+                />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <label className="form-label" htmlFor="missionDate" style={{ fontWeight: 600, margin: 0 }}>
+                    Date de la mission <span style={{ color: 'var(--crf-red)' }}>*</span>
+                </label>
+                <input
+                    id="missionDate"
+                    type="date"
+                    className="form-input"
+                    value={missionDate}
+                    max={todayIso}
+                    onChange={(e) => setMissionDate(e.target.value)}
+                    disabled={loading}
+                    required
+                />
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                    Date à laquelle la mission a eu lieu.
+                </p>
+            </div>
 
             {/* Imputation de la dépense */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

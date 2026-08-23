@@ -7,6 +7,8 @@ import { unauthorizedResponse } from '@/lib/apiAuth';
 
 const expenseReportSchema = z.object({
     status: z.enum(['brouillon', 'soumis']),
+    missionName: z.string().trim().min(1, 'Le nom de la mission est requis'),
+    missionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'La date de la mission est requise (format AAAA-MM-JJ)'),
     imputation: z.enum(['DLUS', 'DLAS', 'UL', 'Autre']).optional().default('DLUS'),
     customImputation: z.string().optional().nullable(),
     requestRefund: z.boolean(),
@@ -42,7 +44,8 @@ export async function GET(request: Request) {
         const selectColumns = `
             er.id, er.userId, er.submittedAt, er.status, er.imputation, er.customImputation,
             er.requestRefund, er.noReceiptDeclaration, er.driveFolderId, er.total, er.items,
-            er.ulId, er.validatedAt, er.validatedBy, er.rejectionComment, er.rejectedAt,
+            er.ulId, er.missionName, er.missionDate, er.validatedAt, er.validatedBy,
+            er.rejectionComment, er.rejectedAt,
             er.rejectedBy, er.paidAt, er.paidBy, er.userFunction, er.createdAt, er.updatedAt,
             u.name as userName, u.email as userEmail,
             val.name as validatorName,
@@ -146,6 +149,8 @@ export async function GET(request: Request) {
                 userName: String(row.userName || 'Utilisateur inconnu'),
                 userEmail: String(row.userEmail || ''),
                 submittedAt: row.submittedAt ? String(row.submittedAt) : '',
+                missionName: row.missionName ? String(row.missionName) : null,
+                missionDate: row.missionDate ? String(row.missionDate) : null,
                 status: (row.status as string) || 'brouillon',
                 imputation: (row.imputation as string) || 'DLUS',
                 customImputation: (row.customImputation as string) || null,
@@ -209,8 +214,8 @@ export async function POST(request: Request) {
             sql: `
                 INSERT INTO "ExpenseReport" (
                     id, userId, submittedAt, status, imputation, customImputation, requestRefund, noReceiptDeclaration,
-                    userSignature, userFunction, driveFolderId, total, items, ulId, createdAt, updatedAt
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    userSignature, userFunction, driveFolderId, total, items, ulId, missionName, missionDate, createdAt, updatedAt
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `,
             args: [
                 id,
@@ -227,6 +232,8 @@ export async function POST(request: Request) {
                 total,
                 JSON.stringify(data.items),
                 ulId,
+                data.missionName.trim(),
+                data.missionDate,
                 now,
                 now
             ],

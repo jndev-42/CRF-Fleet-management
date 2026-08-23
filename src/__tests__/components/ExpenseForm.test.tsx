@@ -34,6 +34,12 @@ function mockFetch(handler: (input: string | URL | Request, init?: RequestInit) 
     return mock;
 }
 
+/** Renseigne les champs mission, obligatoires pour toute création/édition. */
+function fillMission(name = 'Maraude Nord', date = '2026-03-12') {
+    fireEvent.change(screen.getByLabelText(/Nom de la mission/), { target: { value: name } });
+    fireEvent.change(screen.getByLabelText(/Date de la mission/), { target: { value: date } });
+}
+
 beforeEach(() => {
     vi.restoreAllMocks();
 });
@@ -65,6 +71,8 @@ describe('ExpenseForm', () => {
     it('refuse l\'enregistrement sans dépense valide', () => {
         render(<ExpenseForm onClose={vi.fn()} onSuccess={vi.fn()} />);
 
+        fillMission();
+
         fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
 
         expect(screen.getByText('Veuillez ajouter au moins une dépense valide avec un libellé et un montant supérieur à 0.')).toBeTruthy();
@@ -72,6 +80,8 @@ describe('ExpenseForm', () => {
 
     it('exige la déclaration sur l\'honneur ou une photo si remboursement demandé sans justificatif', () => {
         render(<ExpenseForm onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        fillMission();
 
         fireEvent.change(screen.getByPlaceholderText('Description (ex: Essence, Billet de train...)'), { target: { value: 'Péage' } });
         fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '20' } });
@@ -85,6 +95,8 @@ describe('ExpenseForm', () => {
         const onSuccess = vi.fn();
 
         render(<ExpenseForm onClose={vi.fn()} onSuccess={onSuccess} />);
+
+        fillMission();
 
         fireEvent.change(screen.getByPlaceholderText('Description (ex: Essence, Billet de train...)'), { target: { value: 'Péage' } });
         fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '20' } });
@@ -106,6 +118,8 @@ describe('ExpenseForm', () => {
 
         render(<ExpenseForm onClose={vi.fn()} onSuccess={onSuccess} />);
 
+        fillMission();
+
         fireEvent.change(screen.getByPlaceholderText('Description (ex: Essence, Billet de train...)'), { target: { value: 'Péage' } });
         fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '20' } });
         fireEvent.click(screen.getByRole('checkbox', { name: /Je n'ai pas de justificatifs/ }));
@@ -125,12 +139,63 @@ describe('ExpenseForm', () => {
 
         render(<ExpenseForm onClose={vi.fn()} onSuccess={vi.fn()} />);
 
+        fillMission();
+
         fireEvent.change(screen.getByPlaceholderText('Description (ex: Essence, Billet de train...)'), { target: { value: 'Péage' } });
         fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '20' } });
         fireEvent.click(screen.getByRole('checkbox', { name: /Je n'ai pas de justificatifs/ }));
         fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
 
         expect(await screen.findByText('Imputation invalide')).toBeTruthy();
+    });
+
+    it('refuse l\'enregistrement sans nom de mission', () => {
+        render(<ExpenseForm onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        fireEvent.change(screen.getByLabelText(/Date de la mission/), { target: { value: '2026-03-12' } });
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+
+        expect(screen.getByText('Veuillez renseigner le nom de la mission.')).toBeTruthy();
+    });
+
+    it('refuse l\'enregistrement sans date de mission', () => {
+        render(<ExpenseForm onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        fireEvent.change(screen.getByLabelText(/Nom de la mission/), { target: { value: 'Maraude Nord' } });
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+
+        expect(screen.getByText('Veuillez renseigner la date de la mission.')).toBeTruthy();
+    });
+
+    it('refuse une date de mission dans le futur', () => {
+        render(<ExpenseForm onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        const future = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString().slice(0, 10);
+        fillMission('Maraude Nord', future);
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+
+        expect(screen.getByText('La date de la mission ne peut pas être dans le futur.')).toBeTruthy();
+    });
+
+    it('transmet le nom et la date de mission dans le payload', async () => {
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'expense-1' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        render(<ExpenseForm onClose={vi.fn()} onSuccess={onSuccess} />);
+
+        fillMission('  Poste de secours Marathon  ', '2026-04-05');
+
+        fireEvent.change(screen.getByPlaceholderText('Description (ex: Essence, Billet de train...)'), { target: { value: 'Repas' } });
+        fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '12' } });
+        fireEvent.click(screen.getByRole('checkbox', { name: /Je n'ai pas de justificatifs/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/expenses' && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body.missionName).toBe('Poste de secours Marathon');
+        expect(body.missionDate).toBe('2026-04-05');
     });
 
     it('pré-remplit le formulaire en mode édition', () => {
@@ -140,6 +205,8 @@ describe('ExpenseForm', () => {
                 onSuccess={vi.fn()}
                 initialData={{
                     id: 'expense-1',
+                    missionName: 'Maraude Nord',
+                    missionDate: '2026-03-12',
                     imputation: 'UL',
                     customImputation: null,
                     requestRefund: true,

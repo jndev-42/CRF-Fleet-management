@@ -4,6 +4,8 @@ export interface ExpenseReport {
     userName: string;
     userEmail: string;
     submittedAt: string;
+    missionName: string | null;
+    missionDate: string | null;
     status: 'brouillon' | 'soumis' | 'en_attente_paiement' | 'traité' | 'refusé';
     imputation: 'DLUS' | 'DLAS' | 'UL' | 'Autre';
     customImputation: string | null;

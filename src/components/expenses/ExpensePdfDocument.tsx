@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer';
+import { formatIsoDayFr } from '@/lib/utils/date';
 
 const styles = StyleSheet.create({
     page: {
@@ -373,6 +374,8 @@ export interface ExpensePdfReportProps {
         userName: string;
         userEmail: string;
         submittedAt: string;
+        missionName?: string | null;
+        missionDate?: string | null;
         status: string;
         imputation: string;
         customImputation?: string | null;
@@ -398,6 +401,12 @@ export default function ExpensePdfDocument({ report, logoSrc }: ExpensePdfReport
         : new Date().toLocaleDateString('fr-FR');
 
     const ulDisplayName = report.ulName || (report.ulId === 'ul-paris-18' ? 'Paris 18' : report.ulId);
+
+    // Date de la mission : distincte de la date de soumission, car la note peut être
+    // saisie plusieurs jours après. On retombe sur la date de soumission si elle est absente.
+    const missionDateLabel = report.missionDate
+        ? formatIsoDayFr(report.missionDate)
+        : formattedDate;
 
     // Parse signatures if JSON string
     let parsedUserSig: ParsedSignature | null = null;
@@ -492,7 +501,11 @@ export default function ExpensePdfDocument({ report, logoSrc }: ExpensePdfReport
                             <View key={idx} style={isLast ? styles.tableRowLast : styles.tableRow}>
                                 <Text style={styles.tdCol1}>{idx + 1}</Text>
                                 <Text style={styles.tdCol2}>
-                                    {item ? `Mission du ${formattedDate} — ${item.label}` : ''}
+                                    {item
+                                        ? (report.missionName
+                                            ? `${missionDateLabel} — ${report.missionName}`
+                                            : `Mission du ${formattedDate} — ${item.label}`)
+                                        : ''}
                                 </Text>
                                 <Text style={styles.tdCol3}>
                                     {item ? item.label : ''}
