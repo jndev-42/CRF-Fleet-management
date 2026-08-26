@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import CheckInModal from '@/components/vehicle/modals/CheckInModal';
+import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 import type { Vehicle, Trip } from '@/app/vehicles/[id]/types';
 
 vi.mock('@/lib/imageCompression', () => ({
@@ -213,6 +214,233 @@ describe('CheckInModal', () => {
         fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
 
         await waitFor(() => expect(window.alert).toHaveBeenCalledWith('Kilométrage invalide'));
+    });
+
+    describe('contrôle de plausibilité du kilométrage', () => {
+        /** Injecte une photo dans le PhotoPicker (compressImages est mocké en identité). */
+        function pickPhoto(container: HTMLElement) {
+            const fileInput = container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+            fireEvent.change(fileInput, {
+                target: { files: [new File(['x'], 'p.jpg', { type: 'image/jpeg' })] },
+            });
+        }
+
+        it('bloque la soumission et affiche le message quand le km est inférieur au départ', async () => {
+            const fetchMock = mockFetch();
+            render(<CheckInModal vehicle={mockVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+            await screen.findByDisplayValue('12000');
+            fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '11000' } });
+
+            expect(screen.getByText(/inférieur au kilométrage de départ/)).toBeTruthy();
+            const submit = screen.getByRole('button', { name: /Rendre le véhicule/ }) as HTMLButtonElement;
+            expect(submit.disabled).toBe(true);
+
+            fireEvent.click(submit);
+            await waitFor(() => {
+                expect(fetchMock.mock.calls.some(c => (c[1] as RequestInit)?.method === 'PATCH')).toBe(false);
+            });
+        });
+
+        it('ouvre la modale de confirmation sans envoyer de requête quand le delta est excessif', async () => {
+            const fetchMock = mockFetch();
+            render(<CheckInModal vehicle={mockVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+            await screen.findByDisplayValue('12000');
+            fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '12400' } });
+            fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+            expect(await screen.findByText('⚠️ Kilométrage inhabituel')).toBeTruthy();
+            expect(fetchMock.mock.calls.some(c => (c[1] as RequestInit)?.method === 'PATCH')).toBe(false);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Confirmer quand même' }));
+
+            await waitFor(() => {
+                const patchCall = fetchMock.mock.calls.find(c => (c[1] as RequestInit)?.method === 'PATCH');
+                expect(patchCall).toBeTruthy();
+                const body = JSON.parse((patchCall![1] as RequestInit).body as string);
+                expect(body.confirmMileageAnomaly).toBe(true);
+                expect(body.mileageIn).toBe(12400);
+            });
+        });
+
+        it('« Corriger » ferme la modale sans envoyer de requête', async () => {
+            const fetchMock = mockFetch();
+            render(<CheckInModal vehicle={mockVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+            await screen.findByDisplayValue('12000');
+            fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '12400' } });
+            fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+            await screen.findByText('⚠️ Kilométrage inhabituel');
+            fireEvent.click(screen.getByRole('button', { name: 'Corriger' }));
+
+            await waitFor(() => expect(screen.queryByText('⚠️ Kilométrage inhabituel')).toBeNull());
+            expect(fetchMock.mock.calls.some(c => (c[1] as RequestInit)?.method === 'PATCH')).toBe(false);
+        });
+
+        it("n'envoie aucune photo sur Drive avant la confirmation", async () => {
+            mockFetch();
+            const { container } = render(
+                <CheckInModal vehicle={mockVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />
+            );
+
+            await screen.findByDisplayValue('12000');
+            pickPhoto(container);
+            fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '12400' } });
+            fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+            await screen.findByText('⚠️ Kilométrage inhabituel');
+            expect(uploadFilesToDriveSafely).not.toHaveBeenCalled();
+        });
+
+        it('ne ré-uploade pas les photos lors du rejeu après un 400 serveur', async () => {
+            let patchCount = 0;
+            const fetchMock = mockFetch(async (input, init) => {
+                const url = getUrl(input);
+                if (url.includes('/checkin') && init?.method === 'PATCH') {
+                    patchCount += 1;
+                    if (patchCount === 1) {
+                        return new Response(
+                            JSON.stringify({
+                                error: 'Kilométrage inhabituel, confirmation requise.',
+                                code: 'MILEAGE_CONFIRM_REQUIRED',
+                                delta: 480,
+                                maxKm: 300,
+                                durationLabel: '2 jours',
+                            }),
+                            { status: 400 }
+                        );
+                    }
+                    return new Response(JSON.stringify({ success: true }), { status: 200 });
+                }
+                return defaultFetchHandler(input, init);
+            });
+
+            const { container } = render(
+                <CheckInModal vehicle={mockVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />
+            );
+
+            await screen.findByDisplayValue('12000');
+            pickPhoto(container);
+            // Delta 100 : sous le seuil local, donc le 400 vient bien du serveur (dérive d'horloge simulée).
+            fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '12100' } });
+            fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+            // La modale est peuplée depuis le corps 400, jamais par recalcul local.
+            expect(await screen.findByText('⚠️ Kilométrage inhabituel')).toBeTruthy();
+            expect(screen.getByText(/480 km parcourus en 2 jours/)).toBeTruthy();
+            expect(screen.getByText(/Plafond attendu : 300 km/)).toBeTruthy();
+
+            fireEvent.click(screen.getByRole('button', { name: 'Confirmer quand même' }));
+
+            await waitFor(() => expect(patchCount).toBe(2));
+            expect(uploadFilesToDriveSafely).toHaveBeenCalledTimes(1);
+
+            const patchCalls = fetchMock.mock.calls.filter(c => (c[1] as RequestInit)?.method === 'PATCH');
+            const secondBody = JSON.parse((patchCalls[1][1] as RequestInit).body as string);
+            expect(secondBody.confirmMileageAnomaly).toBe(true);
+        });
+
+        it('réarme la confirmation après correction du kilométrage (garde anti-boucle non collant)', async () => {
+            const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+            // Le serveur refuse systématiquement : simule une divergence structurelle front/serveur.
+            const fetchMock = mockFetch(async (input, init) => {
+                const url = getUrl(input);
+                if (url.includes('/checkin') && init?.method === 'PATCH') {
+                    return new Response(
+                        JSON.stringify({
+                            error: 'Kilométrage inhabituel, confirmation requise.',
+                            code: 'MILEAGE_CONFIRM_REQUIRED',
+                            delta: 480,
+                            maxKm: 300,
+                            durationLabel: '2 jours',
+                        }),
+                        { status: 400 }
+                    );
+                }
+                return defaultFetchHandler(input, init);
+            });
+
+            render(<CheckInModal vehicle={mockVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+            await screen.findByDisplayValue('12000');
+
+            // Delta 100 : sous le seuil local, le 400 vient donc du serveur.
+            fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '12100' } });
+            fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+            await screen.findByText('⚠️ Kilométrage inhabituel');
+
+            // Confirmation : le second 400 doit tomber dans le garde anti-boucle (alerte brute).
+            fireEvent.click(screen.getByRole('button', { name: 'Confirmer quand même' }));
+            await waitFor(() => expect(alertSpy).toHaveBeenCalled());
+            expect(screen.queryByText('⚠️ Kilométrage inhabituel')).toBeNull();
+
+            // L'utilisateur corrige : le garde doit être réarmé, sinon plus aucune
+            // anomalie ultérieure ne serait confirmable et le véhicule resterait IN_USE.
+            fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '12050' } });
+            fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+            expect(await screen.findByText('⚠️ Kilométrage inhabituel')).toBeTruthy();
+            expect(fetchMock.mock.calls.filter(c => (c[1] as RequestInit)?.method === 'PATCH').length).toBe(3);
+            alertSpy.mockRestore();
+        });
+
+        it('ré-uploade les photos si le jeu de photos change après un 400', async () => {
+            // Le compteur du module mocké n'est pas remis à zéro par restoreAllMocks :
+            // sans ce clear, l'assertion s'appuierait sur les appels des tests précédents.
+            vi.mocked(uploadFilesToDriveSafely).mockClear();
+            let patchCount = 0;
+            mockFetch(async (input, init) => {
+                const url = getUrl(input);
+                if (url.includes('/checkin') && init?.method === 'PATCH') {
+                    patchCount += 1;
+                    if (patchCount === 1) {
+                        return new Response(
+                            JSON.stringify({
+                                error: 'Kilométrage inhabituel, confirmation requise.',
+                                code: 'MILEAGE_CONFIRM_REQUIRED',
+                                delta: 480,
+                                maxKm: 300,
+                                durationLabel: '2 jours',
+                            }),
+                            { status: 400 }
+                        );
+                    }
+                    return new Response(JSON.stringify({ success: true }), { status: 200 });
+                }
+                return defaultFetchHandler(input, init);
+            });
+
+            const { container } = render(
+                <CheckInModal vehicle={mockVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />
+            );
+            await screen.findByDisplayValue('12000');
+
+            // PhotoPicker met son état à jour de façon asynchrone (compressImages) :
+            // attendre l'aperçu, sinon la soumission part avec photos = [] et n'uploade rien.
+            pickPhoto(container);
+            await waitFor(() => expect(screen.getAllByAltText('Aperçu').length).toBe(1));
+
+            // Delta 100 : sous le seuil local, le 400 vient donc du serveur.
+            fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '12100' } });
+            fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+            await screen.findByText('⚠️ Kilométrage inhabituel');
+            expect(uploadFilesToDriveSafely).toHaveBeenCalledTimes(1);
+
+            fireEvent.click(screen.getByRole('button', { name: 'Corriger' }));
+            await waitFor(() => expect(screen.queryByText('⚠️ Kilométrage inhabituel')).toBeNull());
+
+            // Nouveau jeu de photos : le dossier Drive déjà créé ne correspond plus.
+            // Sans invalidation du ref, cette photo ne partirait jamais, sans erreur.
+            pickPhoto(container);
+            await waitFor(() => expect(screen.getAllByAltText('Aperçu').length).toBe(2));
+
+            fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+            await waitFor(() => expect(patchCount).toBe(2));
+            expect(uploadFilesToDriveSafely).toHaveBeenCalledTimes(2);
+        });
     });
 
     it('ouvre la modale de signalement d\'incident', async () => {

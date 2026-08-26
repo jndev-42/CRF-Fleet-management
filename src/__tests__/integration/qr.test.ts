@@ -171,6 +171,87 @@ describe('QR Code API Flow', () => {
     expect(vRes.rows[0].lastDesinfDate).not.toBeNull();
   });
 
+  /** Ouvre un emprunt via le parcours QR et renvoie le trajet créé. */
+  async function qrCheckout(token: string) {
+    const req = new Request(`http://localhost/api/qr/${token}/checkout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état' }),
+    });
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token }) });
+    expect(res.status).toBe(201);
+    return res.json() as Promise<{ tripId: string; mileageOut: number }>;
+  }
+
+  function qrCheckinRequest(token: string, body: Record<string, unknown>) {
+    return new Request(`http://localhost/api/qr/${token}/checkin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it('POST /api/qr/[token]/checkin returns 400 without a code when mileageIn is below mileageOut', async () => {
+    await seedVehicle({ id: 'VLNEG', name: 'Véhicule Négatif', type: 'VL', status: 'AVAILABLE', qrToken: 'token-neg' });
+    const { mileageOut } = await qrCheckout('token-neg');
+
+    const req = qrCheckinRequest('token-neg', {
+      mileageIn: mileageOut - 100,
+      fuelIn: 50,
+      conditionIn: 'Bon état',
+    });
+    const res = await POST_QR_CHECKIN(req, { params: Promise.resolve({ token: 'token-neg' }) });
+    expect(res.status).toBe(400);
+
+    const body = await res.json();
+    expect(body.code).toBeUndefined();
+    expect(body.error).toMatch(/responsable/i);
+  });
+
+  it('POST /api/qr/[token]/checkin returns 400 with MILEAGE_CONFIRM_REQUIRED for an excessive delta', async () => {
+    await seedVehicle({ id: 'VLEXC', name: 'Véhicule Excessif', type: 'VL', status: 'AVAILABLE', qrToken: 'token-exc' });
+    const { mileageOut } = await qrCheckout('token-exc');
+
+    const req = qrCheckinRequest('token-exc', {
+      mileageIn: mileageOut + 400,
+      fuelIn: 50,
+      conditionIn: 'Bon état',
+    });
+    const res = await POST_QR_CHECKIN(req, { params: Promise.resolve({ token: 'token-exc' }) });
+    expect(res.status).toBe(400);
+
+    const body = await res.json();
+    expect(body.code).toBe('MILEAGE_CONFIRM_REQUIRED');
+    expect(body.delta).toBe(400);
+    expect(body.maxKm).toBe(150);
+    expect(typeof body.durationLabel).toBe('string');
+  });
+
+  it('POST /api/qr/[token]/checkin returns 200 for an excessive delta when confirmMileageAnomaly is true', async () => {
+    // FILET UNIQUE contre l'omission de `confirmMileageAnomaly` dans le schéma Zod inline de
+    // cette route : aucun schéma du projet n'est .strict(), donc un champ non déclaré est
+    // silencieusement supprimé — le 400 se répéterait indéfiniment sans qu'aucun autre test
+    // ne le détecte.
+    await seedVehicle({ id: 'VLCONF', name: 'Véhicule Confirmé', type: 'VL', status: 'AVAILABLE', qrToken: 'token-conf' });
+    const { tripId, mileageOut } = await qrCheckout('token-conf');
+
+    const req = qrCheckinRequest('token-conf', {
+      mileageIn: mileageOut + 400,
+      fuelIn: 50,
+      conditionIn: 'Bon état',
+      confirmMileageAnomaly: true,
+    });
+    const res = await POST_QR_CHECKIN(req, { params: Promise.resolve({ token: 'token-conf' }) });
+    expect(res.status).toBe(200);
+
+    const tripRes = await db.execute({
+      sql: `SELECT mileageIn, checkInAt FROM Trip WHERE id = ?`,
+      args: [tripId],
+    });
+    expect(tripRes.rows[0].mileageIn).toBe(mileageOut + 400);
+    expect(tripRes.rows[0].checkInAt).not.toBeNull();
+  });
+
   it('allows reporting an incident on a vehicle accessed via QR token', async () => {
     await seedVehicle({ id: 'VL02', name: 'Véhicule QR Incident', type: 'VL', status: 'AVAILABLE', qrToken: 'token-vl-02' });
 

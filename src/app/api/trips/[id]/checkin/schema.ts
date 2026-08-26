@@ -14,4 +14,6 @@ export const checkInSchema = z.object({
     desinfResponsable: z.string().optional(),
     desinfLotNumber: z.string().optional(),
     desinfType: z.string().optional(),
+    /** Confirmation explicite d'un kilométrage inhabituel (cf. src/lib/utils/mileageAnomaly.ts). */
+    confirmMileageAnomaly: z.boolean().optional(),
 });

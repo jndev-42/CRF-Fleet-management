@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import { isConnected, formatDate } from '@/app/vehicles/[id]/utils';
 import { useUL } from '@/lib/contexts/ULContext';
@@ -10,6 +10,14 @@ import IncidentReportModal from './IncidentReportModal';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import MileageAnomalyModal from '@/components/ui/MileageAnomalyModal';
+import {
+    MAX_KM_PER_DAY,
+    checkMileageAnomaly,
+    elapsedDays,
+    formatElapsed,
+    negativeMileageMessage,
+} from '@/lib/utils/mileageAnomaly';
 
 interface CheckInModalProps {
     vehicle: Vehicle;
@@ -32,7 +40,6 @@ interface CheckInModalProps {
  * Collects returning mileage, condition, issues, and photos.
  */
 export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefetch, initialDesinfResponsableId = '', initialDesinfLotNumber = '', currentUserUlId }: CheckInModalProps) {
-    useEscapeKey(onClose);
     const { activeUL } = useUL();
     const [form, setForm] = useState<{
         mileageIn: number | '';
@@ -100,6 +107,23 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [manualEntry, setManualEntry] = useState(!isConnected(vehicle.vin));
     const [showIncidentReport, setShowIncidentReport] = useState(false);
     const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+    const [mileageConfirm, setMileageConfirm] =
+        useState<{ delta: number; maxKm: number; durationLabel: string } | null>(null);
+    const showMileageConfirm = mileageConfirm !== null;
+    /** Dossier Drive déjà créé : évite de ré-uploader les photos au rejeu après un 400. */
+    const uploadedFolderIdRef = useRef<string | undefined>(undefined);
+    /** Anti-boucle : un second MILEAGE_CONFIRM_REQUIRED après confirmation affiche l'erreur brute. */
+    const confirmSentRef = useRef(false);
+
+    // Le hook pose son listener sur window : sans `enabled`, un seul Escape exécuterait
+    // à la fois la fermeture de la modale imbriquée et celle du check-in (perte de saisie).
+    useEscapeKey(onClose, !showMileageConfirm && !showIncidentReport);
+
+    // form.mileageIn est typé `number | ''` : sans le garde typeof, un champ vidé
+    // coercerait à 0 et produirait un faux 'negative' bloquant.
+    const mileageAnomaly = manualEntry && typeof form.mileageIn === 'number'
+        ? checkMileageAnomaly(form.mileageIn, trip.mileageOut, trip.checkOutAt)
+        : null;
 
     const isDesinf = trip.missionType === 'Désinfection';
     const isVPSP = vehicle.type.toUpperCase().includes('VPSP');
@@ -152,6 +176,22 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
             return;
         }
 
+        // Ouverture de la modale AVANT setSubmitting et AVANT l'upload Drive : sinon les photos
+        // partiraient alors que l'utilisateur peut encore cliquer « Corriger ».
+        if (mileageAnomaly === 'excessive') {
+            setMileageConfirm({
+                delta: (form.mileageIn as number) - trip.mileageOut,
+                maxKm: MAX_KM_PER_DAY * elapsedDays(trip.checkOutAt),
+                durationLabel: formatElapsed(trip.checkOutAt),
+            });
+            return;
+        }
+
+        await doSubmit(false);
+    }
+
+    async function doSubmit(confirmed: boolean) {
+        if (confirmed) confirmSentRef.current = true;
         setSubmitting(true);
 
         try {
@@ -159,8 +199,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 ? form.parkingInCustom
                 : form.parkingInSelection;
 
-            let driveFolderId: string | undefined = undefined;
-            if (photos.length > 0) {
+            // L'upload a pu avoir lieu avant un 400 : on ne le rejoue pas.
+            if (photos.length > 0 && !uploadedFolderIdRef.current) {
                 const checkOutDate = new Date(trip.checkOutAt);
                 const year = checkOutDate.getFullYear();
                 const month = String(checkOutDate.getMonth() + 1).padStart(2, '0');
@@ -183,8 +223,9 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     return;
                 }
 
-                driveFolderId = uploadResult.folderId;
+                uploadedFolderIdRef.current = uploadResult.folderId;
             }
+            const driveFolderId = uploadedFolderIdRef.current;
 
             const desinfResponsableUser = users.find(u => u.id === desinfResponsableId);
             const desinfResponsableName = desinfResponsableUser?.name || desinfResponsableUser?.email || undefined;
@@ -201,6 +242,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     incident: form.incident,
                     commentsIn: form.commentsIn,
                     checklistIn: Object.keys(checklistIn).length > 0 ? checklistIn : undefined,
+                    confirmMileageAnomaly: confirmed ? true : undefined,
                     driveFolderId,
                     desinfResponsable: isDesinf ? desinfResponsableName : undefined,
                     desinfLotNumber: isDesinf ? desinfLotNumber.trim() : (hasDesinfTracking ? desinfLotNumber.trim() : undefined),
@@ -218,6 +260,17 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 }
             } else {
                 const errorData = await res.json().catch(() => ({}));
+                // Divergence d'horloge front/serveur : la modale est peuplée EXCLUSIVEMENT
+                // depuis les valeurs que le serveur a réellement appliquées, jamais par recalcul local.
+                if (errorData.code === 'MILEAGE_CONFIRM_REQUIRED' && !confirmSentRef.current) {
+                    setMileageConfirm({
+                        delta: errorData.delta,
+                        maxKm: errorData.maxKm,
+                        durationLabel: errorData.durationLabel,
+                    });
+                    setSubmitting(false);
+                    return;
+                }
                 alert(errorData.error || 'Erreur lors du retour du véhicule');
                 setSubmitting(false);
             }
@@ -275,12 +328,25 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                         type="number"
                                         min={trip.mileageOut}
                                         value={form.mileageIn}
-                                        onChange={(e) => setForm({ ...form, mileageIn: e.target.value === '' ? '' : Number(e.target.value) })}
+                                        onChange={(e) => {
+                                            // Nouvelle valeur = nouvelle décision : la confirmation
+                                            // précédente ne doit pas court-circuiter la modale.
+                                            confirmSentRef.current = false;
+                                            setForm({ ...form, mileageIn: e.target.value === '' ? '' : Number(e.target.value) });
+                                        }}
+                                        style={mileageAnomaly === 'negative' ? { borderColor: 'var(--error-text)' } : undefined}
+                                        aria-invalid={mileageAnomaly === 'negative' ? true : undefined}
                                         required
                                     />
-                                    <div className="form-hint">
-                                        Min: {trip.mileageOut.toLocaleString('fr-FR')} km
-                                    </div>
+                                    {mileageAnomaly === 'negative' ? (
+                                        <div className="form-hint" style={{ color: 'var(--error-text)' }}>
+                                            {negativeMileageMessage(trip.mileageOut)}
+                                        </div>
+                                    ) : (
+                                        <div className="form-hint">
+                                            Min: {trip.mileageOut.toLocaleString('fr-FR')} km
+                                        </div>
+                                    )}
                                 </div>
                             )}
                             <div className="form-group">
@@ -512,7 +578,13 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                 label="📸 Photos après le retour (Optionnel)"
                                 hint="Ces photos seront envoyées sur un Google Drive. Maximum 15 Mo par photo · 150 Mo max au total."
                                 photos={photos}
-                                onPhotosChange={setPhotos}
+                                onPhotosChange={(next) => {
+                                    // Le jeu de photos change : le dossier Drive déjà créé ne
+                                    // correspond plus. Sans cette invalidation, un ajout de photo
+                                    // après un 400 serait silencieusement jamais uploadé.
+                                    uploadedFolderIdRef.current = undefined;
+                                    setPhotos(next);
+                                }}
                                 maxSizeMB={15}
                                 maxTotalSizeMB={150}
                             />
@@ -531,12 +603,29 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         <button type="button" className="btn btn-secondary" onClick={onClose}>
                             Annuler
                         </button>
-                        <button type="submit" className="btn btn-success" disabled={submitting}>
+                        <button type="submit" className="btn btn-success" disabled={submitting || mileageAnomaly === 'negative'}>
                             {submitting ? 'En cours...' : '✅ Rendre le véhicule'}
                         </button>
                     </div>
                 </form>
             </div>
+
+            {mileageConfirm !== null && (
+                <MileageAnomalyModal
+                    delta={mileageConfirm.delta}
+                    durationLabel={mileageConfirm.durationLabel}
+                    maxKm={mileageConfirm.maxKm}
+                    onCancel={() => {
+                        // « Corriger » : l'utilisateur repart d'une saisie, pas d'une confirmation.
+                        confirmSentRef.current = false;
+                        setMileageConfirm(null);
+                    }}
+                    onConfirm={() => {
+                        setMileageConfirm(null);
+                        void doSubmit(true);
+                    }}
+                />
+            )}
 
             {showIncidentReport && (
                 <IncidentReportModal
