@@ -35,6 +35,7 @@ vi.mock('@/lib/onesignal', () => ({
 
 import { PATCH } from '@/app/api/trips/[id]/checkin/route';
 import { auth } from '@/auth';
+import { getRenaultVehicleData } from '@/lib/renault';
 import { db, seedVehicle, seedTrip, seedUser } from './setup';
 
 const mockedAuth = vi.mocked(auth);
@@ -55,7 +56,7 @@ function makeRequest(
 
 const validCheckInBody = {
   conditionIn: 'BON',
-  mileageIn: 10200,
+  mileageIn: 10120,
   fuelIn: 60,
 };
 
@@ -151,7 +152,7 @@ describe('PATCH /api/trips/[id]/checkin', () => {
 
     const trip = await response.json();
     expect(trip.checkInAt).toBeTruthy();
-    expect(trip.mileageIn).toBe(10200);
+    expect(trip.mileageIn).toBe(10120);
     expect(trip.fuelIn).toBe(60);
 
     // Vérification des effets de bord en base
@@ -160,7 +161,7 @@ describe('PATCH /api/trips/[id]/checkin', () => {
       args: ['VL001'],
     });
     expect(vehicleResult.rows[0].status).toBe('AVAILABLE');
-    expect(vehicleResult.rows[0].mileage).toBe(10200);
+    expect(vehicleResult.rows[0].mileage).toBe(10120);
     expect(vehicleResult.rows[0].fuelLevel).toBe(60);
   });
 
@@ -179,6 +180,103 @@ describe('PATCH /api/trips/[id]/checkin', () => {
     });
 
     const [req, ctx] = makeRequest('trip-1', validCheckInBody);
+    const response = await PATCH(req, ctx);
+    expect(response.status).toBe(200);
+  });
+
+  it('returns 400 without a code when mileageIn is below mileageOut', async () => {
+    // Invariant de données : refus sec, non confirmable — le corps ne porte donc aucun `code`.
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedVehicle({ id: 'VL001', status: 'IN_USE', mileage: 10000 });
+    await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', mileageOut: 10000 });
+
+    const [req, ctx] = makeRequest('trip-1', { ...validCheckInBody, mileageIn: 9900 });
+    const response = await PATCH(req, ctx);
+    expect(response.status).toBe(400);
+
+    const body = await response.json();
+    expect(body.code).toBeUndefined();
+    expect(body.error).toMatch(/responsable/i);
+  });
+
+  it('returns 400 with MILEAGE_CONFIRM_REQUIRED when the delta exceeds the daily cap', async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedVehicle({ id: 'VL001', status: 'IN_USE', mileage: 10000 });
+    await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', mileageOut: 10000 });
+
+    const [req, ctx] = makeRequest('trip-1', { ...validCheckInBody, mileageIn: 10400 });
+    const response = await PATCH(req, ctx);
+    expect(response.status).toBe(400);
+
+    const body = await response.json();
+    expect(body.code).toBe('MILEAGE_CONFIRM_REQUIRED');
+    expect(body.delta).toBe(400);
+    expect(body.maxKm).toBe(150);
+    expect(typeof body.durationLabel).toBe('string');
+
+    // Aucun effet de bord : le trajet reste ouvert
+    const tripResult = await db.execute({
+      sql: `SELECT checkInAt FROM "Trip" WHERE id = ?`,
+      args: ['trip-1'],
+    });
+    expect(tripResult.rows[0].checkInAt).toBeNull();
+  });
+
+  it('returns 200 for an excessive delta when confirmMileageAnomaly is true', async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedVehicle({ id: 'VL001', status: 'IN_USE', mileage: 10000 });
+    await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', mileageOut: 10000 });
+
+    const [req, ctx] = makeRequest('trip-1', {
+      ...validCheckInBody,
+      mileageIn: 10400,
+      confirmMileageAnomaly: true,
+    });
+    const response = await PATCH(req, ctx);
+    expect(response.status).toBe(200);
+
+    const trip = await response.json();
+    expect(trip.mileageIn).toBe(10400);
+  });
+
+  it('returns 200 for a connected vehicle without mileageIn (Renault values are never checked)', async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedVehicle({ id: 'VL001', status: 'IN_USE', vin: 'VF1TEST000000001', mileage: 10000 });
+    await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', mileageOut: 10000 });
+
+    // Le mock par défaut du fichier renvoie null → garde « Données manquantes ».
+    vi.mocked(getRenaultVehicleData).mockResolvedValueOnce({
+      vin: 'VF1TEST000000001',
+      totalMileage: 99999, fuelQuantity: 30, fuelAutonomy: null,
+      batteryLevel: null, batteryAutonomy: null, chargingStatus: null, plugStatus: null,
+      cockpitTimestamp: null, batteryTimestamp: null, isElectric: false,
+    });
+
+    // Corps sans mileageIn ni fuelIn : delta constructeur de 89 999 km, jamais contrôlé.
+    const [req, ctx] = makeRequest('trip-1', { conditionIn: 'BON' });
+    const response = await PATCH(req, ctx);
+    expect(response.status).toBe(200);
+
+    const trip = await response.json();
+    expect(trip.mileageIn).toBe(99999);
+  });
+
+  it('returns 200 when mileageOut is NULL (Number(null) === 0 must not trigger the check)', async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedVehicle({ id: 'VL001', status: 'IN_USE', mileage: 10000 });
+    await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', mileageOut: null });
+
+    const [req, ctx] = makeRequest('trip-1', { ...validCheckInBody, mileageIn: 10200 });
     const response = await PATCH(req, ctx);
     expect(response.status).toBe(200);
   });

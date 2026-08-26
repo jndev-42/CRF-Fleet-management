@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.12.0] — 26 août 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Retour de véhicule — contrôle de plausibilité du kilométrage** — le kilométrage saisi au retour est désormais vérifié avant enregistrement, sur les deux parcours (application et QR Code). Un kilométrage inférieur à celui du départ est refusé : le champ passe en rouge, le bouton de validation est désactivé et un message rappelle que le véhicule restera indisponible tant que le retour n'est pas enregistré, en indiquant qu'un responsable peut corriger le kilométrage de départ depuis la fiche du véhicule. Au-delà de 150 km par tranche de 24 h d'emprunt entamée, une double confirmation est demandée : une fenêtre affiche la distance parcourue, la durée de l'emprunt et le plafond attendu, avec le choix entre corriger la saisie ou confirmer malgré tout. Le contrôle ne porte que sur la saisie manuelle : les véhicules connectés, dont le kilométrage remonte automatiquement depuis Renault Connect, ne sont pas concernés.
+
 ## [4.11.0] — 23 août 2026
 
 ### ✨ Nouvelles fonctionnalités

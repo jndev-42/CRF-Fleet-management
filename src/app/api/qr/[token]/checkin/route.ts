@@ -5,6 +5,13 @@ import { auth } from '@/auth';
 import { isInactive, isAdminOrAbove } from '@/lib/roles';
 import { getRenaultVehicleData } from '@/lib/renault';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import {
+    MAX_KM_PER_DAY,
+    checkMileageAnomaly,
+    elapsedDays,
+    formatElapsed,
+    negativeMileageMessage,
+} from '@/lib/utils/mileageAnomaly';
 
 /**
  * POST /api/qr/[token]/checkin
@@ -25,6 +32,8 @@ const checkInSchema = z.object({
     desinfResponsable: z.string().optional(),
     desinfLotNumber: z.string().optional(),
     desinfType: z.string().optional(),
+    /** Confirmation explicite d'un kilométrage inhabituel (cf. src/lib/utils/mileageAnomaly.ts). */
+    confirmMileageAnomaly: z.boolean().optional(),
 });
 
 export async function POST(
@@ -117,6 +126,35 @@ export async function POST(
                 { error: 'Données manquantes : kilométrage et niveau de carburant requis' },
                 { status: 400 }
             );
+        }
+
+        // Contrôle de plausibilité du kilométrage — bloc strictement identique à celui de
+        // src/app/api/trips/[id]/checkin/route.ts (mêmes messages, même code, mêmes champs).
+        // Invariant : data.mileageIn !== undefined ⇔ saisie manuelle
+        // (cf. CheckInForm.tsx, qui n'envoie mileageIn que si !isConnected).
+        // Ne pas remplacer par finalMileageIn : les km remontés par Renault ne sont pas contrôlés.
+        // trip.mileageOut est NULLABLE en base et Number(null) === 0, d'où le garde explicite.
+        if (data.mileageIn !== undefined && trip.mileageOut !== null) {
+            const mileageOut = Number(trip.mileageOut);
+            const checkOutAt = String(trip.checkOutAt);
+            const anomaly = checkMileageAnomaly(data.mileageIn, mileageOut, checkOutAt);
+
+            if (anomaly === 'negative') {
+                return NextResponse.json(
+                    { error: negativeMileageMessage(mileageOut) },
+                    { status: 400 }
+                );
+            }
+
+            if (anomaly === 'excessive' && !data.confirmMileageAnomaly) {
+                return NextResponse.json({
+                    error: 'Kilométrage inhabituel, confirmation requise.',
+                    code: 'MILEAGE_CONFIRM_REQUIRED',
+                    delta: data.mileageIn - mileageOut,
+                    maxKm: MAX_KM_PER_DAY * elapsedDays(checkOutAt),
+                    durationLabel: formatElapsed(checkOutAt),
+                }, { status: 400 });
+            }
         }
 
         const timestamp = new Date().toISOString();
