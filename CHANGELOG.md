@@ -1,5 +1,20 @@
 # Changelog
 
+## [4.14.0] — 28 août 2026
+
+### 🐛 Correctifs
+
+- **Acrobat invalidait les signatures du demandeur et du valideur** — le panneau de signatures annonçait que le document avait été modifié et déclarait invalides les deux premières signatures, alors que les trois étaient cryptographiquement intactes. Chaque scellement créait son champ de signature au moment de signer, ce que la certification posée par la première signature interdit : elle n'autorise après elle que le remplissage de champs déjà présents. Les trois champs sont désormais créés avant le premier scellement, et chaque étape se contente d'en remplir un.
+- **Identifiant de document perdu à chaque signature** — la clé qui relie les révisions successives au même fichier disparaissait dès le premier scellement. Elle est maintenant reconduite.
+
+### 🔧 Autres changements
+
+- Les textes des signatures (motif, nom du signataire) sont écrits dans une forme qui ne demande aucun échappement, ce qui retire définitivement la cause des caractères illisibles observés dans Acrobat.
+
+### ⚠️ Reprise nécessaire
+
+Les notes scellées avant cette version ne peuvent plus recevoir de signature supplémentaire : leurs champs n'existent pas dans la nouvelle forme. En preview, `npx tsx scripts/backfill-signed-pdfs.ts --reseal` les reconstruit. En production, aucune note n'a encore été scellée.
+
 ## [4.13.4] — 28 août 2026
 
 ### 🐛 Correctifs

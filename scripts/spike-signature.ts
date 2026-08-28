@@ -24,7 +24,8 @@ import dotenv from 'dotenv';
 import ExpensePdfDocument from '../src/components/expenses/ExpensePdfDocument';
 import { sealPdf, assertSigningCertConfigured } from '../src/lib/pdf/signature';
 import { verifySignatures } from '../src/lib/pdf/verify';
-import { SIGNATURE_WIDGET_RECTS, assertPageGeometry } from '../src/lib/expenses/signature-layout';
+import { SIGNATURE_FIELDS, assertPageGeometry } from '../src/lib/expenses/signature-layout';
+import { addSignatureFields } from '../src/lib/pdf/fields';
 
 dotenv.config({ path: '.env.local' });
 
@@ -76,16 +77,19 @@ async function main(): Promise<void> {
     assertSigningCertConfigured();
     fs.mkdirSync(OUT, { recursive: true });
 
-    const base = await buildBasePdf(6);
-    assertPageGeometry(base);
+    const form = await buildBasePdf(6);
+    assertPageGeometry(form);
+    // Les trois champs sont posés avant tout scellement : la certification qui
+    // suit n'autorise plus que le remplissage de champs existants.
+    const base = await addSignatureFields(form, [...SIGNATURE_FIELDS]);
     fs.writeFileSync(path.join(OUT, '00-base.pdf'), base);
-    console.log(`00-base       ${base.length} o`);
+    console.log(`00-base       ${base.length} o  (3 champs de signature)`);
 
     const s1 = await sealPdf(base, {
         reason: 'Soumission de la note de frais par le demandeur',
         name: 'Jean Dupont',
         signingTime: new Date('2026-08-26T09:00:00Z'),
-        widgetRect: SIGNATURE_WIDGET_RECTS.demandeur,
+        fieldName: SIGNATURE_FIELDS[0].name,
         appearancePng: await handwritten('J. Dupont'),
         docMdpLevel: 2,
     });
@@ -96,17 +100,18 @@ async function main(): Promise<void> {
         reason: 'Validation de la note de frais',
         name: 'Marie Martin',
         signingTime: new Date('2026-08-26T10:00:00Z'),
-        widgetRect: SIGNATURE_WIDGET_RECTS.valideur,
+        fieldName: SIGNATURE_FIELDS[1].name,
         appearancePng: await handwritten('M. Martin'),
     });
     fs.writeFileSync(path.join(OUT, '02-sealed.pdf'), s2);
     console.log(`02-sealed     ${s2.length} o  (#2 visible)`);
 
-    // Aucun widgetRect : /Rect [0 0 0 0], invisibilité native.
+    // Champ de surface nulle : la signature existe sans rien rendre sur la page.
     const s3 = await sealPdf(s2, {
         reason: 'Paiement de la note de frais',
         name: 'Paul Payeur',
         signingTime: new Date('2026-08-26T11:00:00Z'),
+        fieldName: SIGNATURE_FIELDS[2].name,
     });
     fs.writeFileSync(path.join(OUT, '03-sealed.pdf'), s3);
     console.log(`03-sealed     ${s3.length} o  (#3 invisible)`);

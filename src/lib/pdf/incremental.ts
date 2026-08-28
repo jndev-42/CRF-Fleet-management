@@ -1,29 +1,29 @@
 /**
- * Manipulation d'incremental update PDF — DocMDP et flux d'apparence.
+ * Écriture d'un incremental update PDF : pose d'un emplacement de signature dans
+ * un champ EXISTANT, règle DocMDP, apparence en calques.
  *
- * `node-signpdf` pose un placeholder et le signe, mais ne sait NI injecter une
- * règle DocMDP, NI rendre une image dans le widget de signature. Ce module comble
- * les deux, avec une seule tuyauterie (localisation d'objets + reconstruction de
- * la sous-table xref).
+ * ⚠️ POURQUOI NOUS N'UTILISONS PAS `@signpdf/placeholder-plain`. Cette
+ * bibliothèque CRÉE un champ de signature à chaque passe, ce qui modifie
+ * l'`/AcroForm` et les annotations de la page. Or la signature de certification
+ * (DocMDP P=2) n'autorise après elle QUE le remplissage de champs préexistants :
+ * Acrobat invalide donc les signatures antérieures dès la deuxième passe
+ * (« les signatures 1 et 2 sont invalidées, des modifications ont été
+ * apportées »), alors que les condensats sont parfaitement intacts.
  *
- * ⚠️ ORDRE D'APPLICATION. Ces transformations s'appliquent ENTRE
- * `plainAddPlaceholder()` et `signpdf.sign()`. Toute modification postérieure à
- * `sign()` décalerait les octets et invaliderait le `/ByteRange` déjà calculé.
+ * Les trois champs sont donc créés AVANT le premier scellement (`fields.ts`), et
+ * chaque passe se contente d'en remplir un — la seule opération que la
+ * certification autorise. Vérifié dans Acrobat.
  *
- * ⚠️ IMMUABILITÉ. Seul le DERNIER incremental update est réécrit. Les octets
- * antérieurs au `%%EOF` précédent ne sont jamais touchés — c'est ce qui préserve
- * le condensat des signatures déjà posées.
- *
- * Ce module n'utilise AUCUN interne de `@signpdf` : pas de deep-import, pas de
- * couplage à des chemins non documentés. Manipulation de chaînes et reconstructeur
- * de xref autonomes.
+ * ⚠️ IMMUABILITÉ. Ce module n'écrit QUE des octets ajoutés en fin de fichier.
+ * Rien d'antérieur n'est réécrit : c'est ce qui préserve le condensat des
+ * signatures déjà posées. `assertIncrementalAppend` le vérifie après coup.
  */
 
 import sharp from 'sharp';
 
-interface XrefEntry { num: number; offset: number; }
-
 export class IncrementalUpdateError extends Error {}
+
+interface XrefEntry { num: number; offset: number }
 
 /** Construit une table xref classique avec ses sous-sections contiguës. */
 function buildXrefTable(entries: XrefEntry[]): string {
@@ -42,123 +42,6 @@ function buildXrefTable(entries: XrefEntry[]): string {
     return out;
 }
 
-function lastXrefTableStart(s: string): number {
-    const i = s.lastIndexOf('\nxref\n');
-    if (i === -1) throw new IncrementalUpdateError('Table xref classique introuvable (xref stream non supporté)');
-    return i;
-}
-
-function parseTrailer(s: string): { size: number; root: string; info: string | null; prev: number | null } {
-    const t = s.slice(s.lastIndexOf('trailer'));
-    return {
-        size: Number(/\/Size\s+(\d+)/.exec(t)?.[1] ?? 0),
-        root: /\/Root\s+(\d+\s+\d+\s+R)/.exec(t)?.[1] ?? '',
-        info: /\/Info\s+(\d+\s+\d+\s+R)/.exec(t)?.[1] ?? null,
-        prev: /\/Prev\s+(\d+)/.exec(t)?.[1] ? Number(/\/Prev\s+(\d+)/.exec(t)![1]) : null,
-    };
-}
-
-function maxObjNum(s: string): number {
-    let max = 0;
-    const re = /(\d+)\s+0\s+obj/g;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(s)) !== null) max = Math.max(max, Number(m[1]));
-    return max;
-}
-
-/**
- * Localise l'objet contenant `marker` au-delà de `after`.
- *
- * ⚠️ NE PAS écrire `/(\d+) 0 obj[\s\S]*?MARKER/` : le quantificateur paresseux
- * traverse les frontières d'objets et capture le numéro d'un objet lointain
- * (bug constaté au spike). On cherche le marqueur, puis on remonte vers le
- * `N 0 obj` le plus proche.
- */
-function findObjectContaining(
-    body: string,
-    marker: RegExp,
-    after: number
-): { num: number; start: number } | null {
-    let found: { num: number; start: number } | null = null;
-    const re = new RegExp(marker.source, marker.flags.includes('g') ? marker.flags : marker.flags + 'g');
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(body)) !== null) {
-        if (m.index <= after) continue;
-        const head = body.lastIndexOf(' obj', m.index);
-        if (head === -1) continue;
-        const lineStart = body.lastIndexOf('\n', head) + 1;
-        const om = /^(\d+)\s+0\s+obj/.exec(body.slice(lineStart, head + 4));
-        if (om) found = { num: Number(om[1]), start: lineStart };
-    }
-    return found;
-}
-
-
-/**
- * Répare les chaînes de texte doublement encodées par `plainAddPlaceholder`.
- *
- * ⚠️ CONTOURNEMENT D'UN DÉFAUT AMONT. `@signpdf/placeholder-plain` assemble ses
- * objets avec `Buffer.from(PDFObject.convert(input))` — sans préciser l'encodage.
- * `PDFObject` produit pourtant une chaîne BINAIRE : pour toute valeur non-ASCII
- * il encode en UTF-16BE précédé du BOM `FE FF`, puis rend le résultat via
- * `.toString('binary')`. Node retombe alors sur UTF-8 et ré-encode chaque octet
- * ≥ 0x80 : le BOM devient `C3 BE C3 BF`, et Acrobat affiche « Signé par Ã¾Ã¿ ».
- *
- * On restaure les octets d'origine en décodant la chaîne comme de l'UTF-8.
- * Sans cela, tout nom de signataire accentué serait illisible — ce qui, sur des
- * documents français, est la règle plutôt que l'exception.
- *
- * ⚠️ DÉSÉCHAPPER AVANT DE RÉPARER, ET NE RÉ-ÉCHAPPER QU'UNE FOIS. La chaîne
- * lue dans le corps du PDF est déjà échappée : un « ( » du texte y occupe les
- * octets `5C 28`. Réparer sans déséchapper puis ré-échapper ajoute un `5C` —
- * soit UN OCTET de trop dans un flux UTF-16, dont tout le reste se retrouve
- * décalé d'un demi-caractère. Aucun lecteur ne signale d'erreur : Acrobat
- * affiche des idéogrammes (« Motif : Soumission \\ 狗振攀甄… »), chaque paire
- * d'octets ASCII devenant un point de code CJK. Seules les chaînes non-ASCII
- * passent par la réparation, donc en pratique les noms de signataires accentués.
- */
-function repairDoubleEncodedStrings(body: string, after: number): string {
-    // BOM UTF-16BE (FE FF) tel que le produit le double encodage UTF-8.
-    const MANGLED_BOM = '\u00c3\u00be\u00c3\u00bf';
-
-    // Séquences d'échappement d'une chaîne littérale PDF (ISO 32000-1 §7.3.4.2).
-    const UNESCAPE: Record<string, string> = {
-        n: '\n', r: '\r', t: '\t', b: '\b', f: '\f', '(': '(', ')': ')', '\\': '\\',
-    };
-    const ESCAPE: Record<string, string> = {
-        '\n': '\\n', '\r': '\\r', '\t': '\\t', '\b': '\\b', '\f': '\\f',
-        '(': '\\(', ')': '\\)', '\\': '\\\\',
-    };
-
-    const head = body.slice(0, after);
-    const tail = body.slice(after).replace(
-        /\(((?:[^()\\]|\\[\s\S])*)\)/g,
-        (whole, content: string) => {
-            if (!content.startsWith(MANGLED_BOM)) return whole;
-
-            // 1. Déséchappement : on retrouve les octets réellement encodés.
-            const brut = content.replace(/\\([\s\S])/g, (_m, c: string) => UNESCAPE[c] ?? c);
-
-            // 2. Réparation du double encodage UTF-8.
-            const repare = Buffer.from(Buffer.from(brut, 'latin1').toString('utf8'), 'latin1')
-                .toString('latin1');
-
-            // 3. Un flux UTF-16BE compte forcément un nombre pair d'octets. Refuser
-            //    plutôt que de laisser un lecteur PDF afficher du charabia.
-            if (repare.length % 2 !== 0) {
-                throw new IncrementalUpdateError(
-                    `Chaîne UTF-16 de longueur impaire (${repare.length} octets) après réparation : ` +
-                    `l'encodage amont a changé, le texte serait illisible dans le lecteur PDF.`
-                );
-            }
-
-            // 4. Ré-échappement, une seule fois.
-            return `(${repare.replace(/[\n\r\t\b\f()\\]/g, c => ESCAPE[c])})`;
-        }
-    );
-    return head + tail;
-}
-
 /**
  * Formate un nombre réel pour un fichier PDF.
  *
@@ -171,200 +54,264 @@ function pdfNum(n: number): string {
     return String(Math.round(n * 1e5) / 1e5);
 }
 
-export interface AugmentOptions {
-    /**
-     * Niveau DocMDP à injecter — signature de CERTIFICATION uniquement (la 1re).
-     * P=2 : « remplissage de formulaires et signatures autorisés ».
-     */
+/**
+ * Encode une chaîne de texte PDF.
+ *
+ * ASCII → chaîne littérale. Sinon → chaîne HEXADÉCIMALE en UTF-16BE avec BOM.
+ *
+ * ⚠️ L'HEXADÉCIMAL N'EST PAS UN CHOIX DE STYLE. Une chaîne littérale exige
+ * d'échapper `(`, `)` et `\` ; sur un flux UTF-16, un échappement en trop ou en
+ * moins décale tout le reste d'un demi-caractère et le lecteur affiche des
+ * idéogrammes — défaut réellement constaté dans Acrobat avec l'encodeur amont.
+ * La forme hexadécimale n'a aucun caractère à échapper : la classe entière de
+ * défauts disparaît.
+ */
+function pdfString(value: string): string {
+    if (/^[\x20-\x7e]*$/.test(value)) {
+        return `(${value.replace(/[\\()]/g, c => '\\' + c)})`;
+    }
+    const utf16be = Buffer.from('﻿' + value, 'utf16le').swap16();
+    return `<${utf16be.toString('hex').toUpperCase()}>`;
+}
+
+/** Date au format PDF (`D:YYYYMMDDHHmmSSZ`), en UTC. */
+function pdfDate(d: Date): string {
+    const p = (n: number) => String(n).padStart(2, '0');
+    return `D:${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}` +
+        `${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}Z`;
+}
+
+/** Objet indirect à écrire : son numéro et son corps, sans en-tête ni `endobj`. */
+interface IndirectObject { num: number; body: string }
+
+export interface PlaceholderOptions {
+    /** Nom (`/T`) du champ de signature à remplir — il doit déjà exister. */
+    fieldName: string;
+    /** Motif affiché dans le panneau Signatures. */
+    reason: string;
+    /** Nom du signataire. */
+    name: string;
+    location: string;
+    contactInfo: string;
+    /** Horodatage écrit dans `/M` — la date qu'affichent les lecteurs. */
+    signingTime: Date;
+    /** Octets réservés au PKCS#7 dans `/Contents`. */
+    signatureLength: number;
+    /** Niveau DocMDP — signature de CERTIFICATION (la 1re) uniquement. */
     docMdpLevel?: 1 | 2 | 3;
-    /** Tracé manuscrit à rendre dans le widget de cette signature. */
+    /** Tracé manuscrit à rendre dans le widget du champ. */
     appearancePng?: Buffer;
 }
 
+/** Localise la dernière ré-émission d'un objet indirect donné. */
+function lastRevisionOf(src: string, num: number): string {
+    const start = src.lastIndexOf(`\n${num} 0 obj`);
+    if (start === -1) throw new IncrementalUpdateError(`Objet ${num} introuvable dans le document`);
+    return src.slice(start, src.indexOf('endobj', start));
+}
+
+/** Extrait le dictionnaire externe (`<< … >>`) d'un objet. */
+function outerDict(text: string): string {
+    const open = text.indexOf('<<');
+    const close = text.lastIndexOf('>>');
+    if (open === -1 || close === -1 || close < open) {
+        throw new IncrementalUpdateError('Objet sans dictionnaire exploitable');
+    }
+    return text.slice(open, close + 2);
+}
+
 /**
- * Enrichit le dernier incremental update d'un PDF porteur d'un placeholder.
+ * Construit les cinq objets d'une apparence de signature.
  *
- * @throws {IncrementalUpdateError} si la structure attendue est absente.
+ * ⚠️ EMPILEMENT IMPOSÉ PAR ACROBAT (PDF Reference §8.7.1). Une apparence « à
+ * plat » — un seul XObject dessinant l'image — s'affiche correctement dans tous
+ * les lecteurs, mais Acrobat la RECONSTRUIT à l'ouverture ; sur un document
+ * certifié, cette reconstruction est comptabilisée comme une modification et le
+ * panneau annonce « Des modifications ont été apportées » sur un fichier
+ * pourtant intact. Bisecté dans Acrobat : certification seule → sain ;
+ * apparence seule → saine ; les deux ensemble → fautif.
+ *
+ *   /AP /N  →  dessine /FRM
+ *   /FRM    →  dessine /n0 (fond) puis /n2 (le tracé)
  */
-export async function augmentIncremental(buf: Buffer, opts: AugmentOptions): Promise<Buffer> {
-    const original = buf.toString('latin1');
-    const xrefStart = lastXrefTableStart(original);
-    const trailer = parseTrailer(original);
+async function buildAppearance(
+    png: Buffer,
+    width: number,
+    height: number,
+    firstNum: number
+): Promise<{ objects: IndirectObject[]; apNum: number }> {
+    // JPEG + /DCTDecode : évite d'implémenter le décodage des chunks PNG. Le
+    // tracé est aplati sur blanc — il est de toute façon rendu sur le fond blanc
+    // du formulaire.
+    const meta = await sharp(png).metadata();
+    const jpeg = await sharp(png)
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .jpeg({ quality: 90 })
+        .toBuffer();
 
-    let body = original.slice(0, xrefStart);
-    const incrementalStart = trailer.prev !== null
-        ? original.lastIndexOf('%%EOF', original.indexOf('obj', trailer.prev)) + 5
-        : 0;
+    let num = firstNum;
+    const imgNum = num++, n0Num = num++, n2Num = num++, frmNum = num++, apNum = num++;
+    const box = `/BBox [0 0 ${pdfNum(width)} ${pdfNum(height)}]`;
 
-    // Réparation systématique : elle concerne toute signature, avec ou sans
-    // DocMDP ni apparence.
-    body = repairDoubleEncodedStrings(body, incrementalStart);
+    const form = (bbox: string, resources: string, stream: string) =>
+        `<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n${bbox}\n${resources}\n` +
+        `/Length ${stream.length}\n>>\nstream\n${stream}endstream`;
 
-    const sigObj = findObjectContaining(body, /\/Type\s*\/Sig\b/g, incrementalStart);
-    if (!sigObj) throw new IncrementalUpdateError('Dictionnaire /Sig introuvable dans le dernier incremental update');
+    // Le fond est un carré vide de 100×100 : convention d'Adobe, cette couche
+    // n'est jamais mise à l'échelle du widget.
+    const blank = '% DSBlank\n';
+    const n2 = `q\n${pdfNum(width)} 0 0 ${pdfNum(height)} 0 0 cm\n/Im0 Do\nQ\n`;
+    const frm = 'q\n/n0 Do\nQ\nq\n/n2 Do\nQ\n';
+    const ap = 'q\n/FRM Do\nQ\n';
 
-    let nextObj = maxObjNum(original) + 1;
-    const newObjects: string[] = [];
+    return {
+        apNum,
+        objects: [
+            { num: imgNum, body:
+                `<<\n/Type /XObject\n/Subtype /Image\n/Width ${meta.width}\n/Height ${meta.height}\n` +
+                `/ColorSpace /DeviceRGB\n/BitsPerComponent 8\n/Filter /DCTDecode\n` +
+                `/Length ${jpeg.length}\n>>\nstream\n${jpeg.toString('latin1')}\nendstream` },
+            { num: n0Num, body: form('/BBox [0 0 100 100]', '/Resources << /ProcSet [/PDF] >>', blank) },
+            { num: n2Num, body: form(box,
+                `/Resources << /ProcSet [/PDF /ImageC] /XObject << /Im0 ${imgNum} 0 R >> >>`, n2) },
+            { num: frmNum, body: form(box,
+                `/Resources << /ProcSet [/PDF] /XObject << /n0 ${n0Num} 0 R /n2 ${n2Num} 0 R >> >>`, frm) },
+            { num: apNum, body: form(box,
+                `/Resources << /ProcSet [/PDF] /XObject << /FRM ${frmNum} 0 R >> >>`, ap) },
+        ],
+    };
+}
 
-    // ── DocMDP ────────────────────────────────────────────────────────────────
-    if (opts.docMdpLevel) {
-        // Inséré APRÈS /Contents : signpdf localise /Contents à partir de la fin du
-        // /ByteRange, l'ordre des deux clés doit donc être préservé. Les octets
-        // insérés tombent dans byteRange[2..3] — ils SONT couverts par la signature.
-        const contentsIdx = body.indexOf('/Contents <', sigObj.start);
-        if (contentsIdx === -1) throw new IncrementalUpdateError('/Contents introuvable dans le dict /Sig');
-        const contentsEnd = body.indexOf('>', contentsIdx) + 1;
-        // Le catalogue doit être localisé AVANT d'écrire la référence : DocMDP
-        // exige un `/Data` pointant l'objet sur lequel porte la transformation,
-        // faute de quoi Acrobat signale « une erreur est survenue lors de la
-        // validation de la signature ».
-        const catObj = findObjectContaining(body, /\/Type\s*\/Catalog\b/g, incrementalStart);
-        if (!catObj) throw new IncrementalUpdateError('Catalogue ré-émis introuvable dans cet incremental update');
+/**
+ * Ajoute au PDF un incremental update qui remplit un champ de signature existant
+ * d'un emplacement prêt à signer (`/ByteRange` et `/Contents` en réserve).
+ *
+ * Le buffer produit est destiné à `SignPdf.sign()`, qui remplace l'emplacement
+ * sans changer la longueur du fichier.
+ *
+ * @throws {IncrementalUpdateError} si le champ est absent, déjà signé, ou si une
+ * apparence est demandée sur un champ sans surface.
+ */
+export async function addPlaceholderToField(
+    pdf: Buffer,
+    opts: PlaceholderOptions
+): Promise<Buffer> {
+    const src = pdf.toString('latin1');
 
-        const ref =
-            `\n/Reference [<< /Type /SigRef /TransformMethod /DocMDP` +
-            ` /TransformParams << /Type /TransformParams /P ${opts.docMdpLevel} /V /1.2 >>` +
-            ` /Data ${catObj.num} 0 R /DigestMethod /SHA256 >>]`;
-        body = body.slice(0, contentsEnd) + ref + body.slice(contentsEnd);
+    const xrefM = /startxref\s+(\d+)\s*%%EOF\s*$/.exec(src);
+    if (!xrefM) throw new IncrementalUpdateError('Le document ne se termine pas par startxref/%%EOF');
+    const prevXref = Number(xrefM[1]);
 
-        // ⚠️ RE-LOCALISER LE CATALOGUE. L'insertion ci-dessus a décalé tous les
-        // octets qui la suivent : `catObj.start`, mesuré avant, pointe désormais
-        // ~150 octets trop tôt — soit à l'intérieur de l'objet précédent. Le
-        // `/Perms` atterrissait alors dans le dictionnaire /AcroForm, où il n'a
-        // aucun sens : Acrobat n'y voit plus de signature de certification et
-        // n'applique aucune restriction DocMDP, sans le moindre message d'erreur.
-        // Le NUMÉRO d'objet, lui, ne bouge pas — `/Data` reste correct.
-        const catAgain = findObjectContaining(body, /\/Type\s*\/Catalog\b/g, incrementalStart);
-        if (!catAgain) throw new IncrementalUpdateError('Catalogue introuvable après insertion de /Reference');
+    const trailer = src.slice(src.lastIndexOf('trailer'));
+    const rootRef = /\/Root\s+(\d+\s+\d+\s+R)/.exec(trailer)?.[1];
+    if (!rootRef) throw new IncrementalUpdateError('/Root introuvable dans le trailer');
+    const infoRef = /\/Info\s+(\d+\s+\d+\s+R)/.exec(trailer)?.[1] ?? null;
+    // /ID identifie le document ; il doit être reconduit dans CHAQUE trailer,
+    // faute de quoi plus rien ne relie les révisions au même fichier.
+    const id = /\/ID\s*\[([^\]]*)\]/.exec(trailer)?.[1] ?? null;
+    const prevSize = Number(/\/Size\s+(\d+)/.exec(trailer)?.[1] ?? 0);
+    if (!prevSize) throw new IncrementalUpdateError('/Size introuvable dans le trailer');
 
-        const catDictOpen = body.indexOf('<<', catAgain.start) + 2;
-        // /Version : DocMDP lui-même est PDF 1.4, mais `/Perms` est PDF 1.5
-        // (ISO 32000-1 §7.7.2) alors que @react-pdf/renderer émet un en-tête
-        // %PDF-1.3. L'override /Version au catalogue (§7.5.5, PDF 1.4) réconcilie
-        // sans réécrire l'en-tête — ce qu'un incremental update ne peut pas faire.
-        // Les passes suivantes ne ré-émettent pas le catalogue, donc il survit.
-        body = body.slice(0, catDictOpen)
-            + `\n/Perms << /DocMDP ${sigObj.num} 0 R >>\n/Version /1.7`
-            + body.slice(catDictOpen);
+    // ── Champ ciblé ───────────────────────────────────────────────────────────
+    const marker = src.lastIndexOf(`/T (${opts.fieldName})`);
+    if (marker === -1) {
+        throw new IncrementalUpdateError(
+            `Champ de signature « ${opts.fieldName} » introuvable. Les trois champs doivent ` +
+            `être créés avant le premier scellement (addSignatureFields).`
+        );
+    }
+    const fieldStart = src.lastIndexOf('\n', src.lastIndexOf(' obj', marker)) + 1;
+    const fieldText = src.slice(fieldStart, src.indexOf('endobj', fieldStart));
+    const fieldNum = Number(/^(\d+)\s+0\s+obj/.exec(fieldText)?.[1]);
+    if (!fieldNum) {
+        throw new IncrementalUpdateError(`En-tête d'objet illisible pour « ${opts.fieldName} »`);
+    }
+    if (/\/V\s+\d+\s+0\s+R/.test(fieldText)) {
+        throw new IncrementalUpdateError(`Le champ « ${opts.fieldName} » porte déjà une signature.`);
     }
 
-    // ── Flux d'apparence ──────────────────────────────────────────────────────
+    let nextNum = prevSize;
+    const sigNum = nextNum++;
+    const objects: IndirectObject[] = [];
+
+    // ── Apparence ─────────────────────────────────────────────────────────────
+    let apEntry = '';
     if (opts.appearancePng) {
-        const widgetObj = findObjectContaining(body, /\/Subtype\s*\/Widget\b/g, incrementalStart);
-        if (!widgetObj) throw new IncrementalUpdateError('Widget de signature introuvable');
-
-        const widgetEnd = body.indexOf('endobj', widgetObj.start);
-        const rectM = /\/Rect\s*\[([^\]]*)\]/.exec(body.slice(widgetObj.start, widgetEnd));
-        if (!rectM) throw new IncrementalUpdateError('/Rect du widget introuvable');
+        const rectM = /\/Rect\s*\[([^\]]*)\]/.exec(fieldText);
+        if (!rectM) throw new IncrementalUpdateError(`/Rect introuvable sur « ${opts.fieldName} »`);
         const rect = rectM[1].trim().split(/\s+/).map(Number);
-
         const w = rect[2] - rect[0];
         const h = rect[3] - rect[1];
         if (!(w > 0 && h > 0)) {
             throw new IncrementalUpdateError(
-                `Apparence demandée sur un widget sans surface : [${rect.join(' ')}]. ` +
+                `Apparence demandée sur un champ sans surface : [${rect.join(' ')}]. ` +
                 `Une signature invisible ne doit pas recevoir d'image.`
             );
         }
-
-        // JPEG + /DCTDecode : évite d'implémenter le décodage des chunks PNG.
-        // La signature est aplatie sur blanc — elle est de toute façon rendue sur
-        // le fond blanc du formulaire.
-        const meta = await sharp(opts.appearancePng).metadata();
-        const jpeg = await sharp(opts.appearancePng)
-            .flatten({ background: { r: 255, g: 255, b: 255 } })
-            .jpeg({ quality: 90 })
-            .toBuffer();
-
-        const imgNum = nextObj++;
-        const n0Num = nextObj++;
-        const n2Num = nextObj++;
-        const frmNum = nextObj++;
-        const apNum = nextObj++;
-
-        newObjects.push(
-            `${imgNum} 0 obj\n<<\n/Type /XObject\n/Subtype /Image\n/Width ${meta.width}\n/Height ${meta.height}\n` +
-            `/ColorSpace /DeviceRGB\n/BitsPerComponent 8\n/Filter /DCTDecode\n/Length ${jpeg.length}\n>>\nstream\n` +
-            jpeg.toString('latin1') + `\nendstream\nendobj\n`
-        );
-
-        // ⚠️ APPARENCE EN COUCHES — STRUCTURE IMPOSÉE PAR ACROBAT.
-        // Une apparence « à plat » (un seul XObject dessinant l'image) s'affiche
-        // correctement dans tous les lecteurs, MAIS Acrobat la reconstruit à
-        // l'ouverture. Sur un document certifié, cette reconstruction compte comme
-        // une modification : le panneau annonce « Des modifications ont été
-        // apportées » alors que le fichier est intact. Bisecté en preview —
-        // certification seule : sain ; apparence seule : saine ; les deux : fautif.
-        //
-        // Adobe attend l'empilement décrit au §8.7.1 du PDF Reference :
-        //   /AP /N  →  dessine /FRM
-        //   /FRM    →  dessine /n0 (fond) puis /n2 (le tracé)
-        const blank = '% DSBlank\n';
-        newObjects.push(
-            `${n0Num} 0 obj\n<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n` +
-            `/BBox [0 0 100 100]\n/Resources << /ProcSet [/PDF] >>\n` +
-            `/Length ${blank.length}\n>>\nstream\n${blank}endstream\nendobj\n`
-        );
-
-        const n2 = `q\n${pdfNum(w)} 0 0 ${pdfNum(h)} 0 0 cm\n/Im0 Do\nQ\n`;
-        newObjects.push(
-            `${n2Num} 0 obj\n<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n` +
-            `/BBox [0 0 ${pdfNum(w)} ${pdfNum(h)}]\n` +
-            `/Resources << /ProcSet [/PDF /ImageC] /XObject << /Im0 ${imgNum} 0 R >> >>\n` +
-            `/Length ${n2.length}\n>>\nstream\n${n2}endstream\nendobj\n`
-        );
-
-        const frm = `q\n/n0 Do\nQ\nq\n/n2 Do\nQ\n`;
-        newObjects.push(
-            `${frmNum} 0 obj\n<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n` +
-            `/BBox [0 0 ${pdfNum(w)} ${pdfNum(h)}]\n` +
-            `/Resources << /ProcSet [/PDF] /XObject << /n0 ${n0Num} 0 R /n2 ${n2Num} 0 R >> >>\n` +
-            `/Length ${frm.length}\n>>\nstream\n${frm}endstream\nendobj\n`
-        );
-
-        const ap = `q\n/FRM Do\nQ\n`;
-        newObjects.push(
-            `${apNum} 0 obj\n<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n` +
-            `/BBox [0 0 ${pdfNum(w)} ${pdfNum(h)}]\n` +
-            `/Resources << /ProcSet [/PDF] /XObject << /FRM ${frmNum} 0 R >> >>\n` +
-            `/Length ${ap.length}\n>>\nstream\n${ap}endstream\nendobj\n`
-        );
-
-        const wDictOpen = body.indexOf('<<', widgetObj.start) + 2;
-        body = body.slice(0, wDictOpen) + `\n/AP << /N ${apNum} 0 R >>` + body.slice(wDictOpen);
+        const { objects: apObjects, apNum } = await buildAppearance(opts.appearancePng, w, h, nextNum);
+        nextNum += apObjects.length;
+        objects.push(...apObjects);
+        apEntry = `\n/AP << /N ${apNum} 0 R >>`;
     }
 
-    // ── Reconstruction de la sous-table xref ──────────────────────────────────
-    // Les insertions ont décalé tous les objets situés après elles : on rescanne
-    // plutôt que de tenter de corriger les offsets un à un.
-    if (newObjects.length) body += '\n' + newObjects.join('\n');
+    // ── Dictionnaire de signature ─────────────────────────────────────────────
+    // `/Reference` porte la règle DocMDP ; son `/Data` désigne l'objet sur lequel
+    // porte la transformation — le catalogue — faute de quoi Acrobat signale
+    // « une erreur est survenue lors de la validation de la signature ».
+    const catalogNum = Number(rootRef.split(' ')[0]);
+    const reference = opts.docMdpLevel
+        ? `\n/Reference [<< /Type /SigRef /TransformMethod /DocMDP` +
+          ` /TransformParams << /Type /TransformParams /P ${opts.docMdpLevel} /V /1.2 >>` +
+          ` /Data ${catalogNum} 0 R /DigestMethod /SHA256 >>]`
+        : '';
 
+    objects.unshift({ num: sigNum, body:
+        `<<\n/Type /Sig\n/Filter /Adobe.PPKLite\n/SubFilter /adbe.pkcs7.detached\n` +
+        // Emplacement reconnu par `SignPdf.sign`, qui le remplace par les valeurs
+        // réelles sans modifier la longueur du fichier.
+        `/ByteRange [0 /********** /********** /**********]\n` +
+        `/Contents <${'0'.repeat(opts.signatureLength * 2)}>${reference}\n` +
+        `/Reason ${pdfString(opts.reason)}\n` +
+        `/M (${pdfDate(opts.signingTime)})\n` +
+        `/ContactInfo ${pdfString(opts.contactInfo)}\n` +
+        `/Name ${pdfString(opts.name)}\n` +
+        `/Location ${pdfString(opts.location)}\n>>` });
+
+    // ── Champ rempli ──────────────────────────────────────────────────────────
+    // Ré-émis à l'identique, `/V` (et l'apparence) en plus : c'est la seule
+    // modification qu'une certification P=2 autorise.
+    objects.push({ num: fieldNum, body:
+        `<<\n/V ${sigNum} 0 R${apEntry}` + outerDict(fieldText).slice(2) });
+
+    // ── Catalogue — certification uniquement ──────────────────────────────────
+    if (opts.docMdpLevel) {
+        // /Version : DocMDP lui-même est PDF 1.4, mais `/Perms` est PDF 1.5
+        // (ISO 32000-1 §7.7.2) alors que @react-pdf/renderer émet un en-tête
+        // %PDF-1.3. L'override /Version au catalogue (§7.5.5) réconcilie sans
+        // réécrire l'en-tête — ce qu'un incremental update ne peut pas faire.
+        objects.push({ num: catalogNum, body:
+            `<<\n/Perms << /DocMDP ${sigNum} 0 R >>\n/Version /1.7` +
+            outerDict(lastRevisionOf(src, catalogNum)).slice(2) });
+    }
+
+    // ── Assemblage ────────────────────────────────────────────────────────────
+    let body = src;
     const entries: XrefEntry[] = [];
-    const objRe = /(\d+)\s+0\s+obj/g;
-    let om: RegExpExecArray | null;
-    while ((om = objRe.exec(body)) !== null) {
-        if (om.index <= incrementalStart) continue;
-        const num = Number(om[1]);
-        const dup = entries.findIndex(e => e.num === num);
-        if (dup !== -1) entries.splice(dup, 1);
-        entries.push({ num, offset: om.index });
+    for (const obj of objects) {
+        body += '\n';
+        entries.push({ num: obj.num, offset: body.length });
+        body += `${obj.num} 0 obj\n${obj.body}\nendobj\n`;
     }
 
-    // ⚠️ /Size SE DÉDUIT DES ENTRÉES ÉCRITES, PAS D'UN BALAYAGE DU FICHIER.
-    // `maxObjNum` cherche `N 0 obj` dans TOUT le corps, flux binaires compris :
-    // trois octets d'une image JPEG suffisent à former « 52 0 obj » et à gonfler
-    // le /Size, que qpdf signale alors (« reported number of objects is not one
-    // plus the highest object number »). Les objets non réécrits restent couverts
-    // par le /Size de la révision précédente.
+    const xrefOffset = body.length + 1;
     const maxEntry = entries.reduce((m, e) => Math.max(m, e.num), 0);
-    const newXrefOffset = body.length + 1;
-    const trailerStr =
-        `trailer\n<<\n/Size ${Math.max(trailer.size, maxEntry + 1)}\n/Root ${trailer.root}\n` +
-        (trailer.info ? `/Info ${trailer.info}\n` : '') +
-        (trailer.prev !== null ? `/Prev ${trailer.prev}\n` : '') +
-        `>>\nstartxref\n${newXrefOffset}\n%%EOF`;
+    const newTrailer =
+        `trailer\n<<\n/Size ${Math.max(prevSize, maxEntry + 1)}\n/Root ${rootRef}\n` +
+        (infoRef ? `/Info ${infoRef}\n` : '') +
+        (id ? `/ID [${id}]\n` : '') +
+        `/Prev ${prevXref}\n>>\nstartxref\n${xrefOffset}\n%%EOF`;
 
-    return Buffer.from(body + '\n' + buildXrefTable(entries) + trailerStr, 'latin1');
+    return Buffer.from(body + '\n' + buildXrefTable(entries) + newTrailer, 'latin1');
 }
 
 /**

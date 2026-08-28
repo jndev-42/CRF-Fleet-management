@@ -63,7 +63,8 @@ async function main(): Promise<void> {
     const { generateExpensePdf, countItems } = await import('../src/lib/expenses/pdf');
     const { sealPdf, decodeSignatureImage, assertSigningCertConfigured } = await import('../src/lib/pdf/signature');
     const { putObject, buildExpenseKey, newAttemptId, assertR2Configured } = await import('../src/lib/r2');
-    const { SIGNATURE_WIDGET_RECTS, MAX_ITEMS_SINGLE_PAGE } = await import('../src/lib/expenses/signature-layout');
+    const { SIGNATURE_FIELDS, SIGNATURE_WIDGET_RECTS, MAX_ITEMS_SINGLE_PAGE } = await import('../src/lib/expenses/signature-layout');
+    const { addSignatureFields } = await import('../src/lib/pdf/fields');
     const sharp = (await import('sharp')).default;
 
     /**
@@ -163,7 +164,10 @@ async function main(): Promise<void> {
 
         try {
             const now = new Date();
-            let buf = await generateExpensePdf(id, { forSealing: true });
+            let buf = await addSignatureFields(
+                await generateExpensePdf(id, { forSealing: true }),
+                [...SIGNATURE_FIELDS]
+            );
             const revisions: unknown[] = [];
             let key = '';
 
@@ -174,9 +178,10 @@ async function main(): Promise<void> {
             ) => {
                 buf = await sealPdf(buf, {
                     reason, name, signingTime: now,
-                    // Notes longues : aucun widget, l'invisibilité évite le
-                    // problème de page (le widget serait toujours posé page 1).
-                    ...(rect && image && !tooLong ? { widgetRect: rect, appearancePng: image } : {}),
+                    fieldName: SIGNATURE_FIELDS[step - 1].name,
+                    // Notes longues : aucun tracé rendu, ce qui évite le problème
+                    // de page (le champ est toujours posé page 1).
+                    ...(rect && image && !tooLong ? { appearancePng: image } : {}),
                     ...(step === 1 ? { docMdpLevel: 2 as const } : {}),
                 });
                 key = buildExpenseKey(id, step, newAttemptId());

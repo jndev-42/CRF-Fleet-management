@@ -3,7 +3,7 @@
  *
  * SOURCE UNIQUE DE VÉRITÉ, importée des DEUX côtés :
  *   - `ExpensePdfDocument.tsx` — pour réserver les zones dans la mise en page
- *   - `sealing.ts`             — pour le `widgetRect` passé à `plainAddPlaceholder`
+ *   - `sealing.ts`             — pour les champs posés avant le 1er scellement
  *
  * Sans ce partage, la position du widget et celle de la colonne dériveraient
  * indépendamment, et le décalage ne serait visible qu'après scellement — donc
@@ -51,12 +51,26 @@ export const SIGNATURE_WIDGET_RECTS = {
     /** Colonne « Le responsable : » — signature #2. */
     valideur: [213.6, 169, 379.2, 204.4] as const,
     /**
-     * Signature #3 (payeur) : AUCUN widget.
-     * `widgetRect` omis à l'appel ⇒ `plainAddPlaceholder` produit `/Rect [0 0 0 0]`.
-     * L'invisibilité est native, il n'y a rien à coder.
+     * Signature #3 (payeur) : AUCUN widget visible.
+     * Le champ existe — il doit être créé comme les autres avant le scellement —
+     * mais son rectangle est nul, donc rien n'est rendu sur la page.
      */
     payeur: null,
 } as const;
+
+/**
+ * Les trois champs de signature, posés d'un coup AVANT le premier scellement.
+ *
+ * ⚠️ L'ORDRE ET LES NOMS SONT CONTRACTUELS : `sealStep1/2/3` remplissent
+ * respectivement `Signature1`, `Signature2` et `Signature3`. Un champ ne peut
+ * pas être ajouté après la certification sans invalider les signatures déjà
+ * posées aux yeux d'Acrobat.
+ */
+export const SIGNATURE_FIELDS = [
+    { name: 'Signature1', rect: SIGNATURE_WIDGET_RECTS.demandeur },
+    { name: 'Signature2', rect: SIGNATURE_WIDGET_RECTS.valideur },
+    { name: 'Signature3', rect: SIGNATURE_WIDGET_RECTS.payeur },
+] as const;
 
 /** Convertit une ordonnée « depuis le haut de page » en ordonnée PDF. */
 export function toPdfY(yFromTop: number, height: number): number {
@@ -68,8 +82,7 @@ export function toPdfY(yFromTop: number, height: number): number {
  *
  * Décision D6 : au-delà, le scellement est REFUSÉ (400) plutôt que de produire un
  * document cassé — le bloc signature partirait en page 2 alors que le widget est
- * toujours estampillé sur la page 1 (`getPageRef` de `@signpdf/placeholder-plain`
- * retourne systématiquement la première référence de `/Kids`).
+ * toujours posé sur la page 1 (`addSignatureFields` n'annote que celle-ci).
  *
  * ⚠️ Valeur DÉRIVÉE, pas devinée : `signature-layout.test.ts` rend le composant à
  * MAX_ITEMS_SINGLE_PAGE puis à MAX_ITEMS_SINGLE_PAGE + 1 et vérifie le basculement

@@ -86,7 +86,8 @@ async function sealWith(p12Base64: string): Promise<Buffer> {
     // Import tardif : `signature.ts` met le buffer du certificat en cache dès le
     // premier appel, il faut donc le charger après avoir posé l'environnement.
     const { sealPdf } = await import('@/lib/pdf/signature');
-    const { SIGNATURE_WIDGET_RECTS } = await import('@/lib/expenses/signature-layout');
+    const { SIGNATURE_FIELDS } = await import('@/lib/expenses/signature-layout');
+    const { addSignatureFields } = await import('@/lib/pdf/fields');
     const { renderToBuffer } = await import('@react-pdf/renderer');
     const { createElement } = await import('react');
     const ExpensePdfDocument = (await import('@/components/expenses/ExpensePdfDocument')).default;
@@ -100,11 +101,12 @@ async function sealWith(p12Base64: string): Promise<Buffer> {
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- le composant PDF n'exporte pas ses props
     const el = createElement(ExpensePdfDocument as any, { report, logoSrc: '', forSealing: true }) as any;
-    const base = Buffer.from(await renderToBuffer(el));
+    const base = await addSignatureFields(
+        Buffer.from(await renderToBuffer(el)), [...SIGNATURE_FIELDS]);
 
     return sealPdf(base, {
         reason: 'Test', name: 'Admin', signingTime: new Date(),
-        widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, docMdpLevel: 2,
+        fieldName: SIGNATURE_FIELDS[0].name, docMdpLevel: 2,
     });
 }
 

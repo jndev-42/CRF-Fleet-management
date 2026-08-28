@@ -13,6 +13,7 @@ import { PDFDocument, rgb } from 'pdf-lib';
 import sharp from 'sharp';
 import { installTestCert } from '../fixtures/signing-cert';
 import { sealPdf } from '@/lib/pdf/signature';
+import { addSignatureFields } from '@/lib/pdf/fields';
 import { countRevisions } from '@/lib/pdf/incremental';
 import {
     appendJustificatifs, compressJustificatifImage, AttachmentError,
@@ -49,11 +50,14 @@ async function makeSignedReceipt(): Promise<Buffer> {
     const page = doc.addPage([300, 200]);
     page.drawText('Facture 2026-042 — 55,00 €', { x: 20, y: 100, size: 14, color: rgb(0, 0, 0) });
     const unsigned = Buffer.from(await doc.save({ useObjectStreams: false }));
-    return sealPdf(unsigned, {
+    const avecChamp = await addSignatureFields(unsigned, [
+        { name: 'SignatureEmetteur', rect: [20, 20, 180, 60] },
+    ]);
+    return sealPdf(avecChamp, {
         reason: 'Signature électronique de la facture',
         name: 'Emetteur Facture',
         signingTime: new Date('2026-01-01T00:00:00.000Z'),
-        widgetRect: [20, 20, 180, 60],
+        fieldName: 'SignatureEmetteur',
         docMdpLevel: 2,
     });
 }
@@ -212,9 +216,12 @@ describe('appendJustificatifs', () => {
             { buffer: await makeSignedReceipt(), mime: 'application/pdf' },
         ]);
 
-        const sealed = await sealPdf(out, {
+        const prepared = await addSignatureFields(out, [
+            { name: 'Signature1', rect: [40, 40, 240, 100] },
+        ]);
+        const sealed = await sealPdf(prepared, {
             reason: 'Soumission', name: 'Jean Dupont', signingTime: new Date(),
-            widgetRect: [40, 40, 240, 100], docMdpLevel: 2,
+            fieldName: 'Signature1', docMdpLevel: 2,
         });
         expect(countRevisions(sealed)).toBe(1);
     }, 30_000);

@@ -2,7 +2,11 @@
  * Scellement cryptographique des PDF de notes de frais.
  *
  * Chaîne d'une passe :
- *   plainAddPlaceholder → augmentIncremental (DocMDP / apparence) → signpdf.sign
+ *   addPlaceholderToField (remplit un champ existant) → signpdf.sign
+ *
+ * Les trois champs de signature sont créés en amont, sur le document non signé
+ * (`addSignatureFields`). Chaque passe se contente d'en remplir un : c'est la
+ * seule modification qu'autorise la certification DocMDP posée par la première.
  *
  * Chaque passe est un INCREMENTAL UPDATE strictement additif : les octets des
  * signatures antérieures ne sont jamais réécrits, donc leurs condensats restent
@@ -12,8 +16,7 @@
 import forge from 'node-forge';
 import { SignPdf } from '@signpdf/signpdf';
 import { P12Signer } from '@signpdf/signer-p12';
-import { plainAddPlaceholder } from '@signpdf/placeholder-plain';
-import { augmentIncremental, assertIncrementalAppend } from './incremental';
+import { addPlaceholderToField, assertIncrementalAppend } from './incremental';
 
 export class SigningError extends Error {}
 
@@ -140,17 +143,17 @@ export interface SealOptions {
     /**
      * Horodatage de la signature.
      *
-     * ⚠️ Passé DEUX FOIS, volontairement : à `plainAddPlaceholder` (qui écrit `/M`,
-     * la date que les lecteurs PDF affichent) ET à `sign()` (qui la place dans les
-     * attributs authentifiés PKCS#7). Les régler séparément les ferait diverger
-     * silencieusement entre l'affichage et la preuve cryptographique.
+     * ⚠️ Passé DEUX FOIS, volontairement : à la pose de l'emplacement (qui écrit
+     * `/M`, la date que les lecteurs PDF affichent) ET à `sign()` (qui la place
+     * dans les attributs authentifiés PKCS#7). Les régler séparément les ferait
+     * diverger silencieusement entre l'affichage et la preuve cryptographique.
      */
     signingTime: Date;
-    /** Zone du widget en points PDF. Omis ⇒ signature invisible (`/Rect [0 0 0 0]`). */
-    widgetRect?: readonly number[];
+    /** Nom du champ à remplir — créé en amont par `addSignatureFields`. */
+    fieldName: string;
     /** Niveau DocMDP — signature de certification (la 1re) uniquement. */
     docMdpLevel?: 1 | 2 | 3;
-    /** Tracé manuscrit rendu dans le widget. Exige `widgetRect`. */
+    /** Tracé manuscrit rendu dans le widget. Le champ doit avoir une surface. */
     appearancePng?: Buffer;
 }
 
@@ -161,29 +164,21 @@ export interface SealOptions {
  * @throws {IncrementalUpdateError} si le résultat n'est pas une extension stricte.
  */
 export async function sealPdf(input: Buffer, opts: SealOptions): Promise<Buffer> {
-    if (opts.appearancePng && !opts.widgetRect) {
-        throw new SigningError('Une image d\'apparence exige un widgetRect : une signature invisible ne peut rien afficher.');
-    }
-
-    const withPlaceholder = plainAddPlaceholder({
-        pdfBuffer: input,
+    // Tout le contenu de la révision — DocMDP et apparence compris — est écrit
+    // AVANT sign() : le /ByteRange doit être calculé sur le buffer définitif.
+    const withPlaceholder = await addPlaceholderToField(input, {
+        fieldName: opts.fieldName,
         reason: opts.reason,
         contactInfo: 'notes-de-frais@croix-rouge.fr',
         name: opts.name,
         location: 'France',
         signingTime: opts.signingTime,
         signatureLength: SIGNATURE_LENGTH,
-        ...(opts.widgetRect ? { widgetRect: [...opts.widgetRect] } : {}),
-    });
-
-    // DocMDP et apparence AVANT sign() : le /ByteRange doit être calculé sur le
-    // buffer définitif.
-    const augmented = await augmentIncremental(withPlaceholder, {
         docMdpLevel: opts.docMdpLevel,
         appearancePng: opts.appearancePng,
     });
 
-    const signed = await new SignPdf().sign(augmented, freshSigner(), opts.signingTime);
+    const signed = await new SignPdf().sign(withPlaceholder, freshSigner(), opts.signingTime);
 
     // Garde-fou : refuse de rendre un buffer qui aurait réécrit le passé.
     assertIncrementalAppend(input, signed);

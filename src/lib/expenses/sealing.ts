@@ -23,7 +23,8 @@ import { countRevisions } from '@/lib/pdf/incremental';
 import { countPages } from '@/lib/pdf/verify';
 import { generateExpensePdf, countItems } from './pdf';
 import { appendJustificatifs, type JustificatifFile } from './attachments';
-import { SIGNATURE_WIDGET_RECTS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE } from './signature-layout';
+import { SIGNATURE_FIELDS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE } from './signature-layout';
+import { addSignatureFields } from '@/lib/pdf/fields';
 
 export class SealingError extends Error {}
 /** Incohérence entre le journal en base et le PDF réellement stocké. */
@@ -164,11 +165,17 @@ export async function sealStep1(
     // scellement : c'est ce document, pages comprises, que DocMDP verrouille.
     const pdf = await appendJustificatifs(form, attachments);
 
-    const sealed = await sealPdf(pdf, {
+    // ⚠️ LES TROIS CHAMPS SONT POSÉS MAINTENANT, sur le document encore non signé.
+    // La certification qui suit n'autorisera plus que le remplissage de champs
+    // existants : un champ ajouté plus tard invaliderait, aux yeux d'Acrobat,
+    // toutes les signatures déjà en place.
+    const prepared = await addSignatureFields(pdf, [...SIGNATURE_FIELDS]);
+
+    const sealed = await sealPdf(prepared, {
         reason: 'Soumission de la note de frais par le demandeur',
         name: signer.name,
         signingTime: now,
-        widgetRect: SIGNATURE_WIDGET_RECTS.demandeur,
+        fieldName: SIGNATURE_FIELDS[0].name,
         appearancePng: image,
         docMdpLevel: 2,
     });
@@ -220,7 +227,7 @@ export async function sealStep2(
             : 'Validation de la note de frais',
         name: signer.name,
         signingTime: now,
-        widgetRect: SIGNATURE_WIDGET_RECTS.valideur,
+        fieldName: SIGNATURE_FIELDS[1].name,
         appearancePng: image,
     });
 
@@ -264,7 +271,8 @@ export async function sealStep3(
         reason: 'Paiement de la note de frais',
         name: signer.name,
         signingTime: now,
-        // Pas de widgetRect ni d'appearancePng : signature invisible.
+        fieldName: SIGNATURE_FIELDS[2].name,
+        // Pas d'appearancePng : le champ est de surface nulle, rien n'est rendu.
     });
 
     const key = buildExpenseKey(reportId, 3, newAttemptId());

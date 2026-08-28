@@ -40,6 +40,26 @@ export interface VerifyReport {
     allValid: boolean;
 }
 
+/**
+ * Lit une chaîne de texte PDF, littérale `(…)` ou hexadécimale `<…>`.
+ *
+ * Les valeurs non-ASCII sont écrites en UTF-16BE hexadécimal (voir `pdfString`
+ * dans `incremental.ts`) : sans ce décodage, tout nom accentué serait rendu
+ * comme `null` dans le rapport, et une régression d'encodage passerait inaperçue.
+ */
+function readPdfString(dict: string, key: string): string | null {
+    const litteral = new RegExp(`/${key}\\s*\\(([^)]*)\\)`).exec(dict);
+    if (litteral) return litteral[1].replace(/\\([\s\S])/g, (_m, c: string) => c);
+
+    const hex = new RegExp(`/${key}\\s*<([0-9A-Fa-f\\s]*)>`).exec(dict);
+    if (!hex) return null;
+    const buf = Buffer.from(hex[1].replace(/\s/g, ''), 'hex');
+    if (buf[0] === 0xfe && buf[1] === 0xff) {
+        return Buffer.from(buf.subarray(2)).swap16().toString('utf16le');
+    }
+    return buf.toString('latin1');
+}
+
 function allMatches(s: string, re: RegExp): RegExpExecArray[] {
     const out: RegExpExecArray[] = [];
     const r = new RegExp(re.source, re.flags.includes('g') ? re.flags : re.flags + 'g');
@@ -113,8 +133,8 @@ export function verifySignatures(pdf: Buffer): VerifyReport {
         const info: SignatureInfo = {
             index: i + 1,
             byteRange: sig.byteRange,
-            name: /\/Name\s*\(([^)]*)\)/.exec(sig.dict)?.[1] ?? null,
-            reason: /\/Reason\s*\(([^)]*)\)/.exec(sig.dict)?.[1] ?? null,
+            name: readPdfString(sig.dict, 'Name'),
+            reason: readPdfString(sig.dict, 'Reason'),
             signingTime: /\/M\s*\(([^)]*)\)/.exec(sig.dict)?.[1] ?? null,
             digestValid: false,
             parsed: false,

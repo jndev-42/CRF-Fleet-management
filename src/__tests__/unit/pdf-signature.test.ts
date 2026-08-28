@@ -14,13 +14,14 @@ import { installTestCert, testSigningCert } from '../fixtures/signing-cert';
 import ExpensePdfDocument from '@/components/expenses/ExpensePdfDocument';
 
 import {
-    sealPdf, decodeSignatureImage, SIGNATURE_LENGTH, assertSigningCertConfigured, SigningError,
+    sealPdf, decodeSignatureImage, SIGNATURE_LENGTH, assertSigningCertConfigured,
 } from '@/lib/pdf/signature';
 import { verifySignatures, countPages } from '@/lib/pdf/verify';
 import { assertIncrementalAppend, countRevisions, IncrementalUpdateError } from '@/lib/pdf/incremental';
+import { addSignatureFields, SignatureFieldError } from '@/lib/pdf/fields';
 import {
-    SIGNATURE_WIDGET_RECTS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE, PageGeometryError,
-    PAGE_WIDTH, PAGE_HEIGHT,
+    SIGNATURE_WIDGET_RECTS, SIGNATURE_FIELDS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE,
+    PageGeometryError, PAGE_WIDTH, PAGE_HEIGHT,
 } from '@/lib/expenses/signature-layout';
 
 // Les modules lisent l'environnement À L'APPEL (pas au chargement) : installer le
@@ -54,6 +55,15 @@ async function buildPdf(itemCount: number, forSealing = true): Promise<Buffer> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- le composant PDF n'expose pas de type props exportable
     const el = createElement(ExpensePdfDocument as any, { report, logoSrc: '', forSealing }) as any;
     return Buffer.from(await renderToBuffer(el));
+}
+
+/**
+ * Document prêt à sceller : les trois champs posés, comme le fait `sealStep1`.
+ * Sceller un document sans champs est désormais une erreur — c'est le sens même
+ * du correctif : aucun champ ne doit apparaître après la certification.
+ */
+async function buildSignable(itemCount: number): Promise<Buffer> {
+    return addSignatureFields(await buildPdf(itemCount), [...SIGNATURE_FIELDS]);
 }
 
 async function signaturePng(): Promise<Buffer> {
@@ -115,7 +125,7 @@ describe('signature-layout', () => {
 
 describe('sealPdf', () => {
     let base: Buffer;
-    beforeAll(async () => { base = await buildPdf(4); });
+    beforeAll(async () => { base = await buildSignable(4); });
 
     it('valide la configuration du certificat sans conserver le signer', () => {
         expect(() => assertSigningCertConfigured()).not.toThrow();
@@ -158,11 +168,29 @@ describe('sealPdf', () => {
         expect(SIGNATURE_LENGTH).toBeGreaterThanOrEqual(8192);
     });
 
-    it('refuse une image d\'apparence sans widgetRect', async () => {
+    it('refuse une apparence sur le champ invisible du payeur', async () => {
         await expect(sealPdf(base, {
-            reason: 'x', name: 'x', signingTime: new Date(), appearancePng: await signaturePng(),
-        })).rejects.toThrow(SigningError);
+            reason: 'x', name: 'x', signingTime: new Date(),
+            fieldName: SIGNATURE_FIELDS[2].name, appearancePng: await signaturePng(),
+        })).rejects.toThrow(IncrementalUpdateError);
     });
+
+    it('refuse de sceller un document sans champ de signature', async () => {
+        await expect(sealPdf(await buildPdf(2), {
+            reason: 'x', name: 'x', signingTime: new Date(), fieldName: 'Signature1',
+        })).rejects.toThrow(/introuvable/);
+    }, 20_000);
+
+    it('refuse de re-signer un champ déjà rempli', async () => {
+        const signe = await sealPdf(base, {
+            reason: 'Soumission', name: 'Jean Dupont', signingTime: new Date(),
+            fieldName: SIGNATURE_FIELDS[0].name, docMdpLevel: 2,
+        });
+        await expect(sealPdf(signe, {
+            reason: 'Doublon', name: 'Jean Dupont', signingTime: new Date(),
+            fieldName: SIGNATURE_FIELDS[0].name,
+        })).rejects.toThrow(/déjà une signature/);
+    }, 30_000);
 
     it('enchaîne TROIS scellements dans UN SEUL processus via le sealPdf de production', async () => {
         // Ce test est le garde-fou contre la réutilisation d'une instance P12Signer :
@@ -172,14 +200,15 @@ describe('sealPdf', () => {
         const png = await signaturePng();
         const s1 = await sealPdf(base, {
             reason: 'Soumission', name: 'Jean Dupont', signingTime: new Date('2026-08-26T09:00:00Z'),
-            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, appearancePng: png, docMdpLevel: 2,
+            fieldName: SIGNATURE_FIELDS[0].name, appearancePng: png, docMdpLevel: 2,
         });
         const s2 = await sealPdf(s1, {
             reason: 'Validation', name: 'Marie Martin', signingTime: new Date('2026-08-26T10:00:00Z'),
-            widgetRect: SIGNATURE_WIDGET_RECTS.valideur, appearancePng: png,
+            fieldName: SIGNATURE_FIELDS[1].name, appearancePng: png,
         });
         const s3 = await sealPdf(s2, {
             reason: 'Paiement', name: 'Paul Payeur', signingTime: new Date('2026-08-26T11:00:00Z'),
+            fieldName: SIGNATURE_FIELDS[2].name,
         });
 
         expect(countRevisions(s3)).toBe(3);
@@ -201,9 +230,13 @@ describe('sealPdf', () => {
         // /Version au catalogue réconcilie les deux.
         expect(report.catalogVersion).toBe('1.7');
 
-        // Les deux premières visibles, la troisième invisible.
-        expect(report.rects).toContain('[0 0 0 0]');
-        expect(report.rects.filter(r => r !== '[0 0 0 0]')).toHaveLength(2);
+        // TROIS champs en tout, ni plus ni moins : deux visibles, un invisible.
+        // Chacun est ré-émis quand il est rempli, d'où les doublons — ce qui
+        // compte est qu'aucun QUATRIÈME rectangle n'apparaisse, signe d'un champ
+        // ajouté après la certification.
+        const rectsDistincts = [...new Set(report.rects)];
+        expect(rectsDistincts).toHaveLength(3);
+        expect(rectsDistincts).toContain('[0 0 0 0]');
 
         // Les DEUX dates sont réglées ensemble : /M porte bien l'heure demandée.
         expect(report.signatures[0].signingTime).toContain('20260826090000');
@@ -213,7 +246,7 @@ describe('sealPdf', () => {
     it('détecte l\'altération d\'un octet du contenu', async () => {
         const sealed = await sealPdf(base, {
             reason: 'Soumission', name: 'Jean Dupont', signingTime: new Date(),
-            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, appearancePng: await signaturePng(), docMdpLevel: 2,
+            fieldName: SIGNATURE_FIELDS[0].name, appearancePng: await signaturePng(), docMdpLevel: 2,
         });
         expect(verifySignatures(sealed).allValid).toBe(true);
 
@@ -234,7 +267,7 @@ describe('sealPdf', () => {
     it('place /Perms et /Version dans le catalogue, pas dans l\'AcroForm', async () => {
         const sealed = await sealPdf(base, {
             reason: 'Soumission', name: 'Jean Dupont', signingTime: new Date(),
-            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, docMdpLevel: 2,
+            fieldName: SIGNATURE_FIELDS[0].name, docMdpLevel: 2,
         });
         const texte = sealed.toString('latin1');
 
@@ -258,7 +291,7 @@ describe('sealPdf', () => {
     it('empile l\'apparence en /FRM → /n0 + /n2 comme l\'exige Acrobat', async () => {
         const sealed = await sealPdf(base, {
             reason: 'Soumission', name: 'Jean Dupont', signingTime: new Date(),
-            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, appearancePng: await signaturePng(),
+            fieldName: SIGNATURE_FIELDS[0].name, appearancePng: await signaturePng(),
             docMdpLevel: 2,
         });
         const texte = sealed.toString('latin1');
@@ -317,49 +350,73 @@ describe('decodeSignatureImage', () => {
     });
 });
 
-describe('encodage des noms de signataires', () => {
-    it('écrit un nom ACCENTUÉ en UTF-16BE lisible, avec un BOM correct', async () => {
-        // `@signpdf/placeholder-plain` assemble ses objets avec `Buffer.from(str)`
-        // sans encodage : Node retombe sur UTF-8 et transforme le BOM FE FF en
-        // C3 BE C3 BF. Acrobat affichait alors « Signé par Ã¾Ã¿ ». Sur des
-        // documents français, un nom accentué est la règle, pas l'exception.
-        const base = await buildPdf(2);
-        const sealed = await sealPdf(base, {
-            reason: 'Validation', name: 'Président Préversion', signingTime: new Date(),
-            widgetRect: SIGNATURE_WIDGET_RECTS.valideur, appearancePng: await signaturePng(),
+describe('encodage du texte des signatures', () => {
+    /**
+     * Décode une chaîne PDF comme le ferait un lecteur, SANS réutiliser le code de
+     * production : un décodeur maison qui partagerait le bogue de l'encodeur
+     * validerait n'importe quoi.
+     */
+    function lireChaine(pdf: Buffer, cle: string): string[] {
+        const corps = pdf.toString('latin1');
+        const out: string[] = [];
+        const re = new RegExp(`/${cle}\\s*(?:\\(((?:[^()\\\\]|\\\\[\\s\\S])*)\\)|<([0-9A-Fa-f]*)>)`, 'g');
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(corps)) !== null) {
+            if (m[1] !== undefined) {
+                out.push(m[1].replace(/\\([\s\S])/g, (_x, c: string) => c));
+                continue;
+            }
+            const buf = Buffer.from(m[2], 'hex');
+            expect(buf[0], `chaîne /${cle} hexadécimale sans BOM UTF-16`).toBe(0xfe);
+            expect(buf[1]).toBe(0xff);
+            // Une longueur impaire décalerait tout le texte d'un demi-caractère —
+            // c'est ainsi qu'Acrobat affichait des idéogrammes.
+            expect(buf.length % 2, `chaîne /${cle} de longueur impaire`).toBe(0);
+            out.push(Buffer.from(buf.subarray(2)).swap16().toString('utf16le'));
+        }
+        return out;
+    }
+
+    it('restitue accents et parenthèses tels quels dans /Reason et /Name', async () => {
+        const motif = 'Validation (scellée rétroactivement) — coût 12 €';
+        const nom = 'Aurélie Nguyễn-Lévêque';
+
+        const sealed = await sealPdf(await buildSignable(2), {
+            reason: motif,
+            name: nom,
+            signingTime: new Date('2026-08-28T10:00:00.000Z'),
+            fieldName: SIGNATURE_FIELDS[0].name,
+            docMdpLevel: 2,
         });
 
-        const raw = sealed.toString('latin1');
-        const noms = [...raw.matchAll(/\/Name\s*\(((?:[^)\\]|\\.)*)\)/g)].map(m => m[1]);
-        expect(noms.length).toBeGreaterThan(0);
-
-        const nom = noms[noms.length - 1];
-        // BOM UTF-16BE intact, jamais sa version doublement encodée.
-        expect(nom.charCodeAt(0)).toBe(0xfe);
-        expect(nom.charCodeAt(1)).toBe(0xff);
-        expect(nom.startsWith('\u00c3\u00be\u00c3\u00bf')).toBe(false);
-
-        const decode = Buffer.from(nom.slice(2), 'latin1').swap16().toString('utf16le');
-        expect(decode).toBe('Président Préversion');
+        expect(lireChaine(sealed, 'Reason')).toContain(motif);
+        expect(lireChaine(sealed, 'Name')).toContain(nom);
     }, 30_000);
 
-    it('laisse un nom ASCII en clair, sans BOM inutile', async () => {
-        const base = await buildPdf(2);
-        const sealed = await sealPdf(base, {
-            reason: 'Soumission', name: 'Admin Preview', signingTime: new Date(),
-            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, appearancePng: await signaturePng(),
+    it('laisse une chaîne purement ASCII en littéral, sans BOM inutile', async () => {
+        const motif = 'Soumission de la note de frais par le demandeur';
+        const sealed = await sealPdf(await buildSignable(1), {
+            reason: motif, name: 'Jean Dupont',
+            signingTime: new Date('2026-08-28T10:00:00.000Z'),
+            fieldName: SIGNATURE_FIELDS[0].name,
         });
-        const m = /\/Name\s*\(((?:[^)\\]|\\.)*)\)/.exec(sealed.toString('latin1'));
-        expect(m?.[1]).toBe('Admin Preview');
+        expect(/\/Name\s*\(Jean Dupont\)/.test(sealed.toString('latin1'))).toBe(true);
+        expect(lireChaine(sealed, 'Reason')).toContain(motif);
+    }, 30_000);
+
+    it('échappe une parenthèse dans une chaîne ASCII', async () => {
+        const motif = 'Refus (motif : justificatif manquant)';
+        const sealed = await sealPdf(await buildSignable(1), {
+            reason: motif, name: 'Jean Dupont', signingTime: new Date(),
+            fieldName: SIGNATURE_FIELDS[1].name,
+        });
+        expect(lireChaine(sealed, 'Reason')).toContain(motif);
     }, 30_000);
 
     it('injecte /Data dans la référence DocMDP', async () => {
-        // Sans /Data pointant le catalogue, Acrobat signale « une erreur est
-        // survenue lors de la validation de la signature ».
-        const base = await buildPdf(2);
-        const sealed = await sealPdf(base, {
+        const sealed = await sealPdf(await buildSignable(2), {
             reason: 'Soumission', name: 'Admin', signingTime: new Date(),
-            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, appearancePng: await signaturePng(),
+            fieldName: SIGNATURE_FIELDS[0].name, appearancePng: await signaturePng(),
             docMdpLevel: 2,
         });
         const raw = sealed.toString('latin1');
@@ -368,62 +425,26 @@ describe('encodage des noms de signataires', () => {
     }, 30_000);
 });
 
-describe('texte des signatures (encodage)', () => {
-    /**
-     * Décode une chaîne littérale PDF comme le ferait un lecteur : déséchappement,
-     * puis UTF-16BE si le BOM `FE FF` est présent.
-     */
-    function lireChainesPdf(pdf: Buffer, cle: string): string[] {
-        const corps = pdf.toString('latin1');
-        const out: string[] = [];
-        const re = new RegExp(`/${cle}\\s*\\(((?:[^()\\\\]|\\\\[\\s\\S])*)\\)`, 'g');
-        const UN: Record<string, string> = {
-            n: '\n', r: '\r', t: '\t', b: '\b', f: '\f', '(': '(', ')': ')', '\\': '\\',
-        };
-        let m: RegExpExecArray | null;
-        while ((m = re.exec(corps)) !== null) {
-            const brut = m[1].replace(/\\([\s\S])/g, (_x, c: string) => UN[c] ?? c);
-            const buf = Buffer.from(brut, 'latin1');
-            if (buf[0] === 0xfe && buf[1] === 0xff) {
-                // Un flux UTF-16 tronqué à un demi-caractère est le symptôme même
-                // du double échappement : `swap16` refuse une longueur impaire.
-                expect(buf.length % 2, `chaîne /${cle} de longueur impaire`).toBe(0);
-                out.push(Buffer.from(buf.subarray(2)).swap16().toString('utf16le'));
-            } else {
-                out.push(buf.toString('latin1'));
-            }
-        }
-        return out;
-    }
+describe('addSignatureFields', () => {
+    it('pose les trois champs sur le document non signé', async () => {
+        const prepared = await buildSignable(2);
+        const texte = prepared.toString('latin1');
+        for (const { name } of SIGNATURE_FIELDS) expect(texte).toContain(`/T (${name})`);
+        expect(texte).toContain('/SigFlags 3');
+        // Le champ du payeur existe mais n'a aucune surface.
+        expect(texte).toContain('/Rect [ 0 0 0 0 ]');
+    }, 20_000);
 
-    it('restitue accents et parenthèses tels quels dans /Reason et /Name', async () => {
-        // Accents ET parenthèses dans la même chaîne : c'est leur combinaison qui
-        // faisait dérailler l'alignement UTF-16 (un « ( » échappé deux fois ajoute
-        // un octet, et tout le reste se lisait en idéogrammes chinois).
-        const motif = 'Validation (scellée rétroactivement) — coût 12 €';
-        const nom = 'Aurélie Nguyễn-Lévêque';
+    it('refuse un document portant déjà un formulaire', async () => {
+        const prepared = await buildSignable(1);
+        await expect(addSignatureFields(prepared, [...SIGNATURE_FIELDS]))
+            .rejects.toThrow(SignatureFieldError);
+    }, 20_000);
 
-        const sealed = await sealPdf(await buildPdf(2), {
-            reason: motif,
-            name: nom,
-            signingTime: new Date('2026-08-28T10:00:00.000Z'),
-            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur,
-            docMdpLevel: 2,
-        });
-
-        expect(lireChainesPdf(sealed, 'Reason')).toContain(motif);
-        expect(lireChainesPdf(sealed, 'Name')).toContain(nom);
-    });
-
-    it('laisse intactes les chaînes purement ASCII', async () => {
-        const motif = 'Soumission de la note de frais par le demandeur';
-        const sealed = await sealPdf(await buildPdf(1), {
-            reason: motif,
-            name: 'Jean Dupont',
-            signingTime: new Date('2026-08-28T10:00:00.000Z'),
-        });
-        // Sans caractère non-ASCII, PDFObject n'émet pas de BOM : la réparation ne
-        // doit pas s'appliquer, et le texte reste en octets simples.
-        expect(lireChainesPdf(sealed, 'Reason')).toContain(motif);
-    });
+    it('refuse deux champs de même nom', async () => {
+        await expect(addSignatureFields(await buildPdf(1), [
+            { name: 'Signature1', rect: SIGNATURE_WIDGET_RECTS.demandeur },
+            { name: 'Signature1', rect: SIGNATURE_WIDGET_RECTS.valideur },
+        ])).rejects.toThrow(SignatureFieldError);
+    }, 20_000);
 });
