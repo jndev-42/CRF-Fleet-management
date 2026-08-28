@@ -6,6 +6,13 @@ import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { checkInSchema } from './schema';
+import {
+    MAX_KM_PER_DAY,
+    checkMileageAnomaly,
+    elapsedDays,
+    formatElapsed,
+    negativeMileageMessage,
+} from '@/lib/utils/mileageAnomaly';
 // Increase duration limits for Vercel Serverless Functions
 export const maxDuration = 30; // 30 seconds max duration
 
@@ -100,6 +107,36 @@ export async function PATCH(
                 { error: 'Données manquantes : kilométrage et niveau de carburant requis' },
                 { status: 400 }
             );
+        }
+
+        // Contrôle de plausibilité du kilométrage — saisie manuelle uniquement.
+        // Invariant : data.mileageIn !== undefined ⇔ saisie manuelle
+        // (cf. CheckInModal.tsx et CheckInForm.tsx). Couplage par convention,
+        // que rien d'autre ne protège : ne pas remplacer par finalMileageIn,
+        // sinon les km remontés par Renault seraient contrôlés eux aussi.
+        // trip.mileageOut est NULLABLE en base et Number(null) === 0 : sans le garde,
+        // un trip sans km de départ déclencherait un « excessive » systématique.
+        if (data.mileageIn !== undefined && trip.mileageOut !== null) {
+            const mileageOut = Number(trip.mileageOut);
+            const checkOutAt = String(trip.checkOutAt);
+            const anomaly = checkMileageAnomaly(data.mileageIn, mileageOut, checkOutAt);
+
+            if (anomaly === 'negative') {
+                return NextResponse.json(
+                    { error: negativeMileageMessage(mileageOut) },
+                    { status: 400 }
+                );
+            }
+
+            if (anomaly === 'excessive' && !data.confirmMileageAnomaly) {
+                return NextResponse.json({
+                    error: 'Kilométrage inhabituel, confirmation requise.',
+                    code: 'MILEAGE_CONFIRM_REQUIRED',
+                    delta: data.mileageIn - mileageOut,
+                    maxKm: MAX_KM_PER_DAY * elapsedDays(checkOutAt),
+                    durationLabel: formatElapsed(checkOutAt),
+                }, { status: 400 });
+            }
         }
 
         // Pour les missions Désinfection (VPSP), le responsable et le numéro de lot sont obligatoires

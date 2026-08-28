@@ -1,8 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ChecklistItems from '@/components/vehicle/ChecklistItems';
 import UserCombobox from '@/components/ui/UserCombobox';
+import MileageAnomalyModal from '@/components/ui/MileageAnomalyModal';
+import {
+    MAX_KM_PER_DAY,
+    checkMileageAnomaly,
+    elapsedDays,
+    formatElapsed,
+    negativeMileageMessage,
+} from '@/lib/utils/mileageAnomaly';
 import type { QRVehicle } from './types';
 
 export default function CheckInForm({
@@ -35,6 +43,21 @@ export default function CheckInForm({
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [mileageConfirm, setMileageConfirm] =
+        useState<{ delta: number; maxKm: number; durationLabel: string } | null>(null);
+    /** Anti-boucle : un second MILEAGE_CONFIRM_REQUIRED après confirmation affiche l'erreur brute. */
+    const confirmSentRef = useRef(false);
+
+    // Ce formulaire n'a pas de bascule « saisie manuelle » : son équivalent strict est !isConnected,
+    // qui conditionne déjà l'envoi de mileageIn. activeTrip peut être null → garde obligatoire.
+    // Champ vidé : form.mileageIn est typé `number` et alimenté par Number(e.target.value),
+    // donc vider le champ donne 0 (jamais ''), soit un 'negative' transitoire assumé —
+    // l'input porte `required`, l'état n'est de toute façon pas soumettable. Le garde
+    // `typeof === 'number'` de CheckInModal serait ici toujours vrai : ne pas le recopier.
+    const activeTrip = vehicle.activeTrip;
+    const mileageAnomaly = !isConnected && activeTrip
+        ? checkMileageAnomaly(form.mileageIn, activeTrip.mileageOut, activeTrip.checkOutAt)
+        : null;
 
     useEffect(() => {
         if (!isDesinf && !hasDesinfTracking) return;
@@ -57,6 +80,21 @@ export default function CheckInForm({
             return;
         }
 
+        // Modale ouverte avant tout envoi : « Corriger » ne doit déclencher aucune requête.
+        if (mileageAnomaly === 'excessive' && activeTrip) {
+            setMileageConfirm({
+                delta: form.mileageIn - activeTrip.mileageOut,
+                maxKm: MAX_KM_PER_DAY * elapsedDays(activeTrip.checkOutAt),
+                durationLabel: formatElapsed(activeTrip.checkOutAt),
+            });
+            return;
+        }
+
+        await doSubmit(false);
+    }
+
+    async function doSubmit(confirmed: boolean) {
+        if (confirmed) confirmSentRef.current = true;
         setSubmitting(true);
         setError(null);
 
@@ -80,6 +118,7 @@ export default function CheckInForm({
             if (!isConnected) {
                 body.mileageIn = form.mileageIn;
                 body.fuelIn = form.fuelIn;
+                if (confirmed) body.confirmMileageAnomaly = true;
             }
 
             const res = await fetch(`/api/qr/${token}/checkin`, {
@@ -92,6 +131,16 @@ export default function CheckInForm({
             if (res.ok) {
                 onSuccess();
             } else {
+                // Divergence d'horloge front/serveur : la modale est peuplée EXCLUSIVEMENT
+                // depuis les champs du corps 400, jamais par recalcul local.
+                if (json.code === 'MILEAGE_CONFIRM_REQUIRED' && !confirmSentRef.current) {
+                    setMileageConfirm({
+                        delta: json.delta,
+                        maxKm: json.maxKm,
+                        durationLabel: json.durationLabel,
+                    });
+                    return;
+                }
                 setError(json.error || 'Erreur lors du retour du véhicule');
             }
         } catch {
@@ -105,6 +154,7 @@ export default function CheckInForm({
     const cleanlinesses = ['Propre', 'Correct', 'Sale'];
 
     return (
+        <>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {error && (
                 <div style={{
@@ -126,9 +176,21 @@ export default function CheckInForm({
                             type="number"
                             min={0}
                             value={form.mileageIn}
-                            onChange={e => setForm(f => ({ ...f, mileageIn: Number(e.target.value) }))}
+                            onChange={e => {
+                                // Nouvelle valeur = nouvelle décision : la confirmation
+                                // précédente ne doit pas court-circuiter la modale.
+                                confirmSentRef.current = false;
+                                setForm(f => ({ ...f, mileageIn: Number(e.target.value) }));
+                            }}
+                            style={mileageAnomaly === 'negative' ? { borderColor: 'var(--error-text)' } : undefined}
+                            aria-invalid={mileageAnomaly === 'negative' ? true : undefined}
                             required
                         />
+                        {mileageAnomaly === 'negative' && activeTrip && (
+                            <div style={{ marginTop: 6, fontSize: 12, color: 'var(--error-text)' }}>
+                                {negativeMileageMessage(activeTrip.mileageOut)}
+                            </div>
+                        )}
                     </div>
                     <div>
                         <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
@@ -303,11 +365,29 @@ export default function CheckInForm({
             <button
                 type="submit"
                 className="btn btn-success btn-lg"
-                disabled={submitting}
+                disabled={submitting || mileageAnomaly === 'negative'}
                 style={{ marginTop: 4 }}
             >
                 {submitting ? '⏳ Retour en cours...' : '✅ Confirmer le retour'}
             </button>
         </form>
+
+        {mileageConfirm !== null && (
+            <MileageAnomalyModal
+                delta={mileageConfirm.delta}
+                durationLabel={mileageConfirm.durationLabel}
+                maxKm={mileageConfirm.maxKm}
+                onCancel={() => {
+                    // « Corriger » : l'utilisateur repart d'une saisie, pas d'une confirmation.
+                    confirmSentRef.current = false;
+                    setMileageConfirm(null);
+                }}
+                onConfirm={() => {
+                    setMileageConfirm(null);
+                    void doSubmit(true);
+                }}
+            />
+        )}
+        </>
     );
 }

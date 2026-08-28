@@ -614,7 +614,7 @@ export async function seedTrip(overrides: Partial<{
   missionType: string;
   checkOutAt: string;
   conditionOut: string;
-  mileageOut: number;
+  mileageOut: number | null;
   fuelOut: number;
   checkInAt: string | null;
   conditionIn: string | null;
