@@ -248,6 +248,39 @@ describe('sealPdf', () => {
         expect(objet).toContain('/Version /1.7');
         expect(objet).not.toContain('/Type /AcroForm');
     }, 30_000);
+
+    // Régression : une apparence « à plat » (un seul XObject dessinant l'image)
+    // s'affiche partout, mais Acrobat la RECONSTRUIT à l'ouverture. Sur un
+    // document certifié cette reconstruction compte comme une modification :
+    // « Des modifications ont été apportées », fichier pourtant intact.
+    // Bisecté en preview : certification seule → sain ; apparence seule → saine ;
+    // les deux ensemble → fautif. Seul l'empilement du §8.7.1 satisfait Acrobat.
+    it('empile l\'apparence en /FRM → /n0 + /n2 comme l\'exige Acrobat', async () => {
+        const sealed = await sealPdf(base, {
+            reason: 'Soumission', name: 'Jean Dupont', signingTime: new Date(),
+            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, appearancePng: await signaturePng(),
+            docMdpLevel: 2,
+        });
+        const texte = sealed.toString('latin1');
+        const objet = (num: string) => {
+            const debut = texte.lastIndexOf(`\n${num} 0 obj`);
+            return texte.slice(debut, texte.indexOf('stream', debut));
+        };
+
+        const ap = /\/AP << \/N (\d+) 0 R >>/.exec(texte);
+        expect(ap).not.toBeNull();
+
+        const frm = /\/FRM (\d+) 0 R/.exec(objet(ap![1]));
+        expect(frm).not.toBeNull();
+
+        const couches = objet(frm![1]);
+        const n2 = /\/n2 (\d+) 0 R/.exec(couches);
+        expect(couches).toContain('/n0');
+        expect(n2).not.toBeNull();
+
+        // Le tracé manuscrit vit dans la couche n2, pas directement dans /AP.
+        expect(objet(n2![1])).toContain('/Im0');
+    }, 30_000);
 });
 
 describe('assertIncrementalAppend', () => {

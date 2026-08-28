@@ -159,6 +159,18 @@ function repairDoubleEncodedStrings(body: string, after: number): string {
     return head + tail;
 }
 
+/**
+ * Formate un nombre réel pour un fichier PDF.
+ *
+ * ⚠️ ISO 32000-1 annexe C.1 fixe la précision d'un réel à CINQ décimales. Une
+ * soustraction de coordonnées produit pourtant des valeurs comme
+ * `35.400000000000006`, que `String()` écrit telles quelles ; le fichier sort
+ * alors des limites d'implémentation documentées d'Adobe.
+ */
+function pdfNum(n: number): string {
+    return String(Math.round(n * 1e5) / 1e5);
+}
+
 export interface AugmentOptions {
     /**
      * Niveau DocMDP à injecter — signature de CERTIFICATION uniquement (la 1re).
@@ -265,7 +277,10 @@ export async function augmentIncremental(buf: Buffer, opts: AugmentOptions): Pro
             .toBuffer();
 
         const imgNum = nextObj++;
-        const formNum = nextObj++;
+        const n0Num = nextObj++;
+        const n2Num = nextObj++;
+        const frmNum = nextObj++;
+        const apNum = nextObj++;
 
         newObjects.push(
             `${imgNum} 0 obj\n<<\n/Type /XObject\n/Subtype /Image\n/Width ${meta.width}\n/Height ${meta.height}\n` +
@@ -273,15 +288,50 @@ export async function augmentIncremental(buf: Buffer, opts: AugmentOptions): Pro
             jpeg.toString('latin1') + `\nendstream\nendobj\n`
         );
 
-        const stream = `q\n${w} 0 0 ${h} 0 0 cm\n/Im0 Do\nQ\n`;
+        // ⚠️ APPARENCE EN COUCHES — STRUCTURE IMPOSÉE PAR ACROBAT.
+        // Une apparence « à plat » (un seul XObject dessinant l'image) s'affiche
+        // correctement dans tous les lecteurs, MAIS Acrobat la reconstruit à
+        // l'ouverture. Sur un document certifié, cette reconstruction compte comme
+        // une modification : le panneau annonce « Des modifications ont été
+        // apportées » alors que le fichier est intact. Bisecté en preview —
+        // certification seule : sain ; apparence seule : saine ; les deux : fautif.
+        //
+        // Adobe attend l'empilement décrit au §8.7.1 du PDF Reference :
+        //   /AP /N  →  dessine /FRM
+        //   /FRM    →  dessine /n0 (fond) puis /n2 (le tracé)
+        const blank = '% DSBlank\n';
         newObjects.push(
-            `${formNum} 0 obj\n<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n` +
-            `/BBox [0 0 ${w} ${h}]\n/Resources << /XObject << /Im0 ${imgNum} 0 R >> >>\n` +
-            `/Length ${stream.length}\n>>\nstream\n${stream}endstream\nendobj\n`
+            `${n0Num} 0 obj\n<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n` +
+            `/BBox [0 0 100 100]\n/Resources << /ProcSet [/PDF] >>\n` +
+            `/Length ${blank.length}\n>>\nstream\n${blank}endstream\nendobj\n`
+        );
+
+        const n2 = `q\n${pdfNum(w)} 0 0 ${pdfNum(h)} 0 0 cm\n/Im0 Do\nQ\n`;
+        newObjects.push(
+            `${n2Num} 0 obj\n<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n` +
+            `/BBox [0 0 ${pdfNum(w)} ${pdfNum(h)}]\n` +
+            `/Resources << /ProcSet [/PDF /ImageC] /XObject << /Im0 ${imgNum} 0 R >> >>\n` +
+            `/Length ${n2.length}\n>>\nstream\n${n2}endstream\nendobj\n`
+        );
+
+        const frm = `q\n/n0 Do\nQ\nq\n/n2 Do\nQ\n`;
+        newObjects.push(
+            `${frmNum} 0 obj\n<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n` +
+            `/BBox [0 0 ${pdfNum(w)} ${pdfNum(h)}]\n` +
+            `/Resources << /ProcSet [/PDF] /XObject << /n0 ${n0Num} 0 R /n2 ${n2Num} 0 R >> >>\n` +
+            `/Length ${frm.length}\n>>\nstream\n${frm}endstream\nendobj\n`
+        );
+
+        const ap = `q\n/FRM Do\nQ\n`;
+        newObjects.push(
+            `${apNum} 0 obj\n<<\n/Type /XObject\n/Subtype /Form\n/FormType 1\n` +
+            `/BBox [0 0 ${pdfNum(w)} ${pdfNum(h)}]\n` +
+            `/Resources << /ProcSet [/PDF] /XObject << /FRM ${frmNum} 0 R >> >>\n` +
+            `/Length ${ap.length}\n>>\nstream\n${ap}endstream\nendobj\n`
         );
 
         const wDictOpen = body.indexOf('<<', widgetObj.start) + 2;
-        body = body.slice(0, wDictOpen) + `\n/AP << /N ${formNum} 0 R >>` + body.slice(wDictOpen);
+        body = body.slice(0, wDictOpen) + `\n/AP << /N ${apNum} 0 R >>` + body.slice(wDictOpen);
     }
 
     // ── Reconstruction de la sous-table xref ──────────────────────────────────

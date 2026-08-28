@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.13.4] — 28 août 2026
+
+### 🐛 Correctifs
+
+- **Acrobat annonçait à tort des modifications sur les notes scellées** — le panneau de signatures affichait « Des modifications ont été apportées » et masquait le motif de la signature du valideur, alors que le document était intact. En cause : le tracé manuscrit était dessiné selon une structure qu'Acrobat reconstruit à l'ouverture, reconstruction comptée comme une modification sur un document certifié. Le tracé suit désormais l'empilement de calques attendu par Acrobat. Les notes scellées avant cette version doivent être re-scellées (`backfill-signed-pdfs.ts --reseal`) pour en bénéficier.
+- **Coordonnées d'apparence hors des limites d'Adobe** — certaines valeurs comptaient une quinzaine de décimales, là où la spécification en autorise cinq.
+
 ## [4.13.3] — 28 août 2026
 
 ### 🔧 Autres changements
