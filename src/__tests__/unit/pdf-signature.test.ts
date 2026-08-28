@@ -311,3 +311,62 @@ describe('encodage des noms de signataires', () => {
     }, 30_000);
 });
 
+describe('texte des signatures (encodage)', () => {
+    /**
+     * Décode une chaîne littérale PDF comme le ferait un lecteur : déséchappement,
+     * puis UTF-16BE si le BOM `FE FF` est présent.
+     */
+    function lireChainesPdf(pdf: Buffer, cle: string): string[] {
+        const corps = pdf.toString('latin1');
+        const out: string[] = [];
+        const re = new RegExp(`/${cle}\\s*\\(((?:[^()\\\\]|\\\\[\\s\\S])*)\\)`, 'g');
+        const UN: Record<string, string> = {
+            n: '\n', r: '\r', t: '\t', b: '\b', f: '\f', '(': '(', ')': ')', '\\': '\\',
+        };
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(corps)) !== null) {
+            const brut = m[1].replace(/\\([\s\S])/g, (_x, c: string) => UN[c] ?? c);
+            const buf = Buffer.from(brut, 'latin1');
+            if (buf[0] === 0xfe && buf[1] === 0xff) {
+                // Un flux UTF-16 tronqué à un demi-caractère est le symptôme même
+                // du double échappement : `swap16` refuse une longueur impaire.
+                expect(buf.length % 2, `chaîne /${cle} de longueur impaire`).toBe(0);
+                out.push(Buffer.from(buf.subarray(2)).swap16().toString('utf16le'));
+            } else {
+                out.push(buf.toString('latin1'));
+            }
+        }
+        return out;
+    }
+
+    it('restitue accents et parenthèses tels quels dans /Reason et /Name', async () => {
+        // Accents ET parenthèses dans la même chaîne : c'est leur combinaison qui
+        // faisait dérailler l'alignement UTF-16 (un « ( » échappé deux fois ajoute
+        // un octet, et tout le reste se lisait en idéogrammes chinois).
+        const motif = 'Validation (scellée rétroactivement) — coût 12 €';
+        const nom = 'Aurélie Nguyễn-Lévêque';
+
+        const sealed = await sealPdf(await buildPdf(2), {
+            reason: motif,
+            name: nom,
+            signingTime: new Date('2026-08-28T10:00:00.000Z'),
+            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur,
+            docMdpLevel: 2,
+        });
+
+        expect(lireChainesPdf(sealed, 'Reason')).toContain(motif);
+        expect(lireChainesPdf(sealed, 'Name')).toContain(nom);
+    });
+
+    it('laisse intactes les chaînes purement ASCII', async () => {
+        const motif = 'Soumission de la note de frais par le demandeur';
+        const sealed = await sealPdf(await buildPdf(1), {
+            reason: motif,
+            name: 'Jean Dupont',
+            signingTime: new Date('2026-08-28T10:00:00.000Z'),
+        });
+        // Sans caractère non-ASCII, PDFObject n'émet pas de BOM : la réparation ne
+        // doit pas s'appliquer, et le texte reste en octets simples.
+        expect(lireChainesPdf(sealed, 'Reason')).toContain(motif);
+    });
+});

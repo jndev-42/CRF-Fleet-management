@@ -107,21 +107,53 @@ function findObjectContaining(
  * On restaure les octets d'origine en décodant la chaîne comme de l'UTF-8.
  * Sans cela, tout nom de signataire accentué serait illisible — ce qui, sur des
  * documents français, est la règle plutôt que l'exception.
+ *
+ * ⚠️ DÉSÉCHAPPER AVANT DE RÉPARER, ET NE RÉ-ÉCHAPPER QU'UNE FOIS. La chaîne
+ * lue dans le corps du PDF est déjà échappée : un « ( » du texte y occupe les
+ * octets `5C 28`. Réparer sans déséchapper puis ré-échapper ajoute un `5C` —
+ * soit UN OCTET de trop dans un flux UTF-16, dont tout le reste se retrouve
+ * décalé d'un demi-caractère. Aucun lecteur ne signale d'erreur : Acrobat
+ * affiche des idéogrammes (« Motif : Soumission \\ 狗振攀甄… »), chaque paire
+ * d'octets ASCII devenant un point de code CJK. Seules les chaînes non-ASCII
+ * passent par la réparation, donc en pratique les noms de signataires accentués.
  */
 function repairDoubleEncodedStrings(body: string, after: number): string {
     // BOM UTF-16BE (FE FF) tel que le produit le double encodage UTF-8.
     const MANGLED_BOM = '\u00c3\u00be\u00c3\u00bf';
 
+    // Séquences d'échappement d'une chaîne littérale PDF (ISO 32000-1 §7.3.4.2).
+    const UNESCAPE: Record<string, string> = {
+        n: '\n', r: '\r', t: '\t', b: '\b', f: '\f', '(': '(', ')': ')', '\\': '\\',
+    };
+    const ESCAPE: Record<string, string> = {
+        '\n': '\\n', '\r': '\\r', '\t': '\\t', '\b': '\\b', '\f': '\\f',
+        '(': '\\(', ')': '\\)', '\\': '\\\\',
+    };
+
     const head = body.slice(0, after);
     const tail = body.slice(after).replace(
-        /\(((?:[^()\\]|\\.)*)\)/g,
+        /\(((?:[^()\\]|\\[\s\S])*)\)/g,
         (whole, content: string) => {
             if (!content.startsWith(MANGLED_BOM)) return whole;
-            const repaired = Buffer.from(Buffer.from(content, 'latin1').toString('utf8'), 'latin1')
-                .toString('latin1')
-                // Ré-échappe ce que la syntaxe PDF impose dans une chaîne littérale.
-                .replace(/[\\()]/g, c => `\\${c}`);
-            return `(${repaired})`;
+
+            // 1. Déséchappement : on retrouve les octets réellement encodés.
+            const brut = content.replace(/\\([\s\S])/g, (_m, c: string) => UNESCAPE[c] ?? c);
+
+            // 2. Réparation du double encodage UTF-8.
+            const repare = Buffer.from(Buffer.from(brut, 'latin1').toString('utf8'), 'latin1')
+                .toString('latin1');
+
+            // 3. Un flux UTF-16BE compte forcément un nombre pair d'octets. Refuser
+            //    plutôt que de laisser un lecteur PDF afficher du charabia.
+            if (repare.length % 2 !== 0) {
+                throw new IncrementalUpdateError(
+                    `Chaîne UTF-16 de longueur impaire (${repare.length} octets) après réparation : ` +
+                    `l'encodage amont a changé, le texte serait illisible dans le lecteur PDF.`
+                );
+            }
+
+            // 4. Ré-échappement, une seule fois.
+            return `(${repare.replace(/[\n\r\t\b\f()\\]/g, c => ESCAPE[c])})`;
         }
     );
     return head + tail;

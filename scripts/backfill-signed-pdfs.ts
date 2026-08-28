@@ -38,6 +38,15 @@ const envFile = (() => {
 dotenv.config({ path: envFile });
 
 const APPLY = process.argv.includes('--apply');
+/**
+ * Re-scelle des notes DÉJÀ scellées.
+ *
+ * Nécessaire quand un défaut du scellement lui-même a été corrigé : le filtre
+ * `r2Key IS NULL` protège l'idempotence, mais interdit alors de réparer le
+ * corpus existant. Rien n'est écrasé — les clés R2 sont versionnées, l'ancien
+ * objet reste en place et seule la ligne en base pointe vers le nouveau.
+ */
+const RESEAL = process.argv.includes('--reseal');
 const LIMIT = (() => {
     const i = process.argv.indexOf('--limit');
     return i !== -1 && process.argv[i + 1] ? Number(process.argv[i + 1]) : null;
@@ -103,8 +112,9 @@ async function main(): Promise<void> {
         ? { sql: `SELECT id FROM "ExpenseReport" WHERE id = ?`, args: [ONLY_ID] }
         : {
             sql: `SELECT id FROM "ExpenseReport"
-                  WHERE status != 'brouillon' AND (r2Key IS NULL OR r2Key = '')
-                  ORDER BY submittedAt ASC` + (LIMIT ? ` LIMIT ${LIMIT}` : ''),
+                  WHERE status != 'brouillon'`
+                + (RESEAL ? '' : ` AND (r2Key IS NULL OR r2Key = '')`)
+                + ` ORDER BY submittedAt ASC` + (LIMIT ? ` LIMIT ${LIMIT}` : ''),
             args: [] as string[],
         };
 
@@ -128,7 +138,8 @@ async function main(): Promise<void> {
         const tooLong = itemCount > MAX_ITEMS_SINGLE_PAGE;
 
         // Une note déjà scellée est ignorée : c'est ce qui rend le script rejouable.
-        if (row.r2Key) { stats.skipped++; console.log(`  = ${id} déjà scellée`); continue; }
+        // `--reseal` lève cette garde pour réparer un corpus scellé par un code fautif.
+        if (row.r2Key && !RESEAL) { stats.skipped++; console.log(`  = ${id} déjà scellée`); continue; }
 
         const parse = (raw: unknown) => {
             if (typeof raw !== 'string' || !raw.trim()) return null;
