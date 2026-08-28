@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.14.1] — 28 août 2026
+
+### 🐛 Correctifs
+
+- **Une note comportant un justificatif voyait ses signatures déclarées invalides** — le nettoyage des objets inutiles apportés par un justificatif laissait des trous dans la numérotation interne du document. Acrobat réparait alors le fichier à l'ouverture, et sur un document certifié une réparation vaut modification : les signatures du demandeur et du valideur étaient annoncées comme invalides, alors qu'elles étaient intactes. Les objets sont désormais neutralisés sans être retirés.
+
 ## [4.14.0] — 28 août 2026
 
 ### 🐛 Correctifs

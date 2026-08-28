@@ -210,6 +210,26 @@ describe('appendJustificatifs', () => {
         expect((texte.match(/\/Type\s*\/Catalog/g) || [])).toHaveLength(1);
     });
 
+    // Régression : `context.delete()` laissait des trous dans la numérotation, la
+    // table de références sortait alors en plusieurs tronçons sans déclarer libres
+    // les numéros manquants, et Acrobat réparait le fichier à l'ouverture — ce
+    // qui, sur un document certifié, invalide les signatures déjà posées.
+    it('n\'ouvre aucun trou dans la numérotation des objets', async () => {
+        const base = await makeBasePdf();
+        const out = await appendJustificatifs(base, [
+            { buffer: await makeSignedReceipt(), mime: 'application/pdf' },
+        ]);
+        const texte = out.toString('latin1');
+
+        const numeros = [...texte.matchAll(/\n(\d+) 0 obj/g)].map(m => Number(m[1])).sort((a, b) => a - b);
+        expect(numeros.length).toBeGreaterThan(0);
+        expect(numeros).toEqual(Array.from({ length: numeros.length }, (_, i) => i + 1));
+
+        // Une seule sous-section xref : « 0 <nombre total> ».
+        const sousSections = [...texte.matchAll(/^(\d+) (\d+)$/gm)].map(m => m[0]);
+        expect(sousSections).toHaveLength(1);
+    });
+
     it('reste scellable après ajout d\'un justificatif déjà scellé', async () => {
         const base = await makeBasePdf();
         const out = await appendJustificatifs(base, [

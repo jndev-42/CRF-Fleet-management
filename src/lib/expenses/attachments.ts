@@ -18,7 +18,7 @@
  */
 
 import {
-    PDFDocument, PDFName, PDFRef, PDFDict, PDFArray, PDFStream,
+    PDFDocument, PDFName, PDFRef, PDFDict, PDFArray, PDFStream, PDFNull,
     type PDFObject, type PDFPage,
 } from 'pdf-lib';
 import sharp from 'sharp';
@@ -27,7 +27,6 @@ export class AttachmentError extends Error {}
 
 const SIG_NAME = PDFName.of('Sig');
 const FT_NAME = PDFName.of('FT');
-const V_NAME = PDFName.of('V');
 
 /**
  * Retire d'une page copiée toute annotation de signature numérique préexistante.
@@ -42,9 +41,11 @@ const V_NAME = PDFName.of('V');
  * littéralement dans tout le fichier : sans ce nettoyage, un justificatif déjà
  * signé fait croire au pipeline de scellement qu'une signature existe déjà,
  * et le validateur suivant refuse de sceller (« Le PDF stocké porte N
- * signature(s) alors que le journal en annonce N-1 »). Un simple retrait de la
- * référence ne suffit pas : `pdf-lib` sérialise TOUS les objets enregistrés
- * dans son contexte, référencés ou non — il faut supprimer l'objet lui-même.
+ * signature(s) alors que le journal en annonce N-1 »).
+ *
+ * Détacher l'annotation de la page suffit ici : `collectGarbage` neutralise
+ * ensuite tout ce qui n'est plus atteignable, y compris le dictionnaire de
+ * signature lui-même.
  */
 function stripForeignSignatures(doc: PDFDocument, page: PDFPage): void {
     const annots = page.node.Annots();
@@ -57,16 +58,10 @@ function stripForeignSignatures(doc: PDFDocument, page: PDFPage): void {
         const dict = doc.context.lookup(ref);
         if (!(dict instanceof PDFDict)) continue;
         if (dict.get(FT_NAME) !== SIG_NAME) continue;
-
         toRemove.push(ref);
-        const value = dict.get(V_NAME);
-        if (value instanceof PDFRef) toRemove.push(value);
     }
 
-    for (const ref of toRemove) {
-        page.node.removeAnnot(ref);
-        doc.context.delete(ref);
-    }
+    for (const ref of toRemove) page.node.removeAnnot(ref);
 }
 
 /**
@@ -85,6 +80,16 @@ function stripForeignSignatures(doc: PDFDocument, page: PDFPage): void {
  * catalogue. L'occurrence orpheline le convainc qu'un formulaire existe déjà ; il
  * ne ré-émet donc rien, notre champ de signature n'est rattaché à aucun
  * `/AcroForm`, et le scellement échoue sur « Catalogue ré-émis introuvable ».
+ *
+ * ⚠️ ON NEUTRALISE, ON NE SUPPRIME PAS. `context.delete()` laisse des TROUS dans
+ * la numérotation des objets ; `pdf-lib` émet alors une table de références en
+ * plusieurs tronçons sans déclarer libres les numéros manquants. Acrobat répare
+ * le fichier à l'ouverture — et sur un document certifié, réparer revient à
+ * modifier : les signatures antérieures sont déclarées invalides alors que les
+ * condensats sont intacts. Bisecté dans Acrobat : la même note sans cette passe
+ * est saine. Remplacer le contenu par `null` conserve la numérotation dense, et
+ * le corps de l'objet — donc toute chaîne parasite qu'il contenait — disparaît
+ * tout autant.
  *
  * Effet de bord bienvenu : le document perd aussi les signets, arbres de noms et
  * métadonnées des justificatifs, que rien n'affiche — le PDF final s'allège.
@@ -117,7 +122,7 @@ function collectGarbage(doc: PDFDocument): void {
     }
 
     for (const [ref] of doc.context.enumerateIndirectObjects()) {
-        if (!atteints.has(ref.tag)) doc.context.delete(ref);
+        if (!atteints.has(ref.tag)) doc.context.assign(ref, PDFNull);
     }
 }
 
