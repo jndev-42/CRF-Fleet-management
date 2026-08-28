@@ -622,19 +622,30 @@ export default function ExpensePdfDocument({ report, logoSrc, forSealing = false
                                     </Text>
                                 </View>
                             )}
-                            <View style={forSealing ? styles.sigMetaFixed : { marginTop: 2 }}>
-                                <Text style={[styles.sigMetaText, { fontFamily: 'Helvetica-Bold' }]}>
-                                    {report.userName}
-                                </Text>
-                                <Text style={styles.sigMetaText}>
-                                    Signé le {formattedDate}
-                                </Text>
-                                {parsedUserSig?.hash && (
-                                    <Text style={[styles.sigMetaText, { fontSize: 5.5, color: '#666666' }]}>
-                                        ID: {parsedUserSig.hash}
+                            {forSealing ? (
+                                // Aucune métadonnée en contenu : nom, date et
+                                // identifiant figurent déjà dans la signature
+                                // cryptographique, lisibles au panneau Signatures.
+                                // Les répéter en clair alourdit le document sans
+                                // rien prouver — et les fige définitivement.
+                                // Le bloc reste rendu, vide, pour réserver la
+                                // hauteur : la zone image ne doit pas bouger.
+                                <View style={styles.sigMetaFixed} />
+                            ) : (
+                                <View style={{ marginTop: 2 }}>
+                                    <Text style={[styles.sigMetaText, { fontFamily: 'Helvetica-Bold' }]}>
+                                        {report.userName}
                                     </Text>
-                                )}
-                            </View>
+                                    <Text style={styles.sigMetaText}>
+                                        Signé le {formattedDate}
+                                    </Text>
+                                    {parsedUserSig?.hash && (
+                                        <Text style={[styles.sigMetaText, { fontSize: 5.5, color: '#666666' }]}>
+                                            ID: {parsedUserSig.hash}
+                                        </Text>
+                                    )}
+                                </View>
+                            )}
                         </View>
 
                         {/* Col 2: Responsable */}

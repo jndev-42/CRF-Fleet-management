@@ -259,3 +259,55 @@ describe('decodeSignatureImage', () => {
         expect(decodeSignatureImage('')).toBeNull();
     });
 });
+
+describe('encodage des noms de signataires', () => {
+    it('écrit un nom ACCENTUÉ en UTF-16BE lisible, avec un BOM correct', async () => {
+        // `@signpdf/placeholder-plain` assemble ses objets avec `Buffer.from(str)`
+        // sans encodage : Node retombe sur UTF-8 et transforme le BOM FE FF en
+        // C3 BE C3 BF. Acrobat affichait alors « Signé par Ã¾Ã¿ ». Sur des
+        // documents français, un nom accentué est la règle, pas l'exception.
+        const base = await buildPdf(2);
+        const sealed = await sealPdf(base, {
+            reason: 'Validation', name: 'Président Préversion', signingTime: new Date(),
+            widgetRect: SIGNATURE_WIDGET_RECTS.valideur, appearancePng: await signaturePng(),
+        });
+
+        const raw = sealed.toString('latin1');
+        const noms = [...raw.matchAll(/\/Name\s*\(((?:[^)\\]|\\.)*)\)/g)].map(m => m[1]);
+        expect(noms.length).toBeGreaterThan(0);
+
+        const nom = noms[noms.length - 1];
+        // BOM UTF-16BE intact, jamais sa version doublement encodée.
+        expect(nom.charCodeAt(0)).toBe(0xfe);
+        expect(nom.charCodeAt(1)).toBe(0xff);
+        expect(nom.startsWith('\u00c3\u00be\u00c3\u00bf')).toBe(false);
+
+        const decode = Buffer.from(nom.slice(2), 'latin1').swap16().toString('utf16le');
+        expect(decode).toBe('Président Préversion');
+    }, 30_000);
+
+    it('laisse un nom ASCII en clair, sans BOM inutile', async () => {
+        const base = await buildPdf(2);
+        const sealed = await sealPdf(base, {
+            reason: 'Soumission', name: 'Admin Preview', signingTime: new Date(),
+            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, appearancePng: await signaturePng(),
+        });
+        const m = /\/Name\s*\(((?:[^)\\]|\\.)*)\)/.exec(sealed.toString('latin1'));
+        expect(m?.[1]).toBe('Admin Preview');
+    }, 30_000);
+
+    it('injecte /Data dans la référence DocMDP', async () => {
+        // Sans /Data pointant le catalogue, Acrobat signale « une erreur est
+        // survenue lors de la validation de la signature ».
+        const base = await buildPdf(2);
+        const sealed = await sealPdf(base, {
+            reason: 'Soumission', name: 'Admin', signingTime: new Date(),
+            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, appearancePng: await signaturePng(),
+            docMdpLevel: 2,
+        });
+        const raw = sealed.toString('latin1');
+        expect(raw).toMatch(/\/TransformMethod\s*\/DocMDP/);
+        expect(raw).toMatch(/\/Data\s+\d+\s+0\s+R/);
+    }, 30_000);
+});
+

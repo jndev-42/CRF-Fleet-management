@@ -93,6 +93,40 @@ function findObjectContaining(
     return found;
 }
 
+
+/**
+ * Répare les chaînes de texte doublement encodées par `plainAddPlaceholder`.
+ *
+ * ⚠️ CONTOURNEMENT D'UN DÉFAUT AMONT. `@signpdf/placeholder-plain` assemble ses
+ * objets avec `Buffer.from(PDFObject.convert(input))` — sans préciser l'encodage.
+ * `PDFObject` produit pourtant une chaîne BINAIRE : pour toute valeur non-ASCII
+ * il encode en UTF-16BE précédé du BOM `FE FF`, puis rend le résultat via
+ * `.toString('binary')`. Node retombe alors sur UTF-8 et ré-encode chaque octet
+ * ≥ 0x80 : le BOM devient `C3 BE C3 BF`, et Acrobat affiche « Signé par Ã¾Ã¿ ».
+ *
+ * On restaure les octets d'origine en décodant la chaîne comme de l'UTF-8.
+ * Sans cela, tout nom de signataire accentué serait illisible — ce qui, sur des
+ * documents français, est la règle plutôt que l'exception.
+ */
+function repairDoubleEncodedStrings(body: string, after: number): string {
+    // BOM UTF-16BE (FE FF) tel que le produit le double encodage UTF-8.
+    const MANGLED_BOM = '\u00c3\u00be\u00c3\u00bf';
+
+    const head = body.slice(0, after);
+    const tail = body.slice(after).replace(
+        /\(((?:[^()\\]|\\.)*)\)/g,
+        (whole, content: string) => {
+            if (!content.startsWith(MANGLED_BOM)) return whole;
+            const repaired = Buffer.from(Buffer.from(content, 'latin1').toString('utf8'), 'latin1')
+                .toString('latin1')
+                // Ré-échappe ce que la syntaxe PDF impose dans une chaîne littérale.
+                .replace(/[\\()]/g, c => `\\${c}`);
+            return `(${repaired})`;
+        }
+    );
+    return head + tail;
+}
+
 export interface AugmentOptions {
     /**
      * Niveau DocMDP à injecter — signature de CERTIFICATION uniquement (la 1re).
@@ -109,8 +143,6 @@ export interface AugmentOptions {
  * @throws {IncrementalUpdateError} si la structure attendue est absente.
  */
 export async function augmentIncremental(buf: Buffer, opts: AugmentOptions): Promise<Buffer> {
-    if (!opts.docMdpLevel && !opts.appearancePng) return buf;
-
     const original = buf.toString('latin1');
     const xrefStart = lastXrefTableStart(original);
     const trailer = parseTrailer(original);
@@ -119,6 +151,10 @@ export async function augmentIncremental(buf: Buffer, opts: AugmentOptions): Pro
     const incrementalStart = trailer.prev !== null
         ? original.lastIndexOf('%%EOF', original.indexOf('obj', trailer.prev)) + 5
         : 0;
+
+    // Réparation systématique : elle concerne toute signature, avec ou sans
+    // DocMDP ni apparence.
+    body = repairDoubleEncodedStrings(body, incrementalStart);
 
     const sigObj = findObjectContaining(body, /\/Type\s*\/Sig\b/g, incrementalStart);
     if (!sigObj) throw new IncrementalUpdateError('Dictionnaire /Sig introuvable dans le dernier incremental update');
@@ -134,13 +170,18 @@ export async function augmentIncremental(buf: Buffer, opts: AugmentOptions): Pro
         const contentsIdx = body.indexOf('/Contents <', sigObj.start);
         if (contentsIdx === -1) throw new IncrementalUpdateError('/Contents introuvable dans le dict /Sig');
         const contentsEnd = body.indexOf('>', contentsIdx) + 1;
-        const ref =
-            `\n/Reference [<< /Type /SigRef /TransformMethod /DocMDP` +
-            ` /TransformParams << /Type /TransformParams /P ${opts.docMdpLevel} /V /1.2 >> >>]`;
-        body = body.slice(0, contentsEnd) + ref + body.slice(contentsEnd);
-
+        // Le catalogue doit être localisé AVANT d'écrire la référence : DocMDP
+        // exige un `/Data` pointant l'objet sur lequel porte la transformation,
+        // faute de quoi Acrobat signale « une erreur est survenue lors de la
+        // validation de la signature ».
         const catObj = findObjectContaining(body, /\/Type\s*\/Catalog\b/g, incrementalStart);
         if (!catObj) throw new IncrementalUpdateError('Catalogue ré-émis introuvable dans cet incremental update');
+
+        const ref =
+            `\n/Reference [<< /Type /SigRef /TransformMethod /DocMDP` +
+            ` /TransformParams << /Type /TransformParams /P ${opts.docMdpLevel} /V /1.2 >>` +
+            ` /Data ${catObj.num} 0 R /DigestMethod /SHA256 >>]`;
+        body = body.slice(0, contentsEnd) + ref + body.slice(contentsEnd);
 
         const catDictOpen = body.indexOf('<<', catObj.start) + 2;
         // /Version : DocMDP lui-même est PDF 1.4, mais `/Perms` est PDF 1.5
