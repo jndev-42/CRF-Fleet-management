@@ -300,9 +300,16 @@ export async function augmentIncremental(buf: Buffer, opts: AugmentOptions): Pro
         entries.push({ num, offset: om.index });
     }
 
+    // ⚠️ /Size SE DÉDUIT DES ENTRÉES ÉCRITES, PAS D'UN BALAYAGE DU FICHIER.
+    // `maxObjNum` cherche `N 0 obj` dans TOUT le corps, flux binaires compris :
+    // trois octets d'une image JPEG suffisent à former « 52 0 obj » et à gonfler
+    // le /Size, que qpdf signale alors (« reported number of objects is not one
+    // plus the highest object number »). Les objets non réécrits restent couverts
+    // par le /Size de la révision précédente.
+    const maxEntry = entries.reduce((m, e) => Math.max(m, e.num), 0);
     const newXrefOffset = body.length + 1;
     const trailerStr =
-        `trailer\n<<\n/Size ${Math.max(trailer.size, maxObjNum(body) + 1)}\n/Root ${trailer.root}\n` +
+        `trailer\n<<\n/Size ${Math.max(trailer.size, maxEntry + 1)}\n/Root ${trailer.root}\n` +
         (trailer.info ? `/Info ${trailer.info}\n` : '') +
         (trailer.prev !== null ? `/Prev ${trailer.prev}\n` : '') +
         `>>\nstartxref\n${newXrefOffset}\n%%EOF`;

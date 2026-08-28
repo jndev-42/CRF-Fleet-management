@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.13.3] — 28 août 2026
+
+### 🔧 Autres changements
+
+- **Compteur d'objets erroné dans les PDF scellés** — le nombre d'objets déclaré par le fichier était calculé en balayant tout le document, flux d'images compris, où quelques octets pouvaient imiter un en-tête d'objet. Les outils de contrôle signalaient l'incohérence. Le compte se déduit désormais des objets réellement écrits.
+
 ## [4.13.2] — 28 août 2026
 
 ### 🐛 Correctifs
