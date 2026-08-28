@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.13.1] — 28 août 2026
+
+### 🐛 Correctifs
+
+- **Un justificatif déjà signé numériquement bloquait la validation** — une facture électronique jointe en PDF pouvait déjà porter sa propre signature (émise par le fournisseur). Copiée telle quelle dans la note, cette signature étrangère était comptée par erreur comme une signature de la note elle-même, et le scellement suivant (validation, paiement) était refusé. Les signatures présentes dans un justificatif joint sont désormais retirées avant intégration — seul son contenu visuel est conservé.
+
 ## [4.13.0] — 28 août 2026
 
 ### ✨ Nouvelles fonctionnalités

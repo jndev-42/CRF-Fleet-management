@@ -17,10 +17,54 @@
  * signature échoue silencieusement à localiser la structure du document.
  */
 
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, PDFName, PDFRef, PDFDict, type PDFPage } from 'pdf-lib';
 import sharp from 'sharp';
 
 export class AttachmentError extends Error {}
+
+const SIG_NAME = PDFName.of('Sig');
+const FT_NAME = PDFName.of('FT');
+const V_NAME = PDFName.of('V');
+
+/**
+ * Retire d'une page copiée toute annotation de signature numérique préexistante.
+ *
+ * ⚠️ NÉCESSAIRE. Un justificatif PDF peut déjà être signé (facture électronique,
+ * export DocuSign/Yousign…). `copyPages` copie la page TELLE QUELLE, widget de
+ * signature compris — le `/ByteRange` et le `/Contents` de cette signature
+ * copiée restent ceux du fichier D'ORIGINE et n'ont donc plus aucun sens dans le
+ * document fusionné, mais l'octet `/Type /Sig` y reste bel et bien présent.
+ *
+ * `countRevisions`/`assertRevisionCount` (scellement) comptent CE MARQUEUR
+ * littéralement dans tout le fichier : sans ce nettoyage, un justificatif déjà
+ * signé fait croire au pipeline de scellement qu'une signature existe déjà,
+ * et le validateur suivant refuse de sceller (« Le PDF stocké porte N
+ * signature(s) alors que le journal en annonce N-1 »). Un simple retrait de la
+ * référence ne suffit pas : `pdf-lib` sérialise TOUS les objets enregistrés
+ * dans son contexte, référencés ou non — il faut supprimer l'objet lui-même.
+ */
+function stripForeignSignatures(doc: PDFDocument, page: PDFPage): void {
+    const annots = page.node.Annots();
+    if (!annots) return;
+
+    const toRemove: PDFRef[] = [];
+    for (let i = 0; i < annots.size(); i++) {
+        const ref = annots.get(i);
+        if (!(ref instanceof PDFRef)) continue;
+        const dict = doc.context.lookup(ref);
+        if (!(dict instanceof PDFDict)) continue;
+        if (dict.get(FT_NAME) !== SIG_NAME) continue;
+
+        toRemove.push(ref);
+        const value = dict.get(V_NAME);
+        if (value instanceof PDFRef) toRemove.push(value);
+    }
+
+    for (const ref of toRemove) {
+        page.node.removeAnnot(ref);
+        doc.context.delete(ref);
+    }
+}
 
 export interface JustificatifFile {
     buffer: Buffer;
@@ -90,7 +134,10 @@ export async function appendJustificatifs(
                 throw new AttachmentError(`Justificatif PDF illisible : ${msg}`);
             }
             const pages = await doc.copyPages(source, source.getPageIndices());
-            for (const page of pages) doc.addPage(page);
+            for (const page of pages) {
+                stripForeignSignatures(doc, page);
+                doc.addPage(page);
+            }
             continue;
         }
 
