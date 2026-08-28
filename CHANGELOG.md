@@ -2,116 +2,27 @@
 
 ## [4.15.2] — 28 août 2026
 
-### 🔧 Autres changements
-
-- **Le PDF d'une note de frais provient uniquement du document scellé** — la génération de secours à la volée, prévue pour les notes antérieures au scellement, est retirée : toutes les notes de production sont désormais scellées. Une note dont le document serait introuvable n'est plus reconstruite en silence — un tel PDF ne porterait aucune signature tout en ayant l'apparence d'un document officiel — mais signalée comme anomalie.
-
-## [4.15.1] — 28 août 2026
-
-### 🐛 Correctifs
-
-- **Signature stylisée illisible en thème sombre** — dans la fenêtre de signature, l'aperçu du nom s'affichait en clair sur le fond clair de la zone, donc quasi invisible. L'aperçu représente une feuille de papier : ses couleurs sont désormais celles de la signature réellement produite, identiques dans les deux thèmes. Même correction pour le texte d'invite de la zone de tracé à la main.
-
-## [4.15.0] — 28 août 2026
-
 ### ✨ Nouvelles fonctionnalités
 
-- **Nouveau modèle de feuille de frais (septembre 2023)** — le PDF suit désormais le formulaire officiel en vigueur : bandeaux bleus, ligne de total en lavande, logo en pied de page, mentions d'entité et de destinataires supprimées, blocs de signature sans encadré.
+- **Notes de frais scellées à chaque étape du circuit** — soumission par le demandeur, validation par le responsable, paiement par le trésorier : chaque étape appose une signature numérique sur le PDF sans jamais réécrire les précédentes. Le contenu est verrouillé dès la soumission — seules les signatures suivantes peuvent encore s'y ajouter — et toute modification ultérieure du document est détectable. Les signatures manuscrites du demandeur et du responsable apparaissent sur la feuille ; celle du trésorier n'existe que cryptographiquement et figure au panneau Signatures des lecteurs PDF. Le PDF téléchargé depuis l'application est ce document scellé lui-même, jamais une reconstitution.
 
-### ⚠️ Changement de comportement
+- **Le refus est signé, et définitif** — refuser une note exige la signature du responsable, au même titre que la validation. Une note refusée ne peut plus être ni validée ni payée : la correction passe par une nouvelle note.
 
-- **Une note tient désormais 9 postes de dépense sur une page, contre 14** — le nouveau modèle a des marges plus larges et une colonne « Date et objet » plus étroite. Au-delà, la note est refusée à la soumission, comme auparavant, avec invitation à la scinder.
+- **Les justificatifs sont intégrés au PDF** — photos et reçus au format PDF ne sont plus déposés sur Google Drive : ils deviennent des pages du document scellé, qui contient donc la note entière, justificatifs compris, sans dépendance externe. Les photos sont compressées à l'envoi pour que le fichier reste léger.
 
-## [4.14.2] — 28 août 2026
-
-### 🔧 Autres changements
-
-- **Fin des mentions « Yousign »** — l'application ne cite plus de prestataire tiers : la fenêtre de signature s'intitule désormais « Signature électronique ». Le sceau apposé sur les notes de frais est celui de la Croix-Rouge française, aucun service externe n'intervient.
-
-## [4.14.1] — 28 août 2026
+- **Nouveau modèle de feuille de frais** — le PDF suit le formulaire officiel de septembre 2023.
 
 ### 🐛 Correctifs
 
-- **Une note comportant un justificatif voyait ses signatures déclarées invalides** — le nettoyage des objets inutiles apportés par un justificatif laissait des trous dans la numérotation interne du document. Acrobat réparait alors le fichier à l'ouverture, et sur un document certifié une réparation vaut modification : les signatures du demandeur et du valideur étaient annoncées comme invalides, alors qu'elles étaient intactes. Les objets sont désormais neutralisés sans être retirés.
-
-## [4.14.0] — 28 août 2026
-
-### 🐛 Correctifs
-
-- **Acrobat invalidait les signatures du demandeur et du valideur** — le panneau de signatures annonçait que le document avait été modifié et déclarait invalides les deux premières signatures, alors que les trois étaient cryptographiquement intactes. Chaque scellement créait son champ de signature au moment de signer, ce que la certification posée par la première signature interdit : elle n'autorise après elle que le remplissage de champs déjà présents. Les trois champs sont désormais créés avant le premier scellement, et chaque étape se contente d'en remplir un.
-- **Identifiant de document perdu à chaque signature** — la clé qui relie les révisions successives au même fichier disparaissait dès le premier scellement. Elle est maintenant reconduite.
-
-### 🔧 Autres changements
-
-- Les textes des signatures (motif, nom du signataire) sont écrits dans une forme qui ne demande aucun échappement, ce qui retire définitivement la cause des caractères illisibles observés dans Acrobat.
-
-### ⚠️ Reprise nécessaire
-
-Les notes scellées avant cette version ne peuvent plus recevoir de signature supplémentaire : leurs champs n'existent pas dans la nouvelle forme. En preview, `npx tsx scripts/backfill-signed-pdfs.ts --reseal` les reconstruit. En production, aucune note n'a encore été scellée.
-
-## [4.13.4] — 28 août 2026
-
-### 🐛 Correctifs
-
-- **Acrobat annonçait à tort des modifications sur les notes scellées** — le panneau de signatures affichait « Des modifications ont été apportées » et masquait le motif de la signature du valideur, alors que le document était intact. En cause : le tracé manuscrit était dessiné selon une structure qu'Acrobat reconstruit à l'ouverture, reconstruction comptée comme une modification sur un document certifié. Le tracé suit désormais l'empilement de calques attendu par Acrobat. Les notes scellées avant cette version doivent être re-scellées (`backfill-signed-pdfs.ts --reseal`) pour en bénéficier.
-- **Coordonnées d'apparence hors des limites d'Adobe** — certaines valeurs comptaient une quinzaine de décimales, là où la spécification en autorise cinq.
-
-## [4.13.3] — 28 août 2026
-
-### 🔧 Autres changements
-
-- **Compteur d'objets erroné dans les PDF scellés** — le nombre d'objets déclaré par le fichier était calculé en balayant tout le document, flux d'images compris, où quelques octets pouvaient imiter un en-tête d'objet. Les outils de contrôle signalaient l'incohérence. Le compte se déduit désormais des objets réellement écrits.
-
-## [4.13.2] — 28 août 2026
-
-### 🐛 Correctifs
-
-- **Joindre une note de frais déjà scellée empêchait toute soumission** — le PDF d'une note déjà signée, utilisé comme justificatif, apportait avec lui le catalogue et le formulaire de son document d'origine. Le scellement de la nouvelle note échouait alors sur « Catalogue ré-émis introuvable ». La fusion élimine désormais tout objet devenu inutile — ce qui allège aussi le fichier final.
-- **La restriction DocMDP n'était pas appliquée par Acrobat** — la règle qui interdit toute modification du document après signature était écrite au mauvais endroit du fichier. Aucun lecteur ne le signalait, mais la première signature n'était pas reconnue comme signature de certification. Les notes scellées avant cette version doivent être re-scellées (`backfill-signed-pdfs.ts --reseal`) pour en bénéficier.
-
-## [4.13.1] — 28 août 2026
-
-### 🐛 Correctifs
-
-- **Un justificatif déjà signé numériquement bloquait la validation** — une facture électronique jointe en PDF pouvait déjà porter sa propre signature (émise par le fournisseur). Copiée telle quelle dans la note, cette signature étrangère était comptée par erreur comme une signature de la note elle-même, et le scellement suivant (validation, paiement) était refusé. Les signatures présentes dans un justificatif joint sont désormais retirées avant intégration — seul son contenu visuel est conservé.
-
-## [4.13.0] — 28 août 2026
-
-### ✨ Nouvelles fonctionnalités
-
-- **Justificatifs intégrés au PDF de la note de frais** — les photos et fichiers PDF de reçus ne sont plus stockés sur Google Drive : ils deviennent des pages supplémentaires du PDF, ajoutées avant le premier scellement. Le document scellé contient donc l'intégralité de la note, formulaire et justificatifs compris, sans dépendance externe. Les photos sont compressées à l'envoi pour rester légères.
-
-### 🔧 Autres changements
-
-- Le dépôt des justificatifs pendant la rédaction d'un brouillon passe par un espace transitoire sur Cloudflare R2 (au lieu de Google Drive) ; il est vidé automatiquement dès l'intégration au PDF scellé.
-- La soumission d'un brouillon existant (relecture puis envoi) déclenche désormais réellement le scellement cryptographique — ce n'était le cas jusqu'ici que pour une note soumise dès sa création.
+- **Signature stylisée illisible en thème sombre** — dans la fenêtre de signature, l'aperçu du nom s'affichait en clair sur le fond clair de la zone. Il reprend désormais les couleurs de la signature réellement produite, lisibles dans les deux thèmes.
 
 ### 📌 À savoir
 
-- **Portée de la vérification** — le certificat de signature est auto-signé : Adobe Acrobat indique « signature valide, identité inconnue ». Toute modification du document après émission est détectée. La date de signature est celle déclarée par l'application, sans horodatage par un tiers.
+- **Une note tient 9 postes de dépense** — au-delà, elle occuperait deux pages, ce qui est incompatible avec le placement des signatures. La soumission est alors refusée, avec invitation à scinder la note.
 
-- **Limite de 14 postes de dépense** — au-delà, la note occuperait deux pages, ce qui est incompatible avec le placement des signatures. La soumission est alors refusée, avec invitation à scinder la note.
+- **Portée de la vérification** — le certificat de signature est auto-signé : Adobe Acrobat affiche « signature valide, identité inconnue » tant qu'il n'a pas été ajouté aux identités approuvées. Toute modification du document après émission reste détectée. La date de signature est celle déclarée par l'application, sans horodatage par un tiers.
 
-## [4.12.0] — 28 août 2026
-
-### ✨ Nouvelles fonctionnalités
-
-- **Notes de frais — signature cryptographique à trois validations** — les notes de frais sont désormais scellées cryptographiquement à chaque étape du circuit : soumission par le demandeur, validation par le responsable, puis paiement par le trésorier. Chaque étape appose une signature numérique sur le PDF sans jamais réécrire les précédentes (mise à jour incrémentale), de sorte que toute modification ultérieure du document est détectable. Les signatures manuscrites du demandeur et du responsable apparaissent sur le PDF ; celle du trésorier est cryptographique uniquement et figure au panneau Signatures des lecteurs PDF, sans rendu visuel.
-
-- **Verrouillage du contenu après soumission (DocMDP)** — la première signature applique une règle de niveau 2 qui interdit toute modification du contenu textuel : seuls le remplissage de formulaires et l'ajout de signatures restent permis. Le document devient donc immuable dès sa soumission.
-
-- **Le refus est désormais signé** — refuser une note de frais exige la signature du responsable, au même titre que la validation. Le refus clôt **définitivement** le document : une note refusée ne peut plus être validée ni payée, et une correction passe par la création d'une nouvelle note.
-
-- **Stockage des PDF sur Cloudflare R2** — les PDF scellés sont archivés sur Cloudflare R2 et servis directement depuis ce stockage. Chaque scellement écrit une nouvelle version sans jamais écraser la précédente, ce qui garantit qu'aucune révision signée ne peut être perdue.
-
-### 📌 À savoir
-
-- **Portée de la vérification** — le certificat de signature est auto-signé : Adobe Acrobat indique « signature valide, identité inconnue ». Toute modification du document après émission est détectée. La date de signature est celle déclarée par l'application, sans horodatage par un tiers.
-
-- **Limite de 14 postes de dépense** — au-delà, la note occuperait deux pages, ce qui est incompatible avec le placement des signatures. La soumission est alors refusée, avec invitation à scinder la note.
-
-
-- **Notes antérieures** — les notes existantes ont été scellées lors de la migration et portent donc sa date comme date de signature. Leur date d'origine reste conservée dans le journal de chaque note.
+- **Plus aucune mention d'un prestataire externe** — la fenêtre s'intitule « Signature électronique ». Le sceau apposé est celui de la Croix-Rouge française ; aucun service tiers n'intervient.
 
 ## [4.11.0] — 23 août 2026
 
