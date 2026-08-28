@@ -647,6 +647,7 @@ async function main() {
             "payerSignature"         TEXT, -- JSON { type, data, date, hash, name } — scellement #3
             "r2Key"                  TEXT, -- Clé Cloudflare R2 du PDF scellé courant
             "signatureRevisions"     TEXT, -- JSON: Array<{ step, signerId, signerName, role, signedAt, businessDate, r2Key }>
+            "pendingReceiptKeys"     TEXT, -- JSON: clés R2 des justificatifs déposés (brouillon, avant premier scellement)
             "createdAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
@@ -671,7 +672,7 @@ async function main() {
         await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "missionDate" TEXT`);
     }
     // Scellement cryptographique des PDF (signature à 3 validations)
-    for (const col of ['payerSignature', 'r2Key', 'signatureRevisions']) {
+    for (const col of ['payerSignature', 'r2Key', 'signatureRevisions', 'pendingReceiptKeys']) {
         if (!expColNames.includes(col)) {
             await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "${col}" TEXT`);
         }

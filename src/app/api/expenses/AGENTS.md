@@ -14,7 +14,7 @@ Expense report CRUD operations. Lists expense reports (filtered by user, unit le
 ## Subdirectories
 - [`[id]`]([id]/AGENTS.md) — Retrieve, update, delete specific expense report
 - [`[id]/pdf`]([id]/pdf/AGENTS.md) — Generate PDF export of expense report
-- [`upload`](upload/AGENTS.md) — Upload receipt files to Drive
+- [`upload`](upload/AGENTS.md) — Deposit receipt files to R2 staging (embedded as PDF pages at submission)
 
 ## For AI Agents
 

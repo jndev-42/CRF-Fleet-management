@@ -375,6 +375,7 @@ async function createTables() {
     payerSignature         TEXT,
     r2Key                  TEXT,
     signatureRevisions     TEXT,
+    pendingReceiptKeys     TEXT,
     createdAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);

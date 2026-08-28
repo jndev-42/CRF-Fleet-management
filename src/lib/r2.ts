@@ -72,6 +72,19 @@ export function newAttemptId(): string {
     return crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 }
 
+/**
+ * Clé R2 d'un justificatif en attente de scellement.
+ *
+ * Stockage TRANSITOIRE : ces fichiers vivent le temps qu'un brouillon soit
+ * complété, puis sont intégrés comme pages du PDF au premier scellement et
+ * supprimés — jamais référencés depuis une note soumise.
+ */
+export function buildExpenseStagingKey(stagingId: string, filename: string): string {
+    if (!stagingId) throw new R2Error('stagingId requis pour construire une clé de dépôt R2');
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80) || 'fichier';
+    return `expenses-staging/${stagingId}/${crypto.randomUUID()}-${safeName}`;
+}
+
 const MAX_ATTEMPTS = 3;
 
 /**
@@ -133,6 +146,19 @@ export async function headObject(key: string): Promise<boolean> {
         if (res.status === 404) return false;
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return true;
+    });
+}
+
+/**
+ * Supprime un objet. Un 404 n'est PAS une erreur : la suppression est idempotente,
+ * appelée après intégration d'un justificatif dans le PDF scellé — le rejouer sur
+ * un objet déjà absent ne doit jamais faire échouer la suppression.
+ */
+export async function deleteObject(key: string): Promise<void> {
+    const { client, bucketUrl } = config();
+    await withRetry(`DELETE ${key}`, async () => {
+        const res = await client.fetch(`${bucketUrl}/${key}`, { method: 'DELETE' });
+        if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
     });
 }
 

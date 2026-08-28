@@ -143,3 +143,60 @@ describe('putObject', () => {
         expect(req.headers.get('authorization')).toBeTruthy();
     });
 });
+
+describe('buildExpenseStagingKey', () => {
+    beforeEach(setEnv);
+
+    it('produit une clé sous le préfixe de dépôt transitoire', async () => {
+        const { buildExpenseStagingKey } = await import('@/lib/r2');
+        const key = buildExpenseStagingKey('staging-1', 'facture.pdf');
+        expect(key).toMatch(/^expenses-staging\/staging-1\/[0-9a-f-]{36}-facture\.pdf$/);
+    });
+
+    it('assainit un nom de fichier hostile', async () => {
+        // La clé est un identifiant S3 opaque, pas un chemin de fichier : « .. »
+        // n'y a aucune sémantique de traversée. Ce qui compte est l'absence de
+        // séparateurs et d'espaces, qui casseraient l'URL signée.
+        const { buildExpenseStagingKey } = await import('@/lib/r2');
+        const key = buildExpenseStagingKey('staging-1', '../../etc/passwd; rm -rf');
+        expect(key).not.toContain(' ');
+        expect(key).not.toContain(';');
+        // Un seul « / » avant le nom assaini (staging-1/), aucun introduit par le nom lui-même.
+        expect(key.split('/')).toHaveLength(3);
+    });
+
+    it('refuse un stagingId vide', async () => {
+        const { buildExpenseStagingKey, R2Error } = await import('@/lib/r2');
+        expect(() => buildExpenseStagingKey('', 'x.jpg')).toThrow(R2Error);
+    });
+
+    it('deux appels produisent des clés distinctes — pas de collision entre justificatifs', async () => {
+        const { buildExpenseStagingKey } = await import('@/lib/r2');
+        const a = buildExpenseStagingKey('staging-1', 'photo.jpg');
+        const b = buildExpenseStagingKey('staging-1', 'photo.jpg');
+        expect(a).not.toBe(b);
+    });
+});
+
+describe('deleteObject', () => {
+    beforeEach(() => { vi.resetModules(); setEnv(); });
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('envoie un DELETE signé vers la bonne clé', async () => {
+        const spy = vi.fn(async () => new Response(null, { status: 204 }));
+        vi.stubGlobal('fetch', spy);
+        const { deleteObject } = await import('@/lib/r2');
+        await deleteObject('expenses-staging/x/y.jpg');
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        const req = (spy.mock.calls[0] as unknown as [Request])[0];
+        expect(req.url).toContain('/expenses-reports/expenses-staging/x/y.jpg');
+        expect(req.method).toBe('DELETE');
+    });
+
+    it('un 404 n\'est PAS une erreur — suppression idempotente', async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })));
+        const { deleteObject } = await import('@/lib/r2');
+        await expect(deleteObject('deja-absent.jpg')).resolves.toBeUndefined();
+    });
+});

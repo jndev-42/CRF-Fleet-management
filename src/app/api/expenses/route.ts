@@ -21,7 +21,7 @@ const expenseReportSchema = z.object({
     noReceiptDeclaration: z.boolean(),
     userSignature: z.union([z.string(), z.any()]).optional().nullable(),
     userFunction: z.string().optional().nullable(),
-    driveFolderId: z.string().optional().nullable(),
+    receiptKeys: z.array(z.string()).optional().default([]),
     items: z.array(z.object({
         label: z.string().min(1, 'Le libellé est requis'),
         amount: z.number().positive('Le montant doit être positif')
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
 
         const selectColumns = `
             er.id, er.userId, er.submittedAt, er.status, er.imputation, er.customImputation,
-            er.requestRefund, er.noReceiptDeclaration, er.driveFolderId, er.total, er.items,
+            er.requestRefund, er.noReceiptDeclaration, er.driveFolderId, er.pendingReceiptKeys, er.total, er.items,
             er.ulId, er.missionName, er.missionDate, er.validatedAt, er.validatedBy,
             er.rejectionComment, er.rejectedAt,
             er.rejectedBy, er.paidAt, er.paidBy, er.userFunction, er.createdAt, er.updatedAt,
@@ -163,6 +163,13 @@ export async function GET(request: Request) {
                 requestRefund: row.requestRefund === 1 || row.requestRefund === '1' || String(row.requestRefund) === 'true',
                 noReceiptDeclaration: row.noReceiptDeclaration === 1 || row.noReceiptDeclaration === '1' || String(row.noReceiptDeclaration) === 'true',
                 driveFolderId: row.driveFolderId ? String(row.driveFolderId) : null,
+                pendingReceiptKeys: (() => {
+                    if (typeof row.pendingReceiptKeys !== 'string' || !row.pendingReceiptKeys.trim()) return [];
+                    try {
+                        const parsed = JSON.parse(row.pendingReceiptKeys);
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch { return []; }
+                })(),
                 total: Number(row.total) || 0,
                 items: parsedItems,
                 ulId: String(row.ulId || ''),
@@ -240,7 +247,7 @@ export async function POST(request: Request) {
             sql: `
                 INSERT INTO "ExpenseReport" (
                     id, userId, submittedAt, status, imputation, customImputation, requestRefund, noReceiptDeclaration,
-                    userSignature, userFunction, driveFolderId, total, items, ulId, missionName, missionDate, createdAt, updatedAt
+                    userSignature, userFunction, pendingReceiptKeys, total, items, ulId, missionName, missionDate, createdAt, updatedAt
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `,
             args: [
@@ -254,7 +261,7 @@ export async function POST(request: Request) {
                 data.noReceiptDeclaration ? 1 : 0,
                 userSigStr,
                 data.userFunction || null,
-                data.driveFolderId || null,
+                data.receiptKeys.length ? JSON.stringify(data.receiptKeys) : null,
                 total,
                 JSON.stringify(data.items),
                 ulId,
@@ -268,21 +275,29 @@ export async function POST(request: Request) {
         // ── Scellement cryptographique #1 ────────────────────────────────────
         if (data.status === 'soumis') {
             try {
-                const { sealStep1 } = await import('@/lib/expenses/sealing');
+                const { sealStep1, resolvePendingReceipts } = await import('@/lib/expenses/sealing');
                 const { persistSealed } = await import('@/lib/expenses/persist-seal');
 
                 const parsedSig = userSigStr ? JSON.parse(userSigStr) : null;
+                const attachments = await resolvePendingReceipts(data.receiptKeys);
                 const seal = await sealStep1(id, {
                     id: session.user.id,
                     name: session.user.name || session.user.email || 'Demandeur',
                     signatureImage: parsedSig?.image ?? null,
-                });
+                }, new Date(), attachments);
                 await persistSealed({
                     reportId: id,
                     seal,
                     expectedStatus: 'brouillon',
                     nextStatus: 'soumis',
+                    // Intégrés au PDF scellé : le dépôt transitoire n'a plus de raison d'être.
+                    extraColumns: { pendingReceiptKeys: null },
                 });
+
+                if (data.receiptKeys.length) {
+                    const { deleteObject } = await import('@/lib/r2');
+                    await Promise.allSettled(data.receiptKeys.map(key => deleteObject(key)));
+                }
             } catch (sealErr: unknown) {
                 // Le scellement n'est PAS accessoire : contrairement aux notifications
                 // push, son échec doit faire échouer la soumission. La note reste en

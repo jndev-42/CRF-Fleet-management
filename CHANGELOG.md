@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.13.0] — 28 août 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Justificatifs intégrés au PDF de la note de frais** — les photos et fichiers PDF de reçus ne sont plus stockés sur Google Drive : ils deviennent des pages supplémentaires du PDF, ajoutées avant le premier scellement. Le document scellé contient donc l'intégralité de la note, formulaire et justificatifs compris, sans dépendance externe. Les photos sont compressées à l'envoi pour rester légères.
+
+### 🔧 Autres changements
+
+- Le dépôt des justificatifs pendant la rédaction d'un brouillon passe par un espace transitoire sur Cloudflare R2 (au lieu de Google Drive) ; il est vidé automatiquement dès l'intégration au PDF scellé.
+- La soumission d'un brouillon existant (relecture puis envoi) déclenche désormais réellement le scellement cryptographique — ce n'était le cas jusqu'ici que pour une note soumise dès sa création.
+
+### 📌 À savoir
+
+- **Portée de la vérification** — le certificat de signature est auto-signé : Adobe Acrobat indique « signature valide, identité inconnue ». Toute modification du document après émission est détectée. La date de signature est celle déclarée par l'application, sans horodatage par un tiers.
+
+- **Limite de 14 postes de dépense** — au-delà, la note occuperait deux pages, ce qui est incompatible avec le placement des signatures. La soumission est alors refusée, avec invitation à scinder la note.
+
 ## [4.12.0] — 28 août 2026
 
 ### ✨ Nouvelles fonctionnalités
@@ -17,6 +34,7 @@
 - **Portée de la vérification** — le certificat de signature est auto-signé : Adobe Acrobat indique « signature valide, identité inconnue ». Toute modification du document après émission est détectée. La date de signature est celle déclarée par l'application, sans horodatage par un tiers.
 
 - **Limite de 14 postes de dépense** — au-delà, la note occuperait deux pages, ce qui est incompatible avec le placement des signatures. La soumission est alors refusée, avec invitation à scinder la note.
+
 
 - **Notes antérieures** — les notes existantes ont été scellées lors de la migration et portent donc sa date comme date de signature. Leur date d'origine reste conservée dans le journal de chaque note.
 

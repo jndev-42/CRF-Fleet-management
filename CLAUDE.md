@@ -20,6 +20,7 @@ npx tsx scripts/setup-admin.ts <email>  # Promote user to ADMIN
 npx tsx scripts/renault-login-test.ts   # Test Renault Connect auth
 npx tsx scripts/generate-signing-cert.ts --env preview   # Certificat .p12 de scellement (local | preview | prod ; préfixe le CN)
 npx tsx scripts/add-expense-sealed-pdf.ts       # Migration prod : colonnes de scellement des notes de frais
+npx tsx scripts/add-expense-pending-receipts.ts # Migration prod : dépôt transitoire des justificatifs (pré-scellement)
 npx tsx scripts/verify-signed-pdf.ts <fichier>  # Vérifie les signatures d'un PDF scellé
 npx tsx scripts/backfill-signed-pdfs.ts         # Scelle rétroactivement les notes existantes (dry-run par défaut, --apply pour écrire)
 ```

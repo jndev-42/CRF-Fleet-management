@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -23,7 +24,7 @@ const updateExpenseReportSchema = z.object({
     userFunction: z.string().optional().nullable(),
     validatorSignature: z.union([z.string(), z.any()]).optional().nullable(),
     payerSignature: z.union([z.string(), z.any()]).optional().nullable(),
-    driveFolderId: z.string().optional().nullable(),
+    receiptKeys: z.array(z.string()).optional(),
     items: z.array(z.object({
         label: z.string().min(1),
         amount: z.number().positive()
@@ -149,6 +150,13 @@ export async function GET(
             requestRefund: row.requestRefund === 1,
             noReceiptDeclaration: row.noReceiptDeclaration === 1,
             driveFolderId: row.driveFolderId,
+            pendingReceiptKeys: (() => {
+                if (typeof row.pendingReceiptKeys !== 'string' || !row.pendingReceiptKeys.trim()) return [];
+                try {
+                    const parsed = JSON.parse(row.pendingReceiptKeys);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch { return []; }
+            })(),
             total: Number(row.total),
             items: parsedItems,
             ulId: row.ulId,
@@ -211,7 +219,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Données invalides', details: parsed.error.issues }, { status: 400 });
         }
 
-        const { action, status, missionName, missionDate, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, userSignature, userFunction, validatorSignature, payerSignature, driveFolderId, items } = parsed.data;
+        const { action, missionName, missionDate, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, userSignature, userFunction, validatorSignature, payerSignature, receiptKeys, items } = parsed.data;
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
         const isOwner = report.userId === session.user.id;
@@ -369,15 +377,20 @@ export async function PATCH(
                 return NextResponse.json({ error: 'Seules les notes de frais au statut brouillon peuvent être modifiées.' }, { status: 400 });
             }
 
-            const finalStatus = action === 'submit' ? 'soumis' : (status || 'brouillon');
             const finalImputation = imputation || (report.imputation as string) || 'DLUS';
             const finalCustomImputation = finalImputation === 'Autre'
                 ? (customImputation !== undefined ? customImputation : (report.customImputation as string || null))
                 : null;
             const finalRequestRefund = requestRefund !== undefined ? (requestRefund ? 1 : 0) : report.requestRefund;
             const finalNoReceipt = noReceiptDeclaration !== undefined ? (noReceiptDeclaration ? 1 : 0) : report.noReceiptDeclaration;
-            const finalDriveFolder = driveFolderId !== undefined ? driveFolderId : report.driveFolderId;
-            
+            const finalReceiptKeys = receiptKeys !== undefined ? receiptKeys : (() => {
+                if (typeof report.pendingReceiptKeys !== 'string' || !report.pendingReceiptKeys.trim()) return [];
+                try {
+                    const parsed = JSON.parse(report.pendingReceiptKeys);
+                    return Array.isArray(parsed) ? parsed : [];
+                } catch { return []; }
+            })();
+
             const userSigStr = typeof userSignature === 'object' && userSignature !== null
                 ? JSON.stringify(userSignature)
                 : (userSignature !== undefined ? (userSignature || null) : (report.userSignature as string || null));
@@ -393,19 +406,38 @@ export async function PATCH(
                 finalTotal = items.reduce((sum, item) => sum + item.amount, 0);
             }
 
+            // ── Garde-fous préalables à la soumission ────────────────────────────
+            // Une note soumise est scellée immédiatement et le document devient
+            // immuable : mieux vaut refuser en amont que produire un PDF invalide.
+            if (action === 'submit') {
+                if (items && items.length > MAX_ITEMS_SINGLE_PAGE) {
+                    return NextResponse.json({
+                        error: `Cette note comporte ${items.length} postes de dépense ; le maximum est ` +
+                               `${MAX_ITEMS_SINGLE_PAGE} pour tenir sur une page. Merci de la scinder en plusieurs notes.`,
+                    }, { status: 400 });
+                }
+                if (!userSigStr) {
+                    return NextResponse.json({
+                        error: 'Votre signature est requise pour soumettre la note de frais.',
+                    }, { status: 400 });
+                }
+            }
+
+            // Toujours écrit en brouillon : le passage à « soumis » n'a lieu qu'une
+            // fois le PDF scellé et écrit sur R2, exactement comme à la création.
             await db.execute({
                 sql: `
                     UPDATE "ExpenseReport"
-                    SET status = ?, imputation = ?, customImputation = ?, requestRefund = ?, noReceiptDeclaration = ?, driveFolderId = ?, total = ?, items = ?, userSignature = ?, userFunction = ?, missionName = ?, missionDate = ?, submittedAt = ?, updatedAt = ?
+                    SET status = ?, imputation = ?, customImputation = ?, requestRefund = ?, noReceiptDeclaration = ?, pendingReceiptKeys = ?, total = ?, items = ?, userSignature = ?, userFunction = ?, missionName = ?, missionDate = ?, submittedAt = ?, updatedAt = ?
                     WHERE id = ?
                 `,
                 args: [
-                    finalStatus,
+                    'brouillon',
                     finalImputation,
                     finalCustomImputation,
                     finalRequestRefund,
                     finalNoReceipt,
-                    finalDriveFolder,
+                    finalReceiptKeys.length ? JSON.stringify(finalReceiptKeys) : null,
                     finalTotal,
                     finalItemsStr,
                     userSigStr,
@@ -418,7 +450,35 @@ export async function PATCH(
                 ],
             });
 
-            if (finalStatus === 'soumis') {
+            if (action === 'submit') {
+                try {
+                    const { sealStep1, resolvePendingReceipts } = await import('@/lib/expenses/sealing');
+                    const { persistSealed } = await import('@/lib/expenses/persist-seal');
+
+                    const parsedSig = userSigStr ? JSON.parse(userSigStr) : null;
+                    const attachments = await resolvePendingReceipts(finalReceiptKeys);
+                    const seal = await sealStep1(id, {
+                        id: session.user.id,
+                        name: session.user.name || session.user.email || 'Demandeur',
+                        signatureImage: parsedSig?.image ?? null,
+                    }, new Date(), attachments);
+                    await persistSealed({
+                        reportId: id,
+                        seal,
+                        expectedStatus: 'brouillon',
+                        nextStatus: 'soumis',
+                        extraColumns: { pendingReceiptKeys: null },
+                    });
+
+                    if (finalReceiptKeys.length) {
+                        const { deleteObject } = await import('@/lib/r2');
+                        await Promise.allSettled(finalReceiptKeys.map(key => deleteObject(key)));
+                    }
+                } catch (sealErr: unknown) {
+                    console.error('[PATCH /api/expenses/:id] scellement #1 échoué', sealErr);
+                    return sealFailure(sealErr, 'soumission');
+                }
+
                 try {
                     const requesterName = (report.userName as string) || (report.userEmail as string) || session.user.name || session.user.email || 'Un membre';
                     const reportUlId = (report.ulId as string) || 'ul-paris-18';

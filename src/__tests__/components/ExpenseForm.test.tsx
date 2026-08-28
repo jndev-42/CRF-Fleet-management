@@ -90,6 +90,38 @@ describe('ExpenseForm', () => {
         expect(screen.getByText(/Veuillez soit ajouter au moins un justificatif/)).toBeTruthy();
     });
 
+    it('n\'exige pas de nouvelle photo si des justificatifs sont déjà déposés (brouillon repris)', async () => {
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ success: true }), { status: 200 }));
+
+        render(
+            <ExpenseForm
+                onClose={vi.fn()}
+                onSuccess={vi.fn()}
+                initialData={{
+                    id: 'expense-1',
+                    missionName: 'Maraude Nord',
+                    missionDate: '2026-03-12',
+                    requestRefund: true,
+                    noReceiptDeclaration: false,
+                    pendingReceiptKeys: ['expenses-staging/s1/ticket.jpg'],
+                    items: [{ label: 'Péage', amount: 20 }],
+                }}
+            />
+        );
+
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+
+        expect(screen.queryByText(/Veuillez soit ajouter au moins un justificatif/)).toBeNull();
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+        const patchCall = fetchMock.mock.calls.find(c => (c[1] as RequestInit)?.method === 'PATCH');
+        const body = JSON.parse((patchCall![1] as RequestInit).body as string);
+        // Les clés existantes sont retransmises telles quelles : aucun nouveau
+        // fichier n'a été ajouté, donc aucun appel à /api/expenses/upload.
+        expect(body.receiptKeys).toEqual(['expenses-staging/s1/ticket.jpg']);
+        expect(fetchMock.mock.calls.some(c => getUrl(c[0]) === '/api/expenses/upload')).toBe(false);
+    });
+
     it('enregistre un brouillon (happy path)', async () => {
         const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'expense-1' }), { status: 200 }));
         const onSuccess = vi.fn();
@@ -110,6 +142,65 @@ describe('ExpenseForm', () => {
         const body = JSON.parse((postCall![1] as RequestInit).body as string);
         expect(body.status).toBe('brouillon');
         expect(body.items).toEqual([{ label: 'Péage', amount: 20 }]);
+    });
+
+    it('dépose un justificatif photo avant l\'enregistrement, sans passer par la déclaration sur l\'honneur', async () => {
+        const fetchMock = mockFetch(async (input) => {
+            const url = getUrl(input);
+            if (url === '/api/expenses/upload') {
+                return new Response(JSON.stringify({ success: true, stagingId: 'staging-1', keys: ['expenses-staging/staging-1/ticket.jpg'] }), { status: 200 });
+            }
+            return new Response(JSON.stringify({ id: 'expense-1' }), { status: 200 });
+        });
+        const onSuccess = vi.fn();
+
+        const { container } = render(<ExpenseForm onClose={vi.fn()} onSuccess={onSuccess} />);
+
+        fillMission();
+        fireEvent.change(screen.getByPlaceholderText('Description (ex: Essence, Billet de train...)'), { target: { value: 'Péage' } });
+        fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '20' } });
+
+        const fileInput = container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+        const photo = new File(['x'], 'ticket.jpg', { type: 'image/jpeg' });
+        fireEvent.change(fileInput, { target: { files: [photo] } });
+        // handleFiles est asynchrone (compressImages) : attendre que la vignette
+        // apparaisse avant de soumettre, sinon `photos` est encore vide au clic.
+        await screen.findByAltText('Aperçu');
+
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+
+        const uploadCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/expenses/upload');
+        expect(uploadCall).toBeTruthy();
+        expect((uploadCall![1] as RequestInit).body).toBeInstanceOf(FormData);
+
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/expenses' && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body.receiptKeys).toEqual(['expenses-staging/staging-1/ticket.jpg']);
+    });
+
+    it('affiche une erreur si le dépôt des justificatifs échoue (413)', async () => {
+        mockFetch(async (input) => {
+            const url = getUrl(input);
+            if (url === '/api/expenses/upload') {
+                return new Response(JSON.stringify({ error: 'trop lourd' }), { status: 413 });
+            }
+            return new Response(JSON.stringify({ id: 'expense-1' }), { status: 200 });
+        });
+
+        const { container } = render(<ExpenseForm onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        fillMission();
+        fireEvent.change(screen.getByPlaceholderText('Description (ex: Essence, Billet de train...)'), { target: { value: 'Péage' } });
+        fireEvent.change(screen.getByPlaceholderText('0.00'), { target: { value: '20' } });
+
+        const fileInput = container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+        fireEvent.change(fileInput, { target: { files: [new File(['x'], 'ticket.jpg', { type: 'image/jpeg' })] } });
+        await screen.findByAltText('Aperçu');
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+
+        expect(await screen.findByText(/413 Payload Too Large/)).toBeTruthy();
     });
 
     it('ouvre la modale de signature puis soumet après confirmation', async () => {
@@ -211,7 +302,7 @@ describe('ExpenseForm', () => {
                     customImputation: null,
                     requestRefund: true,
                     noReceiptDeclaration: false,
-                    driveFolderId: null,
+                    pendingReceiptKeys: [],
                     userFunction: 'Bénévole local',
                     userSignature: null,
                     items: [{ label: 'Repas', amount: 15.5 }],

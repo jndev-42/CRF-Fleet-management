@@ -22,6 +22,7 @@ import { sealPdf, decodeSignatureImage } from '@/lib/pdf/signature';
 import { countRevisions } from '@/lib/pdf/incremental';
 import { countPages } from '@/lib/pdf/verify';
 import { generateExpensePdf, countItems } from './pdf';
+import { appendJustificatifs, type JustificatifFile } from './attachments';
 import { SIGNATURE_WIDGET_RECTS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE } from './signature-layout';
 
 export class SealingError extends Error {}
@@ -58,20 +59,24 @@ interface Signer {
 }
 
 /**
- * Garde-fou D6 : refuse de sceller un document qui déborderait sur deux pages.
+ * Garde-fou D6 : refuse de sceller un FORMULAIRE qui déborderait sur deux pages.
  *
  * Le widget est toujours estampillé sur la PREMIÈRE page (`getPageRef` de
  * `@signpdf/placeholder-plain` retourne la première référence de `/Kids`), alors
  * que le bloc signature partirait en page 2. Le résultat serait figé par DocMDP.
+ *
+ * ⚠️ Appeler UNIQUEMENT sur le formulaire seul, AVANT `appendJustificatifs` : le
+ * document final compte légitimement plusieurs pages (une par justificatif), ce
+ * n'est pas ce que ce garde-fou vérifie.
  */
-function assertSinglePage(pdf: Buffer, itemCount: number): void {
+function assertSinglePage(formPdf: Buffer, itemCount: number): void {
     if (itemCount > MAX_ITEMS_SINGLE_PAGE) {
         throw new TooManyItemsError(
             `Cette note comporte ${itemCount} postes de dépense ; le maximum est ${MAX_ITEMS_SINGLE_PAGE} ` +
             `pour tenir sur une page. Merci de la scinder en plusieurs notes.`
         );
     }
-    const pages = countPages(pdf);
+    const pages = countPages(formPdf);
     if (pages !== 1) {
         throw new TooManyItemsError(
             `Le PDF généré compte ${pages} pages alors qu'une seule est attendue. Scellement refusé.`
@@ -111,6 +116,27 @@ function parseRevisions(raw: unknown): SignatureRevision[] {
 }
 
 /**
+ * Récupère depuis R2 les justificatifs déposés pendant qu'une note était encore
+ * un brouillon, prêts à être passés à `sealStep1`.
+ *
+ * Le type MIME se déduit de l'extension de la clé (`.pdf` sinon image), reflet
+ * de ce que `/api/expenses/upload` y a écrit — ce dépôt ne stocke rien d'autre.
+ *
+ * @throws {SealingError} si une clé annoncée en base est absente de R2 : mieux
+ * vaut refuser la soumission qu'accepter silencieusement une note incomplète.
+ */
+export async function resolvePendingReceipts(keys: string[]): Promise<JustificatifFile[]> {
+    return Promise.all(keys.map(async (key) => {
+        const buffer = await getObject(key);
+        if (!buffer) {
+            throw new SealingError(`Justificatif introuvable sur R2 (${key}) — soumission refusée.`);
+        }
+        const mime = key.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg';
+        return { buffer, mime };
+    }));
+}
+
+/**
  * Scellement #1 — soumission par le demandeur.
  *
  * Pose la signature de certification avec la règle DocMDP P=2, qui verrouille le
@@ -119,7 +145,8 @@ function parseRevisions(raw: unknown): SignatureRevision[] {
 export async function sealStep1(
     reportId: string,
     signer: Signer,
-    now: Date = new Date()
+    now: Date = new Date(),
+    attachments: JustificatifFile[] = []
 ): Promise<SealResult> {
     const row = await loadReport(reportId);
     const itemCount = countItems(row.items as string);
@@ -129,9 +156,13 @@ export async function sealStep1(
         throw new SealingError('La signature du demandeur est requise pour sceller la note.');
     }
 
-    const pdf = await generateExpensePdf(reportId, { forSealing: true });
-    assertPageGeometry(pdf);
-    assertSinglePage(pdf, itemCount);
+    const form = await generateExpensePdf(reportId, { forSealing: true });
+    assertPageGeometry(form);
+    assertSinglePage(form, itemCount);
+
+    // Les justificatifs deviennent des pages du document AVANT le premier
+    // scellement : c'est ce document, pages comprises, que DocMDP verrouille.
+    const pdf = await appendJustificatifs(form, attachments);
 
     const sealed = await sealPdf(pdf, {
         reason: 'Soumission de la note de frais par le demandeur',

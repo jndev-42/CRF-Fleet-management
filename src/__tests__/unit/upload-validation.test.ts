@@ -127,3 +127,102 @@ describe('Expenses Upload API — validation de la taille des fichiers', () => {
         expect(data.error).toMatch(/dépasse la limite Serverless de 4.2 Mo/i);
     });
 });
+
+describe('Expenses Upload API — dépôt effectif', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+        mockedAuth.mockResolvedValue({
+            user: { name: 'Test User', email: 'test@example.com' },
+        } as never);
+    });
+
+    it('sans fichier, répond succès avec une liste de clés vide', async () => {
+        const request = createMockRequest(new FormData());
+        const res = await expensesUploadPOST(request);
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data).toEqual({ success: true, stagingId: null, keys: [] });
+    });
+
+    it('dépose une image compressée et un PDF tel quel, sous le même stagingId', async () => {
+        vi.doMock('@/lib/expenses/attachments', () => ({
+            compressJustificatifImage: vi.fn(async () => Buffer.from('jpeg-compresse')),
+        }));
+        const putObject = vi.fn(async () => undefined);
+        vi.doMock('@/lib/r2', () => ({
+            buildExpenseStagingKey: (stagingId: string, name: string) => `expenses-staging/${stagingId}/${name}`,
+            putObject,
+        }));
+        vi.resetModules();
+        const { POST } = await import('@/app/api/expenses/upload/route');
+
+        const image = new File(['x'.repeat(10)], 'ticket.jpg', { type: 'image/jpeg' });
+        const pdf = new File(['y'.repeat(10)], 'facture.pdf', { type: 'application/pdf' });
+        const formData = new FormData();
+        formData.append('files', image);
+        formData.append('files', pdf);
+        formData.append('stagingId', 'staging-existant');
+
+        const res = await POST(createMockRequest(formData));
+        const data = await res.json();
+
+        expect(res.status).toBe(200);
+        expect(data.stagingId).toBe('staging-existant');
+        expect(data.keys).toEqual([
+            'expenses-staging/staging-existant/ticket.jpg',
+            'expenses-staging/staging-existant/facture.pdf',
+        ]);
+        expect(putObject).toHaveBeenCalledWith('expenses-staging/staging-existant/ticket.jpg', Buffer.from('jpeg-compresse'), 'image/jpeg');
+        expect(putObject).toHaveBeenCalledWith('expenses-staging/staging-existant/facture.pdf', expect.any(Buffer), 'application/pdf');
+
+        vi.doUnmock('@/lib/expenses/attachments');
+        vi.doUnmock('@/lib/r2');
+    });
+
+    it('génère un nouveau stagingId quand aucun n\'est fourni', async () => {
+        vi.doMock('@/lib/expenses/attachments', () => ({
+            compressJustificatifImage: vi.fn(async () => Buffer.from('jpeg-compresse')),
+        }));
+        vi.doMock('@/lib/r2', () => ({
+            buildExpenseStagingKey: (stagingId: string, name: string) => `expenses-staging/${stagingId}/${name}`,
+            putObject: vi.fn(async () => undefined),
+        }));
+        vi.resetModules();
+        const { POST } = await import('@/app/api/expenses/upload/route');
+
+        const formData = new FormData();
+        formData.append('files', new File(['x'], 'ticket.jpg', { type: 'image/jpeg' }));
+
+        const res = await POST(createMockRequest(formData));
+        const data = await res.json();
+
+        expect(data.stagingId).toBeTruthy();
+        expect(data.keys[0]).toContain(`expenses-staging/${data.stagingId}/`);
+
+        vi.doUnmock('@/lib/expenses/attachments');
+        vi.doUnmock('@/lib/r2');
+    });
+
+    it('retourne 500 si le dépôt sur R2 échoue', async () => {
+        vi.doMock('@/lib/expenses/attachments', () => ({
+            compressJustificatifImage: vi.fn(async () => Buffer.from('jpeg-compresse')),
+        }));
+        vi.doMock('@/lib/r2', () => ({
+            buildExpenseStagingKey: (stagingId: string, name: string) => `expenses-staging/${stagingId}/${name}`,
+            putObject: vi.fn(async () => { throw new Error('R2 indisponible'); }),
+        }));
+        vi.resetModules();
+        const { POST } = await import('@/app/api/expenses/upload/route');
+
+        const formData = new FormData();
+        formData.append('files', new File(['x'], 'ticket.jpg', { type: 'image/jpeg' }));
+
+        const res = await POST(createMockRequest(formData));
+        expect(res.status).toBe(500);
+        expect((await res.json()).error).toMatch(/dépôt des justificatifs/i);
+
+        vi.doUnmock('@/lib/expenses/attachments');
+        vi.doUnmock('@/lib/r2');
+    });
+});
