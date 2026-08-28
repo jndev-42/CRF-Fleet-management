@@ -4,6 +4,12 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import crypto from 'crypto';
 import { unauthorizedResponse } from '@/lib/apiAuth';
+import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
+
+// Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
+export const runtime = 'nodejs';
+// Génération + scellement d'un PDF : au-delà du défaut de 10 s.
+export const maxDuration = 30;
 
 const expenseReportSchema = z.object({
     status: z.enum(['brouillon', 'soumis']),
@@ -210,6 +216,26 @@ export async function POST(request: Request) {
             ? JSON.stringify(data.userSignature)
             : (data.userSignature || null);
 
+        // ── Garde-fous préalables à la soumission ────────────────────────────
+        // Une note soumise est scellée immédiatement et le document devient
+        // immuable : mieux vaut refuser en amont que produire un PDF invalide.
+        if (data.status === 'soumis') {
+            if (data.items.length > MAX_ITEMS_SINGLE_PAGE) {
+                return NextResponse.json({
+                    error: `Cette note comporte ${data.items.length} postes de dépense ; le maximum est ` +
+                           `${MAX_ITEMS_SINGLE_PAGE} pour tenir sur une page. Merci de la scinder en plusieurs notes.`,
+                }, { status: 400 });
+            }
+            if (!userSigStr) {
+                return NextResponse.json({
+                    error: 'Votre signature est requise pour soumettre la note de frais.',
+                }, { status: 400 });
+            }
+        }
+
+        // Toujours inséré en brouillon : le passage à « soumis » n'a lieu qu'une
+        // fois le PDF scellé et écrit sur R2. Un échec de scellement laisse donc
+        // une note modifiable, jamais une note soumise sans document.
         await db.execute({
             sql: `
                 INSERT INTO "ExpenseReport" (
@@ -221,7 +247,7 @@ export async function POST(request: Request) {
                 id,
                 session.user.id,
                 now,
-                data.status,
+                'brouillon', // promu à « soumis » seulement après scellement réussi
                 imputation,
                 customImputation,
                 data.requestRefund ? 1 : 0,
@@ -239,7 +265,36 @@ export async function POST(request: Request) {
             ],
         });
 
+        // ── Scellement cryptographique #1 ────────────────────────────────────
         if (data.status === 'soumis') {
+            try {
+                const { sealStep1 } = await import('@/lib/expenses/sealing');
+                const { persistSealed } = await import('@/lib/expenses/persist-seal');
+
+                const parsedSig = userSigStr ? JSON.parse(userSigStr) : null;
+                const seal = await sealStep1(id, {
+                    id: session.user.id,
+                    name: session.user.name || session.user.email || 'Demandeur',
+                    signatureImage: parsedSig?.image ?? null,
+                });
+                await persistSealed({
+                    reportId: id,
+                    seal,
+                    expectedStatus: 'brouillon',
+                    nextStatus: 'soumis',
+                });
+            } catch (sealErr: unknown) {
+                // Le scellement n'est PAS accessoire : contrairement aux notifications
+                // push, son échec doit faire échouer la soumission. La note reste en
+                // brouillon, donc modifiable et resoumettable.
+                console.error('[POST /api/expenses] scellement #1 échoué', sealErr);
+                return NextResponse.json({
+                    error: 'La note a été enregistrée en brouillon mais n\'a pas pu être scellée. ' +
+                           'Réessayez de la soumettre.',
+                    id,
+                }, { status: 500 });
+            }
+
             try {
                 const requesterName = session.user.name || session.user.email || 'Un membre';
                 const { sendPushNotification } = await import('@/lib/onesignal');

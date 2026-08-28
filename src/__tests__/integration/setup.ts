@@ -372,6 +372,9 @@ async function createTables() {
     userSignature          TEXT,
     userFunction           TEXT,
     validatorSignature     TEXT,
+    payerSignature         TEXT,
+    r2Key                  TEXT,
+    signatureRevisions     TEXT,
     createdAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -893,6 +896,14 @@ export async function seedExpenseReport(overrides: Partial<{
   validatedBy: string | null;
   missionName: string | null;
   missionDate: string | null;
+  userSignature: string | null;
+  validatorSignature: string | null;
+  payerSignature: string | null;
+  r2Key: string | null;
+  signatureRevisions: string | null;
+  validatedAt: string | null;
+  paidAt: string | null;
+  paidBy: string | null;
 }> = {}) {
   const report = {
     id: 'expense-1',
@@ -907,12 +918,23 @@ export async function seedExpenseReport(overrides: Partial<{
     // null par défaut : représente une note de frais créée avant l'ajout du champ mission.
     missionName: null as string | null,
     missionDate: null as string | null,
+    // Scellement cryptographique : null par défaut = note antérieure à la feature.
+    userSignature: null as string | null,
+    validatorSignature: null as string | null,
+    payerSignature: null as string | null,
+    r2Key: null as string | null,
+    signatureRevisions: null as string | null,
+    validatedAt: null as string | null,
+    paidAt: null as string | null,
+    paidBy: null as string | null,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, validatedBy, missionName, missionDate)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-    args: [report.id, report.userId, report.submittedAt, report.status, report.imputation, report.total, JSON.stringify(report.items), report.ulId, report.validatedBy, report.missionName, report.missionDate],
+    sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, validatedBy, missionName, missionDate,
+                                       userSignature, validatorSignature, payerSignature, r2Key, signatureRevisions, validatedAt, paidAt, paidBy)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [report.id, report.userId, report.submittedAt, report.status, report.imputation, report.total, JSON.stringify(report.items), report.ulId, report.validatedBy, report.missionName, report.missionDate,
+           report.userSignature, report.validatorSignature, report.payerSignature, report.r2Key, report.signatureRevisions, report.validatedAt, report.paidAt, report.paidBy],
   });
   return report;
 }

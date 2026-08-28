@@ -4,6 +4,11 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
+// Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
+export const runtime = 'nodejs';
+// Lecture R2 + scellement : au-delà du défaut de 10 s.
+export const maxDuration = 30;
+
 const updateExpenseReportSchema = z.object({
     action: z.enum(['update', 'submit', 'validate', 'reject', 'pay']),
     status: z.enum(['brouillon', 'soumis', 'en_attente_paiement', 'traité', 'refusé']).optional(),
@@ -17,6 +22,7 @@ const updateExpenseReportSchema = z.object({
     userSignature: z.union([z.string(), z.any()]).optional().nullable(),
     userFunction: z.string().optional().nullable(),
     validatorSignature: z.union([z.string(), z.any()]).optional().nullable(),
+    payerSignature: z.union([z.string(), z.any()]).optional().nullable(),
     driveFolderId: z.string().optional().nullable(),
     items: z.array(z.object({
         label: z.string().min(1),
@@ -42,6 +48,44 @@ const updateExpenseReportSchema = z.object({
         });
     }
 });
+
+/**
+ * Traduit un échec de scellement en réponse HTTP.
+ *
+ * Le scellement n'est PAS accessoire — contrairement aux notifications push, son
+ * échec doit faire échouer la transition métier. Aucun `catch` avaleur ici : la
+ * note conserve son statut précédent et l'utilisateur peut réessayer.
+ */
+function sealFailure(e: unknown, step: string): NextResponse {
+    const name = e instanceof Error ? e.constructor.name : '';
+
+    // Journal en base et PDF stocké divergent : état à diagnostiquer, jamais à
+    // réparer silencieusement.
+    if (name === 'RevisionMismatchError') {
+        console.error(`[expenses] incohérence de révisions au ${step}`, e);
+        return NextResponse.json({
+            error: 'Incohérence détectée entre le document scellé et son journal de signatures. ' +
+                   'Contactez un administrateur.',
+        }, { status: 409 });
+    }
+
+    // Un autre appel a déjà fait avancer la note.
+    if (name === 'ConcurrentTransitionError') {
+        return NextResponse.json({
+            error: 'La note de frais a changé d\'état entre-temps. Rechargez la page et réessayez.',
+        }, { status: 409 });
+    }
+
+    // Note trop longue pour tenir sur une page (décision D6).
+    if (name === 'TooManyItemsError') {
+        return NextResponse.json({ error: e instanceof Error ? e.message : 'Note trop longue.' }, { status: 400 });
+    }
+
+    console.error(`[expenses] scellement ${step} échoué`, e);
+    return NextResponse.json({
+        error: `Le scellement cryptographique a échoué lors du ${step}. La note n'a pas été modifiée.`,
+    }, { status: 500 });
+}
 
 export async function GET(
     request: Request,
@@ -167,7 +211,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Données invalides', details: parsed.error.issues }, { status: 400 });
         }
 
-        const { action, status, missionName, missionDate, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, userSignature, userFunction, validatorSignature, driveFolderId, items } = parsed.data;
+        const { action, status, missionName, missionDate, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, userSignature, userFunction, validatorSignature, payerSignature, driveFolderId, items } = parsed.data;
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
         const isOwner = report.userId === session.user.id;
@@ -189,14 +233,27 @@ export async function PATCH(
                 ? JSON.stringify(validatorSignature)
                 : (validatorSignature || null);
 
-            await db.execute({
-                sql: `
-                    UPDATE "ExpenseReport"
-                    SET status = ?, validatedAt = ?, validatedBy = ?, validatorSignature = ?, updatedAt = ?
-                    WHERE id = ?
-                `,
-                args: [nextStatus, now, session.user.id, valSigStr, now, id],
-            });
+            if (!valSigStr) {
+                return NextResponse.json({ error: 'Votre signature est requise pour valider la note de frais.' }, { status: 400 });
+            }
+
+            try {
+                const { sealStep2 } = await import('@/lib/expenses/sealing');
+                const { persistSealed } = await import('@/lib/expenses/persist-seal');
+                const parsedSig = JSON.parse(valSigStr);
+                const seal = await sealStep2(id, {
+                    id: session.user.id,
+                    name: session.user.name || session.user.email || 'Valideur',
+                    signatureImage: parsedSig?.image ?? null,
+                });
+                await persistSealed({
+                    reportId: id, seal,
+                    expectedStatus: 'soumis', nextStatus,
+                    extraColumns: { validatedAt: now, validatedBy: session.user.id, validatorSignature: valSigStr },
+                });
+            } catch (e: unknown) {
+                return sealFailure(e, 'validation');
+            }
 
             if (nextStatus === 'en_attente_paiement') {
                 try {
@@ -233,14 +290,37 @@ export async function PATCH(
                 return NextResponse.json({ error: 'Un commentaire est obligatoire pour refuser une note de frais.' }, { status: 400 });
             }
 
-            await db.execute({
-                sql: `
-                    UPDATE "ExpenseReport"
-                    SET status = 'refusé', rejectionComment = ?, rejectedAt = ?, rejectedBy = ?, updatedAt = ?
-                    WHERE id = ?
-                `,
-                args: [rejectionComment.trim(), now, session.user.id, now, id],
-            });
+            // Décision D5 : le refus est lui aussi un événement SIGNÉ, et il clôt
+            // définitivement le document. Une correction passe par une note neuve.
+            const rejSigStr = typeof validatorSignature === 'object' && validatorSignature !== null
+                ? JSON.stringify(validatorSignature)
+                : (validatorSignature || null);
+
+            if (!rejSigStr) {
+                return NextResponse.json({ error: 'Votre signature est requise pour refuser la note de frais.' }, { status: 400 });
+            }
+
+            try {
+                const { sealStep2 } = await import('@/lib/expenses/sealing');
+                const { persistSealed } = await import('@/lib/expenses/persist-seal');
+                const parsedSig = JSON.parse(rejSigStr);
+                const seal = await sealStep2(id, {
+                    id: session.user.id,
+                    name: session.user.name || session.user.email || 'Valideur',
+                    signatureImage: parsedSig?.image ?? null,
+                }, { rejected: true });
+                await persistSealed({
+                    reportId: id, seal,
+                    expectedStatus: 'soumis', nextStatus: 'refusé',
+                    extraColumns: {
+                        rejectionComment: rejectionComment.trim(),
+                        rejectedAt: now, rejectedBy: session.user.id,
+                        validatorSignature: rejSigStr,
+                    },
+                });
+            } catch (e: unknown) {
+                return sealFailure(e, 'refus');
+            }
 
             return NextResponse.json({ success: true, status: 'refusé' });
         } else if (action === 'pay') {
@@ -253,14 +333,30 @@ export async function PATCH(
                 return NextResponse.json({ error: 'Seules les notes de frais en attente de paiement peuvent être marquées comme payées.' }, { status: 400 });
             }
 
-            await db.execute({
-                sql: `
-                    UPDATE "ExpenseReport"
-                    SET status = 'traité', paidAt = ?, paidBy = ?, updatedAt = ?
-                    WHERE id = ?
-                `,
-                args: [now, session.user.id, now, id],
-            });
+            const paySigStr = typeof payerSignature === 'object' && payerSignature !== null
+                ? JSON.stringify(payerSignature)
+                : (payerSignature || null);
+
+            if (!paySigStr) {
+                return NextResponse.json({ error: 'Votre signature est requise pour marquer la note comme payée.' }, { status: 400 });
+            }
+
+            try {
+                const { sealStep3 } = await import('@/lib/expenses/sealing');
+                const { persistSealed } = await import('@/lib/expenses/persist-seal');
+                // Scellement #3 : cryptographique uniquement, AUCUN widget visible.
+                const seal = await sealStep3(id, {
+                    id: session.user.id,
+                    name: session.user.name || session.user.email || 'Trésorier',
+                });
+                await persistSealed({
+                    reportId: id, seal,
+                    expectedStatus: 'en_attente_paiement', nextStatus: 'traité',
+                    extraColumns: { paidAt: now, paidBy: session.user.id, payerSignature: paySigStr },
+                });
+            } catch (e: unknown) {
+                return sealFailure(e, 'paiement');
+            }
 
             return NextResponse.json({ success: true, status: 'traité' });
         } else {

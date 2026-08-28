@@ -393,9 +393,24 @@ export interface ExpensePdfReportProps {
         validatorSignature?: string | ParsedSignature | null;
     };
     logoSrc: string; // Base64 PNG logo
+    /**
+     * Rendu destiné au SCELLEMENT cryptographique.
+     *
+     * Dans ce mode, les zones d'image de signature des colonnes « Le demandeur »
+     * et « Le responsable » sont laissées VIDES : le visuel est fourni par les
+     * widgets de signature PDF (`/AP`), posés après coup par `sealing.ts`.
+     *
+     * Sans ce drapeau, l'image serait rendue DEUX FOIS — une fois dans le contenu
+     * par ce composant, une fois par le widget — et le décalage de mise en page
+     * ferait retomber le widget sur le bloc de métadonnées situé en dessous.
+     *
+     * Le bloc de métadonnées (nom, « Signé le … », « ID: … ») reste rendu : les
+     * rectangles de `signature-layout.ts` s'arrêtent volontairement au-dessus.
+     */
+    forSealing?: boolean;
 }
 
-export default function ExpensePdfDocument({ report, logoSrc }: ExpensePdfReportProps) {
+export default function ExpensePdfDocument({ report, logoSrc, forSealing = false }: ExpensePdfReportProps) {
     const formattedDate = report.submittedAt
         ? new Date(report.submittedAt).toLocaleDateString('fr-FR')
         : new Date().toLocaleDateString('fr-FR');
@@ -563,7 +578,12 @@ export default function ExpensePdfDocument({ report, logoSrc }: ExpensePdfReport
                         {/* Col 1: Demandeur */}
                         <View style={styles.sigCol}>
                             <Text style={styles.sigTitle}>Le demandeur :</Text>
-                            {parsedUserSig?.image ? (
+                            {forSealing ? (
+                                // Zone réservée au widget de signature PDF (rect
+                                // `demandeur` de signature-layout.ts). Vide par
+                                // construction : le visuel vient du /AP du widget.
+                                <View style={styles.sigImageContainer} />
+                            ) : parsedUserSig?.image ? (
                                 <View style={styles.sigImageContainer}>
                                     {/* eslint-disable-next-line jsx-a11y/alt-text */}
                                     <Image src={parsedUserSig.image} style={styles.sigImage} />
@@ -593,7 +613,13 @@ export default function ExpensePdfDocument({ report, logoSrc }: ExpensePdfReport
                         {/* Col 2: Responsable */}
                         <View style={styles.sigCol}>
                             <Text style={styles.sigTitle}>Le responsable :</Text>
-                            {parsedValSig?.image ? (
+                            {forSealing ? (
+                                // Zone réservée au widget de signature PDF (rect
+                                // `valideur`). Vide dès le scellement #1 : le
+                                // valideur n'a pas encore signé, et toute mention
+                                // « en attente » serait FIGÉE À VIE par DocMDP.
+                                <View style={styles.sigImageContainer} />
+                            ) : parsedValSig?.image ? (
                                 <View style={styles.sigImageContainer}>
                                     {/* eslint-disable-next-line jsx-a11y/alt-text */}
                                     <Image src={parsedValSig.image} style={styles.sigImage} />

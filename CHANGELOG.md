@@ -1,5 +1,25 @@
 # Changelog
 
+## [4.12.0] — 28 août 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Notes de frais — signature cryptographique à trois validations** — les notes de frais sont désormais scellées cryptographiquement à chaque étape du circuit : soumission par le demandeur, validation par le responsable, puis paiement par le trésorier. Chaque étape appose une signature numérique sur le PDF sans jamais réécrire les précédentes (mise à jour incrémentale), de sorte que toute modification ultérieure du document est détectable. Les signatures manuscrites du demandeur et du responsable apparaissent sur le PDF ; celle du trésorier est cryptographique uniquement et figure au panneau Signatures des lecteurs PDF, sans rendu visuel.
+
+- **Verrouillage du contenu après soumission (DocMDP)** — la première signature applique une règle de niveau 2 qui interdit toute modification du contenu textuel : seuls le remplissage de formulaires et l'ajout de signatures restent permis. Le document devient donc immuable dès sa soumission.
+
+- **Le refus est désormais signé** — refuser une note de frais exige la signature du responsable, au même titre que la validation. Le refus clôt **définitivement** le document : une note refusée ne peut plus être validée ni payée, et une correction passe par la création d'une nouvelle note.
+
+- **Stockage des PDF sur Cloudflare R2** — les PDF scellés sont archivés sur Cloudflare R2 et servis directement depuis ce stockage. Chaque scellement écrit une nouvelle version sans jamais écraser la précédente, ce qui garantit qu'aucune révision signée ne peut être perdue.
+
+### 📌 À savoir
+
+- **Portée de la vérification** — le certificat de signature est auto-signé : Adobe Acrobat indique « signature valide, identité inconnue ». Toute modification du document après émission est détectée. La date de signature est celle déclarée par l'application, sans horodatage par un tiers.
+
+- **Limite de 14 postes de dépense** — au-delà, la note occuperait deux pages, ce qui est incompatible avec le placement des signatures. La soumission est alors refusée, avec invitation à scinder la note.
+
+- **Notes antérieures** — les notes existantes ont été scellées lors de la migration et portent donc sa date comme date de signature. Leur date d'origine reste conservée dans le journal de chaque note.
+
 ## [4.11.0] — 23 août 2026
 
 ### ✨ Nouvelles fonctionnalités

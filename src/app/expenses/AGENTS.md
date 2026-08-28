@@ -29,7 +29,11 @@ Note these are inline `roles.includes(...)` checks; this page does **not** use t
 | Mark paid | `en_attente_paiement` and `canPay` |
 | PDF download | any status except `brouillon` |
 
-**Validation requires a signature.** "Valider" opens `YousignSignatureModal`; only its `onSign` callback calls `confirmValidate(sigData)`, which `PATCH`es `{ action: 'validate', validatorSignature }`. Do not add a path that validates without routing through the modal — the signature is part of the accounting record. Rejection instead requires a non-empty comment collected via `prompt()`, and empty input is refused client-side.
+**Les TROIS actions exigent une signature manuscrite.** Validation, refus et paiement passent tous par `YousignSignatureModal`, via l'état unifié `signingContext: { report, kind: 'validate' | 'reject' | 'pay', rejectionComment? }`. Son `onSign` appelle `confirmSigned(sigData)`, qui `PATCH` la charge utile correspondante (`validatorSignature` pour validation et refus, `payerSignature` pour le paiement).
+
+N'ajoutez jamais de chemin qui contourne le modal : la signature est apposée sur le PDF puis **scellée cryptographiquement**, et le serveur renvoie 400 sans elle. Le refus collecte d'abord son motif via `prompt()` (obligatoire, vérifié côté client) puis demande la signature — c'est un événement signé qui **clôt définitivement** le document ; une correction passe par une note neuve.
+
+La signature du payeur est scellée mais **n'apparaît pas visuellement** sur le PDF : elle ne figure qu'au panneau Signatures d'Acrobat.
 
 All four mutations are `PATCH /api/expenses/{id}` distinguished by an `action` field (`validate` / `reject` / `pay` / `submit`); deletion is `DELETE /api/expenses/{id}`. After each success the page refetches **and** patches `selectedReport` in place so the open sidebar reflects the new status immediately.
 

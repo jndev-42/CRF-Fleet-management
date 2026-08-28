@@ -23,6 +23,14 @@ interface YousignSignatureModalProps {
     roleTitle: string; // e.g. "Demandeur" or "Responsable / Valideur"
     initialFunction?: string;
     loading?: boolean;
+    /**
+     * Verbe du bouton de confirmation : « Signer et {actionVerb} ».
+     *
+     * Sans cette prop, le libellé était déduit de `roleTitle` avec un ternaire
+     * codé en dur qui ne connaissait que « soumettre » et « valider » — le
+     * trésorier qui paie et le valideur qui refuse voyaient donc « valider ».
+     */
+    actionVerb?: string;
 }
 
 export default function YousignSignatureModal({
@@ -34,6 +42,7 @@ export default function YousignSignatureModal({
     roleTitle,
     initialFunction = 'Bénévole local',
     loading = false,
+    actionVerb,
 }: YousignSignatureModalProps) {
     useEscapeKey(onClose, isOpen);
     const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
@@ -513,7 +522,7 @@ export default function YousignSignatureModal({
                             cursor: 'pointer'
                         }}
                     >
-                        <CheckCircle size={16} /> Signer et {roleTitle === 'Demandeur' ? 'soumettre' : 'valider'}
+                        <CheckCircle size={16} /> Signer et {actionVerb ?? (roleTitle === 'Demandeur' ? 'soumettre' : 'valider')}
                     </button>
                 </div>
             </div>
