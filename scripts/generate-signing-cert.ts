@@ -15,9 +15,17 @@
  * Ce script n'écrit AUCUN secret dans le dépôt : il imprime sur stdout.
  *
  * Usage :
- *   npx tsx scripts/generate-signing-cert.ts [--cn "Nom"] [--passphrase "..."]
+ *   npx tsx scripts/generate-signing-cert.ts --env local     # défaut
+ *   npx tsx scripts/generate-signing-cert.ts --env preview
+ *   npx tsx scripts/generate-signing-cert.ts --env prod
+ *   npx tsx scripts/generate-signing-cert.ts --env prod --cn "Autre nom" --passphrase "..."
  *
- * Puis coller dans Vercel (et dans .env.local pour le développement) :
+ * Le nom du signataire est préfixé selon l'environnement, de sorte qu'un
+ * document scellé indique d'emblée d'où il provient : Acrobat affiche par
+ * exemple « Certifié par LOCAL - Croix-Rouge francaise - Notes de frais ». Seule
+ * la production est sans préfixe.
+ *
+ * Puis coller dans l'environnement correspondant :
  *   SIGNING_CERT_P12_BASE64=<sortie>
  *   SIGNING_CERT_PASSPHRASE=<passphrase>
  */
@@ -42,6 +50,33 @@ const KEY_BITS = 2048;
  * défaut invisible à toute vérification maison.
  */
 const ORGANIZATION = 'Croix-Rouge francaise';
+
+export const BASE_COMMON_NAME = 'Croix-Rouge francaise - Notes de frais';
+
+/**
+ * Préfixe apposé au nom du signataire selon l'environnement.
+ *
+ * Un certificat de test ne doit jamais pouvoir passer pour un certificat de
+ * production : le préfixe rend l'origine d'un document visible dans le panneau
+ * Signatures d'Acrobat, sans avoir à inspecter quoi que ce soit.
+ *
+ * Les préfixes sont volontairement ASCII : un accent rendrait les signatures
+ * invérifiables (voir la note sur ORGANIZATION).
+ */
+export const ENV_PREFIXES = {
+    local: 'LOCAL - ',
+    preview: 'PREVIEW - ',
+    prod: '',
+} as const;
+
+type Environnement = keyof typeof ENV_PREFIXES;
+
+export function parseEnvironnement(valeur: string): Environnement {
+    if (valeur in ENV_PREFIXES) return valeur as Environnement;
+    throw new Error(
+        `Environnement inconnu : « ${valeur} ». Valeurs acceptées : ${Object.keys(ENV_PREFIXES).join(', ')}.`
+    );
+}
 
 /** Rejette toute valeur qui produirait un certificat inutilisable. */
 function assertAscii(champ: string, valeur: string): void {
@@ -126,13 +161,18 @@ export function generate(commonName: string, passphrase: string): string {
 }
 
 function main(): void {
-    const commonName = arg('cn', 'Croix-Rouge francaise - Notes de frais');
+    // Défaut volontairement le moins engageant : générer par mégarde un
+    // certificat de production serait plus gênant que l'inverse.
+    const environnement = parseEnvironnement(arg('env', 'local'));
+    const nomBase = arg('cn', BASE_COMMON_NAME);
+    const commonName = `${ENV_PREFIXES[environnement]}${nomBase}`;
     const passphrase = arg('passphrase', forge.util.bytesToHex(forge.random.getBytesSync(16)));
 
+    process.stderr.write(`Environnement : ${environnement}${environnement === 'prod' ? ' (sans préfixe)' : ''}\n`);
     process.stderr.write(`Génération d'un certificat RSA ${KEY_BITS} bits, validité ${VALIDITY_YEARS} ans...\n`);
     const base64 = generate(commonName, passphrase);
 
-    process.stderr.write('\n--- À coller dans Vercel et dans .env.local ---\n');
+    process.stderr.write(`\n--- À coller dans l'environnement « ${environnement} » ---\n`);
     console.log(`SIGNING_CERT_P12_BASE64=${base64}`);
     console.log(`SIGNING_CERT_PASSPHRASE=${passphrase}`);
     process.stderr.write(`\nEncodage vérifié : ${base64.length} caractères base64, réversible à l'octet près.\n`);

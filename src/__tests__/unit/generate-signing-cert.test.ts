@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import forge from 'node-forge';
-import { generate } from '../../../scripts/generate-signing-cert';
+import { generate, ENV_PREFIXES, parseEnvironnement, BASE_COMMON_NAME } from '../../../scripts/generate-signing-cert';
 
 /** Vérifie qu'une chaîne base64 est complète et réversible à l'octet près. */
 function assertRoundTrip(b64: string): Buffer {
@@ -70,3 +70,32 @@ describe('generate-signing-cert', () => {
         expect(years).toBeGreaterThan(25);
     }, 30_000);
 });
+
+describe('préfixe d\'environnement', () => {
+    it('préfixe local et preview, laisse la production nue', () => {
+        expect(ENV_PREFIXES.local).toBe('LOCAL - ');
+        expect(ENV_PREFIXES.preview).toBe('PREVIEW - ');
+        // La production ne porte aucun préfixe : c'est la référence.
+        expect(ENV_PREFIXES.prod).toBe('');
+    });
+
+    it('n\'utilise que de l\'ASCII dans les préfixes et le nom de base', () => {
+        // Un accent rendrait les signatures invérifiables, préfixe compris.
+        for (const p of Object.values(ENV_PREFIXES)) expect(p).toMatch(/^[\x20-\x7e]*$/);
+        expect(BASE_COMMON_NAME).toMatch(/^[\x20-\x7e]+$/);
+    });
+
+    it('refuse un environnement inconnu plutôt que de retomber sur la production', () => {
+        // Un repli silencieux produirait un certificat de test indiscernable
+        // d'un certificat de production dans le panneau Signatures.
+        expect(() => parseEnvironnement('staging')).toThrow(/Environnement inconnu/);
+        expect(() => parseEnvironnement('')).toThrow(/Environnement inconnu/);
+    });
+
+    it('accepte les trois environnements attendus', () => {
+        for (const e of ['local', 'preview', 'prod']) {
+            expect(parseEnvironnement(e)).toBe(e);
+        }
+    });
+});
+
