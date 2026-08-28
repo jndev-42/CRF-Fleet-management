@@ -6,11 +6,11 @@
  * or Buffer, crypto et le rendu PDF exigent le vrai runtime Node.
  */
 
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, vi } from 'vitest';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { createElement } from 'react';
 import sharp from 'sharp';
-import { installTestCert } from '../fixtures/signing-cert';
+import { installTestCert, testSigningCert } from '../fixtures/signing-cert';
 import ExpensePdfDocument from '@/components/expenses/ExpensePdfDocument';
 
 import {
@@ -105,6 +105,39 @@ describe('sealPdf', () => {
 
     it('valide la configuration du certificat sans conserver le signer', () => {
         expect(() => assertSigningCertConfigured()).not.toThrow();
+    });
+
+    it('DÉTECTE un certificat tronqué — cas d\'une variable copiée incomplètement', async () => {
+        // Construire un P12Signer ne suffit pas : son constructeur enveloppe le
+        // buffer sans le parser, donc un certificat coupé passerait le contrôle
+        // et n'échouerait qu'au premier scellement réel, en production.
+        const { p12Base64 } = testSigningCert();
+        const full = Buffer.from(p12Base64, 'base64');
+        const truncated = full.subarray(0, full.length - 1);
+
+        vi.resetModules();
+        const saved = process.env.SIGNING_CERT_P12_BASE64;
+        process.env.SIGNING_CERT_P12_BASE64 = truncated.toString('base64');
+        try {
+            const mod = await import('@/lib/pdf/signature');
+            expect(() => mod.assertSigningCertConfigured()).toThrow(/TRONQUÉ/);
+        } finally {
+            process.env.SIGNING_CERT_P12_BASE64 = saved;
+            vi.resetModules();
+        }
+    });
+
+    it('DÉTECTE une passphrase incorrecte', async () => {
+        vi.resetModules();
+        const saved = process.env.SIGNING_CERT_PASSPHRASE;
+        process.env.SIGNING_CERT_PASSPHRASE = 'mauvaise-passphrase';
+        try {
+            const mod = await import('@/lib/pdf/signature');
+            expect(() => mod.assertSigningCertConfigured()).toThrow(/PASSPHRASE/);
+        } finally {
+            process.env.SIGNING_CERT_PASSPHRASE = saved;
+            vi.resetModules();
+        }
     });
 
     it('réserve une longueur de signature avec marge', () => {

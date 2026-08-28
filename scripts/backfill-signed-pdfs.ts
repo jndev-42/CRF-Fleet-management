@@ -22,6 +22,7 @@
  *
  * Usage :
  *   npx tsx scripts/backfill-signed-pdfs.ts                 # dry-run (défaut)
+ *   npx tsx scripts/backfill-signed-pdfs.ts --env .env.preview
  *   npx tsx scripts/backfill-signed-pdfs.ts --apply         # exécution réelle
  *   npx tsx scripts/backfill-signed-pdfs.ts --apply --limit 10
  *   npx tsx scripts/backfill-signed-pdfs.ts --apply --report-id <id>
@@ -29,7 +30,12 @@
 
 import dotenv from 'dotenv';
 
-dotenv.config({ path: '.env.local' });
+// Cible l'environnement passé en `--env` (défaut : .env.local).
+const envFile = (() => {
+    const i = process.argv.indexOf('--env');
+    return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : '.env.local';
+})();
+dotenv.config({ path: envFile });
 
 const APPLY = process.argv.includes('--apply');
 const LIMIT = (() => {
@@ -55,6 +61,8 @@ async function main(): Promise<void> {
     if (APPLY) assertR2Configured();
 
     console.log(APPLY ? '=== BACKFILL — EXÉCUTION RÉELLE ===' : '=== BACKFILL — DRY-RUN (aucune écriture) ===');
+    console.log(`Environnement : ${envFile}`);
+    console.log(`Base cible    : ${(process.env.TURSO_DATABASE_URL || '').replace(/^libsql:\/\//, '').split('.')[0]}`);
 
     const where = ONLY_ID
         ? { sql: `SELECT * FROM "ExpenseReport" WHERE id = ?`, args: [ONLY_ID] }

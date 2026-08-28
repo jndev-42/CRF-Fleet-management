@@ -9,6 +9,7 @@
  * valides. `assertIncrementalAppend` le vérifie à chaque appel.
  */
 
+import forge from 'node-forge';
 import { SignPdf } from '@signpdf/signpdf';
 import { P12Signer } from '@signpdf/signer-p12';
 import { plainAddPlaceholder } from '@signpdf/placeholder-plain';
@@ -60,17 +61,48 @@ function freshSigner(): P12Signer {
  * Valide la configuration du certificat au démarrage, pour échouer avec un message
  * lisible plutôt qu'avec une erreur DER opaque au premier scellement réel.
  *
- * ⚠️ Construit un signer JETABLE et le jette — ne pas conserver l'instance, sous
- * peine de recréer le bug de consommation du ByteBuffer.
+ * ⚠️ Construire un `P12Signer` NE SUFFIT PAS : son constructeur se contente
+ * d'envelopper le buffer, et le parsing n'a lieu qu'au premier `sign()`. Un
+ * certificat tronqué — cas classique d'une variable d'environnement copiée
+ * incomplètement — passerait donc le contrôle et ne casserait qu'en production.
+ * On déchiffre donc réellement le PKCS#12 ici.
+ *
+ * Le signer construit est JETABLE et jeté : le conserver recréerait le bug de
+ * consommation du ByteBuffer.
  */
 export function assertSigningCertConfigured(): void {
-    try {
-        freshSigner();
-    } catch (e: unknown) {
+    const buf = p12Buffer();
+
+    // Contrôle de complétude avant tout : l'en-tête DER annonce la taille totale.
+    if (buf.length < 4 || buf[0] !== 0x30) {
         throw new SigningError(
-            `Certificat de signature inutilisable : ${e instanceof Error ? e.message : String(e)}`
+            'SIGNING_CERT_P12_BASE64 ne contient pas une structure PKCS#12 valide ' +
+            '(un fichier .p12 commence par l\'octet 0x30).'
         );
     }
+    const declared = 4 + ((buf[2] << 8) | buf[3]);
+    if (buf.length < declared) {
+        throw new SigningError(
+            `SIGNING_CERT_P12_BASE64 est TRONQUÉ : ${buf.length} octets décodés alors que ` +
+            `la structure en annonce ${declared}. La valeur a probablement été copiée ` +
+            `incomplètement — recopiez-la intégralement, y compris le « == » final.`
+        );
+    }
+
+    try {
+        const asn1 = forge.asn1.fromDer(forge.util.createBuffer(buf.toString('binary')));
+        forge.pkcs12.pkcs12FromAsn1(asn1, (process.env.SIGNING_CERT_PASSPHRASE || '').trim());
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        throw new SigningError(
+            /password|mac/i.test(msg)
+                ? 'SIGNING_CERT_PASSPHRASE ne correspond pas au certificat fourni.'
+                : `Certificat de signature illisible : ${msg}`
+        );
+    }
+
+    // Le signer lui-même doit pouvoir être instancié.
+    freshSigner();
 }
 
 export interface SealOptions {
