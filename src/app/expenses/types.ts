@@ -12,6 +12,7 @@ export interface ExpenseReport {
     requestRefund: boolean;
     noReceiptDeclaration: boolean;
     driveFolderId: string | null;
+    pendingReceiptKeys: string[];
     total: number;
     items: { label: string; amount: number }[];
     ulId: string;

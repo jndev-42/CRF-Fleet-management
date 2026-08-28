@@ -8,8 +8,18 @@ const nextConfig: NextConfig = {
   // Force transpilation of packages that use modern JS syntax (?.  ??) — needed for iOS 12
   transpilePackages: ['react-onesignal', 'next-themes', 'next-auth', '@auth/core'],
 
-  // @react-pdf/renderer uses Node.js internals — prevent Next.js from bundling it
-  serverExternalPackages: ['@react-pdf/renderer'],
+  // Packages using Node.js internals or native bindings — prevent Next.js from bundling them.
+  // sharp: binaire natif, désormais importé depuis src/lib (extraction de generateExpensePdf).
+  // @signpdf/*, node-forge: crypto Node (Buffer, DER) — le bundler casserait le scellement PDF.
+  serverExternalPackages: [
+    '@react-pdf/renderer',
+    'sharp',
+    'node-forge',
+    '@signpdf/signpdf',
+    '@signpdf/placeholder-plain',
+    '@signpdf/signer-p12',
+    '@signpdf/utils',
+  ],
 
   experimental: {
     serverActions: {

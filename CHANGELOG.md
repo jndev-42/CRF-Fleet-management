@@ -1,5 +1,29 @@
 # Changelog
 
+## [5.0.0] — 28 août 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Notes de frais scellées à chaque étape du circuit** — soumission par le demandeur, validation par le responsable, paiement par le trésorier : chaque étape appose une signature numérique sur le PDF sans jamais réécrire les précédentes. Le contenu est verrouillé dès la soumission — seules les signatures suivantes peuvent encore s'y ajouter — et toute modification ultérieure du document est détectable. Les signatures manuscrites du demandeur et du responsable apparaissent sur la feuille ; celle du trésorier n'existe que cryptographiquement et figure au panneau Signatures des lecteurs PDF. Le PDF téléchargé depuis l'application est ce document scellé lui-même, jamais une reconstitution.
+
+- **Le refus est signé, et définitif** — refuser une note exige la signature du responsable, au même titre que la validation. Une note refusée ne peut plus être ni validée ni payée : la correction passe par une nouvelle note.
+
+- **Les justificatifs sont intégrés au PDF** — photos et reçus au format PDF ne sont plus déposés sur Google Drive : ils deviennent des pages du document scellé, qui contient donc la note entière, justificatifs compris, sans dépendance externe. Les photos sont compressées à l'envoi pour que le fichier reste léger.
+
+- **Nouveau modèle de feuille de frais** — le PDF suit le formulaire officiel de septembre 2023.
+
+### 🐛 Correctifs
+
+- **Signature stylisée illisible en thème sombre** — dans la fenêtre de signature, l'aperçu du nom s'affichait en clair sur le fond clair de la zone. Il reprend désormais les couleurs de la signature réellement produite, lisibles dans les deux thèmes.
+
+### 📌 À savoir
+
+- **Une note tient 9 postes de dépense** — au-delà, elle occuperait deux pages, ce qui est incompatible avec le placement des signatures. La soumission est alors refusée, avec invitation à scinder la note.
+
+- **Portée de la vérification** — le certificat de signature est auto-signé : Adobe Acrobat affiche « signature valide, identité inconnue » tant qu'il n'a pas été ajouté aux identités approuvées. Toute modification du document après émission reste détectée. La date de signature est celle déclarée par l'application, sans horodatage par un tiers.
+
+- **Plus aucune mention d'un prestataire externe** — la fenêtre s'intitule « Signature électronique ». Le sceau apposé est celui de la Croix-Rouge française ; aucun service tiers n'intervient.
+
 ## [4.12.0] — 26 août 2026
 
 ### ✨ Nouvelles fonctionnalités
@@ -88,7 +112,7 @@
 - **Ergonomie et responsivité de la Saisie de Note de Frais** — Optimisation complète de l'écran de saisie et de gestion des notes de frais pour l'utilisation sur mobile et tablette (`/expenses`) :
   - **Empilement intelligent des dépenses** : Ajustement automatique (`flex-wrap`) des lignes de dépenses sur les écrans mobiles (< 640px). La description s'affiche sur la première ligne et le montant avec bouton de suppression sur la seconde, garantissant un accès sans défilement horizontal ni tronquage de la partie droite.
   - **Actions et formulaires adaptés** : Mise en forme responsive du sélecteur d'imputation et alignement vertical des boutons d'action ("Annuler", "Brouillon", "Signer et Soumettre") sur mobile pour faciliter la saisie tactile.
-  - **Grille adaptative & Modales** : Bascule dynamique en 1 colonne sur mobile pour la vue tableau et le panneau de détails, ajustement du défilement des modales et correction de l'échelle des coordonnées tactiles du canvas de signature manuscrite Yousign.
+  - **Grille adaptative & Modales** : Bascule dynamique en 1 colonne sur mobile pour la vue tableau et le panneau de détails, ajustement du défilement des modales et correction de l'échelle des coordonnées tactiles du canvas de signature manuscrite.
 
 ## [4.8.0] — 28 juillet 2026
 
@@ -140,7 +164,7 @@
   - Encadré d'information sur la fiche véhicule et affichage visuel différencié sur le calendrier (rouge plein / rouge pointillé).
   - Date de fin automatique lors de la remise en service du véhicule.
 - **Imputation des dépenses (Notes de frais)** — Sélection de l'imputation de la dépense (`DLUS`, `DLAS`, `UL`, `Autre`) avec saisie libre en cas de choix "Autre".
-- **Génération PDF Note de frais conforme (C2 INTERNE) & Signatures Yousign** — Génération du PDF officiel de note de frais respectant le modèle C2 INTERNE avec signatures électronique et manuscrite style Yousign du demandeur et du responsable, et tampon officiel de l'UL.
+- **Génération PDF Note de frais conforme (C2 INTERNE) & signature électronique** — Génération du PDF officiel de note de frais respectant le modèle C2 INTERNE avec signature électronique et manuscrite du demandeur et du responsable, et tampon officiel de l'UL.
 - **Refus de la note de frais avec commentaire** — Possibilité pour les valideurs (`SUPER_ADMIN` ou `PRESIDENT`) de refuser une note soumise en joignant obligatoirement un commentaire explicatif.
 - **Rôle Trésorier (`TRESORIER`) & Workflow de paiement** — Rôle centralisé `TRESORIER` avec accès aux notes en attente de paiement et possibilité d'indiquer les notes comme payées (`traité`).
 - **Pagination et tri interactif du tableau de notes de frais** — Tri ascendant/descendant interactif sur toutes les colonnes et barre de pagination configurable (5, 10, 25, 50 par page).

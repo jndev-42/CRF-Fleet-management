@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash, Save, Send, AlertTriangle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import PhotoPicker from '@/components/ui/PhotoPicker';
-import YousignSignatureModal, { SignatureData } from '@/components/expenses/YousignSignatureModal';
+import ElectronicSignatureModal, { SignatureData } from '@/components/expenses/ElectronicSignatureModal';
 
 interface ExpenseItem {
     label: string;
@@ -20,7 +20,7 @@ interface ExpenseFormProps {
         customImputation?: string | null;
         requestRefund: boolean;
         noReceiptDeclaration: boolean;
-        driveFolderId: string | null;
+        pendingReceiptKeys: string[];
         userFunction?: string | null;
         userSignature?: string | null;
         items: { label: string; amount: number }[];
@@ -55,6 +55,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
     const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
 
     const [photos, setPhotos] = useState<File[]>([]);
+    const [receiptKeys, setReceiptKeys] = useState<string[]>(initialData?.pendingReceiptKeys || []);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -122,7 +123,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
             return false;
         }
 
-        if (requestRefund && photos.length === 0 && !certified && !initialData?.driveFolderId) {
+        if (requestRefund && photos.length === 0 && !certified && receiptKeys.length === 0) {
             setError('Veuillez soit ajouter au moins un justificatif (photo), soit cocher la déclaration sur l\'honneur.');
             return false;
         }
@@ -156,16 +157,13 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
         setError(null);
 
         try {
-            let driveFolderId = initialData?.driveFolderId || null;
+            let allReceiptKeys = receiptKeys;
 
             if (requestRefund && photos.length > 0) {
                 const fd = new FormData();
                 photos.forEach(file => {
                     fd.append('files', file);
                 });
-                if (driveFolderId) {
-                    fd.append('folderId', driveFolderId);
-                }
 
                 const uploadRes = await fetch('/api/expenses/upload', {
                     method: 'POST',
@@ -174,14 +172,16 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
 
                 if (!uploadRes.ok) {
                     if (uploadRes.status === 413) {
-                        throw new Error('Taille des justificatifs trop importante pour le serveur (Erreur 413 Payload Too Large). Limite : 150 Mo au total (15 Mo max par fichier).');
+                        throw new Error('Taille des justificatifs trop importante pour le serveur (Erreur 413 Payload Too Large). Limite : 4,2 Mo au total par envoi.');
                     }
                     const errData = await uploadRes.json().catch(() => ({}));
-                    throw new Error(errData.error || 'Erreur lors de l\'envoi des justificatifs sur Google Drive.');
+                    throw new Error(errData.error || 'Erreur lors du dépôt des justificatifs.');
                 }
 
                 const uploadData = await uploadRes.json();
-                driveFolderId = uploadData.folderId;
+                allReceiptKeys = [...receiptKeys, ...(uploadData.keys || [])];
+                setReceiptKeys(allReceiptKeys);
+                setPhotos([]);
             }
 
             if (initialData) {
@@ -193,10 +193,10 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     imputation: imputation,
                     customImputation: imputation === 'Autre' ? customImputation.trim() : null,
                     requestRefund: requestRefund,
-                    noReceiptDeclaration: requestRefund && photos.length === 0 && !driveFolderId ? certified : false,
+                    noReceiptDeclaration: requestRefund && allReceiptKeys.length === 0 ? certified : false,
                     userFunction: funcTitle,
                     userSignature: sigData || userSignature,
-                    driveFolderId: driveFolderId,
+                    receiptKeys: allReceiptKeys,
                     items: validItems.map(item => ({
                         label: item.label.trim(),
                         amount: parseFloat(item.amount)
@@ -221,10 +221,10 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     imputation: imputation,
                     customImputation: imputation === 'Autre' ? customImputation.trim() : null,
                     requestRefund: requestRefund,
-                    noReceiptDeclaration: requestRefund && photos.length === 0 ? certified : false,
+                    noReceiptDeclaration: requestRefund && allReceiptKeys.length === 0 ? certified : false,
                     userFunction: funcTitle,
                     userSignature: sigData || userSignature,
-                    driveFolderId: driveFolderId,
+                    receiptKeys: allReceiptKeys,
                     items: validItems.map(item => ({
                         label: item.label.trim(),
                         amount: parseFloat(item.amount)
@@ -473,10 +473,10 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                             photos={photos}
                             onPhotosChange={setPhotos}
                             label="Justificatifs (Photos ou PDF)"
-                            hint="Importez des photos ou des fichiers PDF de vos reçus. Maximum 15 Mo par fichier · 150 Mo max au total."
+                            hint="Importez des photos ou des fichiers PDF de vos reçus. Maximum 4,2 Mo par fichier et par envoi."
                             accept="image/*,application/pdf"
-                            maxSizeMB={15}
-                            maxTotalSizeMB={150}
+                            maxSizeMB={4.2}
+                            maxTotalSizeMB={4.2}
                         />
 
                         {/* Déclaration sur l'honneur si pas de justificatifs */}
@@ -540,8 +540,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 </button>
             </div>
 
-            {/* Modal de signature Yousign du demandeur */}
-            <YousignSignatureModal
+            {/* Modale de signature électronique du demandeur */}
+            <ElectronicSignatureModal
                 isOpen={isSignatureModalOpen}
                 onClose={() => setIsSignatureModalOpen(false)}
                 onSign={handleSignatureConfirmed}

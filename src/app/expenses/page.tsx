@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
-import YousignSignatureModal, { SignatureData } from '@/components/expenses/YousignSignatureModal';
+import ElectronicSignatureModal, { SignatureData } from '@/components/expenses/ElectronicSignatureModal';
 import ExpensesFilters from './ExpensesFilters';
 import ExpensesTable from './ExpensesTable';
 import ExpenseDetailSidebar from './ExpenseDetailSidebar';
@@ -25,7 +25,18 @@ export default function ExpensesPage() {
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [isJustificatifsModalOpen, setIsJustificatifsModalOpen] = useState(false);
     const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
-    const [validatingReport, setValidatingReport] = useState<ExpenseReport | null>(null);
+    /**
+     * Contexte de signature unifié pour les trois actions signées.
+     *
+     * Un seul état plutôt que trois parallèles : validation, refus et paiement
+     * exigent désormais tous une signature manuscrite, et n'en diffèrent que par
+     * le libellé, le rôle et la charge utile envoyée.
+     */
+    const [signingContext, setSigningContext] = useState<{
+        report: ExpenseReport;
+        kind: 'validate' | 'reject' | 'pay';
+        rejectionComment?: string;
+    } | null>(null);
 
     const userRoles = session?.user?.roles || [];
     const isManager = userRoles.includes('SUPER_ADMIN') || userRoles.includes('PRESIDENT');
@@ -72,37 +83,44 @@ export default function ExpensesPage() {
     }, [selectedReport]);
 
     const openValidateModal = (report: ExpenseReport) => {
-        setValidatingReport(report);
+        setSigningContext({ report, kind: 'validate' });
     };
 
-    const confirmValidate = async (sigData?: SignatureData) => {
-        if (!validatingReport) return;
+    /** Envoie l'action signée correspondant au contexte courant. */
+    const confirmSigned = async (sigData: SignatureData) => {
+        if (!signingContext) return;
+        const { report, kind, rejectionComment } = signingContext;
+        const id = report.id;
 
-        const id = validatingReport.id;
+        // Le serveur exige la signature pour les trois actions : elle est apposée
+        // sur le PDF puis scellée cryptographiquement.
+        const payload: Record<string, unknown> = { action: kind };
+        if (kind === 'validate') payload.validatorSignature = sigData;
+        if (kind === 'reject') { payload.validatorSignature = sigData; payload.rejectionComment = rejectionComment; }
+        if (kind === 'pay') payload.payerSignature = sigData;
+
         setActionLoading(id);
         try {
             const res = await fetch(`/api/expenses/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'validate',
-                    validatorSignature: sigData || null,
-                })
+                body: JSON.stringify(payload),
             });
             if (res.ok) {
                 const data = await res.json();
                 fetchReports();
                 if (selectedReport?.id === id) {
-                    setSelectedReport(prev => prev ? {
-                        ...prev,
-                        status: data.status || 'traité',
-                        validatorName: session?.user?.name || ''
-                    } : null);
+                    setSelectedReport(prev => {
+                        if (!prev) return null;
+                        if (kind === 'validate') return { ...prev, status: data.status || 'traité', validatorName: session?.user?.name || '' };
+                        if (kind === 'reject') return { ...prev, status: 'refusé', rejectionComment: rejectionComment?.trim() || '', rejectorName: session?.user?.name || '' };
+                        return { ...prev, status: 'traité', payerName: session?.user?.name || '' };
+                    });
                 }
-                setValidatingReport(null);
+                setSigningContext(null);
             } else {
                 const err = await res.json();
-                alert(err.error || 'Erreur lors de la validation.');
+                alert(err.error || 'Erreur lors de l\'opération.');
             }
         } catch (error) {
             console.error(error);
@@ -112,71 +130,26 @@ export default function ExpensesPage() {
         }
     };
 
-    const handleReject = async (id: string) => {
+    const handleReject = (id: string) => {
         const comment = prompt('Veuillez indiquer le motif du refus de cette note de frais :');
         if (comment === null) return; // Annulé par l'utilisateur
         if (!comment.trim()) {
             alert('Le commentaire est obligatoire pour refuser une note de frais.');
             return;
         }
-
-        setActionLoading(id);
-        try {
-            const res = await fetch(`/api/expenses/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'reject', rejectionComment: comment })
-            });
-            if (res.ok) {
-                fetchReports();
-                if (selectedReport?.id === id) {
-                    setSelectedReport(prev => prev ? {
-                        ...prev,
-                        status: 'refusé',
-                        rejectionComment: comment.trim(),
-                        rejectorName: session?.user?.name || ''
-                    } : null);
-                }
-            } else {
-                const err = await res.json();
-                alert(err.error || 'Erreur lors du refus.');
-            }
-        } catch (error) {
-            console.error(error);
-            alert('Erreur réseau.');
-        } finally {
-            setActionLoading(null);
-        }
+        const report = reports.find(r => r.id === id);
+        if (!report) return;
+        // Le refus est un événement SIGNÉ qui clôt définitivement le document :
+        // on demande la signature après le motif.
+        setSigningContext({ report, kind: 'reject', rejectionComment: comment });
     };
 
-    const handlePay = async (id: string) => {
-        if (!confirm('Voulez-vous indiquer cette note de frais comme payée ?')) return;
-        setActionLoading(id);
-        try {
-            const res = await fetch(`/api/expenses/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'pay' })
-            });
-            if (res.ok) {
-                fetchReports();
-                if (selectedReport?.id === id) {
-                    setSelectedReport(prev => prev ? {
-                        ...prev,
-                        status: 'traité',
-                        payerName: session?.user?.name || ''
-                    } : null);
-                }
-            } else {
-                const err = await res.json();
-                alert(err.error || 'Erreur lors du paiement.');
-            }
-        } catch (error) {
-            console.error(error);
-            alert('Erreur réseau.');
-        } finally {
-            setActionLoading(null);
-        }
+    const handlePay = (id: string) => {
+        const report = reports.find(r => r.id === id);
+        if (!report) return;
+        // Le paiement est scellé cryptographiquement lui aussi, mais sa signature
+        // n'apparaît PAS visuellement sur le PDF — seulement au panneau Signatures.
+        setSigningContext({ report, kind: 'pay' });
     };
 
     const handleSubmitDraft = async (id: string) => {
@@ -336,19 +309,22 @@ export default function ExpensesPage() {
                 </div>
             )}
 
-            {/* Modale Yousign Signature du Valideur */}
-            {validatingReport && (
-                <YousignSignatureModal
-                    isOpen={Boolean(validatingReport)}
-                    onClose={() => setValidatingReport(null)}
-                    onSign={(sigData) => {
-                        confirmValidate(sigData);
-                    }}
-                    signerName={session?.user?.name || 'Président / Responsable'}
+            {/* Modale de signature — validation, refus ou paiement */}
+            {signingContext && (
+                <ElectronicSignatureModal
+                    isOpen
+                    onClose={() => setSigningContext(null)}
+                    onSign={confirmSigned}
+                    signerName={session?.user?.name || 'Responsable'}
                     signerEmail={session?.user?.email || ''}
-                    roleTitle="Responsable / Valideur"
-                    initialFunction="Président local"
-                    loading={actionLoading === validatingReport.id}
+                    roleTitle={signingContext.kind === 'pay' ? 'Trésorier / Payeur' : 'Responsable / Valideur'}
+                    initialFunction={signingContext.kind === 'pay' ? 'Trésorier' : 'Président local'}
+                    actionVerb={
+                        signingContext.kind === 'pay' ? 'marquer comme payée'
+                        : signingContext.kind === 'reject' ? 'refuser'
+                        : 'valider'
+                    }
+                    loading={actionLoading === signingContext.report.id}
                 />
             )}
 

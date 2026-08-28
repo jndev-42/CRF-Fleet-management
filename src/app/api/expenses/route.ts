@@ -4,6 +4,12 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import crypto from 'crypto';
 import { unauthorizedResponse } from '@/lib/apiAuth';
+import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
+
+// Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
+export const runtime = 'nodejs';
+// Génération + scellement d'un PDF : au-delà du défaut de 10 s.
+export const maxDuration = 30;
 
 const expenseReportSchema = z.object({
     status: z.enum(['brouillon', 'soumis']),
@@ -15,7 +21,7 @@ const expenseReportSchema = z.object({
     noReceiptDeclaration: z.boolean(),
     userSignature: z.union([z.string(), z.any()]).optional().nullable(),
     userFunction: z.string().optional().nullable(),
-    driveFolderId: z.string().optional().nullable(),
+    receiptKeys: z.array(z.string()).optional().default([]),
     items: z.array(z.object({
         label: z.string().min(1, 'Le libellé est requis'),
         amount: z.number().positive('Le montant doit être positif')
@@ -43,7 +49,7 @@ export async function GET(request: Request) {
 
         const selectColumns = `
             er.id, er.userId, er.submittedAt, er.status, er.imputation, er.customImputation,
-            er.requestRefund, er.noReceiptDeclaration, er.driveFolderId, er.total, er.items,
+            er.requestRefund, er.noReceiptDeclaration, er.driveFolderId, er.pendingReceiptKeys, er.total, er.items,
             er.ulId, er.missionName, er.missionDate, er.validatedAt, er.validatedBy,
             er.rejectionComment, er.rejectedAt,
             er.rejectedBy, er.paidAt, er.paidBy, er.userFunction, er.createdAt, er.updatedAt,
@@ -157,6 +163,13 @@ export async function GET(request: Request) {
                 requestRefund: row.requestRefund === 1 || row.requestRefund === '1' || String(row.requestRefund) === 'true',
                 noReceiptDeclaration: row.noReceiptDeclaration === 1 || row.noReceiptDeclaration === '1' || String(row.noReceiptDeclaration) === 'true',
                 driveFolderId: row.driveFolderId ? String(row.driveFolderId) : null,
+                pendingReceiptKeys: (() => {
+                    if (typeof row.pendingReceiptKeys !== 'string' || !row.pendingReceiptKeys.trim()) return [];
+                    try {
+                        const parsed = JSON.parse(row.pendingReceiptKeys);
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch { return []; }
+                })(),
                 total: Number(row.total) || 0,
                 items: parsedItems,
                 ulId: String(row.ulId || ''),
@@ -210,25 +223,45 @@ export async function POST(request: Request) {
             ? JSON.stringify(data.userSignature)
             : (data.userSignature || null);
 
+        // ── Garde-fous préalables à la soumission ────────────────────────────
+        // Une note soumise est scellée immédiatement et le document devient
+        // immuable : mieux vaut refuser en amont que produire un PDF invalide.
+        if (data.status === 'soumis') {
+            if (data.items.length > MAX_ITEMS_SINGLE_PAGE) {
+                return NextResponse.json({
+                    error: `Cette note comporte ${data.items.length} postes de dépense ; le maximum est ` +
+                           `${MAX_ITEMS_SINGLE_PAGE} pour tenir sur une page. Merci de la scinder en plusieurs notes.`,
+                }, { status: 400 });
+            }
+            if (!userSigStr) {
+                return NextResponse.json({
+                    error: 'Votre signature est requise pour soumettre la note de frais.',
+                }, { status: 400 });
+            }
+        }
+
+        // Toujours inséré en brouillon : le passage à « soumis » n'a lieu qu'une
+        // fois le PDF scellé et écrit sur R2. Un échec de scellement laisse donc
+        // une note modifiable, jamais une note soumise sans document.
         await db.execute({
             sql: `
                 INSERT INTO "ExpenseReport" (
                     id, userId, submittedAt, status, imputation, customImputation, requestRefund, noReceiptDeclaration,
-                    userSignature, userFunction, driveFolderId, total, items, ulId, missionName, missionDate, createdAt, updatedAt
+                    userSignature, userFunction, pendingReceiptKeys, total, items, ulId, missionName, missionDate, createdAt, updatedAt
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `,
             args: [
                 id,
                 session.user.id,
                 now,
-                data.status,
+                'brouillon', // promu à « soumis » seulement après scellement réussi
                 imputation,
                 customImputation,
                 data.requestRefund ? 1 : 0,
                 data.noReceiptDeclaration ? 1 : 0,
                 userSigStr,
                 data.userFunction || null,
-                data.driveFolderId || null,
+                data.receiptKeys.length ? JSON.stringify(data.receiptKeys) : null,
                 total,
                 JSON.stringify(data.items),
                 ulId,
@@ -239,7 +272,44 @@ export async function POST(request: Request) {
             ],
         });
 
+        // ── Scellement cryptographique #1 ────────────────────────────────────
         if (data.status === 'soumis') {
+            try {
+                const { sealStep1, resolvePendingReceipts } = await import('@/lib/expenses/sealing');
+                const { persistSealed } = await import('@/lib/expenses/persist-seal');
+
+                const parsedSig = userSigStr ? JSON.parse(userSigStr) : null;
+                const attachments = await resolvePendingReceipts(data.receiptKeys);
+                const seal = await sealStep1(id, {
+                    id: session.user.id,
+                    name: session.user.name || session.user.email || 'Demandeur',
+                    signatureImage: parsedSig?.image ?? null,
+                }, new Date(), attachments);
+                await persistSealed({
+                    reportId: id,
+                    seal,
+                    expectedStatus: 'brouillon',
+                    nextStatus: 'soumis',
+                    // Intégrés au PDF scellé : le dépôt transitoire n'a plus de raison d'être.
+                    extraColumns: { pendingReceiptKeys: null },
+                });
+
+                if (data.receiptKeys.length) {
+                    const { deleteObject } = await import('@/lib/r2');
+                    await Promise.allSettled(data.receiptKeys.map(key => deleteObject(key)));
+                }
+            } catch (sealErr: unknown) {
+                // Le scellement n'est PAS accessoire : contrairement aux notifications
+                // push, son échec doit faire échouer la soumission. La note reste en
+                // brouillon, donc modifiable et resoumettable.
+                console.error('[POST /api/expenses] scellement #1 échoué', sealErr);
+                return NextResponse.json({
+                    error: 'La note a été enregistrée en brouillon mais n\'a pas pu être scellée. ' +
+                           'Réessayez de la soumettre.',
+                    id,
+                }, { status: 500 });
+            }
+
             try {
                 const requesterName = session.user.name || session.user.email || 'Un membre';
                 const { sendPushNotification } = await import('@/lib/onesignal');

@@ -6,9 +6,56 @@ vi.mock('@/lib/db', async () => {
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
 
+// R2 est un service externe : toujours mocké (règle src/__tests__/CLAUDE.md).
+vi.mock('@/lib/r2', () => ({
+    putObject: vi.fn(async () => undefined),
+    getObject: vi.fn(async () => Buffer.from('%PDF-1.3 scelle')),
+    headObject: vi.fn(async () => true),
+    deleteObject: vi.fn(async () => undefined),
+    buildExpenseKey: (id: string, rev: number, att: string) => `${id}/v${rev}-${att}.pdf`,
+    buildExpenseStagingKey: (stagingId: string, name: string) => `expenses-staging/${stagingId}/${name}`,
+    newAttemptId: () => 'testatt',
+    R2Error: class R2Error extends Error {},
+    R2ConfigError: class R2ConfigError extends Error {},
+}));
+
+// Dérogation ASSUMÉE à « ne mocker que les services externes » : le scellement
+// est du métier interne, mais chaque passe coûte une signature RSA (~1 s). La
+// chaîne cryptographique réelle est couverte par `unit/pdf-signature.test.ts`,
+// qui enchaîne trois scellements via le sealPdf de production.
+vi.mock('@/lib/expenses/sealing', () => {
+    const fakeSeal = (step: 1 | 2 | 3, role: string) => async (reportId: string, signer: { id: string; name: string }) => ({
+        buffer: Buffer.from(`%PDF-1.3 scelle-${step}`),
+        key: `${reportId}/v${step}-testatt.pdf`,
+        revision: {
+            step, signerId: signer.id, signerName: signer.name, role,
+            signedAt: new Date().toISOString(), businessDate: null,
+            r2Key: `${reportId}/v${step}-testatt.pdf`,
+        },
+    });
+    return {
+        sealStep1: vi.fn(fakeSeal(1, 'Demandeur')),
+        sealStep2: vi.fn(fakeSeal(2, 'Valideur')),
+        sealStep3: vi.fn(fakeSeal(3, 'Payeur')),
+        // Le vrai résolveur lit R2 ; en test, un justificatif est un simple passe-plat.
+        resolvePendingReceipts: vi.fn(async (keys: string[]) =>
+            keys.map(key => ({ buffer: Buffer.from('%PDF-1.3 justificatif'), mime: key.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg' }))),
+        appendRevision: (existing: unknown, rev: unknown) => {
+            const arr = typeof existing === 'string' && existing ? JSON.parse(existing) : [];
+            return JSON.stringify([...arr, rev]);
+        },
+        SealingError: class SealingError extends Error {},
+        RevisionMismatchError: class RevisionMismatchError extends Error {},
+        TooManyItemsError: class TooManyItemsError extends Error {},
+    };
+});
+
+/** Signature factice au format produit par ElectronicSignatureModal. */
+const SIG = { mode: 'draw', image: 'data:image/png;base64,iVBORw0KGgo=', name: 'Testeur', date: '2026-08-28', hash: 'abc123' };
+
 import { auth } from '@/auth';
 import { GET as getList, POST as createReport } from '@/app/api/expenses/route';
-import { PATCH as updateReport } from '@/app/api/expenses/[id]/route';
+import { GET as getReport, PATCH as updateReport } from '@/app/api/expenses/[id]/route';
 import { seedRoles, seedUser, seedUserRole, db } from './setup';
 
 const mockedAuth = vi.mocked(auth);
@@ -68,6 +115,7 @@ describe('Expense Report integration tests', () => {
             mockedAuth.mockResolvedValue(null);
             const req = makePostRequest({
                 status: 'soumis',
+                userSignature: SIG,
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
@@ -81,6 +129,7 @@ describe('Expense Report integration tests', () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'] } } as never);
             const req = makePostRequest({
                 status: 'soumis',
+                userSignature: SIG,
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
@@ -94,6 +143,7 @@ describe('Expense Report integration tests', () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
             const req = makePostRequest({
                 status: 'soumis',
+                userSignature: SIG,
                 imputation: 'Autre',
                 customImputation: 'Projet Formation 2026',
                 requestRefund: true,
@@ -129,6 +179,7 @@ describe('Expense Report integration tests', () => {
             const req = makePostRequest({
                 missionName: '   ',
                 status: 'soumis',
+                userSignature: SIG,
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
@@ -144,6 +195,7 @@ describe('Expense Report integration tests', () => {
             const missing = await createReport(makePostRequest({
                 missionDate: undefined,
                 status: 'soumis',
+                userSignature: SIG,
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
@@ -154,6 +206,7 @@ describe('Expense Report integration tests', () => {
             const malformed = await createReport(makePostRequest({
                 missionDate: '12/03/2026',
                 status: 'soumis',
+                userSignature: SIG,
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
@@ -189,6 +242,7 @@ describe('Expense Report integration tests', () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18', name: 'Standard User' } } as never);
             const req = makePostRequest({
                 status: 'soumis',
+                userSignature: SIG,
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
@@ -302,7 +356,7 @@ describe('Expense Report integration tests', () => {
 
         it('validating report with requestRefund=1 transitions to en_attente_paiement', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
-            const req = makePatchRequest({ action: 'validate' });
+            const req = makePatchRequest({ action: 'validate', validatorSignature: SIG });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-submitted-refund' }) });
             expect(res.status).toBe(200);
 
@@ -313,7 +367,7 @@ describe('Expense Report integration tests', () => {
 
         it('validating report with requestRefund=0 transitions directly to traité', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
-            const req = makePatchRequest({ action: 'validate' });
+            const req = makePatchRequest({ action: 'validate', validatorSignature: SIG });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-submitted-norefund' }) });
             expect(res.status).toBe(200);
 
@@ -323,7 +377,7 @@ describe('Expense Report integration tests', () => {
 
         it('allows manager to reject a report with a comment', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
-            const req = makePatchRequest({ action: 'reject', rejectionComment: 'Justificatif manquant' });
+            const req = makePatchRequest({ action: 'reject', rejectionComment: 'Justificatif manquant', validatorSignature: SIG });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-submitted-refund' }) });
             expect(res.status).toBe(200);
 
@@ -335,21 +389,21 @@ describe('Expense Report integration tests', () => {
 
         it('returns 400 when rejecting without a comment', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
-            const req = makePatchRequest({ action: 'reject', rejectionComment: '' });
+            const req = makePatchRequest({ action: 'reject', rejectionComment: '', validatorSignature: SIG });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-submitted-refund' }) });
             expect(res.status).toBe(400);
         });
 
         it('returns 403 when PRESIDENT attempts to mark report as paid', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
-            const req = makePatchRequest({ action: 'pay' });
+            const req = makePatchRequest({ action: 'pay', payerSignature: SIG });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-pending' }) });
             expect(res.status).toBe(403);
         });
 
         it('allows TRESORIER to mark pending payment report as paid (traité)', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-tresorier', email: 'tresorier@test.com', roles: ['TRESORIER'] } } as never);
-            const req = makePatchRequest({ action: 'pay' });
+            const req = makePatchRequest({ action: 'pay', payerSignature: SIG });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-pending' }) });
             expect(res.status).toBe(200);
 
@@ -371,7 +425,7 @@ describe('Expense Report integration tests', () => {
 
         it('creates a notification for TRESORIER when a report is validated with refund requirement', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
-            const req = makePatchRequest({ action: 'validate' });
+            const req = makePatchRequest({ action: 'validate', validatorSignature: SIG });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-submitted-refund' }) });
             expect(res.status).toBe(200);
 
@@ -384,11 +438,42 @@ describe('Expense Report integration tests', () => {
         });
     });
 
+    describe('GET /api/expenses/[id]', () => {
+        beforeEach(async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
+        });
+
+        it('restitue les justificatifs en attente sous forme de tableau', async () => {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, pendingReceiptKeys)
+                      VALUES ('exp-recus', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0, '[]', 'ul-paris-18', ?)`,
+                args: [JSON.stringify(['expenses-staging/s1/a.jpg'])],
+            });
+            const res = await getReport(new Request('http://localhost/api/expenses/exp-recus'), { params: Promise.resolve({ id: 'exp-recus' }) });
+            expect(res.status).toBe(200);
+            const body = await res.json();
+            expect(body.pendingReceiptKeys).toEqual(['expenses-staging/s1/a.jpg']);
+        });
+
+        it('retombe sur un tableau vide si le journal de justificatifs est corrompu', async () => {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, pendingReceiptKeys)
+                      VALUES ('exp-corrompu', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0, '[]', 'ul-paris-18', '{pas du JSON valide')`,
+                args: [],
+            });
+            const res = await getReport(new Request('http://localhost/api/expenses/exp-corrompu'), { params: Promise.resolve({ id: 'exp-corrompu' }) });
+            expect(res.status).toBe(200);
+            expect((await res.json()).pendingReceiptKeys).toEqual([]);
+        });
+    });
+
     describe('GET /api/expenses/[id]/pdf', () => {
         beforeEach(async () => {
             await db.execute({
-                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund, userFunction, userSignature)
-                      VALUES ('exp-pdf-test', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 45.0, '[{"label":"Carburant","amount":45.0}]', 'ul-paris-18', 1, 'Bénévole local', '{"name":"Standard User"}')`
+                // `r2Key` est indispensable : la route ne régénère plus rien, elle
+                // ne fait que servir le document scellé.
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund, userFunction, userSignature, r2Key)
+                      VALUES ('exp-pdf-test', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 45.0, '[{"label":"Carburant","amount":45.0}]', 'ul-paris-18', 1, 'Bénévole local', '{"name":"Standard User"}', 'exp-pdf-test/v1-abc.pdf')`
             });
         });
 
@@ -399,7 +484,7 @@ describe('Expense Report integration tests', () => {
             expect(res.status).toBe(401);
         });
 
-        it('returns a PDF response with Content-Type application/pdf', async () => {
+        it('sert le document scellé avec le bon Content-Type', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'] } } as never);
             const { GET: getPdf } = await import('@/app/api/expenses/[id]/pdf/route');
             const res = await getPdf(new Request('http://localhost/api/expenses/exp-pdf-test/pdf'), { params: Promise.resolve({ id: 'exp-pdf-test' }) });
@@ -466,8 +551,354 @@ describe('Expense Report integration tests', () => {
             });
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'], ulId: 'ul-paris-18' } } as never);
 
-            const res = await updateReport(makePatchRequest({ action: 'validate' }), { params: Promise.resolve({ id: 'exp-draft' }) });
+            const res = await updateReport(makePatchRequest({ action: 'validate', validatorSignature: SIG }), { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(200);
+        });
+
+        // Régression : la soumission d'un BROUILLON existant via PATCH (relecture
+        // puis envoi) ne déclenchait AUCUN scellement — la note passait « soumise »
+        // sans jamais produire de PDF signé. Seule la création directe (POST, note
+        // jamais enregistrée en brouillon au préalable) scellait.
+        it('scelle réellement le PDF lors de la soumission d\'un brouillon existant (PATCH)', async () => {
+            const req = makePatchRequest({
+                action: 'submit',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                userSignature: SIG,
+                items: [{ label: 'Repas', amount: 20 }],
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(200);
+
+            const row = (await db.execute({
+                sql: 'SELECT status, r2Key, signatureRevisions FROM "ExpenseReport" WHERE id = ?',
+                args: ['exp-draft'],
+            })).rows[0];
+            expect(row.status).toBe('soumis');
+            expect(row.r2Key).toBeTruthy();
+            expect(JSON.parse(row.signatureRevisions as string)).toHaveLength(1);
+        });
+
+        it('refuse la soumission d\'un brouillon existant sans signature du demandeur (PATCH, 400)', async () => {
+            const req = makePatchRequest({
+                action: 'submit',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                items: [{ label: 'Repas', amount: 20 }],
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(400);
+
+            // La note reste modifiable — jamais « soumise » sans document scellé.
+            const row = (await db.execute({
+                sql: 'SELECT status, r2Key FROM "ExpenseReport" WHERE id = ?', args: ['exp-draft'],
+            })).rows[0];
+            expect(row.status).toBe('brouillon');
+            expect(row.r2Key).toBeFalsy();
+        });
+
+        it('persiste les justificatifs déposés lors d\'un enregistrement de brouillon', async () => {
+            const req = makePatchRequest({
+                action: 'update',
+                status: 'brouillon',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                receiptKeys: ['expenses-staging/s1/a.jpg', 'expenses-staging/s1/b.pdf'],
+                items: [{ label: 'Repas', amount: 20 }],
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(200);
+
+            const row = (await db.execute({
+                sql: 'SELECT pendingReceiptKeys FROM "ExpenseReport" WHERE id = ?', args: ['exp-draft'],
+            })).rows[0];
+            expect(JSON.parse(row.pendingReceiptKeys as string)).toEqual([
+                'expenses-staging/s1/a.jpg', 'expenses-staging/s1/b.pdf',
+            ]);
+        });
+
+        it('intègre les justificatifs au scellement puis nettoie le dépôt transitoire', async () => {
+            await db.execute({
+                sql: `UPDATE "ExpenseReport" SET pendingReceiptKeys = ? WHERE id = 'exp-draft'`,
+                args: [JSON.stringify(['expenses-staging/s1/a.jpg'])],
+            });
+
+            const { sealStep1, resolvePendingReceipts } = await import('@/lib/expenses/sealing');
+            const { deleteObject } = await import('@/lib/r2');
+
+            const req = makePatchRequest({
+                action: 'submit',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                userSignature: SIG,
+                items: [{ label: 'Repas', amount: 20 }],
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(200);
+
+            expect(vi.mocked(resolvePendingReceipts)).toHaveBeenCalledWith(['expenses-staging/s1/a.jpg']);
+            expect(vi.mocked(sealStep1)).toHaveBeenCalledWith(
+                'exp-draft', expect.anything(), expect.any(Date),
+                [{ buffer: expect.anything(), mime: 'image/jpeg' }]
+            );
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('expenses-staging/s1/a.jpg');
+
+            const row = (await db.execute({
+                sql: 'SELECT pendingReceiptKeys FROM "ExpenseReport" WHERE id = ?', args: ['exp-draft'],
+            })).rows[0];
+            expect(row.pendingReceiptKeys).toBeFalsy();
+        });
+
+        it('retombe sur aucun justificatif si le journal en base est corrompu, sans faire échouer la soumission', async () => {
+            await db.execute({
+                sql: `UPDATE "ExpenseReport" SET pendingReceiptKeys = '{pas du JSON valide' WHERE id = 'exp-draft'`,
+                args: [],
+            });
+            const { resolvePendingReceipts } = await import('@/lib/expenses/sealing');
+
+            const req = makePatchRequest({
+                action: 'submit',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                userSignature: SIG,
+                items: [{ label: 'Repas', amount: 20 }],
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(200);
+            expect(vi.mocked(resolvePendingReceipts)).toHaveBeenCalledWith([]);
+        });
+
+        it('refuse la soumission d\'un brouillon existant dépassant 9 postes (400)', async () => {
+            const req = makePatchRequest({
+                action: 'submit',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                userSignature: SIG,
+                items: Array.from({ length: 10 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(400);
+            expect((await res.json()).error).toContain('scinder');
+        });
+
+        it('500 si le scellement échoue lors de la soumission d\'un brouillon existant, sans changer son statut', async () => {
+            const { sealStep1 } = await import('@/lib/expenses/sealing');
+            vi.mocked(sealStep1).mockRejectedValueOnce(new Error('signature RSA indisponible'));
+
+            const req = makePatchRequest({
+                action: 'submit',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                userSignature: SIG,
+                items: [{ label: 'Repas', amount: 20 }],
+            });
+            const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
+            expect(res.status).toBe(500);
+
+            const row = (await db.execute({
+                sql: 'SELECT status FROM "ExpenseReport" WHERE id = ?', args: ['exp-draft'],
+            })).rows[0];
+            expect(row.status).toBe('brouillon');
+        });
+    });
+
+    describe('Scellement cryptographique — signatures obligatoires', () => {
+        beforeEach(async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', name: 'President User', roles: ['SUPER_ADMIN', 'PRESIDENT', 'TRESORIER'], ulId: 'ul-paris-18' } } as never);
+        });
+
+        it('refuse la soumission sans signature du demandeur (400)', async () => {
+            const req = new Request('http://localhost/api/expenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
+                    requestRefund: true, noReceiptDeclaration: false,
+                    items: [{ label: 'Péage', amount: 10 }],
+                }),
+            });
+            const res = await createReport(req);
+            expect(res.status).toBe(400);
+            // Sceller un PDF dont la colonne demandeur est vide produirait un
+            // artefact définitivement invalide : DocMDP interdit de le corriger.
+            expect((await res.json()).error).toContain('signature');
+        });
+
+        it('refuse une note de plus de 9 postes (400) — elle déborderait sur 2 pages', async () => {
+            const req = new Request('http://localhost/api/expenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
+                    requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
+                    items: Array.from({ length: 10 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
+                }),
+            });
+            const res = await createReport(req);
+            expect(res.status).toBe(400);
+            expect((await res.json()).error).toContain('scinder');
+        });
+
+        it('accepte une note de 9 postes exactement', async () => {
+            const req = new Request('http://localhost/api/expenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
+                    requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
+                    items: Array.from({ length: 9 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
+                }),
+            });
+            expect((await createReport(req)).status).toBe(201);
+        });
+
+        it('enregistre r2Key et le journal des révisions à la soumission', async () => {
+            const req = new Request('http://localhost/api/expenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
+                    requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
+                    items: [{ label: 'Péage', amount: 10 }],
+                }),
+            });
+            const { id } = await (await createReport(req)).json();
+            const row = (await db.execute({ sql: 'SELECT status, r2Key, signatureRevisions FROM "ExpenseReport" WHERE id = ?', args: [id] })).rows[0];
+            expect(row.status).toBe('soumis');
+            expect(row.r2Key).toBeTruthy();
+            expect(JSON.parse(row.signatureRevisions as string)).toHaveLength(1);
+        });
+
+        it('intègre les justificatifs déposés au PDF puis nettoie le dépôt transitoire', async () => {
+            const { sealStep1, resolvePendingReceipts } = await import('@/lib/expenses/sealing');
+            const { deleteObject } = await import('@/lib/r2');
+
+            const req = new Request('http://localhost/api/expenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
+                    requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
+                    receiptKeys: ['expenses-staging/s1/ticket.jpg', 'expenses-staging/s1/facture.pdf'],
+                    items: [{ label: 'Péage', amount: 10 }],
+                }),
+            });
+            const { id } = await (await createReport(req)).json();
+
+            expect(vi.mocked(resolvePendingReceipts)).toHaveBeenCalledWith([
+                'expenses-staging/s1/ticket.jpg', 'expenses-staging/s1/facture.pdf',
+            ]);
+            expect(vi.mocked(sealStep1)).toHaveBeenCalledWith(
+                id, expect.anything(), expect.any(Date),
+                [
+                    { buffer: expect.anything(), mime: 'image/jpeg' },
+                    { buffer: expect.anything(), mime: 'application/pdf' },
+                ]
+            );
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('expenses-staging/s1/ticket.jpg');
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('expenses-staging/s1/facture.pdf');
+
+            const row = (await db.execute({
+                sql: 'SELECT pendingReceiptKeys FROM "ExpenseReport" WHERE id = ?', args: [id],
+            })).rows[0];
+            expect(row.pendingReceiptKeys).toBeFalsy();
+        });
+
+        it('refuse la validation sans signature du valideur (400)', async () => {
+            await db.execute({ sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key, signatureRevisions) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                args: ['exp-v', 'user-president', new Date().toISOString(), 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-v/v1-a.pdf', '[{}]'] });
+            const res = await updateReport(makePatchRequest({ action: 'validate' }), { params: Promise.resolve({ id: 'exp-v' }) });
+            expect(res.status).toBe(400);
+        });
+
+        it('refuse le paiement sans signature du payeur (400)', async () => {
+            await db.execute({ sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key, signatureRevisions) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                args: ['exp-p', 'user-president', new Date().toISOString(), 'en_attente_paiement', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-p/v2-a.pdf', '[{},{}]'] });
+            const res = await updateReport(makePatchRequest({ action: 'pay' }), { params: Promise.resolve({ id: 'exp-p' }) });
+            expect(res.status).toBe(400);
+        });
+
+        it('persiste la signature du valideur lors d\'un REFUS (décision D5)', async () => {
+            await db.execute({ sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key, signatureRevisions) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                args: ['exp-r', 'user-president', new Date().toISOString(), 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-r/v1-a.pdf', '[{}]'] });
+            const res = await updateReport(
+                makePatchRequest({ action: 'reject', rejectionComment: 'Justificatif manquant', validatorSignature: SIG }),
+                { params: Promise.resolve({ id: 'exp-r' }) });
+            expect(res.status).toBe(200);
+
+            const row = (await db.execute({ sql: 'SELECT status, validatorSignature, signatureRevisions FROM "ExpenseReport" WHERE id = ?', args: ['exp-r'] })).rows[0];
+            expect(row.status).toBe('refusé');
+            // Le refus est un événement signé, pas une simple annotation.
+            expect(row.validatorSignature).toBeTruthy();
+            expect(JSON.parse(row.signatureRevisions as string)).toHaveLength(2);
+        });
+
+        it('interdit toute transition depuis « refusé » — le document est clos', async () => {
+            await db.execute({ sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key) VALUES (?,?,?,?,?,?,?,?,?)`,
+                args: ['exp-c', 'user-president', new Date().toISOString(), 'refusé', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-c/v2-a.pdf'] });
+
+            for (const body of [{ action: 'validate', validatorSignature: SIG }, { action: 'pay', payerSignature: SIG }]) {
+                const res = await updateReport(makePatchRequest(body), { params: Promise.resolve({ id: 'exp-c' }) });
+                expect(res.status).toBe(400);
+            }
+        });
+    });
+
+    describe('Échecs de scellement — codes HTTP', () => {
+        beforeEach(async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', name: 'President User', roles: ['SUPER_ADMIN', 'TRESORIER'], ulId: 'ul-paris-18' } } as never);
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key, signatureRevisions) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+                args: ['exp-err', 'user-president', new Date().toISOString(), 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-err/v1-a.pdf', '[{}]'],
+            });
+        });
+
+        async function validateWithSealError(err: Error): Promise<Response> {
+            const { sealStep2 } = await import('@/lib/expenses/sealing');
+            vi.mocked(sealStep2).mockRejectedValueOnce(err);
+            return updateReport(
+                makePatchRequest({ action: 'validate', validatorSignature: SIG }),
+                { params: Promise.resolve({ id: 'exp-err' }) },
+            );
+        }
+
+        /** Reproduit un type d'erreur par son nom de constructeur, comme en production. */
+        function namedError(name: string, message: string): Error {
+            const E = { [name]: class extends Error {} }[name];
+            Object.defineProperty(E, 'name', { value: name });
+            return new E(message);
+        }
+
+        it('409 quand le journal de révisions et le PDF divergent', async () => {
+            const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const res = await validateWithSealError(namedError('RevisionMismatchError', 'divergence'));
+            expect(res.status).toBe(409);
+            // Une divergence se diagnostique, elle ne se répare jamais en silence.
+            expect((await res.json()).error).toContain('Incohérence');
+            spy.mockRestore();
+        });
+
+        it('409 quand un appel concurrent a déjà fait avancer la note', async () => {
+            const res = await validateWithSealError(namedError('ConcurrentTransitionError', 'concurrence'));
+            expect(res.status).toBe(409);
+            expect((await res.json()).error).toContain('changé d\'état');
+        });
+
+        it('400 quand la note dépasse une page', async () => {
+            const res = await validateWithSealError(namedError('TooManyItemsError', 'Trop de lignes, scindez votre note.'));
+            expect(res.status).toBe(400);
+            expect((await res.json()).error).toContain('scindez');
+        });
+
+        it('500 sur échec imprévu, sans modifier la note', async () => {
+            const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            const res = await validateWithSealError(new Error('R2 injoignable'));
+            expect(res.status).toBe(500);
+
+            // Le scellement n'est pas accessoire : son échec annule la transition.
+            const row = (await db.execute({ sql: 'SELECT status FROM "ExpenseReport" WHERE id = ?', args: ['exp-err'] })).rows[0];
+            expect(row.status).toBe('soumis');
+            spy.mockRestore();
         });
     });
 });

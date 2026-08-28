@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import YousignSignatureModal, { type SignatureData } from '@/components/expenses/YousignSignatureModal';
+import ElectronicSignatureModal, { type SignatureData } from '@/components/expenses/ElectronicSignatureModal';
 
 beforeEach(() => {
     vi.restoreAllMocks();
@@ -11,17 +11,17 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe('YousignSignatureModal', () => {
+describe('ElectronicSignatureModal', () => {
     it('ne rend rien si isOpen est false', () => {
         const { container } = render(
-            <YousignSignatureModal isOpen={false} onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
+            <ElectronicSignatureModal isOpen={false} onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
         );
         expect(container.firstChild).toBeNull();
     });
 
     it('pré-remplit le nom du signataire et la fonction par défaut', () => {
         render(
-            <YousignSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
         );
         expect(screen.getByDisplayValue('Jean Dupont')).toBeTruthy();
         expect(screen.getByDisplayValue('Bénévole local')).toBeTruthy();
@@ -31,7 +31,7 @@ describe('YousignSignatureModal', () => {
     it('refuse la signature sans case d\'engagement cochée', () => {
         const onSign = vi.fn();
         render(
-            <YousignSignatureModal isOpen onClose={vi.fn()} onSign={onSign} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={onSign} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
         );
         fireEvent.click(screen.getByRole('checkbox'));
         fireEvent.click(screen.getByRole('button', { name: /Signer et soumettre/ }));
@@ -43,7 +43,7 @@ describe('YousignSignatureModal', () => {
     it('refuse une signature stylisée sans texte saisi', () => {
         const onSign = vi.fn();
         render(
-            <YousignSignatureModal isOpen onClose={vi.fn()} onSign={onSign} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={onSign} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
         );
         fireEvent.change(screen.getByDisplayValue('Jean Dupont'), { target: { value: '' } });
         fireEvent.click(screen.getByRole('button', { name: /Signer et soumettre/ }));
@@ -55,7 +55,7 @@ describe('YousignSignatureModal', () => {
     it('signe avec le mode stylisé (happy path) et appelle onSign', () => {
         const onSign = vi.fn();
         render(
-            <YousignSignatureModal isOpen onClose={vi.fn()} onSign={onSign} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={onSign} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
         );
 
         fireEvent.click(screen.getByRole('button', { name: /Signer et soumettre/ }));
@@ -71,7 +71,7 @@ describe('YousignSignatureModal', () => {
 
     it('utilise "valider" plutôt que "soumettre" pour un rôle non-Demandeur', () => {
         render(
-            <YousignSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Responsable / Valideur" />
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Responsable / Valideur" />
         );
         expect(screen.getByRole('button', { name: /Signer et valider/ })).toBeTruthy();
     });
@@ -79,7 +79,7 @@ describe('YousignSignatureModal', () => {
     it('bascule vers le mode manuscrit et exige un tracé', () => {
         const onSign = vi.fn();
         render(
-            <YousignSignatureModal isOpen onClose={vi.fn()} onSign={onSign} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={onSign} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
         );
 
         fireEvent.click(screen.getByRole('button', { name: /Tracer à la main/ }));
@@ -93,7 +93,7 @@ describe('YousignSignatureModal', () => {
     it('appelle onClose au clic sur Annuler', () => {
         const onClose = vi.fn();
         render(
-            <YousignSignatureModal isOpen onClose={onClose} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
+            <ElectronicSignatureModal isOpen onClose={onClose} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
         );
         fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
         expect(onClose).toHaveBeenCalled();
@@ -101,7 +101,7 @@ describe('YousignSignatureModal', () => {
 
     it('désactive les boutons pendant le chargement', () => {
         render(
-            <YousignSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" loading />
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" loading />
         );
         expect((screen.getByRole('button', { name: 'Annuler' }) as HTMLButtonElement).disabled).toBe(true);
         expect((screen.getByRole('button', { name: /Signer et soumettre/ }) as HTMLButtonElement).disabled).toBe(true);
@@ -109,11 +109,27 @@ describe('YousignSignatureModal', () => {
 
     it('réinitialise le formulaire à chaque réouverture', () => {
         const { rerender } = render(
-            <YousignSignatureModal isOpen={false} onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" initialFunction="Président local" />
+            <ElectronicSignatureModal isOpen={false} onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" initialFunction="Président local" />
         );
         rerender(
-            <YousignSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" initialFunction="Président local" />
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" initialFunction="Président local" />
         );
         expect(screen.getByDisplayValue('Président local')).toBeTruthy();
     });
+
+    // Régression : l'aperçu est peint sur un fond clair figé, mais l'encre suivait
+    // `var(--text-primary)` — clair sur clair en thème sombre, signature illisible.
+    it('peint la signature stylisée en encre sombre, sans variable de thème', () => {
+        const { getAllByText } = render(
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" role="requester" />
+        );
+        // Le nom apparaît aussi en en-tête : l'aperçu est celui rendu en italique.
+        const apercu = getAllByText('Jean Dupont')
+            .find(el => (el as HTMLElement).style.fontStyle === 'italic') as HTMLElement;
+        expect(apercu).toBeTruthy();
+        expect(apercu.style.color).toBe('rgb(30, 41, 59)');
+        expect(apercu.style.color).not.toContain('var(');
+        expect(apercu.style.borderBottom).not.toContain('var(');
+    });
+
 });

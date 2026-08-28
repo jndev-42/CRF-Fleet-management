@@ -1,89 +1,11 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer';
-import { createElement, type JSXElementConstructor, type ReactElement } from 'react';
-import ExpensePdfDocument from '@/components/expenses/ExpensePdfDocument';
-import path from 'path';
-import fs from 'fs';
-import sharp from 'sharp';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
-
-
-async function generateExpensePdf(reportId: string): Promise<Buffer> {
-    const result = await db.execute({
-        sql: `
-            SELECT er.*, u.name as userName, u.email as userEmail,
-                   val.name as validatorName, ul.name as ulName, ul.stampImage as ulStampImage
-            FROM "ExpenseReport" er
-            JOIN "User" u ON u.id = er.userId
-            LEFT JOIN "User" val ON val.id = er.validatedBy
-            LEFT JOIN "UniteLocale" ul ON ul.id = er.ulId
-            WHERE er.id = ?
-        `,
-        args: [reportId],
-    });
-
-    if (result.rows.length === 0) {
-        throw new Error('Note de frais non trouvée');
-    }
-
-    const row = result.rows[0];
-
-    let parsedItems = [];
-    try {
-        parsedItems = JSON.parse(row.items as string);
-    } catch (e) {
-        console.error('Failed to parse items for PDF', e);
-    }
-
-    const report = {
-        id: row.id as string,
-        userName: row.userName as string,
-        userEmail: row.userEmail as string,
-        submittedAt: row.submittedAt as string,
-        missionName: (row.missionName as string) || null,
-        missionDate: (row.missionDate as string) || null,
-        status: row.status as string,
-        imputation: (row.imputation as string) || 'DLUS',
-        customImputation: (row.customImputation as string) || null,
-        requestRefund: row.requestRefund === 1,
-        noReceiptDeclaration: row.noReceiptDeclaration === 1,
-        total: Number(row.total),
-        items: parsedItems,
-        ulId: row.ulId as string,
-        ulName: (row.ulName as string) || (row.ulId === 'ul-paris-18' ? 'Paris 18' : row.ulId as string),
-        ulStampImage: (row.ulStampImage as string) || null,
-        userFunction: (row.userFunction as string) || null,
-        userSignature: (row.userSignature as string) || null,
-        validatorName: (row.validatorName as string) || null,
-        validatedAt: (row.validatedAt as string) || null,
-        validatorSignature: (row.validatorSignature as string) || null,
-    };
-
-    let logoSrc = '';
-    try {
-        const logoPath = path.join(process.cwd(), 'public', 'logo_crf_text.png');
-        if (fs.existsSync(logoPath)) {
-            const logoPng = await sharp(logoPath)
-                .resize(480, 130, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
-                .png()
-                .toBuffer();
-            logoSrc = `data:image/png;base64,${logoPng.toString('base64')}`;
-        }
-    } catch (err) {
-        console.error('Failed to process logo image for PDF:', err);
-    }
-
-    const element = createElement(ExpensePdfDocument, {
-        report,
-        logoSrc,
-    }) as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>;
-
-    const buffer = await renderToBuffer(element);
-    return Buffer.from(buffer);
-}
+// Lecture R2 et manipulation de Buffer : runtime Node requis.
+export const runtime = 'nodejs';
+export const maxDuration = 30;
 
 export async function GET(
     request: Request,
@@ -97,34 +19,74 @@ export async function GET(
         }
 
         const ownershipRes = await db.execute({
-            sql: `SELECT userId, status FROM "ExpenseReport" WHERE id = ?`,
+            sql: `SELECT userId, status, r2Key FROM "ExpenseReport" WHERE id = ?`,
             args: [id],
         });
-        const ownershipRow = ownershipRes.rows[0];
-        if (!ownershipRow) {
+        const row = ownershipRes.rows[0];
+        if (!row) {
             return NextResponse.json({ error: 'Note de frais non trouvée' }, { status: 404 });
         }
 
         const roles = session.user.roles || [];
         const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
         const isTresorier = roles.includes('TRESORIER');
-        const isOwner = ownershipRow.userId === session.user.id;
-        if (!isManager && !isOwner && !(isTresorier && ownershipRow.status === 'en_attente_paiement')) {
+        const isOwner = row.userId === session.user.id;
+        if (!isManager && !isOwner && !(isTresorier && row.status === 'en_attente_paiement')) {
             return forbiddenResponse();
         }
 
-        const buffer = await generateExpensePdf(id);
+        const r2Key = (row.r2Key as string) || null;
+        const status = row.status as string;
 
-        return new NextResponse(new Uint8Array(buffer), {
-            status: 200,
-            headers: {
-                'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="note-de-frais-${id}.pdf"`,
-                'Content-Length': String(buffer.length),
-            },
-        });
+        // ── Chemin nominal : proxy pur depuis R2 ─────────────────────────────
+        if (r2Key) {
+            const { getObject } = await import('@/lib/r2');
+            const buffer = await getObject(r2Key);
+            if (!buffer) {
+                // La base référence une clé absente du bucket : anomalie à
+                // diagnostiquer, jamais à masquer par une régénération silencieuse
+                // (le PDF régénéré ne porterait aucune signature).
+                console.error(`[expenses/pdf] objet R2 introuvable pour ${id} : ${r2Key}`);
+                return NextResponse.json({
+                    error: 'Le document scellé est introuvable. Contactez un administrateur.',
+                }, { status: 409 });
+            }
+            return pdfResponse(buffer, id);
+        }
+
+        // ── Aucune clé R2 ────────────────────────────────────────────────────
+        // Un brouillon n'a jamais de document scellé : c'est normal.
+        if (status === 'brouillon') {
+            return NextResponse.json({
+                error: 'Cette note de frais est un brouillon : aucun document scellé n\'existe encore.',
+            }, { status: 404 });
+        }
+
+        // Toute autre note DOIT en avoir un : la soumission ne promeut jamais une
+        // note sans la sceller, et le backfill a couvert l'antériorité (couverture
+        // vérifiée à 100 % avant le retrait du repli qui existait ici).
+        //
+        // ⚠️ NE JAMAIS RÉGÉNÉRER À LA VOLÉE. Le PDF reconstruit ne porterait
+        // AUCUNE signature tout en ayant l'apparence d'un document officiel : le
+        // lecteur ne verrait pas la différence, et l'anomalie resterait invisible.
+        // Mieux vaut refuser et la faire remonter.
+        console.error(`[expenses/pdf] note ${id} [${status}] sans clé R2 — aucun document scellé`);
+        return NextResponse.json({
+            error: 'Le document scellé est introuvable. Contactez un administrateur.',
+        }, { status: 409 });
     } catch (error) {
         console.error('[GET /api/expenses/[id]/pdf]', error);
-        return NextResponse.json({ error: 'Erreur serveur lors de la génération du PDF.' }, { status: 500 });
+        return NextResponse.json({ error: 'Erreur serveur lors de la récupération du PDF.' }, { status: 500 });
     }
+}
+
+function pdfResponse(buffer: Buffer, id: string): NextResponse {
+    return new NextResponse(new Uint8Array(buffer), {
+        status: 200,
+        headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="note-de-frais-${id}.pdf"`,
+            'Content-Length': String(buffer.length),
+        },
+    });
 }

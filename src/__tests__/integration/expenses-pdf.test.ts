@@ -9,6 +9,20 @@ vi.mock('@/lib/db', async () => {
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
 
+// R2 : service externe, toujours mocké.
+const SEALED = Buffer.from('%PDF-1.3 document scelle depuis R2');
+vi.mock('@/lib/r2', () => ({
+    getObject: vi.fn(async (key: string) => (key === 'absent.pdf' ? null : Buffer.from('%PDF-1.3 document scelle depuis R2'))),
+    putObject: vi.fn(async () => undefined),
+    headObject: vi.fn(async () => true),
+}));
+
+// Espionne la génération à la volée : elle NE DOIT PAS être appelée quand une
+// clé R2 existe (D2 — proxy pur).
+vi.mock('@/lib/expenses/pdf', () => ({
+    generateExpensePdf: vi.fn(async () => Buffer.from('%PDF-1.3 genere a la volee')),
+}));
+
 import { GET } from '@/app/api/expenses/[id]/pdf/route';
 import { auth } from '@/auth';
 import { seedUser, seedExpenseReport } from './setup';
@@ -42,10 +56,10 @@ describe('GET /api/expenses/[id]/pdf', () => {
         expect(res.status).toBe(403);
     });
 
-    it('génère le PDF pour son propriétaire (happy path)', async () => {
+    it('sert le document scellé à son propriétaire (happy path)', async () => {
         mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'owner@test.com', roles: ['CHVL'] } } as never);
         await seedUser({ id: 'user-1', email: 'owner@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1' });
+        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', r2Key: 'expense-1/v1-abc.pdf' });
 
         const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
         expect(res.status).toBe(200);
@@ -56,38 +70,67 @@ describe('GET /api/expenses/[id]/pdf', () => {
         mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'tresorier@test.com', roles: ['TRESORIER'] } } as never);
         await seedUser({ id: 'user-1', email: 'owner@test.com' });
         await seedUser({ id: 'user-2', email: 'tresorier@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', status: 'en_attente_paiement' });
-
-        const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
-        expect(res.status).toBe(200);
-    });
-
-    it('génère le PDF d\'une note antérieure sans mission (non-régression)', async () => {
-        mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'owner@test.com', roles: ['CHVL'] } } as never);
-        await seedUser({ id: 'user-1', email: 'owner@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', missionName: null, missionDate: null });
-
-        const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
-        expect(res.status).toBe(200);
-        expect(res.headers.get('Content-Type')).toBe('application/pdf');
-        const buffer = Buffer.from(await res.arrayBuffer());
-        expect(buffer.length).toBeGreaterThan(0);
-    });
-
-    it('génère le PDF d\'une note portant un nom et une date de mission', async () => {
-        mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'owner@test.com', roles: ['CHVL'] } } as never);
-        await seedUser({ id: 'user-1', email: 'owner@test.com' });
         await seedExpenseReport({
-            id: 'expense-1',
-            userId: 'user-1',
-            missionName: 'Maraude Nord',
-            missionDate: '2026-03-12',
+            id: 'expense-1', userId: 'user-1',
+            status: 'en_attente_paiement', r2Key: 'expense-1/v2-abc.pdf',
         });
 
         const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
         expect(res.status).toBe(200);
+    });
+
+});
+
+describe('GET /api/expenses/[id]/pdf — proxy R2', () => {
+    beforeEach(async () => {
+        vi.clearAllMocks();
+        await seedUser({ id: 'owner-r2', email: 'owner-r2@test.com', name: 'Owner R2' });
+        vi.mocked(auth).mockResolvedValue({ user: { id: 'owner-r2', email: 'owner-r2@test.com', roles: ['SECOURISTE'] } } as never);
+    });
+
+    it('sert les octets venant de R2 SANS régénérer le PDF', async () => {
+        await seedExpenseReport({ id: 'exp-r2', userId: 'owner-r2', status: 'soumis', r2Key: 'exp-r2/v1-abc.pdf' });
+
+        const res = await GET(new Request('http://localhost'), { params: Promise.resolve({ id: 'exp-r2' }) });
+        expect(res.status).toBe(200);
         expect(res.headers.get('Content-Type')).toBe('application/pdf');
-        const buffer = Buffer.from(await res.arrayBuffer());
-        expect(buffer.length).toBeGreaterThan(0);
+        expect(Buffer.from(await res.arrayBuffer()).equals(SEALED)).toBe(true);
+
+        // Cœur de la décision D2 : aucune régénération sur le chemin nominal.
+        const { generateExpensePdf } = await import('@/lib/expenses/pdf');
+        expect(vi.mocked(generateExpensePdf)).not.toHaveBeenCalled();
+    });
+
+    it('renvoie 404 pour un brouillon — aucun document scellé n\'existe', async () => {
+        await seedExpenseReport({ id: 'exp-draft', userId: 'owner-r2', status: 'brouillon', r2Key: null });
+        const res = await GET(new Request('http://localhost'), { params: Promise.resolve({ id: 'exp-draft' }) });
+        expect(res.status).toBe(404);
+    });
+
+    it('renvoie 409 si la base référence une clé absente du bucket', async () => {
+        await seedExpenseReport({ id: 'exp-lost', userId: 'owner-r2', status: 'soumis', r2Key: 'absent.pdf' });
+        const res = await GET(new Request('http://localhost'), { params: Promise.resolve({ id: 'exp-lost' }) });
+        // Jamais de régénération silencieuse : le PDF reconstruit ne porterait
+        // aucune signature et masquerait l'anomalie.
+        expect(res.status).toBe(409);
+    });
+
+    // Le repli de génération à la volée a été RETIRÉ une fois le backfill de
+    // production vérifié à 100 %. Une note non-brouillon sans clé R2 est
+    // désormais une anomalie : elle doit remonter, jamais être masquée par un
+    // PDF reconstruit — celui-ci ne porterait aucune signature tout en ayant
+    // l'apparence d'un document officiel.
+    it('renvoie 409 pour une note non-brouillon sans clé R2, sans rien régénérer', async () => {
+        await seedExpenseReport({ id: 'exp-legacy', userId: 'owner-r2', status: 'traité', r2Key: null });
+
+        const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+        const res = await GET(new Request('http://localhost'), { params: Promise.resolve({ id: 'exp-legacy' }) });
+        expect(res.status).toBe(409);
+
+        const { generateExpensePdf } = await import('@/lib/expenses/pdf');
+        expect(vi.mocked(generateExpensePdf)).not.toHaveBeenCalled();
+        expect(err).toHaveBeenCalledWith(expect.stringContaining('sans clé R2'));
+        err.mockRestore();
     });
 });
+
