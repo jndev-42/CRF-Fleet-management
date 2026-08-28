@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.15.0] — 28 août 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Nouveau modèle de feuille de frais (septembre 2023)** — le PDF suit désormais le formulaire officiel en vigueur : bandeaux bleus, ligne de total en lavande, logo en pied de page, mentions d'entité et de destinataires supprimées, blocs de signature sans encadré.
+
+### ⚠️ Changement de comportement
+
+- **Une note tient désormais 9 postes de dépense sur une page, contre 14** — le nouveau modèle a des marges plus larges et une colonne « Date et objet » plus étroite. Au-delà, la note est refusée à la soumission, comme auparavant, avec invitation à la scinder.
+
 ## [4.14.2] — 28 août 2026
 
 ### 🔧 Autres changements

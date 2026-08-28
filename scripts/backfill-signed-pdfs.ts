@@ -11,8 +11,8 @@
  * reviendrait à fabriquer une antériorité sur un document comptable. La date
  * métier est conservée dans `signatureRevisions.businessDate`.
  *
- * ⚠️ NOTES LONGUES (§K13). Une note de plus de 14 postes produit un PDF de deux
- * pages ; le widget serait estampillé page 1 et le bloc signature partirait page 2.
+ * ⚠️ NOTES LONGUES (§K13). Une note dépassant MAX_ITEMS_SINGLE_PAGE postes produit
+ * un PDF de deux pages ; le widget serait estampillé page 1 et le bloc signature partirait page 2.
  * Ces notes sont scellées SANS widget visible — les trois signatures existent
  * cryptographiquement, seul le rendu visuel manque. On ne peut pas les refuser
  * rétroactivement, et les laisser sans PDF violerait la couverture à 100 %.
@@ -157,7 +157,7 @@ async function main(): Promise<void> {
         if (!APPLY) {
             console.log(
                 `  · ${id} [${status}] ${itemCount} postes → ${steps} signature(s)` +
-                (tooLong ? '  ⚠️ >14 postes : scellement SANS widget visible' : '')
+                (tooLong ? `  ⚠️ >${MAX_ITEMS_SINGLE_PAGE} postes : scellement SANS tracé visible` : '')
             );
             continue;
         }

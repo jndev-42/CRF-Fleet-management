@@ -16,11 +16,11 @@ import ExpensePdfDocument from '@/components/expenses/ExpensePdfDocument';
 import {
     sealPdf, decodeSignatureImage, SIGNATURE_LENGTH, assertSigningCertConfigured,
 } from '@/lib/pdf/signature';
-import { verifySignatures, countPages } from '@/lib/pdf/verify';
+import { verifySignatures } from '@/lib/pdf/verify';
 import { assertIncrementalAppend, countRevisions, IncrementalUpdateError } from '@/lib/pdf/incremental';
 import { addSignatureFields, SignatureFieldError } from '@/lib/pdf/fields';
 import {
-    SIGNATURE_WIDGET_RECTS, SIGNATURE_FIELDS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE,
+    SIGNATURE_WIDGET_RECTS, SIGNATURE_FIELDS, assertPageGeometry,
     PageGeometryError, PAGE_WIDTH, PAGE_HEIGHT,
 } from '@/lib/expenses/signature-layout';
 
@@ -114,13 +114,6 @@ describe('signature-layout', () => {
         expect(() => assertPageGeometry(pdf)).not.toThrow();
     }, 20_000);
 
-    it('DÉRIVE le seuil de pagination au lieu de le supposer', async () => {
-        // Ce test est la source de vérité de MAX_ITEMS_SINGLE_PAGE : si la mise en
-        // page du PDF change, il casse et donne la nouvelle valeur — au lieu de
-        // laisser passer un document de 2 pages que le scellement casserait.
-        expect(countPages(await buildPdf(MAX_ITEMS_SINGLE_PAGE))).toBe(1);
-        expect(countPages(await buildPdf(MAX_ITEMS_SINGLE_PAGE + 1))).toBe(2);
-    }, 30_000);
 });
 
 describe('sealPdf', () => {

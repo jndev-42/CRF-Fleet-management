@@ -18,6 +18,7 @@
 
 import { createClient } from '@libsql/client';
 import dotenv from 'dotenv';
+import { MAX_ITEMS_SINGLE_PAGE } from '../src/lib/expenses/signature-layout';
 
 // Cible l'environnement passé en `--env` (défaut : .env.local).
 // Permet d'appliquer la migration sur preview avant la production.
@@ -57,18 +58,19 @@ async function main(): Promise<void> {
         added++;
     }
 
-    // Contrôle d'exploitation lié à la décision D6 : une note de plus de 14 postes
-    // produit un PDF de 2 pages, que le scellement refuse. Les notes DÉJÀ en base
+    // Contrôle d'exploitation lié à la décision D6 : une note dépassant
+    // MAX_ITEMS_SINGLE_PAGE postes produit un PDF de 2 pages, que le scellement
+    // refuse. Les notes DÉJÀ en base
     // ne peuvent pas être refusées rétroactivement — il faut connaître leur nombre
     // avant de lancer le backfill (§K13 du plan de consensus).
     const longNotes = await db.execute(`
         SELECT COUNT(*) AS n FROM "ExpenseReport"
-        WHERE status != 'brouillon' AND json_array_length(items) > 14
+        WHERE status != 'brouillon' AND json_array_length(items) > ${MAX_ITEMS_SINGLE_PAGE}
     `);
     const n = Number(longNotes.rows[0]?.n ?? 0);
 
     console.log(`\n${added} colonne(s) ajoutée(s).`);
-    console.log(`Notes existantes de plus de 14 postes : ${n}`);
+    console.log(`Notes existantes de plus de ${MAX_ITEMS_SINGLE_PAGE} postes : ${n}`);
     if (n > 0) {
         console.log(
             '  ⚠️ Ces notes ne tiennent pas sur une page. Le backfill devra les sceller\n' +

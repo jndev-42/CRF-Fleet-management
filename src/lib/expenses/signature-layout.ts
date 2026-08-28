@@ -30,32 +30,47 @@ export const PAGE_HEIGHT = 841.890015;
 /**
  * Rectangles des widgets de signature, en points PDF `[x1, y1, x2, y2]`.
  *
- * MESURÉS, pas devinés : `ExpensePdfDocument` est rendu avec un aplat de couleur
- * dans chaque zone de signature, puis les rectangles colorés sont localisés au
- * pixel près et convertis en points PDF. Ne jamais les recalculer à la main.
+ * MESURÉS, pas devinés : `npx tsx scripts/measure-signature-rects.ts` rend le
+ * composant avec un aplat de couleur dans chaque zone, puis relève les
+ * coordonnées du rectangle DANS LE FLUX DE CONTENU du PDF, matrices de
+ * transformation composées. Aucune rasterisation, aucune approximation.
+ * Ne jamais les recalculer à la main — REJOUER LE SCRIPT.
  *
  * ⚠️ CES VALEURS NE SONT CONSTANTES QUE PARCE QUE LA MISE EN PAGE EST INVARIANTE.
- * Deux dispositifs le garantissent en mode `forSealing`, tous deux indispensables :
+ * Trois dispositifs le garantissent en mode `forSealing`, tous indispensables :
  *   1. un espaceur `flexGrow: 1` épingle le bloc signature au bas de page, sinon
  *      il remonte quand la note compte peu de postes ;
- *   2. le bloc de métadonnées a une hauteur FIXE (`sigMetaFixed`), sinon la zone
- *      image se déplace selon la présence du hash de signature ou de la date de
- *      validation — `sigCol` utilisant `justifyContent: 'space-between'`.
+ *   2. le bloc de métadonnées a une hauteur FIXE (`metaFixe`), sinon la zone de
+ *      tracé se déplace selon la présence du hash ou de la date de validation ;
+ *   3. le pied de page a une hauteur FIXE et reste rendu même sans logo — que
+ *      `loadLogo()` peut ne pas fournir — sinon tout le bloc remonte d'autant.
  *
- * Vérifié identique pour 1 et 14 postes, avec et sans hash, note validée ou non.
+ * Vérifié identique pour 1 et 9 postes, avec et sans hash, note validée ou non.
  * Un widget mal placé est FIGÉ PAR DocMDP : il n'est plus corrigeable après coup.
  */
 export const SIGNATURE_WIDGET_RECTS = {
     /** Colonne « Le demandeur : » — signature #1 (D10 : widget, pas contenu). */
-    demandeur: [34.3, 169, 199.8, 204.4] as const,
+    demandeur: [86, 205.5, 222.4, 249.5] as const,
     /** Colonne « Le responsable : » — signature #2. */
-    valideur: [213.6, 169, 379.2, 204.4] as const,
+    valideur: [236.4, 205.5, 372.8, 249.5] as const,
     /**
      * Signature #3 (payeur) : AUCUN widget visible.
      * Le champ existe — il doit être créé comme les autres avant le scellement —
      * mais son rectangle est nul, donc rien n'est rendu sur la page.
      */
     payeur: null,
+} as const;
+
+/**
+ * Couleurs d'aplat posées par `ExpensePdfDocument` en mode `measureZones`, une
+ * par colonne de signature. Composantes de l'opérateur PDF `scn`.
+ *
+ * Servent à `scripts/measure-signature-rects.ts` et au test qui verrouille la
+ * correspondance entre le rendu et `SIGNATURE_WIDGET_RECTS`.
+ */
+export const MEASURE_ZONE_COLORS = {
+    demandeur: '1 0 0',
+    valideur: '0 1 0',
 } as const;
 
 /**
@@ -80,8 +95,10 @@ export function toPdfY(yFromTop: number, height: number): number {
 /**
  * Nombre maximal de postes de dépense tenant sur une seule page.
  *
- * Décision D6 : au-delà, le scellement est REFUSÉ (400) plutôt que de produire un
- * document cassé — le bloc signature partirait en page 2 alors que le widget est
+ * Le modèle « septembre 2023 » en fait tenir 9, contre 14 sur le précédent :
+ * ses marges de 72 pt et sa colonne « Date et objet » étroite coûtent de la
+ * hauteur. Décision D6 : au-delà, le scellement est REFUSÉ (400) plutôt que de
+ * produire un document cassé — le bloc signature partirait en page 2 alors que le widget est
  * toujours posé sur la page 1 (`addSignatureFields` n'annote que celle-ci).
  *
  * ⚠️ Valeur DÉRIVÉE, pas devinée : `signature-layout.test.ts` rend le composant à
@@ -89,7 +106,7 @@ export function toPdfY(yFromTop: number, height: number): number {
  * à 2 pages. Toute modification de la mise en page du PDF casse ce test et donne
  * la nouvelle valeur, au lieu de laisser passer un document invalide.
  */
-export const MAX_ITEMS_SINGLE_PAGE = 14;
+export const MAX_ITEMS_SINGLE_PAGE = 9;
 
 /** Erreur levée quand la géométrie du document ne correspond pas aux constantes. */
 export class PageGeometryError extends Error {}

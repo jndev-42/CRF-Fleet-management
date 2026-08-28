@@ -666,13 +666,13 @@ describe('Expense Report integration tests', () => {
             expect(vi.mocked(resolvePendingReceipts)).toHaveBeenCalledWith([]);
         });
 
-        it('refuse la soumission d\'un brouillon existant dépassant 14 postes (400)', async () => {
+        it('refuse la soumission d\'un brouillon existant dépassant 9 postes (400)', async () => {
             const req = makePatchRequest({
                 action: 'submit',
                 missionName: 'Maraude Nord',
                 missionDate: '2026-03-12',
                 userSignature: SIG,
-                items: Array.from({ length: 15 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
+                items: Array.from({ length: 10 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(400);
@@ -722,14 +722,14 @@ describe('Expense Report integration tests', () => {
             expect((await res.json()).error).toContain('signature');
         });
 
-        it('refuse une note de plus de 14 postes (400) — elle déborderait sur 2 pages', async () => {
+        it('refuse une note de plus de 9 postes (400) — elle déborderait sur 2 pages', async () => {
             const req = new Request('http://localhost/api/expenses', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
                     requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
-                    items: Array.from({ length: 15 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
+                    items: Array.from({ length: 10 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
                 }),
             });
             const res = await createReport(req);
@@ -737,14 +737,14 @@ describe('Expense Report integration tests', () => {
             expect((await res.json()).error).toContain('scinder');
         });
 
-        it('accepte une note de 14 postes exactement', async () => {
+        it('accepte une note de 9 postes exactement', async () => {
             const req = new Request('http://localhost/api/expenses', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
                     requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
-                    items: Array.from({ length: 14 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
+                    items: Array.from({ length: 9 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
                 }),
             });
             expect((await createReport(req)).status).toBe(201);

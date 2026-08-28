@@ -24,6 +24,8 @@ Expense report ("note de frais") UI: the create/edit form, the electronic signat
 
 **`ExpensePdfDocument.tsx` is a server-rendered PDF, not DOM.** It uses `StyleSheet.create` from `@react-pdf/renderer` — no CSS Modules, no global classes, no `lucide-react` icons, no hooks. Signature fields accept either a raw base64 string or a `ParsedSignature` object, so handle both shapes when touching the signature blocks.
 
+**Changing its layout moves the signature widgets.** The rectangles in `signature-layout.ts` are *measured* on this render, and a widget placed wrong is frozen by DocMDP at the first seal — uncorrectable. After any layout change, re-run `npx tsx scripts/measure-signature-rects.ts` and report the values; `signature-geometry.test.ts` fails until you do. Three invariants keep the block stable and must survive edits: the `flexGrow` spacer, the fixed-height metadata block, and the fixed-height footer (rendered even without a logo).
+
 ## Dependencies
 
 ### Internal
