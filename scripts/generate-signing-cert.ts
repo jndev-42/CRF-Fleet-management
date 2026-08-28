@@ -32,7 +32,7 @@ function arg(name: string, fallback: string): string {
     return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
-function generate(commonName: string, passphrase: string): string {
+export function generate(commonName: string, passphrase: string): string {
     const keys = forge.pki.rsa.generateKeyPair(KEY_BITS);
     const cert = forge.pki.createCertificate();
 
@@ -47,9 +47,16 @@ function generate(commonName: string, passphrase: string): string {
         now.getDate()
     );
 
+    // ⚠️ `valueTagClass: UTF8` est OBLIGATOIRE dès qu'une valeur contient un
+    // caractère non-ASCII (« ç », tiret cadratin…). Sans lui, node-forge conserve
+    // ces caractères comme points de code JavaScript > 255 au lieu de les encoder
+    // en octets UTF-8 ; l'encodage base64 les tronque alors silencieusement et
+    // produit un certificat invalide, dont l'en-tête DER annonce plus d'octets
+    // qu'il n'en contient. C'est de surcroît l'encodage ASN.1 correct :
+    // PrintableString n'admet pas les caractères accentués.
     const attrs = [
-        { name: 'commonName', value: commonName },
-        { name: 'organizationName', value: 'Croix-Rouge française' },
+        { name: 'commonName', value: commonName, valueTagClass: forge.asn1.Type.UTF8 },
+        { name: 'organizationName', value: 'Croix-Rouge française', valueTagClass: forge.asn1.Type.UTF8 },
         { name: 'countryName', value: 'FR' },
     ];
     cert.setSubject(attrs);
@@ -68,7 +75,29 @@ function generate(commonName: string, passphrase: string): string {
         algorithm: '3des',
     });
 
-    return forge.util.encode64(forge.asn1.toDer(p12Asn1).getBytes());
+    const der = forge.asn1.toDer(p12Asn1).getBytes();
+
+    // Auto-contrôle : le script ne doit JAMAIS émettre un certificat que
+    // l'application refusera. On vérifie que l'encodage est réversible à
+    // l'octet près avant de l'imprimer.
+    const stray = [...der].filter(c => c.charCodeAt(0) > 255).length;
+    if (stray > 0) {
+        throw new Error(
+            `Encodage corrompu : ${stray} caractère(s) hors de la plage 0-255 dans le DER. ` +
+            `Une valeur non-ASCII n'a pas été encodée en UTF-8.`
+        );
+    }
+
+    const b64 = forge.util.encode64(der);
+    const roundTrip = Buffer.from(b64, 'base64');
+    if (b64.length % 4 !== 0 || roundTrip.length !== der.length) {
+        throw new Error(
+            `Base64 non réversible : ${b64.length} caractères, ${roundTrip.length} octets décodés ` +
+            `pour ${der.length} attendus. Le certificat aurait été rejeté à l'usage.`
+        );
+    }
+
+    return b64;
 }
 
 function main(): void {
@@ -81,7 +110,8 @@ function main(): void {
     process.stderr.write('\n--- À coller dans Vercel et dans .env.local ---\n');
     console.log(`SIGNING_CERT_P12_BASE64=${base64}`);
     console.log(`SIGNING_CERT_PASSPHRASE=${passphrase}`);
-    process.stderr.write(`\nCertificat : CN="${commonName}", expire le ${new Date(
+    process.stderr.write(`\nEncodage vérifié : ${base64.length} caractères base64, réversible à l'octet près.\n`);
+    process.stderr.write(`Certificat : CN="${commonName}", expire le ${new Date(
         new Date().getFullYear() + VALIDITY_YEARS,
         new Date().getMonth(),
         new Date().getDate()
@@ -89,4 +119,5 @@ function main(): void {
     process.stderr.write('Ne committez JAMAIS ces valeurs.\n');
 }
 
-main();
+// Ne s'exécute que lancé directement, pour rester importable par les tests.
+if (process.argv[1] && process.argv[1].endsWith('generate-signing-cert.ts')) main();
