@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Trash, Save, Send, AlertTriangle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import PhotoPicker from '@/components/ui/PhotoPicker';
-import YousignSignatureModal, { SignatureData } from '@/components/expenses/YousignSignatureModal';
+import ElectronicSignatureModal, { SignatureData } from '@/components/expenses/ElectronicSignatureModal';
 
 interface ExpenseItem {
     label: string;
@@ -540,8 +540,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 </button>
             </div>
 
-            {/* Modal de signature Yousign du demandeur */}
-            <YousignSignatureModal
+            {/* Modale de signature électronique du demandeur */}
+            <ElectronicSignatureModal
                 isOpen={isSignatureModalOpen}
                 onClose={() => setIsSignatureModalOpen(false)}
                 onSign={handleSignatureConfirmed}

@@ -50,7 +50,7 @@ vi.mock('@/lib/expenses/sealing', () => {
     };
 });
 
-/** Signature factice au format produit par YousignSignatureModal. */
+/** Signature factice au format produit par ElectronicSignatureModal. */
 const SIG = { mode: 'draw', image: 'data:image/png;base64,iVBORw0KGgo=', name: 'Testeur', date: '2026-08-28', hash: 'abc123' };
 
 import { auth } from '@/auth';

@@ -63,7 +63,7 @@ async function buildBasePdf(itemCount: number): Promise<Buffer> {
     return Buffer.from(await renderToBuffer(el));
 }
 
-/** Simule le PNG produit par YousignSignatureModal. */
+/** Simule le PNG produit par ElectronicSignatureModal. */
 async function handwritten(text: string): Promise<Buffer> {
     return sharp(Buffer.from(
         `<svg xmlns="http://www.w3.org/2000/svg" width="280" height="140">

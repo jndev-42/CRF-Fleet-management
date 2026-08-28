@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.14.2] — 28 août 2026
+
+### 🔧 Autres changements
+
+- **Fin des mentions « Yousign »** — l'application ne cite plus de prestataire tiers : la fenêtre de signature s'intitule désormais « Signature électronique ». Le sceau apposé sur les notes de frais est celui de la Croix-Rouge française, aucun service externe n'intervient.
+
 ## [4.14.1] — 28 août 2026
 
 ### 🐛 Correctifs
@@ -167,7 +173,7 @@ Les notes scellées avant cette version ne peuvent plus recevoir de signature su
 - **Ergonomie et responsivité de la Saisie de Note de Frais** — Optimisation complète de l'écran de saisie et de gestion des notes de frais pour l'utilisation sur mobile et tablette (`/expenses`) :
   - **Empilement intelligent des dépenses** : Ajustement automatique (`flex-wrap`) des lignes de dépenses sur les écrans mobiles (< 640px). La description s'affiche sur la première ligne et le montant avec bouton de suppression sur la seconde, garantissant un accès sans défilement horizontal ni tronquage de la partie droite.
   - **Actions et formulaires adaptés** : Mise en forme responsive du sélecteur d'imputation et alignement vertical des boutons d'action ("Annuler", "Brouillon", "Signer et Soumettre") sur mobile pour faciliter la saisie tactile.
-  - **Grille adaptative & Modales** : Bascule dynamique en 1 colonne sur mobile pour la vue tableau et le panneau de détails, ajustement du défilement des modales et correction de l'échelle des coordonnées tactiles du canvas de signature manuscrite Yousign.
+  - **Grille adaptative & Modales** : Bascule dynamique en 1 colonne sur mobile pour la vue tableau et le panneau de détails, ajustement du défilement des modales et correction de l'échelle des coordonnées tactiles du canvas de signature manuscrite.
 
 ## [4.8.0] — 28 juillet 2026
 
@@ -219,7 +225,7 @@ Les notes scellées avant cette version ne peuvent plus recevoir de signature su
   - Encadré d'information sur la fiche véhicule et affichage visuel différencié sur le calendrier (rouge plein / rouge pointillé).
   - Date de fin automatique lors de la remise en service du véhicule.
 - **Imputation des dépenses (Notes de frais)** — Sélection de l'imputation de la dépense (`DLUS`, `DLAS`, `UL`, `Autre`) avec saisie libre en cas de choix "Autre".
-- **Génération PDF Note de frais conforme (C2 INTERNE) & Signatures Yousign** — Génération du PDF officiel de note de frais respectant le modèle C2 INTERNE avec signatures électronique et manuscrite style Yousign du demandeur et du responsable, et tampon officiel de l'UL.
+- **Génération PDF Note de frais conforme (C2 INTERNE) & signature électronique** — Génération du PDF officiel de note de frais respectant le modèle C2 INTERNE avec signature électronique et manuscrite du demandeur et du responsable, et tampon officiel de l'UL.
 - **Refus de la note de frais avec commentaire** — Possibilité pour les valideurs (`SUPER_ADMIN` ou `PRESIDENT`) de refuser une note soumise en joignant obligatoirement un commentaire explicatif.
 - **Rôle Trésorier (`TRESORIER`) & Workflow de paiement** — Rôle centralisé `TRESORIER` avec accès aux notes en attente de paiement et possibilité d'indiquer les notes comme payées (`traité`).
 - **Pagination et tri interactif du tableau de notes de frais** — Tri ascendant/descendant interactif sur toutes les colonnes et barre de pagination configurable (5, 10, 25, 50 par page).

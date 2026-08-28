@@ -32,7 +32,7 @@ const FT_NAME = PDFName.of('FT');
  * Retire d'une page copiée toute annotation de signature numérique préexistante.
  *
  * ⚠️ NÉCESSAIRE. Un justificatif PDF peut déjà être signé (facture électronique,
- * export DocuSign/Yousign…). `copyPages` copie la page TELLE QUELLE, widget de
+ * export d'un parapheur électronique…). `copyPages` copie la page TELLE QUELLE, widget de
  * signature compris — le `/ByteRange` et le `/Contents` de cette signature
  * copiée restent ceux du fichier D'ORIGINE et n'ont donc plus aucun sens dans le
  * document fusionné, mais l'octet `/Type /Sig` y reste bel et bien présent.

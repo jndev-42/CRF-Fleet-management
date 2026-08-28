@@ -10,11 +10,11 @@ vi.mock('@/lib/imageCompression', () => ({
     compressImages: vi.fn((files: File[]) => Promise.resolve(files)),
 }));
 
-vi.mock('@/components/expenses/YousignSignatureModal', () => ({
+vi.mock('@/components/expenses/ElectronicSignatureModal', () => ({
     default: ({ isOpen, onSign }: { isOpen: boolean; onSign: (sig: unknown, func: string) => void }) =>
         isOpen ? (
             <div>
-                <span>Modale de signature Yousign</span>
+                <span>Modale de signature électronique</span>
                 <button onClick={() => onSign({ signed: true }, 'Bénévole local')}>Confirmer la signature</button>
             </div>
         ) : null,
@@ -216,7 +216,7 @@ describe('ExpenseForm', () => {
         fireEvent.click(screen.getByRole('checkbox', { name: /Je n'ai pas de justificatifs/ }));
         fireEvent.click(screen.getByRole('button', { name: /Signer et Soumettre/ }));
 
-        expect(screen.getByText('Modale de signature Yousign')).toBeTruthy();
+        expect(screen.getByText('Modale de signature électronique')).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Confirmer la signature' }));
 
         await waitFor(() => expect(onSuccess).toHaveBeenCalled());

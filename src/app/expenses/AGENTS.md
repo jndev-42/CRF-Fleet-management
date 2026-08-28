@@ -29,7 +29,7 @@ Note these are inline `roles.includes(...)` checks; this page does **not** use t
 | Mark paid | `en_attente_paiement` and `canPay` |
 | PDF download | any status except `brouillon` |
 
-**Les TROIS actions exigent une signature manuscrite.** Validation, refus et paiement passent tous par `YousignSignatureModal`, via l'état unifié `signingContext: { report, kind: 'validate' | 'reject' | 'pay', rejectionComment? }`. Son `onSign` appelle `confirmSigned(sigData)`, qui `PATCH` la charge utile correspondante (`validatorSignature` pour validation et refus, `payerSignature` pour le paiement).
+**Les TROIS actions exigent une signature manuscrite.** Validation, refus et paiement passent tous par `ElectronicSignatureModal`, via l'état unifié `signingContext: { report, kind: 'validate' | 'reject' | 'pay', rejectionComment? }`. Son `onSign` appelle `confirmSigned(sigData)`, qui `PATCH` la charge utile correspondante (`validatorSignature` pour validation et refus, `payerSignature` pour le paiement).
 
 N'ajoutez jamais de chemin qui contourne le modal : la signature est apposée sur le PDF puis **scellée cryptographiquement**, et le serveur renvoie 400 sans elle. Le refus collecte d'abord son motif via `prompt()` (obligatoire, vérifié côté client) puis demande la signature — c'est un événement signé qui **clôt définitivement** le document ; une correction passe par une note neuve.
 
@@ -55,7 +55,7 @@ Errors use `alert()` for action failures and `console.error` for fetch failures 
 
 ### Internal
 - `@/components/expenses/ExpenseForm` — create/edit form (owns `POST`/`PUT`)
-- `@/components/expenses/YousignSignatureModal` — validator signature capture, exports `SignatureData`
+- `@/components/expenses/ElectronicSignatureModal` — validator signature capture, exports `SignatureData`
 - `GET /api/expenses?scope=my|ul&includeProcessed=`, `PATCH /api/expenses/{id}`, `DELETE /api/expenses/{id}`, `GET /api/expenses/{id}/pdf`
 - `GET /api/drive/photos?folderId=&flat=true` and `GET /api/drive/photos/{id}` — receipts
 - Global CSS: `expenses-container`, `expenses-grid`, `expense-scope-tabs`, `expense-scope-btn`, `modal-overlay`, `modal`

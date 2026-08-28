@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Plus } from 'lucide-react';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
-import YousignSignatureModal, { SignatureData } from '@/components/expenses/YousignSignatureModal';
+import ElectronicSignatureModal, { SignatureData } from '@/components/expenses/ElectronicSignatureModal';
 import ExpensesFilters from './ExpensesFilters';
 import ExpensesTable from './ExpensesTable';
 import ExpenseDetailSidebar from './ExpenseDetailSidebar';
@@ -311,7 +311,7 @@ export default function ExpensesPage() {
 
             {/* Modale de signature — validation, refus ou paiement */}
             {signingContext && (
-                <YousignSignatureModal
+                <ElectronicSignatureModal
                     isOpen
                     onClose={() => setSigningContext(null)}
                     onSign={confirmSigned}

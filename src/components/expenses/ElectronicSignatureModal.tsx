@@ -14,7 +14,7 @@ export interface SignatureData {
     functionTitle?: string;
 }
 
-interface YousignSignatureModalProps {
+interface ElectronicSignatureModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSign: (signatureData: SignatureData, functionTitle: string) => void;
@@ -33,7 +33,7 @@ interface YousignSignatureModalProps {
     actionVerb?: string;
 }
 
-export default function YousignSignatureModal({
+export default function ElectronicSignatureModal({
     isOpen,
     onClose,
     onSign,
@@ -43,7 +43,7 @@ export default function YousignSignatureModal({
     initialFunction = 'Bénévole local',
     loading = false,
     actionVerb,
-}: YousignSignatureModalProps) {
+}: ElectronicSignatureModalProps) {
     useEscapeKey(onClose, isOpen);
     const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
     const [mode, setMode] = useState<'draw' | 'typed'>('typed');
@@ -232,7 +232,7 @@ export default function YousignSignatureModal({
                         <ShieldCheck size={24} />
                         <div>
                             <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700 }}>
-                                Signature Électronique Yousign
+                                Signature électronique
                             </h3>
                             <p style={{ margin: 0, fontSize: '0.75rem', opacity: 0.9 }}>
                                 {roleTitle} · Sceau sécurisé Croix-Rouge française
