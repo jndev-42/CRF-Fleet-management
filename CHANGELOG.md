@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.13.2] — 28 août 2026
+
+### 🐛 Correctifs
+
+- **Joindre une note de frais déjà scellée empêchait toute soumission** — le PDF d'une note déjà signée, utilisé comme justificatif, apportait avec lui le catalogue et le formulaire de son document d'origine. Le scellement de la nouvelle note échouait alors sur « Catalogue ré-émis introuvable ». La fusion élimine désormais tout objet devenu inutile — ce qui allège aussi le fichier final.
+- **La restriction DocMDP n'était pas appliquée par Acrobat** — la règle qui interdit toute modification du document après signature était écrite au mauvais endroit du fichier. Aucun lecteur ne le signalait, mais la première signature n'était pas reconnue comme signature de certification. Les notes scellées avant cette version doivent être re-scellées (`backfill-signed-pdfs.ts --reseal`) pour en bénéficier.
+
 ## [4.13.1] — 28 août 2026
 
 ### 🐛 Correctifs

@@ -224,6 +224,30 @@ describe('sealPdf', () => {
 
         expect(verifySignatures(tampered).allValid).toBe(false);
     }, 30_000);
+
+    // Régression : `/Perms` était inséré à un offset mesuré AVANT l'insertion de
+    // `/Reference`, donc périmé de ~150 octets — il atterrissait dans le
+    // dictionnaire /AcroForm qui précède le catalogue. Aucun lecteur ne signale
+    // rien, mais Acrobat n'y voit plus de signature de certification et
+    // n'applique aucune restriction DocMDP. `permsPresent` ne suffit donc pas :
+    // il faut vérifier DANS QUEL OBJET la clé se trouve.
+    it('place /Perms et /Version dans le catalogue, pas dans l\'AcroForm', async () => {
+        const sealed = await sealPdf(base, {
+            reason: 'Soumission', name: 'Jean Dupont', signingTime: new Date(),
+            widgetRect: SIGNATURE_WIDGET_RECTS.demandeur, docMdpLevel: 2,
+        });
+        const texte = sealed.toString('latin1');
+
+        const debut = texte.lastIndexOf('/Perms');
+        expect(debut).toBeGreaterThan(0);
+        const objet = texte.slice(
+            texte.lastIndexOf('\n', texte.lastIndexOf(' obj', debut)) + 1,
+            texte.indexOf('endobj', debut)
+        );
+        expect(objet).toContain('/Type /Catalog');
+        expect(objet).toContain('/Version /1.7');
+        expect(objet).not.toContain('/Type /AcroForm');
+    }, 30_000);
 });
 
 describe('assertIncrementalAppend', () => {

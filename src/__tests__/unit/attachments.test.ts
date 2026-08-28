@@ -35,7 +35,15 @@ async function makeSourcePdf(pageCount = 1): Promise<Buffer> {
     return Buffer.from(await doc.save());
 }
 
-/** Simule un justificatif déjà signé numériquement par son émetteur (facture électronique). */
+/**
+ * Simule un justificatif déjà signé numériquement par son émetteur.
+ *
+ * ⚠️ `docMdpLevel` EST INDISPENSABLE ICI. C'est la règle DocMDP qui rend le
+ * catalogue du document atteignable depuis sa signature, via `/Data` : sans elle,
+ * `copyPages` n'embarque aucun catalogue étranger et les régressions visées par
+ * ces tests deviennent invisibles. Le cas réel — une note de frais scellée par
+ * l'application, jointe comme justificatif à une autre — est bien certifié.
+ */
 async function makeSignedReceipt(): Promise<Buffer> {
     const doc = await PDFDocument.create();
     const page = doc.addPage([300, 200]);
@@ -43,8 +51,10 @@ async function makeSignedReceipt(): Promise<Buffer> {
     const unsigned = Buffer.from(await doc.save({ useObjectStreams: false }));
     return sealPdf(unsigned, {
         reason: 'Signature électronique de la facture',
-        name: 'Émetteur Facture',
+        name: 'Emetteur Facture',
         signingTime: new Date('2026-01-01T00:00:00.000Z'),
+        widgetRect: [20, 20, 180, 60],
+        docMdpLevel: 2,
     });
 }
 
@@ -177,4 +187,35 @@ describe('appendJustificatifs', () => {
         const merged = await PDFDocument.load(out);
         expect(merged.getPageCount()).toBe(2); // le contenu visuel du justificatif reste intact
     });
+
+    // Régression : joindre une note de frais DÉJÀ scellée rendait toute nouvelle
+    // soumission impossible. La règle DocMDP du justificatif désigne le catalogue
+    // de SON document via `/Data`, que `copyPages` embarquait donc avec son
+    // `/AcroForm` ; `plainAddPlaceholder`, qui cherche `/AcroForm N 0 R` dans tout
+    // le fichier, en concluait qu'un formulaire existait et ne ré-émettait plus le
+    // catalogue → « Catalogue ré-émis introuvable dans cet incremental update ».
+    it('n\'embarque pas le catalogue ni l\'AcroForm d\'un justificatif scellé', async () => {
+        const base = await makeBasePdf();
+        const signedReceipt = await makeSignedReceipt();
+        expect(signedReceipt.toString('latin1')).toContain('/AcroForm');
+
+        const out = await appendJustificatifs(base, [{ buffer: signedReceipt, mime: 'application/pdf' }]);
+
+        const texte = out.toString('latin1');
+        expect(texte).not.toContain('/AcroForm');
+        expect((texte.match(/\/Type\s*\/Catalog/g) || [])).toHaveLength(1);
+    });
+
+    it('reste scellable après ajout d\'un justificatif déjà scellé', async () => {
+        const base = await makeBasePdf();
+        const out = await appendJustificatifs(base, [
+            { buffer: await makeSignedReceipt(), mime: 'application/pdf' },
+        ]);
+
+        const sealed = await sealPdf(out, {
+            reason: 'Soumission', name: 'Jean Dupont', signingTime: new Date(),
+            widgetRect: [40, 40, 240, 100], docMdpLevel: 2,
+        });
+        expect(countRevisions(sealed)).toBe(1);
+    }, 30_000);
 });

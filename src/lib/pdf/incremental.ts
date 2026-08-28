@@ -215,7 +215,17 @@ export async function augmentIncremental(buf: Buffer, opts: AugmentOptions): Pro
             ` /Data ${catObj.num} 0 R /DigestMethod /SHA256 >>]`;
         body = body.slice(0, contentsEnd) + ref + body.slice(contentsEnd);
 
-        const catDictOpen = body.indexOf('<<', catObj.start) + 2;
+        // ⚠️ RE-LOCALISER LE CATALOGUE. L'insertion ci-dessus a décalé tous les
+        // octets qui la suivent : `catObj.start`, mesuré avant, pointe désormais
+        // ~150 octets trop tôt — soit à l'intérieur de l'objet précédent. Le
+        // `/Perms` atterrissait alors dans le dictionnaire /AcroForm, où il n'a
+        // aucun sens : Acrobat n'y voit plus de signature de certification et
+        // n'applique aucune restriction DocMDP, sans le moindre message d'erreur.
+        // Le NUMÉRO d'objet, lui, ne bouge pas — `/Data` reste correct.
+        const catAgain = findObjectContaining(body, /\/Type\s*\/Catalog\b/g, incrementalStart);
+        if (!catAgain) throw new IncrementalUpdateError('Catalogue introuvable après insertion de /Reference');
+
+        const catDictOpen = body.indexOf('<<', catAgain.start) + 2;
         // /Version : DocMDP lui-même est PDF 1.4, mais `/Perms` est PDF 1.5
         // (ISO 32000-1 §7.7.2) alors que @react-pdf/renderer émet un en-tête
         // %PDF-1.3. L'override /Version au catalogue (§7.5.5, PDF 1.4) réconcilie

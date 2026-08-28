@@ -17,7 +17,10 @@
  * signature échoue silencieusement à localiser la structure du document.
  */
 
-import { PDFDocument, PDFName, PDFRef, PDFDict, type PDFPage } from 'pdf-lib';
+import {
+    PDFDocument, PDFName, PDFRef, PDFDict, PDFArray, PDFStream,
+    type PDFObject, type PDFPage,
+} from 'pdf-lib';
 import sharp from 'sharp';
 
 export class AttachmentError extends Error {}
@@ -63,6 +66,58 @@ function stripForeignSignatures(doc: PDFDocument, page: PDFPage): void {
     for (const ref of toRemove) {
         page.node.removeAnnot(ref);
         doc.context.delete(ref);
+    }
+}
+
+/**
+ * Supprime tout objet devenu inatteignable depuis le catalogue du document.
+ *
+ * ⚠️ NÉCESSAIRE APRÈS `copyPages`. `pdf-lib` copie le graphe COMPLET atteignable
+ * depuis une page, et sérialise ensuite tout objet enregistré dans son contexte,
+ * référencé ou non. Or la signature d'un justificatif déjà scellé porte une règle
+ * DocMDP dont le `/Data` désigne le CATALOGUE de son document d'origine : copier
+ * la page fait donc entrer ce catalogue étranger — et son `/AcroForm` — dans le
+ * nôtre. `stripForeignSignatures` coupe le lien mais laisse ces objets orphelins
+ * dans le fichier.
+ *
+ * Le dégât est silencieux et grave : `@signpdf/placeholder-plain` cherche
+ * `/AcroForm N 0 R` dans TOUT le fichier avant de décider s'il doit ré-émettre le
+ * catalogue. L'occurrence orpheline le convainc qu'un formulaire existe déjà ; il
+ * ne ré-émet donc rien, notre champ de signature n'est rattaché à aucun
+ * `/AcroForm`, et le scellement échoue sur « Catalogue ré-émis introuvable ».
+ *
+ * Effet de bord bienvenu : le document perd aussi les signets, arbres de noms et
+ * métadonnées des justificatifs, que rien n'affiche — le PDF final s'allège.
+ */
+function collectGarbage(doc: PDFDocument): void {
+    const atteints = new Set<string>();
+    const pile: PDFObject[] = [];
+
+    const empiler = (obj: PDFObject | undefined | null): void => {
+        if (obj) pile.push(obj);
+    };
+
+    empiler(doc.context.trailerInfo.Root ?? doc.catalog);
+    empiler(doc.context.trailerInfo.Info);
+    empiler(doc.context.trailerInfo.Encrypt);
+
+    while (pile.length) {
+        const obj = pile.pop()!;
+        if (obj instanceof PDFRef) {
+            if (atteints.has(obj.tag)) continue;
+            atteints.add(obj.tag);
+            empiler(doc.context.lookup(obj));
+        } else if (obj instanceof PDFDict) {
+            for (const [, valeur] of obj.entries()) empiler(valeur);
+        } else if (obj instanceof PDFArray) {
+            for (let i = 0; i < obj.size(); i++) empiler(obj.get(i));
+        } else if (obj instanceof PDFStream) {
+            for (const [, valeur] of obj.dict.entries()) empiler(valeur);
+        }
+    }
+
+    for (const [ref] of doc.context.enumerateIndirectObjects()) {
+        if (!atteints.has(ref.tag)) doc.context.delete(ref);
     }
 }
 
@@ -169,6 +224,8 @@ export async function appendJustificatifs(
             height: h,
         });
     }
+
+    collectGarbage(doc);
 
     const bytes = await doc.save({ useObjectStreams: false });
     return Buffer.from(bytes);
