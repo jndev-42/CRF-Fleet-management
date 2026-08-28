@@ -116,4 +116,20 @@ describe('ElectronicSignatureModal', () => {
         );
         expect(screen.getByDisplayValue('Président local')).toBeTruthy();
     });
+
+    // Régression : l'aperçu est peint sur un fond clair figé, mais l'encre suivait
+    // `var(--text-primary)` — clair sur clair en thème sombre, signature illisible.
+    it('peint la signature stylisée en encre sombre, sans variable de thème', () => {
+        const { getAllByText } = render(
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" role="requester" />
+        );
+        // Le nom apparaît aussi en en-tête : l'aperçu est celui rendu en italique.
+        const apercu = getAllByText('Jean Dupont')
+            .find(el => (el as HTMLElement).style.fontStyle === 'italic') as HTMLElement;
+        expect(apercu).toBeTruthy();
+        expect(apercu.style.color).toBe('rgb(30, 41, 59)');
+        expect(apercu.style.color).not.toContain('var(');
+        expect(apercu.style.borderBottom).not.toContain('var(');
+    });
+
 });

@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.15.1] — 28 août 2026
+
+### 🐛 Correctifs
+
+- **Signature stylisée illisible en thème sombre** — dans la fenêtre de signature, l'aperçu du nom s'affichait en clair sur le fond clair de la zone, donc quasi invisible. L'aperçu représente une feuille de papier : ses couleurs sont désormais celles de la signature réellement produite, identiques dans les deux thèmes. Même correction pour le texte d'invite de la zone de tracé à la main.
+
 ## [4.15.0] — 28 août 2026
 
 ### ✨ Nouvelles fonctionnalités

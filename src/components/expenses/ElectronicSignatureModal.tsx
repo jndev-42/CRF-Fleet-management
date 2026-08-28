@@ -14,6 +14,27 @@ export interface SignatureData {
     functionTitle?: string;
 }
 
+/**
+ * Couleurs de la zone de signature, identiques à celles de l'image produite.
+ *
+ * ⚠️ NE PAS LES REMPLACER PAR DES VARIABLES DE THÈME. La zone représente une
+ * feuille de papier : le fond reste clair dans les deux thèmes, donc l'encre
+ * doit rester sombre. Un `var(--text-primary)` s'éclaircissait en thème sombre
+ * et rendait la signature invisible.
+ */
+const ENCRE = {
+    /** Fond de la zone d'aperçu. */
+    papier: '#f8fafc',
+    /** Encre du nom — celle de `generateTypedSignatureDataUrl`. */
+    texte: '#1e293b',
+    /** Parafe sous le nom — celui de l'image produite. */
+    parafe: '#ef4444',
+    /** Encre du tracé à la main. */
+    trace: '#0f172a',
+    /** Texte d'invite avant tout tracé. */
+    invite: '#94a3b8',
+} as const;
+
 interface ElectronicSignatureModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -71,7 +92,7 @@ export default function ElectronicSignatureModal({
             const canvas = canvasRef.current;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                ctx.strokeStyle = '#0f172a';
+                ctx.strokeStyle = ENCRE.trace;
                 ctx.lineWidth = 2.5;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
@@ -136,16 +157,16 @@ export default function ElectronicSignatureModal({
         tempCanvas.height = 100;
         const ctx = tempCanvas.getContext('2d');
         if (ctx) {
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = '#ffffff'; // papier du PNG produit
             ctx.fillRect(0, 0, 400, 100);
-            ctx.fillStyle = '#1e293b';
+            ctx.fillStyle = ENCRE.texte;
             ctx.font = 'italic 36px "Georgia", "Times New Roman", serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(text || signerName, 200, 45);
 
             // Add subtle baseline flourish line
-            ctx.strokeStyle = '#ef4444';
+            ctx.strokeStyle = ENCRE.parafe;
             ctx.lineWidth = 1.5;
             ctx.beginPath();
             ctx.moveTo(60, 75);
@@ -370,9 +391,22 @@ export default function ElectronicSignatureModal({
                                     marginBottom: '8px'
                                 }}
                             />
+                            {/*
+                                Aperçu « papier » : le fond reste clair dans les deux
+                                thèmes, car c'est le rendu final qui est montré — la
+                                signature est produite en encre sombre sur blanc
+                                (`generateTypedSignatureDataUrl`) puis apposée sur un
+                                PDF blanc.
+
+                                ⚠️ LES COULEURS SONT FIGÉES, PAS THÉMATISÉES. Avec
+                                `var(--text-primary)`, l'encre s'éclaircissait en
+                                thème sombre sur ce fond clair : la signature devenait
+                                illisible. Elles reprennent volontairement celles de
+                                l'image générée.
+                            */}
                             <div style={{
                                 height: '100px',
-                                background: '#f8fafc',
+                                background: ENCRE.papier,
                                 border: '1px dashed #cbd5e1',
                                 borderRadius: '8px',
                                 display: 'flex',
@@ -384,8 +418,8 @@ export default function ElectronicSignatureModal({
                                     fontFamily: 'Georgia, Times New Roman, serif',
                                     fontStyle: 'italic',
                                     fontSize: '1.75rem',
-                                    color: 'var(--text-primary)',
-                                    borderBottom: '2px solid var(--crf-red)',
+                                    color: ENCRE.texte,
+                                    borderBottom: `2px solid ${ENCRE.parafe}`,
                                     paddingBottom: '4px',
                                     paddingLeft: '16px',
                                     paddingRight: '16px'
@@ -396,10 +430,11 @@ export default function ElectronicSignatureModal({
                         </div>
                     ) : (
                         <div>
+                            {/* Même aperçu « papier » que pour la signature stylisée. */}
                             <div style={{
                                 position: 'relative',
                                 height: '120px',
-                                background: '#f8fafc',
+                                background: ENCRE.papier,
                                 border: '1px dashed #cbd5e1',
                                 borderRadius: '8px',
                                 touchAction: 'none'
@@ -424,7 +459,9 @@ export default function ElectronicSignatureModal({
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
-                                        color: 'var(--text-muted)',
+                                        // Figé pour la même raison : le fond de la
+                                        // zone ne suit pas le thème.
+                                        color: ENCRE.invite,
                                         fontSize: '0.8125rem',
                                         pointerEvents: 'none'
                                     }}>
