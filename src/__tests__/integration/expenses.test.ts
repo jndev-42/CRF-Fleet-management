@@ -470,8 +470,10 @@ describe('Expense Report integration tests', () => {
     describe('GET /api/expenses/[id]/pdf', () => {
         beforeEach(async () => {
             await db.execute({
-                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund, userFunction, userSignature)
-                      VALUES ('exp-pdf-test', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 45.0, '[{"label":"Carburant","amount":45.0}]', 'ul-paris-18', 1, 'Bénévole local', '{"name":"Standard User"}')`
+                // `r2Key` est indispensable : la route ne régénère plus rien, elle
+                // ne fait que servir le document scellé.
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund, userFunction, userSignature, r2Key)
+                      VALUES ('exp-pdf-test', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 45.0, '[{"label":"Carburant","amount":45.0}]', 'ul-paris-18', 1, 'Bénévole local', '{"name":"Standard User"}', 'exp-pdf-test/v1-abc.pdf')`
             });
         });
 
@@ -482,7 +484,7 @@ describe('Expense Report integration tests', () => {
             expect(res.status).toBe(401);
         });
 
-        it('returns a PDF response with Content-Type application/pdf', async () => {
+        it('sert le document scellé avec le bon Content-Type', async () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'] } } as never);
             const { GET: getPdf } = await import('@/app/api/expenses/[id]/pdf/route');
             const res = await getPdf(new Request('http://localhost/api/expenses/exp-pdf-test/pdf'), { params: Promise.resolve({ id: 'exp-pdf-test' }) });

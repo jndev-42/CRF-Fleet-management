@@ -3,7 +3,7 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
-// Lecture R2 et, pour les notes antérieures, rendu PDF : runtime Node requis.
+// Lecture R2 et manipulation de Buffer : runtime Node requis.
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
@@ -54,23 +54,26 @@ export async function GET(
             return pdfResponse(buffer, id);
         }
 
-        // ── Repli TEMPORAIRE pour les notes antérieures au scellement ────────
-        // Borné aux notes non-brouillon sans clé R2, c'est-à-dire uniquement
-        // celles créées avant cette fonctionnalité. Un brouillon n'a jamais de
-        // PDF : il renvoie 404.
-        //
-        // ⚠️ Ce chemin DISPARAÎT avec l'étape 7.3, dans la MÊME release, une fois
-        // le backfill vérifié. Le compteur ci-dessous indique quand c'est sûr :
-        // zéro avertissement sur une fenêtre d'observation = retrait sans risque.
+        // ── Aucune clé R2 ────────────────────────────────────────────────────
+        // Un brouillon n'a jamais de document scellé : c'est normal.
         if (status === 'brouillon') {
             return NextResponse.json({
                 error: 'Cette note de frais est un brouillon : aucun document scellé n\'existe encore.',
             }, { status: 404 });
         }
 
-        console.warn(`[pdf] fallback legacy ${id}`);
-        const { generateExpensePdf } = await import('@/lib/expenses/pdf');
-        return pdfResponse(await generateExpensePdf(id), id);
+        // Toute autre note DOIT en avoir un : la soumission ne promeut jamais une
+        // note sans la sceller, et le backfill a couvert l'antériorité (couverture
+        // vérifiée à 100 % avant le retrait du repli qui existait ici).
+        //
+        // ⚠️ NE JAMAIS RÉGÉNÉRER À LA VOLÉE. Le PDF reconstruit ne porterait
+        // AUCUNE signature tout en ayant l'apparence d'un document officiel : le
+        // lecteur ne verrait pas la différence, et l'anomalie resterait invisible.
+        // Mieux vaut refuser et la faire remonter.
+        console.error(`[expenses/pdf] note ${id} [${status}] sans clé R2 — aucun document scellé`);
+        return NextResponse.json({
+            error: 'Le document scellé est introuvable. Contactez un administrateur.',
+        }, { status: 409 });
     } catch (error) {
         console.error('[GET /api/expenses/[id]/pdf]', error);
         return NextResponse.json({ error: 'Erreur serveur lors de la récupération du PDF.' }, { status: 500 });

@@ -56,10 +56,10 @@ describe('GET /api/expenses/[id]/pdf', () => {
         expect(res.status).toBe(403);
     });
 
-    it('génère le PDF pour son propriétaire (happy path)', async () => {
+    it('sert le document scellé à son propriétaire (happy path)', async () => {
         mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'owner@test.com', roles: ['CHVL'] } } as never);
         await seedUser({ id: 'user-1', email: 'owner@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1' });
+        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', r2Key: 'expense-1/v1-abc.pdf' });
 
         const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
         expect(res.status).toBe(200);
@@ -70,40 +70,15 @@ describe('GET /api/expenses/[id]/pdf', () => {
         mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'tresorier@test.com', roles: ['TRESORIER'] } } as never);
         await seedUser({ id: 'user-1', email: 'owner@test.com' });
         await seedUser({ id: 'user-2', email: 'tresorier@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', status: 'en_attente_paiement' });
-
-        const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
-        expect(res.status).toBe(200);
-    });
-
-    it('génère le PDF d\'une note antérieure sans mission (non-régression)', async () => {
-        mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'owner@test.com', roles: ['CHVL'] } } as never);
-        await seedUser({ id: 'user-1', email: 'owner@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', missionName: null, missionDate: null });
-
-        const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
-        expect(res.status).toBe(200);
-        expect(res.headers.get('Content-Type')).toBe('application/pdf');
-        const buffer = Buffer.from(await res.arrayBuffer());
-        expect(buffer.length).toBeGreaterThan(0);
-    });
-
-    it('génère le PDF d\'une note portant un nom et une date de mission', async () => {
-        mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'owner@test.com', roles: ['CHVL'] } } as never);
-        await seedUser({ id: 'user-1', email: 'owner@test.com' });
         await seedExpenseReport({
-            id: 'expense-1',
-            userId: 'user-1',
-            missionName: 'Maraude Nord',
-            missionDate: '2026-03-12',
+            id: 'expense-1', userId: 'user-1',
+            status: 'en_attente_paiement', r2Key: 'expense-1/v2-abc.pdf',
         });
 
         const res = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
         expect(res.status).toBe(200);
-        expect(res.headers.get('Content-Type')).toBe('application/pdf');
-        const buffer = Buffer.from(await res.arrayBuffer());
-        expect(buffer.length).toBeGreaterThan(0);
     });
+
 });
 
 describe('GET /api/expenses/[id]/pdf — proxy R2', () => {
@@ -140,19 +115,22 @@ describe('GET /api/expenses/[id]/pdf — proxy R2', () => {
         expect(res.status).toBe(409);
     });
 
-    it('retombe sur la génération à la volée pour une note LEGACY sans clé R2', async () => {
+    // Le repli de génération à la volée a été RETIRÉ une fois le backfill de
+    // production vérifié à 100 %. Une note non-brouillon sans clé R2 est
+    // désormais une anomalie : elle doit remonter, jamais être masquée par un
+    // PDF reconstruit — celui-ci ne porterait aucune signature tout en ayant
+    // l'apparence d'un document officiel.
+    it('renvoie 409 pour une note non-brouillon sans clé R2, sans rien régénérer', async () => {
         await seedExpenseReport({ id: 'exp-legacy', userId: 'owner-r2', status: 'traité', r2Key: null });
 
-        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const err = vi.spyOn(console, 'error').mockImplementation(() => {});
         const res = await GET(new Request('http://localhost'), { params: Promise.resolve({ id: 'exp-legacy' }) });
-        expect(res.status).toBe(200);
+        expect(res.status).toBe(409);
 
         const { generateExpensePdf } = await import('@/lib/expenses/pdf');
-        expect(vi.mocked(generateExpensePdf)).toHaveBeenCalledWith('exp-legacy');
-        // Ce compteur autorise le retrait du repli (étape 7.3) : zéro
-        // avertissement sur une fenêtre d'observation = suppression sûre.
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining('fallback legacy'));
-        warn.mockRestore();
+        expect(vi.mocked(generateExpensePdf)).not.toHaveBeenCalled();
+        expect(err).toHaveBeenCalledWith(expect.stringContaining('sans clé R2'));
+        err.mockRestore();
     });
 });
 

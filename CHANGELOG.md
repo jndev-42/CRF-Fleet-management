@@ -1,5 +1,11 @@
 # Changelog
 
+## [4.15.2] — 28 août 2026
+
+### 🔧 Autres changements
+
+- **Le PDF d'une note de frais provient uniquement du document scellé** — la génération de secours à la volée, prévue pour les notes antérieures au scellement, est retirée : toutes les notes de production sont désormais scellées. Une note dont le document serait introuvable n'est plus reconstruite en silence — un tel PDF ne porterait aucune signature tout en ayant l'apparence d'un document officiel — mais signalée comme anomalie.
+
 ## [4.15.1] — 28 août 2026
 
 ### 🐛 Correctifs
