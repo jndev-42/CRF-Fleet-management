@@ -47,6 +47,12 @@ export function generate(commonName: string, passphrase: string): string {
         now.getDate()
     );
 
+    // `@types/node-forge` déclare `valueTagClass?: asn1.Class`, alors que
+    // node-forge y attend un `asn1.Type` : `x509.js` initialise ce champ à
+    // `asn1.Type.PRINTABLESTRING` puis le compare à `asn1.Type.UTF8`. La valeur
+    // passée est donc correcte — c'est la déclaration de types qui est fausse.
+    const UTF8_TAG = forge.asn1.Type.UTF8 as unknown as forge.asn1.Class;
+
     // ⚠️ `valueTagClass: UTF8` est OBLIGATOIRE dès qu'une valeur contient un
     // caractère non-ASCII (« ç », tiret cadratin…). Sans lui, node-forge conserve
     // ces caractères comme points de code JavaScript > 255 au lieu de les encoder
@@ -55,8 +61,8 @@ export function generate(commonName: string, passphrase: string): string {
     // qu'il n'en contient. C'est de surcroît l'encodage ASN.1 correct :
     // PrintableString n'admet pas les caractères accentués.
     const attrs = [
-        { name: 'commonName', value: commonName, valueTagClass: forge.asn1.Type.UTF8 },
-        { name: 'organizationName', value: 'Croix-Rouge française', valueTagClass: forge.asn1.Type.UTF8 },
+        { name: 'commonName', value: commonName, valueTagClass: UTF8_TAG },
+        { name: 'organizationName', value: 'Croix-Rouge française', valueTagClass: UTF8_TAG },
         { name: 'countryName', value: 'FR' },
     ];
     cert.setSubject(attrs);
