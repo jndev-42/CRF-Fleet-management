@@ -30,18 +30,26 @@ export const PAGE_HEIGHT = 841.890015;
 /**
  * Rectangles des widgets de signature, en points PDF `[x1, y1, x2, y2]`.
  *
- * Calibrés visuellement au spike de la Phase 1 contre le rendu réel du composant.
+ * MESURÉS, pas devinés : `ExpensePdfDocument` est rendu avec un aplat de couleur
+ * dans chaque zone de signature, puis les rectangles colorés sont localisés au
+ * pixel près et convertis en points PDF. Ne jamais les recalculer à la main.
  *
- * ⚠️ Le bord INFÉRIEUR s'arrête volontairement au-dessus du bloc de métadonnées
- * (nom en gras, « Signé le … », « ID: … ») rendu sous l'image dans chaque colonne.
- * Un widget qui descend plus bas les recouvre et les tronque visuellement — défaut
- * constaté puis corrigé au spike (y1 remonté de 297.6 à 317.5).
+ * ⚠️ CES VALEURS NE SONT CONSTANTES QUE PARCE QUE LA MISE EN PAGE EST INVARIANTE.
+ * Deux dispositifs le garantissent en mode `forSealing`, tous deux indispensables :
+ *   1. un espaceur `flexGrow: 1` épingle le bloc signature au bas de page, sinon
+ *      il remonte quand la note compte peu de postes ;
+ *   2. le bloc de métadonnées a une hauteur FIXE (`sigMetaFixed`), sinon la zone
+ *      image se déplace selon la présence du hash de signature ou de la date de
+ *      validation — `sigCol` utilisant `justifyContent: 'space-between'`.
+ *
+ * Vérifié identique pour 1 et 14 postes, avec et sans hash, note validée ou non.
+ * Un widget mal placé est FIGÉ PAR DocMDP : il n'est plus corrigeable après coup.
  */
 export const SIGNATURE_WIDGET_RECTS = {
     /** Colonne « Le demandeur : » — signature #1 (D10 : widget, pas contenu). */
-    demandeur: [36.1, 317.5, 198.6, 366.8] as const,
+    demandeur: [34.3, 169, 199.8, 204.4] as const,
     /** Colonne « Le responsable : » — signature #2. */
-    valideur: [211.9, 317.5, 381.6, 366.8] as const,
+    valideur: [213.6, 169, 379.2, 204.4] as const,
     /**
      * Signature #3 (payeur) : AUCUN widget.
      * `widgetRect` omis à l'appel ⇒ `plainAddPlaceholder` produit `/Rect [0 0 0 0]`.

@@ -247,6 +247,19 @@ const styles = StyleSheet.create({
         maxWidth: 165,
         objectFit: 'contain',
     },
+    /**
+     * Hauteur FIXE du bloc de métadonnées en mode scellement.
+     *
+     * `sigCol` utilise `justifyContent: 'space-between'` : la position de la zone
+     * image dépend donc de la hauteur des métadonnées, laquelle varie selon la
+     * présence du hash de signature et de la date de validation. Or les rectangles
+     * de `signature-layout.ts` sont des constantes — la zone doit être invariante,
+     * sans quoi les widgets seraient décalés et figés par DocMDP.
+     */
+    sigMetaFixed: {
+        marginTop: 2,
+        height: 26,
+    },
     sigMetaText: {
         fontSize: 6.5,
         color: '#333333',
@@ -572,6 +585,20 @@ export default function ExpensePdfDocument({ report, logoSrc, forSealing = false
                     </View>
                 </View>
 
+                {/*
+                    Espaceur extensible : absorbe la hauteur restante et épingle le
+                    bloc signature au bas de page.
+
+                    ⚠️ INDISPENSABLE au scellement. Sans lui, le bloc remonte quand
+                    la note compte peu de postes, alors que les rectangles de
+                    `signature-layout.ts` sont des constantes : les widgets se
+                    retrouveraient décalés — et figés par DocMDP, donc incorrigibles.
+                    Le contenu de la page étant une colonne flex, `flexGrow` suffit :
+                    pas de `position: absolute`, qui sortirait le bloc du flux et
+                    ferait s'étaler les trois colonnes de signature.
+                */}
+                <View style={{ flexGrow: 1 }} />
+
                 {/* Signatures & Tampon Block */}
                 <View style={styles.sigBox}>
                     <View style={styles.sigColumns}>
@@ -595,7 +622,7 @@ export default function ExpensePdfDocument({ report, logoSrc, forSealing = false
                                     </Text>
                                 </View>
                             )}
-                            <View style={{ marginTop: 2 }}>
+                            <View style={forSealing ? styles.sigMetaFixed : { marginTop: 2 }}>
                                 <Text style={[styles.sigMetaText, { fontFamily: 'Helvetica-Bold' }]}>
                                     {report.userName}
                                 </Text>
@@ -638,7 +665,12 @@ export default function ExpensePdfDocument({ report, logoSrc, forSealing = false
                                 </View>
                             )}
 
-                            {report.validatedAt ? (
+                            {forSealing ? (
+                                // Toujours rendu, même vide : réserve la hauteur
+                                // pour que la zone image ne bouge pas selon que la
+                                // note est déjà validée ou non.
+                                <View style={styles.sigMetaFixed} />
+                            ) : report.validatedAt ? (
                                 <View style={{ marginTop: 2 }}>
                                     <Text style={[styles.sigMetaText, { fontFamily: 'Helvetica-Bold' }]}>
                                         {report.validatorName || 'Valideur'}

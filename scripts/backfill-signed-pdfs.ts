@@ -55,6 +55,35 @@ async function main(): Promise<void> {
     const { sealPdf, decodeSignatureImage, assertSigningCertConfigured } = await import('../src/lib/pdf/signature');
     const { putObject, buildExpenseKey, newAttemptId, assertR2Configured } = await import('../src/lib/r2');
     const { SIGNATURE_WIDGET_RECTS, MAX_ITEMS_SINGLE_PAGE } = await import('../src/lib/expenses/signature-layout');
+    const sharp = (await import('sharp')).default;
+
+    /**
+     * Apparence de repli pour une signature « typed » sans image.
+     *
+     * Les notes antérieures peuvent porter une signature saisie au clavier, sans
+     * tracé manuscrit enregistré. Le PDF d'origine affichait alors le nom en
+     * italique bleu ; sans repli, la colonne resterait vide et le document scellé
+     * serait moins lisible que celui qu'il remplace.
+     *
+     * Reproduit le style de `ExpensePdfDocument` : Helvetica-BoldOblique, #002B49.
+     */
+    async function nameAppearance(name: string): Promise<Buffer> {
+        const escaped = name.replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]!));
+        return sharp(Buffer.from(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="340" height="100">
+               <text x="12" y="62" font-family="Helvetica,Arial,sans-serif" font-size="30"
+                     font-weight="bold" font-style="italic" fill="#002B49">${escaped}</text>
+             </svg>`
+        )).png().toBuffer();
+    }
+
+    /** Image de signature si elle existe, sinon apparence dérivée du nom. */
+    async function appearanceFor(sig: { image?: string; name?: string } | null, fallbackName: string): Promise<Buffer | null> {
+        const decoded = decodeSignatureImage(sig?.image);
+        if (decoded) return decoded;
+        const label = sig?.name || fallbackName;
+        return label ? nameAppearance(label) : null;
+    }
 
     // Échouer tôt et lisiblement plutôt qu'au premier scellement.
     assertSigningCertConfigured();
@@ -132,14 +161,15 @@ async function main(): Promise<void> {
             };
 
             await seal(1, 'Demandeur', 'Soumission (scellée rétroactivement)',
-                (row.userName as string) || 'Demandeur',
-                decodeSignatureImage(userSig?.image), SIGNATURE_WIDGET_RECTS.demandeur,
+                userSig?.name || (row.userName as string) || 'Demandeur',
+                await appearanceFor(userSig, (row.userName as string) || ''), SIGNATURE_WIDGET_RECTS.demandeur,
                 (row.submittedAt as string) || null);
 
             if (row.validatedAt || row.rejectedAt) {
                 await seal(2, 'Valideur',
                     row.rejectedAt ? 'Refus (scellé rétroactivement)' : 'Validation (scellée rétroactivement)',
-                    'Valideur', decodeSignatureImage(valSig?.image), SIGNATURE_WIDGET_RECTS.valideur,
+                    valSig?.name || 'Valideur',
+                    await appearanceFor(valSig, ''), SIGNATURE_WIDGET_RECTS.valideur,
                     (row.validatedAt as string) || (row.rejectedAt as string) || null);
             }
 

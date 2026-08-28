@@ -20,6 +20,7 @@ import { verifySignatures, countPages } from '@/lib/pdf/verify';
 import { assertIncrementalAppend, countRevisions, IncrementalUpdateError } from '@/lib/pdf/incremental';
 import {
     SIGNATURE_WIDGET_RECTS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE, PageGeometryError,
+    PAGE_WIDTH, PAGE_HEIGHT,
 } from '@/lib/expenses/signature-layout';
 
 // Les modules lisent l'environnement À L'APPEL (pas au chargement) : installer le
@@ -70,14 +71,27 @@ describe('signature-layout', () => {
         expect(SIGNATURE_WIDGET_RECTS.payeur).toBeNull();
     });
 
-    it('place les rectangles dans le MediaBox, au-dessus des métadonnées', () => {
-        for (const rect of [SIGNATURE_WIDGET_RECTS.demandeur, SIGNATURE_WIDGET_RECTS.valideur]) {
-            const [x1, y1, x2, y2] = rect;
+    it('place les rectangles dans le MediaBox, sans chevauchement', () => {
+        const [, dy1, dx2, dy2] = SIGNATURE_WIDGET_RECTS.demandeur;
+        const [vx1, vy1, , vy2] = SIGNATURE_WIDGET_RECTS.valideur;
+
+        for (const [x1, y1, x2, y2] of [SIGNATURE_WIDGET_RECTS.demandeur, SIGNATURE_WIDGET_RECTS.valideur]) {
             expect(x2).toBeGreaterThan(x1);
             expect(y2).toBeGreaterThan(y1);
-            // y1 > 300 : le bas du widget s'arrête au-dessus du bloc nom/date/ID.
-            expect(y1).toBeGreaterThan(300);
+            expect(x1).toBeGreaterThanOrEqual(0);
+            expect(y1).toBeGreaterThanOrEqual(0);
+            expect(x2).toBeLessThanOrEqual(PAGE_WIDTH);
+            expect(y2).toBeLessThanOrEqual(PAGE_HEIGHT);
         }
+
+        // Les deux colonnes sont côte à côte, jamais superposées.
+        expect(dx2).toBeLessThanOrEqual(vx1);
+
+        // Même bande verticale : la hauteur du bloc de métadonnées étant figée en
+        // mode scellement, les deux zones image sont alignées. Une divergence
+        // signalerait que `sigMetaFixed` n'est plus appliqué à l'une des colonnes.
+        expect(dy1).toBe(vy1);
+        expect(dy2).toBe(vy2);
     });
 
     it('rejette un PDF dont la géométrie de page diffère', () => {
