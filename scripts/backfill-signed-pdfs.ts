@@ -93,20 +93,35 @@ async function main(): Promise<void> {
     console.log(`Environnement : ${envFile}`);
     console.log(`Base cible    : ${(process.env.TURSO_DATABASE_URL || '').replace(/^libsql:\/\//, '').split('.')[0]}`);
 
-    const where = ONLY_ID
-        ? { sql: `SELECT * FROM "ExpenseReport" WHERE id = ?`, args: [ONLY_ID] }
+    // ⚠️ NE JAMAIS faire `SELECT *` sur l'ensemble des notes. Les colonnes de
+    // signature contiennent des images en base64 : au-delà d'une poignée de
+    // lignes, le client libSQL se bloque SILENCIEUSEMENT — la promesse ne se
+    // résout jamais, la boucle d'événements se vide et le processus sort avec le
+    // code 0, comme s'il avait réussi. Constaté dès 8 notes.
+    // On ne récupère donc que les identifiants, puis chaque note une par une.
+    const listing = ONLY_ID
+        ? { sql: `SELECT id FROM "ExpenseReport" WHERE id = ?`, args: [ONLY_ID] }
         : {
-            sql: `SELECT * FROM "ExpenseReport"
+            sql: `SELECT id FROM "ExpenseReport"
                   WHERE status != 'brouillon' AND (r2Key IS NULL OR r2Key = '')
                   ORDER BY submittedAt ASC` + (LIMIT ? ` LIMIT ${LIMIT}` : ''),
             args: [] as string[],
         };
 
-    const rows = (await db.execute(where)).rows;
-    const stats: Stats = { scanned: rows.length, sealed: 0, skipped: 0, failed: 0 };
-    console.log(`${rows.length} note(s) à traiter.\n`);
+    const ids = (await db.execute(listing)).rows.map(r => String(r.id));
+    const stats: Stats = { scanned: ids.length, sealed: 0, skipped: 0, failed: 0 };
+    console.log(`${ids.length} note(s) à traiter.\n`);
 
-    for (const row of rows) {
+    for (const idCourant of ids) {
+        const ligne = await db.execute({
+            sql: `SELECT er.*, u.name AS userName FROM "ExpenseReport" er
+                  LEFT JOIN "User" u ON u.id = er.userId WHERE er.id = ?`,
+            args: [idCourant],
+        });
+        const row = ligne.rows[0];
+        if (!row) { stats.failed++; console.error(`  ✗ ${idCourant} introuvable`); continue; }
+
+
         const id = row.id as string;
         const status = row.status as string;
         const itemCount = countItems(row.items as string);
