@@ -1,6 +1,6 @@
 # Changelog
 
-## [4.15.2] — 28 août 2026
+## [4.12.0] — 28 août 2026
 
 ### ✨ Nouvelles fonctionnalités
 
