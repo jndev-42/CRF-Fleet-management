@@ -27,18 +27,33 @@ function assertRoundTrip(b64: string): Buffer {
 }
 
 describe('generate-signing-cert', () => {
+    it('n\'émet que des sujets ASCII, y compris pour l\'organisation', () => {
+        const der = assertRoundTrip(generate('CRF Notes de frais', 'motdepasse'));
+        const asn1 = forge.asn1.fromDer(forge.util.createBuffer(der.toString('latin1')));
+        const p12 = forge.pkcs12.pkcs12FromAsn1(asn1, 'motdepasse');
+        const cert = p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag]![0].cert!;
+        for (const attr of cert.subject.attributes) {
+            expect(String(attr.value ?? '')).toMatch(/^[\x20-\x7e]*$/);
+        }
+    }, 30_000);
+
     it('produit un base64 réversible pour un CN ASCII', () => {
         assertRoundTrip(generate('CRF Notes de frais', 'motdepasse'));
     }, 30_000);
 
-    it('produit un base64 réversible pour un CN ACCENTUÉ', () => {
-        // Le CN par défaut du script : la régression venait précisément de là.
-        assertRoundTrip(generate('Croix-Rouge française — Notes de frais', 'motdepasse'));
+    it('REFUSE un CN accentué — il rendrait les signatures invérifiables', () => {
+        // Un caractère non-ASCII dans le sujet casse le lien entre le SignerInfo
+        // et le certificat : OpenSSL répond « signer certificate not found »,
+        // Acrobat « erreurs relatives aux informations contenues ». Les condensats
+        // restant corrects, le défaut échappe à toute vérification maison — mieux
+        // vaut donc refuser à la génération que produire un certificat inutilisable.
+        expect(() => generate('Croix-Rouge française — Notes de frais', 'motdepasse'))
+            .toThrow(/non-ASCII/);
     }, 30_000);
 
     it('génère un PKCS#12 réellement déchiffrable', () => {
         const passphrase = 'ma-passphrase';
-        const der = assertRoundTrip(generate('Croix-Rouge française — Paris 18', passphrase));
+        const der = assertRoundTrip(generate('Croix-Rouge francaise - Paris 18', passphrase));
 
         const asn1 = forge.asn1.fromDer(forge.util.createBuffer(der.toString('binary')));
         const p12 = forge.pkcs12.pkcs12FromAsn1(asn1, passphrase);

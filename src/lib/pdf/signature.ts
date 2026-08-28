@@ -89,9 +89,10 @@ export function assertSigningCertConfigured(): void {
         );
     }
 
+    let p12: forge.pkcs12.Pkcs12Pfx;
     try {
         const asn1 = forge.asn1.fromDer(forge.util.createBuffer(buf.toString('binary')));
-        forge.pkcs12.pkcs12FromAsn1(asn1, (process.env.SIGNING_CERT_PASSPHRASE || '').trim());
+        p12 = forge.pkcs12.pkcs12FromAsn1(asn1, (process.env.SIGNING_CERT_PASSPHRASE || '').trim());
     } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         throw new SigningError(
@@ -99,6 +100,32 @@ export function assertSigningCertConfigured(): void {
                 ? 'SIGNING_CERT_PASSPHRASE ne correspond pas au certificat fourni.'
                 : `Certificat de signature illisible : ${msg}`
         );
+    }
+
+    // ── Sujet du certificat : ASCII obligatoire ──────────────────────────────
+    // Un caractère accentué rend TOUTES les signatures invérifiables :
+    // `@signpdf/signer-p12` ré-encode en UTF-8, pour construire le `SignerInfo`,
+    // un nom qui contient déjà des octets UTF-8. L'émetteur y occupe alors plus
+    // d'octets que dans le certificat, et plus aucun validateur ne peut relier
+    // les deux — OpenSSL répond « signer certificate not found », Acrobat
+    // « erreurs relatives aux informations contenues dans cette signature ».
+    //
+    // Le piège est que les condensats restent corrects : le défaut est invisible
+    // à toute vérification maison, et n'apparaît que dans un vrai lecteur PDF.
+    const certBags = p12.getBags({ bagType: forge.pki.oids.certBag })[forge.pki.oids.certBag];
+    const cert = certBags?.[0]?.cert;
+    if (!cert) throw new SigningError('Le certificat ne contient aucune entrée exploitable.');
+
+    for (const attr of cert.subject.attributes) {
+        const value = String(attr.value ?? '');
+        if (/[^\x20-\x7e]/.test(value)) {
+            throw new SigningError(
+                `Le sujet du certificat contient un caractère non-ASCII dans « ${attr.name ?? attr.type} » : ` +
+                `« ${value} ». Les signatures produites seraient invérifiables. ` +
+                `Régénérez le certificat avec un sujet sans accent ` +
+                `(npx tsx scripts/generate-signing-cert.ts).`
+            );
+        }
     }
 
     // Le signer lui-même doit pouvoir être instancié.

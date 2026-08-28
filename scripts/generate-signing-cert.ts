@@ -27,12 +27,44 @@ import forge from 'node-forge';
 const VALIDITY_YEARS = 30;
 const KEY_BITS = 2048;
 
+/**
+ * ⚠️ SANS ACCENT, ET CE N'EST PAS UN DÉTAIL DE STYLE.
+ *
+ * Tout caractère non-ASCII dans le sujet du certificat rend les signatures
+ * INVÉRIFIABLES. `@signpdf/signer-p12` construit le `SignerInfo` en ré-encodant
+ * en UTF-8 un nom qui contient déjà des octets UTF-8 : l'émetteur y occupe alors
+ * plus d'octets que dans le certificat lui-même, et plus aucun validateur ne
+ * peut relier les deux.
+ *
+ * Symptômes : OpenSSL répond « signer certificate not found », Acrobat affiche
+ * « Il y a des erreurs relatives au formatage ou aux informations contenues dans
+ * cette signature ». Les condensats restent pourtant corrects, ce qui rend le
+ * défaut invisible à toute vérification maison.
+ */
+const ORGANIZATION = 'Croix-Rouge francaise';
+
+/** Rejette toute valeur qui produirait un certificat inutilisable. */
+function assertAscii(champ: string, valeur: string): void {
+    if (/[^\x20-\x7e]/.test(valeur)) {
+        const fautifs = [...valeur].filter(c => c.charCodeAt(0) > 0x7e || c.charCodeAt(0) < 0x20);
+        throw new Error(
+            `${champ} contient des caractères non-ASCII : ${JSON.stringify(fautifs.join(''))}.\n` +
+            `Un accent dans le sujet du certificat rend TOUTES les signatures invérifiables ` +
+            `(Acrobat : « erreurs relatives aux informations contenues »).\n` +
+            `Utilisez par exemple « Croix-Rouge francaise - Notes de frais ».`
+        );
+    }
+}
+
 function arg(name: string, fallback: string): string {
     const i = process.argv.indexOf(`--${name}`);
     return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 
 export function generate(commonName: string, passphrase: string): string {
+    assertAscii('Le nom du signataire (--cn)', commonName);
+    assertAscii('L\'organisation', ORGANIZATION);
+
     const keys = forge.pki.rsa.generateKeyPair(KEY_BITS);
     const cert = forge.pki.createCertificate();
 
@@ -47,22 +79,9 @@ export function generate(commonName: string, passphrase: string): string {
         now.getDate()
     );
 
-    // `@types/node-forge` déclare `valueTagClass?: asn1.Class`, alors que
-    // node-forge y attend un `asn1.Type` : `x509.js` initialise ce champ à
-    // `asn1.Type.PRINTABLESTRING` puis le compare à `asn1.Type.UTF8`. La valeur
-    // passée est donc correcte — c'est la déclaration de types qui est fausse.
-    const UTF8_TAG = forge.asn1.Type.UTF8 as unknown as forge.asn1.Class;
-
-    // ⚠️ `valueTagClass: UTF8` est OBLIGATOIRE dès qu'une valeur contient un
-    // caractère non-ASCII (« ç », tiret cadratin…). Sans lui, node-forge conserve
-    // ces caractères comme points de code JavaScript > 255 au lieu de les encoder
-    // en octets UTF-8 ; l'encodage base64 les tronque alors silencieusement et
-    // produit un certificat invalide, dont l'en-tête DER annonce plus d'octets
-    // qu'il n'en contient. C'est de surcroît l'encodage ASN.1 correct :
-    // PrintableString n'admet pas les caractères accentués.
     const attrs = [
-        { name: 'commonName', value: commonName, valueTagClass: UTF8_TAG },
-        { name: 'organizationName', value: 'Croix-Rouge française', valueTagClass: UTF8_TAG },
+        { name: 'commonName', value: commonName },
+        { name: 'organizationName', value: ORGANIZATION },
         { name: 'countryName', value: 'FR' },
     ];
     cert.setSubject(attrs);
@@ -107,7 +126,7 @@ export function generate(commonName: string, passphrase: string): string {
 }
 
 function main(): void {
-    const commonName = arg('cn', 'Croix-Rouge française — Notes de frais');
+    const commonName = arg('cn', 'Croix-Rouge francaise - Notes de frais');
     const passphrase = arg('passphrase', forge.util.bytesToHex(forge.random.getBytesSync(16)));
 
     process.stderr.write(`Génération d'un certificat RSA ${KEY_BITS} bits, validité ${VALIDITY_YEARS} ans...\n`);
