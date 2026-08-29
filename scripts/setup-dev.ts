@@ -6,6 +6,8 @@
  */
 import { createClient } from '@libsql/client';
 import crypto from 'crypto';
+// Chemin relatif volontaire : ce script tourne hors du bundler Next, l'alias `@/` n'y est pas résolu.
+import { DEFAULT_EXPENSE_BUDGETS, seedDefaultBudgets } from '../src/lib/expenses/budgets';
 
 // DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
 // Defaults to file:./dev.db when run directly via npm run dev:setup.
@@ -690,6 +692,47 @@ async function main() {
         CREATE INDEX IF NOT EXISTS "ExpenseReport_ulId_idx"
         ON "ExpenseReport"("ulId")
     `);
+
+    // ── Budgets analytiques ───────────────────────────────────────
+
+    // Le REFERENCES est DOCUMENTAIRE : les FK ne sont pas activées dans ce repo.
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "ExpenseBudget" (
+            "id"        TEXT NOT NULL PRIMARY KEY,
+            "ulId"      TEXT NOT NULL REFERENCES "UniteLocale"("id") ON DELETE CASCADE,
+            "name"      TEXT NOT NULL,
+            "archived"  INTEGER NOT NULL DEFAULT 0,
+            "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    // Unicité du nom parmi les budgets ACTIFS seulement : un budget actif peut
+    // reprendre le nom d'un budget archivé.
+    await db.execute(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "ExpenseBudget_ulId_name_active_idx"
+        ON "ExpenseBudget"("ulId", "name") WHERE "archived" = 0
+    `);
+    await db.execute(`
+        CREATE INDEX IF NOT EXISTS "ExpenseBudget_ulId_idx"
+        ON "ExpenseBudget"("ulId")
+    `);
+
+    // Seed des budgets par défaut — idempotence à l'unité UL (comme la migration
+    // de production) : une UL possédant déjà des budgets, même renommés ou
+    // archivés, n'est pas retouchée.
+    const ulsToSeed = await db.execute('SELECT id FROM "UniteLocale"');
+    const budgetSeedNow = new Date().toISOString();
+    for (const ulRow of ulsToSeed.rows) {
+        const ulId = ulRow.id as string;
+        const existingBudgets = await db.execute({
+            sql: 'SELECT COUNT(*) AS n FROM "ExpenseBudget" WHERE "ulId" = ?',
+            args: [ulId],
+        });
+        if (Number(existingBudgets.rows[0]?.n ?? 0) === 0) {
+            await seedDefaultBudgets(db, ulId, budgetSeedNow);
+            console.log(`✅ ${DEFAULT_EXPENSE_BUDGETS.length} budgets analytiques créés pour ${ulId}`);
+        }
+    }
 
     // ── Bandeaux de communication ─────────────────────────────────
 

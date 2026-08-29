@@ -15,6 +15,8 @@ import {
   Cell,
   CartesianGrid,
 } from 'recharts';
+import ExpenseStatsBudgetBlock from './ExpenseStatsBudgetBlock';
+import { COLORS } from './colors';
 
 interface ExpenseStatsSectionProps {
   dateFrom: string;
@@ -22,8 +24,6 @@ interface ExpenseStatsSectionProps {
   onDateFromChange: (val: string) => void;
   onDateToChange: (val: string) => void;
 }
-
-const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
 
 export default function ExpenseStatsSection({
   dateFrom,
@@ -248,6 +248,9 @@ export default function ExpenseStatsSection({
                   </div>
                 </div>
               </div>
+
+              {/* Budget Breakdown — bloc dédié (règle de taille de stats/CLAUDE.md) */}
+              <ExpenseStatsBudgetBlock byBudget={data.byBudget} />
 
               {/* Volunteers Expense Breakdown Table */}
               <div style={{

@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
 import ExpenseForm from '@/components/expenses/ExpenseForm';
 import ElectronicSignatureModal, { SignatureData } from '@/components/expenses/ElectronicSignatureModal';
+import ExpenseBudgetsModal from '@/components/expenses/ExpenseBudgetsModal';
+import ExpensesHeader from './ExpensesHeader';
 import ExpensesFilters from './ExpensesFilters';
 import ExpensesTable from './ExpensesTable';
 import ExpenseDetailSidebar from './ExpenseDetailSidebar';
@@ -24,6 +25,7 @@ export default function ExpensesPage() {
     const [photosLoading, setPhotosLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
     const [isJustificatifsModalOpen, setIsJustificatifsModalOpen] = useState(false);
+    const [isBudgetsModalOpen, setIsBudgetsModalOpen] = useState(false);
     const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
     /**
      * Contexte de signature unifié pour les trois actions signées.
@@ -210,29 +212,14 @@ export default function ExpensesPage() {
     return (
         <div className="expenses-container">
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                <div>
-                    <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        Notes de frais
-                    </h1>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                        {isManager
-                            ? 'Gérer, valider et refuser les notes de frais de l\'Unité Locale.'
-                            : isTresorier
-                            ? 'Consulter les notes en attente de paiement et effectuer les règlements.'
-                            : 'Suivez et soumettez vos notes de frais.'}
-                    </p>
-                </div>
-                {!isCreating && (
-                    <button
-                        onClick={() => setIsCreating(true)}
-                        className="btn btn-primary"
-                        style={{ gap: '8px', whiteSpace: 'nowrap' }}
-                    >
-                        <Plus size={16} /> Nouvelle note de frais
-                    </button>
-                )}
-            </div>
+            <ExpensesHeader
+                userRoles={userRoles}
+                isManager={isManager}
+                isTresorier={isTresorier}
+                showCreateButton={!isCreating}
+                onCreate={() => setIsCreating(true)}
+                onManageBudgets={() => setIsBudgetsModalOpen(true)}
+            />
 
             {/* Scope & Filter Toggles for Managers & Tresorier */}
             {(isManager || isTresorier) && !isCreating && (
@@ -335,6 +322,11 @@ export default function ExpensesPage() {
                     onClose={() => setIsJustificatifsModalOpen(false)}
                     onImageClick={setActiveLightboxImage}
                 />
+            )}
+
+            {/* Modale de gestion des budgets analytiques de l'UL */}
+            {isBudgetsModalOpen && (
+                <ExpenseBudgetsModal onClose={() => setIsBudgetsModalOpen(false)} />
             )}
 
             {/* Lightbox photo en plein écran */}

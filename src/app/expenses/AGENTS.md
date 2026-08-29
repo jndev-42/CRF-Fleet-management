@@ -9,7 +9,7 @@ Expense report management (`/expenses`) — the *notes de frais* workflow. Volun
 ## Key Files
 | File | Description |
 |------|-------------|
-| `page.tsx` | `ExpensesPage` (~1275 lines) — the whole feature: scope/filter state, sorting, pagination, all five workflow actions, detail sidebar, receipts modal, and lightbox. |
+| `page.tsx` | `ExpensesPage` (~338 lines) — the whole feature: scope/filter state, sorting, pagination, all five workflow actions, detail sidebar, receipts modal, and lightbox. |
 
 ## For AI Agents
 

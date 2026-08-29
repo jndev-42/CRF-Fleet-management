@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Worktrees git locaux (gitignorés) : ce sont d'autres checkouts du repo,
+    // avec leur propre `.next/` que le glob `.next/**` ci-dessus, ancré à la
+    // racine, ne couvre pas. Les parcourir fait exploser la heap d'ESLint.
+    "worktrees/**",
   ]),
 
   // ── Intégrité des PDF scellés ───────────────────────────────────────────────

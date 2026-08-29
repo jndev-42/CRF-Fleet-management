@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
 import { compressStampImage } from '@/lib/stamp';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { seedDefaultBudgets } from '@/lib/expenses/budgets';
 
 const createULSchema = z.object({
     name: z.string().min(1, 'Le nom est requis'),
@@ -66,10 +67,23 @@ export async function POST(request: Request) {
         const compressedStamp = await compressStampImage(data.stampImage);
 
         const id = `ul-${data.slug}`;
-        await db.execute({
-            sql: `INSERT INTO "UniteLocale" (id, name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            args: [id, data.name, data.slug, JSON.stringify(data.phoneNumbers), JSON.stringify(data.defaultParkingSpots), compressedStamp || null, data.dtCode || null],
-        });
+
+        // UL et budgets analytiques par défaut dans la MÊME transaction : une note
+        // de frais exige un budget par ligne, donc une UL sans budget serait
+        // inutilisable, et un budget sans UL serait orphelin.
+        const now = new Date().toISOString();
+        const tx = await db.transaction('write');
+        try {
+            await tx.execute({
+                sql: `INSERT INTO "UniteLocale" (id, name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                args: [id, data.name, data.slug, JSON.stringify(data.phoneNumbers), JSON.stringify(data.defaultParkingSpots), compressedStamp || null, data.dtCode || null],
+            });
+            await seedDefaultBudgets(tx, id, now);
+            await tx.commit();
+        } catch (e) {
+            await tx.rollback();
+            throw e;
+        }
 
         return NextResponse.json({ success: true, id, name: data.name, slug: data.slug, phoneNumbers: data.phoneNumbers, defaultParkingSpots: data.defaultParkingSpots, stampImage: compressedStamp || null, dtCode: data.dtCode || null }, { status: 201 });
     } catch (error) {

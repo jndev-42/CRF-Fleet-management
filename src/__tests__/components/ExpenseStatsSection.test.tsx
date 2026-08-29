@@ -10,6 +10,10 @@ const mockData: ExpenseStatsDataResult = {
     byUser: [{ userId: 'u1', userName: 'Jean Dupont', userEmail: 'jean@test.com', totalAmount: 500, paidAmount: 300, reportCount: 2 }],
     byImputation: [{ imputation: 'DLUS', amount: 700, count: 3, percentOfTotal: 70 }],
     byStatus: [{ status: 'valide', label: 'Validé', amount: 600, count: 3 }],
+    byBudget: [
+        { budgetId: 'b-essence', name: 'Essence', amount: 400, count: 4, percentOfTotal: 57 },
+        { budgetId: null, name: 'N/A', amount: 300, count: 2, percentOfTotal: 43 },
+    ],
 };
 
 function mockFetch(handler: () => Response) {
@@ -42,6 +46,15 @@ describe('ExpenseStatsSection', () => {
 
         expect(await screen.findByText('Jean Dupont')).toBeTruthy();
         expect(screen.getByText('jean@test.com')).toBeTruthy();
+    });
+
+    it('affiche le bloc de répartition par budget', async () => {
+        mockFetch(() => new Response(JSON.stringify({ data: mockData }), { status: 200 }));
+        render(<ExpenseStatsSection dateFrom="2026-01-01" dateTo="2026-01-31" onDateFromChange={vi.fn()} onDateToChange={vi.fn()} />);
+
+        expect(await screen.findByText('Répartition par budget')).toBeTruthy();
+        expect(screen.getByText('Essence')).toBeTruthy();
+        expect(screen.getByText('Lignes')).toBeTruthy();
     });
 
     it('affiche un état vide sans note de frais', async () => {

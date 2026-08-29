@@ -71,6 +71,22 @@ export function isTresorier(roles: string[]): boolean {
     return roles.includes(ROLES.TRESORIER);
 }
 
+/**
+ * Peut créer, renommer et archiver les budgets analytiques de son UL.
+ *
+ * Composé explicitement sur ses rôles, et NON sur `isReadOnlyManager` : dériver
+ * une autorisation d'écriture d'un helper « read only » serait un contresens, et
+ * sa clause `&& !isAdminOrAbove` exclurait à tort les administrateurs.
+ * `canAccessAdminPanel` n'est pas réutilisable non plus : il omet TRESORIER, et
+ * l'étendre élargirait silencieusement l'accès au panneau d'administration.
+ */
+export function canManageExpenseBudgets(roles: string[]): boolean {
+    return isAdminOrAbove(roles)
+        || isTresorier(roles)
+        || roles.includes(ROLES.PRESIDENT)
+        || roles.includes(ROLES.CADRE);
+}
+
 /** Rôle DT : accès à la vision DT des véhicules */
 export function hasDTRole(roles: string[]): boolean {
     return roles.includes(ROLES.DT) || isSuperAdmin(roles);
