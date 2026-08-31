@@ -191,9 +191,16 @@ export async function fetchExpenseStatsData(
     args.push(filters.imputation, filters.imputation);
   }
 
+  // Colonnes énumérées, jamais `er.*` : la table porte des signatures manuscrites
+  // et des empreintes de scellement en base64 (userSignature, validatorSignature,
+  // payerSignature, signatureRevisions) qui pèsent plusieurs kilo-octets par note
+  // et que cette fonction ne lit pas. Les tirer faisait dépasser la limite de
+  // taille de réponse du serveur libsql et la requête ne rendait jamais la main.
   const reportsPromise = db.execute({
     sql: `
-      SELECT er.*, u.name as userName, u.email as userEmail
+      SELECT er.id, er.userId, er.submittedAt, er.createdAt, er.status, er.total,
+             er.items, er.imputation, er.customImputation,
+             u.name as userName, u.email as userEmail
       FROM "ExpenseReport" er
       JOIN "User" u ON u.id = er.userId
       WHERE ${whereSql}
