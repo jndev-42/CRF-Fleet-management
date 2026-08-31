@@ -428,7 +428,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {items.map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div key={idx} className="expense-item-card">
+                            <span className="expense-item-card-index">Ligne {idx + 1}</span>
                             <div className="expense-item-row">
                                 <input
                                     type="text"

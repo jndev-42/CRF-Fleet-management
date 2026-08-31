@@ -2216,6 +2216,38 @@ body {
   justify-content: space-between;
 }
 
+/* Carte d'une ligne de dépense — regroupe description, montant et budget.
+   Depuis l'ajout du budget analytique, chaque ligne occupe deux rangées :
+   sans délimiteur, les champs de deux lignes voisines se confondent. */
+.expense-item-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+}
+
+/* En-tête discret : numéro de ligne, aligné sur les messages d'erreur
+   du serveur qui désignent la ligne fautive par son rang. */
+.expense-item-card-index {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+/* La rangée interne reste à plat : la carte porte désormais le cadre,
+   inutile de le doubler sur mobile. */
+.expense-item-card .expense-item-row {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
 @media (min-width: 640px) {
   .expense-item-amount-group {
     flex: 1 1 auto;
