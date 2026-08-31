@@ -14,7 +14,7 @@ export interface ExpenseReport {
     driveFolderId: string | null;
     pendingReceiptKeys: string[];
     total: number;
-    items: { label: string; amount: number }[];
+    items: { label: string; amount: number; budgetId: string | null }[];
     ulId: string;
     userFunction?: string | null;
     userSignature?: string | null;

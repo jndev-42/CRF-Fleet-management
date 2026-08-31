@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash, Save, Send, AlertTriangle } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import PhotoPicker from '@/components/ui/PhotoPicker';
@@ -7,6 +7,13 @@ import ElectronicSignatureModal, { SignatureData } from '@/components/expenses/E
 interface ExpenseItem {
     label: string;
     amount: string; // Keep as string for input editing ease
+    budgetId: string; // Chaîne vide = non choisi ; jamais envoyée telle quelle
+}
+
+/** Budget analytique tel que renvoyé par `GET /api/expense-budgets`. */
+interface BudgetOption {
+    id: string;
+    name: string;
 }
 
 interface ExpenseFormProps {
@@ -23,7 +30,15 @@ interface ExpenseFormProps {
         pendingReceiptKeys: string[];
         userFunction?: string | null;
         userSignature?: string | null;
-        items: { label: string; amount: number }[];
+        items: { label: string; amount: number; budgetId?: string | null }[];
+        /**
+         * UL de la note éditée — pas celle de la session.
+         *
+         * Un bénévole multi-UL peut éditer un brouillon d'une UL qui n'est plus
+         * son UL active : le serveur valide les budgets contre l'UL DE LA NOTE,
+         * le formulaire doit donc proposer les mêmes.
+         */
+        ulId?: string;
     };
 }
 
@@ -33,8 +48,9 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
     const [missionDate, setMissionDate] = useState<string>(initialData?.missionDate || '');
     const [items, setItems] = useState<ExpenseItem[]>(
         initialData
-            ? initialData.items.map(item => ({ label: item.label, amount: item.amount.toString() }))
-            : [{ label: '', amount: '' }]
+            // Une ligne antérieure à la feature arrive sans budget : à re-choisir.
+            ? initialData.items.map(item => ({ label: item.label, amount: item.amount.toString(), budgetId: item.budgetId ?? '' }))
+            : [{ label: '', amount: '', budgetId: '' }]
     );
     const [imputation, setImputation] = useState<'DLUS' | 'DLAS' | 'UL' | 'Autre'>(
         initialData?.imputation || 'DLUS'
@@ -59,6 +75,48 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const [budgets, setBudgets] = useState<BudgetOption[]>([]);
+    const [budgetsLoading, setBudgetsLoading] = useState(true);
+    const [budgetsError, setBudgetsError] = useState(false);
+
+    // UL de la note éditée : le serveur valide les budgets contre elle, pas contre
+    // l'UL de session. Absente à la création, où le serveur retient l'UL de session.
+    const reportUlId = initialData?.ulId;
+
+    const loadBudgets = useCallback(async () => {
+        setBudgetsLoading(true);
+        setBudgetsError(false);
+        try {
+            const url = reportUlId
+                ? `/api/expense-budgets?ulId=${encodeURIComponent(reportUlId)}`
+                : '/api/expense-budgets';
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Chargement des budgets impossible');
+            const data = await res.json();
+            setBudgets(Array.isArray(data) ? data : []);
+            if (!Array.isArray(data)) setBudgetsError(true);
+        } catch {
+            setBudgets([]);
+            setBudgetsError(true);
+        } finally {
+            setBudgetsLoading(false);
+        }
+    }, [reportUlId]);
+
+    useEffect(() => {
+        loadBudgets();
+    }, [loadBudgets]);
+
+    /**
+     * Aucun budget sélectionnable : l'enregistrement est impossible.
+     *
+     * Le serveur n'a pas de message pour « il n'existe aucun budget » — le client
+     * est le seul à pouvoir l'expliquer. Cas de figure : la table de production
+     * n'a pas encore été migrée, ou le réseau est tombé.
+     */
+    const budgetsUnavailable = !budgetsLoading && (budgetsError || budgets.length === 0);
+    const budgetsUnavailableMessage = 'Impossible de charger la liste des budgets. Contactez un responsable : aucune note de frais ne peut être enregistrée sans budget.';
+
     // Une mission ne peut pas être datée dans le futur.
     const todayIso = new Date().toISOString().slice(0, 10);
 
@@ -73,7 +131,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
     }, [items]);
 
     const handleAddItem = () => {
-        setItems(prev => [...prev, { label: '', amount: '' }]);
+        setItems(prev => [...prev, { label: '', amount: '', budgetId: '' }]);
     };
 
     const handleRemoveItem = (index: number) => {
@@ -115,6 +173,11 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
         const validItems = items.filter(item => item.label.trim() && parseFloat(item.amount) > 0);
         if (validItems.length === 0) {
             setError('Veuillez ajouter au moins une dépense valide avec un libellé et un montant supérieur à 0.');
+            return false;
+        }
+
+        if (validItems.some(item => !item.budgetId)) {
+            setError('Veuillez rattacher chaque ligne de dépense à un budget.');
             return false;
         }
 
@@ -199,7 +262,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     receiptKeys: allReceiptKeys,
                     items: validItems.map(item => ({
                         label: item.label.trim(),
-                        amount: parseFloat(item.amount)
+                        amount: parseFloat(item.amount),
+                        budgetId: item.budgetId
                     }))
                 };
 
@@ -227,7 +291,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     receiptKeys: allReceiptKeys,
                     items: validItems.map(item => ({
                         label: item.label.trim(),
-                        amount: parseFloat(item.amount)
+                        amount: parseFloat(item.amount),
+                        budgetId: item.budgetId
                     }))
                 };
 
@@ -263,8 +328,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 </p>
             </div>
 
-            {error && (
-                <div style={{
+            {(error || budgetsUnavailable) && (
+                <div role="alert" style={{
                     display: 'flex',
                     alignItems: 'flex-start',
                     gap: '10px',
@@ -276,7 +341,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     fontSize: '0.875rem'
                 }}>
                     <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
-                    <div>{error}</div>
+                    <div>{error || budgetsUnavailableMessage}</div>
                 </div>
             )}
 
@@ -363,40 +428,62 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     {items.map((item, idx) => (
-                        <div key={idx} className="expense-item-row">
-                            <input
-                                type="text"
-                                className="form-input expense-item-desc"
-                                placeholder="Description (ex: Essence, Billet de train...)"
-                                value={item.label}
-                                onChange={e => handleItemChange(idx, 'label', e.target.value)}
-                                disabled={loading}
-                                required
-                            />
-                            <div className="expense-item-amount-group">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
-                                    <input
-                                        type="text"
-                                        className="form-input"
-                                        style={{ textAlign: 'right', width: '100%', minWidth: 0 }}
-                                        placeholder="0.00"
-                                        value={item.amount}
-                                        onChange={e => handleItemChange(idx, 'amount', e.target.value)}
-                                        disabled={loading}
-                                        required
-                                    />
-                                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>€</span>
-                                </div>
-                                <button
-                                    type="button"
-                                    className="btn btn-danger"
-                                    style={{ padding: '8px 12px', visibility: items.length > 1 ? 'visible' : 'hidden', flexShrink: 0 }}
-                                    onClick={() => handleRemoveItem(idx)}
+                        <div key={idx} className="expense-item-card">
+                            <span className="expense-item-card-index">Ligne {idx + 1}</span>
+                            <div className="expense-item-row">
+                                <input
+                                    type="text"
+                                    className="form-input expense-item-desc"
+                                    placeholder="Description (ex: Essence, Billet de train...)"
+                                    value={item.label}
+                                    onChange={e => handleItemChange(idx, 'label', e.target.value)}
                                     disabled={loading}
-                                    aria-label="Supprimer la dépense"
+                                    required
+                                />
+                                <div className="expense-item-amount-group">
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, minWidth: 0 }}>
+                                        <input
+                                            type="text"
+                                            className="form-input"
+                                            style={{ textAlign: 'right', width: '100%', minWidth: 0 }}
+                                            placeholder="0.00"
+                                            value={item.amount}
+                                            onChange={e => handleItemChange(idx, 'amount', e.target.value)}
+                                            disabled={loading}
+                                            required
+                                        />
+                                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>€</span>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        className="btn btn-danger"
+                                        style={{ padding: '8px 12px', visibility: items.length > 1 ? 'visible' : 'hidden', flexShrink: 0 }}
+                                        onClick={() => handleRemoveItem(idx)}
+                                        disabled={loading}
+                                        aria-label="Supprimer la dépense"
+                                    >
+                                        <Trash size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                            {/* Budget analytique de la ligne — obligatoire, jamais « N/A », jamais archivé */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <label className="form-label" htmlFor={`budget-${idx}`} style={{ margin: 0, fontSize: '0.8125rem' }}>
+                                    Budget <span style={{ color: 'var(--crf-red)' }}>*</span>
+                                </label>
+                                <select
+                                    id={`budget-${idx}`}
+                                    className="form-select"
+                                    value={item.budgetId}
+                                    onChange={e => handleItemChange(idx, 'budgetId', e.target.value)}
+                                    disabled={loading || budgetsLoading || budgetsUnavailable}
+                                    required
                                 >
-                                    <Trash size={16} />
-                                </button>
+                                    <option value="" disabled>-- Choisir un budget --</option>
+                                    {budgets.map(budget => (
+                                        <option key={budget.id} value={budget.id}>{budget.name}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
                     ))}
@@ -525,7 +612,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     onClick={() => handleInitiateSubmit('brouillon')}
                     className="btn btn-secondary"
                     style={{ gap: '6px' }}
-                    disabled={loading}
+                    disabled={loading || budgetsLoading || budgetsUnavailable}
                 >
                     <Save size={16} /> Enregistrer Brouillon
                 </button>
@@ -534,7 +621,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                     onClick={() => handleInitiateSubmit('soumis')}
                     className="btn btn-primary"
                     style={{ gap: '6px' }}
-                    disabled={loading}
+                    disabled={loading || budgetsLoading || budgetsUnavailable}
                 >
                     <Send size={16} /> Signer et Soumettre
                 </button>

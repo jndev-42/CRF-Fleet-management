@@ -3,9 +3,14 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { fetchExpenseStatsData } from '@/lib/stats-expenses';
 
 function csvEscape(value: unknown): string {
-  const str = value == null ? '' : String(value);
+  const raw = value == null ? '' : String(value);
+  // Neutralisation de l'injection de formule : un champ libre commençant par
+  // =, +, - ou @ est interprété comme une formule par Excel et LibreOffice.
+  // Les noms de budget et l'imputation « Autre » sont saisis par l'utilisateur.
+  const str = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   if (str.includes(',') || str.includes('"') || str.includes('\n')) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -130,7 +135,24 @@ export async function POST(request: Request) {
       ].map(csvEscape).join(',');
     });
 
-    const csv = [headers.map(csvEscape).join(','), ...rows].join('\n');
+    // Sous-tableau « Par budget », alimenté par l'agrégation partagée des stats.
+    // Second parcours de la même période, assumé : le CSV par note ci-dessus ne
+    // passe pas par `fetchExpenseStatsData`. Les deux prédicats restent alignés
+    // (même `ulId`, mêmes bornes de dates).
+    const stats = await fetchExpenseStatsData(dateFrom, dateTo, { ulId });
+    const budgetSection = [
+      '',
+      '',
+      ['Budget', 'Lignes', 'Montant (EUR)', 'Part (%)'].map(csvEscape).join(','),
+      ...stats.byBudget.map((b) => [
+        b.name,
+        b.count,
+        b.amount.toFixed(2),
+        b.percentOfTotal,
+      ].map(csvEscape).join(',')),
+    ];
+
+    const csv = [headers.map(csvEscape).join(','), ...rows, ...budgetSection].join('\n');
     const buffer = Buffer.from('\uFEFF' + csv, 'utf-8');
 
     return new NextResponse(new Uint8Array(buffer), {

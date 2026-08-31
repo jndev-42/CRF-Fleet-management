@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import crypto from 'crypto';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
+import { validateItemBudgets } from '@/lib/expenses/budgets';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -24,7 +25,8 @@ const expenseReportSchema = z.object({
     receiptKeys: z.array(z.string()).optional().default([]),
     items: z.array(z.object({
         label: z.string().min(1, 'Le libellé est requis'),
-        amount: z.number().positive('Le montant doit être positif')
+        amount: z.number().positive('Le montant doit être positif'),
+        budgetId: z.string().min(1, 'Le budget est requis')
     })).min(1, 'Au moins une dépense est requise'),
 });
 
@@ -222,6 +224,13 @@ export async function POST(request: Request) {
         const userSigStr = typeof data.userSignature === 'object' && data.userSignature !== null
             ? JSON.stringify(data.userSignature)
             : (data.userSignature || null);
+
+        // Validation référentielle des budgets, sur l'UL de la note (ici celle de
+        // la session, puisque la note est créée maintenant).
+        const budgetError = await validateItemBudgets(db, ulId, data.items);
+        if (budgetError) {
+            return NextResponse.json({ error: budgetError }, { status: 400 });
+        }
 
         // ── Garde-fous préalables à la soumission ────────────────────────────
         // Une note soumise est scellée immédiatement et le document devient

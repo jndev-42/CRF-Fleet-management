@@ -232,6 +232,26 @@ export default function ExpenseStatsPdfDocument({
           ))}
         </View>
 
+        {/* Budget Breakdown */}
+        <Text style={styles.sectionTitle}>Répartition par Budget</Text>
+        <View style={styles.table}>
+          <View style={styles.tableHeader}>
+            <Text style={[styles.th, { width: '40%' }]}>Budget</Text>
+            {/* « Lignes » et non « Notes » : byBudget.count compte des lignes de dépense. */}
+            <Text style={[styles.th, { width: '20%', textAlign: 'center' }]}>Lignes</Text>
+            <Text style={[styles.th, { width: '20%', textAlign: 'right' }]}>Montant (€)</Text>
+            <Text style={[styles.th, { width: '20%', textAlign: 'right' }]}>Part (%)</Text>
+          </View>
+          {data.byBudget.map((budget, idx) => (
+            <View key={idx} style={styles.tableRow}>
+              <Text style={[styles.td, { width: '40%', fontFamily: 'Helvetica-Bold' }]}>{budget.name}</Text>
+              <Text style={[styles.td, { width: '20%', textAlign: 'center' }]}>{budget.count}</Text>
+              <Text style={[styles.td, { width: '20%', textAlign: 'right' }]}>{budget.amount.toFixed(2)} €</Text>
+              <Text style={[styles.td, { width: '20%', textAlign: 'right' }]}>{budget.percentOfTotal} %</Text>
+            </View>
+          ))}
+        </View>
+
         {/* Volunteer Breakdown */}
         <Text style={styles.sectionTitle}>Dépenses par Bénévole / Demandeur</Text>
         <View style={styles.table}>

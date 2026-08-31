@@ -380,6 +380,23 @@ async function createTables() {
     updatedAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Budgets analytiques. Le REFERENCES est DOCUMENTAIRE : les FK ne sont pas
+  // activées dans ce repo (aucun PRAGMA foreign_keys).
+  await db.execute(`CREATE TABLE IF NOT EXISTS "ExpenseBudget" (
+    id        TEXT NOT NULL PRIMARY KEY,
+    ulId      TEXT NOT NULL REFERENCES "UniteLocale"(id) ON DELETE CASCADE,
+    name      TEXT NOT NULL,
+    archived  INTEGER NOT NULL DEFAULT 0,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  // Unicité du nom parmi les budgets ACTIFS seulement : un budget actif peut
+  // reprendre le nom d'un budget archivé.
+  await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "ExpenseBudget_ulId_name_active_idx"
+    ON "ExpenseBudget"(ulId, name) WHERE archived = 0`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS "ExpenseBudget_ulId_idx"
+    ON "ExpenseBudget"(ulId)`);
+
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "UniteLocale" (
     id TEXT PRIMARY KEY,
@@ -457,6 +474,9 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "IncidentReport"`);
   await db.execute(`DELETE FROM "UserRole"`);
   await db.execute(`DELETE FROM "UserUL"`);
+  // Avant "UniteLocale" : hygiène et lisibilité de l'ordre de nettoyage
+  // (les FK ne sont pas activées ici, aucune cascade n'est en jeu).
+  await db.execute(`DELETE FROM "ExpenseBudget"`);
   await db.execute(`DELETE FROM "UniteLocale"`);
   await db.execute(`DELETE FROM "Trip"`);
   await db.execute(`DELETE FROM "Reservation"`);
@@ -892,7 +912,7 @@ export async function seedExpenseReport(overrides: Partial<{
   status: string;
   imputation: string;
   total: number;
-  items: { label: string; amount: number }[];
+  items: { label: string; amount: number; budgetId?: string | null }[];
   ulId: string;
   validatedBy: string | null;
   missionName: string | null;
@@ -913,7 +933,7 @@ export async function seedExpenseReport(overrides: Partial<{
     status: 'soumis',
     imputation: 'DLUS',
     total: 42.5,
-    items: [{ label: 'Péage', amount: 42.5 }],
+    items: [{ label: 'Péage', amount: 42.5 }] as { label: string; amount: number; budgetId?: string | null }[],
     ulId: 'ul-paris-18',
     validatedBy: null,
     // null par défaut : représente une note de frais créée avant l'ajout du champ mission.
@@ -938,4 +958,45 @@ export async function seedExpenseReport(overrides: Partial<{
            report.userSignature, report.validatorSignature, report.payerSignature, report.r2Key, report.signatureRevisions, report.validatedAt, report.paidAt, report.paidBy],
   });
   return report;
+}
+
+export async function seedExpenseBudget(overrides: Partial<{
+  id: string;
+  ulId: string;
+  name: string;
+  archived: boolean;
+}> = {}) {
+  const budget = {
+    id: 'budget-1',
+    ulId: 'ul-paris-18',
+    name: 'Repas',
+    archived: false,
+    ...overrides,
+  };
+  const now = new Date().toISOString();
+  await db.execute({
+    sql: `INSERT INTO "ExpenseBudget" (id, ulId, name, archived, createdAt, updatedAt) VALUES (?,?,?,?,?,?)`,
+    args: [budget.id, budget.ulId, budget.name, budget.archived ? 1 : 0, now, now],
+  });
+  return budget;
+}
+
+/**
+ * Budgets actifs de référence, un par UL de fixture.
+ *
+ * `truncateTables()` vide `ExpenseBudget` avant chaque test : appeler
+ * `seedExpenseBudgetFixtures()` dans le `beforeEach` d'une suite qui écrit des
+ * notes de frais, puis rattacher chaque ligne au budget de l'UL de la note.
+ */
+export const EXPENSE_BUDGET_FIXTURES = {
+  'ul-paris-18': 'budget-test-18',
+  'ul-paris-17': 'budget-test-17',
+} as const;
+
+/** Sème un budget actif dans chaque UL de `EXPENSE_BUDGET_FIXTURES`. */
+export async function seedExpenseBudgetFixtures() {
+  for (const [ulId, id] of Object.entries(EXPENSE_BUDGET_FIXTURES)) {
+    await seedExpenseBudget({ id, ulId, name: 'Repas' });
+  }
+  return EXPENSE_BUDGET_FIXTURES;
 }

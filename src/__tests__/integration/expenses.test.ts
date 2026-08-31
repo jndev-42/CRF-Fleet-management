@@ -56,9 +56,13 @@ const SIG = { mode: 'draw', image: 'data:image/png;base64,iVBORw0KGgo=', name: '
 import { auth } from '@/auth';
 import { GET as getList, POST as createReport } from '@/app/api/expenses/route';
 import { GET as getReport, PATCH as updateReport } from '@/app/api/expenses/[id]/route';
-import { seedRoles, seedUser, seedUserRole, db } from './setup';
+import { seedRoles, seedUser, seedUserRole, seedExpenseBudget, seedExpenseBudgetFixtures, EXPENSE_BUDGET_FIXTURES, db } from './setup';
 
 const mockedAuth = vi.mocked(auth);
+
+/** Budget actif de référence de `ul-paris-18` — chaque ligne de dépense doit en porter un. */
+const BUDGET_18 = EXPENSE_BUDGET_FIXTURES['ul-paris-18'];
+const BUDGET_17 = EXPENSE_BUDGET_FIXTURES['ul-paris-17'];
 
 beforeEach(async () => {
     // Clear and seed base data
@@ -69,7 +73,10 @@ beforeEach(async () => {
     
     await seedRoles();
     await db.execute(`INSERT OR IGNORE INTO "UniteLocale" (id, name, slug) VALUES ('ul-paris-18', 'Paris 18', 'ul-paris-18')`);
-    
+    await db.execute(`INSERT OR IGNORE INTO "UniteLocale" (id, name, slug) VALUES ('ul-paris-17', 'Paris 17', 'ul-paris-17')`);
+    // Un budget actif par UL : sans lui, toute écriture de lignes est refusée en 400.
+    await seedExpenseBudgetFixtures();
+
     // Create users for tests
     await seedUser({ id: 'user-standard', email: 'secouriste@test.com', name: 'Standard User' });
     await seedUserRole('user-standard', 'SECOURISTE');
@@ -119,7 +126,7 @@ describe('Expense Report integration tests', () => {
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
-                items: [{ label: 'Decathlon', amount: 45.99 }]
+                items: [{ label: 'Decathlon', amount: 45.99, budgetId: BUDGET_18 }]
             });
             const res = await createReport(req);
             expect(res.status).toBe(401);
@@ -149,8 +156,8 @@ describe('Expense Report integration tests', () => {
                 requestRefund: true,
                 noReceiptDeclaration: false,
                 items: [
-                    { label: 'Essence Boxer', amount: 60 },
-                    { label: 'Piles', amount: 15.50 }
+                    { label: 'Essence Boxer', amount: 60, budgetId: BUDGET_18 },
+                    { label: 'Piles', amount: 15.50, budgetId: BUDGET_18 }
                 ]
             });
             const res = await createReport(req);
@@ -183,7 +190,7 @@ describe('Expense Report integration tests', () => {
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
-                items: [{ label: 'Essence', amount: 30 }]
+                items: [{ label: 'Essence', amount: 30, budgetId: BUDGET_18 }]
             });
             const res = await createReport(req);
             expect(res.status).toBe(400);
@@ -199,7 +206,7 @@ describe('Expense Report integration tests', () => {
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
-                items: [{ label: 'Essence', amount: 30 }]
+                items: [{ label: 'Essence', amount: 30, budgetId: BUDGET_18 }]
             }));
             expect(missing.status).toBe(400);
 
@@ -210,7 +217,7 @@ describe('Expense Report integration tests', () => {
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
-                items: [{ label: 'Essence', amount: 30 }]
+                items: [{ label: 'Essence', amount: 30, budgetId: BUDGET_18 }]
             }));
             expect(malformed.status).toBe(400);
         });
@@ -224,7 +231,7 @@ describe('Expense Report integration tests', () => {
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
-                items: [{ label: 'Repas', amount: 12 }]
+                items: [{ label: 'Repas', amount: 12, budgetId: BUDGET_18 }]
             });
             const res = await createReport(req);
             expect(res.status).toBe(201);
@@ -246,7 +253,7 @@ describe('Expense Report integration tests', () => {
                 imputation: 'DLUS',
                 requestRefund: true,
                 noReceiptDeclaration: false,
-                items: [{ label: 'Fournitures', amount: 50 }]
+                items: [{ label: 'Fournitures', amount: 50, budgetId: BUDGET_18 }]
             });
             const res = await createReport(req);
             expect(res.status).toBe(201);
@@ -509,7 +516,7 @@ describe('Expense Report integration tests', () => {
             const req = makePatchRequest({
                 action: 'update',
                 status: 'brouillon',
-                items: [{ label: 'Repas', amount: 20 }],
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(400);
@@ -519,7 +526,7 @@ describe('Expense Report integration tests', () => {
             const req = makePatchRequest({
                 action: 'submit',
                 missionName: 'Maraude Nord',
-                items: [{ label: 'Repas', amount: 20 }],
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(400);
@@ -531,7 +538,7 @@ describe('Expense Report integration tests', () => {
                 status: 'brouillon',
                 missionName: '  Maraude Nord  ',
                 missionDate: '2026-03-12',
-                items: [{ label: 'Repas', amount: 20 }],
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(200);
@@ -565,7 +572,7 @@ describe('Expense Report integration tests', () => {
                 missionName: 'Maraude Nord',
                 missionDate: '2026-03-12',
                 userSignature: SIG,
-                items: [{ label: 'Repas', amount: 20 }],
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(200);
@@ -584,7 +591,7 @@ describe('Expense Report integration tests', () => {
                 action: 'submit',
                 missionName: 'Maraude Nord',
                 missionDate: '2026-03-12',
-                items: [{ label: 'Repas', amount: 20 }],
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(400);
@@ -604,7 +611,7 @@ describe('Expense Report integration tests', () => {
                 missionName: 'Maraude Nord',
                 missionDate: '2026-03-12',
                 receiptKeys: ['expenses-staging/s1/a.jpg', 'expenses-staging/s1/b.pdf'],
-                items: [{ label: 'Repas', amount: 20 }],
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(200);
@@ -631,7 +638,7 @@ describe('Expense Report integration tests', () => {
                 missionName: 'Maraude Nord',
                 missionDate: '2026-03-12',
                 userSignature: SIG,
-                items: [{ label: 'Repas', amount: 20 }],
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(200);
@@ -661,7 +668,7 @@ describe('Expense Report integration tests', () => {
                 missionName: 'Maraude Nord',
                 missionDate: '2026-03-12',
                 userSignature: SIG,
-                items: [{ label: 'Repas', amount: 20 }],
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(200);
@@ -674,7 +681,7 @@ describe('Expense Report integration tests', () => {
                 missionName: 'Maraude Nord',
                 missionDate: '2026-03-12',
                 userSignature: SIG,
-                items: Array.from({ length: 10 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
+                items: Array.from({ length: 10 }, (_, i) => ({ label: `D${i}`, amount: 1, budgetId: BUDGET_18 })),
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(400);
@@ -690,7 +697,7 @@ describe('Expense Report integration tests', () => {
                 missionName: 'Maraude Nord',
                 missionDate: '2026-03-12',
                 userSignature: SIG,
-                items: [{ label: 'Repas', amount: 20 }],
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(500);
@@ -714,7 +721,7 @@ describe('Expense Report integration tests', () => {
                 body: JSON.stringify({
                     status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
                     requestRefund: true, noReceiptDeclaration: false,
-                    items: [{ label: 'Péage', amount: 10 }],
+                    items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }],
                 }),
             });
             const res = await createReport(req);
@@ -731,7 +738,7 @@ describe('Expense Report integration tests', () => {
                 body: JSON.stringify({
                     status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
                     requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
-                    items: Array.from({ length: 10 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
+                    items: Array.from({ length: 10 }, (_, i) => ({ label: `D${i}`, amount: 1, budgetId: BUDGET_18 })),
                 }),
             });
             const res = await createReport(req);
@@ -746,7 +753,7 @@ describe('Expense Report integration tests', () => {
                 body: JSON.stringify({
                     status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
                     requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
-                    items: Array.from({ length: 9 }, (_, i) => ({ label: `D${i}`, amount: 1 })),
+                    items: Array.from({ length: 9 }, (_, i) => ({ label: `D${i}`, amount: 1, budgetId: BUDGET_18 })),
                 }),
             });
             expect((await createReport(req)).status).toBe(201);
@@ -759,7 +766,7 @@ describe('Expense Report integration tests', () => {
                 body: JSON.stringify({
                     status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
                     requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
-                    items: [{ label: 'Péage', amount: 10 }],
+                    items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }],
                 }),
             });
             const { id } = await (await createReport(req)).json();
@@ -780,7 +787,7 @@ describe('Expense Report integration tests', () => {
                     status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
                     requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
                     receiptKeys: ['expenses-staging/s1/ticket.jpg', 'expenses-staging/s1/facture.pdf'],
-                    items: [{ label: 'Péage', amount: 10 }],
+                    items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }],
                 }),
             });
             const { id } = await (await createReport(req)).json();
@@ -899,6 +906,187 @@ describe('Expense Report integration tests', () => {
             const row = (await db.execute({ sql: 'SELECT status FROM "ExpenseReport" WHERE id = ?', args: ['exp-err'] })).rows[0];
             expect(row.status).toBe('soumis');
             spy.mockRestore();
+        });
+    });
+    describe('Budget analytique par ligne de dépense', () => {
+        beforeEach(async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
+        });
+
+        it('POST retourne 400 si une ligne n\'a pas de budgetId', async () => {
+            const req = makePostRequest({
+                status: 'brouillon',
+                imputation: 'DLUS',
+                requestRefund: false,
+                noReceiptDeclaration: false,
+                items: [{ label: 'Repas', amount: 12 }],
+            });
+            const res = await createReport(req);
+            expect(res.status).toBe(400);
+        });
+
+        it('POST retourne 400 pour un budgetId hors UL de la note', async () => {
+            const req = makePostRequest({
+                status: 'brouillon',
+                imputation: 'DLUS',
+                requestRefund: false,
+                noReceiptDeclaration: false,
+                // Budget de l'UL 17 sur une note créée dans l'UL 18.
+                items: [{ label: 'Repas', amount: 12, budgetId: BUDGET_17 }],
+            });
+            const res = await createReport(req);
+            expect(res.status).toBe(400);
+            expect((await res.json()).error).toBe('Ligne 1 : budget inconnu.');
+        });
+
+        it('le message d\'erreur nomme la ligne et le budget fautifs', async () => {
+            await seedExpenseBudget({ id: 'b-arch-msg', ulId: 'ul-paris-18', name: 'Essence', archived: true });
+            const req = makePostRequest({
+                status: 'brouillon',
+                imputation: 'DLUS',
+                requestRefund: false,
+                noReceiptDeclaration: false,
+                items: [
+                    { label: 'Repas', amount: 12, budgetId: BUDGET_18 },
+                    { label: 'Plein', amount: 40, budgetId: 'b-arch-msg' },
+                ],
+            });
+            const res = await createReport(req);
+            expect(res.status).toBe(400);
+            expect((await res.json()).error).toBe('Ligne 2 : le budget « Essence » est archivé et ne peut plus être utilisé.');
+        });
+
+        it('le budgetId d\'une ligne survit à un POST puis GET', async () => {
+            const created = await createReport(makePostRequest({
+                status: 'brouillon',
+                imputation: 'DLUS',
+                requestRefund: false,
+                noReceiptDeclaration: false,
+                items: [{ label: 'Repas', amount: 12, budgetId: BUDGET_18 }],
+            }));
+            expect(created.status).toBe(201);
+            const { id } = await created.json();
+
+            const res = await getReport(new Request(`http://localhost/api/expenses/${id}`), { params: Promise.resolve({ id }) });
+            expect(res.status).toBe(200);
+            const report = await res.json();
+            expect(report.items).toEqual([{ label: 'Repas', amount: 12, budgetId: BUDGET_18 }]);
+        });
+
+        it('PATCH update retourne 400 si une ligne n\'a pas de budgetId', async () => {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
+                      VALUES ('exp-budget-draft', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0, '[]', 'ul-paris-18', 0)`,
+            });
+            const res = await updateReport(makePatchRequest({
+                action: 'update',
+                status: 'brouillon',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                items: [{ label: 'Repas', amount: 20 }],
+            }), { params: Promise.resolve({ id: 'exp-budget-draft' }) });
+            expect(res.status).toBe(400);
+        });
+
+        it('la validation référentielle se fait sur l\'UL de la note', async () => {
+            // Note figée dans l'UL 17 ; l'auteur a l'UL 18 pour UL de session.
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
+                      VALUES ('exp-ul17', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0, '[]', 'ul-paris-17', 0)`,
+            });
+
+            const rejected = await updateReport(makePatchRequest({
+                action: 'update',
+                status: 'brouillon',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
+            }), { params: Promise.resolve({ id: 'exp-ul17' }) });
+            expect(rejected.status).toBe(400);
+
+            const accepted = await updateReport(makePatchRequest({
+                action: 'update',
+                status: 'brouillon',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_17 }],
+            }), { params: Promise.resolve({ id: 'exp-ul17' }) });
+            expect(accepted.status).toBe(200);
+        });
+
+        it('un budget archivé déjà présent dans la note reste accepté', async () => {
+            await seedExpenseBudget({ id: 'b-arch-ok', ulId: 'ul-paris-18', name: 'Essence', archived: true });
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
+                      VALUES ('exp-arch-ok', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0,
+                              '[{"label":"Plein","amount":20,"budgetId":"b-arch-ok"}]', 'ul-paris-18', 0)`,
+            });
+
+            const res = await updateReport(makePatchRequest({
+                action: 'update',
+                status: 'brouillon',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                items: [{ label: 'Plein', amount: 25, budgetId: 'b-arch-ok' }],
+            }), { params: Promise.resolve({ id: 'exp-arch-ok' }) });
+            expect(res.status).toBe(200);
+        });
+
+        it('un budget archivé nouvellement introduit est rejeté', async () => {
+            await seedExpenseBudget({ id: 'b-arch-ko', ulId: 'ul-paris-18', name: 'Essence', archived: true });
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
+                      VALUES ('exp-arch-ko', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0,
+                              '[{"label":"Repas","amount":20,"budgetId":"budget-test-18"}]', 'ul-paris-18', 0)`,
+            });
+
+            const res = await updateReport(makePatchRequest({
+                action: 'update',
+                status: 'brouillon',
+                missionName: 'Maraude Nord',
+                missionDate: '2026-03-12',
+                items: [{ label: 'Plein', amount: 25, budgetId: 'b-arch-ko' }],
+            }), { params: Promise.resolve({ id: 'exp-arch-ko' }) });
+            expect(res.status).toBe(400);
+        });
+
+        // ⚠️ Non-régression du circuit scellé : validate / reject / pay n'envoient
+        // JAMAIS d'items. Rendre `items` requis bloquerait le paiement sur des
+        // notes déjà scellées, donc non corrigeables par ré-édition.
+        it('validate reste valide sans items', async () => {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
+                      VALUES ('exp-val', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 'DLUS', 20.0, '[]', 'ul-paris-18', 0)`,
+            });
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
+
+            const res = await updateReport(makePatchRequest({ action: 'validate', validatorSignature: SIG }), { params: Promise.resolve({ id: 'exp-val' }) });
+            expect(res.status).toBe(200);
+        });
+
+        it('reject reste valide sans items', async () => {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
+                      VALUES ('exp-rej', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 'DLUS', 20.0, '[]', 'ul-paris-18', 1)`,
+            });
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
+
+            const res = await updateReport(
+                makePatchRequest({ action: 'reject', rejectionComment: 'Justificatif manquant', validatorSignature: SIG }),
+                { params: Promise.resolve({ id: 'exp-rej' }) },
+            );
+            expect(res.status).toBe(200);
+        });
+
+        it('pay reste valide sans items', async () => {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
+                      VALUES ('exp-pay', 'user-standard', '2026-07-19T10:00:00Z', 'en_attente_paiement', 'DLUS', 20.0, '[]', 'ul-paris-18', 1)`,
+            });
+            mockedAuth.mockResolvedValue({ user: { id: 'user-tresorier', email: 'tresorier@test.com', roles: ['TRESORIER'] } } as never);
+
+            const res = await updateReport(makePatchRequest({ action: 'pay', payerSignature: SIG }), { params: Promise.resolve({ id: 'exp-pay' }) });
+            expect(res.status).toBe(200);
         });
     });
 });

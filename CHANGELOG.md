@@ -1,5 +1,26 @@
 # Changelog
 
+## [5.1.0] — 29 août 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Budgets analytiques sur les notes de frais** — chaque ligne de dépense s'impute désormais à un budget choisi dans une liste propre à l'Unité Locale : Repas, Matériel, Entretien véhicule, Entretien local, Essence. Une même note peut ainsi répartir ses dépenses entre plusieurs budgets — un repas et un plein de carburant ne sont plus confondus. Le budget est une donnée de gestion : il n'apparaît pas sur le document officiel, dont le scellement cryptographique reste inchangé.
+- **Liste de budgets gérée par l'Unité Locale** — les cadres, présidents, trésoriers et administrateurs ajoutent, renomment et archivent les budgets depuis une modale dédiée sur l'écran des notes de frais. Chaque UL dispose de sa propre liste, initialisée automatiquement à sa création. Renommer un budget met à jour l'historique : les statistiques passées affichent le nouveau nom.
+- **Archiver plutôt que supprimer** — un budget retiré disparaît du menu de saisie mais conserve son nom dans les statistiques des années écoulées : un bilan clos ne change plus rétroactivement. Le dernier budget actif d'une UL ne peut pas être archivé, sans quoi plus aucune note ne pourrait y être saisie.
+- **Statistiques par budget** — l'écran des statistiques, l'export CSV et l'export PDF présentent une répartition des dépenses par budget. Les lignes antérieures à cette version, qui n'en portent aucun, sont regroupées sous « N/A » — un libellé d'affichage, jamais un choix proposé à la saisie.
+
+### ⚙️ Mise en service
+
+> **La migration de production doit être exécutée AVANT le merge sur `main`.**
+> Sans la table `ExpenseBudget`, le déploiement Vercel rend la saisie de toute note de frais impossible.
+>
+> ```
+> npx tsx scripts/add-expense-budgets.ts            # dry-run : DDL seule, aucun budget inséré
+> npx tsx scripts/add-expense-budgets.ts --apply    # migration réelle
+> ```
+>
+> Contrôler ensuite que chaque UL possède au moins un budget actif, puis merger sur `main`.
+
 ## [5.0.0] — 28 août 2026
 
 ### ✨ Nouvelles fonctionnalités

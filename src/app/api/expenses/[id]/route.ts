@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
+import { validateItemBudgets } from '@/lib/expenses/budgets';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -25,9 +26,14 @@ const updateExpenseReportSchema = z.object({
     validatorSignature: z.union([z.string(), z.any()]).optional().nullable(),
     payerSignature: z.union([z.string(), z.any()]).optional().nullable(),
     receiptKeys: z.array(z.string()).optional(),
+    // ⚠️ `items` DOIT rester `.optional()`. Les actions validate / reject / pay
+    // n'envoient jamais de lignes : les rendre requises bloquerait le circuit de
+    // paiement sur des notes DÉJÀ SCELLÉES, donc non corrigeables par ré-édition.
+    // Seul `budgetId` est requis À L'INTÉRIEUR d'une ligne effectivement fournie.
     items: z.array(z.object({
         label: z.string().min(1),
-        amount: z.number().positive()
+        amount: z.number().positive(),
+        budgetId: z.string().min(1, 'Le budget est requis')
     })).optional(),
 }).superRefine((data, ctx) => {
     // Le nom et la date de mission sont obligatoires dès que le demandeur modifie ou
@@ -375,6 +381,27 @@ export async function PATCH(
 
             if (report.status !== 'brouillon') {
                 return NextResponse.json({ error: 'Seules les notes de frais au statut brouillon peuvent être modifiées.' }, { status: 400 });
+            }
+
+            // Validation référentielle des budgets — uniquement si des lignes sont
+            // fournies, et TOUJOURS sur l'UL de la note, jamais celle de la session.
+            if (items) {
+                const storedBudgetIds = new Set<string>();
+                try {
+                    const storedItems = JSON.parse(String(report.items ?? '[]'));
+                    if (Array.isArray(storedItems)) {
+                        for (const stored of storedItems) {
+                            if (stored && typeof stored.budgetId === 'string') storedBudgetIds.add(stored.budgetId);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to parse expense report items', e);
+                }
+
+                const budgetError = await validateItemBudgets(db, String(report.ulId || ''), items, storedBudgetIds);
+                if (budgetError) {
+                    return NextResponse.json({ error: budgetError }, { status: 400 });
+                }
             }
 
             const finalImputation = imputation || (report.imputation as string) || 'DLUS';

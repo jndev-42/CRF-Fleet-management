@@ -40,6 +40,134 @@ export interface ExpenseStatsDataResult {
     amount: number;
     count: number;
   }>;
+  /** Agrégat par budget analytique. ATTENTION : `count` compte des LIGNES de dépense,
+   *  là où byImputation.count compte des NOTES. Les deux tableaux voisinent dans /stats. */
+  byBudget: Array<{
+    budgetId: string | null;
+    name: string;
+    amount: number;
+    count: number;
+    percentOfTotal: number;
+  }>;
+}
+
+/** Ligne de dépense réduite à ce dont l'agrégation par budget a besoin. */
+export interface ExpenseItemForBudget {
+  budgetId: string | null;
+  amount: number;
+}
+
+/** Libellé des lignes antérieures à la feature (aucun budget n'a jamais été choisi). */
+export const BUDGET_LABEL_NA = 'N/A';
+/** Libellé d'une référence de budget qui ne se résout pas — anomalie d'intégrité, jamais fondue dans `N/A`. */
+export const BUDGET_LABEL_UNKNOWN = 'Budget inconnu';
+
+/**
+ * Extrait les lignes exploitables du JSON `ExpenseReport.items`.
+ *
+ * Parse défensif volontaire : le format d'`items` a déjà dérivé dans ce repo
+ * (`src/app/api/stats/expenses/csv/route.ts` lit `it.description || it.label`).
+ * Une note illisible, une ligne mal formée ou un montant non numérique sont
+ * ignorés et signalés, sans jamais faire échouer l'agrégation.
+ */
+export function parseExpenseItemsForBudget(rawItems: unknown, reportId?: string): ExpenseItemForBudget[] {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(String(rawItems ?? '[]'));
+  } catch {
+    console.warn(`[stats-expenses] items illisible sur la note ${reportId ?? '(inconnue)'} — note ignorée dans byBudget`);
+    return [];
+  }
+
+  if (!Array.isArray(parsed)) {
+    console.warn(`[stats-expenses] items n'est pas un tableau sur la note ${reportId ?? '(inconnue)'} — note ignorée dans byBudget`);
+    return [];
+  }
+
+  const items: ExpenseItemForBudget[] = [];
+  parsed.forEach((raw, index) => {
+    const item = raw as { budgetId?: unknown; amount?: unknown } | null;
+    const amount = Number(item?.amount);
+    if (!Number.isFinite(amount)) {
+      console.warn(`[stats-expenses] montant non numérique ligne ${index + 1} de la note ${reportId ?? '(inconnue)'} — ligne ignorée`);
+      return;
+    }
+    const budgetId = typeof item?.budgetId === 'string' && item.budgetId.length > 0 ? item.budgetId : null;
+    items.push({ budgetId, amount });
+  });
+
+  return items;
+}
+
+/**
+ * Agrège des lignes de dépense par budget analytique.
+ *
+ * Trois populations strictement distinctes :
+ * - `budgetId` absent  → `N/A` (ligne antérieure à la feature) ;
+ * - `budgetId` résolu  → nom réel du budget, **archivé compris et sans suffixe** ;
+ * - `budgetId` non résolu → entrée à part sous `Budget inconnu`, l'id étant conservé.
+ *
+ * Fondre le troisième cas dans `N/A` comptabiliserait une anomalie d'intégrité
+ * comme de l'historique légitime et priverait le trésorier de tout signal.
+ *
+ * `percentOfTotal` se calcule sur la somme des montants de LIGNES passés ici,
+ * jamais sur la somme des `ExpenseReport.total` : les deux bases divergent dès
+ * qu'une note porte un total sans lignes, et les pourcentages ne sommeraient
+ * plus à 100.
+ */
+export function aggregateByBudget(
+  items: ExpenseItemForBudget[],
+  budgetNames: Map<string, string>,
+): ExpenseStatsDataResult['byBudget'] {
+  const buckets = new Map<string, { budgetId: string | null; name: string; amount: number; count: number }>();
+  const warned = new Set<string>();
+  let totalItemsAmount = 0;
+
+  for (const item of items) {
+    const amount = Number(item.amount);
+    if (!Number.isFinite(amount)) {
+      continue;
+    }
+    const budgetId = item.budgetId ?? null;
+
+    let key: string;
+    let name: string;
+    if (budgetId === null) {
+      key = 'na';
+      name = BUDGET_LABEL_NA;
+    } else {
+      key = `id:${budgetId}`;
+      const resolved = budgetNames.get(budgetId);
+      if (resolved === undefined) {
+        name = BUDGET_LABEL_UNKNOWN;
+        if (!warned.has(budgetId)) {
+          warned.add(budgetId);
+          console.warn(`[stats-expenses] budgetId non résolu dans les statistiques : ${budgetId}`);
+        }
+      } else {
+        name = resolved;
+      }
+    }
+
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = { budgetId, name, amount: 0, count: 0 };
+      buckets.set(key, bucket);
+    }
+    bucket.amount += amount;
+    bucket.count += 1;
+    totalItemsAmount += amount;
+  }
+
+  return Array.from(buckets.values())
+    .map((b) => ({
+      budgetId: b.budgetId,
+      name: b.name,
+      amount: Math.round(b.amount * 100) / 100,
+      count: b.count,
+      percentOfTotal: totalItemsAmount > 0 ? Math.round((b.amount / totalItemsAmount) * 100) : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount);
 }
 
 export async function fetchExpenseStatsData(
@@ -63,9 +191,16 @@ export async function fetchExpenseStatsData(
     args.push(filters.imputation, filters.imputation);
   }
 
-  const reportsResult = await db.execute({
+  // Colonnes énumérées, jamais `er.*` : la table porte des signatures manuscrites
+  // et des empreintes de scellement en base64 (userSignature, validatorSignature,
+  // payerSignature, signatureRevisions) qui pèsent plusieurs kilo-octets par note
+  // et que cette fonction ne lit pas. Les tirer faisait dépasser la limite de
+  // taille de réponse du serveur libsql et la requête ne rendait jamais la main.
+  const reportsPromise = db.execute({
     sql: `
-      SELECT er.*, u.name as userName, u.email as userEmail
+      SELECT er.id, er.userId, er.submittedAt, er.createdAt, er.status, er.total,
+             er.items, er.imputation, er.customImputation,
+             u.name as userName, u.email as userEmail
       FROM "ExpenseReport" er
       JOIN "User" u ON u.id = er.userId
       WHERE ${whereSql}
@@ -74,12 +209,35 @@ export async function fetchExpenseStatsData(
     args,
   });
 
+  // Résolution des noms de budgets, émise EN PARALLÈLE de la requête des notes
+  // (latence ajoutée nulle) et scopée sur l'UL demandée (aucune fuite inter-UL :
+  // un id étranger ou fabriqué ne se résout pas et retombe sur « Budget inconnu »).
+  //
+  // Les budgets ARCHIVÉS doivent être résolus : un budget archivé conserve son
+  // nom dans les statistiques historiques (l'archivage remplace la suppression).
+  // Ne JAMAIS ajouter « AND archived = 0 » ici — cela viderait rétroactivement
+  // les bilans d'un exercice clos dès le premier ménage de budgets.
+  const budgetsPromise = filters?.ulId
+    ? db.execute({ sql: `SELECT id, name FROM "ExpenseBudget" WHERE ulId = ?`, args: [filters.ulId] })
+    : db.execute({ sql: `SELECT id, name FROM "ExpenseBudget"`, args: [] });
+
+  const [reportsResult, budgetsResult] = await Promise.all([reportsPromise, budgetsPromise]);
+
   const rows = reportsResult.rows;
+
+  const budgetNames = new Map<string, string>();
+  for (const budgetRow of budgetsResult.rows) {
+    budgetNames.set(String(budgetRow.id), String(budgetRow.name ?? ''));
+  }
 
   let totalExpensesAmount = 0;
   let totalRefundedAmount = 0;
   let totalPendingAmount = 0;
   const reportsCount = rows.length;
+
+  // Lignes de dépense de la période, base dédiée de `byBudget` et de son
+  // dénominateur de pourcentage — distincte de `totalExpensesAmount`.
+  const budgetItems: ExpenseItemForBudget[] = [];
 
   const monthMap: Record<string, { amount: number; count: number }> = {};
   const userMap: Record<string, { userId: string; userName: string; userEmail: string; totalAmount: number; paidAmount: number; reportCount: number }> = {};
@@ -132,6 +290,9 @@ export async function fetchExpenseStatsData(
     }
     imputationMap[imputation].amount += total;
     imputationMap[imputation].count += 1;
+
+    // Budget stats — parse défensif, une note illisible n'invalide pas l'agrégat
+    budgetItems.push(...parseExpenseItemsForBudget(row.items, String(row.id ?? '')));
 
     // Status stats
     if (!statusMap[status]) {
@@ -190,6 +351,8 @@ export async function fetchExpenseStatsData(
     refusé: 'Refusée',
   };
 
+  const byBudget = aggregateByBudget(budgetItems, budgetNames);
+
   const byStatus = Object.keys(statusMap).map((st) => ({
     status: st,
     label: statusLabels[st] || st,
@@ -210,5 +373,6 @@ export async function fetchExpenseStatsData(
     byUser,
     byImputation,
     byStatus,
+    byBudget,
   };
 }
