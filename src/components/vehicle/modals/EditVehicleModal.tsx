@@ -22,6 +22,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
         fuelLevel: vehicle.fuelLevel ?? 100,
         mileage: vehicle.mileage ?? 0,
         fuelType: vehicle.fuelType || 'Essence',
+        transmission: vehicle.transmission || 'Manuelle',
         vin: vehicle.vin || '',
         hasDSA: !!vehicle.hasDSA,
         desinfTracking: !!vehicle.desinfTracking,
@@ -70,6 +71,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
             fuelLevel: vehicle.fuelLevel ?? 100,
             mileage: vehicle.mileage ?? 0,
             fuelType: vehicle.fuelType || 'Essence',
+            transmission: vehicle.transmission || 'Manuelle',
             vin: vehicle.vin || '',
             hasDSA: !!vehicle.hasDSA,
             desinfTracking: !!vehicle.desinfTracking,
@@ -101,6 +103,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
             fuelLevel: Number(form.fuelLevel),
             mileage: Number(form.mileage),
             fuelType: form.fuelType,
+            transmission: form.transmission,
             vin: form.vin.trim() || null,
             hasDSA: form.hasDSA,
             desinfTracking: form.desinfTracking,
@@ -234,6 +237,19 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
                                     />
                                 </div>
                             )}
+                        </div>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Boîte de vitesses *</label>
+                                <select
+                                    className="form-select"
+                                    value={form.transmission}
+                                    onChange={(e) => setForm({ ...form, transmission: e.target.value })}
+                                >
+                                    <option value="Manuelle">Manuelle</option>
+                                    <option value="Automatique">Automatique</option>
+                                </select>
+                            </div>
                         </div>
                         <div className="form-row">
                             <div className="form-group">

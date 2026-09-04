@@ -1,5 +1,22 @@
 # Changelog
 
+## [5.2.0] — 4 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Boîte de vitesses du véhicule** — la fiche de création et d'édition d'un véhicule propose désormais un choix « Manuelle » ou « Automatique ». L'information sert aux conducteurs qui ne sont à l'aise qu'avec l'une des deux boîtes : elle se lit avant la réservation, sans ouvrir la fiche.
+- **Tag boîte de vitesses** — un tag ⚙️ apparaît sur la carte du véhicule (tableau de bord) et sur sa page de détail, au même titre que le tag d'énergie. Violet pour une boîte manuelle, turquoise pour une automatique.
+
+### ⚙️ Mise en service
+
+> **La migration de production doit être exécutée AVANT le merge sur `main`.**
+
+```bash
+npx tsx scripts/add-vehicle-transmission.ts
+```
+
+Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne s'affiche tant qu'un administrateur ne l'a pas complétée depuis la fiche du véhicule.
+
 ## [5.1.0] — 29 août 2026
 
 ### ✨ Nouvelles fonctionnalités

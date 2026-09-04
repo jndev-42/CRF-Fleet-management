@@ -18,6 +18,7 @@ const mockVehicle: Vehicle = {
     vin: 'VF11234567890',
     ulId: 'ul-paris-18',
     fuelType: 'Essence',
+    transmission: 'Manuelle',
     maxFuelCapacity: 50,
     maxBatteryCapacityKwh: null,
     lastDesinfDate: null,
@@ -132,6 +133,45 @@ describe('EditVehicleModal Component', () => {
                 name: 'VL186-MOD',
             }));
             expect(handleClose).toHaveBeenCalled();
+        });
+    });
+
+    it('envoie la boîte de vitesses sélectionnée dans le payload PATCH', async () => {
+        let patchBody: Record<string, unknown> = {};
+
+        mockFetch(async (input: string | URL | Request, init?: RequestInit) => {
+            const urlStr = getUrl(input);
+            const method = init?.method || (typeof input === 'object' && 'method' in input ? (input as Request).method : 'GET');
+            if (urlStr.includes('/api/ul')) {
+                return {
+                    ok: true,
+                    json: async () => ({ uls: [{ id: 'ul-paris-18', defaultParkingSpots: ['Place A-1'] }] }),
+                } as Response;
+            }
+            if (urlStr.includes('/api/vehicles/') && String(method).toUpperCase() === 'PATCH') {
+                patchBody = JSON.parse(String(init?.body ?? '{}'));
+                return { ok: true, json: async () => ({ name: 'VL186' }) } as Response;
+            }
+            return { ok: true, json: async () => ({}) } as Response;
+        });
+
+        render(
+            <EditVehicleModal
+                isOpen={true}
+                onClose={vi.fn()}
+                onSuccess={vi.fn()}
+                vehicle={mockVehicle}
+            />
+        );
+
+        const select = await screen.findByDisplayValue('Manuelle');
+        fireEvent.change(select, { target: { value: 'Automatique' } });
+        expect(await screen.findByDisplayValue('Automatique')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
+
+        await waitFor(() => {
+            expect(patchBody.transmission).toBe('Automatique');
         });
     });
 

@@ -68,6 +68,8 @@ export interface Vehicle {
     notes: string | null;
     vin: string | null;
     fuelType: string | null;
+    /** Type de boîte de vitesses : 'Manuelle' | 'Automatique' */
+    transmission: string | null;
     maxFuelCapacity: number | null;
     maxBatteryCapacityKwh: number | null;
     /** Date (YYYY-MM-DD) de la dernière désinfection — uniquement pour les VPSP */

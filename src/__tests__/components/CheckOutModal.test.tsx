@@ -23,6 +23,7 @@ const mockVehicle: Vehicle = {
     notes: '',
     vin: null,
     fuelType: 'Essence',
+    transmission: null,
     maxFuelCapacity: 50,
     maxBatteryCapacityKwh: null,
     lastDesinfDate: null,

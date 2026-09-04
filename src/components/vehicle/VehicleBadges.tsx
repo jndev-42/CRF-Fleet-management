@@ -118,6 +118,17 @@ export default function VehicleBadges({ vehicle, userRoles, onToggleDSA, onDelet
                 </span>
             ) : null}
 
+            {/* Transmission badge */}
+            {vehicle.transmission === 'Automatique' ? (
+                <span className="vehicle-type-badge" style={{ background: 'rgba(20, 184, 166, 0.1)', color: '#14B8A6' }}>
+                    ⚙️ Automatique
+                </span>
+            ) : vehicle.transmission === 'Manuelle' ? (
+                <span className="vehicle-type-badge" style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8B5CF6' }}>
+                    ⚙️ Manuelle
+                </span>
+            ) : null}
+
             {/* Admin-only: delete vehicle button */}
             {isAdmin && onDelete && (
                 <button

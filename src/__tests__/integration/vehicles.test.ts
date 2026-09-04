@@ -15,9 +15,13 @@
  *   6. 400 Zod — maxBatteryCapacityKwh: 0 (min(1))
  *   7. Happy path EV avec maxBatteryCapacityKwh: 52 enregistré en DB
  *
+ *   8. 400 Zod — transmission hors énumération ('Manuelle' | 'Automatique')
+ *   9. Happy path avec transmission: 'Automatique' enregistrée en DB
+ *
  *  PATCH /api/vehicles/[id]
- *   8. Mise à jour de maxFuelCapacity 56 → 80 vérifiée en DB
- *   9. Mise à jour de maxBatteryCapacityKwh vérifiée en DB
+ *   10. Mise à jour de maxFuelCapacity 56 → 80 vérifiée en DB
+ *   11. Mise à jour de maxBatteryCapacityKwh vérifiée en DB
+ *   12. Mise à jour de transmission vérifiée en DB
  */
 import { describe, it, expect, vi } from 'vitest';
 
@@ -352,3 +356,76 @@ describe('PATCH /api/vehicles/[id] — édition des informations du véhicule (A
 });
 
 
+
+describe('POST /api/vehicles — validation Zod transmission', () => {
+  it("retourne 400 si transmission n'est pas 'Manuelle' ou 'Automatique'", async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+    const res = await POST(makePostRequest({ ...validVehicleBody, transmission: 'CVT' }));
+    expect(res.status).toBe(400);
+    const data = await res.json() as { error: string };
+    expect(data.error).toBe('Données invalides');
+  });
+});
+
+describe('POST /api/vehicles — happy path transmission', () => {
+  it("crée un véhicule avec transmission: 'Automatique' et le persiste en DB", async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+
+    const res = await POST(makePostRequest({ ...validVehicleBody, transmission: 'Automatique' }));
+    expect(res.status).toBe(201);
+
+    const body = await res.json() as { transmission: string | null };
+    expect(body.transmission).toBe('Automatique');
+
+    const row = await db.execute({
+      sql: `SELECT transmission FROM "Vehicle" WHERE name = ?`,
+      args: ['VL 486'],
+    });
+    expect(row.rows[0].transmission).toBe('Automatique');
+  });
+
+  it('crée un véhicule sans transmission (NULL en DB)', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'] } } as never);
+
+    const res = await POST(makePostRequest(validVehicleBody));
+    expect(res.status).toBe(201);
+
+    const row = await db.execute({
+      sql: `SELECT transmission FROM "Vehicle" WHERE name = ?`,
+      args: ['VL 486'],
+    });
+    expect(row.rows[0].transmission).toBeNull();
+  });
+});
+
+describe('PATCH /api/vehicles/[id] — mise à jour transmission', () => {
+  it("passe un véhicule de NULL à 'Automatique' et vérifie en DB", async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
+
+    await seedVehicle({ id: 'VL001', name: 'VL186' });
+
+    const res = await PATCH(
+      makePatchRequest({ transmission: 'Automatique' }),
+      { params: Promise.resolve({ id: 'VL186' }) }
+    );
+    expect(res.status).toBe(200);
+
+    const row = await db.execute({
+      sql: `SELECT transmission FROM "Vehicle" WHERE name = ?`,
+      args: ['VL186'],
+    });
+    expect(row.rows[0].transmission).toBe('Automatique');
+  });
+
+  it('retourne 400 si transmission est invalide', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
+
+    await seedVehicle({ id: 'VL001', name: 'VL186' });
+
+    const res = await PATCH(
+      makePatchRequest({ transmission: 'Semi-automatique' }),
+      { params: Promise.resolve({ id: 'VL186' }) }
+    );
+    expect(res.status).toBe(400);
+  });
+});

@@ -18,6 +18,7 @@ const createVehicleSchema = z.object({
     notes: z.string().optional().nullable(),
     vin: z.string().optional().nullable(),
     fuelType: z.string().optional().nullable(),
+    transmission: z.enum(['Manuelle', 'Automatique']).optional().nullable(),
     maxFuelCapacity: z.number().int().min(1).optional().nullable(),
     maxBatteryCapacityKwh: z.number().int().min(1).optional().nullable(),
     firstRegistrationDate: z.string().optional().nullable(),
@@ -119,6 +120,7 @@ export async function GET(request: Request) {
                     notes: row.notes,
                     vin: row.vin,
                     fuelType: row.fuelType,
+                    transmission: row.transmission as string | null,
                     maxFuelCapacity: row.maxFuelCapacity as number | null,
                     maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
                     ulId: row.ulId as string | null,
@@ -193,8 +195,8 @@ export async function POST(request: Request) {
         const ulId = userUlId && userUlId !== 'default' ? userUlId : null;
 
         await db.execute({
-            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, desinfTracking, notes, vin, fuelType, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId, createdAt, updatedAt)
-                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, desinfTracking, notes, vin, fuelType, transmission, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId, createdAt, updatedAt)
+                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 id,
                 data.name,
@@ -208,6 +210,7 @@ export async function POST(request: Request) {
                 data.notes ?? null,
                 data.vin ?? null,
                 data.fuelType ?? null,
+                data.transmission ?? null,
                 data.maxFuelCapacity ?? null,
                 data.maxBatteryCapacityKwh ?? null,
                 data.firstRegistrationDate ?? null,
@@ -232,6 +235,8 @@ export async function POST(request: Request) {
             hasDSA: data.hasDSA,
             desinfTracking: data.desinfTracking,
             notes: data.notes || null,
+            fuelType: data.fuelType ?? null,
+            transmission: data.transmission ?? null,
             maxFuelCapacity: data.maxFuelCapacity ?? null,
             maxBatteryCapacityKwh: data.maxBatteryCapacityKwh ?? null,
             ulId,
