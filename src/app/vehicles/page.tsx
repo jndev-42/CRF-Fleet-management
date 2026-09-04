@@ -24,6 +24,7 @@ interface Vehicle {
   notes: string | null;
   vin: string | null;
   fuelType: string | null;
+  transmission: string | null;
   ulId?: string | null;
   ulName?: string | null;
   trips: {
@@ -312,6 +313,12 @@ export default function VehiclesPage() {
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 600 }}>⛽ Diesel</div>
                 ) : vehicle.fuelType === 'Essence' ? (
                   <div style={{ fontSize: 12, color: 'var(--status-inuse)', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
+                ) : null}
+
+                {vehicle.transmission === 'Automatique' ? (
+                  <div style={{ fontSize: 12, color: '#14B8A6', marginBottom: 8, fontWeight: 600 }}>⚙️ Automatique</div>
+                ) : vehicle.transmission === 'Manuelle' ? (
+                  <div style={{ fontSize: 12, color: '#8B5CF6', marginBottom: 8, fontWeight: 600 }}>⚙️ Manuelle</div>
                 ) : null}
 
                 <div className="vehicle-meta">

@@ -34,6 +34,7 @@ async function createTables() {
     notes TEXT,
     vin TEXT,
     fuelType TEXT DEFAULT 'Essence',
+    transmission TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);

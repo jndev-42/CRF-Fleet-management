@@ -22,6 +22,7 @@ npx tsx scripts/generate-signing-cert.ts --env preview   # Certificat .p12 de sc
 npx tsx scripts/add-expense-sealed-pdf.ts       # Migration prod : colonnes de scellement des notes de frais
 npx tsx scripts/add-expense-pending-receipts.ts # Migration prod : dépôt transitoire des justificatifs (pré-scellement)
 npx tsx scripts/add-expense-budgets.ts          # Migration prod : budgets analytiques (dry-run ; --apply pour écrire)
+npx tsx scripts/add-vehicle-transmission.ts     # Migration prod : colonne Vehicle.transmission (boîte de vitesses)
 npx tsx scripts/verify-signed-pdf.ts <fichier>  # Vérifie les signatures d'un PDF scellé
 npx tsx scripts/backfill-signed-pdfs.ts         # Scelle rétroactivement les notes existantes (dry-run par défaut, --apply pour écrire)
 ```

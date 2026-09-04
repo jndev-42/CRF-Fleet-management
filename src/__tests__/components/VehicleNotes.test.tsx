@@ -6,7 +6,7 @@ import type { Vehicle } from '@/app/vehicles/[id]/types';
 const mockVehicle: Vehicle = {
     id: 'VL001', name: 'VL186', type: 'VL', plate: 'HJ-269-FE', status: 'AVAILABLE',
     parkingSpot: 'Place A-1', fuelLevel: 60, mileage: 12000, hasDSA: false, desinfTracking: false,
-    notes: 'Note existante', vin: null, fuelType: 'Essence', maxFuelCapacity: 50, maxBatteryCapacityKwh: null,
+    notes: 'Note existante', vin: null, fuelType: 'Essence', transmission: null, maxFuelCapacity: 50, maxBatteryCapacityKwh: null,
     lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2022-01-15',
     revisionKmInterval: 15000, revisionYearInterval: 1, trips: [],
 };

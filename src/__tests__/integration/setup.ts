@@ -33,6 +33,7 @@ async function createTables() {
     notes TEXT,
     vin TEXT,
     fuelType TEXT DEFAULT 'Essence',
+    transmission TEXT,
     maxFuelCapacity INTEGER,
     maxBatteryCapacityKwh INTEGER,
     lastDesinfDate TEXT,

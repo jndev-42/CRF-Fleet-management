@@ -20,6 +20,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
         fuelLevel: 100,
         mileage: 0,
         fuelType: 'Essence',
+        transmission: 'Manuelle',
         vin: '',
         hasDSA: false,
         desinfTracking: false,
@@ -80,6 +81,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                     fuelLevel: Number(form.fuelLevel),
                     mileage: Number(form.mileage),
                     fuelType: form.fuelType,
+                    transmission: form.transmission,
                     vin: form.vin.trim() || undefined,
                     hasDSA: form.hasDSA,
                     desinfTracking: form.desinfTracking,
@@ -202,6 +204,19 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                     />
                                 </div>
                             )}
+                        </div>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Boîte de vitesses *</label>
+                                <select
+                                    className="form-select"
+                                    value={form.transmission}
+                                    onChange={(e) => setForm({ ...form, transmission: e.target.value })}
+                                >
+                                    <option value="Manuelle">Manuelle</option>
+                                    <option value="Automatique">Automatique</option>
+                                </select>
+                            </div>
                         </div>
                         <div className="form-row">
                             <div className="form-group">
