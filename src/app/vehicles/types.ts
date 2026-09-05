@@ -2,7 +2,7 @@
  * Forme réellement renvoyée par `GET /api/vehicles` pour la liste du dashboard.
  *
  * Volontairement distinct du `Vehicle` de `@/app/vehicles/[id]/types` : la route de
- * liste ne joint que le trip **actif** projeté sur 5 champs (`api/vehicles/route.ts:84,134-141`)
+ * liste ne joint que le trip **actif** projeté sur 7 champs (`api/vehicles/route.ts:79-80,136-143`)
  * et n'expose ni `desinfTracking`, ni `activeMaintenance`, ni les dates de révision.
  * Typer la liste avec le `Vehicle` complet serait un mensonge de typage : `CheckOutModal`
  * prérempli depuis un tel objet ne trouverait jamais son dernier trajet terminé.
@@ -28,7 +28,11 @@ export interface DashboardVehicle {
     trips: {
         id: string;
         driverName: string;
+        /** Email du conducteur principal — seul moyen, côté dashboard, de reconnaître SON trajet. */
+        driverEmail: string | null;
         secondDriverName?: string | null;
+        /** Email du second conducteur, `null` s'il n'y en a pas. */
+        secondDriverEmail: string | null;
         missionType: string;
         checkOutAt: string;
     }[];

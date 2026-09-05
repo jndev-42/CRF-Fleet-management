@@ -12,6 +12,7 @@ import { useUL } from '@/lib/contexts/ULContext';
 import { isAdminOrAbove, hasDTRole } from '@/lib/roles';
 import FleetStatsRow from './FleetStatsRow';
 import QuickBorrowSection from './QuickBorrowSection';
+import QuickReturnSection from './QuickReturnSection';
 import type { DashboardVehicle } from './types';
 
 const statusLabels: Record<string, string> = {
@@ -161,6 +162,14 @@ export default function VehiclesPage() {
         isDtView={isDtView}
         vehiclesLoading={loading}
         onCheckOutSuccess={() => fetchVehicles(isDtView)}
+      />
+
+      <QuickReturnSection
+        vehicles={vehicles}
+        currentUserEmail={session?.user?.email}
+        currentUserUlId={activeUL?.id}
+        isDtView={isDtView}
+        onCheckInSuccess={() => fetchVehicles(isDtView)}
       />
 
       <FleetStatsRow stats={stats} />

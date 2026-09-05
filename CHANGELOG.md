@@ -7,6 +7,8 @@
 - **Emprunter un véhicule en deux clics depuis le tableau de bord** — un bouton « Emprunter » prend la place des quatre cartes de statistiques, en haut de la page Véhicules. Il ouvre la liste des véhicules que vous pouvez prendre ; vous en choisissez un, le formulaire de prise en charge s'ouvre. Fini le défilement jusqu'aux cartes puis l'ouverture de la fiche du véhicule.
 - **La liste ne propose que ce que vous pouvez réellement prendre** — un véhicule en mission, en maintenance, incompatible avec votre rôle ou réservé par quelqu'un d'autre à cet instant n'y apparaît pas. Plus de mauvaise surprise après avoir rempli le formulaire.
 - **Quand rien n'est disponible, le bouton le dit** — il devient inactif, affiche la raison et renvoie vers le calendrier. Si vos papiers de conduite ne sont pas validés, il est grisé avec un lien pour les régulariser.
+- **Rendre un véhicule en deux clics depuis le tableau de bord** — un bouton « Rendre » accompagne le bouton « Emprunter », et n'apparaît que si vous avez au moins un véhicule en cours. Avec un seul emprunt, le bouton le nomme et ouvre directement le formulaire de retour ; avec plusieurs, il propose la liste de vos véhicules, exactement comme pour l'emprunt. Plus besoin de retrouver la fiche du véhicule pour le rendre.
+- **Le bouton « Rendre » ne montre que vos propres emprunts** — un véhicule pris par quelqu'un d'autre n'y figure jamais, y compris pour un administrateur : le raccourci du tableau de bord répond à « qu'ai-je emprunté ? ». Clore le trajet d'un tiers reste possible depuis la fiche du véhicule.
 - **Les compteurs de flotte tiennent sur une ligne** — total, disponibles, en mission et maintenance passent sous le bouton. La page est plus courte, le calendrier remonte.
 
 ### 🐛 Corrections

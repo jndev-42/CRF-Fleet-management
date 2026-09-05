@@ -12,17 +12,24 @@ interface VehiclePickerModalProps {
     pendingVehicleId: string | null;
     onSelect: (vehicle: { id: string; name: string }) => void;
     onClose: () => void;
+    /** Titre du modal. Défaut : parcours d'emprunt. */
+    title?: string;
+    /** Message affiché quand la liste est vide. Défaut : parcours d'emprunt. */
+    emptyLabel?: string;
 }
 
 /**
- * Sélection du véhicule à emprunter depuis le dashboard.
- * Ne fetch pas : la liste et l'état d'attente lui sont fournis par `QuickBorrowSection`.
+ * Sélection d'un véhicule depuis le dashboard — emprunt (`QuickBorrowSection`) comme
+ * retour (`QuickReturnSection`), les deux parcours ne différant que par les libellés.
+ * Ne fetch pas : la liste et l'état d'attente lui sont fournis par la section appelante.
  */
 export default function VehiclePickerModal({
     eligibleVehicles,
     pendingVehicleId,
     onSelect,
     onClose,
+    title = '🚗 Choisir un véhicule',
+    emptyLabel = 'Aucun véhicule empruntable pour le moment.',
 }: VehiclePickerModalProps) {
     useEscapeKey(onClose);
     const isHydrating = pendingVehicleId !== null;
@@ -37,12 +44,12 @@ export default function VehiclePickerModal({
                 onClick={(e) => e.stopPropagation()}
             >
                 <div className="modal-header">
-                    <h2 className="modal-title" id="vehicle-picker-title">🚗 Choisir un véhicule</h2>
+                    <h2 className="modal-title" id="vehicle-picker-title">{title}</h2>
                     <button className="modal-close" onClick={onClose} aria-label="Fermer">✕</button>
                 </div>
                 <div className="modal-body">
                     {eligibleVehicles.length === 0 ? (
-                        <p className={styles.pickerEmpty}>Aucun véhicule empruntable pour le moment.</p>
+                        <p className={styles.pickerEmpty}>{emptyLabel}</p>
                     ) : (
                         <div className={styles.pickerList}>
                             {eligibleVehicles.map((vehicle) => (
