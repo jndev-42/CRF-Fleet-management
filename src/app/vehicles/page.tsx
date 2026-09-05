@@ -10,31 +10,9 @@ import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
 import VehicleCalendar from '@/components/vehicle/VehicleCalendar';
 import { useUL } from '@/lib/contexts/ULContext';
 import { isAdminOrAbove, hasDTRole } from '@/lib/roles';
-
-interface Vehicle {
-  id: string;
-  name: string;
-  type: string;
-  plate: string;
-  status: string;
-  parkingSpot: string | null;
-  fuelLevel: number;
-  mileage: number;
-  hasDSA: boolean;
-  notes: string | null;
-  vin: string | null;
-  fuelType: string | null;
-  transmission: string | null;
-  ulId?: string | null;
-  ulName?: string | null;
-  trips: {
-    id: string;
-    driverName: string;
-    secondDriverName?: string | null;
-    missionType: string;
-    checkOutAt: string;
-  }[];
-}
+import FleetStatsRow from './FleetStatsRow';
+import QuickBorrowSection from './QuickBorrowSection';
+import type { DashboardVehicle } from './types';
 
 const statusLabels: Record<string, string> = {
   AVAILABLE: 'Disponible',
@@ -55,7 +33,7 @@ function getFuelClass(level: number) {
 }
 
 export default function VehiclesPage() {
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [vehicles, setVehicles] = useState<DashboardVehicle[]>([]);
   const [renaultData, setRenaultData] = useState<Record<string, RenaultVehicleData>>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('ALL');
@@ -94,9 +72,9 @@ export default function VehiclesPage() {
       setVehicles(data);
 
       // Fetch Renault data for supported vehicles
-      const renaultVehicles = data.filter((v: Vehicle) => v.vin);
+      const renaultVehicles = data.filter((v: DashboardVehicle) => v.vin);
       if (renaultVehicles.length > 0) {
-        Promise.all(renaultVehicles.map(async (v: Vehicle) => {
+        Promise.all(renaultVehicles.map(async (v: DashboardVehicle) => {
           try {
             const rRes = await fetch(`/api/renault/${encodeURIComponent(v.vin || v.name)}`);
             const rData = await rRes.json();
@@ -176,24 +154,16 @@ export default function VehiclesPage() {
         </div>
       )}
 
-      <div className="stats-grid" data-tour="stats">
-        <div className="stat-card total">
-          <div className="stat-label">Total véhicules</div>
-          <div className="stat-value">{stats.total}</div>
-        </div>
-        <div className="stat-card available">
-          <div className="stat-label">Disponibles</div>
-          <div className="stat-value">{stats.available}</div>
-        </div>
-        <div className="stat-card inuse">
-          <div className="stat-label">En mission</div>
-          <div className="stat-value">{stats.inUse}</div>
-        </div>
-        <div className="stat-card maintenance">
-          <div className="stat-label">Maintenance</div>
-          <div className="stat-value">{stats.maintenance}</div>
-        </div>
-      </div>
+      <QuickBorrowSection
+        vehicles={vehicles}
+        userRoles={userRoles}
+        currentUserEmail={session?.user?.email}
+        isDtView={isDtView}
+        vehiclesLoading={loading}
+        onCheckOutSuccess={() => fetchVehicles(isDtView)}
+      />
+
+      <FleetStatsRow stats={stats} />
 
       <VehicleCalendar dtView={isDtView} />
 

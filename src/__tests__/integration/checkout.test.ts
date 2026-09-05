@@ -166,4 +166,104 @@ describe('POST /api/trips (checkout)', () => {
     const response = await POST(makeRequest(validCheckOutBody));
     expect(response.status).toBe(403);
   });
+  // ── Garde de réservation (POST /api/trips) ────────────────────────────────
+  // Un véhicule couvert par une réservation VALIDATED active n'est empruntable
+  // que par son détenteur, ou par un administrateur.
+  describe('garde de réservation', () => {
+    const HOUR = 60 * 60 * 1000;
+
+    async function seedReservation(overrides: Partial<{
+      id: string;
+      vehicleId: string;
+      userEmail: string;
+      userName: string;
+      startTime: string;
+      endTime: string;
+      status: string;
+    }> = {}) {
+      const r = {
+        id: 'res-1',
+        vehicleId: 'VL001',
+        userEmail: 'other@test.com',
+        userName: 'Other User',
+        startTime: new Date(Date.now() - HOUR).toISOString(),
+        endTime: new Date(Date.now() + HOUR).toISOString(),
+        status: 'VALIDATED',
+        ...overrides,
+      };
+      await db.execute({
+        sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        args: [r.id, r.vehicleId, r.userEmail, r.userName, r.startTime, r.endTime, r.status],
+      });
+    }
+
+    it('returns 403 when an active VALIDATED reservation is held by someone else', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(driverSession);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+      await seedReservation();
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(403);
+
+      const body = await response.json();
+      expect(body.error).toMatch(/réservé par un autre utilisateur/i);
+
+      // Aucun effet de bord : le véhicule reste disponible
+      const vehicleResult = await db.execute({
+        sql: `SELECT status FROM "Vehicle" WHERE id = ?`,
+        args: ['VL001'],
+      });
+      expect(vehicleResult.rows[0].status).toBe('AVAILABLE');
+    });
+
+    it('allows checkout when the active VALIDATED reservation is the driver\'s own', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(driverSession);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+      await seedReservation({ userEmail: 'driver@test.com', userName: 'Test Driver' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+
+    it('allows checkout when a third-party reservation is only PENDING', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(driverSession);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+      await seedReservation({ status: 'PENDING' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+
+    it('allows checkout when the third-party VALIDATED reservation starts in the future', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(driverSession);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+      await seedReservation({
+        startTime: new Date(Date.now() + HOUR).toISOString(),
+        endTime: new Date(Date.now() + 3 * HOUR).toISOString(),
+      });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+
+    it('allows an ADMIN to bypass a third-party VALIDATED reservation', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(adminSession);
+      await seedUser({ id: 'admin-id', email: 'admin@test.com', name: 'Admin Test' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+      await seedReservation();
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+  });
 });

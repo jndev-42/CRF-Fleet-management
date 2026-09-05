@@ -42,6 +42,22 @@ export async function POST(request: Request) {
         // Verify Roles
         const roles = session?.user?.roles || ['INACTIF'];
         const isAdmin = isAdminOrAbove(roles);
+
+        // Garde de réservation : un véhicule couvert par une réservation VALIDATED
+        // active maintenant n'est empruntable que par son détenteur — ou par un admin.
+        const nowISO = new Date().toISOString();
+        const activeRes = await db.execute({
+            sql: `SELECT userEmail FROM "Reservation"
+                  WHERE vehicleId = ? AND status = 'VALIDATED'
+                    AND startTime <= ? AND endTime >= ?
+                  LIMIT 1`,
+            args: [data.vehicleId, nowISO, nowISO],
+        });
+        const holder = activeRes.rows[0]?.userEmail as string | undefined;
+        if (holder && holder !== session.user.email && !isAdmin) {
+            return forbiddenResponse('Ce véhicule est réservé par un autre utilisateur');
+        }
+
         const isCHVL = roles.includes('CHVL');
         const isCHVPSP = roles.includes('CHVPSP');
         const vehicleType = String(vehicle.type || '');

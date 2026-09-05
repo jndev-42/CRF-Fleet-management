@@ -1,0 +1,161 @@
+/* Bloc d'emprunt rapide + ligne de compteurs — remplace la `stats-grid` en tête de /vehicles */
+
+.section {
+    margin-bottom: 24px;
+}
+
+.ctaRow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.ctaButton {
+    flex: 1 1 auto;
+    min-width: 220px;
+    font-size: 16px;
+    padding: 14px 20px;
+}
+
+.ctaButton:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.message {
+    flex: 1 1 100%;
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--text-secondary);
+}
+
+.link {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-accent);
+    text-decoration: underline;
+}
+
+/* Même rendu que `.link`, mais sur un <button> : l'action est un défilement
+   intra-page, pas une navigation — un <a> la ferait annoncer comme un lien
+   par les lecteurs d'écran. */
+.linkButton {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 0;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-accent);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* ── Ligne compacte de compteurs ───────────────────────────────────────────── */
+
+.statsRow {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin: 12px 0 24px;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 6px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+}
+
+.statValue {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text-primary);
+}
+
+.statLabel {
+    font-size: 11px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.available .statValue {
+    color: var(--status-available);
+}
+
+.inuse .statValue {
+    color: var(--status-inuse);
+}
+
+.maintenance .statValue {
+    color: var(--status-maintenance);
+}
+
+/* ── Modal de sélection ────────────────────────────────────────────────────── */
+
+.pickerList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pickerRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 14px;
+    text-align: left;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color var(--transition-base), opacity var(--transition-base);
+}
+
+.pickerRow:hover:not(:disabled) {
+    border-color: var(--status-available);
+}
+
+.pickerRow:disabled {
+    opacity: 0.6;
+    cursor: progress;
+}
+
+.pickerName {
+    font-weight: 600;
+}
+
+.pickerPlate {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.pickerEmpty {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+    .statsRow {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .ctaButton {
+        min-width: 100%;
+    }
+}
