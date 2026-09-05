@@ -45,10 +45,9 @@ describe('POST /api/vehicles/[id]/maintenance-events', () => {
   });
 
   it('returns 403 if user is not admin', async () => {
-    // @ts-expect-error session for test
     mockedAuth.mockResolvedValue({
       user: { email: 'benevole@dev.local', roles: ['BENEVOLE'], ulId: 'ul-paris' },
-    });
+    } as never);
     const res = await POST(makePostRequest('VSAV 01', { startDate: '2026-07-22', reason: 'Test' }), {
       params: Promise.resolve({ id: 'VSAV 01' }),
     });
@@ -56,10 +55,9 @@ describe('POST /api/vehicles/[id]/maintenance-events', () => {
   });
 
   it('returns 400 if reason or startDate is missing', async () => {
-    // @ts-expect-error session for test
     mockedAuth.mockResolvedValue({
       user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' },
-    });
+    } as never);
     const res = await POST(makePostRequest('VSAV 01', { startDate: '', reason: '' }), {
       params: Promise.resolve({ id: 'VSAV 01' }),
     });
@@ -67,10 +65,9 @@ describe('POST /api/vehicles/[id]/maintenance-events', () => {
   });
 
   it('creates maintenance event and updates vehicle status to MAINTENANCE', async () => {
-    // @ts-expect-error session for test
     mockedAuth.mockResolvedValue({
       user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' },
-    });
+    } as never);
 
     const res = await POST(
       makePostRequest('VSAV 01', {
@@ -98,10 +95,9 @@ describe('POST /api/vehicles/[id]/maintenance-events', () => {
   });
 
   it('does NOT set vehicle status to MAINTENANCE immediately if start date is in the future', async () => {
-    // @ts-expect-error session for test
     mockedAuth.mockResolvedValue({
       user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' },
-    });
+    } as never);
 
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 5);
@@ -124,10 +120,9 @@ describe('POST /api/vehicles/[id]/maintenance-events', () => {
   });
 
   it('handles unknown end date (endDate = null)', async () => {
-    // @ts-expect-error session for test
     mockedAuth.mockResolvedValue({
       user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' },
-    });
+    } as never);
 
     const res = await POST(
       makePostRequest('VSAV 01', {
@@ -146,10 +141,9 @@ describe('POST /api/vehicles/[id]/maintenance-events', () => {
 
 describe('PATCH /api/vehicles/[id]/maintenance-events', () => {
   it('ends active maintenance, sets endDate to today, and updates vehicle status to AVAILABLE', async () => {
-    // @ts-expect-error session for test
     mockedAuth.mockResolvedValue({
       user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' },
-    });
+    } as never);
 
     // First put in maintenance
     await POST(
@@ -188,7 +182,7 @@ describe('PATCH /api/vehicles/[id]/maintenance-events', () => {
     expect(getJson.activeMaintenance).toBeNull();
 
     // Verify GET /api/vehicles list also returns status AVAILABLE
-    const listRes = await GETVehicles();
+    const listRes = await GETVehicles(new Request('http://localhost/api/vehicles'));
     expect(listRes.status).toBe(200);
     const listJson = await listRes.json();
     const v1 = listJson.find((v: { id: string }) => v.id === 'v-1');

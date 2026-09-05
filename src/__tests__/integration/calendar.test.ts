@@ -52,10 +52,9 @@ describe('GET /api/vehicles/calendar', () => {
   });
 
   it('should return empty arrays if user has no ulId', async () => {
-    // @ts-expect-error partial session for test
     mockedAuth.mockResolvedValue({
       user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'default' },
-    });
+    } as never);
 
     const res = await GET(makeRequest());
     expect(res.status).toBe(200);
@@ -64,10 +63,9 @@ describe('GET /api/vehicles/calendar', () => {
   });
 
   it('should return monthly reservations and trips including ongoing trips', async () => {
-    // @ts-expect-error partial session for test
     mockedAuth.mockResolvedValue({
       user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' },
-    });
+    } as never);
 
     // Insert a reservation in July 2026
     await db.execute({
@@ -148,10 +146,9 @@ describe('GET /api/vehicles/calendar', () => {
   });
 
   it('should filter by vehicleId when vehicleId parameter is provided', async () => {
-    // @ts-expect-error partial session for test
     mockedAuth.mockResolvedValue({
       user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' },
-    });
+    } as never);
 
     await db.execute({
       sql: `INSERT INTO Trip (id, vehicleId, driverId, missionType, checkOutAt, checkInAt)

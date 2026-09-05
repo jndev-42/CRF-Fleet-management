@@ -24,6 +24,39 @@ vi.mock('@/lib/db', () => ({
 
 import { authCallbacks } from '@/auth';
 
+// `NextAuthConfig["callbacks"]` déclare `jwt` et `session` optionnels, et `jwt` peut
+// renvoyer `null`. On fige les références une fois pour toutes et on centralise ici la
+// conversion des charges de test partielles, plutôt que de la répéter à chaque appel.
+const jwtCallback = authCallbacks.jwt;
+const sessionCallback = authCallbacks.session;
+if (!jwtCallback || !sessionCallback) {
+    throw new Error('authCallbacks.jwt et authCallbacks.session doivent être définis');
+}
+// Références au type non optionnel : le rétrécissement ci-dessus ne traverse pas les
+// frontières de fonction, les helpers ci-dessous s'appuient donc sur ces alias typés.
+const jwtFn: NonNullable<typeof authCallbacks.jwt> = jwtCallback;
+const sessionFn: NonNullable<typeof authCallbacks.session> = sessionCallback;
+
+type JwtArgs = Parameters<typeof jwtFn>[0];
+type SessionArgs = Parameters<typeof sessionFn>[0];
+
+/** Appelle le callback `jwt` et garantit un retour non nul. */
+async function callJwt(args: {
+    token: Record<string, unknown>;
+    user?: unknown;
+    trigger?: 'signIn' | 'signUp' | 'update';
+    session?: unknown;
+}): Promise<JWT> {
+    const result = await jwtFn(args as unknown as JwtArgs);
+    if (!result) throw new Error('Le callback jwt a renvoyé null');
+    return result;
+}
+
+/** Appelle le callback `session` et restreint le retour élargi de next-auth à `Session`. */
+async function callSession(args: { session: Session; token: JWT }): Promise<Session> {
+    return (await sessionFn(args as unknown as SessionArgs)) as Session;
+}
+
 describe('NextAuth Callbacks — Impersonation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -43,7 +76,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
                 rows: [{ name: 'CHVL' }]
             });
 
-            const result = await authCallbacks.jwt({ token, user, trigger: undefined, session: undefined });
+            const result = await callJwt({ token, user, trigger: undefined, session: undefined });
 
             expect(result.originalEmail).toBe('user@croix-rouge.fr');
             expect(result.email).toBe('user@croix-rouge.fr');
@@ -69,7 +102,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
                 rows: [{ roles: 'CHVL' }]
             });
 
-            const result = await authCallbacks.jwt({
+            const result = await callJwt({
                 token,
                 user: undefined,
                 trigger: 'update',
@@ -98,7 +131,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
                 rows: [{ name: 'SUPER_ADMIN' }]
             });
 
-            const result = await authCallbacks.jwt({
+            const result = await callJwt({
                 token,
                 user: undefined,
                 trigger: 'update',
@@ -130,7 +163,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
                 rows: [{ roles: 'SUPER_ADMIN' }]
             });
 
-            const result = await authCallbacks.jwt({
+            const result = await callJwt({
                 token,
                 user: undefined,
                 trigger: 'update',
@@ -160,7 +193,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
                 roles: ['CHVL'],
             };
 
-            const result = await authCallbacks.session({
+            const result = await callSession({
                 session: session as unknown as Session,
                 token: token as unknown as JWT,
             });

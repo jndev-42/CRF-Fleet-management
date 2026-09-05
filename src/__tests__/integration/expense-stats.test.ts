@@ -45,7 +45,8 @@ beforeEach(async () => {
   // divergente de `report.total` (cf. AC-24).
   await db.execute({
     sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, imputation, customImputation, requestRefund)
-          VALUES ('exp-1', 'user-standard', '2026-07-15T10:00:00Z', 'traité', 150.0, '[]', 'ul-paris-18', 'DLUS', NULL, 1)`
+          VALUES ('exp-1', 'user-standard', '2026-07-15T10:00:00Z', 'traité', 150.0, '[]', 'ul-paris-18', 'DLUS', NULL, 1)`,
+    args: [],
   });
 
   // exp-2 porte les lignes rattachées à des budgets : « Repas » actif,
@@ -63,13 +64,14 @@ beforeEach(async () => {
   // Seed expense report for UL 17
   await db.execute({
     sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, imputation, customImputation, requestRefund)
-          VALUES ('exp-ul17', 'user-standard', '2026-07-18T10:00:00Z', 'traité', 999.0, '[]', 'ul-paris-17', 'DLAS', NULL, 1)`
+          VALUES ('exp-ul17', 'user-standard', '2026-07-18T10:00:00Z', 'traité', 999.0, '[]', 'ul-paris-17', 'DLAS', NULL, 1)`,
+    args: [],
   });
 });
 
 describe('GET /api/stats/expenses', () => {
   it('returns 401 when unauthenticated', async () => {
-    mockedAuth.mockResolvedValue(null);
+    mockedAuth.mockResolvedValue(null as never);
     const res = await getExpenseStats(new Request('http://localhost/api/stats/expenses?dateFrom=2026-07-01&dateTo=2026-07-31'));
     expect(res.status).toBe(401);
   });

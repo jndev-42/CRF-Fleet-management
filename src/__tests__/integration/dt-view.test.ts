@@ -45,6 +45,7 @@ describe('DT de rattachement — UL management', () => {
     // Verify DB persistence
     const dbRes = await db.execute({
       sql: `SELECT dtCode FROM "UniteLocale" WHERE id = 'ul-paris-18'`,
+      args: [],
     });
     expect(dbRes.rows[0].dtCode).toBe('DT 75');
   });
@@ -52,6 +53,7 @@ describe('DT de rattachement — UL management', () => {
   it('met à jour le dtCode d’une UL (PATCH /api/ul/[id])', async () => {
     await db.execute({
       sql: `INSERT INTO "UniteLocale" (id, name, slug, dtCode) VALUES ('ul-paris-17', 'Paris 17', 'paris-17', 'DT 75')`,
+      args: [],
     });
 
     mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['SUPER_ADMIN'] } } as never);
@@ -67,6 +69,7 @@ describe('DT de rattachement — UL management', () => {
 
     const dbRes = await db.execute({
       sql: `SELECT dtCode FROM "UniteLocale" WHERE id = 'ul-paris-17'`,
+      args: [],
     });
     expect(dbRes.rows[0].dtCode).toBe('DT Paris Nord');
   });
@@ -74,6 +77,7 @@ describe('DT de rattachement — UL management', () => {
   it('retourne le dtCode dans la liste des UL (GET /api/ul)', async () => {
     await db.execute({
       sql: `INSERT INTO "UniteLocale" (id, name, slug, dtCode) VALUES ('ul-paris-18', 'Paris 18', 'paris-18', 'DT 75')`,
+      args: [],
     });
 
     mockedAuth.mockResolvedValue({ user: { email: 'user@dev.local', roles: ['CHVL'] } } as never);
@@ -93,12 +97,15 @@ describe('Vision DT — GET /api/vehicles?view=dt', () => {
 
     await db.execute({
       sql: `INSERT INTO "UniteLocale" (id, name, slug, dtCode) VALUES ('ul-paris-18', 'Paris 18', 'paris-18', 'DT 75')`,
+      args: [],
     });
     await db.execute({
       sql: `INSERT INTO "UniteLocale" (id, name, slug, dtCode) VALUES ('ul-paris-17', 'Paris 17', 'paris-17', 'DT 75')`,
+      args: [],
     });
     await db.execute({
       sql: `INSERT INTO "UniteLocale" (id, name, slug, dtCode) VALUES ('ul-lyon-01', 'Lyon 01', 'lyon-01', 'DT 69')`,
+      args: [],
     });
 
     await seedVehicle({ id: 'v-p18-1', name: 'VSAV 18', type: 'VPSP', plate: 'AA-111-AA', ulId: 'ul-paris-18' });
@@ -125,6 +132,7 @@ describe('Vision DT — GET /api/vehicles?view=dt', () => {
   it('retourne 400 si l’UL de l’utilisateur n’a pas de dtCode', async () => {
     await db.execute({
       sql: `INSERT INTO "UniteLocale" (id, name, slug, dtCode) VALUES ('ul-no-dt', 'No DT', 'no-dt', NULL)`,
+      args: [],
     });
     mockedAuth.mockResolvedValue({ user: { email: 'dt@dev.local', roles: ['DT'], ulId: 'ul-no-dt' } } as never);
     const req = new Request('http://localhost/api/vehicles?view=dt');
@@ -156,9 +164,11 @@ describe('Vision DT — GET /api/vehicles/calendar?view=dt', () => {
 
     await db.execute({
       sql: `INSERT INTO "UniteLocale" (id, name, slug, dtCode) VALUES ('ul-paris-18', 'Paris 18', 'paris-18', 'DT 75')`,
+      args: [],
     });
     await db.execute({
       sql: `INSERT INTO "UniteLocale" (id, name, slug, dtCode) VALUES ('ul-paris-17', 'Paris 17', 'paris-17', 'DT 75')`,
+      args: [],
     });
 
     await seedVehicle({ id: 'v-p18-1', name: 'VSAV 18', type: 'VPSP', plate: 'AA-111-AA', ulId: 'ul-paris-18' });

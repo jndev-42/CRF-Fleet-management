@@ -121,7 +121,7 @@ describe('ElectronicSignatureModal', () => {
     // `var(--text-primary)` — clair sur clair en thème sombre, signature illisible.
     it('peint la signature stylisée en encre sombre, sans variable de thème', () => {
         const { getAllByText } = render(
-            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" role="requester" />
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Jean Dupont" signerEmail="jean@test.com" roleTitle="Demandeur" />
         );
         // Le nom apparaît aussi en en-tête : l'aperçu est celui rendu en italique.
         const apercu = getAllByText('Jean Dupont')

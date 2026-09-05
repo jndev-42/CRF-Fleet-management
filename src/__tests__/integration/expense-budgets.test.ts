@@ -52,7 +52,7 @@ describe('Budgets analytiques — routes API', () => {
 
     describe('GET /api/expense-budgets', () => {
         it('GET retourne 401 sans session', async () => {
-            mockedAuth.mockResolvedValue(null);
+            mockedAuth.mockResolvedValue(null as never);
             const res = await listBudgets(makeRequest('http://localhost/api/expense-budgets', 'GET'));
             expect(res.status).toBe(401);
         });
@@ -123,8 +123,8 @@ describe('Budgets analytiques — routes API', () => {
 
     describe('POST /api/expense-budgets', () => {
         it('POST retourne 401 sans session', async () => {
-            mockedAuth.mockResolvedValue(null);
-            const res = await createBudget(makeRequest('http://localhost/api/expense-budgets', 'POST', { name: 'Divers' }));
+            mockedAuth.mockResolvedValue(null as never);
+            const res = await createBudget(makeRequest('http://localhost/api/expense-budgets', 'POST', { name: 'Divers' } as never));
             expect(res.status).toBe(401);
         });
 
@@ -203,7 +203,7 @@ describe('Budgets analytiques — routes API', () => {
 
     describe('PATCH /api/expense-budgets/[id]', () => {
         it('PATCH retourne 401 sans session', async () => {
-            mockedAuth.mockResolvedValue(null);
+            mockedAuth.mockResolvedValue(null as never);
             const res = await renameBudget(
                 makeRequest('http://localhost/api/expense-budgets/b-1', 'PATCH', { name: 'Autre' }),
                 { params: Promise.resolve({ id: 'b-1' }) },
@@ -269,7 +269,7 @@ describe('Budgets analytiques — routes API', () => {
 
     describe('DELETE /api/expense-budgets/[id]', () => {
         it('DELETE retourne 401 sans session', async () => {
-            mockedAuth.mockResolvedValue(null);
+            mockedAuth.mockResolvedValue(null as never);
             const res = await archiveBudget(
                 makeRequest('http://localhost/api/expense-budgets/b-1', 'DELETE'),
                 { params: Promise.resolve({ id: 'b-1' }) },

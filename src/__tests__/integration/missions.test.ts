@@ -181,7 +181,6 @@ describe('POST /api/missions', () => {
 
     it('returns 201 when user has multi-roles including CADRE and ADMIN/CI_RPAPS', async () => {
         await seedUser({ id: 'user-multirole', email: 'multirole@test.com', name: 'MultiRole Test' });
-        // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue({
             user: {
                 id: 'user-multirole',
@@ -189,7 +188,7 @@ describe('POST /api/missions', () => {
                 roles: ['SUPER_ADMIN', 'ADMIN', 'CADRE', 'CHVL', 'CI/RPAPS'],
                 ulId: 'ul-paris-18',
             },
-        });
+        } as never);
 
         const res = await postCreate(makePostRequest(validPayload));
         expect(res.status).toBe(201);

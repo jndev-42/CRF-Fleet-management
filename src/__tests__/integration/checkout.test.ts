@@ -166,6 +166,109 @@ describe('POST /api/trips (checkout)', () => {
     const response = await POST(makeRequest(validCheckOutBody));
     expect(response.status).toBe(403);
   });
+  // ── Garde des papiers de conduite (POST /api/trips) ───────────────────────
+  // Jusqu'ici la validité n'était vérifiée qu'à l'affichage : le serveur laissait
+  // passer un conducteur aux papiers périmés. La garde rejoue la décision de
+  // `getLicenseStatus` en lecture seule — elle ne doit jamais écrire en base.
+  describe('garde des papiers de conduite', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const GRACE_DAYS = 14;
+
+    /** Date au format YYYY-MM-DD, décalée de `days` par rapport à aujourd'hui. */
+    function isoDay(days: number) {
+      return new Date(Date.now() + days * DAY).toISOString().slice(0, 10);
+    }
+
+    it('returns 403 when the driver license grace period has expired', async () => {
+      mockedAuth.mockResolvedValue(driverSession as never);
+      await seedUser({
+        id: 'user-driver',
+        email: 'driver@test.com',
+        name: 'Test Driver',
+        papiers_valides: 0,
+        last_validation: null,
+        start_date_invalidation_process: isoDay(-GRACE_DAYS),
+      });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(403);
+
+      const body = await response.json();
+      expect(body.error).toMatch(/papiers n'ont pas été validés dans les délais/i);
+
+      const vehicleResult = await db.execute({
+        sql: `SELECT status FROM "Vehicle" WHERE id = ?`,
+        args: ['VL001'],
+      });
+      expect(vehicleResult.rows[0].status).toBe('AVAILABLE');
+    });
+
+    it('allows checkout while still inside the grace period', async () => {
+      mockedAuth.mockResolvedValue(driverWithNameSession as never);
+      await seedUser({
+        id: 'user-driver',
+        email: 'driver@test.com',
+        name: 'Test Driver',
+        papiers_valides: 0,
+        last_validation: null,
+        start_date_invalidation_process: isoDay(-(GRACE_DAYS - 3)),
+      });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+
+    it('allows checkout when the license is valid', async () => {
+      mockedAuth.mockResolvedValue(driverWithNameSession as never);
+      await seedUser({
+        id: 'user-driver',
+        email: 'driver@test.com',
+        name: 'Test Driver',
+        papiers_valides: 1,
+        last_validation: isoDay(-10),
+      });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+
+    it('allows an ADMIN to bypass an expired license', async () => {
+      mockedAuth.mockResolvedValue(adminSession as never);
+      await seedUser({
+        id: 'admin-id',
+        email: 'admin@test.com',
+        name: 'Admin User',
+        papiers_valides: 0,
+        last_validation: null,
+        start_date_invalidation_process: isoDay(-GRACE_DAYS),
+      });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+
+    it('does not apply the license guard to a non-driver role', async () => {
+      mockedAuth.mockResolvedValue(guestSession as never);
+      await seedUser({
+        id: 'guest-id',
+        email: 'guest@test.com',
+        name: 'Guest User',
+        papiers_valides: 0,
+        last_validation: null,
+        start_date_invalidation_process: isoDay(-GRACE_DAYS),
+      });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      const body = await response.json();
+      expect(body.error).not.toMatch(/papiers/i);
+    });
+  });
+
   // ── Garde de réservation (POST /api/trips) ────────────────────────────────
   // Un véhicule couvert par une réservation VALIDATED active n'est empruntable
   // que par son détenteur, ou par un administrateur.
