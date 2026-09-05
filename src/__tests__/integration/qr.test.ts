@@ -34,14 +34,14 @@ describe('QR Code API Flow', () => {
         ulId: 'ul-paris-18',
       },
       expires: '2026-01-01',
-    });
+    } as never);
 
     await seedUser({ id: 'usr-driver-1', email: 'driver1@croix-rouge.fr' });
   });
 
   it('GET /api/qr/[token]/vehicle returns 401 when not authenticated', async () => {
-    mockedAuth.mockResolvedValue(null);
-    await seedVehicle({ id: 'VL401', name: 'Véhicule 401', type: 'VL', status: 'AVAILABLE', qrToken: 'token-401' });
+    mockedAuth.mockResolvedValue(null as never);
+    await seedVehicle({ id: 'VL401', name: 'Véhicule 401', type: 'VL', status: 'AVAILABLE', qrToken: 'token-401' } as never);
 
     const req = new Request('http://localhost/api/qr/token-401/vehicle');
     const res = await GET_QR_VEHICLE(req, { params: Promise.resolve({ token: 'token-401' }) });
@@ -59,7 +59,7 @@ describe('QR Code API Flow', () => {
         ulId: 'ul-paris-18',
       },
       expires: '2026-01-01',
-    });
+    } as never);
     await seedVehicle({ id: 'VL403', name: 'Véhicule 403', type: 'VL', status: 'AVAILABLE', qrToken: 'token-403' });
 
     const req = new Request('http://localhost/api/qr/token-403/vehicle');

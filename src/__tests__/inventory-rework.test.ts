@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { POST as adjustPOST } from '@/app/api/inventory/adjust/route';
 import { POST as inventoryPOST } from '@/app/api/inventory/route';
 import { db } from '@/lib/db';
@@ -21,11 +21,11 @@ describe('Inventory Rework API', () => {
 
     describe('POST /api/inventory/adjust', () => {
         it('should update quantity and log the change', async () => {
-            (auth as vi.Mock).mockResolvedValue({
+            (auth as Mock).mockResolvedValue({
                 user: { name: 'Test User', roles: ['ADMIN'] },
             });
 
-            (db.execute as vi.Mock)
+            (db.execute as Mock)
                 .mockResolvedValueOnce({ rows: [{ ulId: 'default' }] }) // SELECT ulId FROM "InvItem"
                 .mockResolvedValueOnce({ rows: [] }) // SELECT existing batch (empty)
                 .mockResolvedValueOnce({ rowsAffected: 1 }) // INSERT InvBatch
@@ -47,7 +47,7 @@ describe('Inventory Rework API', () => {
         });
 
         it('should return 403 if user is not authorized', async () => {
-            (auth as vi.Mock).mockResolvedValue({
+            (auth as Mock).mockResolvedValue({
                 user: { name: 'Guest', roles: ['GUEST'] },
             });
 
@@ -63,11 +63,11 @@ describe('Inventory Rework API', () => {
 
     describe('POST /api/inventory', () => {
         it('should create a new item', async () => {
-            (auth as vi.Mock).mockResolvedValue({
+            (auth as Mock).mockResolvedValue({
                 user: { name: 'Admin', roles: ['ADMIN'] },
             });
 
-            (db.execute as vi.Mock).mockResolvedValue({});
+            (db.execute as Mock).mockResolvedValue({});
 
             const req = new Request('http://localhost/api/inventory', {
                 method: 'POST',
@@ -82,11 +82,11 @@ describe('Inventory Rework API', () => {
 
     describe('POST /api/inventory/adjust (Stock Splitting)', () => {
         it('should deduct from no-date batch when deductFromNoDate is true', async () => {
-            (auth as vi.Mock).mockResolvedValue({
+            (auth as Mock).mockResolvedValue({
                 user: { name: 'Admin', roles: ['ADMIN'] },
             });
 
-            (db.execute as vi.Mock)
+            (db.execute as Mock)
                 .mockResolvedValueOnce({ rows: [{ ulId: 'default' }] }) // SELECT ulId FROM "InvItem"
                 .mockResolvedValueOnce({ rows: [{ id: 'no-date-batch-id', quantity: 20 }] }) // SELECT no-date batch
                 .mockResolvedValueOnce({ rowsAffected: 1 }) // UPDATE (deduct from no-date)
@@ -120,11 +120,11 @@ describe('Inventory Rework API', () => {
         });
 
         it('should return 400 if no-date stock is insufficient for splitting', async () => {
-            (auth as vi.Mock).mockResolvedValue({
+            (auth as Mock).mockResolvedValue({
                 user: { name: 'Admin', roles: ['ADMIN'] },
             });
 
-            (db.execute as vi.Mock)
+            (db.execute as Mock)
                 .mockResolvedValueOnce({ rows: [{ ulId: 'default' }] }) // SELECT ulId FROM "InvItem"
                 .mockResolvedValueOnce({ rows: [{ id: 'no-date-batch-id', quantity: 2 }] }); // Only 2 left
 

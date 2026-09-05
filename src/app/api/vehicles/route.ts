@@ -77,6 +77,7 @@ export async function GET(request: Request) {
                 v.*,
                 ul.name as ulName,
                 t.id as trip_id, u.name as trip_driverName, u2.name as trip_secondDriverName, t.missionType as trip_missionType,
+                u.email as trip_driverEmail, u2.email as trip_secondDriverEmail,
                 t.checkOutAt as trip_checkOutAt,
                 m.id as active_maint_id
             FROM Vehicle v
@@ -134,7 +135,9 @@ export async function GET(request: Request) {
                 vehiclesMap.get(vehicleId).trips.push({
                     id: row.trip_id,
                     driverName: row.trip_driverName,
+                    driverEmail: row.trip_driverEmail as string | null,
                     secondDriverName: row.trip_secondDriverName,
+                    secondDriverEmail: row.trip_secondDriverEmail as string | null,
                     missionType: row.trip_missionType,
                     checkOutAt: new Date(row.trip_checkOutAt as string),
                 });

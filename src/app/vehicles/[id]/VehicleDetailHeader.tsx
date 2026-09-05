@@ -1,6 +1,7 @@
 import { QrCode } from 'lucide-react';
 import VehicleBadges from '@/components/vehicle/VehicleBadges';
 import { isAdminOrAbove } from '@/lib/roles';
+import { getBorrowEligibility, getBorrowDenialTitle } from '@/lib/vehicleBorrowEligibility';
 import type { Trip, Vehicle } from './types';
 
 interface VehicleDetailHeaderProps {
@@ -82,35 +83,16 @@ export default function VehicleDetailHeader({
             </div>
             <div className="vehicle-detail-actions">
                 {!isDtView && vehicle.status === 'AVAILABLE' && (() => {
-                    const isAdmin = userRoles.includes('ADMIN');
-                    const isCHVL = userRoles.includes('CHVL');
-                    const isCHVPSP = userRoles.includes('CHVPSP');
-                    // VPSP vehicle if type contains VPSP
-                    const isVPSP = vehicle.type.toUpperCase().includes('VPSP');
-
-                    let canBorrow = false;
-                    if (isAdmin) canBorrow = true;
-                    else if (isCHVPSP) canBorrow = true; // Can borrow both VL and VPSP
-                    else if (isCHVL && !isVPSP) canBorrow = true; // Can borrow only VL
-
-                    if (canBorrow && isReservedByOther && !isAdmin) {
-                        canBorrow = false; // Block if there is an active reservation by another user, unless ADMIN
-                    }
-
-                    if (canBorrow && licenseBlocked && !isAdmin) {
-                        canBorrow = false; // Block if license papers are not validated within grace period
-                    }
-
-                    let titleAttr = "";
-                    if (!canBorrow) {
-                        if (licenseBlocked && !isAdmin) {
-                            titleAttr = "Vos papiers n'ont pas été validés — emprunt bloqué.";
-                        } else if (isReservedByOther && !isAdmin) {
-                            titleAttr = "Ce véhicule est actuellement réservé par quelqu'un d'autre.";
-                        } else {
-                            titleAttr = "Vous n'avez pas les droits pour emprunter ce véhicule";
-                        }
-                    }
+                    const eligibilityInput = {
+                        vehicleStatus: vehicle.status,
+                        vehicleType: vehicle.type,
+                        userRoles,
+                        isReservedByOther,
+                        licenseBlocked,
+                        isDtView,
+                    };
+                    const { canBorrow } = getBorrowEligibility(eligibilityInput);
+                    const titleAttr = getBorrowDenialTitle(eligibilityInput);
 
                     return (
                         <button

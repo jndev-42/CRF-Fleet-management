@@ -1,5 +1,34 @@
 # Changelog
 
+## [5.3.0] — 4 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Emprunter un véhicule en deux clics depuis le tableau de bord** — un bouton « Emprunter » prend la place des quatre cartes de statistiques, en haut de la page Véhicules. Il ouvre la liste des véhicules que vous pouvez prendre ; vous en choisissez un, le formulaire de prise en charge s'ouvre. Fini le défilement jusqu'aux cartes puis l'ouverture de la fiche du véhicule.
+- **La liste ne propose que ce que vous pouvez réellement prendre** — un véhicule en mission, en maintenance, incompatible avec votre rôle ou réservé par quelqu'un d'autre à cet instant n'y apparaît pas. Plus de mauvaise surprise après avoir rempli le formulaire.
+- **Quand rien n'est disponible, le bouton le dit** — il devient inactif, affiche la raison et renvoie vers le calendrier. Si vos papiers de conduite ne sont pas validés, il est grisé avec un lien pour les régulariser.
+- **Rendre un véhicule en deux clics depuis le tableau de bord** — un bouton « Rendre » accompagne le bouton « Emprunter », et n'apparaît que si vous avez au moins un véhicule en cours. Avec un seul emprunt, le bouton le nomme et ouvre directement le formulaire de retour ; avec plusieurs, il propose la liste de vos véhicules, exactement comme pour l'emprunt. Plus besoin de retrouver la fiche du véhicule pour le rendre.
+- **Le bouton « Rendre » ne montre que vos propres emprunts** — un véhicule pris par quelqu'un d'autre n'y figure jamais, y compris pour un administrateur : le raccourci du tableau de bord répond à « qu'ai-je emprunté ? ». Clore le trajet d'un tiers reste possible depuis la fiche du véhicule.
+- **Les compteurs de flotte tiennent sur une ligne** — total, disponibles, en mission et maintenance passent sous le bouton. La page est plus courte, le calendrier remonte.
+
+### 🐛 Corrections
+
+- **Un véhicule réservé ne peut plus vous être pris** — jusqu'ici, une réservation validée n'empêchait personne de partir avec le véhicule : votre mission pouvait se retrouver sans voiture. La prise est désormais refusée à un autre utilisateur pendant votre créneau. Vous restez libre de prendre le véhicule que vous avez vous-même réservé ; une réservation encore en attente de validation ou un créneau à venir ne bloque rien. Les administrateurs peuvent passer outre.
+
+- **Papiers de conduite non validés : la prise est désormais refusée** — le contrôle n'existait qu'à l'affichage, le bouton était grisé mais rien n'empêchait la prise en passant outre. Le serveur la refuse maintenant, une fois le délai de régularisation de 14 jours écoulé. Pendant ce délai, vous conduisez normalement ; les administrateurs ne sont pas concernés.
+
+### 🔧 Changements
+
+- **Chauffeurs VPSP : plus de bouton qui mène à une erreur** — un utilisateur porteur du seul rôle CHVPSP voyait, sur la fiche d'un véhicule léger, un bouton « Prendre le véhicule » actif qui échouait à la validation. Ce bouton est maintenant désactivé, en cohérence avec ce que le serveur autorise réellement. Un utilisateur cumulant CHVL et CHVPSP garde l'accès aux deux types de véhicules, et les administrateurs restent autorisés partout.
+
+### 🔒 Sécurité
+
+- **Authentification renforcée** — correction d'une faille permettant de contourner la restriction des connexions au domaine `@croix-rouge.fr` à l'aide d'un caractère ressemblant visuellement à `@`, et d'une faiblesse des cookies de connexion Google. Douze vulnérabilités de dépendances au total ont été corrigées, dont deux critiques ; il n'en reste aucune.
+
+### 📌 À savoir
+
+- Réserver un créneau à l'avance se fait toujours depuis la fiche du véhicule : le bouton du tableau de bord ne gère que la prise immédiate.
+
 ## [5.2.0] — 4 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

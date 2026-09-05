@@ -32,7 +32,7 @@ const TOUR_STEPS: TourStep[] = [
     {
         target: '[data-tour="stats"]',
         title: 'Résumé de la flotte',
-        body: "Ces cartes affichent un résumé en temps réel : nombre total de véhicules, disponibles, en mission et en maintenance.",
+        body: "Cette ligne de compteurs affiche un résumé en temps réel : nombre total de véhicules, disponibles, en mission et en maintenance.",
         icon: '📊',
         position: 'bottom',
     },

@@ -84,13 +84,15 @@ beforeEach(async () => {
     await seedUser({ id: 'user-president', email: 'president@test.com', name: 'President User' });
     await seedUserRole('user-president', 'PRESIDENT');
     await db.execute({
-        sql: `INSERT INTO "UserUL" (userId, ulId, is_home) VALUES ('user-president', 'ul-paris-18', 1)`
+        sql: `INSERT INTO "UserUL" (userId, ulId, is_home) VALUES ('user-president', 'ul-paris-18', 1)`,
+      args: [],
     });
 
     await seedUser({ id: 'user-tresorier', email: 'tresorier@test.com', name: 'Tresorier User' });
     await seedUserRole('user-tresorier', 'TRESORIER');
     await db.execute({
-        sql: `INSERT INTO "UserUL" (userId, ulId, is_home) VALUES ('user-tresorier', 'ul-paris-18', 1)`
+        sql: `INSERT INTO "UserUL" (userId, ulId, is_home) VALUES ('user-tresorier', 'ul-paris-18', 1)`,
+      args: [],
     });
 
     await seedUser({ id: 'user-other', email: 'other@test.com', name: 'Other User' });
@@ -119,7 +121,7 @@ describe('Expense Report integration tests', () => {
 
     describe('POST /api/expenses', () => {
         it('returns 401 when unauthenticated', async () => {
-            mockedAuth.mockResolvedValue(null);
+            mockedAuth.mockResolvedValue(null as never);
             const req = makePostRequest({
                 status: 'soumis',
                 userSignature: SIG,
@@ -127,7 +129,7 @@ describe('Expense Report integration tests', () => {
                 requestRefund: true,
                 noReceiptDeclaration: false,
                 items: [{ label: 'Decathlon', amount: 45.99, budgetId: BUDGET_18 }]
-            });
+            } as never);
             const res = await createReport(req);
             expect(res.status).toBe(401);
         });
@@ -271,19 +273,23 @@ describe('Expense Report integration tests', () => {
         beforeEach(async () => {
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
-                      VALUES ('exp-submitted', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 50.0, '[]', 'ul-paris-18', 1)`
+                      VALUES ('exp-submitted', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 50.0, '[]', 'ul-paris-18', 1)`,
+              args: [],
             });
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
-                      VALUES ('exp-pending-pay', 'user-other', '2026-07-19T11:00:00Z', 'en_attente_paiement', 80.0, '[]', 'ul-paris-18', 1)`
+                      VALUES ('exp-pending-pay', 'user-other', '2026-07-19T11:00:00Z', 'en_attente_paiement', 80.0, '[]', 'ul-paris-18', 1)`,
+              args: [],
             });
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
-                      VALUES ('exp-processed', 'user-other', '2026-07-19T12:00:00Z', 'traité', 100.0, '[]', 'ul-paris-18', 1)`
+                      VALUES ('exp-processed', 'user-other', '2026-07-19T12:00:00Z', 'traité', 100.0, '[]', 'ul-paris-18', 1)`,
+              args: [],
             });
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
-                      VALUES ('exp-draft', 'user-standard', '2026-07-19T13:00:00Z', 'brouillon', 20.0, '[]', 'ul-paris-18', 1)`
+                      VALUES ('exp-draft', 'user-standard', '2026-07-19T13:00:00Z', 'brouillon', 20.0, '[]', 'ul-paris-18', 1)`,
+              args: [],
             });
         });
 
@@ -349,15 +355,18 @@ describe('Expense Report integration tests', () => {
         beforeEach(async () => {
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
-                      VALUES ('exp-submitted-refund', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 50.0, '[]', 'ul-paris-18', 1)`
+                      VALUES ('exp-submitted-refund', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 50.0, '[]', 'ul-paris-18', 1)`,
+              args: [],
             });
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
-                      VALUES ('exp-submitted-norefund', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 50.0, '[]', 'ul-paris-18', 0)`
+                      VALUES ('exp-submitted-norefund', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 50.0, '[]', 'ul-paris-18', 0)`,
+              args: [],
             });
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
-                      VALUES ('exp-pending', 'user-standard', '2026-07-19T10:00:00Z', 'en_attente_paiement', 50.0, '[]', 'ul-paris-18', 1)`
+                      VALUES ('exp-pending', 'user-standard', '2026-07-19T10:00:00Z', 'en_attente_paiement', 50.0, '[]', 'ul-paris-18', 1)`,
+              args: [],
             });
         });
 
@@ -480,12 +489,13 @@ describe('Expense Report integration tests', () => {
                 // `r2Key` est indispensable : la route ne régénère plus rien, elle
                 // ne fait que servir le document scellé.
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund, userFunction, userSignature, r2Key)
-                      VALUES ('exp-pdf-test', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 45.0, '[{"label":"Carburant","amount":45.0}]', 'ul-paris-18', 1, 'Bénévole local', '{"name":"Standard User"}', 'exp-pdf-test/v1-abc.pdf')`
+                      VALUES ('exp-pdf-test', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 45.0, '[{"label":"Carburant","amount":45.0}]', 'ul-paris-18', 1, 'Bénévole local', '{"name":"Standard User"}', 'exp-pdf-test/v1-abc.pdf')`,
+              args: [],
             });
         });
 
         it('returns 401 when unauthenticated', async () => {
-            mockedAuth.mockResolvedValue(null);
+            mockedAuth.mockResolvedValue(null as never);
             const { GET: getPdf } = await import('@/app/api/expenses/[id]/pdf/route');
             const res = await getPdf(new Request('http://localhost/api/expenses/exp-pdf-test/pdf'), { params: Promise.resolve({ id: 'exp-pdf-test' }) });
             expect(res.status).toBe(401);
@@ -977,6 +987,7 @@ describe('Expense Report integration tests', () => {
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
                       VALUES ('exp-budget-draft', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0, '[]', 'ul-paris-18', 0)`,
+              args: [],
             });
             const res = await updateReport(makePatchRequest({
                 action: 'update',
@@ -993,6 +1004,7 @@ describe('Expense Report integration tests', () => {
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
                       VALUES ('exp-ul17', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0, '[]', 'ul-paris-17', 0)`,
+              args: [],
             });
 
             const rejected = await updateReport(makePatchRequest({
@@ -1020,6 +1032,7 @@ describe('Expense Report integration tests', () => {
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
                       VALUES ('exp-arch-ok', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0,
                               '[{"label":"Plein","amount":20,"budgetId":"b-arch-ok"}]', 'ul-paris-18', 0)`,
+              args: [],
             });
 
             const res = await updateReport(makePatchRequest({
@@ -1038,6 +1051,7 @@ describe('Expense Report integration tests', () => {
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
                       VALUES ('exp-arch-ko', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0,
                               '[{"label":"Repas","amount":20,"budgetId":"budget-test-18"}]', 'ul-paris-18', 0)`,
+              args: [],
             });
 
             const res = await updateReport(makePatchRequest({
@@ -1057,6 +1071,7 @@ describe('Expense Report integration tests', () => {
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
                       VALUES ('exp-val', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 'DLUS', 20.0, '[]', 'ul-paris-18', 0)`,
+              args: [],
             });
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
 
@@ -1068,6 +1083,7 @@ describe('Expense Report integration tests', () => {
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
                       VALUES ('exp-rej', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 'DLUS', 20.0, '[]', 'ul-paris-18', 1)`,
+              args: [],
             });
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
 
@@ -1082,6 +1098,7 @@ describe('Expense Report integration tests', () => {
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
                       VALUES ('exp-pay', 'user-standard', '2026-07-19T10:00:00Z', 'en_attente_paiement', 'DLUS', 20.0, '[]', 'ul-paris-18', 1)`,
+              args: [],
             });
             mockedAuth.mockResolvedValue({ user: { id: 'user-tresorier', email: 'tresorier@test.com', roles: ['TRESORIER'] } } as never);
 

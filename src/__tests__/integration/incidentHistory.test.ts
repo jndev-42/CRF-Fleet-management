@@ -45,7 +45,7 @@ describe('GET /api/vehicles/[id]/incidents', () => {
     });
 
     it('returns 401 if unauthenticated', async () => {
-        vi.mocked(auth).mockResolvedValueOnce(null);
+        vi.mocked(auth).mockResolvedValueOnce(null as never);
 
         const req = new Request(`http://localhost/api/vehicles/${testVehicleName}/incidents`);
         const res = await GET(req, { params: Promise.resolve({ id: testVehicleName }) });
@@ -60,7 +60,7 @@ describe('GET /api/vehicles/[id]/incidents', () => {
         vi.mocked(auth).mockResolvedValueOnce({
             user: { id: currentUserId, email: 'testinc@dev.local', roles: ['CHVL'] },
             expires: '9999',
-        });
+        } as never);
 
         // We need another valid user for the "other" incident to test filtering
         const otherUserId = 'other-user-id-' + Math.random().toString(36).substring(7);
@@ -99,7 +99,7 @@ describe('GET /api/vehicles/[id]/incidents', () => {
         vi.mocked(auth).mockResolvedValueOnce({
             user: { id: 'admin-id', email: 'admin@dev.local', roles: ['ADMIN'] },
             expires: '9999',
-        });
+        } as never);
 
         const req = new Request(`http://localhost/api/vehicles/UNKNOWN_VEHICLE/incidents`);
         const res = await GET(req, { params: Promise.resolve({ id: 'UNKNOWN_VEHICLE' }) });
@@ -113,7 +113,7 @@ describe('GET /api/vehicles/[id]/incidents', () => {
         vi.mocked(auth).mockResolvedValueOnce({
             user: { email: 'admin@dev.local', roles: ['ADMIN'] },
             expires: '9999',
-        });
+        } as never);
 
         const incidentId1 = 'inc-1';
         const incidentId2 = 'inc-2';

@@ -573,6 +573,14 @@ export async function seedUser(overrides: Partial<{
   last_validation: string | null;
   start_date_invalidation_process: string | null;
   validated_by: string | null;
+  /**
+   * Acceptés par commodité aux points d'appel mais **non persistés** :
+   * la table "User" du schéma de test n'a pas de colonne `ulId`, et les rôles
+   * passent par la table "UserRole" via `seedUserRole()`. Les déclarer ici évite
+   * une erreur de typage tout en rendant explicite qu'ils sont ignorés.
+   */
+  ulId: string;
+  roles: string[];
 }> = {}) {
   const u = {
     id: 'user-driver',

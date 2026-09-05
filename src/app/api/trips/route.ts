@@ -5,6 +5,7 @@ import { getRenaultVehicleData } from '@/lib/renault';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
 import { checkOutSchema } from './schema';
 
 export async function POST(request: Request) {
@@ -42,10 +43,51 @@ export async function POST(request: Request) {
         // Verify Roles
         const roles = session?.user?.roles || ['INACTIF'];
         const isAdmin = isAdminOrAbove(roles);
+
+        // Garde de réservation : un véhicule couvert par une réservation VALIDATED
+        // active maintenant n'est empruntable que par son détenteur — ou par un admin.
+        const nowISO = new Date().toISOString();
+        const activeRes = await db.execute({
+            sql: `SELECT userEmail FROM "Reservation"
+                  WHERE vehicleId = ? AND status = 'VALIDATED'
+                    AND startTime <= ? AND endTime >= ?
+                  LIMIT 1`,
+            args: [data.vehicleId, nowISO, nowISO],
+        });
+        const holder = activeRes.rows[0]?.userEmail as string | undefined;
+        if (holder && holder !== session.user.email && !isAdmin) {
+            return forbiddenResponse('Ce véhicule est réservé par un autre utilisateur');
+        }
+
         const isCHVL = roles.includes('CHVL');
         const isCHVPSP = roles.includes('CHVPSP');
         const vehicleType = String(vehicle.type || '');
         const isVPSP = vehicleType.toUpperCase().includes('VPSP');
+
+        // Garde des papiers de conduite : jusqu'ici la validité n'était vérifiée
+        // qu'à l'affichage (`GET /api/me/license-check`), sans contrôle serveur — un
+        // conducteur aux papiers périmés pouvait donc emprunter. La décision est
+        // rejouée ici en lecture seule : contrairement à la route, cette garde
+        // n'écrit jamais l'invalidation en base.
+        if (!isAdmin && isDriverRole(roles)) {
+            const userId = session.user.id;
+            if (userId) {
+                const licenseRes = await db.execute({
+                    sql: `SELECT papiers_valides, last_validation, start_date_invalidation_process
+                          FROM "User" WHERE id = ?`,
+                    args: [userId],
+                });
+                const licenseRow = licenseRes.rows[0] as unknown as LicenseRow | undefined;
+                if (licenseRow) {
+                    const today = new Date().toISOString().slice(0, 10);
+                    if (getLicenseStatus(licenseRow, today).blocked) {
+                        return forbiddenResponse(
+                            "Vos papiers n'ont pas été validés dans les délais — emprunt impossible"
+                        );
+                    }
+                }
+            }
+        }
 
         // Désinfection n'est disponible que pour les véhicules VPSP (validation véhicule indépendante du rôle)
         if (data.missionType === 'Désinfection' && !isVPSP) {

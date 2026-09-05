@@ -23,7 +23,7 @@ This directory also owns the **shared vehicle type and helper modules** imported
 **Minimum role: any authenticated user.** Unlike sibling pages this one does not use `useSession()` — it fetches `GET /api/auth/session` manually into `userRoles` / `currentUserEmail` / `currentUserUlId` state. A 401 from the vehicle fetch redirects to `/login?callbackUrl=...`. Because roles start as `[]`, admin controls appear only after that fetch resolves; guard any new role-dependent logic accordingly.
 
 **Borrow permission is a layered computation** (in the `AVAILABLE` branch of the actions bar) — reproduce all of it if you touch it:
-- ADMIN → always allowed. CHVPSP → any vehicle. CHVL → only non-VPSP (VPSP detected by `vehicle.type.toUpperCase().includes('VPSP')`).
+- Centralised in `src/lib/vehicleBorrowEligibility.ts`, aligned with the server rule in `src/app/api/trips/route.ts`: `isAdminOrAbove` → always allowed. CHVPSP → VPSP vehicles only. CHVL → non-VPSP only (VPSP detected by `vehicle.type.toUpperCase().includes('VPSP')`). Holding both roles allows both types.
 - Then two overrides, both bypassed by ADMIN: an active reservation held by someone else (`isReservedByOther`, reported upward by `ReservationBlock`), and `licenseBlocked` from `GET /api/me/license-check` (driving papers not validated within the grace period).
 - Each denial has its own French `title` message.
 
