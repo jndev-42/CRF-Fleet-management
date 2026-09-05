@@ -13,6 +13,8 @@
 
 - **Un véhicule réservé ne peut plus vous être pris** — jusqu'ici, une réservation validée n'empêchait personne de partir avec le véhicule : votre mission pouvait se retrouver sans voiture. La prise est désormais refusée à un autre utilisateur pendant votre créneau. Vous restez libre de prendre le véhicule que vous avez vous-même réservé ; une réservation encore en attente de validation ou un créneau à venir ne bloque rien. Les administrateurs peuvent passer outre.
 
+- **Papiers de conduite non validés : la prise est désormais refusée** — le contrôle n'existait qu'à l'affichage, le bouton était grisé mais rien n'empêchait la prise en passant outre. Le serveur la refuse maintenant, une fois le délai de régularisation de 14 jours écoulé. Pendant ce délai, vous conduisez normalement ; les administrateurs ne sont pas concernés.
+
 ### 🔧 Changements
 
 - **Chauffeurs VPSP : plus de bouton qui mène à une erreur** — un utilisateur porteur du seul rôle CHVPSP voyait, sur la fiche d'un véhicule léger, un bouton « Prendre le véhicule » actif qui échouait à la validation. Ce bouton est maintenant désactivé, en cohérence avec ce que le serveur autorise réellement. Un utilisateur cumulant CHVL et CHVPSP garde l'accès aux deux types de véhicules, et les administrateurs restent autorisés partout.
@@ -24,7 +26,6 @@
 ### 📌 À savoir
 
 - Réserver un créneau à l'avance se fait toujours depuis la fiche du véhicule : le bouton du tableau de bord ne gère que la prise immédiate.
-- La validité de vos papiers de conduite est vérifiée à l'affichage, mais pas encore au moment de la prise du véhicule.
 
 ## [5.2.0] — 4 septembre 2026
 

@@ -2,10 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { unauthorizedResponse } from '@/lib/apiAuth';
-
-const DRIVER_ROLES = ['CHVL', 'CHVPSP'];
-const INVALIDATION_GRACE_DAYS = 14;
-const VALIDATION_VALIDITY_DAYS = 182; // 2 fois par an (~6 mois)
+import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
 
 /** GET /api/me/license-check
  *
@@ -29,9 +26,8 @@ export async function GET() {
         }
 
         const roles = session.user.roles || [];
-        const isDriver = roles.some(r => DRIVER_ROLES.includes(r));
 
-        if (!isDriver) {
+        if (!isDriverRole(roles)) {
             // Non-drivers are always considered valid
             return NextResponse.json({ validated: true, daysLeft: null, blocked: false });
         }
@@ -50,61 +46,36 @@ export async function GET() {
             return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
         }
 
-        const row = userRes.rows[0];
+        const row = userRes.rows[0] as unknown as LicenseRow;
         const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
-        let papiersValides = Number(row.papiers_valides ?? 1);
-        const lastValidation = (row.last_validation as string | null | undefined) ?? null;
-        let startDateInvalidation = (row.start_date_invalidation_process as string | null | undefined) ?? null;
+        const status = getLicenseStatus(row, today);
 
-        // Check if validation has expired (null or older than 1 year)
-        const validationExpired =
-            lastValidation === null ||
-            new Date(lastValidation).getTime() + VALIDATION_VALIDITY_DAYS * 24 * 60 * 60 * 1000 <
-                new Date(today).getTime();
-
-        if (validationExpired && papiersValides === 1) {
-            // Transition: previously valid → now invalidated
-            papiersValides = 0;
-            startDateInvalidation = today;
-
-            await db.execute({
-                sql: `UPDATE "User"
-                      SET papiers_valides = 0,
-                          start_date_invalidation_process = ?
-                      WHERE id = ?`,
-                args: [today, userId],
-            });
-        } else if (validationExpired && papiersValides === 0 && startDateInvalidation === null) {
-            // Already invalid but no start date recorded — set it now
-            startDateInvalidation = today;
-            await db.execute({
-                sql: `UPDATE "User" SET start_date_invalidation_process = ? WHERE id = ?`,
-                args: [today, userId],
-            });
+        // Matérialise l'invalidation en base. La décision elle-même est pure
+        // (`@/lib/licenseStatus`) pour que la garde de `POST /api/trips` puisse la
+        // rejouer sans écrire.
+        if (status.startDateToPersist) {
+            if (status.justInvalidated) {
+                await db.execute({
+                    sql: `UPDATE "User"
+                          SET papiers_valides = 0,
+                              start_date_invalidation_process = ?
+                          WHERE id = ?`,
+                    args: [status.startDateToPersist, userId],
+                });
+            } else {
+                await db.execute({
+                    sql: `UPDATE "User" SET start_date_invalidation_process = ? WHERE id = ?`,
+                    args: [status.startDateToPersist, userId],
+                });
+            }
         }
 
-        const validated = papiersValides === 1;
-
-        if (validated) {
-            return NextResponse.json({ validated: true, daysLeft: null, blocked: false });
-        }
-
-        // Calculate days left before blocking
-        let daysLeft: number | null = null;
-        let blocked = false;
-
-        if (startDateInvalidation) {
-            const blockDate = new Date(startDateInvalidation);
-            blockDate.setDate(blockDate.getDate() + INVALIDATION_GRACE_DAYS);
-            const todayDate = new Date(today);
-            const msLeft = blockDate.getTime() - todayDate.getTime();
-            const rawDaysLeft = Math.ceil(msLeft / (24 * 60 * 60 * 1000));
-            daysLeft = Math.max(0, rawDaysLeft);
-            blocked = daysLeft === 0;
-        }
-
-        return NextResponse.json({ validated: false, daysLeft, blocked });
+        return NextResponse.json({
+            validated: status.validated,
+            daysLeft: status.daysLeft,
+            blocked: status.blocked,
+        });
     } catch (error) {
         console.error('Error checking license:', error);
         return NextResponse.json(
