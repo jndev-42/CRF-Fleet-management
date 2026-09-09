@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import styles from './UserCombobox.module.css';
+import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 
 interface UserComboboxProps {
     users: { id: string; name: string | null; email: string }[];
@@ -38,7 +39,7 @@ export default function UserCombobox({
 
     const selectedUser = users.find(u => u.id === value);
     const triggerLabel = value === 'UNASSIGNED'
-        ? 'Chauffeur non décidé'
+        ? UNASSIGNED_DRIVER_NAME
         : value
         ? (selectedUser?.name || selectedUser?.email || defaultLabel)
         : defaultLabel;

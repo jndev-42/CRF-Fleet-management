@@ -3,6 +3,7 @@ import styles from './Reservation.module.css';
 import UserCombobox from '@/components/ui/UserCombobox';
 import { canAccessAdminPanel } from '@/lib/roles';
 import RecurrencePanel, { RecurrenceFormState } from './RecurrencePanel';
+import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
 
 interface Reservation {
     id: string;
@@ -88,12 +89,21 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
 
                 if (onActiveReservationChange) {
                     const now = new Date();
-                    const activeRes = data.find(r =>
+                    // Seule une réservation avec chauffeur désigné détenue par un TIERS
+                    // bloque l'emprunt. Une « Chauffeur non décidé » n'a pas de
+                    // détenteur opposable : elle est ignorée ici, comme côté serveur
+                    // (`src/app/api/trips/route.ts`). Le filtre porte sur la liste
+                    // entière, et non sur la première réservation active trouvée : une
+                    // résa non attribuée ne doit pas masquer une résa nominative
+                    // concomitante.
+                    const blocking = data.find(r =>
                         r.status === 'VALIDATED' &&
                         new Date(r.startTime) <= now &&
-                        new Date(r.endTime) >= now
+                        new Date(r.endTime) >= now &&
+                        !isUnassignedDriverName(r.userName) &&
+                        r.userEmail !== currentUserEmail
                     );
-                    onActiveReservationChange(!!activeRes && activeRes.userEmail !== currentUserEmail);
+                    onActiveReservationChange(!!blocking);
                 }
             }
         } catch (e) {
@@ -227,7 +237,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         setEditEndTime(`${pad(end.getHours())}:${pad(end.getMinutes())}`);
         setEditReason(res.reason || '');
 
-        if (res.userName === 'Chauffeur non décidé') {
+        if (res.userName === UNASSIGNED_DRIVER_NAME) {
             setEditDriverSelection('UNASSIGNED');
         } else if (res.userEmail === currentUserEmail) {
             setEditDriverSelection('');
@@ -400,7 +410,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                             const canDelete = !readOnly && (canManageDriver || res.userEmail === currentUserEmail);
                             const canEdit = !readOnly && (canManageDriver || res.userEmail === currentUserEmail);
                             const isPending = res.status === 'PENDING';
-                            const isUnassigned = res.userName === 'Chauffeur non décidé';
+                            const isUnassigned = res.userName === UNASSIGNED_DRIVER_NAME;
                             const isRecurring = !!res.recurrenceGroupId;
                             const groupId = res.recurrenceGroupId!;
                             const canActOnGroup = !readOnly && (canManageDriver || res.userEmail === currentUserEmail);
@@ -429,7 +439,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                         </div>
                                         <div className={styles.itemUser}>
                                             Par {isUnassigned ? (
-                                                <span className={styles.badgeUnassigned}>Chauffeur non décidé</span>
+                                                <span className={styles.badgeUnassigned}>{UNASSIGNED_DRIVER_NAME}</span>
                                             ) : (
                                                 <strong>{res.userName}</strong>
                                             )}
@@ -559,9 +569,9 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                             type="button"
                                             className={`${styles.quickChBtn} ${driverSelection === 'UNASSIGNED' ? styles.quickChBtnActive : ''}`}
                                             onClick={() => setDriverSelection(driverSelection === 'UNASSIGNED' ? '' : 'UNASSIGNED')}
-                                            title="Indiquer Chauffeur non décidé"
+                                            title={`Indiquer ${UNASSIGNED_DRIVER_NAME}`}
                                         >
-                                            Chauffeur non décidé
+                                            {UNASSIGNED_DRIVER_NAME}
                                         </button>
                                     </div>
                                     {driverSelection === 'UNASSIGNED' && (
@@ -665,9 +675,9 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                             type="button"
                                             className={`${styles.quickChBtn} ${editDriverSelection === 'UNASSIGNED' ? styles.quickChBtnActive : ''}`}
                                             onClick={() => setEditDriverSelection(editDriverSelection === 'UNASSIGNED' ? '' : 'UNASSIGNED')}
-                                            title="Indiquer Chauffeur non décidé"
+                                            title={`Indiquer ${UNASSIGNED_DRIVER_NAME}`}
                                         >
-                                            Chauffeur non décidé
+                                            {UNASSIGNED_DRIVER_NAME}
                                         </button>
                                     </div>
                                     {editDriverSelection === 'UNASSIGNED' && (

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from './VehicleCalendar.module.css';
 import { useUL } from '@/lib/contexts/ULContext';
+import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
 
 interface Vehicle {
   id: string;
@@ -575,8 +576,8 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
                   <div className={styles.detailRow}>
                     <span className={styles.detailLabel}>Chauffeur (Réservé par)</span>
                     <span className={styles.detailValue}>
-                      {selectedEvent.data.userName === 'Chauffeur non décidé' ? (
-                        <strong>Chauffeur non décidé</strong>
+                      {isUnassignedDriverName(selectedEvent.data.userName) ? (
+                        <strong>{UNASSIGNED_DRIVER_NAME}</strong>
                       ) : (
                         `${selectedEvent.data.userName} (${selectedEvent.data.userEmail})`
                       )}

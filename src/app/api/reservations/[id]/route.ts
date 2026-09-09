@@ -52,6 +52,7 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 
 import { z } from 'zod';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 
 const updateReservationSchema = z.strictObject({
     startTime: z.string().datetime({ message: 'startTime doit être une date ISO valide' }).optional(),
@@ -163,7 +164,7 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
 
             if (isChangingDriver) {
                 if (parsed.isUnassignedDriver || parsed.onBehalfOfUserId === 'UNASSIGNED') {
-                    newUserName = 'Chauffeur non décidé';
+                    newUserName = UNASSIGNED_DRIVER_NAME;
                     newUserEmail = session.user.email as string;
                 } else if (parsed.onBehalfOfUserId === 'SELF') {
                     newUserEmail = session.user.email as string;

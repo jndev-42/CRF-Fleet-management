@@ -42,6 +42,7 @@ vi.mock('@/lib/onesignal', () => ({
 import { POST } from '@/app/api/trips/route';
 import { auth } from '@/auth';
 import { db, seedVehicle, seedUser } from './setup';
+import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -367,6 +368,88 @@ describe('POST /api/trips (checkout)', () => {
 
       const response = await POST(makeRequest(validCheckOutBody));
       expect(response.status).toBe(201);
+    });
+
+    // ── Réservation « Chauffeur non décidé » ────────────────────────────────
+    // Le sentinel vit dans `userName` ; `userEmail` n'est que celui du RESPO qui a
+    // posé la réservation. Elle n'a donc pas de détenteur opposable : tout chauffeur
+    // éligible peut la consommer, et l'emprunt la supprime comme une résa nominative.
+    describe('réservation sans chauffeur désigné', () => {
+      it('laisse un chauffeur tiers emprunter le véhicule (201)', async () => {
+        // @ts-expect-error — partial session object for testing
+        mockedAuth.mockResolvedValue(driverSession);
+        await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+        await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+        // `userEmail` = le RESPO créateur, jamais l'emprunteur
+        await seedReservation({ userEmail: 'respo@test.com', userName: UNASSIGNED_DRIVER_NAME });
+
+        const response = await POST(makeRequest(validCheckOutBody));
+        expect(response.status).toBe(201);
+      });
+
+      it('supprime la réservation consommée par le chauffeur tiers', async () => {
+        // @ts-expect-error — partial session object for testing
+        mockedAuth.mockResolvedValue(driverSession);
+        await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+        await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+        await seedReservation({ userEmail: 'respo@test.com', userName: UNASSIGNED_DRIVER_NAME });
+
+        await POST(makeRequest(validCheckOutBody));
+
+        const rows = await db.execute({
+          sql: `SELECT id FROM "Reservation" WHERE id = ?`,
+          args: ['res-1'],
+        });
+        expect(rows.rows).toHaveLength(0);
+      });
+
+      it('conserve une réservation non attribuée encore PENDING', async () => {
+        // @ts-expect-error — partial session object for testing
+        mockedAuth.mockResolvedValue(driverSession);
+        await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+        await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+        await seedReservation({
+          userEmail: 'respo@test.com',
+          userName: UNASSIGNED_DRIVER_NAME,
+          status: 'PENDING',
+        });
+
+        const response = await POST(makeRequest(validCheckOutBody));
+        expect(response.status).toBe(201);
+
+        // Seules les VALIDATED sont consommées : une PENDING attend encore sa validation
+        const rows = await db.execute({
+          sql: `SELECT id FROM "Reservation" WHERE id = ?`,
+          args: ['res-1'],
+        });
+        expect(rows.rows).toHaveLength(1);
+      });
+
+      it('ne masque pas une réservation nominative concomitante d\'un tiers (403)', async () => {
+        // @ts-expect-error — partial session object for testing
+        mockedAuth.mockResolvedValue(driverSession);
+        await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+        await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+        // La non attribuée est insérée en premier : elle ne doit pas court-circuiter
+        // la recherche du détenteur réel.
+        await seedReservation({ id: 'res-unassigned', userEmail: 'respo@test.com', userName: UNASSIGNED_DRIVER_NAME });
+        await seedReservation({ id: 'res-held', userEmail: 'other@test.com', userName: 'Other User' });
+
+        const response = await POST(makeRequest(validCheckOutBody));
+        expect(response.status).toBe(403);
+      });
+
+      it('refuse un chauffeur sans le rôle requis malgré la réservation libre (403)', async () => {
+        // @ts-expect-error — partial session object for testing
+        mockedAuth.mockResolvedValue(driverWithNameSession);
+        await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+        // VPSP : hors de portée d'un CHVL pur. Le rôle prime sur la réservation.
+        await seedVehicle({ id: 'VL001', status: 'AVAILABLE', type: 'VPSP' });
+        await seedReservation({ userEmail: 'respo@test.com', userName: UNASSIGNED_DRIVER_NAME });
+
+        const response = await POST(makeRequest(validCheckOutBody));
+        expect(response.status).toBe(403);
+      });
     });
   });
 });
