@@ -15,6 +15,7 @@ vi.mock('@/components/vehicle/modals/CheckOutModal', () => ({
 
 import QuickBorrowSection from '@/app/vehicles/QuickBorrowSection';
 import type { CalendarReservation } from '@/app/vehicles/useBorrowEligibility';
+import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import type { DashboardVehicle } from '@/app/vehicles/types';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -46,6 +47,7 @@ function reservation(overrides: Partial<CalendarReservation> = {}): CalendarRese
     return {
         vehicleId: 'uuid-1',
         userEmail: OTHER,
+        userName: 'Other User',
         startTime: new Date(now - 3600_000).toISOString(),
         endTime: new Date(now + 3600_000).toISOString(),
         status: 'VALIDATED',
@@ -194,8 +196,31 @@ describe('QuickBorrowSection — filtrage du picker', () => {
         ]);
     });
 
-    it('🔴 réservation VALIDATED d\'un tiers dans 3 jours : véhicule PRÉSENT', async () => {
-        const in3days = Date.now() + 3 * 24 * 3600_000;
+    it('garde le véhicule sous réservation « Chauffeur non décidé » active', async () => {
+        // Le sentinel vit dans `userName` ; `userEmail` porte celui du RESPO créateur.
+        // Sans détenteur opposable, la réservation ne retire pas le véhicule de la liste.
+        routeFetch({
+            reservations: [reservation({
+                vehicleId: 'uuid-4',
+                userEmail: OTHER,
+                userName: UNASSIGNED_DRIVER_NAME,
+            })],
+        });
+        const user = userEvent.setup();
+        renderSection({ vehicles: FLEET });
+
+        await waitForCta('🚗 Emprunter (3 dispo)');
+
+        await user.click(ctaButton());
+        const rows = screen.getAllByTestId('picker-row');
+        expect(rows.map(r => r.textContent)).toEqual([
+            expect.stringContaining('VL 1'),
+            expect.stringContaining('VL 4'),
+            expect.stringContaining('VL 5'),
+        ]);
+    });
+
+    it('🔴 réservation VALIDATED d\'un tiers dans 3 jours : véhicule PRÉSENT', async () => {        const in3days = Date.now() + 3 * 24 * 3600_000;
         routeFetch({
             reservations: [reservation({
                 vehicleId: 'uuid-1',

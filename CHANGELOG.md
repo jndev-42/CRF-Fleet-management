@@ -1,5 +1,20 @@
 # Changelog
 
+## [5.4.0] — 9 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Une réservation sans chauffeur désigné ne bloque plus personne** — quand un responsable pose une réservation « Chauffeur non décidé », le véhicule reste empruntable par n'importe quel chauffeur ayant les droits dessus, sur toute la période réservée. Jusqu'ici seule la personne qui avait créé la réservation pouvait prendre le véhicule, ce qui n'était pas l'intention : une réservation sans chauffeur sert justement à bloquer le créneau sans décider qui conduira.
+- **Le créneau se libère à la prise du véhicule** — le premier chauffeur qui emprunte consomme la réservation, exactement comme pour une réservation nominative. Le créneau ne reste donc pas ouvert à un second emprunt derrière lui.
+- **Le bouton « Emprunter » et la fiche véhicule suivent la même règle** — un véhicule sous réservation sans chauffeur apparaît dans la liste des véhicules empruntables du tableau de bord, et son bouton « Prendre le véhicule » reste actif sur sa fiche.
+
+### 🔧 Améliorations techniques
+
+- Les règles de rôle restent prioritaires : un chauffeur qui n'a pas le droit de conduire ce type de véhicule (VL / VPSP) reste refusé, réservation libre ou non.
+- Une réservation sans chauffeur encore en attente de validation n'est pas consommée par un emprunt.
+- Une réservation nominative concomitante continue de bloquer normalement, même si une réservation sans chauffeur couvre le même créneau.
+- Le libellé « Chauffeur non décidé » est désormais une constante partagée (`src/lib/reservationDriver.ts`) au lieu d'être recopié dans sept fichiers.
+
 ## [5.3.0] — 4 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

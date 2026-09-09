@@ -7,12 +7,15 @@ import {
     type BorrowCtaState,
     type BorrowDenialReason,
 } from '@/lib/vehicleBorrowEligibility';
+import { isUnassignedDriverName } from '@/lib/reservationDriver';
 import type { DashboardVehicle } from './types';
 
 /** Sous-ensemble de `GET /api/vehicles/calendar` → `reservations[]` consommé ici. */
 export interface CalendarReservation {
     vehicleId: string;
     userEmail: string;
+    /** Sentinelle du chauffeur non désigné — cf. `@/lib/reservationDriver`. */
+    userName: string;
     startTime: string;
     endTime: string;
     status: string;
@@ -106,12 +109,16 @@ export function useBorrowEligibility(args: {
 
                 // La fenêtre de la route couvre ~45 jours : le filtre `now` est
                 // entièrement à la charge du client. Parité ReservationBlock.tsx:90-96.
+                // Une réservation « Chauffeur non décidé » n'a pas de détenteur : elle
+                // ne bloque personne, pas même son créateur. Parité serveur
+                // (`src/app/api/trips/route.ts`).
                 const now = Date.now();
                 return new Set(
                     list
                         .filter(r => r.status === 'VALIDATED'
                             && Date.parse(r.startTime) <= now
                             && Date.parse(r.endTime) >= now
+                            && !isUnassignedDriverName(r.userName)
                             && r.userEmail !== currentUserEmail)
                         .map(r => r.vehicleId)
                 );

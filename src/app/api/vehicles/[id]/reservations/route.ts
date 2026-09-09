@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 
 /** Validates incoming POST body for creating a reservation */
 const createReservationSchema = z.object({
@@ -157,7 +158,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
             let userName = session.user.name || session.user.email as string;
 
             if (recurrenceData.isUnassignedDriver || recurrenceData.onBehalfOfUserId === 'UNASSIGNED') {
-                userName = 'Chauffeur non décidé';
+                userName = UNASSIGNED_DRIVER_NAME;
                 userEmail = session.user.email as string;
             } else if (recurrenceData.onBehalfOfUserId) {
                 const targetResult = await db.execute({
@@ -330,7 +331,7 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         let userName = session.user.name || session.user.email as string;
 
         if (data.isUnassignedDriver || data.onBehalfOfUserId === 'UNASSIGNED') {
-            userName = 'Chauffeur non décidé';
+            userName = UNASSIGNED_DRIVER_NAME;
             userEmail = session.user.email as string;
         } else if (data.onBehalfOfUserId) {
             const targetResult = await db.execute({

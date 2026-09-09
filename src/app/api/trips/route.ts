@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
+import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { checkOutSchema } from './schema';
 
 export async function POST(request: Request) {
@@ -46,13 +47,20 @@ export async function POST(request: Request) {
 
         // Garde de réservation : un véhicule couvert par une réservation VALIDATED
         // active maintenant n'est empruntable que par son détenteur — ou par un admin.
+        //
+        // Exception : une réservation « Chauffeur non décidé » n'a pas de détenteur
+        // opposable (son `userEmail` n'est que celui du RESPO qui l'a posée). Elle est
+        // donc exclue de la recherche du `holder` : tout chauffeur éligible peut prendre
+        // le véhicule sur le créneau. Le `!=` écarte aussi le créateur d'un privilège
+        // qu'il n'a pas — il emprunte au même titre que les autres.
         const nowISO = new Date().toISOString();
         const activeRes = await db.execute({
             sql: `SELECT userEmail FROM "Reservation"
                   WHERE vehicleId = ? AND status = 'VALIDATED'
                     AND startTime <= ? AND endTime >= ?
+                    AND userName != ?
                   LIMIT 1`,
-            args: [data.vehicleId, nowISO, nowISO],
+            args: [data.vehicleId, nowISO, nowISO, UNASSIGNED_DRIVER_NAME],
         });
         const holder = activeRes.rows[0]?.userEmail as string | undefined;
         if (holder && holder !== session.user.email && !isAdmin) {
@@ -172,11 +180,18 @@ export async function POST(request: Request) {
                 args: [mileageOut, fuelOut, timestamp, data.vehicleId]
             });
 
-            // Auto-delete active reservation for this user if they are taking the vehicle they reserved
+            // Auto-delete active reservation for this user if they are taking the vehicle they reserved.
+            // Une réservation VALIDATED « Chauffeur non décidé » est consommée de la même
+            // façon, quel que soit l'emprunteur : elle n'appartient à personne, et la
+            // laisser en place rouvrirait le créneau à un second chauffeur au retour du
+            // premier. Le filtre `status` n'est appliqué qu'à cette branche : la branche
+            // nominative continue d'emporter aussi les PENDING de l'emprunteur.
             if (session.user.email) {
                 await tx.execute({
-                    sql: `DELETE FROM "Reservation" WHERE vehicleId = ? AND userEmail = ? AND startTime <= ? AND endTime >= ?`,
-                    args: [data.vehicleId, session.user.email, timestamp, timestamp]
+                    sql: `DELETE FROM "Reservation"
+                          WHERE vehicleId = ? AND startTime <= ? AND endTime >= ?
+                            AND (userEmail = ? OR (userName = ? AND status = 'VALIDATED'))`,
+                    args: [data.vehicleId, timestamp, timestamp, session.user.email, UNASSIGNED_DRIVER_NAME]
                 });
             }
 
