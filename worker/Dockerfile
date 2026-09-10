@@ -19,4 +19,12 @@ ENV NODE_ENV=production
 ENV PORT=10000
 EXPOSE 10000
 
-CMD ["npx", "tsx", "src/server.ts"]
+# `xvfb-run` fournit un affichage virtuel, ce qui permet de lancer Chromium en
+# mode **headful** dans le conteneur en posant `HEADED=1`. Sans variable, le
+# navigateur reste headless et `xvfb-run` ne coûte qu'un processus dormant.
+#
+# Le levier existe parce que Gigya applique un contrôle anti-robot au risque, et
+# qu'un Chromium headless est trivialement détectable. `HEADED=1` est la première
+# chose à essayer si l'authentification échoue depuis le serveur alors qu'elle
+# passe en local.
+CMD ["xvfb-run", "-a", "npx", "tsx", "src/server.ts"]

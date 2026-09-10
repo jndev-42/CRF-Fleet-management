@@ -25,6 +25,13 @@ services:
         generateValue: true
       - key: NODE_ENV
         value: production
+      # Chromium headful sous affichage virtuel (Xvfb, fourni par l'image).
+      # Gigya applique un contrôle anti-robot au risque, et un navigateur
+      # headless est trivialement détectable : c'est le premier levier à
+      # actionner si l'authentification échoue depuis le serveur alors qu'elle
+      # passe en local. Coût : quelques dizaines de Mo de RAM.
+      - key: HEADED
+        value: "1"
       # Constantes d'application mobile, obligatoires pour l'échange de jetons
       # (l'IdP n'accepte pas `token_endpoint_auth_method: none`). Une par marque :
       # `client_id` et `client_secret` forment une paire, et un secret apparié à

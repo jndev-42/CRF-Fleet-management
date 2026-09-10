@@ -107,6 +107,25 @@ retenu (visible dans la trace).
 
 Et côté Render, à saisir manuellement : `PEUGEOT_CLIENT_SECRET` (et le secret de chaque autre marque utilisée).
 
+## Si l'authentification échoue depuis Render mais passe en local
+
+Symptôme : `échec AUTH … Il y a des erreurs dans votre formulaire`.
+
+Le message de Gigya est ambigu — il sort aussi bien pour un mot de passe faux que
+pour un contrôle anti-robot. Le worker sonde donc la page avant de conclure : un
+captcha visible produit un `TRANSIENT` explicite, **jamais** un `AUTH`. La
+distinction compte, seul `AUTH` faisant basculer toute l'UL en bandeau rouge.
+
+Si les identifiants sont vérifiés en local, deux causes restent :
+
+| Cause | Levier |
+|---|---|
+| Chromium headless est détectable | `HEADED=1` (déjà posé dans `render.yaml`) : Xvfb fournit un affichage virtuel et le navigateur tourne headful |
+| L'IP d'un datacenter est mal notée | aucun levier côté code — l'acquisition devrait alors se faire depuis un poste, cf. l'option « helper local » écartée à l'étude |
+
+Le worker journalise la longueur des champs remplis, jamais leur valeur : un
+`mot de passe 0 car.` désignerait un défaut de remplissage plutôt qu'un refus.
+
 ## Contraintes du plan gratuit, et comment on fait avec
 
 | Contrainte | Conséquence | Traitement |

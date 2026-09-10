@@ -90,6 +90,22 @@ const CONTINUE_SELECTORS = [
     'a:has-text("Continuer")',
 ];
 
+/**
+ * Marqueurs d'un contrôle anti-robot **visible**.
+ *
+ * Leur présence change la nature de l'échec : un captcha n'est pas un refus
+ * d'identifiants. Les confondre ferait basculer en `ERROR` tous les véhicules de
+ * l'UL — bandeau rouge, invitation à « reconnecter » — pour un compte dont le
+ * mot de passe est parfaitement valide.
+ */
+const CAPTCHA_MARKERS = [
+    'iframe[src*="recaptcha"]',
+    'iframe[title*="captcha" i]',
+    '.g-recaptcha',
+    '.gigya-captcha',
+    '[class*="captcha" i]',
+];
+
 /** Bandeaux de consentement cookies — Didomi chez Stellantis, OneTrust en repli. */
 const CONSENT_SELECTORS = [
     '#didomi-notice-agree-button',
@@ -177,11 +193,23 @@ export async function acquireTokens(input: AcquireInput): Promise<AcquireResult>
                 '--no-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
+                // Retire `navigator.webdriver`, le marqueur d'automatisation le
+                // plus trivialement lisible. Gigya applique un contrôle
+                // anti-robot au risque : un navigateur qui s'annonce piloté part
+                // avec un handicap qu'aucun identifiant valide ne rattrape.
+                '--disable-blink-features=AutomationControlled',
             ],
         });
         const context = await browser.newContext({
             locale: country === 'fr' ? 'fr-FR' : 'en-GB',
+            timezoneId: 'Europe/Paris',
             viewport: { width: 1280, height: 900 },
+            // Chromium headless annonce « HeadlessChrome » dans son User-Agent.
+            // Le remplacer ne rend pas le navigateur indétectable — ce n'est pas
+            // le but — mais évite le signalement le plus grossier.
+            userAgent:
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
+                '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         });
         const page = await context.newPage();
 
@@ -248,6 +276,11 @@ export async function acquireTokens(input: AcquireInput): Promise<AcquireResult>
             await passwordField.locator.press('Enter');
             trace.push('soumission via Entrée');
         }
+        // Longueurs seulement, jamais les valeurs : de quoi distinguer un champ
+        // resté vide d'un champ correctement rempli, sans rien journaliser.
+        trace.push(
+            `champs remplis — identifiant ${input.login.length} car., mot de passe ${input.password.length} car.`
+        );
 
         // Attente du code, en surveillant en parallèle un message d'erreur Gigya :
         // sans ça, un mot de passe erroné se traduirait par 90 s de silence puis
@@ -273,6 +306,22 @@ export async function acquireTokens(input: AcquireInput): Promise<AcquireResult>
                 .textContent({ timeout: 500 })
                 .catch(() => null);
             if (errorText && errorText.trim().length > 3) {
+                /**
+                 * Le message de Gigya ne dit pas *pourquoi* le formulaire est
+                 * refusé : « Il y a des erreurs dans votre formulaire » sort
+                 * aussi bien pour un mot de passe faux que pour un contrôle
+                 * anti-robot. Sonder la page est le seul moyen de distinguer les
+                 * deux, et la distinction n'est pas cosmétique : seul `AUTH`
+                 * autorise l'appelant à faire rougir toute l'UL.
+                 */
+                const captcha = await firstVisible(page, CAPTCHA_MARKERS, 500);
+                if (captcha) {
+                    throw transientError(
+                        `Contrôle anti-robot déclenché (${captcha.selector}) — les identifiants ne sont pas en cause. ` +
+                        'Message affiché : ' + errorText.trim().slice(0, 120),
+                        trace
+                    );
+                }
                 throw authError(`Identifiants refusés : ${errorText.trim().slice(0, 200)}`, trace);
             }
 

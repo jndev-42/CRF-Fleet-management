@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.8.2] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Un contrôle anti-robot n'est plus pris pour un mot de passe erroné** — Stellantis affiche le même message (« Il y a des erreurs dans votre formulaire ») dans les deux cas. L'application concluait à des identifiants refusés et affichait le bandeau rouge « Connexion interrompue » sur tous les véhicules de l'unité locale, alors que le compte était parfaitement valide. Les deux situations sont désormais distinguées, et seul un vrai refus d'identifiants fait basculer une connexion en erreur.
+
 ## [5.8.1] — 10 septembre 2026
 
 ### 🔧 Changements
