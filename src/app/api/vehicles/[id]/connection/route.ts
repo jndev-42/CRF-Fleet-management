@@ -14,15 +14,18 @@ import { db } from '@/lib/db';
 import { isAdmin, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { decryptSecret, encryptSecret } from '@/lib/crypto';
-import { BRAND_ACCOUNT_LABELS, type Brand } from '@/lib/brands';
+import { BRANDS, BRAND_ACCOUNT_LABELS, type Brand } from '@/lib/brands';
 import {
     BrandAuthError,
     BrandTransientError,
     VinNotOnAccountError,
-    fetchRenaultVehicleData,
     type ConnectionContext,
     type RenaultVehicleData,
 } from '@/lib/renault';
+// L'aiguillage marque → client vit dans `vehicle-connection.ts` et **nulle part
+// ailleurs** : cette route valide une connexion sans savoir quel constructeur
+// elle interroge.
+import { fetchBrandData } from '@/lib/vehicle-connection';
 import { getErrorMessage } from '@/lib/utils/error';
 
 // ── Schémas ───────────────────────────────────────────────────────────────────
@@ -41,7 +44,7 @@ const bothOrNeither = (d: { login?: string; password?: string }) =>
     (d.login === undefined) === (d.password === undefined);
 
 const ConnectSchema = z.object({
-    brand: z.enum(['RENAULT']),
+    brand: z.enum(BRANDS),
     vin: VinSchema,
     login: z.string().trim().email().optional(),
     password: z.string().min(1).optional(),
@@ -49,7 +52,7 @@ const ConnectSchema = z.object({
 
 /** `PATCH` : même schéma, `vin` optionnel (celui de la connexion existante est conservé). */
 const UpdateConnectionSchema = z.object({
-    brand: z.enum(['RENAULT']),
+    brand: z.enum(BRANDS),
     vin: VinSchema.optional(),
     login: z.string().trim().email().optional(),
     password: z.string().min(1).optional(),
@@ -83,6 +86,8 @@ interface VehicleRow {
     id: string;
     ulId: string | null;
     vin: string | null;
+    /** Nécessaire à la conversion du carburant PSA — cf. `brand-contract.ts`. */
+    maxFuelCapacity: number | null;
 }
 
 type Guard =
@@ -102,7 +107,7 @@ async function authorize(id: string): Promise<Guard> {
     if (!session?.user) return { ok: false, response: unauthorizedResponse() };
 
     const res = await db.execute({
-        sql: `SELECT id, ulId, vin FROM Vehicle WHERE id = ?`,
+        sql: `SELECT id, ulId, vin, maxFuelCapacity FROM Vehicle WHERE id = ?`,
         args: [id],
     });
     const row = res.rows[0];
@@ -114,6 +119,7 @@ async function authorize(id: string): Promise<Guard> {
         id: String(row.id),
         ulId: row.ulId === null ? null : String(row.ulId),
         vin: row.vin === null ? null : String(row.vin),
+        maxFuelCapacity: row.maxFuelCapacity === null ? null : Number(row.maxFuelCapacity),
     };
 
     // Plus strict que /api/renault/[vin], qui autorise tout membre de l'UL sans
@@ -207,7 +213,7 @@ type Validation =
 async function validateLive(ctx: ConnectionContext, brand: Brand): Promise<Validation> {
     const label = BRAND_ACCOUNT_LABELS[brand];
     try {
-        return { ok: true, data: await fetchRenaultVehicleData(ctx) };
+        return { ok: true, data: await fetchBrandData(ctx) };
     } catch (e: unknown) {
         if (e instanceof BrandAuthError) {
             return {
@@ -275,6 +281,7 @@ async function connectVehicle(
             vin: input.vin,
             login: credential.login,
             password: credential.password,
+            maxFuelCapacity: vehicle.maxFuelCapacity,
         },
         input.brand
     );

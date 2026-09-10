@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { BRANDS, BRAND_LABELS, BRAND_ACCOUNT_LABELS, type Brand } from '@/lib/brands';
 import { Link2, Loader2 } from 'lucide-react';
 import type { RenaultVehicleData } from '@/lib/renault';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
@@ -12,23 +13,41 @@ export interface VehicleConnectionState {
 }
 
 /**
- * Table des marques : le rendu du formulaire est piloté par cette table, jamais par un
- * `if (brand === 'RENAULT')`. Renault est la seule marque implémentée, mais l'architecture
- * est multi-marques par conception — une marque supplémentaire s'ajoute ici, pas dans le JSX.
+ * Table des marques, **dérivée de `src/lib/brands.ts`** : le rendu du formulaire est
+ * piloté par cette table, jamais par un `if (brand === 'RENAULT')`.
+ *
+ * La dériver plutôt que de la recopier supprime la seconde source de vérité. La
+ * documentation de `brands.ts` prescrivait « une entrée ici + une entrée `BRAND_FORMS`
+ * côté UI » ; il n'y a désormais plus qu'un seul endroit à toucher, et une marque
+ * ajoutée sans son entrée UI ne peut plus passer inaperçue.
+ *
+ * Seul le préfixe de VIN reste propre à l'UI : c'est un exemple de saisie, pas une
+ * donnée métier. Un préfixe manquant dégrade proprement en libellé générique.
  */
+const VIN_PLACEHOLDERS: Partial<Record<Brand, string>> = {
+    RENAULT: 'VF1AB123456789012',
+    PEUGEOT: 'VF3AB123456789012',
+    CITROEN: 'VF7AB123456789012',
+    DS: 'VR1AB123456789012',
+    OPEL: 'W0VAB123456789012',
+};
+
 const BRAND_FORMS: Record<string, {
     label: string;
     accountLabel: string;
     vinPlaceholder: string;
     loginLabel: string;
-}> = {
-    RENAULT: {
-        label: 'Renault',
-        accountLabel: 'Compte MyRenault',
-        vinPlaceholder: 'ex: VF1AB123456789012',
-        loginLabel: 'Identifiant MyRenault (e-mail)',
-    },
-};
+}> = Object.fromEntries(
+    BRANDS.map((brand) => [
+        brand,
+        {
+            label: BRAND_LABELS[brand],
+            accountLabel: `Compte ${BRAND_ACCOUNT_LABELS[brand]}`,
+            vinPlaceholder: VIN_PLACEHOLDERS[brand] ? `ex: ${VIN_PLACEHOLDERS[brand]}` : 'ex: VF1AB123456789012',
+            loginLabel: `Identifiant ${BRAND_ACCOUNT_LABELS[brand]} (e-mail)`,
+        },
+    ])
+);
 
 interface ConnectVehicleModalProps {
     /** UUID du véhicule — `vehicle.id`, JAMAIS `params.id` qui vaut le nom du véhicule. */

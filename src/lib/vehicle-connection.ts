@@ -12,12 +12,10 @@
  */
 import { db } from '@/lib/db';
 import { decryptSecret, encryptSecret, needsRewrap } from '@/lib/crypto';
-import {
-    BrandAuthError,
-    fetchRenaultVehicleData,
-    type ConnectionContext,
-    type RenaultVehicleData,
-} from '@/lib/renault';
+import { BrandAuthError, type BrandVehicleData, type ConnectionContext } from '@/lib/brand-contract';
+import { fetchRenaultVehicleData, type RenaultVehicleData } from '@/lib/renault';
+import { fetchStellantisVehicleData } from '@/lib/stellantis';
+import { isPsaBrand } from '@/lib/brands';
 import { getErrorMessage } from '@/lib/utils/error';
 
 /**
@@ -57,9 +55,15 @@ export interface FetchOptions {
  */
 export async function resolveVehicleConnection(vehicleId: string): Promise<ConnectionContext> {
     const res = await db.execute({
-        sql: `SELECT vc.vehicleId, vc.credentialId, vc.brand, vc.vin, bc.login, bc.passwordEncrypted
+        // `Vehicle` est joint pour `maxFuelCapacity` seul : PSA exprime le
+        // carburant en pourcentage et la conversion en litres a besoin de la
+        // capacité. La faire remonter par le contexte laisse les clients de
+        // marque ignorants du domaine — cf. `brand-contract.ts`.
+        sql: `SELECT vc.vehicleId, vc.credentialId, vc.brand, vc.vin,
+                     bc.login, bc.passwordEncrypted, v.maxFuelCapacity
               FROM VehicleConnection vc
               JOIN BrandCredential bc ON bc.id = vc.credentialId
+              JOIN Vehicle v ON v.id = vc.vehicleId
               WHERE vc.vehicleId = ?`,
         args: [vehicleId],
     });
@@ -68,9 +72,6 @@ export async function resolveVehicleConnection(vehicleId: string): Promise<Conne
     if (!row) throw new VehicleNotConnectedError();
 
     const brand = String(row.brand);
-    if (brand !== 'RENAULT') {
-        throw new Error(`Marque non prise en charge : ${brand}`);
-    }
 
     const credentialId = String(row.credentialId);
     const payload = String(row.passwordEncrypted);
@@ -94,10 +95,11 @@ export async function resolveVehicleConnection(vehicleId: string): Promise<Conne
     return {
         vehicleId: String(row.vehicleId),
         credentialId,
-        brand: 'RENAULT',
+        brand,
         vin: String(row.vin),
         login: String(row.login),
         password,
+        maxFuelCapacity: row.maxFuelCapacity === null ? null : Number(row.maxFuelCapacity),
     };
 }
 
@@ -141,6 +143,20 @@ async function markCredentialConnected(credentialId: string): Promise<void> {
  * et `VinNotOnAccountError` remontent sans toucher au statut — un incident
  * réseau chez le constructeur ne doit pas faire passer toute la flotte en rouge.
  */
+/**
+ * Aiguillage vers le client de marque.
+ *
+ * **Le seul endroit du code qui connaisse la correspondance marque → client.**
+ * Ajouter un constructeur = une entrée ici, une dans `brands.ts`, un module de
+ * fetch. Aucune route, aucun cron, aucun composant n'a à savoir laquelle il
+ * interroge.
+ */
+export function fetchBrandData(ctx: ConnectionContext): Promise<BrandVehicleData> {
+    if (isPsaBrand(ctx.brand)) return fetchStellantisVehicleData(ctx);
+    if (ctx.brand === 'RENAULT') return fetchRenaultVehicleData(ctx);
+    return Promise.reject(new Error(`Marque non prise en charge : ${ctx.brand}`));
+}
+
 export async function getRenaultVehicleData(
     vehicleId: string,
     options: FetchOptions = {}
@@ -155,7 +171,7 @@ export async function getRenaultVehicleData(
     }
 
     try {
-        const data = await fetchRenaultVehicleData(ctx);
+        const data = await fetchBrandData(ctx);
         await markCredentialConnected(ctx.credentialId);
         return data;
     } catch (e: unknown) {

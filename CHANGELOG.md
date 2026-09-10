@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.8.0] — 10 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Connecter un véhicule Peugeot, Citroën, DS ou Opel** — le bouton « Connecter le véhicule » propose désormais ces quatre marques en plus de Renault. Le parcours est identique : vous choisissez la marque, saisissez le numéro de châssis et les identifiants du compte constructeur de votre unité locale, et le kilométrage, le niveau de carburant ou de batterie et l'autonomie remontent aussitôt. Comme pour Renault, le compte n'est saisi qu'une fois par unité locale : dès le deuxième véhicule, seul le châssis est demandé.
+- **La jauge de carburant des véhicules PSA est convertie, pas recopiée** — Stellantis exprime le niveau en pourcentage là où l'application le manipule en litres. La conversion s'appuie sur la capacité du réservoir renseignée pour chaque véhicule. Sans elle, un véhicule aux deux tiers plein se serait affiché comme plein.
+- **La position GPS transmise par Stellantis n'est pas conservée** — l'API la fournit à chaque relevé ; elle est ignorée volontairement. La conserver reviendrait à tracer les déplacements des bénévoles, ce dont l'application n'a aucun besoin.
+
+### 🔧 Changements
+
+- **Une panne du service d'authentification n'interrompt pas les relevés** — il n'intervient qu'au moment de connecter un véhicule pour la première fois. S'il est indisponible, les kilométrages continuent de remonter normalement et aucun véhicule ne passe en erreur.
+- **Nouvelle table à créer en production** — `npx tsx scripts/add-stellantis-sessions.ts --apply` avant le déploiement.
+
 ## [5.7.2] — 10 septembre 2026
 
 ### 🔧 Changements
