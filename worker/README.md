@@ -90,9 +90,10 @@ retenu (visible dans la trace).
 ## 2. Déploiement sur Render — plan gratuit
 
 1. Pousser la branche sur GitHub.
-2. Render → **New +** → **Blueprint** → sélectionner le dépôt.
-   `worker/render.yaml` est détecté ; `rootDir: worker` fait que l'application
-   Next.js du dépôt n'est ni construite ni déployée.
+2. Render → **New +** → **Blueprint** → sélectionner le dépôt, puis la branche.
+   `render.yaml` (à la **racine** du dépôt — Render ne le cherche que là) est
+   détecté ; son `rootDir: worker` fait que l'application Next.js n'est ni
+   construite ni déployée.
 3. Render génère `WORKER_SHARED_SECRET`. **Le copier** (Environment → Reveal).
 4. Attendre la fin du build (image Playwright ≈ 2 Go, comptez 5–10 min la première fois).
 5. Vérifier : `curl https://<service>.onrender.com/health` → `{"status":"ok",…}`.

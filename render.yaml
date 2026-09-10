@@ -1,7 +1,11 @@
-# Blueprint Render. À utiliser via « New + » → « Blueprint », en pointant ce dépôt.
+# Blueprint Render — « New + » → « Blueprint », en pointant ce dépôt.
 #
-# `rootDir: worker` : le service ne voit que ce répertoire. L'application Next.js
-# du dépôt n'est ni construite ni déployée ici.
+# ⚠️ Ce fichier doit rester **à la racine** : Render n'y cherche `render.yaml`
+# que là, et ne le découvrirait pas dans `worker/`.
+#
+# `rootDir: worker` : le service ne voit que ce répertoire. L'application
+# Next.js du dépôt n'est ni construite ni déployée ici, et Vercel ignore ce
+# fichier de son côté.
 services:
   - type: web
     name: crf-psa-auth-worker
