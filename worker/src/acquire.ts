@@ -30,7 +30,7 @@
  */
 import { chromium, type Browser, type Locator, type Page } from 'playwright';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
-import { BRAND_CONFIG } from './brands.js';
+import { BRAND_CONFIG, readBrandEnv } from './brands.js';
 import { authError, transientError } from './errors.js';
 
 export interface AcquireInput {
@@ -142,13 +142,14 @@ export async function acquireTokens(input: AcquireInput): Promise<AcquireResult>
      * ensemble, et non l'un sans l'autre, est donc la seule manœuvre correcte —
      * d'où la surcharge de `clientId` ici, à côté de celle du secret.
      */
+    const env = readBrandEnv(input.brand);
     const cfg = {
         ...base,
-        clientId: process.env.PSA_CLIENT_ID ?? base.clientId,
-        clientSecret: process.env.PSA_CLIENT_SECRET ?? base.clientSecret,
+        clientId: env.clientId ?? base.clientId,
+        clientSecret: env.clientSecret ?? base.clientSecret,
     };
     if (!cfg.clientId) {
-        throw transientError(`Aucun client_id connu pour ${input.brand} — fournir PSA_CLIENT_ID.`);
+        throw transientError(`Aucun client_id connu pour ${input.brand} — fournir ${input.brand}_CLIENT_ID.`);
     }
 
     const country = (input.country ?? 'fr').toLowerCase();
@@ -309,7 +310,7 @@ export async function acquireTokens(input: AcquireInput): Promise<AcquireResult>
         const clientSecret = cfg.clientSecret;
         if (!clientSecret) {
             throw transientError(
-                `PSA_CLIENT_SECRET absent pour ${input.brand}. L'IdP annonce ` +
+                `${input.brand}_CLIENT_SECRET absent. L'IdP annonce ` +
                 '`token_endpoint_auth_methods_supported: [client_secret_post, private_key_jwt, ' +
                 'client_secret_basic]` — `none` en est absent, donc PKCE seul ne suffit pas. ' +
                 'Le secret est une constante d’application mobile, publiée dans psa_car_controller.'

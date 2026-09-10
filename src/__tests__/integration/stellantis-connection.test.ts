@@ -24,7 +24,7 @@ import { encryptSecret } from '@/lib/crypto';
 import { db, seedUniteLocale, seedVehicle } from './setup';
 
 process.env.CREDENTIALS_ENCRYPTION_KEY = '0123456789abcdef'.repeat(4);
-process.env.PSA_CLIENT_SECRET = 'secret-application-mobile';
+process.env.PEUGEOT_CLIENT_SECRET = 'secret-application-mobile';
 process.env.PSA_WORKER_URL = 'https://worker.test';
 process.env.PSA_WORKER_SECRET = 'secret-partage';
 

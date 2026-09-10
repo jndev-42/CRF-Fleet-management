@@ -48,7 +48,8 @@ interface StellantisBrandConfig {
  * la même table publique et suivent le même format.
  *
  * Le `client_secret` n'est **pas** ici : c'est une constante d'application
- * mobile, tenue hors du dépôt (`PSA_CLIENT_SECRET`).
+ * mobile, tenue hors du dépôt, dans une variable par marque
+ * (`PEUGEOT_CLIENT_SECRET`, `CITROEN_CLIENT_SECRET`, …).
  */
 const BRAND_CONFIG: Record<PsaBrand, StellantisBrandConfig> = {
     PEUGEOT: { idpHost: 'idpcvs.peugeot.com', realm: 'clientsB2CPeugeot', clientId: '1eebc2d5-5df3-459b-a624-20abfcf82530' },
@@ -144,10 +145,32 @@ async function writeCachedSession(credentialId: string, session: StellantisSessi
 
 // ── Authentification ──────────────────────────────────────────────────────────
 
+/**
+ * Secret du client OAuth, **une variable par marque**.
+ *
+ * `client_id` et `client_secret` forment une paire indissociable : un secret
+ * apparié à un autre identifiant est refusé en `invalid_client`. Une variable
+ * unique pour les quatre marques aurait donc donné le secret Peugeot à Citroën,
+ * DS et Opel — un échec systématique, et opaque.
+ *
+ * Les accès sont écrits en toutes lettres, jamais en
+ * `process.env[`${brand}_CLIENT_SECRET`]` : Next.js analyse `process.env.X`
+ * statiquement, et un accès dynamique est une fragilité gratuite pour un
+ * ensemble fermé de quatre marques.
+ */
+const CLIENT_SECRETS: Record<PsaBrand, () => string | undefined> = {
+    PEUGEOT: () => process.env.PEUGEOT_CLIENT_SECRET,
+    CITROEN: () => process.env.CITROEN_CLIENT_SECRET,
+    DS: () => process.env.DS_CLIENT_SECRET,
+    OPEL: () => process.env.OPEL_CLIENT_SECRET,
+};
+
 function resolveBrand(brand: string): { cfg: StellantisBrandConfig; clientSecret: string } {
     if (!isPsaBrand(brand)) throw new BrandTransientError(`Marque non gérée par ce client : ${brand}`);
-    const clientSecret = process.env.PSA_CLIENT_SECRET;
-    if (!clientSecret) throw new BrandTransientError('PSA_CLIENT_SECRET absent de la configuration');
+    const clientSecret = CLIENT_SECRETS[brand]();
+    if (!clientSecret) {
+        throw new BrandTransientError(`${brand}_CLIENT_SECRET absent de la configuration`);
+    }
     return { cfg: BRAND_CONFIG[brand], clientSecret };
 }
 

@@ -27,9 +27,10 @@ export interface BrandConfig {
      * de `code_challenge` à l'étape d'autorisation.
      *
      * Ce n'est pas un secret d'utilisateur mais une constante d'application
-     * mobile, publiée dans `psa_car_controller`. Elle reste hors du dépôt : à
-     * fournir par `PSA_CLIENT_SECRET` en local, et par variable d'environnement
-     * du service en production.
+     * mobile. Elle reste hors du dépôt, dans une variable **par marque**
+     * (`PEUGEOT_CLIENT_SECRET`, `CITROEN_CLIENT_SECRET`, …) : `client_id` et
+     * `client_secret` forment une paire, et un secret apparié à un autre
+     * identifiant est refusé en `invalid_client`.
      */
     clientSecret: string | null;
 }
@@ -41,6 +42,30 @@ export const BRAND_CONFIG: Record<string, BrandConfig> = {
     OPEL: { idpHost: 'idpcvs.opel.com', realm: 'clientsB2COpel', scheme: 'mymopsdk', clientId: null, clientSecret: null },
     VAUXHALL: { idpHost: 'idpcvs.vauxhall.co.uk', realm: 'clientsB2CVauxhall', scheme: 'mymvxsdk', clientId: '122f3511-4f74-4a0c-bcda-af2f3b2e3a65', clientSecret: null },
 };
+
+/**
+ * Identifiant et secret d'une marque, lus dans l'environnement.
+ *
+ * Écrits en toutes lettres plutôt qu'en accès dynamique : l'ensemble des
+ * marques est fermé, et un `process.env[variable]` calculé se prête mal à la
+ * relecture comme à l'outillage.
+ */
+export function readBrandEnv(brand: string): { clientId?: string; clientSecret?: string } {
+    switch (brand) {
+        case 'PEUGEOT':
+            return { clientId: process.env.PEUGEOT_CLIENT_ID, clientSecret: process.env.PEUGEOT_CLIENT_SECRET };
+        case 'CITROEN':
+            return { clientId: process.env.CITROEN_CLIENT_ID, clientSecret: process.env.CITROEN_CLIENT_SECRET };
+        case 'DS':
+            return { clientId: process.env.DS_CLIENT_ID, clientSecret: process.env.DS_CLIENT_SECRET };
+        case 'OPEL':
+            return { clientId: process.env.OPEL_CLIENT_ID, clientSecret: process.env.OPEL_CLIENT_SECRET };
+        case 'VAUXHALL':
+            return { clientId: process.env.VAUXHALL_CLIENT_ID, clientSecret: process.env.VAUXHALL_CLIENT_SECRET };
+        default:
+            return {};
+    }
+}
 
 export function isSupportedBrand(value: unknown): value is string {
     return typeof value === 'string' && value in BRAND_CONFIG;

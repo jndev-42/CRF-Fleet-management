@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.8.1] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Connexion PSA : une constante d'application par marque** — Peugeot, Citroën, DS et Opel ont chacune leur propre couple d'identification, et les mélanger fait rejeter la connexion. La configuration attend désormais une valeur distincte par marque plutôt qu'une valeur commune. Seul Peugeot est configuré à ce stade ; les autres marques renvoient un message explicite tant que la leur ne l'est pas.
+
 ## [5.8.0] — 10 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

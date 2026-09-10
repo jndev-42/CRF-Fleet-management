@@ -8,14 +8,14 @@
  *
  * Usage :
  *   cd worker && npm install && npx playwright install chromium
- *   PSA_MAIL=… PSA_PASS=… HEADED=1 npm run spike -- --brand PEUGEOT
+ *   PSA_MAIL=… PSA_PASS=… PEUGEOT_CLIENT_SECRET=… HEADED=1 npm run spike -- --brand PEUGEOT
  *
  * `HEADED=1` ouvre un navigateur visible : c'est le mode à privilégier au premier
  * essai, pour voir où le parcours s'arrête si un sélecteur a bougé.
  */
 import { acquireTokens } from './acquire.js';
 import { WorkerError } from './errors.js';
-import { BRAND_CONFIG } from './brands.js';
+import { BRAND_CONFIG, readBrandEnv } from './brands.js';
 
 const brand = (process.argv[process.argv.indexOf('--brand') + 1] ?? 'PEUGEOT').toUpperCase();
 const login = process.env.PSA_MAIL;
@@ -38,7 +38,7 @@ const redact = (v: string | null) => (v ? `${v.slice(0, 8)}…(${v.length} car.)
  */
 async function probeTelemetry(accessToken: string): Promise<void> {
     const cfg = BRAND_CONFIG[brand];
-    const clientId = process.env.PSA_CLIENT_ID ?? cfg?.clientId;
+    const clientId = readBrandEnv(brand).clientId ?? cfg?.clientId;
     if (!cfg || !clientId) return;
 
     const headers = {

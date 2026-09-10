@@ -27,7 +27,7 @@ Le cron ne dépend pas de lui.
 
 Il ne persiste rien : les identifiants le traversent en mémoire, le temps d'un login.
 
-## Prérequis : le `client_secret` PSA
+## Prérequis : un `client_secret` par marque
 
 La découverte OIDC de l'IdP annonce :
 
@@ -52,12 +52,17 @@ andreadegiovine/homeassistant-stellantis-vehicles
 ```
 
 ⚠️ **`client_id` et `client_secret` forment une paire.** Si le `client_id` de ce fichier
-diffère de celui codé dans `brands.ts`, reprendre **les deux** — un secret apparié à un
-autre identifiant est rejeté en `invalid_client`. D'où la surcharge `PSA_CLIENT_ID`, qui
-va de pair avec `PSA_CLIENT_SECRET`.
+diffère de celui codé dans `brands.ts`, reprendre **les deux** — d'où les surcharges
+`<MARQUE>_CLIENT_ID`, qui vont de pair avec `<MARQUE>_CLIENT_SECRET`.
 
-Elle reste hors du dépôt : `PSA_CLIENT_SECRET` en local, variable d'environnement du
-service en production (`sync: false` dans `render.yaml`).
+Elle reste hors du dépôt, dans une variable **par marque** — `PEUGEOT_CLIENT_SECRET`,
+`CITROEN_CLIENT_SECRET`, `DS_CLIENT_SECRET`, `OPEL_CLIENT_SECRET` — déclarées `sync: false`
+dans `render.yaml`, donc saisies dans l'interface Render.
+
+Une variable unique pour les quatre marques donnerait le secret Peugeot à Citroën, DS et
+Opel : `client_id` et `client_secret` forment une paire, et le dépareillage est refusé en
+`invalid_client`. Seul Peugeot est requis aujourd'hui ; les autres marques échouent avec un
+message explicite tant que leur secret n'est pas fourni.
 
 L'échange se fait en **`client_secret_basic`**, et **sans répéter le `client_id` dans le
 corps** de la requête : l'IdP rejette la duplication entre l'en-tête `Authorization` et le
@@ -70,7 +75,7 @@ identifiants. `client_secret_post` est refusé par ce client, quelle que soit la
 cd worker
 npm install
 npx playwright install chromium
-PSA_MAIL=… PSA_PASS=… PSA_CLIENT_SECRET=… HEADED=1 SLOWMO=250 npm run spike -- --brand PEUGEOT
+PSA_MAIL=… PSA_PASS=… PEUGEOT_CLIENT_SECRET=… HEADED=1 SLOWMO=250 npm run spike -- --brand PEUGEOT
 ```
 
 `HEADED=1` ouvre un navigateur visible : au premier essai, c'est le seul moyen de voir
@@ -99,7 +104,7 @@ retenu (visible dans la trace).
 | `PSA_WORKER_URL` | `https://<service>.onrender.com` |
 | `PSA_WORKER_SECRET` | le `WORKER_SHARED_SECRET` copié à l'étape 3 |
 
-Et côté Render, à saisir manuellement : `PSA_CLIENT_SECRET`.
+Et côté Render, à saisir manuellement : `PEUGEOT_CLIENT_SECRET` (et le secret de chaque autre marque utilisée).
 
 ## Contraintes du plan gratuit, et comment on fait avec
 
