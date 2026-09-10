@@ -132,11 +132,17 @@ const server = createServer((req, res) => {
         } catch (e: unknown) {
             const kind = e instanceof WorkerError ? e.kind : 'TRANSIENT';
             const message = e instanceof Error ? e.message : String(e);
+            const failTrace = e instanceof WorkerError ? e.trace : [];
             console.error(`[connect] ${brand} — échec ${kind} en ${Math.round((Date.now() - startedAt) / 1000)} s : ${message}`);
+            // La trace **doit** aller dans les logs, pas seulement dans la
+            // réponse HTTP : l'exploitant lit Render, pas le corps d'une requête
+            // qui a échoué. Sans elle, un blocage tardif ne dit pas ce qui a
+            // réussi avant, et l'on relance un parcours de plusieurs minutes
+            // pour apprendre ce que le run précédent savait déjà.
+            for (const line of failTrace) console.error(`[connect]   · ${line}`);
             // 401 pour AUTH, 502 pour TRANSIENT : l'appelant distingue les deux
             // sans lire le corps, et seul AUTH l'autorise à basculer en ERROR.
-            const trace = e instanceof WorkerError ? e.trace : [];
-            json(res, kind === 'AUTH' ? 401 : 502, { error: kind, message, trace });
+            json(res, kind === 'AUTH' ? 401 : 502, { error: kind, message, trace: failTrace });
         }
     })();
 });

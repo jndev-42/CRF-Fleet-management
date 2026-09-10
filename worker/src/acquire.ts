@@ -48,8 +48,15 @@ export interface AcquireResult {
     trace: string[];
 }
 
-/** Délai maximal du parcours de login, préchauffage exclu. */
-const LOGIN_TIMEOUT_MS = 90_000;
+/**
+ * Délai maximal du parcours de login, préchauffage exclu.
+ *
+ * Configurable, et généreux par défaut : le plan gratuit de Render alloue
+ * 0,1 CPU, sur lequel un Chromium headful met plusieurs dizaines de secondes à
+ * faire ce qui prend une seconde sur un poste. Un délai calibré sur une machine
+ * de développement y produirait des faux négatifs à répétition.
+ */
+const LOGIN_TIMEOUT_MS = Number(process.env.LOGIN_TIMEOUT_MS ?? 150_000);
 
 /**
  * Sélecteurs candidats du formulaire Gigya.
@@ -310,6 +317,12 @@ export async function acquireTokens(input: AcquireInput): Promise<AcquireResult>
          * fois par seconde.
          */
         const handledSteps = new Set<string>();
+        /**
+         * Dernière URL observée. Son immobilité pendant toute l'attente est en
+         * soi un diagnostic : elle distingue « la soumission n'a pas eu lieu »
+         * de « le parcours avance mais s'arrête plus loin ».
+         */
+        let lastUrl = page.url().split('?')[0] ?? page.url();
 
         while (!capturedCode && Date.now() < deadline) {
             // Erreurs Gigya uniquement : un `[role="alert"]` générique existe sur
@@ -343,6 +356,10 @@ export async function acquireTokens(input: AcquireInput): Promise<AcquireResult>
             // `?? page.url()` : sous `noUncheckedIndexedAccess`, `split()[0]` est
             // typé `string | undefined`, et un Set typé n'accepte pas l'incertitude.
             const currentUrl = page.url().split('?')[0] ?? page.url();
+            if (currentUrl !== lastUrl) {
+                trace.push(`navigation vers ${currentUrl}`);
+                lastUrl = currentUrl;
+            }
             if (!handledSteps.has(currentUrl)) {
                 const next = await firstVisible(page, CONTINUE_SELECTORS, 700);
                 if (next) {
@@ -356,11 +373,41 @@ export async function acquireTokens(input: AcquireInput): Promise<AcquireResult>
         }
 
         if (!capturedCode) {
+            /**
+             * Photographie de l'écran au moment du blocage.
+             *
+             * Sans elle, « aucun code capturé » ne dit pas *ce qui s'affiche* —
+             * captcha, message d'erreur, bouton au libellé non prévu — et chaque
+             * hypothèse coûte un parcours complet de plusieurs minutes à
+             * infirmer. Les libellés de boutons visibles sont exactement ce qu'il
+             * faut pour compléter `CONTINUE_SELECTORS`.
+             */
+            const boutons = await page
+                .locator('button:visible, input[type="submit"]:visible, a[role="button"]:visible')
+                .evaluateAll((els) =>
+                    els
+                        .map((e) => ((e as HTMLInputElement).value || e.textContent || '').trim())
+                        .filter((t) => t.length > 0 && t.length < 40)
+                        .slice(0, 12)
+                )
+                .catch(() => [] as string[]);
+
+            const texte = await page
+                .locator('body')
+                .innerText({ timeout: 3_000 })
+                .then((t) => t.replace(/\s+/g, ' ').trim().slice(0, 400))
+                .catch(() => '(illisible)');
+
+            const captcha = await firstVisible(page, CAPTCHA_MARKERS, 500);
+
+            trace.push(`boutons visibles : ${boutons.join(' | ') || '(aucun)'}`);
+            trace.push(`texte de la page : ${texte}`);
+            if (captcha) trace.push(`⚠️ marqueur anti-robot présent (${captcha.selector})`);
+
             throw transientError(
-                `Aucun code capturé en ${LOGIN_TIMEOUT_MS / 1000} s (page : ${page.url().split('?')[0]}). ` +
-                `Étapes franchies : ${[...handledSteps].join(', ') || 'aucune'}. ` +
-                'Une étape intermédiaire non reconnue subsiste — relancer avec HEADED=1 ' +
-                'et compléter CONTINUE_SELECTORS avec le libellé du bouton bloquant.',
+                `Aucun code capturé en ${Math.round(LOGIN_TIMEOUT_MS / 1000)} s (page : ${page.url().split('?')[0]}). ` +
+                `Étapes franchies : ${[...handledSteps].join(', ') || 'aucune'}.` +
+                (captcha ? ' Un contrôle anti-robot est affiché.' : ''),
                 trace
             );
         }

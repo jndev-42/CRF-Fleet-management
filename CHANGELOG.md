@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.8.5] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Diagnostic du service d'authentification PSA** — en cas d'échec, le service consigne désormais le détail du parcours effectué (formulaire trouvé, champs remplis, pages traversées) et ce qui s'affichait à l'écran au moment du blocage. Auparavant seul le message final était consigné, ce qui obligeait à relancer une tentative de plusieurs minutes pour apprendre ce que la précédente savait déjà.
+- **Délai d'attente allongé et configurable** — l'hébergement gratuit alloue une fraction de processeur, sur laquelle le navigateur met bien plus de temps qu'en local. Le délai passe de 90 à 150 secondes pour éviter d'interrompre des connexions qui aboutissaient.
+
 ## [5.8.4] — 10 septembre 2026
 
 ### 🐛 Corrections
