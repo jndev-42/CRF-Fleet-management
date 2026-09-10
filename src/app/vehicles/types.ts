@@ -21,6 +21,11 @@ export interface DashboardVehicle {
     hasDSA: boolean;
     notes: string | null;
     vin: string | null;
+    /**
+     * Connexion marque du véhicule, `null` s'il n'est pas connecté.
+     * Remplace le prédicat historique « connecté = `vin` non nul ».
+     */
+    connection: { status: string; lastError?: string | null; brand?: string; connectedAt?: string } | null;
     fuelType: string | null;
     transmission: string | null;
     ulId?: string | null;

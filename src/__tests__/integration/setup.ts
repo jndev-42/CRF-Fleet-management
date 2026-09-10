@@ -158,8 +158,45 @@ async function createTables() {
     id INTEGER PRIMARY KEY DEFAULT 1,
     idToken TEXT NOT NULL,
     accountId TEXT NOT NULL,
-    expiresAt INTEGER NOT NULL
+    expiresAt INTEGER NOT NULL,
+    credentialId TEXT
   )`);
+  // Index partiel : la ligne héritée id=1 (credentialId NULL) coexiste avec le
+  // cache par compte constructeur.
+  await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "RenaultSession_credentialId_idx"
+    ON "RenaultSession"(credentialId) WHERE credentialId IS NOT NULL`);
+
+  // ── Connexion des véhicules aux comptes constructeur ────────────────────────
+  // Les clauses REFERENCES du schéma de production sont documentaires (les FK ne
+  // sont pas activées) : les assertions d'unicité doivent porter sur les index.
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "BrandCredential" (
+    id TEXT NOT NULL PRIMARY KEY,
+    ulId TEXT NOT NULL,
+    brand TEXT NOT NULL,
+    login TEXT NOT NULL,
+    passwordEncrypted TEXT NOT NULL,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "BrandCredential_ulId_brand_idx"
+    ON "BrandCredential"(ulId, brand)`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleConnection" (
+    id TEXT NOT NULL PRIMARY KEY,
+    vehicleId TEXT NOT NULL,
+    credentialId TEXT NOT NULL,
+    brand TEXT NOT NULL,
+    vin TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'CONNECTED',
+    lastError TEXT,
+    connectedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    lastCheckedAt DATETIME
+  )`);
+  await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "VehicleConnection_vehicleId_idx"
+    ON "VehicleConnection"(vehicleId)`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS "VehicleConnection_credentialId_idx"
+    ON "VehicleConnection"(credentialId)`);
 
   // ── Nouveau système d'inventaire ────────────────────────────────────────────
 
@@ -484,6 +521,10 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "VehicleMaintenanceRecord"`);
   await db.execute(`DELETE FROM "VehicleMaintenance"`);
   await db.execute(`DELETE FROM "VehicleChecklistItem"`);
+  // Avant "Vehicle" : sans ce nettoyage, les assertions `COUNT(...) === 0` des
+  // tests de connexion dépendent de l'ordre d'exécution des fichiers.
+  await db.execute(`DELETE FROM "VehicleConnection"`);
+  await db.execute(`DELETE FROM "BrandCredential"`);
   await db.execute(`DELETE FROM "Vehicle"`);
   await db.execute(`DELETE FROM "User"`);
   await db.execute(`DELETE FROM "Role"`);
@@ -1008,4 +1049,62 @@ export async function seedExpenseBudgetFixtures() {
     await seedExpenseBudget({ id, ulId, name: 'Repas' });
   }
   return EXPENSE_BUDGET_FIXTURES;
+}
+
+/**
+ * Compte constructeur d'une UL. `passwordEncrypted` est passé tel quel : aux
+ * tests de fournir un vrai chiffré (`encryptSecret`) quand ils en dépendent.
+ */
+export async function seedBrandCredential(overrides: Partial<{
+  id: string;
+  ulId: string;
+  brand: string;
+  login: string;
+  passwordEncrypted: string;
+}> = {}) {
+  const c = {
+    id: 'cred-renault-paris-18',
+    ulId: 'ul-paris-18',
+    brand: 'RENAULT',
+    login: 'compte@myrenault.test',
+    passwordEncrypted: 'iv:tag:cipher',
+    ...overrides,
+  };
+  const now = new Date().toISOString();
+  await db.execute({
+    sql: `INSERT INTO "BrandCredential" (id, ulId, brand, login, passwordEncrypted, createdAt, updatedAt)
+          VALUES (?,?,?,?,?,?,?)`,
+    args: [c.id, c.ulId, c.brand, c.login, c.passwordEncrypted, now, now],
+  });
+  return c;
+}
+
+/** Connexion d'un véhicule à un compte constructeur. */
+export async function seedVehicleConnection(overrides: Partial<{
+  id: string;
+  vehicleId: string;
+  credentialId: string;
+  brand: string;
+  vin: string;
+  status: string;
+  lastError: string | null;
+  lastCheckedAt: string | null;
+}> = {}) {
+  const vc = {
+    id: 'vconn-1',
+    vehicleId: 'VL001',
+    credentialId: 'cred-renault-paris-18',
+    brand: 'RENAULT',
+    vin: 'VF1AB123456789012',
+    status: 'CONNECTED',
+    lastError: null,
+    lastCheckedAt: null,
+    ...overrides,
+  };
+  await db.execute({
+    sql: `INSERT INTO "VehicleConnection" (id, vehicleId, credentialId, brand, vin, status, lastError, connectedAt, lastCheckedAt)
+          VALUES (?,?,?,?,?,?,?,?,?)`,
+    args: [vc.id, vc.vehicleId, vc.credentialId, vc.brand, vc.vin, vc.status, vc.lastError, new Date().toISOString(), vc.lastCheckedAt],
+  });
+  return vc;
 }

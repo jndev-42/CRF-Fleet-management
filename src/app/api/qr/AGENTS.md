@@ -27,7 +27,7 @@ Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass nor
 3. **Checkin (POST `/api/qr/[token]/checkin`):** Finalizes active trip, updates vehicle to AVAILABLE, validates Renault data window (5-min), optionally updates desinfDate if mission type = 'Désinfection'.
 
 **Renault Connect Integration:**
-- Optional: if vehicle has a VIN and data is missing (mileageIn/fuelIn), fetches live cockpit data.
+- Optional: if the vehicle is connected (a `VehicleConnection` row exists) and data is missing (mileageIn/fuelIn), fetches live cockpit data.
 - Validates cockpit timestamp is within 5 minutes of checkin time; marks `renaultDataValidated = 1` if within window, `0` if stale.
 
 ## Dependencies
@@ -36,7 +36,7 @@ Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass nor
 - `db` (libSQL)
 - `auth` from `@/auth`
 - `@/lib/roles` — `isInactive()`, `isAdminOrAbove()`
-- `@/lib/renault` — `getRenaultVehicleData(vin)` for live vehicle telemetry
+- `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)` for live vehicle telemetry
 
 ### Tables Touched
 - `Vehicle` (lookup by qrToken, status update, mileage/fuel update)

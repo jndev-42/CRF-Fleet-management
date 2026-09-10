@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
+import { isVehicleConnected } from '@/app/vehicles/[id]/utils';
 
 import ChecklistItems from '../ChecklistItems';
 import FuelBar from '@/components/vehicle/FuelBar';
@@ -52,7 +53,11 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
     const [sessionLoading, setSessionLoading] = useState(true);
     const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
     const [photos, setPhotos] = useState<File[]>([]);
-    const [loadingRenault, setLoadingRenault] = useState(!!vehicle.vin);
+    // Booléen hissé hors de l'effet : `isVehicleConnected(vehicle)` y lirait l'objet `vehicle`
+    // entier, que `exhaustive-deps` exigerait alors en dépendance — l'effet se rejouerait à
+    // chaque nouvelle identité de `vehicle`. Une primitive garde les dépendances granulaires.
+    const connected = isVehicleConnected(vehicle);
+    const [loadingRenault, setLoadingRenault] = useState(connected);
     const [renaultError, setRenaultError] = useState(false);
     const [showIncidentReport, setShowIncidentReport] = useState(false);
 
@@ -80,7 +85,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
             .catch(console.error);
 
         // Fetch Renault data if connected
-        if (vehicle.vin) {
+        if (connected && vehicle.vin) {
             fetch(`/api/renault/${encodeURIComponent(vehicle.vin)}`)
                 .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
                 .then(rData => {
@@ -128,7 +133,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                 setForm(f => ({ ...f, missionName: closest.reason! }));
             }
         });
-    }, [vehicle.id, vehicle.type, vehicle.vin, vehicle.fuelType, vehicle.maxFuelCapacity]);
+    }, [vehicle.id, vehicle.type, connected, vehicle.vin, vehicle.fuelType, vehicle.maxFuelCapacity]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -226,7 +231,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                             <div><strong>Immatriculation :</strong> {vehicle.plate}</div>
                             <div>
                                 <strong>Kilométrage :</strong> {loadingRenault ? '...' : (dataIncorrect ? correctedMileage : (vehicle.mileage)).toLocaleString('fr-FR')} km
-                                {vehicle.vin && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
+                                {connected && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
                                 {renaultError && <span style={{ marginLeft: 8, color: 'var(--error-text)', fontSize: 11 }}>⚠️ Renault injoignable</span>}
                             </div>
                             <div>
@@ -252,7 +257,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                     onChange={e => setDataIncorrect(e.target.checked)}
                                     style={{ width: 16, height: 16, cursor: 'pointer' }}
                                 />
-                                <span>{vehicle.vin ? 'Saisir manuellement le kilométrage/carburant' : 'Le kilométrage et/ou le niveau d\'essence est erroné'}</span>
+                                <span>{connected ? 'Saisir manuellement le kilométrage/carburant' : 'Le kilométrage et/ou le niveau d\'essence est erroné'}</span>
                             </label>
 
                             {dataIncorrect && (

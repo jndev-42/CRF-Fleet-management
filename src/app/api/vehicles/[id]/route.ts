@@ -17,7 +17,6 @@ const updateVehicleSchema = z.object({
     hasDSA: z.boolean().optional(),
     desinfTracking: z.boolean().optional(),
     notes: z.string().optional().nullable(),
-    vin: z.string().optional().nullable(),
     fuelType: z.string().optional().nullable(),
     transmission: z.enum(['Manuelle', 'Automatique']).optional().nullable(),
     maxFuelCapacity: z.number().int().min(1).optional().nullable(),
@@ -100,6 +99,13 @@ export async function GET(
         });
         const activeMaint = maintenanceResult.rows[0] ?? null;
 
+        // Connexion marque : exposée ici avec `lastError` car la route est déjà bornée à l'UL du véhicule
+        const connectionResult = await db.execute({
+            sql: `SELECT brand, status, lastError, connectedAt FROM "VehicleConnection" WHERE vehicleId = ?`,
+            args: [row.id]
+        });
+        const connectionRow = connectionResult.rows[0] ?? null;
+
         let effectiveStatus = row.status as string;
         if (activeMaint && currentStatusUpper !== 'IN_USE') {
             effectiveStatus = 'MAINTENANCE';
@@ -130,6 +136,12 @@ export async function GET(
             desinfTracking: !!row.desinfTracking,
             notes: row.notes,
             vin: row.vin,
+            connection: connectionRow ? {
+                brand: connectionRow.brand as string,
+                status: connectionRow.status as string,
+                lastError: connectionRow.lastError as string | null,
+                connectedAt: connectionRow.connectedAt as string,
+            } : null,
             fuelType: row.fuelType,
             transmission: row.transmission as string | null,
             maxFuelCapacity: row.maxFuelCapacity as number | null,

@@ -8,15 +8,20 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/renault', () => ({ getRenaultVehicleData: vi.fn() }));
+vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/lib/vehicle-connection')>()),
+    getRenaultVehicleData: vi.fn(),
+    isConnectedInDb: vi.fn(),
+}));
 
 import { PATCH } from '@/app/api/trips/[id]/refresh-renault/route';
 import { auth } from '@/auth';
-import { getRenaultVehicleData } from '@/lib/renault';
+import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { db, seedVehicle, seedUser, seedTrip } from './setup';
 
 const mockedAuth = vi.mocked(auth);
 const mockedGetRenaultVehicleData = vi.mocked(getRenaultVehicleData);
+const mockedIsConnectedInDb = vi.mocked(isConnectedInDb);
 
 beforeEach(() => {
     vi.resetAllMocks();
@@ -39,9 +44,11 @@ describe('PATCH /api/trips/[id]/refresh-renault', () => {
         expect(res.status).toBe(404);
     });
 
-    it('retourne 400 si le véhicule n\'est pas connecté (pas de VIN)', async () => {
+    it('retourne 400 si le véhicule n\'a aucune connexion constructeur', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
-        await seedVehicle({ id: 'VL001', name: 'VL186', vin: null });
+        mockedIsConnectedInDb.mockResolvedValue(false);
+        // Le VIN sur Vehicle ne suffit plus : seule VehicleConnection décide.
+        await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012' });
         await seedUser({ id: 'user-1', email: 'driver@test.com' });
         await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-1', checkInAt: new Date().toISOString() });
         await db.execute({ sql: `UPDATE Trip SET renaultDataValidated = 0 WHERE id = ?`, args: ['trip-1'] });
@@ -68,6 +75,7 @@ describe('PATCH /api/trips/[id]/refresh-renault', () => {
 
     it('valide et met à jour le trajet avec les données Renault fraîches (happy path)', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedIsConnectedInDb.mockResolvedValue(true);
         const checkInAt = new Date().toISOString();
         await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012' });
         await seedUser({ id: 'user-1', email: 'driver@test.com' });
@@ -90,5 +98,7 @@ describe('PATCH /api/trips/[id]/refresh-renault', () => {
 
         const updated = await db.execute({ sql: `SELECT renaultDataValidated FROM Trip WHERE id = ?`, args: ['trip-1'] });
         expect(updated.rows[0].renaultDataValidated).toBe(1);
+        // La télémétrie est demandée par UUID de véhicule, jamais par VIN.
+        expect(mockedGetRenaultVehicleData).toHaveBeenCalledWith('VL001');
     });
 });

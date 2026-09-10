@@ -22,7 +22,9 @@ export default function CheckInForm({
     token: string;
     onSuccess: () => void;
 }) {
-    const isConnected = !!vehicle.vin;
+    // Forme brute plutôt que le helper : la charge utile QR est réduite à `{ status }` (C7),
+    // l'importer créerait une dépendance au type `Vehicle` complet depuis le parcours public.
+    const isConnected = vehicle.connection?.status === 'CONNECTED';
     const isVPSP = vehicle.type.toUpperCase().includes('VPSP');
     const isDesinf = vehicle.activeTrip?.missionType === 'Désinfection';
     const hasDesinfTracking = vehicle.desinfTracking && !isVPSP;

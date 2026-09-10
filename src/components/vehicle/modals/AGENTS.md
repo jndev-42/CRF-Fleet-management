@@ -13,6 +13,8 @@ Self-contained vehicle modals — checkin/checkout, edit, maintenance, incident,
 | `CheckInModal.tsx` | Vehicle checkin (end of trip) |
 | `AddVehicleModal.tsx` / `EditVehicleModal.tsx` | Vehicle create/edit |
 | `DeleteConfirmationModal.tsx` | Generic delete confirmation |
+| `ConnectVehicleModal.tsx` | Connexion/édition du véhicule au compte constructeur de l'UL. Prend `vehicleId` = **UUID** (`vehicle.id`), jamais `params.id` qui vaut le nom |
+| `DisconnectVehicleModal.tsx` | Retrait de la seule `VehicleConnection` — ne supprime pas le véhicule (contrairement à `DeleteConfirmationModal`) |
 | `DesinfHistoryModal.tsx` / `DesinfPreCheckinModal.tsx` | Disinfection history / pre-checkin disinfection |
 | `EditMetricsModal.tsx` | Mileage/metrics edit |
 | `EditRevisionIntervalsModal.tsx` | Maintenance interval config |

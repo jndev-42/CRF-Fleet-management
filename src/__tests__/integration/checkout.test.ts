@@ -5,7 +5,7 @@
  * objets `Request`, en mockant uniquement les dépendances externes :
  *  - `@/lib/db`       → remplacé par la DB SQLite fichier temporaire de ./setup.ts
  *  - `@/auth`         → session mockée pour simuler différents rôles
- *  - `@/lib/renault`  → aucun appel réseau réel (retourne null = pas de données connectées)
+ *  - `@/lib/vehicle-connection` → aucun appel réseau réel (véhicule non connecté)
  *  - `@/lib/onesignal`→ notifications désactivées en test
  *
  * Tous les tests vérifient le code HTTP de la réponse ET, pour les cas critiques,
@@ -28,9 +28,12 @@ vi.mock('@/auth', () => ({
   auth: vi.fn(),
 }));
 
-// Pas d'appel Renault en test — on simule l'absence de données connectées
-vi.mock('@/lib/renault', () => ({
+// Pas d'appel Renault en test — véhicule sans `VehicleConnection`, donc
+// `isConnectedInDb` faux et aucune télémétrie demandée.
+vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/vehicle-connection')>()),
   getRenaultVehicleData: vi.fn().mockResolvedValue(null),
+  isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
 
 // Désactive les notifications push pour éviter les appels OneSignal en test
@@ -41,6 +44,7 @@ vi.mock('@/lib/onesignal', () => ({
 
 import { POST } from '@/app/api/trips/route';
 import { auth } from '@/auth';
+import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { db, seedVehicle, seedUser } from './setup';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 
@@ -71,6 +75,59 @@ const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: [
 describe('POST /api/trips (checkout)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Défaut : véhicule non connecté. Les tests de télémétrie surchargent
+    // localement ; `mockResolvedValue` survit à `clearAllMocks`, d'où la
+    // remise à zéro explicite.
+    vi.mocked(isConnectedInDb).mockResolvedValue(false);
+    vi.mocked(getRenaultVehicleData).mockReset();
+  });
+
+  it('préremplit kilométrage et carburant depuis la télémétrie quand le véhicule est connecté', async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverWithNameSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+    await seedVehicle({ id: 'VL001', status: 'AVAILABLE', mileage: 1000, fuelLevel: 20, maxFuelCapacity: 50 });
+
+    vi.mocked(isConnectedInDb).mockResolvedValue(true);
+    vi.mocked(getRenaultVehicleData).mockResolvedValue({
+      vin: 'VF1TEST00000001',
+      totalMileage: 12345,
+      fuelQuantity: 25,
+      fuelAutonomy: 300,
+      batteryLevel: null,
+      batteryAutonomy: null,
+      chargingStatus: null,
+      plugStatus: null,
+      cockpitTimestamp: new Date().toISOString(),
+      batteryTimestamp: null,
+      isElectric: false,
+    });
+
+    const response = await POST(makeRequest(validCheckOutBody));
+    expect(response.status).toBe(201);
+
+    const body = await response.json();
+    const trip = await db.execute({
+      sql: `SELECT mileageOut, fuelOut FROM Trip WHERE id = ?`,
+      args: [body.id],
+    });
+    // La télémétrie prime sur les valeurs stockées du véhicule.
+    expect(Number(trip.rows[0].mileageOut)).toBe(12345);
+    expect(Number(trip.rows[0].fuelOut)).toBe(50); // 25 L sur 50 L = 50 %
+  });
+
+  it('retombe sur les valeurs du véhicule quand la télémétrie échoue', async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverWithNameSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+    await seedVehicle({ id: 'VL001', status: 'AVAILABLE', mileage: 1000, fuelLevel: 20 });
+
+    vi.mocked(isConnectedInDb).mockResolvedValue(true);
+    vi.mocked(getRenaultVehicleData).mockRejectedValue(new Error('Renault indisponible'));
+
+    const response = await POST(makeRequest(validCheckOutBody));
+    // L'échec télémétrie est non fatal : le checkout aboutit quand même.
+    expect(response.status).toBe(201);
   });
 
   it('returns 401 when not authenticated', async () => {

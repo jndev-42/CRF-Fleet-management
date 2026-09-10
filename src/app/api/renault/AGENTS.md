@@ -17,7 +17,7 @@ Container directory for Renault telemetry queries. All endpoints require authent
 ## Dependencies
 
 ### Internal
-- `@/lib/renault` — `getRenaultVehicleData(vin)` integration
+- `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)` integration (the VIN in the path is resolved to a `Vehicle.id` first)
 - `@/auth` — session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

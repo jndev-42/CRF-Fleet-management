@@ -9,8 +9,10 @@ vi.mock('@/auth', () => ({
   auth: vi.fn(),
 }));
 
-vi.mock('@/lib/renault', () => ({
+vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/vehicle-connection')>()),
   getRenaultVehicleData: vi.fn().mockResolvedValue(null),
+  isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
 
 import { GET as GET_QR_VEHICLE } from '@/app/api/qr/[token]/vehicle/route';
@@ -18,12 +20,18 @@ import { POST as POST_QR_CHECKOUT } from '@/app/api/qr/[token]/checkout/route';
 import { POST as POST_QR_CHECKIN } from '@/app/api/qr/[token]/checkin/route';
 import { POST as POST_INCIDENT } from '@/app/api/incidents/route';
 import { auth } from '@/auth';
+import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { db, seedVehicle, seedUser } from './setup';
 
 const mockedAuth = vi.mocked(auth);
 
 describe('QR Code API Flow', () => {
   beforeEach(async () => {
+    // Défaut : véhicule non connecté. Les tests de télémétrie surchargent
+    // localement ; sans cette remise à zéro, la surcharge fuirait sur les
+    // tests suivants (`mockResolvedValue` survit à `clearAllMocks`).
+    vi.mocked(isConnectedInDb).mockResolvedValue(false);
+    vi.mocked(getRenaultVehicleData).mockReset();
     mockedAuth.mockReset();
     mockedAuth.mockResolvedValue({
       user: {
@@ -91,6 +99,115 @@ describe('QR Code API Flow', () => {
     const body = await res.json();
     expect(body.id).toBe('VPSP01');
     expect(body.desinfTracking).toBe(true);
+  });
+
+  it("GET /api/qr/[token]/vehicle n'expose jamais lastError ni le credential (bypass QR)", async () => {
+    await seedVehicle({ id: 'VLQR09', name: 'VL QR 09', type: 'VL', status: 'AVAILABLE', qrToken: 'token-qr-09' });
+    await db.execute({
+      sql: `INSERT INTO BrandCredential (id, ulId, brand, login, passwordEncrypted) VALUES (?,?,?,?,?)`,
+      args: ['cred-qr-09', 'ul-paris-18', 'RENAULT', 'compte@croix-rouge.fr', 'iv:tag:cipher'],
+    });
+    await db.execute({
+      sql: `INSERT INTO VehicleConnection (id, vehicleId, credentialId, brand, vin, status, lastError)
+            VALUES (?,?,?,?,?,?,?)`,
+      args: ['vc-qr-09', 'VLQR09', 'cred-qr-09', 'RENAULT', 'VF1QR000000000009', 'ERROR',
+             'Identifiants MyRenault refusés : compte@croix-rouge.fr'],
+    });
+
+    const req = new Request('http://localhost/api/qr/token-qr-09/vehicle');
+    const res = await GET_QR_VEHICLE(req, { params: Promise.resolve({ token: 'token-qr-09' }) });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    // Le statut est utile au client ; le message Gigya contient le login du
+    // compte constructeur et cette route est accessible sans contrôle d'UL.
+    expect(body.connection).toEqual({ status: 'ERROR' });
+
+    const raw = JSON.stringify(body);
+    expect(raw).not.toContain('lastError');
+    expect(raw).not.toContain('compte@croix-rouge.fr');
+    expect(raw).not.toContain('cred-qr-09');
+    expect(raw).not.toContain('iv:tag:cipher');
+  });
+
+  it('POST /api/qr/[token]/checkout prend le kilométrage de la télémétrie quand le véhicule est connecté', async () => {
+    await seedVehicle({ id: 'VLC1', name: 'VL connecté', type: 'VL', status: 'AVAILABLE', qrToken: 'token-conn-out', mileage: 1000, fuelLevel: 20, maxFuelCapacity: 50 });
+
+    vi.mocked(isConnectedInDb).mockResolvedValue(true);
+    vi.mocked(getRenaultVehicleData).mockResolvedValue({
+      vin: 'VF1TEST00000002',
+      totalMileage: 55555,
+      fuelQuantity: 25,
+      fuelAutonomy: 300,
+      batteryLevel: null,
+      batteryAutonomy: null,
+      chargingStatus: null,
+      plugStatus: null,
+      cockpitTimestamp: new Date().toISOString(),
+      batteryTimestamp: null,
+      isElectric: false,
+    });
+
+    const req = new Request('http://localhost/api/qr/token-conn-out/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', cleanlinessOut: 'Propre' }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-conn-out' }) });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+
+    const trip = await db.execute({
+      sql: `SELECT mileageOut, fuelOut FROM Trip WHERE id = ?`,
+      args: [body.tripId],
+    });
+    // La télémétrie prime sur les valeurs stockées du véhicule.
+    expect(Number(trip.rows[0].mileageOut)).toBe(55555);
+    expect(Number(trip.rows[0].fuelOut)).toBe(50); // 25 L sur 50 L
+  });
+
+  it('POST /api/qr/[token]/checkin préremplit le retour depuis la télémétrie', async () => {
+    await seedVehicle({ id: 'VLC2', name: 'VL connecté 2', type: 'VL', status: 'AVAILABLE', qrToken: 'token-conn-in', mileage: 1000, fuelLevel: 20, maxFuelCapacity: 50 });
+
+    vi.mocked(isConnectedInDb).mockResolvedValue(true);
+    vi.mocked(getRenaultVehicleData).mockResolvedValue({
+      vin: 'VF1TEST00000003',
+      totalMileage: 66666,
+      fuelQuantity: 40,
+      fuelAutonomy: 400,
+      batteryLevel: null,
+      batteryAutonomy: null,
+      chargingStatus: null,
+      plugStatus: null,
+      cockpitTimestamp: new Date().toISOString(),
+      batteryTimestamp: null,
+      isElectric: false,
+    });
+
+    const outReq = new Request('http://localhost/api/qr/token-conn-in/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', cleanlinessOut: 'Propre' }),
+    });
+    const outRes = await POST_QR_CHECKOUT(outReq, { params: Promise.resolve({ token: 'token-conn-in' }) });
+    expect(outRes.status).toBe(201);
+
+    // Retour sans saisie de kilométrage : la télémétrie doit le fournir.
+    const inReq = new Request('http://localhost/api/qr/token-conn-in/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conditionIn: 'Bon état', cleanlinessIn: 'Propre' }),
+    });
+    const inRes = await POST_QR_CHECKIN(inReq, { params: Promise.resolve({ token: 'token-conn-in' }) });
+    expect(inRes.status).toBe(200);
+
+    const trip = await db.execute({
+      sql: `SELECT mileageIn, fuelIn FROM Trip WHERE vehicleId = ? ORDER BY checkOutAt DESC LIMIT 1`,
+      args: ['VLC2'],
+    });
+    expect(Number(trip.rows[0].mileageIn)).toBe(66666);
+    expect(Number(trip.rows[0].fuelIn)).toBe(80); // 40 L sur 50 L
   });
 
   it('POST /api/qr/[token]/checkout saves checklistOut', async () => {

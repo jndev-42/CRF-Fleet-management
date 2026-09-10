@@ -19,7 +19,7 @@ Vehicle check-in (return) endpoint. Completes an active trip by recording mileag
   - Auth required; authorization: only first driver, second driver, or ADMIN can check in
   - Fetches trip and vehicle records
   - Validates: trip must exist and not already checked in (checkInAt IS NULL)
-  - If vehicle is connected (has VIN): fetches live Renault data, auto-fills mileageIn/fuelIn if not provided
+  - If vehicle is connected (`isConnectedInDb(vehicle.id)`): fetches live Renault data, auto-fills mileageIn/fuelIn if not provided
   - Computes Renault data validation status: if cockpit timestamp is within 5-minute window of check-in time, marks as validated; otherwise pending
   - **Desinfection validation:** if trip.missionType === 'Désinfection', requires desinfResponsable and desinfLotNumber
   - **Desinfection tracking:** if vehicle has desinfTracking enabled and is not VPSP, requires desinfLotNumber and desinfType
@@ -38,7 +38,7 @@ Vehicle check-in (return) endpoint. Completes an active trip by recording mileag
 
 ### Internal
 - `@/lib/db` — Trip, Vehicle queries and transactions
-- `@/lib/renault` — `getRenaultVehicleData()` for connected vehicles
+- `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)`, `isConnectedInDb(vehicleId)`
 - `@/lib/onesignal` — push notifications (lazy imported)
 - `@/lib/roles` — `isAdminOrAbove()` check
 

@@ -52,6 +52,7 @@ function makeVehicle(overrides: Partial<DashboardVehicle> = {}): DashboardVehicl
         hasDSA: false,
         notes: null,
         vin: null,
+        connection: null,
         fuelType: 'Essence',
         transmission: 'Manuelle',
         trips: [makeTrip()],

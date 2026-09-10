@@ -96,13 +96,13 @@ export function useVehicleDetail(id: string) {
         fetchAllMaintenanceRecords().catch(console.error);
     }, [fetchAllMaintenanceRecords, vehicle?.firstRegistrationDate, maintenanceRefreshKey]);
 
-    // Fetch Renault Connect telemetry for connected vehicles (those with a VIN).
-    // Tracks the vin already fetched in a ref instead of reading renaultData in the
-    // guard, so the effect doesn't need its own output as a dependency.
-    const fetchedRenaultForVinRef = useRef<string | null>(null);
+    // Fetch Renault Connect telemetry for connected vehicles (those carrying a CONNECTED
+    // VehicleConnection). Tracks the vehicle already fetched in a ref instead of reading
+    // renaultData in the guard, so the effect doesn't need its own output as a dependency.
+    const fetchedRenaultForVehicleRef = useRef<string | null>(null);
     useEffect(() => {
-        if (vehicle?.vin && fetchedRenaultForVinRef.current !== vehicle.vin) {
-            fetchedRenaultForVinRef.current = vehicle.vin;
+        if (vehicle?.connection?.status === 'CONNECTED' && vehicle.vin && fetchedRenaultForVehicleRef.current !== vehicle.id) {
+            fetchedRenaultForVehicleRef.current = vehicle.id;
             setLoadingRenault(true);
             fetch(`/api/renault/${encodeURIComponent(vehicle.vin)}`)
                 .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
@@ -112,7 +112,7 @@ export function useVehicleDetail(id: string) {
                 .catch(e => console.error('Failed to get Renault data:', e))
                 .finally(() => setLoadingRenault(false));
         }
-    }, [vehicle?.vin]);
+    }, [vehicle?.id, vehicle?.connection?.status, vehicle?.vin]);
 
     // Trigger refresh of unvalidated Renault data for completed trips
     useEffect(() => {
@@ -134,6 +134,7 @@ export function useVehicleDetail(id: string) {
         vehicle,
         setVehicle,
         renaultData,
+        setRenaultData,
         loading,
         loadingRenault,
         userRoles,

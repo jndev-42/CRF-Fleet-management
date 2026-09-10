@@ -20,8 +20,8 @@ Renault vehicle data refresh endpoint. Polls Renault Connect API to validate or 
   - Returns early if: trip not found, renaultDataValidated !== 0 (already validated or not applicable)
   - Throttle logic: skips re-check if last checked within 5 minutes; returns `{ status: 'throttled', validated: false, ... }`
   - Max retry window: if trip.checkInAt > 2 hours ago, auto-validates with current data and returns `{ validated: true, ... }`
-  - Returns 400 if vehicle not connected (no VIN)
-  - Calls `getRenaultVehicleData()` and checks if cockpit timestamp is within 5-minute window of check-in time
+  - Returns 400 if the vehicle is not connected (no `VehicleConnection` row) — never a 500
+  - Calls `getRenaultVehicleData(trip.vehicleId)` and checks if cockpit timestamp is within 5-minute window of check-in time
   - If validated: transaction updates Trip (mileageIn, fuelIn, renaultDataValidated = 1, renaultLastCheckedAt), updates Vehicle (mileage, fuelLevel), returns `{ validated: true, mileageIn, fuelIn }`
   - If not yet validated: updates renaultLastCheckedAt for throttling, returns `{ validated: false, mileageIn, fuelIn }`
   - On error: updates throttle timestamp and returns 500
@@ -38,6 +38,6 @@ Renault vehicle data refresh endpoint. Polls Renault Connect API to validate or 
 
 ### Internal
 - `@/lib/db` — Trip, Vehicle queries and transactions
-- `@/lib/renault` — `getRenaultVehicleData()` API calls
+- `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)`, `isConnectedInDb(vehicleId)`
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

@@ -23,6 +23,7 @@ const mockVehicle: Vehicle = {
     desinfTracking: false,
     notes: '',
     vin: null,
+    connection: null,
     fuelType: 'Essence',
     transmission: null,
     maxFuelCapacity: 50,
@@ -134,7 +135,7 @@ describe('CheckInModal', () => {
             return defaultFetchHandler(input);
         });
 
-        const connectedVehicle = { ...mockVehicle, vin: 'VF1AB123456789012' };
+        const connectedVehicle = { ...mockVehicle, vin: 'VF1AB123456789012', connection: { status: 'CONNECTED' } };
         render(<CheckInModal vehicle={connectedVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
 
         await waitFor(() => expect(screen.queryByText(/Chargement.../)).toBeNull());

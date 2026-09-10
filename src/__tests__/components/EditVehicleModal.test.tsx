@@ -16,6 +16,7 @@ const mockVehicle: Vehicle = {
     desinfTracking: true,
     notes: 'Note initiale',
     vin: 'VF11234567890',
+    connection: null,
     ulId: 'ul-paris-18',
     fuelType: 'Essence',
     transmission: 'Manuelle',
@@ -87,7 +88,8 @@ describe('EditVehicleModal Component', () => {
 
         expect(screen.getByDisplayValue('VL186')).toBeTruthy();
         expect(screen.getByDisplayValue('HJ-269-FE')).toBeTruthy();
-        expect(screen.getByDisplayValue('VF11234567890')).toBeTruthy();
+        // Le VIN n'est plus éditable ici : il est propriété exclusive du flux de connexion du véhicule.
+        expect(screen.queryByDisplayValue('VF11234567890')).toBeNull();
     });
 
     it('submits updated values and calls onSuccess', async () => {

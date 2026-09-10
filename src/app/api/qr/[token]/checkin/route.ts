@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isInactive, isAdminOrAbove } from '@/lib/roles';
-import { getRenaultVehicleData } from '@/lib/renault';
+import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import {
     MAX_KM_PER_DAY,
@@ -91,15 +91,15 @@ export async function POST(
         // Fetch live Renault data if connected and data not supplied
         let finalMileageIn = data.mileageIn;
         let finalFuelIn = data.fuelIn;
-        const vin = vehicle.vin as string | null;
-        const isConnected = !!vin;
+        const vehicleId = vehicle.id as string;
+        const isConnected = await isConnectedInDb(vehicleId);
 
         const VALIDATION_WINDOW_MS = 5 * 60 * 1000;
         let cockpitTimestampMs: number | null = null;
 
-        if (vin && (finalMileageIn === undefined || finalFuelIn === undefined)) {
+        if (isConnected && (finalMileageIn === undefined || finalFuelIn === undefined)) {
             try {
-                const rData = await getRenaultVehicleData(vin);
+                const rData = await getRenaultVehicleData(vehicleId);
                 if (finalMileageIn === undefined && rData.totalMileage !== null) {
                     finalMileageIn = rData.totalMileage;
                 }

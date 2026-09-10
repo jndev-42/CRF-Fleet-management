@@ -18,11 +18,11 @@ Daily cron job (scheduled via Vercel) that checks Renault Connect telemetry agai
 
 Flow:
 1. Delete all reservations with `endTime < now`.
-2. For each vehicle with a VIN:
-   - Fetch Renault telemetry via `getRenaultVehicleData(vin)`.
+2. For each connected vehicle (`JOIN VehicleConnection vc ON vc.vehicleId = v.id AND vc.status IN ('CONNECTED','ERROR')` — `ERROR` rows are retried, there is no backoff):
+   - Fetch Renault telemetry via `getRenaultVehicleData(v.id, { failedCredentials })`.
    - If mileage jumped > 2 km and no trip logged today: send push notification to ADMIN role via OneSignal, update Vehicle.mileage.
    - Otherwise silently update mileage if it increased (buffer for GPS/telemetry variance).
-3. Skip maintenance vehicles; skip those without VIN.
+3. Skip maintenance vehicles. Every loop iteration is wrapped in `try/catch` + `continue`: one failing vehicle must never abort the run. `failedCredentials` is a `Set` created **per run** — never at module level — so one refused login does not trigger a burst of retries against Gigya.
 
 Push notification tags: `role_ADMIN = true`. Payload includes vehicle name and km delta.
 
@@ -32,7 +32,7 @@ Returns 200 with `{ success: true, alertsSent: [...], reservationsDeleted: N }` 
 
 ### Internal
 - `Vehicle`, `Trip`, `Reservation` tables
-- `@/lib/renault` — `getRenaultVehicleData(vin)`
+- `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId, { failedCredentials })`
 - `@/lib/onesignal` — `sendPushNotification()` (lazy-imported)
 - `process.env.CRON_SECRET` — Authorization check
 

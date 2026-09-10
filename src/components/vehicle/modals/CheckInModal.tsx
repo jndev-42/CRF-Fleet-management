@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
-import { isConnected, formatDate } from '@/app/vehicles/[id]/utils';
+import { isVehicleConnected, formatDate } from '@/app/vehicles/[id]/utils';
 import { useUL } from '@/lib/contexts/ULContext';
 import FuelBar from '@/components/vehicle/FuelBar';
 import ChecklistItems from '../ChecklistItems';
@@ -102,9 +102,13 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [desinfLotNumber, setDesinfLotNumber] = useState(initialDesinfLotNumber);
     const [desinfType, setDesinfType] = useState('simple');
     const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
-    const [loadingRenault, setLoadingRenault] = useState(isConnected(vehicle.vin));
+    // Booléen hissé hors de l'effet : `isVehicleConnected(vehicle)` y lirait l'objet `vehicle`
+    // entier, que `exhaustive-deps` exigerait alors en dépendance — l'effet se rejouerait à
+    // chaque nouvelle identité de `vehicle`. Une primitive garde les dépendances granulaires.
+    const connected = isVehicleConnected(vehicle);
+    const [loadingRenault, setLoadingRenault] = useState(connected);
     const [renaultError, setRenaultError] = useState(false);
-    const [manualEntry, setManualEntry] = useState(!isConnected(vehicle.vin));
+    const [manualEntry, setManualEntry] = useState(!connected);
     const [showIncidentReport, setShowIncidentReport] = useState(false);
     const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
     const [mileageConfirm, setMileageConfirm] =
@@ -138,8 +142,10 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     }, [isDesinf, hasDesinfTracking, vehicle.type]);
 
     useEffect(() => {
-        if (isConnected(vehicle.vin)) {
-            fetch(`/api/renault/${encodeURIComponent(vehicle.vin!)}`)
+        // Un véhicule CONNECTED porte toujours son VIN (écrit par le flux de connexion),
+        // mais le garde explicite évite une URL `/api/renault/null` si la donnée diverge.
+        if (connected && vehicle.vin) {
+            fetch(`/api/renault/${encodeURIComponent(vehicle.vin)}`)
                 .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
                 .then(rData => {
                     if (rData.error) {
@@ -161,7 +167,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                 })
                 .finally(() => setLoadingRenault(false));
         }
-    }, [vehicle.vin, vehicle.fuelType, vehicle.maxFuelCapacity]);
+    }, [connected, vehicle.vin, vehicle.fuelType, vehicle.maxFuelCapacity]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -314,12 +320,12 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
                         {/* Km et parking */}
                         <div className="form-row">
-                            {(manualEntry || !isConnected(vehicle.vin)) && (
+                            {(manualEntry || !connected) && (
                                 <div className="form-group">
                                     <label className="form-label" htmlFor="checkin-mileage">
                                         Kilométrage actuel *
                                         {loadingRenault && <span style={{ marginLeft: 8, fontSize: 11 }}>⌛ Chargement...</span>}
-                                        {isConnected(vehicle.vin) && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
+                                        {connected && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
                                         {renaultError && <span style={{ marginLeft: 8, color: 'var(--error-text)', fontSize: 11 }}>⚠️ Renault injoignable</span>}
                                     </label>
                                     <input
@@ -376,7 +382,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         </div>
 
                         {/* Essence */}
-                        {(manualEntry || !isConnected(vehicle.vin)) && (
+                        {(manualEntry || !connected) && (
                             <div className="form-group">
                                 <label className="form-label" htmlFor="checkin-fuel">{vehicle.fuelType === 'Électrique' ? 'Niveau de batterie *' : (vehicle.fuelType === 'Diesel' ? 'Niveau de diesel *' : 'Niveau d\'essence *')}</label>
                                 <input
@@ -396,7 +402,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                             </div>
                         )}
 
-                        {isConnected(vehicle.vin) && (
+                        {connected && (
                             <div style={{ marginBottom: 20 }}>
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14, padding: '12px 14px', background: manualEntry ? 'var(--status-maintenance-bg)' : 'rgba(59, 130, 246, 0.05)', borderRadius: 'var(--radius-sm)', border: `1px solid ${manualEntry ? 'rgba(239,68,68,0.4)' : 'rgba(59, 130, 246, 0.2)'}` }}>
                                     <input

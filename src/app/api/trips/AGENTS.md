@@ -22,7 +22,7 @@ Container directory for trip (vehicle checkout/checkin) lifecycle management. Pr
   - Verifies vehicle exists and is AVAILABLE
   - Validates role+vehicle type permissions: ADMIN can borrow any, CHVPSP only VPSP vehicles, CHVL only non-VPSP
   - Désinfection mission only allowed on VPSP vehicles
-  - Fetches live Renault data if vehicle has VIN; auto-detects mileage and fuel level
+  - Fetches live Renault data if the vehicle is connected (`isConnectedInDb(vehicle.id)`); auto-detects mileage and fuel level
   - Allows driver to override with `correctedMileage`/`correctedFuel` for non-connected vehicles (sends push notification to RESPO)
   - Creates Trip record, updates Vehicle status to IN_USE, auto-deletes active reservation if user is taking reserved vehicle
   - Sends push notifications for incident conditions or data discrepancies
@@ -39,7 +39,7 @@ Container directory for trip (vehicle checkout/checkin) lifecycle management. Pr
 
 ### Internal
 - `@/lib/db` — Vehicle, Trip, Reservation tables
-- `@/lib/renault` — `getRenaultVehicleData()` for connected vehicles
+- `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)` for connected vehicles
 - `@/lib/onesignal` — push notifications (lazy imported)
 - `@/lib/roles` — `isAdminOrAbove()` check
 

@@ -25,6 +25,9 @@ npx tsx scripts/add-expense-budgets.ts          # Migration prod : budgets analy
 npx tsx scripts/add-vehicle-transmission.ts     # Migration prod : colonne Vehicle.transmission (boîte de vitesses)
 npx tsx scripts/verify-signed-pdf.ts <fichier>  # Vérifie les signatures d'un PDF scellé
 npx tsx scripts/backfill-signed-pdfs.ts         # Scelle rétroactivement les notes existantes (dry-run par défaut, --apply pour écrire)
+npx tsx scripts/add-vehicle-connections.ts      # Migration prod : tables BrandCredential / VehicleConnection + reprise du compte MyRenault global (dry-run ; --apply --ul=<id> pour écrire)
+npx tsx scripts/verify-vehicle-connections.ts   # Porte de vérification LECTURE SEULE de la migration des connexions véhicule
+npx tsx scripts/rewrap-credentials.ts           # Rotation de CREDENTIALS_ENCRYPTION_KEY : re-chiffre les secrets restés sur la clé _PREVIOUS (dry-run ; --apply pour écrire)
 ```
 
 ## Stack & Key Paths

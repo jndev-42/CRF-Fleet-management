@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getRenaultVehicleData } from '@/lib/renault';
+import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 
@@ -66,22 +66,16 @@ export async function PATCH(
         });
     }
 
-    // Fetch vehicle info
-    const vehicleResult = await db.execute({
-        sql: 'SELECT * FROM Vehicle WHERE id = ?',
-        args: [trip.vehicleId]
-    });
-    const vehicle = vehicleResult.rows[0];
-    const vin = vehicle?.vin as string | null;
+    const vehicleId = trip.vehicleId as string;
 
-    if (!vin) {
+    if (!(await isConnectedInDb(vehicleId))) {
         return NextResponse.json({ error: 'Véhicule non connecté' }, { status: 400 });
     }
 
     const now = new Date().toISOString();
 
     try {
-        const rData = await getRenaultVehicleData(vin);
+        const rData = await getRenaultVehicleData(vehicleId);
         const cockpitMs = rData.cockpitTimestamp
             ? new Date(rData.cockpitTimestamp).getTime()
             : null;

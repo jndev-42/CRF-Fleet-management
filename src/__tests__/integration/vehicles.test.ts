@@ -22,6 +22,7 @@
  *   10. Mise à jour de maxFuelCapacity 56 → 80 vérifiée en DB
  *   11. Mise à jour de maxBatteryCapacityKwh vérifiée en DB
  *   12. Mise à jour de transmission vérifiée en DB
+ *   13. Un `vin` envoyé en PATCH est ignoré — `Vehicle.vin` reste inchangé
  */
 import { describe, it, expect, vi } from 'vitest';
 
@@ -222,8 +223,25 @@ describe('POST /api/vehicles — duplicate checks', () => {
   });
 });
 
+describe('POST /api/vehicles — le VIN n\'est plus saisissable à la création', () => {
+  it('ignore un vin envoyé au POST : Vehicle.vin reste NULL', async () => {
+    mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
+
+    const res = await POST(makePostRequest({ ...validVehicleBody, name: 'VL 900', plate: 'VN-900-VN', vin: 'VF1CREATION000001' }));
+    expect(res.status).toBe(201);
+
+    const row = await db.execute({
+      sql: `SELECT vin FROM "Vehicle" WHERE name = ?`,
+      args: ['VL 900'],
+    });
+    // La route écrit explicitement NULL : le VIN n'est posé que par le flux de
+    // connexion du véhicule (POST /api/vehicles/[id]/connection).
+    expect(row.rows[0].vin).toBeNull();
+  });
+});
+
 describe('PATCH /api/vehicles/[id] — édition des informations du véhicule (ADMIN & SUPER_ADMIN)', () => {
-  it('met à jour le nom, la plaque, le VIN et les intervalles de révision par un ADMIN', async () => {
+  it('met à jour le nom, la plaque et les intervalles de révision par un ADMIN, en IGNORANT un vin envoyé', async () => {
     mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
 
     await seedVehicle({ id: 'v-100', name: 'VL999', plate: 'XX-123-YY', vin: 'OLDVIN' });
@@ -235,6 +253,9 @@ describe('PATCH /api/vehicles/[id] — édition des informations du véhicule (A
         body: JSON.stringify({
           name: 'VL999-NEW',
           plate: 'ZZ-999-ZZ',
+          // Champ retiré du formulaire « Modifier le véhicule » : le VIN
+          // n'appartient plus qu'au flux de connexion. Le schéma Zod n'est pas
+          // strict, la clé inconnue est donc silencieusement écartée.
           vin: 'NEWVIN123456789',
           revisionKmInterval: 20000,
           revisionYearInterval: 2,
@@ -250,7 +271,8 @@ describe('PATCH /api/vehicles/[id] — édition des informations du véhicule (A
     });
     expect(row.rows[0].name).toBe('VL999-NEW');
     expect(row.rows[0].plate).toBe('ZZ-999-ZZ');
-    expect(row.rows[0].vin).toBe('NEWVIN123456789');
+    // Le VIN reste celui posé par le flux de connexion, jamais celui du corps.
+    expect(row.rows[0].vin).toBe('OLDVIN');
     expect(row.rows[0].revisionKmInterval).toBe(20000);
     expect(row.rows[0].revisionYearInterval).toBe(2);
   });

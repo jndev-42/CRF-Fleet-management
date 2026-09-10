@@ -27,11 +27,14 @@ export function getFuelClass(level: number): string {
 }
 
 /**
- * Check if the vehicle is connected via Renault connect.
- * A vehicle is connected if it has a VIN stored in the database.
+ * Prédicat CLIENT de connexion, dérivé de la charge utile déjà présente dans le composant.
+ *
+ * Déclaré ici — module sans import — et jamais réexporté depuis `@/lib/vehicle-connection`,
+ * qui importe `@/lib/db` et tirerait `@libsql/client` dans le bundle navigateur.
+ * Le pendant serveur est `isConnectedInDb(vehicleId)`.
  */
-export function isConnected(vin: string | null | undefined): boolean {
-    return !!vin;
+export function isVehicleConnected(v: { connection?: { status?: string } | null }): boolean {
+    return v.connection?.status === 'CONNECTED';
 }
 
 /**

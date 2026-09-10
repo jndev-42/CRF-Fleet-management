@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getRenaultVehicleData } from '@/lib/renault';
+import { getRenaultVehicleData, VehicleNotConnectedError } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { isSuperAdmin } from '@/lib/roles';
@@ -18,7 +18,7 @@ export async function GET(
         const { vin } = await params;
 
         const vehicleResult = await db.execute({
-            sql: `SELECT ulId FROM Vehicle WHERE vin = ?`,
+            sql: `SELECT id, ulId FROM Vehicle WHERE vin = ?`,
             args: [vin],
         });
         if (vehicleResult.rows.length === 0) {
@@ -28,9 +28,14 @@ export async function GET(
             return forbiddenResponse();
         }
 
-        const data = await getRenaultVehicleData(vin);
+        // getRenaultVehicleData prend l'UUID du véhicule, jamais son VIN :
+        // c'est l'UUID qui ancre la résolution du credential et du statut.
+        const data = await getRenaultVehicleData(String(vehicleResult.rows[0].id));
         return NextResponse.json(data);
     } catch (error) {
+        if (error instanceof VehicleNotConnectedError) {
+            return NextResponse.json({ error: 'Véhicule non connecté' }, { status: 400 });
+        }
         console.error('Renault API error:', error);
         return NextResponse.json(
             { error: 'Erreur lors de la récupération des données Renault' },

@@ -27,7 +27,7 @@ Finalizes an active trip for a vehicle. Resolves QR token to vehicle, finds the 
 - `desinfResponsable`, `desinfLotNumber`, `desinfType` (optional strings)
 
 **Business Rules:**
-1. If mileageIn or fuelIn undefined and vehicle has VIN: fetch live Renault data.
+1. If mileageIn or fuelIn undefined and the vehicle is connected (`isConnectedInDb(vehicle.id)`): fetch live Renault data.
 2. If Renault data fetch fails, logs error but continues if data supplied.
 3. If mileageIn or fuelIn still undefined after Renault attempt → 400 "Données manquantes".
 4. Renault validation window: cockpit timestamp must be ≥ (checkInTime - 5 min). If within window → `renaultDataValidated = 1`, else `0`.
@@ -48,7 +48,7 @@ Finalizes an active trip for a vehicle. Resolves QR token to vehicle, finds the 
 - `db` (libSQL)
 - `auth` from `@/auth`
 - `@/lib/roles` — `isInactive()`, `isAdminOrAbove()`
-- `@/lib/renault` — `getRenaultVehicleData(vin)`
+- `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)`, `isConnectedInDb(vehicleId)`
 
 ### Tables Touched
 - `Vehicle` (lookup by qrToken, status/mileage/fuel/parkingSpot update, desinfDate update if needed)

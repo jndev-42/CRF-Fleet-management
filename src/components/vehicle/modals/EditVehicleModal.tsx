@@ -23,7 +23,6 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
         mileage: vehicle.mileage ?? 0,
         fuelType: vehicle.fuelType || 'Essence',
         transmission: vehicle.transmission || 'Manuelle',
-        vin: vehicle.vin || '',
         hasDSA: !!vehicle.hasDSA,
         desinfTracking: !!vehicle.desinfTracking,
         notes: vehicle.notes || '',
@@ -72,7 +71,6 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
             mileage: vehicle.mileage ?? 0,
             fuelType: vehicle.fuelType || 'Essence',
             transmission: vehicle.transmission || 'Manuelle',
-            vin: vehicle.vin || '',
             hasDSA: !!vehicle.hasDSA,
             desinfTracking: !!vehicle.desinfTracking,
             notes: vehicle.notes || '',
@@ -104,7 +102,6 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
             mileage: Number(form.mileage),
             fuelType: form.fuelType,
             transmission: form.transmission,
-            vin: form.vin.trim() || null,
             hasDSA: form.hasDSA,
             desinfTracking: form.desinfTracking,
             notes: form.notes.trim() || null,
@@ -220,23 +217,6 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
                                     <option value="Non applicable">Non applicable</option>
                                 </select>
                             </div>
-                            {vehicle.ulId === 'ul-paris-18' && (
-                                <div className="form-group">
-                                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        Numéro de châssis / VIN (Optionnel)
-                                        <span
-                                            title="Permet de récupérer automatiquement les données utiles via l'API Renault pour les véhicules connectés (kilométrage et batterie/carburant)."
-                                            style={{ cursor: 'help', background: 'var(--bg-secondary)', color: 'var(--text-secondary)', borderRadius: '50%', width: '16px', height: '16px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}
-                                        >?</span>
-                                    </label>
-                                    <input
-                                        className="form-input"
-                                        placeholder="ex: VF1..."
-                                        value={form.vin}
-                                        onChange={(e) => setForm({ ...form, vin: e.target.value })}
-                                    />
-                                </div>
-                            )}
                         </div>
                         <div className="form-row">
                             <div className="form-group">
