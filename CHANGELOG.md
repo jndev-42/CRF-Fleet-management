@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.8.3] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Le service d'authentification PSA démarre correctement sur l'hébergeur** — il ne parvenait pas à ouvrir son port : l'affichage virtuel nécessaire au mode « navigateur visible » était mis en route même quand ce mode était désactivé, et bloquait le démarrage. Il n'est désormais lancé que lorsqu'il sert réellement.
+
 ## [5.8.2] — 10 septembre 2026
 
 ### 🐛 Corrections

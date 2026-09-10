@@ -19,12 +19,11 @@ ENV NODE_ENV=production
 ENV PORT=10000
 EXPOSE 10000
 
-# `xvfb-run` fournit un affichage virtuel, ce qui permet de lancer Chromium en
-# mode **headful** dans le conteneur en posant `HEADED=1`. Sans variable, le
-# navigateur reste headless et `xvfb-run` ne coûte qu'un processus dormant.
-#
-# Le levier existe parce que Gigya applique un contrôle anti-robot au risque, et
-# qu'un Chromium headless est trivialement détectable. `HEADED=1` est la première
-# chose à essayer si l'authentification échoue depuis le serveur alors qu'elle
-# passe en local.
-CMD ["xvfb-run", "-a", "npx", "tsx", "src/server.ts"]
+COPY docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
+
+# `tsx` est appelé par son chemin dans `node_modules/.bin`, jamais par `npx` :
+# `npx` interroge le registre quand il ne résout pas immédiatement le binaire, ce
+# qui rallonge le démarrage sans contrepartie dans une image où la dépendance est
+# déjà installée.
+CMD ["./docker-entrypoint.sh"]

@@ -107,6 +107,19 @@ retenu (visible dans la trace).
 
 Et côté Render, à saisir manuellement : `PEUGEOT_CLIENT_SECRET` (et le secret de chaque autre marque utilisée).
 
+## Si Render dit « No open ports detected »
+
+Le conteneur tourne mais rien n'écoute. Deux causes, toutes deux supprimées :
+
+- **Xvfb sur le chemin nominal.** `xvfb-run` enveloppait le démarrage dans tous les cas :
+  le serveur devenait tributaire d'un affichage virtuel dont il n'a besoin qu'en headful.
+  `docker-entrypoint.sh` ne l'invoque plus que si `HEADED=1`.
+- **Bind implicite.** Sans hôte, Node écoute sur `::` ; le détecteur de ports de Render
+  sonde l'IPv4. Le serveur bind désormais explicitement `0.0.0.0`.
+
+Au démarrage, le service journalise `[worker] à l'écoute sur 0.0.0.0:<port> — mode …`.
+Son absence dans les logs Render signifie que le processus n'a pas atteint le `listen`.
+
 ## Si l'authentification échoue depuis Render mais passe en local
 
 Symptôme : `échec AUTH … Il y a des erreurs dans votre formulaire`.

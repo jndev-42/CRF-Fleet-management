@@ -19,7 +19,9 @@ const SHARED_SECRET = process.env.WORKER_SHARED_SECRET ?? '';
 const MAX_BODY_BYTES = 8 * 1024;
 
 if (!SHARED_SECRET) {
-    console.error('WORKER_SHARED_SECRET absent — le service refuserait tout appel. Arrêt.');
+    // Arrêt immédiat plutôt que démarrage inutile : sans secret, chaque appel
+    // serait rejeté en 401 et le service donnerait l'illusion de fonctionner.
+    console.error('[worker] WORKER_SHARED_SECRET absent — tout appel serait rejeté. Arrêt.');
     process.exit(1);
 }
 
@@ -139,4 +141,13 @@ const server = createServer((req, res) => {
     })();
 });
 
-server.listen(PORT, () => console.log(`worker PSA à l'écoute sur :${PORT}`));
+/**
+ * Bind explicite sur `0.0.0.0`.
+ *
+ * Sans hôte, Node écoute sur `::` quand IPv6 est disponible. Le détecteur de
+ * ports de Render sonde l'IPv4, et signale alors « No open ports detected » sur
+ * un service qui tourne pourtant — un symptôme qui ne désigne pas sa cause.
+ */
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[worker] à l'écoute sur 0.0.0.0:${PORT} — mode ${process.env.HEADED === '1' ? 'headful' : 'headless'}`);
+});
