@@ -184,8 +184,23 @@ export async function acquireTokens(input: AcquireInput): Promise<AcquireResult>
 
     let browser: Browser | null = null;
     try {
+        /**
+         * Le mode headful exige un affichage. Le réclamer sans `DISPLAY` ferait
+         * échouer le lancement de Chromium, donc **toutes** les connexions —
+         * pour un réglage qui n'est qu'une optimisation anti-détection.
+         *
+         * On dégrade donc en headless, mais la trace le dit : une dégradation
+         * silencieuse laisserait croire que le levier `HEADED=1` est actif alors
+         * qu'il ne l'est pas, et ferait chercher la cause d'un échec ailleurs.
+         */
+        const wantsHeaded = process.env.HEADED === '1';
+        const canRunHeaded = wantsHeaded && Boolean(process.env.DISPLAY);
+        if (wantsHeaded && !canRunHeaded) {
+            trace.push('⚠️ HEADED=1 sans DISPLAY — repli en headless (Xvfb absent ou non démarré)');
+        }
+
         browser = await chromium.launch({
-            headless: process.env.HEADED !== '1',
+            headless: !canRunHeaded,
             slowMo: process.env.SLOWMO ? Number(process.env.SLOWMO) : undefined,
             args: [
                 // Render, plan gratuit : 512 Mo et un /dev/shm minuscule. Sans

@@ -111,9 +111,11 @@ Et côté Render, à saisir manuellement : `PEUGEOT_CLIENT_SECRET` (et le secret
 
 Le conteneur tourne mais rien n'écoute. Deux causes, toutes deux supprimées :
 
-- **Xvfb sur le chemin nominal.** `xvfb-run` enveloppait le démarrage dans tous les cas :
-  le serveur devenait tributaire d'un affichage virtuel dont il n'a besoin qu'en headful.
-  `docker-entrypoint.sh` ne l'invoque plus que si `HEADED=1`.
+- **Xvfb sur le chemin nominal.** `xvfb-run` enveloppait le démarrage et échoue
+  silencieusement dans cette image : en `HEADED=1`, le serveur ne démarrait pas du tout.
+  Xvfb est désormais lancé **à côté**, en tâche de fond et de façon non fatale — le port
+  s'ouvre quoi qu'il arrive. S'il ne monte pas, le service répond quand même et seul le
+  mode headful devient indisponible.
 - **Bind implicite.** Sans hôte, Node écoute sur `::` ; le détecteur de ports de Render
   sonde l'IPv4. Le serveur bind désormais explicitement `0.0.0.0`.
 
@@ -133,7 +135,7 @@ Si les identifiants sont vérifiés en local, deux causes restent :
 
 | Cause | Levier |
 |---|---|
-| Chromium headless est détectable | `HEADED=1` (déjà posé dans `render.yaml`) : Xvfb fournit un affichage virtuel et le navigateur tourne headful |
+| Chromium headless est détectable | `HEADED=1` (déjà posé dans `render.yaml`) : Xvfb fournit un affichage virtuel et le navigateur tourne headful. Vérifier dans les logs `Xvfb prêt sur DISPLAY=:99` — sans lui, le worker se replie en headless et le dit dans sa trace |
 | L'IP d'un datacenter est mal notée | aucun levier côté code — l'acquisition devrait alors se faire depuis un poste, cf. l'option « helper local » écartée à l'étude |
 
 Le worker journalise la longueur des champs remplis, jamais leur valeur : un

@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.8.4] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Le service d'authentification PSA démarre dans les deux modes** — le mode « navigateur visible », utilisé pour contourner les contrôles anti-robot de Stellantis, empêchait le service de démarrer. L'affichage virtuel qu'il requiert est désormais mis en route à côté du service plutôt qu'avant lui : s'il échoue, le service reste disponible et se rabat sur le mode ordinaire en le signalant, au lieu de ne pas démarrer du tout.
+
 ## [5.8.3] — 10 septembre 2026
 
 ### 🐛 Corrections
