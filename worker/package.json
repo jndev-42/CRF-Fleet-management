@@ -1,0 +1,21 @@
+{
+  "name": "crf-psa-auth-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Acquisition des jetons OAuth Stellantis via navigateur reel. Service separe : Vercel ne peut pas executer Chromium.",
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "spike": "tsx src/spike.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "playwright": "1.63.0",
+    "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}

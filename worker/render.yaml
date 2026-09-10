@@ -1,0 +1,28 @@
+# Blueprint Render. À utiliser via « New + » → « Blueprint », en pointant ce dépôt.
+#
+# `rootDir: worker` : le service ne voit que ce répertoire. L'application Next.js
+# du dépôt n'est ni construite ni déployée ici.
+services:
+  - type: web
+    name: crf-psa-auth-worker
+    runtime: docker
+    plan: free
+    # Francfort : les IdP Stellantis et le centre de données Gigya sont en eu1.
+    # Une latence faible réduit le risque de dépassement des délais de login.
+    region: frankfurt
+    rootDir: worker
+    dockerfilePath: ./Dockerfile
+    # Sert aussi de préchauffage : le plan gratuit met le service en veille après
+    # 15 min d'inactivité, et le réveil coûte ~50 s.
+    healthCheckPath: /health
+    envVars:
+      # Généré par Render, à recopier dans PSA_WORKER_SECRET côté Vercel.
+      - key: WORKER_SHARED_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      # Constante d'application mobile PSA, obligatoire pour l'échange de jetons
+      # (l'IdP n'accepte pas `token_endpoint_auth_method: none`). `sync: false` :
+      # à saisir dans l'interface Render, jamais dans le dépôt.
+      - key: PSA_CLIENT_SECRET
+        sync: false

@@ -18,6 +18,7 @@ npm run db:stop      # Stop the dev DB container (data persists)
 npx tsx scripts/show-schema.ts          # Inspect DB schema
 npx tsx scripts/setup-admin.ts <email>  # Promote user to ADMIN
 npx tsx scripts/renault-login-test.ts   # Test Renault Connect auth
+cd worker && npm run spike -- --brand PEUGEOT  # Spike PSA/Stellantis : valide l'auth sur un vrai compte (voir worker/README.md)
 npx tsx scripts/generate-signing-cert.ts --env preview   # Certificat .p12 de scellement (local | preview | prod ; préfixe le CN)
 npx tsx scripts/add-expense-sealed-pdf.ts       # Migration prod : colonnes de scellement des notes de frais
 npx tsx scripts/add-expense-pending-receipts.ts # Migration prod : dépôt transitoire des justificatifs (pré-scellement)

@@ -4,6 +4,7 @@ worktrees
 
 # dependencies
 /node_modules
+/worker/node_modules
 /.pnp
 .pnp.*
 .yarn/*

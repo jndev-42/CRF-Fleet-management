@@ -16,6 +16,10 @@ const eslintConfig = defineConfig([
     // avec leur propre `.next/` que le glob `.next/**` ci-dessus, ancré à la
     // racine, ne couvre pas. Les parcourir fait exploser la heap d'ESLint.
     "worktrees/**",
+    // Worker PSA : déployable distinct (Render, Node + Playwright), avec son
+    // propre tsconfig et ses propres dépendances. Le linter Next n'a rien à y
+    // dire, et ses règles React y seraient sans objet.
+    "worker/**",
   ]),
 
   // ── Intégrité des PDF scellés ───────────────────────────────────────────────
