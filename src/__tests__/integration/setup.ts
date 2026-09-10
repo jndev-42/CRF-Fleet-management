@@ -166,6 +166,17 @@ async function createTables() {
   await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "RenaultSession_credentialId_idx"
     ON "RenaultSession"(credentialId) WHERE credentialId IS NOT NULL`);
 
+  // Cache de jetons PSA. Table distincte de `RenaultSession`, dont les colonnes
+  // (`idToken`, `accountId`) n'ont pas d'équivalent Stellantis — cf.
+  // `scripts/add-stellantis-sessions.ts`.
+  await db.execute(`CREATE TABLE IF NOT EXISTS "StellantisSession" (
+    credentialId TEXT NOT NULL PRIMARY KEY,
+    accessToken TEXT NOT NULL,
+    refreshToken TEXT,
+    expiresAt INTEGER NOT NULL,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   // ── Connexion des véhicules aux comptes constructeur ────────────────────────
   // Les clauses REFERENCES du schéma de production sont documentaires (les FK ne
   // sont pas activées) : les assertions d'unicité doivent porter sur les index.
@@ -509,6 +520,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "InvGroupe"`);
   await db.execute(`DELETE FROM "Notification"`);
   await db.execute(`DELETE FROM "RenaultSession"`);
+  await db.execute(`DELETE FROM "StellantisSession"`);
   await db.execute(`DELETE FROM "IncidentReport"`);
   await db.execute(`DELETE FROM "UserRole"`);
   await db.execute(`DELETE FROM "UserUL"`);

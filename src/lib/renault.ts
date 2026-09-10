@@ -18,65 +18,33 @@
  * ⚠️ Aucun log de ce module ne contient `password`, `login_token` ni `idToken`.
  */
 import { GigyaApi, KamereonApi } from '@remscodes/renault-api';
+import {
+    BrandAuthError,
+    BrandTransientError,
+    VinNotOnAccountError,
+    type BrandVehicleData,
+    type ConnectionContext,
+} from '@/lib/brand-contract';
 import { db } from '@/lib/db';
 import { getErrorMessage } from '@/lib/utils/error';
 
 /** Durée de vie du cache de session — le JWT Gigya est demandé pour 15 min. */
+/**
+ * Contrat de marque — déplacé dans `brand-contract.ts` à l'arrivée de PSA, et
+ * ré-exporté ici pour que les sept modules qui l'importaient depuis `renault.ts`
+ * restent inchangés.
+ */
+export {
+    BrandAuthError,
+    BrandTransientError,
+    VinNotOnAccountError,
+    type BrandVehicleData,
+    type ConnectionContext,
+};
+
 const SESSION_TTL_MS = 14 * 60_000;
 /** Marge avant expiration en dessous de laquelle on ré-authentifie. */
 const SESSION_SKEW_MS = 60_000;
-
-/**
- * Contexte de connexion d'un véhicule — déclaré **ici** et importé par
- * `vehicle-connection.ts`, jamais l'inverse : ce sens évite le cycle entre le
- * client de fetch et la couche métier qui le pilote.
- */
-export interface ConnectionContext {
-    vehicleId: string;
-    credentialId: string;
-    brand: 'RENAULT';
-    vin: string;
-    login: string;
-    /** Déchiffré en mémoire par `vehicle-connection.ts`, jamais journalisé. */
-    password: string;
-}
-
-/**
- * Identifiants explicitement refusés par Gigya (`errorCode !== 0`).
- *
- * **Seul** cas qui autorise l'appelant à basculer un credential en `ERROR`.
- * Élargir ce déclencheur ferait basculer toute la flotte en bandeau rouge au
- * premier incident réseau chez Renault : le grain credential n'est sûr que
- * parce que ce déclencheur est étroit.
- */
-export class BrandAuthError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'BrandAuthError';
-    }
-}
-
-/**
- * Tout le reste : réseau, 5xx, `personId`/JWT/compte MYRENAULT absents,
- * configuration marque manquante. **N'écrit ni ne justifie aucun statut.**
- */
-export class BrandTransientError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'BrandTransientError';
-    }
-}
-
-/**
- * Le VIN n'est pas (ou plus) rattaché au compte constructeur. Spécifique au
- * véhicule — contrairement à `BrandAuthError`, qui est une propriété du compte.
- */
-export class VinNotOnAccountError extends Error {
-    constructor(message: string) {
-        super(message);
-        this.name = 'VinNotOnAccountError';
-    }
-}
 
 export interface BrandSession {
     idToken: string;
@@ -239,22 +207,14 @@ export async function authenticateBrand(ctx: ConnectionContext): Promise<BrandSe
     return session;
 }
 
-export interface RenaultVehicleData {
-    vin: string;
-    // Cockpit data (v1)
-    totalMileage: number | null;
-    fuelQuantity: number | null;
-    fuelAutonomy: number | null;
-    // Battery data (electric only)
-    batteryLevel: number | null;
-    batteryAutonomy: number | null;
-    chargingStatus: number | null;
-    plugStatus: number | null;
-    // Meta
-    cockpitTimestamp: string | null;
-    batteryTimestamp: string | null;
-    isElectric: boolean;
-}
+/**
+ * Alias historique de `BrandVehicleData`.
+ *
+ * La forme a été définie par Kamereon et sept modules la consomment sous ce nom.
+ * Le renommer serait de la pure agitation : le code neuf utilise
+ * `BrandVehicleData`, celui-ci reste pour ne rien casser.
+ */
+export type RenaultVehicleData = BrandVehicleData;
 
 /**
  * Relève la télémétrie d'un véhicule pour un contexte de connexion donné.

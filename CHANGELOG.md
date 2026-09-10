@@ -1,5 +1,131 @@
 # Changelog
 
+## [5.8.5] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Diagnostic du service d'authentification PSA** — en cas d'échec, le service consigne désormais le détail du parcours effectué (formulaire trouvé, champs remplis, pages traversées) et ce qui s'affichait à l'écran au moment du blocage. Auparavant seul le message final était consigné, ce qui obligeait à relancer une tentative de plusieurs minutes pour apprendre ce que la précédente savait déjà.
+- **Délai d'attente allongé et configurable** — l'hébergement gratuit alloue une fraction de processeur, sur laquelle le navigateur met bien plus de temps qu'en local. Le délai passe de 90 à 150 secondes pour éviter d'interrompre des connexions qui aboutissaient.
+
+## [5.8.4] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Le service d'authentification PSA démarre dans les deux modes** — le mode « navigateur visible », utilisé pour contourner les contrôles anti-robot de Stellantis, empêchait le service de démarrer. L'affichage virtuel qu'il requiert est désormais mis en route à côté du service plutôt qu'avant lui : s'il échoue, le service reste disponible et se rabat sur le mode ordinaire en le signalant, au lieu de ne pas démarrer du tout.
+
+## [5.8.3] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Le service d'authentification PSA démarre correctement sur l'hébergeur** — il ne parvenait pas à ouvrir son port : l'affichage virtuel nécessaire au mode « navigateur visible » était mis en route même quand ce mode était désactivé, et bloquait le démarrage. Il n'est désormais lancé que lorsqu'il sert réellement.
+
+## [5.8.2] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Un contrôle anti-robot n'est plus pris pour un mot de passe erroné** — Stellantis affiche le même message (« Il y a des erreurs dans votre formulaire ») dans les deux cas. L'application concluait à des identifiants refusés et affichait le bandeau rouge « Connexion interrompue » sur tous les véhicules de l'unité locale, alors que le compte était parfaitement valide. Les deux situations sont désormais distinguées, et seul un vrai refus d'identifiants fait basculer une connexion en erreur.
+
+## [5.8.1] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Connexion PSA : une constante d'application par marque** — Peugeot, Citroën, DS et Opel ont chacune leur propre couple d'identification, et les mélanger fait rejeter la connexion. La configuration attend désormais une valeur distincte par marque plutôt qu'une valeur commune. Seul Peugeot est configuré à ce stade ; les autres marques renvoient un message explicite tant que la leur ne l'est pas.
+
+## [5.8.0] — 10 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Connecter un véhicule Peugeot, Citroën, DS ou Opel** — le bouton « Connecter le véhicule » propose désormais ces quatre marques en plus de Renault. Le parcours est identique : vous choisissez la marque, saisissez le numéro de châssis et les identifiants du compte constructeur de votre unité locale, et le kilométrage, le niveau de carburant ou de batterie et l'autonomie remontent aussitôt. Comme pour Renault, le compte n'est saisi qu'une fois par unité locale : dès le deuxième véhicule, seul le châssis est demandé.
+- **La jauge de carburant des véhicules PSA est convertie, pas recopiée** — Stellantis exprime le niveau en pourcentage là où l'application le manipule en litres. La conversion s'appuie sur la capacité du réservoir renseignée pour chaque véhicule. Sans elle, un véhicule aux deux tiers plein se serait affiché comme plein.
+- **La position GPS transmise par Stellantis n'est pas conservée** — l'API la fournit à chaque relevé ; elle est ignorée volontairement. La conserver reviendrait à tracer les déplacements des bénévoles, ce dont l'application n'a aucun besoin.
+
+### 🔧 Changements
+
+- **Une panne du service d'authentification n'interrompt pas les relevés** — il n'intervient qu'au moment de connecter un véhicule pour la première fois. S'il est indisponible, les kilométrages continuent de remonter normalement et aucun véhicule ne passe en erreur.
+- **Nouvelle table à créer en production** — `npx tsx scripts/add-stellantis-sessions.ts --apply` avant le déploiement.
+
+## [5.7.2] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Connexion PSA : la jauge de carburant sera convertie, pas recopiée** — Stellantis exprime le niveau de carburant en pourcentage là où l'application le manipule en litres. Recopier la valeur telle quelle aurait affiché un véhicule à 64 % comme un véhicule plein, et un véhicule à 30 % comme à moitié plein — une sur-déclaration systématique, sur une information que l'on consulte avant de partir en mission. La conversion s'appuiera sur la capacité du réservoir déjà renseignée pour chaque véhicule.
+
+## [5.7.1] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Connexion PSA : les données remontées par Stellantis sont documentées** — kilométrage, niveau et autonomie de la batterie sont disponibles et correspondent à ce qui est déjà affiché pour les véhicules Renault. La correspondance complète est consignée pour l'implémentation à venir, ainsi qu'une décision explicite : la position GPS transmise par Stellantis ne sera pas conservée, la conserver reviendrait à tracer les déplacements des bénévoles.
+
+## [5.7.0] — 10 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Connexion aux comptes PSA : la faisabilité est démontrée sur un compte réel** — le service d'authentification obtient désormais l'accès à un compte MyPeugeot de bout en bout, sans aucune manipulation de la part de l'utilisateur : identifiants, page de consentement et autorisation d'accès sont franchis automatiquement. L'accès obtenu vaut une heure et se renouvelle seul. Il reste à relier ce service au bouton « Connecter le véhicule », qui ne propose toujours que Renault.
+
+## [5.6.6] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Service d'authentification PSA : l'obtention de l'autorisation d'accès aboutit** — l'identifiant de l'application était transmis deux fois à Stellantis, qui rejetait la demande pour ambiguïté. Le message d'erreur parlait d'un échec d'authentification, ce qui a d'abord fait chercher au mauvais endroit. Une seule des deux transmissions est désormais conservée, et la méthode retenue est celle que Stellantis accepte réellement.
+
+## [5.6.5] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Diagnostic en cas d'échec** — le service indique désormais les étapes déjà franchies quand quelque chose se bloque, au lieu de ne signaler que l'erreur finale. Un blocage à la dernière étape ne ressemble plus à un échec complet.
+
+## [5.6.4] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Service d'authentification PSA : l'identifiant d'application est configurable** — il forme une paire indissociable avec le secret associé, et les deux se règlent désormais ensemble hors du code. Documentation mise à jour avec l'emplacement réel de ces constantes.
+
+## [5.6.3] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Service d'authentification PSA : l'obtention finale de l'autorisation d'accès est corrigée** — Stellantis exige que l'application s'identifie elle-même lors de la dernière étape, en plus de l'authentification de l'utilisateur. Cette identification est désormais transmise, selon les deux formats acceptés par Stellantis. La constante correspondante se configure hors du code, comme les autres secrets.
+
+## [5.6.2] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Service d'authentification PSA : l'écran de consentement est franchi automatiquement** — après la saisie des identifiants, Peugeot affiche une page demandant de confirmer l'accès par un bouton « Continuer ». Le service attendait sans jamais la valider. Il reconnaît désormais ces étapes intermédiaires et les franchit seul, sans intervention.
+
+## [5.6.1] — 10 septembre 2026
+
+### 🐛 Corrections
+
+- **Service d'authentification PSA : le formulaire de connexion est désormais correctement détecté** — la page de connexion Peugeot charge en réalité tous ses écrans en même temps (connexion, création de compte, mot de passe oublié) et n'en affiche qu'un. Le service se trompait d'écran et abandonnait au bout de 25 secondes. Il ne considère plus que les champs réellement affichés, et reste à l'intérieur de l'écran de connexion — remplir celui d'à côté aurait créé un compte au lieu d'en ouvrir un.
+
+## [5.6.0] — 10 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Service d'authentification PSA — première brique de la connexion des véhicules Peugeot, Citroën, DS, Opel et Vauxhall** — l'étude technique a montré que Stellantis exige un vrai navigateur pour se connecter à un compte constructeur, ce que l'hébergement de l'application ne permet pas. Un petit service indépendant a donc été écrit (`worker/`) : il ouvre un navigateur, se connecte au compte, récupère l'autorisation d'accès et la transmet à l'application. Il n'intervient qu'au moment de connecter un véhicule pour la première fois — les relevés quotidiens de kilométrage n'en dépendent pas et continuent de fonctionner même s'il est indisponible. Les identifiants ne sont jamais enregistrés par ce service.
+
+### 🔧 Changements
+
+- **Le flux PSA n'est pas encore accessible dans l'application** — cette version pose l'infrastructure et fournit un script de validation à lancer sur un vrai compte. Le bouton « Connecter le véhicule » ne propose toujours que Renault.
+
+## [5.5.3] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Connexion des véhicules PSA : la validation technique a rendu son verdict** — le script de test l'établit sur un vrai compte : Stellantis impose une vérification anti-robot à la connexion, et refuse toute adresse de retour autre que celle de son application mobile. Le serveur ne peut donc pas se connecter seul au compte constructeur : un vrai navigateur est indispensable. Le flux PSA reste possible, mais son parcours doit être repensé — l'étude est consignée dans `.omc/specs/deep-interview-psa-stellantis-connect.md`. Aucun changement visible dans l'application.
+
+## [5.5.2] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Connexion des véhicules PSA : la chaîne d'authentification Stellantis est identifiée** — l'enquête technique montre que Peugeot, Citroën, DS, Opel et Vauxhall confient leur identité à Gigya, le même prestataire que Renault. Le script de validation `scripts/stellantis-login-test.ts` a été réécrit sur cette chaîne réelle. Reste un point à lever sur un vrai compte : savoir si un captcha est exigé à la connexion. Toujours aucun changement visible dans l'application.
+
+## [5.5.1] — 10 septembre 2026
+
+### 🔧 Changements
+
+- **Étude de faisabilité de la connexion des véhicules PSA (Peugeot, Citroën, DS, Opel, Vauxhall)** — préparation de l'extension du flux « Connecter le véhicule » aux marques du groupe Stellantis. Aucun changement visible pour l'instant : cette version ajoute uniquement un script de validation technique, `scripts/stellantis-login-test.ts`, qui vérifie sur un vrai compte constructeur que l'authentification Stellantis peut être menée par le serveur, sans demander la moindre manipulation à l'utilisateur. Le flux PSA ne sera développé que si cette validation aboutit. Spécification complète dans `.omc/specs/deep-interview-psa-stellantis-connect.md`.
+
 ## [5.5.0] — 10 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

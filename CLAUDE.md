@@ -18,6 +18,7 @@ npm run db:stop      # Stop the dev DB container (data persists)
 npx tsx scripts/show-schema.ts          # Inspect DB schema
 npx tsx scripts/setup-admin.ts <email>  # Promote user to ADMIN
 npx tsx scripts/renault-login-test.ts   # Test Renault Connect auth
+cd worker && npm run spike -- --brand PEUGEOT  # Spike PSA/Stellantis : valide l'auth sur un vrai compte (voir worker/README.md)
 npx tsx scripts/generate-signing-cert.ts --env preview   # Certificat .p12 de scellement (local | preview | prod ; préfixe le CN)
 npx tsx scripts/add-expense-sealed-pdf.ts       # Migration prod : colonnes de scellement des notes de frais
 npx tsx scripts/add-expense-pending-receipts.ts # Migration prod : dépôt transitoire des justificatifs (pré-scellement)
@@ -25,6 +26,7 @@ npx tsx scripts/add-expense-budgets.ts          # Migration prod : budgets analy
 npx tsx scripts/add-vehicle-transmission.ts     # Migration prod : colonne Vehicle.transmission (boîte de vitesses)
 npx tsx scripts/verify-signed-pdf.ts <fichier>  # Vérifie les signatures d'un PDF scellé
 npx tsx scripts/backfill-signed-pdfs.ts         # Scelle rétroactivement les notes existantes (dry-run par défaut, --apply pour écrire)
+npx tsx scripts/add-stellantis-sessions.ts      # Migration prod : table StellantisSession (cache de jetons PSA ; dry-run, --apply pour écrire)
 npx tsx scripts/add-vehicle-connections.ts      # Migration prod : tables BrandCredential / VehicleConnection + reprise du compte MyRenault global (dry-run ; --apply --ul=<id> pour écrire)
 npx tsx scripts/verify-vehicle-connections.ts   # Porte de vérification LECTURE SEULE de la migration des connexions véhicule
 npx tsx scripts/rewrap-credentials.ts           # Rotation de CREDENTIALS_ENCRYPTION_KEY : re-chiffre les secrets restés sur la clé _PREVIOUS (dry-run ; --apply pour écrire)

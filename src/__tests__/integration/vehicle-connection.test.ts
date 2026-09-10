@@ -125,7 +125,10 @@ describe('POST /api/vehicles/[id]/connection — validation', () => {
     });
 
     it('retourne 400 pour une marque inconnue', async () => {
-        const res = await POST(makeRequest({ ...fullBody(), brand: 'PEUGEOT' }), connectionParams('veh-1'));
+        // Littéral volontairement impossible, et non le nom d'un constructeur
+        // réel : ce cas testait `PEUGEOT`, qui est devenu une marque supportée —
+        // le test s'est alors mis à échouer en signalant un faux défaut.
+        const res = await POST(makeRequest({ ...fullBody(), brand: 'MARQUE_INCONNUE' }), connectionParams('veh-1'));
         expect(res.status).toBe(400);
     });
 
@@ -395,7 +398,7 @@ describe('GET /api/brand-credentials', () => {
 
     it('retourne 400 pour une marque inconnue', async () => {
         mockedAuth.mockResolvedValue(ADMIN as never);
-        expect((await GET_CREDENTIALS(request('?brand=PEUGEOT'))).status).toBe(400);
+        expect((await GET_CREDENTIALS(request('?brand=MARQUE_INCONNUE'))).status).toBe(400);
     });
 
     it('retourne null quand aucun compte n’est enregistré', async () => {
