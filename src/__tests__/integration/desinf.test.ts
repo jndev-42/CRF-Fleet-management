@@ -22,8 +22,10 @@ vi.mock('@/auth', () => ({
   auth: vi.fn(),
 }));
 
-vi.mock('@/lib/renault', () => ({
+vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/vehicle-connection')>()),
   getRenaultVehicleData: vi.fn().mockResolvedValue(null),
+  isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
 
 vi.mock('@/lib/onesignal', () => ({

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { getRenaultVehicleData } from '@/lib/renault';
+import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
@@ -72,18 +72,18 @@ export async function PATCH(
         });
         const vehicle = vehicleResult.rows[0];
 
-        // Fetch live Renault data if vehicle is connected (has a VIN) and data is missing
+        // Fetch live Renault data if vehicle is connected and data is missing
         let finalMileageIn = data.mileageIn;
         let finalFuelIn = data.fuelIn;
-        const vin = vehicle.vin as string | null;
-        const isConnectedVehicle = !!vin;
+        const connectedVehicleId = vehicle.id as string;
+        const isConnectedVehicle = await isConnectedInDb(connectedVehicleId);
 
         const VALIDATION_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
         let cockpitTimestampMs: number | null = null;
 
-        if (vin && (finalMileageIn === undefined || finalFuelIn === undefined)) {
+        if (isConnectedVehicle && (finalMileageIn === undefined || finalFuelIn === undefined)) {
             try {
-                const rData = await getRenaultVehicleData(vin);
+                const rData = await getRenaultVehicleData(connectedVehicleId);
                 if (finalMileageIn === undefined && rData.totalMileage !== null) {
                     finalMileageIn = rData.totalMileage;
                 }

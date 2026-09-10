@@ -8,11 +8,16 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/renault', () => ({ getRenaultVehicleData: vi.fn() }));
+// Mock partiel : `VehicleNotConnectedError` doit rester la vraie classe, la
+// route la teste avec `instanceof` pour renvoyer 400 plutôt que 500.
+vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/lib/vehicle-connection')>()),
+    getRenaultVehicleData: vi.fn(),
+}));
 
 import { GET } from '@/app/api/renault/[vin]/route';
 import { auth } from '@/auth';
-import { getRenaultVehicleData } from '@/lib/renault';
+import { getRenaultVehicleData, VehicleNotConnectedError } from '@/lib/vehicle-connection';
 import { seedVehicle } from './setup';
 
 const mockedAuth = vi.mocked(auth);
@@ -52,6 +57,24 @@ describe('GET /api/renault/[vin]', () => {
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.totalMileage).toBe(1234);
+    });
+
+    it('retourne 400 si le véhicule n\'a aucune connexion constructeur', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012', ulId: 'ul-paris-18' });
+        mockedGetRenaultVehicleData.mockRejectedValue(new VehicleNotConnectedError());
+
+        const res = await GET(new Request('http://localhost/api/renault/VF1AB123456789012'), { params: Promise.resolve({ vin: 'VF1AB123456789012' }) });
+        expect(res.status).toBe(400);
+    });
+
+    it('résout le VIN en UUID de véhicule avant d\'appeler la télémétrie', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012', ulId: 'ul-paris-18' });
+        mockedGetRenaultVehicleData.mockResolvedValue({ totalMileage: 1234 } as never);
+
+        await GET(new Request('http://localhost/api/renault/VF1AB123456789012'), { params: Promise.resolve({ vin: 'VF1AB123456789012' }) });
+        expect(mockedGetRenaultVehicleData).toHaveBeenCalledWith('VL001');
     });
 
     it('autorise un SUPER_ADMIN hors UL', async () => {

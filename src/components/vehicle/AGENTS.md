@@ -22,6 +22,7 @@ Vehicle detail-page UI: badges, trip/reservation timeline, checklist, maintenanc
 | `MaintenanceCard.tsx` | Maintenance summary card |
 | `FuelBar.tsx` | Fuel level indicator |
 | `RenaultConnectBlock.tsx` | Renault Connect telemetry display |
+| `VehicleConnectionBlock.tsx` | Connexion marque : 3 états (absente / erreur / connectée). `canManage` dérivé des rôles + UL, jamais de la présence de `connection` |
 | `IncidentGuidelines.tsx` | Incident reporting guidance text |
 
 ## Subdirectories

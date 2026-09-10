@@ -41,6 +41,7 @@ const baseVehicle: Vehicle = {
     desinfTracking: false,
     notes: null,
     vin: null,
+    connection: null,
     fuelType: 'Essence',
     transmission: null,
     maxFuelCapacity: 50,

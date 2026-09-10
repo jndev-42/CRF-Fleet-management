@@ -31,7 +31,7 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 
 **Business Rules:**
 1. Vehicle must exist (qrToken lookup) and status must be 'AVAILABLE'. Else 404 or 400.
-2. If vehicle has VIN: attempt to fetch live Renault cockpit data (mileage, fuel or battery).
+2. If the vehicle is connected (`isConnectedInDb(vehicle.id)`): attempt to fetch live Renault cockpit data (mileage, fuel or battery).
 3. For fuel: electric vehicles use batteryLevel; fuel vehicles use fuelQuantity / maxFuelCapacity * 100 (capped at 100).
 4. If `dataIncorrect = true` and correctedMileage/correctedFuel provided: override fetched/existing values.
 5. Fallback parking spot: user-supplied or vehicle.parkingSpot or null.
@@ -52,7 +52,7 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 - `db` (libSQL)
 - `auth` from `@/auth`
 - `@/lib/roles` — `isInactive()`
-- `@/lib/renault` — `getRenaultVehicleData(vin)`
+- `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)`, `isConnectedInDb(vehicleId)`
 
 ### Tables Touched
 - `Vehicle` (lookup by qrToken, status/mileage/fuel update)

@@ -16,7 +16,6 @@ const createVehicleSchema = z.object({
     hasDSA: z.boolean().default(false),
     desinfTracking: z.boolean().default(false),
     notes: z.string().optional().nullable(),
-    vin: z.string().optional().nullable(),
     fuelType: z.string().optional().nullable(),
     transmission: z.enum(['Manuelle', 'Automatique']).optional().nullable(),
     maxFuelCapacity: z.number().int().min(1).optional().nullable(),
@@ -79,12 +78,15 @@ export async function GET(request: Request) {
                 t.id as trip_id, u.name as trip_driverName, u2.name as trip_secondDriverName, t.missionType as trip_missionType,
                 u.email as trip_driverEmail, u2.email as trip_secondDriverEmail,
                 t.checkOutAt as trip_checkOutAt,
-                m.id as active_maint_id
+                m.id as active_maint_id,
+                vc.brand as connection_brand, vc.status as connection_status,
+                vc.lastError as connection_lastError, vc.connectedAt as connection_connectedAt
             FROM Vehicle v
             LEFT JOIN "UniteLocale" ul ON ul.id = v.ulId
             LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
             LEFT JOIN User u ON u.id = t.driverId
             LEFT JOIN User u2 ON u2.id = t.secondDriverId
+            LEFT JOIN VehicleConnection vc ON vc.vehicleId = v.id
             LEFT JOIN VehicleMaintenance m ON m.vehicleId = v.id
               AND (
                 (m.startDate LIKE '%T%' AND m.startDate <= ?) OR
@@ -126,6 +128,14 @@ export async function GET(request: Request) {
                     maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
                     ulId: row.ulId as string | null,
                     ulName: row.ulName as string | null,
+                    // Vue DT : renvoyée pour des véhicules d'autres ULs. Ce n'est pas une fuite de
+                    // credential, mais `canManage` ne doit jamais en être dérivé (rôles + ulId seuls).
+                    connection: row.connection_status ? {
+                        brand: row.connection_brand as string,
+                        status: row.connection_status as string,
+                        lastError: row.connection_lastError as string | null,
+                        connectedAt: row.connection_connectedAt as string,
+                    } : null,
                     createdAt: new Date(row.createdAt as string),
                     updatedAt: new Date(row.updatedAt as string),
                     trips: []
@@ -211,7 +221,7 @@ export async function POST(request: Request) {
                 data.hasDSA ? 1 : 0,
                 data.desinfTracking ? 1 : 0,
                 data.notes ?? null,
-                data.vin ?? null,
+                null, // vin : écrit uniquement par le flux de connexion du véhicule
                 data.fuelType ?? null,
                 data.transmission ?? null,
                 data.maxFuelCapacity ?? null,

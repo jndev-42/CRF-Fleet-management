@@ -13,7 +13,7 @@ This directory also owns the **shared vehicle type and helper modules** imported
 |------|-------------|
 | `page.tsx` | `VehicleDetailPage` (~1090 lines) — all data fetching, permission computation, and modal orchestration. |
 | `types.ts` | **Shared domain types, imported repo-wide** as `@/app/vehicles/[id]/types`: `Trip`, `Vehicle`, `MaintenanceRecord`, `DesinfectionRecord`. The canonical shape of a vehicle and a trip. |
-| `utils.ts` | **Shared helpers, imported repo-wide** as `@/app/vehicles/[id]/utils`: `statusLabels`, `statusClass`, `getFuelClass(level)`, `isConnected(vin)`, `formatDate(iso)` (French `dd/MM/yyyy HH:mm`, `Europe/Paris`, h23). |
+| `utils.ts` | **Shared helpers, imported repo-wide** as `@/app/vehicles/[id]/utils`: `statusLabels`, `statusClass`, `getFuelClass(level)`, `isVehicleConnected(vehicle)` (prédicat **client** : `vehicle.connection?.status === 'CONNECTED'` — jamais réexporté depuis `@/lib/vehicle-connection`, qui importe `@/lib/db`), `formatDate(iso)` (French `dd/MM/yyyy HH:mm`, `Europe/Paris`, h23). |
 
 ## For AI Agents
 

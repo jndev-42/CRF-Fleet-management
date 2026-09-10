@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isInactive } from '@/lib/roles';
-import { getRenaultVehicleData } from '@/lib/renault';
+import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 /**
@@ -64,11 +64,11 @@ export async function POST(
         // Fetch live Renault data if connected
         let mileageOut = vehicle.mileage as number;
         let fuelOut = vehicle.fuelLevel as number;
-        const vin = vehicle.vin as string | null;
+        const connectedVehicleId = vehicle.id as string;
 
-        if (vin) {
+        if (await isConnectedInDb(connectedVehicleId)) {
             try {
-                const rData = await getRenaultVehicleData(vin);
+                const rData = await getRenaultVehicleData(connectedVehicleId);
                 if (rData.totalMileage !== null) mileageOut = rData.totalMileage;
                 if (rData.isElectric && rData.batteryLevel !== null) fuelOut = rData.batteryLevel;
                 if (!rData.isElectric && rData.fuelQuantity !== null) {

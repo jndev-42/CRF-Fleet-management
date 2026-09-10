@@ -49,9 +49,17 @@ export async function PATCH(
         const vehicle = vehicleRes.rows[0];
         const vName = vehicle.name as string;
 
-        // VERIFICATION: No manual edit if vehicle has a VIN (connected vehicle)
-        if (vehicle.vin) {
-            return forbiddenResponse('Interdit : les métriques d\'un véhicule connecté (avec VIN) ne peuvent pas être modifiées manuellement.');
+        // VERIFICATION : pas d'édition manuelle si le véhicule est connecté.
+        // Le prédicat porte sur l'existence d'une connexion, PAS sur Vehicle.vin :
+        // un VIN sans connexion (VIN saisi hors du flux de connexion) doit rester
+        // éditable, faute de quoi son kilométrage n'aurait plus aucun chemin de
+        // mise à jour — ni automatique, ni manuel.
+        const connectionRes = await db.execute({
+            sql: `SELECT 1 FROM VehicleConnection WHERE vehicleId = ? AND status IN ('CONNECTED','ERROR')`,
+            args: [vehicleId],
+        });
+        if (connectionRes.rows.length > 0) {
+            return forbiddenResponse('Interdit : les métriques d\'un véhicule connecté ne peuvent pas être modifiées manuellement.');
         }
 
         // Build update query

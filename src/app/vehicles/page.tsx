@@ -73,11 +73,14 @@ export default function VehiclesPage() {
       setVehicles(data);
 
       // Fetch Renault data for supported vehicles
-      const renaultVehicles = data.filter((v: DashboardVehicle) => v.vin);
+      const renaultVehicles = data.filter((v: DashboardVehicle) => v.connection?.status === 'CONNECTED');
       if (renaultVehicles.length > 0) {
         Promise.all(renaultVehicles.map(async (v: DashboardVehicle) => {
+          // Plus de repli `|| v.name` : le nom n'a jamais été un VIN, il produisait un appel
+          // voué à l'échec. Sans VIN, il n'y a rien à demander à l'API Renault.
+          if (!v.vin) return;
           try {
-            const rRes = await fetch(`/api/renault/${encodeURIComponent(v.vin || v.name)}`);
+            const rRes = await fetch(`/api/renault/${encodeURIComponent(v.vin)}`);
             const rData = await rRes.json();
             if (!rData.error) {
               setRenaultData(prev => ({ ...prev, [v.name]: rData }));

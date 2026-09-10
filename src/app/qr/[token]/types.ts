@@ -27,7 +27,11 @@ export interface QRVehicle {
     hasDSA: boolean;
     desinfTracking: boolean;
     parkingSpot: string | null;
-    vin: string | null;
+    /**
+     * Statut de connexion seul — le parcours QR n'expose ni `lastError` (message Gigya
+     * contenant typiquement le login), ni `brand`, ni `connectedAt`, ni `credentialId`.
+     */
+    connection: { status: string } | null;
     maxFuelCapacity: number | null;
     activeTrip: ActiveTrip | null;
 }

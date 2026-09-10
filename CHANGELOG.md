@@ -1,5 +1,53 @@
 # Changelog
 
+## [5.5.0] — 10 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Connecter un véhicule à son compte constructeur, depuis sa fiche** — un bouton « Connecter le véhicule » apparaît en haut de la fiche d'un véhicule non connecté. Vous choisissez la marque, saisissez le numéro de châssis (VIN) et les identifiants du compte MyRenault de votre unité locale : le kilométrage, le carburant et l'autonomie remontent aussitôt, sans rechargement de la page. Jusqu'ici, connecter un véhicule supposait une intervention technique sur la configuration du serveur.
+- **Le bouton est réservé aux administrateurs** — un chauffeur ne le voit pas. Un administrateur ne peut connecter que les véhicules de son unité locale ; seul un super-administrateur intervient sur les autres.
+- **Un compte constructeur par unité locale** — les identifiants sont saisis une seule fois. Dès le deuxième véhicule de la même unité locale, le formulaire ne demande plus que le VIN : le compte déjà enregistré est réutilisé et rappelé à l'écran. Un lien « Utiliser un autre compte » permet de le remplacer si nécessaire.
+- **Les identifiants et le VIN sont validés immédiatement** — la connexion n'est enregistrée que si le compte constructeur répond et reconnaît le véhicule. Un mot de passe erroné ou un VIN qui n'appartient pas au compte est refusé sur-le-champ, avec le motif affiché et rien d'écrit en base. Fini le véhicule « connecté » qui ne remonte jamais rien.
+- **Un bandeau rouge quand la connexion se rompt** — si le compte constructeur cesse de répondre (mot de passe changé, compte verrouillé), la fiche affiche « Connexion au compte constructeur interrompue » avec le motif, et un bouton « Reconnecter ». Tous les véhicules rattachés au même compte affichent le bandeau ensemble : le problème vient du compte, pas d'un véhicule en particulier. La connexion est retentée automatiquement à chaque passage de la tâche quotidienne, et le bandeau disparaît de lui-même dès qu'elle repasse.
+- **Déconnecter un véhicule** — un bouton « Déconnecter » retire la connexion sans supprimer le véhicule ni son historique. Les identifiants du compte ne sont effacés que lorsque le dernier véhicule qui les utilisait est déconnecté.
+
+### 🔧 Changements
+
+- **Le VIN ne se saisit plus depuis « Modifier le véhicule »** — le champ a disparu du formulaire d'édition, et de celui de création. Le numéro de châssis n'est plus qu'une conséquence de la connexion : il est posé, vérifié et retiré par elle seule. Un VIN saisi par erreur ne pouvait de toute façon rien connecter, mais il bloquait la saisie manuelle du kilométrage.
+- **Le kilométrage redevient modifiable à la main sur un véhicule non connecté** — y compris s'il porte encore un VIN hérité de l'ancien système. Seule une connexion active réserve désormais le kilométrage à la télémétrie.
+
+### 🔒 Sécurité
+
+- **Les mots de passe constructeur sont chiffrés en base** — chiffrement AES-256-GCM (`CREDENTIALS_ENCRYPTION_KEY`), jamais renvoyés par l'API ni journalisés. Le compte MyRenault unique et partagé, jusqu'ici stocké en variables d'environnement du serveur (`RENAULT_MAIL` / `RENAULT_PASS`), est supprimé.
+- **Le QR code n'expose pas le motif d'erreur** — la page atteinte par QR code, accessible sans contrôle d'unité locale, affiche l'état de la connexion mais jamais le message du constructeur, qui contient l'identifiant du compte.
+
+### 🔧 Améliorations techniques
+
+- Chiffrement AES-256-GCM au format `iv:authTag:ciphertext` (`src/lib/crypto.ts`), avec clé de rotation optionnelle `CREDENTIALS_ENCRYPTION_KEY_PREVIOUS` et script de re-chiffrement dédié.
+- Nouvelles tables `BrandCredential` (un compte par unité locale × marque) et `VehicleConnection` (véhicule ↔ compte, VIN, statut).
+- Le cache de session Gigya passe d'une ligne unique globale à une ligne par compte (`RenaultSession.credentialId`) : deux unités locales ne se volent plus leur jeton.
+- `src/lib/renault.ts` redevient un pur client de fetch, sans lecture de la base ni écriture de statut ; la résolution du véhicule et les effets métier vivent dans `src/lib/vehicle-connection.ts`. La télémétrie se demande par identifiant technique de véhicule, jamais par VIN ni par nom.
+- La tâche quotidienne isole chaque véhicule : un compte en échec n'interrompt plus le traitement des suivants, et le nombre d'exceptions est journalisé à chaque passage.
+- `GIGYA_API_KEY` est conservée : c'est une constante de configuration de marque, pas un secret de compte.
+
+### ⚙️ Mise en service
+
+> **La migration de production doit être exécutée AVANT le merge sur `main`.**
+
+```bash
+# 1. Générer et déclarer la clé de chiffrement (Vercel : Production, Preview, Development)
+openssl rand -hex 32   # → CREDENTIALS_ENCRYPTION_KEY
+
+# 2. Migration (dry-run puis écriture ; --ul est obligatoire en --apply)
+npx tsx scripts/add-vehicle-connections.ts
+npx tsx scripts/add-vehicle-connections.ts --apply --ul=ul-paris-18
+
+# 3. Vérification bloquante, en lecture seule
+npx tsx scripts/verify-vehicle-connections.ts
+```
+
+> `RENAULT_MAIL` et `RENAULT_PASS` ne doivent être retirés de Vercel qu'**après** le déploiement sur `main` et une vérification verte.
+
 ## [5.4.0] — 9 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

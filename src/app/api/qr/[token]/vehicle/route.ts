@@ -50,8 +50,10 @@ export async function GET(
                          u.name        AS trip_driverName,
                          u.email       AS trip_driverEmail,
                          u2.name       AS trip_secondDriverName,
-                         u2.email      AS trip_secondDriverEmail
+                         u2.email      AS trip_secondDriverEmail,
+                         vc.status     AS connection_status
                   FROM Vehicle v
+                  LEFT JOIN VehicleConnection vc ON vc.vehicleId = v.id
                   LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
                   LEFT JOIN "User" u  ON u.id = t.driverId
                   LEFT JOIN "User" u2 ON u2.id = t.secondDriverId
@@ -105,7 +107,9 @@ export async function GET(
             hasDSA: !!row.hasDSA,
             desinfTracking: !!row.desinfTracking,
             parkingSpot: row.parkingSpot as string | null,
-            vin: row.vin as string | null,
+            // QR bypass (aucun contrôle d'UL ni de rôle) : jamais `lastError` (message Gigya
+            // contenant typiquement le login), ni `brand`, ni `connectedAt`, ni `credentialId`.
+            connection: row.connection_status ? { status: row.connection_status as string } : null,
             maxFuelCapacity: row.maxFuelCapacity as number | null,
             maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
             ulId: row.ulId as string,

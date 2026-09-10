@@ -22,9 +22,15 @@ vi.mock('@/auth', () => ({
   auth: vi.fn(),
 }));
 
-// Simule l'absence de données Renault Connect (véhicule non connecté)
-vi.mock('@/lib/renault', () => ({
+// La télémétrie et le prédicat de connexion vivent désormais dans
+// `@/lib/vehicle-connection` (la route ne consulte plus `Vehicle.vin`).
+// Mock partiel : `VehicleNotConnectedError` reste la vraie classe, seuls les
+// deux appels réseau/DB sont substitués. `isConnectedInDb` sans implémentation
+// renvoie `undefined` → véhicule non connecté par défaut.
+vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/vehicle-connection')>()),
   getRenaultVehicleData: vi.fn().mockResolvedValue(null),
+  isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
 
 // Désactive les notifications push pour éviter les appels OneSignal en test
@@ -35,7 +41,7 @@ vi.mock('@/lib/onesignal', () => ({
 
 import { PATCH } from '@/app/api/trips/[id]/checkin/route';
 import { auth } from '@/auth';
-import { getRenaultVehicleData } from '@/lib/renault';
+import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { db, seedVehicle, seedTrip, seedUser } from './setup';
 
 const mockedAuth = vi.mocked(auth);
@@ -249,9 +255,12 @@ describe('PATCH /api/trips/[id]/checkin', () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue(driverSession);
     await seedUser({ id: 'user-driver', email: 'driver@test.com' });
-    await seedVehicle({ id: 'VL001', status: 'IN_USE', vin: 'VF1TEST000000001', mileage: 10000 });
+    // Pas de `vin` sur Vehicle : c'est `VehicleConnection` (via isConnectedInDb)
+    // qui ouvre le chemin télémétrie, plus la présence d'un VIN.
+    await seedVehicle({ id: 'VL001', status: 'IN_USE', mileage: 10000 });
     await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', mileageOut: 10000 });
 
+    vi.mocked(isConnectedInDb).mockResolvedValueOnce(true);
     // Le mock par défaut du fichier renvoie null → garde « Données manquantes ».
     vi.mocked(getRenaultVehicleData).mockResolvedValueOnce({
       vin: 'VF1TEST000000001',

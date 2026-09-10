@@ -28,6 +28,9 @@ import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal
 import IncidentHistoryModal from '@/components/vehicle/modals/IncidentHistoryModal';
 import EditCheckOutModal from '@/components/vehicle/modals/EditCheckOutModal';
 import EditVehicleModal from '@/components/vehicle/modals/EditVehicleModal';
+import VehicleConnectionBlock from '@/components/vehicle/VehicleConnectionBlock';
+import ConnectVehicleModal from '@/components/vehicle/modals/ConnectVehicleModal';
+import DisconnectVehicleModal from '@/components/vehicle/modals/DisconnectVehicleModal';
 import { VehicleDetailSkeleton } from '@/components/ui/VehicleDetailSkeleton';
 
 /**
@@ -58,6 +61,7 @@ function VehicleDetailPageContent() {
         vehicle,
         setVehicle,
         renaultData,
+        setRenaultData,
         loading,
         loadingRenault,
         userRoles,
@@ -88,6 +92,8 @@ function VehicleDetailPageContent() {
     const [showPutInMaintenanceModal, setShowPutInMaintenanceModal] = useState(false);
     const [showEditRevisionModal, setShowEditRevisionModal] = useState(false);
     const [showEditVehicleModal, setShowEditVehicleModal] = useState(false);
+    const [connectModalMode, setConnectModalMode] = useState<'connect' | 'edit' | null>(null);
+    const [showDisconnectModal, setShowDisconnectModal] = useState(false);
     const [editingCheckOutTrip, setEditingCheckOutTrip] = useState<Trip | null>(null);
 
     /**
@@ -266,6 +272,16 @@ function VehicleDetailPageContent() {
                     onShowDesinfHistory={() => setShowDesinfHistoryModal(true)}
                 />
 
+                <VehicleConnectionBlock
+                    vehicle={vehicle}
+                    renaultData={renaultData}
+                    loadingRenault={loadingRenault}
+                    userRoles={userRoles}
+                    currentUserUlId={currentUserUlId}
+                    onConnect={setConnectModalMode}
+                    onDisconnect={() => setShowDisconnectModal(true)}
+                />
+
                 <VehicleNotes
                     vehicle={vehicle}
                     userRoles={userRoles}
@@ -391,6 +407,36 @@ function VehicleDetailPageContent() {
                     vehicleId={vehicle.id}
                     userRoles={userRoles}
                     onClose={() => setShowQRModal(false)}
+                />
+            )}
+
+            {connectModalMode && vehicle && (
+                <ConnectVehicleModal
+                    vehicleId={vehicle.id}
+                    initialVin={vehicle.vin}
+                    mode={connectModalMode}
+                    onClose={() => setConnectModalMode(null)}
+                    onConnected={({ data }) => {
+                        setConnectModalMode(null);
+                        // La télémétrie renvoyée par la connexion évite d'attendre l'effet du hook,
+                        // qui ne se redéclenche pas quand le statut reste CONNECTED (cas « Modifier »).
+                        setRenaultData(data);
+                        showToast('Véhicule connecté');
+                        fetchVehicle();
+                    }}
+                />
+            )}
+
+            {showDisconnectModal && vehicle && (
+                <DisconnectVehicleModal
+                    vehicleId={vehicle.id}
+                    vehicleName={vehicle.name}
+                    onClose={() => setShowDisconnectModal(false)}
+                    onDisconnected={() => {
+                        setShowDisconnectModal(false);
+                        showToast('Véhicule déconnecté');
+                        fetchVehicle();
+                    }}
                 />
             )}
 

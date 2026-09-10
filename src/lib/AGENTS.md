@@ -10,7 +10,10 @@ Singleton service clients and integration wrappers — DB, auth-adjacent role he
 | File | Description |
 |------|-------------|
 | `db.ts` | Single exported `db` client (`@libsql/client`). Import everywhere via `import { db } from '@/lib/db'` — never instantiate another client |
-| `renault.ts` | Gigya → Kamereon auth for Renault Connect. Session cached as singleton row in `RenaultSession` table (id=1, always upsert). `await getRenaultVehicleData(vin)` handles re-auth transparently |
+| `renault.ts` | Pure fetch client for Renault Connect (Gigya → Kamereon). Takes a `ConnectionContext` (declared here), reads no account credentials from the environment, writes **no** status. Sessions cached per `credentialId` (module `Map` + `RenaultSession` upsert). Typed errors: `BrandAuthError`, `BrandTransientError`, `VinNotOnAccountError` |
+| `vehicle-connection.ts` | Resolves a vehicle's connection and owns every `VehicleConnection.status` write. `getRenaultVehicleData(vehicleId)` (**UUID**, never a VIN), `resolveVehicleConnection`, `isConnectedInDb`, `VehicleNotConnectedError`. Server-only — imports `@/lib/db` |
+| `brands.ts` | Supported-brand registry (`BRANDS`, `Brand`, `BRAND_LABELS`, `isBrand`). Import-free so both server routes and Client Components can use it |
+| `crypto.ts` | AES-256-GCM for `BrandCredential.passwordEncrypted` (`iv:authTag:ciphertext`). `encryptSecret`, `decryptSecret`, `needsRewrap`, `keyFingerprint`. Key read inside the functions, never at module load |
 | `onesignal.ts` | Push notifications, targets users by email tag. Lazy-import in API routes to avoid cold-start cost. Also create a `Notification` DB row alongside every push |
 | `drive.ts` | Google Drive service-account auth. Each trip gets a Drive folder (`driveFolderId` in `Trip` table). Quota errors are non-fatal |
 | `email.ts` | Nodemailer/SMTP for async notifications. Non-fatal — wrap in try/catch, never block main response |
@@ -36,7 +39,9 @@ Singleton service clients and integration wrappers — DB, auth-adjacent role he
 
 ### Working In This Directory
 - **db.ts**: never use template literals in SQL — always `{ sql, args }` parameterized queries.
-- **renault.ts**: errors are non-fatal in most contexts — wrap calls in try/catch and degrade gracefully.
+- **renault.ts**: errors are non-fatal in most contexts — wrap calls in try/catch and degrade gracefully. Never add a domain write (status, `Vehicle`, …) to this module — it is imported by seven routes including a cron, and the `src/lib/CLAUDE.md` contract depends on it staying a fetch client. `BrandAuthError` is raised **only** on `errorCode !== 0`; everything else is transient and must not change any status.
+- **vehicle-connection.ts**: `getRenaultVehicleData` takes the vehicle **UUID**. Status writes are at credential grain (`WHERE credentialId = ?`) and are non-fatal (log `[vehicle-connection] …`, never throw). A caller that iterates the fleet creates its own `failedCredentials` Set per run — never at module level. Do **not** import this module from a Client Component.
+- **crypto.ts**: never log plaintext, key, or ciphertext; a decryption fallback onto `_PREVIOUS` is always logged so corruption stays visible.
 - **onesignal.ts**: lazy-import (`await import('@/lib/onesignal')`) in API routes.
 - **stats.ts**: if you add a new stats calculation, add it here and write a unit test (not inline in a component).
 - Catch blocks: use `catch (e: unknown)` + `getErrorMessage(e)` from `src/lib/utils/error.ts`.

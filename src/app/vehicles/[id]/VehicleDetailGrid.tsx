@@ -27,6 +27,9 @@ export default function VehicleDetailGrid({
     onEditRevision,
     onShowDesinfHistory,
 }: VehicleDetailGridProps) {
+    // L'édition manuelle est ouverte tant qu'AUCUNE connexion n'existe — miroir client exact du
+    // `SELECT 1 FROM VehicleConnection` de `metrics/route.ts`. Surtout pas `!isVehicleConnected()`,
+    // qui afficherait le bouton pour un véhicule en `ERROR` que l'API refuse (correction V1).
     return (
         <div className="detail-grid">
             <DetailCard
@@ -38,7 +41,7 @@ export default function VehicleDetailGrid({
                             ? `${renaultData.totalMileage.toLocaleString('fr-FR')} km`
                             : `${vehicle.mileage.toLocaleString('fr-FR')} km`
                 }
-                onEdit={(!vehicle.vin && (userRoles.includes('ADMIN') || userRoles.includes('RESPO'))) ? onEditMetrics : undefined}
+                onEdit={(vehicle.connection == null && (userRoles.includes('ADMIN') || userRoles.includes('RESPO'))) ? onEditMetrics : undefined}
             />
             <DetailCard
                 title={vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}
@@ -54,7 +57,7 @@ export default function VehicleDetailGrid({
                     }
                     return `${vehicle.fuelLevel}%`;
                 })()}
-                onEdit={(!vehicle.vin && (userRoles.includes('ADMIN') || userRoles.includes('RESPO'))) ? onEditMetrics : undefined}
+                onEdit={(vehicle.connection == null && (userRoles.includes('ADMIN') || userRoles.includes('RESPO'))) ? onEditMetrics : undefined}
             >
                 <FuelBar
                     level={(() => {

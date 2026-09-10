@@ -18,6 +18,7 @@ const mockVehicle: Vehicle = {
     desinfTracking: false,
     notes: null,
     vin: null,
+    connection: null,
     fuelType: 'Essence', transmission: null,
     maxFuelCapacity: null,
     maxBatteryCapacityKwh: null,
