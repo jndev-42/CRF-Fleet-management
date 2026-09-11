@@ -41,8 +41,9 @@ export default function InventoryPage() {
     const [activeStockId, setActiveStockId] = useState<string>('');
     const [stockModalState, setStockModalState] = useState<{
         isOpen: boolean;
-        mode: 'create' | 'rename';
+        mode: 'create' | 'rename' | 'duplicate';
         stockToRename?: InvStockListRow;
+        stockToDuplicate?: InvStockListRow;
     }>({ isOpen: false, mode: 'create' });
 
     const [items, setItems] = useState<InvItem[]>([]);
@@ -154,6 +155,38 @@ export default function InventoryPage() {
         } else {
             const data = await res.json();
             throw new Error(data.error || 'Erreur lors de la création du stock');
+        }
+    };
+
+    const handleDuplicateStock = async (name: string, options?: { copyStock: boolean }) => {
+        const source = stockModalState.stockToDuplicate;
+        if (!source) {
+            throw new Error('Stock source introuvable');
+        }
+
+        const res = await fetch('/api/inventory/stocks/duplicate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sourceStockId: source.id,
+                name,
+                copyStock: options?.copyStock ?? false,
+            }),
+        });
+
+        if (res.ok) {
+            const newStock = await res.json();
+            setStocks(prev => [...prev, newStock]);
+            setActiveStockId(newStock.id);
+            // Mêmes remises à zéro que la création et la suppression : sans elles, la
+            // recherche et la pagination du stock source resteraient appliquées au
+            // nouveau stock, qui semblerait vide.
+            setSearch('');
+            setCategoryFilter('');
+            setPage(1);
+        } else {
+            const data = await res.json();
+            throw new Error(data.error || 'Erreur lors de la duplication du stock');
         }
     };
 
@@ -300,6 +333,7 @@ export default function InventoryPage() {
                     }}
                     onOpenCreate={() => setStockModalState({ isOpen: true, mode: 'create' })}
                     onOpenRename={stock => setStockModalState({ isOpen: true, mode: 'rename', stockToRename: stock })}
+                    onOpenDuplicate={stock => setStockModalState({ isOpen: true, mode: 'duplicate', stockToDuplicate: stock })}
                     onDeleteStock={handleDeleteStock}
                 />
             )}
@@ -578,9 +612,20 @@ export default function InventoryPage() {
             <StockModal
                 isOpen={stockModalState.isOpen}
                 mode={stockModalState.mode}
-                initialName={stockModalState.stockToRename?.name || ''}
+                initialName={
+                    stockModalState.mode === 'duplicate'
+                        ? `${stockModalState.stockToDuplicate?.name ?? ''} (copie)`
+                        : (stockModalState.stockToRename?.name || '')
+                }
+                sourceStockName={stockModalState.stockToDuplicate?.name}
                 onClose={() => setStockModalState({ isOpen: false, mode: 'create' })}
-                onSubmit={stockModalState.mode === 'create' ? handleCreateStock : handleRenameStock}
+                onSubmit={
+                    stockModalState.mode === 'create'
+                        ? handleCreateStock
+                        : stockModalState.mode === 'duplicate'
+                            ? handleDuplicateStock
+                            : handleRenameStock
+                }
             />
         </div>
     );

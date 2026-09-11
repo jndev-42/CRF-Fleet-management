@@ -11,6 +11,7 @@ interface StockTabsProps {
     onSelectStock: (stockId: string) => void;
     onOpenCreate: () => void;
     onOpenRename: (stock: InvStockListRow) => void;
+    onOpenDuplicate: (stock: InvStockListRow) => void;
     onDeleteStock: (stock: InvStockListRow) => void;
 }
 
@@ -21,6 +22,7 @@ export default function StockTabs({
     onSelectStock,
     onOpenCreate,
     onOpenRename,
+    onOpenDuplicate,
     onDeleteStock,
 }: StockTabsProps) {
     return (
@@ -48,6 +50,17 @@ export default function StockTabs({
                                         onClick={() => onOpenRename(stock)}
                                     >
                                         ✏️
+                                    </button>
+                                    {/* Pas de garde sur `stocks.length` : dupliquer un stock
+                                        unique est un cas d'usage valide, contrairement à sa
+                                        suppression. */}
+                                    <button
+                                        type="button"
+                                        className={styles.tabActionButton}
+                                        title="Dupliquer le stock"
+                                        onClick={() => onOpenDuplicate(stock)}
+                                    >
+                                        ⧉
                                     </button>
                                     {stocks.length > 1 && (
                                         <button
