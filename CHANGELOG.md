@@ -1,5 +1,23 @@
 # Changelog
 
+## [5.6.0] — 10 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Dupliquer un stock d'inventaire** — un bouton ⧉ apparaît sur chaque onglet de la page Inventaire, à côté du crayon. Il crée un nouveau stock de votre unité locale à partir de celui-ci, avec tous ses articles : nom, catégorie, seuil d'alerte et notes. Le nom est pré-rempli en « <stock> (copie) », modifiable avant validation. Pratique pour monter un stock véhicule à partir du stock principal sans ressaisir la centaine d'articles un par un.
+- **Choisir de copier ou non le stock réel** — une case « Copier le stock actuel (quantités + dates de péremption) » décide de ce qui est repris. Décochée, vous obtenez la liste des articles avec des quantités à zéro : le squelette du stock, à remplir. Cochée, chaque lot est recopié à l'identique, avec sa quantité et sa date de péremption. Quantités et péremptions vont ensemble : une quantité est toujours portée par un lot, qui porte lui-même sa date.
+- **Une ligne d'historique honnête** — l'historique des mouvements n'est jamais recopié : ces mouvements n'ont pas eu lieu dans le nouveau stock. À la place, chaque article repris avec du stock reçoit une seule ligne « Import initial — dupliqué depuis <stock source> », à votre nom et à la date du jour.
+- **Réservé aux administrateurs** — comme la création, le renommage et la suppression d'un stock. Le bouton n'apparaît pas pour les autres rôles.
+- **Le stock d'origine n'est jamais touché** — la duplication ne lit que la source. En cas d'erreur en cours de copie, rien n'est écrit du tout : pas de stock à moitié rempli à nettoyer à la main.
+
+### 🔧 Améliorations techniques
+
+- Nouvelle route `POST /api/inventory/stocks/duplicate` et fonction `duplicateStock()` dans `src/lib/inventory/stocks.ts`, exécutées dans une transaction unique (`db.transaction('write')`) pour garantir le tout-ou-rien.
+- Les lots du stock source sont lus en une requête groupée par tranches de 500 identifiants, sans requête par article, et dans la limite des variables liées de SQLite.
+- Les écritures sont envoyées par paquets de 500 via `tx.batch()` plutôt qu'une par une : la duplication d'un stock de 500 articles passe de plusieurs milliers d'allers-retours réseau à une poignée, ce qui la garde dans le budget de temps de la route.
+- Aucune migration de base : la duplication n'ajoute ni table ni colonne.
+- Couverture : 13 tests d'intégration sur la route (401, 403, 400, 404, copies avec et sans stock, invariants, retour arrière sur échec) et 16 tests de composants sur `StockTabs` et `StockModal`.
+
 ## [5.5.0] — 10 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités
