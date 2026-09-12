@@ -18,6 +18,7 @@ const baseProps = {
     onOpenCreate: vi.fn(),
     onOpenRename: vi.fn(),
     onOpenDuplicate: vi.fn(),
+    onOpenQrCode: vi.fn(),
     onDeleteStock: vi.fn(),
 };
 
@@ -60,6 +61,43 @@ describe('StockTabs', () => {
         fireEvent.click(screen.getAllByTitle('Dupliquer le stock')[1]);
 
         expect(onOpenDuplicate).toHaveBeenCalledWith(expect.objectContaining({ id: 's2' }));
+        expect(onSelectStock).not.toHaveBeenCalled();
+    });
+
+    // ── QR Code du stock ─────────────────────────────────────────────────────
+
+    it('masque le bouton QR Code pour un non-admin (AC-Q1)', () => {
+        render(<StockTabs {...baseProps} stocks={[stock('s1', 'Stock Principal', 1)]} isAdmin={false} />);
+        expect(screen.queryByTitle('QR Code du stock')).toBeNull();
+    });
+
+    it('affiche un bouton QR Code par onglet pour un admin (AC-Q2)', () => {
+        render(
+            <StockTabs
+                {...baseProps}
+                stocks={[stock('s1', 'Stock Principal', 1), stock('s2', 'Stock Véhicules')]}
+                isAdmin
+            />
+        );
+        expect(screen.getAllByTitle('QR Code du stock')).toHaveLength(2);
+    });
+
+    it('remonte le stock du QR sans activer son onglet (AC-Q3)', () => {
+        const onOpenQrCode = vi.fn();
+        const onSelectStock = vi.fn();
+        render(
+            <StockTabs
+                {...baseProps}
+                onOpenQrCode={onOpenQrCode}
+                onSelectStock={onSelectStock}
+                stocks={[stock('s1', 'Stock Principal', 1), stock('s2', 'Stock Véhicules')]}
+                isAdmin
+            />
+        );
+
+        fireEvent.click(screen.getAllByTitle('QR Code du stock')[1]);
+
+        expect(onOpenQrCode).toHaveBeenCalledWith(expect.objectContaining({ id: 's2' }));
         expect(onSelectStock).not.toHaveBeenCalled();
     });
 });

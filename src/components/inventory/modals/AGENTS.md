@@ -32,6 +32,11 @@ Two prop conventions coexist — pick the one matching the modal's job:
 
 **Role visibility.** `ItemBatchesModal` is the only modal here that reads roles directly: `isAdminOrAbove((session?.user?.roles ?? []) as string[])` from `@/lib/roles` via `useSession()`, gating batch deletion. Elsewhere admin state arrives as a prop from the page.
 
+**`StockQRCodeModal` — two deliberate divergences from the vehicle `QRCodeModal` it is adapted from:**
+- The canvas id is **`qr-stock-code-canvas`**, not `qr-code-canvas`. `downloadQRCode` resolves it with a global `getElementById`; if both modals used the same id, whichever mounted first would be downloaded. Pinned by AC-Q4 — do not "simplify" the id back.
+- Regeneration errors render in an **inline box**, not `alert()`. Regeneration is destructive (every printed QR for that stock dies instantly), so the failure has to stay on screen next to the button that caused it.
+Confirmation before the `DELETE` is required (AC-Q5/AC-Q6), and the "Régénérer" button is gated on `canAccessAdminPanel(userRoles)` — roles arrive as a **prop** from the page, as everywhere else here except `ItemBatchesModal`.
+
 **Styling.** No CSS Modules in this directory — global classes (`modal`, `btn btn-primary`, `form-group`, `form-label`, `form-input`) plus inline styles on CSS variables. All labels, buttons, and error messages in French.
 
 ## Dependencies
@@ -42,6 +47,7 @@ Two prop conventions coexist — pick the one matching the modal's job:
 - `POST /api/inventory/adjust` — batch quantity adjustment
 - `GET /api/inventory/history?itemId=`
 - `GET /api/inventory/low-stock[?stockId=]`, `GET /api/inventory/expiring-soon[?stockId=]`
-- `@/lib/roles` — `isAdminOrAbove` (`ItemBatchesModal` only)
+- `POST|DELETE /api/inventory/stocks/[id]/qr-token` — `StockQRCodeModal`
+- `@/lib/roles` — `isAdminOrAbove` (`ItemBatchesModal` only), `canAccessAdminPanel` (`StockQRCodeModal`)
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

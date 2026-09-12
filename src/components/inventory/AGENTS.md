@@ -15,16 +15,20 @@ UI for the inventory/stock module. This level holds the stock selector tabs; eve
 ## Subdirectories
 | Directory | Purpose |
 |-----------|---------|
-| `modals/` | Item CRUD, batches, stock create/rename, low-stock and expiry alert dialogs (see `modals/AGENTS.md`) |
+| `modals/` | Item CRUD, batches, stock create/rename/duplicate, stock QR code, low-stock and expiry alert dialogs (see `modals/AGENTS.md`) |
 
 ## For AI Agents
 
 ### Working In This Directory
-`StockTabs` is **fully controlled and fetch-free** — it takes `stocks: InvStockListRow[]`, `activeStockId`, `isAdmin`, and four callbacks (`onSelectStock`, `onOpenCreate`, `onOpenRename`, `onDeleteStock`). Never add a `fetch` here; the page owns stock data.
+`StockTabs` is **fully controlled and fetch-free** — it takes `stocks: InvStockListRow[]`, `activeStockId`, `isAdmin`, and the callbacks `onSelectStock`, `onOpenCreate`, `onOpenRename`, `onOpenDuplicate`, `onOpenQrCode`, `onDeleteStock`. Never add a `fetch` here; the page owns stock data.
 
 Two non-obvious behaviors to preserve:
 - **Admin actions are gated on the `isAdmin` prop** (derived from session roles by the page, not read from `useSession()` here). The delete button is additionally hidden when `stocks.length <= 1` — the last stock must not be deletable.
 - The tab-actions wrapper calls `e.stopPropagation()` so clicking rename/delete does not also select the tab. Keep that if you add another action button.
+
+Adding a prop to `StockTabs` breaks `StockTabs.test.tsx` at type-check: add it to `baseProps` in the same commit.
+
+**`InvStockListRow` carries no `qrToken`, and must not.** The QR button passes the stock's **id** to the page, which opens `StockQRCodeModal`; the modal then fetches the token itself from `/api/inventory/stocks/{id}/qr-token`. The token is a secret — whoever holds it can adjust the stock with no role and no UL check — so it never travels in the stock list that every UL member loads on every page view. Pinned by AC-T9.
 
 Item shape comes from `InvStockListRow` in `@/lib/inventory/stocks` — import it, don't redeclare a local stock type. Tabs are `<div role="tab">` with `aria-selected`; keep the ARIA roles intact.
 

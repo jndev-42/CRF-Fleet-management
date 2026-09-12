@@ -12,6 +12,7 @@ interface StockTabsProps {
     onOpenCreate: () => void;
     onOpenRename: (stock: InvStockListRow) => void;
     onOpenDuplicate: (stock: InvStockListRow) => void;
+    onOpenQrCode: (stock: InvStockListRow) => void;
     onDeleteStock: (stock: InvStockListRow) => void;
 }
 
@@ -23,6 +24,7 @@ export default function StockTabs({
     onOpenCreate,
     onOpenRename,
     onOpenDuplicate,
+    onOpenQrCode,
     onDeleteStock,
 }: StockTabsProps) {
     return (
@@ -61,6 +63,14 @@ export default function StockTabs({
                                         onClick={() => onOpenDuplicate(stock)}
                                     >
                                         ⧉
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.tabActionButton}
+                                        title="QR Code du stock"
+                                        onClick={() => onOpenQrCode(stock)}
+                                    >
+                                        🔳
                                     </button>
                                     {stocks.length > 1 && (
                                         <button
