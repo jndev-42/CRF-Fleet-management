@@ -48,9 +48,13 @@ export default function BatchPicker({ item, onClose, onPick }: Props) {
 
                 <div className="modal-body">
                     <div className={styles.batchList}>
-                        {item.batches.filter(b => b.expiryDate !== null).map(batch => (
+                        {/* La clé porte l'index : `InvBatch` n'a aucune contrainte
+                            d'unicité sur `(itemId, expiryDate)`, et deux lots de même
+                            date — cas que des données héritées peuvent porter — se
+                            confondraient sous une clé réduite à la seule date. */}
+                        {item.batches.filter(b => b.expiryDate !== null).map((batch, index) => (
                             <button
-                                key={batch.expiryDate}
+                                key={`${batch.expiryDate}-${index}`}
                                 type="button"
                                 className={styles.batchOption}
                                 onClick={() => onPick(batch.expiryDate)}

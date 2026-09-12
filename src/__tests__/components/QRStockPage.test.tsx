@@ -156,6 +156,48 @@ describe('QRStockPage', () => {
         expect(alertSpy).not.toHaveBeenCalled();
     });
 
+    // S4 — sans cela, le bénévole corrige sa saisie avec un message rouge périmé
+    // sous les yeux, et l'erreur survit jusqu'à l'écran de succès.
+    it('permet de masquer l\'encart d\'erreur', async () => {
+        mockFetch((url) => {
+            if (url.includes('/stock')) return new Response(JSON.stringify(STOCK), { status: 200 });
+            return new Response(JSON.stringify({ error: 'Données invalides' }), { status: 400 });
+        });
+        await renderPage();
+
+        fireEvent.click(screen.getByLabelText('Retirer une unité de Compresses'));
+        fireEvent.click(screen.getByRole('button', { name: 'Valider' }));
+        expect(await screen.findByText('Données invalides')).toBeTruthy();
+
+        fireEvent.click(screen.getByLabelText('Masquer le message d\'erreur'));
+
+        expect(screen.queryByText('Données invalides')).toBeNull();
+    });
+
+    it('efface l\'erreur précédente au début d\'une nouvelle validation', async () => {
+        let echoue = true;
+        mockFetch((url) => {
+            if (url.includes('/stock')) return new Response(JSON.stringify(STOCK), { status: 200 });
+            if (echoue) {
+                echoue = false;
+                return new Response(JSON.stringify({ error: 'Données invalides' }), { status: 400 });
+            }
+            return new Response(JSON.stringify({ success: true, applied: 1 }), { status: 200 });
+        });
+        await renderPage();
+
+        fireEvent.click(screen.getByLabelText('Retirer une unité de Compresses'));
+        fireEvent.click(screen.getByRole('button', { name: 'Valider' }));
+        expect(await screen.findByText('Données invalides')).toBeTruthy();
+
+        // Seconde tentative réussie : l'écran de succès ne doit pas hériter du
+        // message de la tentative précédente.
+        fireEvent.click(screen.getByRole('button', { name: 'Valider' }));
+
+        expect(await screen.findByText('1 mouvement enregistré')).toBeTruthy();
+        expect(screen.queryByText('Données invalides')).toBeNull();
+    });
+
     it('affiche un écran de succès, puis recharge le stock et vide le panier (AC-I9)', async () => {
         const fetchMock = mockFetch();
         await renderPage();

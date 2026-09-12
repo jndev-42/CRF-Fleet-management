@@ -21,13 +21,18 @@ export default function StockItemRow({ item, onRemove, onAdd }: Props) {
     const isLow = item.minStock !== null && item.quantity <= item.minStock;
 
     return (
-        <div className={styles.itemRow}>
+        <div className={styles.itemRow} data-testid={`item-${item.id}`}>
             <div className={styles.itemInfo}>
                 <div className={styles.itemName}>{item.name}</div>
                 {item.category && <div className={styles.itemMeta}>{item.category}</div>}
             </div>
 
-            <div className={`${styles.itemQuantity} ${isLow ? styles.low : ''}`}>
+            {/* `data-testid` : la spec E2E doit lire CETTE valeur, et non le premier
+                nombre du texte du conteneur — qui n'est pas garanti être la quantité. */}
+            <div
+                className={`${styles.itemQuantity} ${isLow ? styles.low : ''}`}
+                data-testid={`qty-${item.id}`}
+            >
                 {item.quantity}
             </div>
 

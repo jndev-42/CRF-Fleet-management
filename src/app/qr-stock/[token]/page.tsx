@@ -138,7 +138,19 @@ export default function QRStockPage() {
             <div className={styles.container}>
                 {loading && <div className={styles.loading}>Chargement…</div>}
 
-                {error && <div className={styles.errorBox}>{error}</div>}
+                {error && (
+                    <div className={styles.errorBox} role="alert">
+                        <span className={styles.errorText}>{error}</span>
+                        <button
+                            type="button"
+                            className={styles.errorDismiss}
+                            onClick={() => setError(null)}
+                            aria-label="Masquer le message d'erreur"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                )}
 
                 {!loading && stock && (
                     <>
@@ -176,6 +188,7 @@ export default function QRStockPage() {
                                 onCancelOne={key => setCart(prev => prev.filter(m => m.key !== key))}
                                 onSuccess={handleSubmitSuccess}
                                 onError={setError}
+                                onSubmitStart={() => setError(null)}
                             />
                         )}
 

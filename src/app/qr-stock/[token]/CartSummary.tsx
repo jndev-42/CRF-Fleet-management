@@ -10,6 +10,8 @@ interface Props {
     onCancelOne: (key: string) => void;
     onSuccess: () => void;
     onError: (message: string) => void;
+    /** Efface l'encart d'erreur de la page avant une nouvelle tentative (S4). */
+    onSubmitStart: () => void;
 }
 
 /** Libellé d'une ligne du panier : « Compresses — lot du 01/01/2030 ». */
@@ -22,7 +24,7 @@ function describe(movement: PendingMovement): string {
 }
 
 export default function CartSummary({
-    cart, token, onCancelOne, onSuccess, onError,
+    cart, token, onCancelOne, onSuccess, onError, onSubmitStart,
 }: Props) {
     // L'état vit ici plutôt que dans la page : c'est ce composant qui émet la
     // requête, et un `submitting` piloté de l'extérieur serait faux tant que le
@@ -33,6 +35,7 @@ export default function CartSummary({
     async function submit() {
         if (submitting) return;
         setSubmitting(true);
+        onSubmitStart();
         // ⚠️ PROJECTION OBLIGATOIRE — ne pas poster `cart` tel quel.
         //
         // Le schéma Zod de la route est `.strict()` : il REJETTE les clés

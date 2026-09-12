@@ -46,13 +46,30 @@ test('scan, panier et validation groupée', async ({ page }) => {
     await expect(page.getByText(/nouvel article/i)).toHaveCount(0);
     await expect(page.getByTitle(/supprimer/i)).toHaveCount(0);
 
-    const firstRemove = page.getByRole('button', { name: /^Retirer une unité de / }).first();
-    const itemLabel = await firstRemove.getAttribute('aria-label');
-    const itemName = itemLabel!.replace('Retirer une unité de ', '');
+    // On part de la LIGNE, pas du bouton : la quantité lue doit être celle de
+    // l'article effectivement manipulé. Et on vise une quantité NON NULLE — le
+    // « − » d'un article à zéro est désactivé, et le plancher à 0 rendrait de
+    // toute façon le retrait non observable, donc le test ne prouverait rien.
+    const rows = page.locator('[data-testid^="item-"]');
+    await expect(rows.first()).toBeVisible();
 
-    // Quantité affichée avant mouvement, pour vérifier l'écriture réelle après.
-    const row = page.locator('div').filter({ hasText: itemName }).last();
-    const before = Number((await row.innerText()).match(/\d+/)?.[0] ?? '0');
+    let row = null;
+    let before = 0;
+    for (let i = 0; i < await rows.count(); i++) {
+        const candidate = rows.nth(i);
+        const quantity = Number(await candidate.locator('[data-testid^="qty-"]').innerText());
+        if (quantity > 0) {
+            row = candidate;
+            before = quantity;
+            break;
+        }
+    }
+    expect(row, 'aucun article en stock dans la DB de dev — test non concluant').not.toBeNull();
+    expect(before).toBeGreaterThan(0);
+
+    const testId = await row!.locator('[data-testid^="qty-"]').getAttribute('data-testid');
+    const firstRemove = row!.getByRole('button', { name: /^Retirer une unité de / });
+    const itemName = (await firstRemove.getAttribute('aria-label'))!.replace('Retirer une unité de ', '');
 
     // ── 3. Panier : un retrait puis un ajout ──────────────────────────────
     await firstRemove.click();
@@ -71,11 +88,15 @@ test('scan, panier et validation groupée', async ({ page }) => {
 
     await expect(page.getByText(/mouvement.* enregistré/)).toBeVisible();
 
-    // ── 5. Retour : le stock est rechargé et la quantité a bougé ──────────
+    // ── 5. Retour : le stock est rechargé et la quantité a RÉELLEMENT baissé ──
     await page.getByRole('button', { name: 'Retour' }).click();
     await expect(page.getByText('Accès via QR Code')).toBeVisible();
 
-    const rowAfter = page.locator('div').filter({ hasText: itemName }).last();
-    const after = Number((await rowAfter.innerText()).match(/\d+/)?.[0] ?? '0');
-    expect(after).toBeLessThanOrEqual(before);
+    // Assertion EXACTE, et non `toBeLessThanOrEqual` : un seul mouvement a été
+    // validé (`-1`, le second ayant été annulé plus haut). Accepter l'égalité
+    // laisserait passer le cas où la route répond 200 sans rien persister, ou
+    // celui où le rechargement sert une réponse en cache — c'est-à-dire une
+    // assertion vraie quel que soit le code (RK-16).
+    const after = Number(await page.getByTestId(testId!).innerText());
+    expect(after).toBe(before - 1);
 });

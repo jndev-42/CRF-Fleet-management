@@ -42,8 +42,22 @@
     border-radius: 10px;
     padding: 10px 14px;
     font-size: 12px;
-    color: #2563eb;
+    color: #1d4ed8;
     margin-bottom: 12px;
+}
+
+/*
+ * Mode sombre — sur `--bg-primary: #0A0B0E`, les teintes 600/700 du thème clair
+ * tombent sous 3:1 de contraste, très en dessous du seuil AA de 4,5:1 pour ce
+ * corps de texte. Les fonds `rgba(…, 0.08)` ne compensent rien : ils sont quasi
+ * transparents. Les teintes 300/400 repassent au-dessus du seuil.
+ *
+ * La page est servie HORS app shell et s'utilise debout, téléphone en main,
+ * devant une armoire : un encart illisible y annule l'intention d'AC-I8.
+ */
+:global(.dark) .scopeNotice {
+    color: #93c5fd;
+    border-color: rgba(147, 197, 253, 0.28);
 }
 
 .volatileNotice {
@@ -56,14 +70,47 @@
     margin-bottom: 20px;
 }
 
+:global(.dark) .volatileNotice {
+    color: #fcd34d;
+    border-color: rgba(252, 211, 77, 0.3);
+}
+
 .errorBox {
-    background: rgba(239, 68, 68, 0.07);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    /* `--error-bg` / `--error-border` / `--error-text` sont déjà thématisées
+       dans globals.css (`:root` et `.dark`) : aucune surcharge nécessaire. */
+    background: var(--error-bg);
+    border: 1px solid var(--error-border);
     border-radius: 12px;
     padding: 14px 16px;
     font-size: 14px;
-    color: #b91c1c;
+    color: var(--error-text);
     margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.errorText {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* S4 — l'encart doit pouvoir être fermé : sans cela un message périmé reste
+   sous les yeux du bénévole pendant qu'il corrige sa saisie. */
+.errorDismiss {
+    border: none;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    opacity: 0.7;
+}
+
+.errorDismiss:hover {
+    opacity: 1;
 }
 
 .emptyState,
@@ -87,7 +134,7 @@
     align-items: center;
     gap: 12px;
     background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     padding: 12px 14px;
 }
@@ -118,7 +165,11 @@
 }
 
 .low {
-    color: #d97706;
+    color: #b45309;
+}
+
+:global(.dark) .low {
+    color: #fbbf24;
 }
 
 .stepper {
@@ -132,7 +183,7 @@
     width: 44px;
     height: 44px;
     border-radius: var(--radius-md);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     background: var(--bg-primary);
     color: var(--text-primary);
     font-size: 22px;
@@ -146,7 +197,7 @@
 }
 
 .stepBtn:hover:not(:disabled) {
-    background: var(--bg-tertiary, var(--bg-secondary));
+    background: var(--bg-card-hover);
 }
 
 /* ── Panier ───────────────────────────────────────────────────────────────── */
@@ -155,7 +206,7 @@
     position: sticky;
     bottom: 0;
     background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     padding: 14px;
 }
@@ -196,11 +247,19 @@
 }
 
 .positive {
-    color: #059669;
+    color: #047857;
 }
 
 .negative {
-    color: #dc2626;
+    color: #b91c1c;
+}
+
+:global(.dark) .positive {
+    color: #6ee7b7;
+}
+
+:global(.dark) .negative {
+    color: #fca5a5;
 }
 
 .cartRemove {
@@ -238,7 +297,7 @@
     width: 100%;
     text-align: left;
     padding: 12px 14px;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--border-primary);
     border-radius: var(--radius-md);
     background: var(--bg-primary);
     color: var(--text-primary);
@@ -247,7 +306,7 @@
 }
 
 .batchOption:hover {
-    border-color: var(--accent-color, #2563eb);
+    border-color: var(--crf-red);
 }
 
 .batchQty {
@@ -300,7 +359,9 @@
 }
 
 @media (max-width: 400px) {
+    /* La gouttière latérale reste à 16 px : c'est le minimum tenu partout dans
+       ce dépôt, et la largeur gagnée à 12 px ne valait pas la marge perdue. */
     .page {
-        padding: 16px 12px 40px;
+        padding: 16px 16px 40px;
     }
 }
