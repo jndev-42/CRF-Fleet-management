@@ -12,7 +12,7 @@
  *  AC-J2 — INACTIF dans UserRole seul, CSV vide ou absente → bloqué
  *  AC-J3 — INACTIF résiduel sur une UL secondaire seulement → sans effet
  *  AC-J5 — les rôles actifs ne sont pas retirés (ajout, pas substitution)
- *  AC-J6 — les deux callbacks d'auth.ts passent les bons arguments
+ *  AC-J6 — couvert ailleurs : `src/__tests__/unit/session-roles-callbacks.test.ts`
  *  AC-J7 — exactement 2 requêtes, quel que soit le nombre d'UL
  *  AC-J8 — révocation totale : aucun rôle nulle part → []
  */
