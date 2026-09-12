@@ -36,6 +36,13 @@ describe('GET /api/stats/trips', () => {
         expect(res.status).toBe(403);
     });
 
+    it('retourne 403 pour un compte cumulant INACTIF et un rôle actif', async () => {
+        // AC-E3 — INACTIF est absorbant : le cumul ne rouvre pas l'accès.
+        mockedAuth.mockResolvedValue({ user: { email: 'mixte@test.com', roles: ['INACTIF', 'CHVL'], ulId: 'ul-paris-18' } } as never);
+        const res = await GET(makeRequest('dateFrom=2026-01-01&dateTo=2026-01-31'));
+        expect(res.status).toBe(403);
+    });
+
     it('retourne 400 pour des paramètres manquants', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const res = await GET(makeRequest(''));

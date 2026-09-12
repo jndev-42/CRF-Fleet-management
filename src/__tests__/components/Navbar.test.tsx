@@ -85,6 +85,13 @@ describe('Navbar', () => {
         expect(screen.queryByTestId('notification-bell')).toBeNull();
     });
 
+    it('masque Statistiques et la cloche pour un compte cumulant INACTIF et un rôle actif', () => {
+        // AC-E3 — miroir client d'api/stats ; la barrière réelle reste la route.
+        render(<Navbar user={{ email: 'mixte@test.com', roles: ['INACTIF', 'CHVL'] }} />);
+        expect(screen.queryByText('Statistiques')).toBeNull();
+        expect(screen.queryByTestId('notification-bell')).toBeNull();
+    });
+
     it('respecte un réglage de menu admin_only pour un non-super-admin', () => {
         mockGetVisibility = vi.fn((key: string) => (key === 'stats' ? 'admin_only' : 'available'));
         render(<Navbar user={{ email: 'admin@test.com', roles: ['ADMIN'] }} />);

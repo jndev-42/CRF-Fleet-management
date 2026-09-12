@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isInactive } from '@/lib/roles';
+import { isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 /**
  * GET /api/qr/[token]/vehicle
  *
  * Resolves a QR token to a vehicle and returns its public data + active trip.
- * Access control: any authenticated, non-INACTIF CRF user.
+ * Access control : tout compte CRF connecté, avec ou sans rôle attribué, sauf s'il
+ * porte INACTIF (ou GUEST, valeur héritée) — cf. `isQrBlocked`.
  * No UL membership or driver-role check is performed — this is the QR bypass.
  */
 export async function GET(
@@ -21,7 +22,7 @@ export async function GET(
     }
 
     // Block inactive users
-    if (isInactive(session.user.roles || [])) {
+    if (isQrBlocked(session.user.roles || [])) {
         return forbiddenResponse('Compte inactif');
     }
 

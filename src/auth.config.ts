@@ -38,7 +38,9 @@ export const authConfig: NextAuthConfig = {
 
             // Inactive user handling (logic from legacy proxy.ts)
             const roles = (auth?.user?.roles as string[] | undefined) ?? [];
-            const isInactif = roles.length > 0 && roles.every(r => r === 'INACTIF');
+            // INACTIF est dominant : il suffit de le porter (cf. `isInactive` dans
+            // src/lib/roles.ts, non importable ici — la config doit rester edge-safe).
+            const isInactif = roles.some(r => r === 'INACTIF');
 
             if (isInactif && !isInactifRoute) {
                 return Response.redirect(new URL('/inactif', nextUrl));

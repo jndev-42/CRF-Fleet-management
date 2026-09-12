@@ -12,7 +12,8 @@
  *   3. 400 Zod — email manquant
  *   4. Happy path — 201, user créé en DB
  *   5. GUEST strips other roles — seul GUEST assigné
- *   6. Non-GUEST strips GUEST — GUEST retiré du set
+ *   6. GUEST normalisé en INACTIF, conservé aux côtés des rôles actifs
+ *   6b/6c. INACTIF cumulé à un rôle actif — les deux conservés (préservation, AC-E4)
  *   7. 409 si email déjà existant
  *
  *  PATCH /api/users/[email]
@@ -21,7 +22,8 @@
  *  10. 404 si user inconnu
  *  11. Happy path — rôles mis à jour en DB
  *  12. GUEST strips other roles via PATCH
- *  13. Non-GUEST strips GUEST via PATCH
+ *  12c. INACTIF cumulé à un rôle actif via PATCH — les deux conservés (AC-E4)
+ *  13. GUEST normalisé en INACTIF via PATCH, conservé aux côtés des rôles actifs
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -123,7 +125,7 @@ describe('POST /api/users', () => {
         expect(roles).toEqual(['INACTIF']);
     });
 
-    it('6. GUEST + non-GUEST dans le payload — non-GUEST gagne, GUEST retiré', async () => {
+    it('6. GUEST + non-GUEST dans le payload — GUEST normalisé en INACTIF, conservé aux côtés des rôles actifs', async () => {
         await seedRoles();
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
         mockedAuth.mockResolvedValue(adminSession as any);
@@ -138,6 +140,43 @@ describe('POST /api/users', () => {
         const roles = await getUserRoles(body.id);
         expect(roles).not.toContain('GUEST');
         expect(roles).toContain('CHVL');
+    });
+
+    it('6b. INACTIF cumulé à un rôle actif — LES DEUX rôles conservés en base (AC-E4)', async () => {
+        // Séparation des responsabilités : le stockage enregistre ce que l'administrateur
+        // a coché ; c'est le runtime (isInactive / isQrBlocked) qui en tire le blocage.
+        // Décocher INACTIF doit restituer le CHVL sans avoir à le re-saisir.
+        await seedRoles();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue(adminSession as any);
+
+        const res = await POST(makePostRequest({
+            email: 'inactif-cumul@test.com',
+            name: 'Inactif Cumul',
+            roles: ['INACTIF', 'CHVL'],
+        }));
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const roles = await getUserRoles(body.id);
+        expect(roles.sort()).toEqual(['CHVL', 'INACTIF']);
+    });
+
+    it('6c. La permutation du payload donne le même ensemble de rôles (AC-E4)', async () => {
+        await seedRoles();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue(adminSession as any);
+
+        const res = await POST(makePostRequest({
+            email: 'inactif-cumul-2@test.com',
+            name: 'Inactif Cumul 2',
+            roles: ['CHVL', 'INACTIF'],
+        }));
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const roles = await getUserRoles(body.id);
+        expect(roles.sort()).toEqual(['CHVL', 'INACTIF']);
     });
 
     it('7. 409 si email déjà existant', async () => {
@@ -219,7 +258,7 @@ describe('PATCH /api/users/[email]', () => {
         expect(roles).toEqual(['INACTIF']);
     });
 
-    it('12b. GUEST + non-GUEST dans le payload PATCH — non-GUEST gagne', async () => {
+    it('12b. GUEST + non-GUEST dans le payload PATCH — GUEST normalisé en INACTIF, conservé aux côtés des rôles actifs', async () => {
         await seedRoles();
         const user = await seedUser({ id: 'patch-guest2', email: 'patchguest2@test.com', name: 'Patch Guest 2' });
         await seedUserRole(user.id, 'GUEST');
@@ -235,6 +274,23 @@ describe('PATCH /api/users/[email]', () => {
         const roles = await getUserRoles(user.id);
         expect(roles).toContain('CHVL');
         expect(roles).not.toContain('GUEST');
+    });
+
+    it('12c. PATCH avec INACTIF cumulé à un rôle actif — LES DEUX conservés (AC-E4)', async () => {
+        await seedRoles();
+        const user = await seedUser({ id: 'patch-cumul', email: 'patchcumul@test.com', name: 'Patch Cumul' });
+        await seedUserRole(user.id, 'CHVL');
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue(adminSession as any);
+
+        const res = await PATCH(
+            makePatchRequest(user.email, { roles: ['INACTIF', 'CHVL'] }),
+            { params: Promise.resolve({ email: user.email }) }
+        );
+        expect(res.status).toBe(200);
+
+        const roles = await getUserRoles(user.id);
+        expect(roles.sort()).toEqual(['CHVL', 'INACTIF']);
     });
 
     it('13. Rôles non-GUEST via PATCH — GUEST retiré même s\'il était en DB', async () => {

@@ -170,4 +170,11 @@ describe('GET /api/stats — byVehicle new fields', () => {
     expect(typeof vehicle.avgLPer100km).toBe('number');
     expect(typeof vehicle.avgKwhPer100km).toBe('number');
   });
+
+  it('retourne 403 pour un compte cumulant INACTIF et un rôle actif', async () => {
+    // AC-E3 — INACTIF est absorbant sur GET /api/stats aussi.
+    mockedAuth.mockResolvedValue({ user: { email: 'mixte@test.com', roles: ['INACTIF', 'CHVL'], ulId: 'ul-paris-18' } } as never);
+    const res = await GET(makeRequest({ dateFrom: TODAY, dateTo: TODAY }));
+    expect(res.status).toBe(403);
+  });
 });

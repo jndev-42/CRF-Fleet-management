@@ -16,8 +16,8 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 ### Working In This Directory
 
 **Auth & Access:**
-- Requires: `session?.user` (401), non-INACTIF (403).
-- No role check; any authenticated non-INACTIF user can checkout.
+- Requires: `session?.user` (401), `!isQrBlocked(roles)` (403 — INACTIF is dominant, even combined with active roles).
+- No role check; an account with no role at all can checkout.
 
 **Zod Schema (checkOutSchema):**
 - `missionType` (required string, min 1)
@@ -51,7 +51,7 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 ### Internal
 - `db` (libSQL)
 - `auth` from `@/auth`
-- `@/lib/roles` — `isInactive()`
+- `@/lib/roles` — `isQrBlocked()`
 - `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)`, `isConnectedInDb(vehicleId)`
 
 ### Tables Touched

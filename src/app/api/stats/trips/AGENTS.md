@@ -23,7 +23,7 @@ Dedicated trip statistics query endpoint. Returns raw trip records with related 
 
 ### Non-obvious Details
 - Uses `canAccessAdminPanel()` role check instead of simple role inclusion check
-- Uses `isInactive()` check in addition to role check (must pass both)
+- Uses `isInactive()` in addition to the role check (must pass both). `isInactive()` is **dominant**: `['INACTIF','CHVL']` is denied
 - Filters by vehicle's ulId (not explicit trip field)
 - Returns raw DB rows, not a deduplicated or aggregated dataset
 

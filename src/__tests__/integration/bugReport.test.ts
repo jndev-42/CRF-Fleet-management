@@ -67,6 +67,15 @@ describe('POST /api/bugs/report — auth & authorization', () => {
     expect(res.status).toBe(403);
   });
 
+  it('retourne 403 pour un compte cumulant INACTIF et un rôle actif', async () => {
+    // AC-E3 — INACTIF est absorbant. Effet assumé : un compte qui vient de perdre ses
+    // accès ne peut plus signaler qu'il les a perdus ; le recours passe par /inactif,
+    // qui mentionne un contact administrateur.
+    mockedAuth.mockResolvedValue({ user: { email: 'mixte@dev.local', roles: ['INACTIF', 'CHVL'] } } as never);
+    const res = await POST(makeRequest(validBody));
+    expect(res.status).toBe(403);
+  });
+
   it('autorise un utilisateur avec le rôle CHVL', async () => {
     mockedAuth.mockResolvedValue({ user: { name: 'Jean', email: 'jean@dev.local', roles: ['CHVL'] } } as never);
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, status: 201, json: async () => ({ html_url: 'https://github.com/issues/1' }) } as Response);

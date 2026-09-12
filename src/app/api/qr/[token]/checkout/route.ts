@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isInactive } from '@/lib/roles';
+import { isQrBlocked } from '@/lib/roles';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
@@ -10,7 +10,8 @@ import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
  * POST /api/qr/[token]/checkout
  *
  * Creates a trip (checkout) for the vehicle identified by a QR token.
- * Access: any authenticated, non-INACTIF CRF user — no UL or driver-role check.
+ * Access : tout compte CRF connecté, avec ou sans rôle attribué, sauf s'il porte
+ * INACTIF (ou GUEST) — cf. `isQrBlocked`. Aucun contrôle d'UL ni de rôle chauffeur.
  */
 
 const checkOutSchema = z.object({
@@ -37,7 +38,7 @@ export async function POST(
             return unauthorizedResponse();
         }
 
-        if (isInactive(session.user.roles || [])) {
+        if (isQrBlocked(session.user.roles || [])) {
             return forbiddenResponse('Compte inactif — accès refusé');
         }
 

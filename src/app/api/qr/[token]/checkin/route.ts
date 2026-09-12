@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isInactive, isAdminOrAbove } from '@/lib/roles';
+import { isQrBlocked, isAdminOrAbove } from '@/lib/roles';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import {
@@ -17,7 +17,8 @@ import {
  * POST /api/qr/[token]/checkin
  *
  * Checks in the active trip for the vehicle identified by a QR token.
- * Access: the driver, second driver, or any admin — no UL check.
+ * Access : le conducteur, le second conducteur ou un administrateur — aucun contrôle
+ * d'UL. Le prédicat QR (`isQrBlocked`) ne refuse que les comptes portant INACTIF/GUEST.
  */
 
 const checkInSchema = z.object({
@@ -46,7 +47,7 @@ export async function POST(
             return unauthorizedResponse();
         }
 
-        if (isInactive(session.user.roles || [])) {
+        if (isQrBlocked(session.user.roles || [])) {
             return forbiddenResponse('Compte inactif — accès refusé');
         }
 

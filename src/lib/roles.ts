@@ -107,9 +107,35 @@ export function isDriverRole(roles: string[]): boolean {
     return roles.includes(ROLES.CHVL) || roles.includes(ROLES.CHVPSP);
 }
 
-/** Vérifie si l'utilisateur est inactif (aucun rôle actif = inactif, deny-by-default) */
+/**
+ * Vérifie si l'utilisateur est inactif.
+ *
+ * INACTIF est DOMINANT : il suffit de le porter pour être inactif, même en cumul
+ * avec des rôles actifs (`['INACTIF','CHVL']` → `true`). La branche `length === 0`
+ * est conservée : le deny-by-default du reste de l'application ne change pas.
+ *
+ * `'GUEST'` est traité bien qu'absent de `ROLES` : c'est une valeur héritée que
+ * `resolveRoles` normalise à l'écriture, mais que la construction de session ne
+ * normalise pas — elle découpe la CSV brute de `UserUL.roles`.
+ */
 export function isInactive(roles: string[]): boolean {
-    return roles.length === 0 || roles.every(r => r === ROLES.INACTIF || r === 'GUEST');
+    return roles.length === 0 || roles.some(r => r === ROLES.INACTIF || r === 'GUEST');
+}
+
+/**
+ * Accès QR : tout compte connecté, avec ou sans rôle attribué, SAUF un compte
+ * portant INACTIF (ou GUEST, valeur héritée équivalente).
+ *
+ * INACTIF est DOMINANT : un compte qui le porte est refusé même s'il cumule des
+ * rôles actifs (`['INACTIF','CHVL']` → refusé).
+ *
+ * Diffère d'`isInactive()` sur un seul point, délibérément : une liste de rôles
+ * VIDE est autorisée ici. Un bénévole pas encore qualifié doit pouvoir déclarer un
+ * mouvement ou rendre un véhicule. C'est la seule divergence entre les deux
+ * prédicats, et elle est voulue — ne pas les fusionner.
+ */
+export function isQrBlocked(roles: string[]): boolean {
+    return roles.some(r => r === ROLES.INACTIF || r === 'GUEST');
 }
 
 /**
@@ -124,20 +150,30 @@ export function canAssignRole(actorRoles: string[], targetRole: string): boolean
 }
 
 /**
- * Résout la liste de rôles finale :
- * - Si INACTIF (ou GUEST legacy) est présent avec d'autres rôles actifs, on écarte INACTIF.
- * - Si uniquement INACTIF/GUEST, on retourne ['INACTIF'].
- * - Normalise GUEST → INACTIF.
+ * Normalise la liste de rôles destinée au STOCKAGE.
+ *
+ * Séparation des responsabilités : le stockage enregistre ce que l'administrateur a
+ * coché, le runtime en tire la décision d'accès. Bloquer un compte et détruire ses
+ * attributions sont deux choses distinctes — décocher INACTIF doit restituer le CHVL
+ * sans avoir à le re-saisir. INACTIF est donc CONSERVÉ aux côtés des rôles actifs ;
+ * c'est `isInactive()` / `isQrBlocked()` qui en tirent le blocage.
+ *
+ * - Normalise GUEST → INACTIF (valeur héritée).
+ * - Si uniquement INACTIF/GUEST, retourne ['INACTIF'].
+ * - Sinon, retourne l'ensemble normalisé dédupliqué, dans l'ordre reçu.
  */
 export function resolveRoles(roles: string[]): string[] {
     // Normalize GUEST → INACTIF
     const normalized = roles.map(r => r === 'GUEST' ? ROLES.INACTIF : r);
 
     const isInactiveRole = (r: string) => r === ROLES.INACTIF;
+    // Ne sert plus à construire la valeur de retour : c'est le test « existe-t-il au
+    // moins un rôle actif ? » qui gouverne la branche ci-dessous.
     const activeRoles = normalized.filter(r => !isInactiveRole(r));
 
     if (activeRoles.length === 0) {
         return normalized.some(isInactiveRole) ? [ROLES.INACTIF] : [];
     }
-    return activeRoles;
+    // Dédupliqué : un payload ['GUEST','INACTIF',…] normalise en deux 'INACTIF'.
+    return [...new Set(normalized)];
 }

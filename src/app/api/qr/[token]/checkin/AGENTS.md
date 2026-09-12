@@ -16,7 +16,7 @@ Finalizes an active trip for a vehicle. Resolves QR token to vehicle, finds the 
 ### Working In This Directory
 
 **Auth & Access:**
-- Requires: `session?.user` (401), non-INACTIF (403).
+- Requires: `session?.user` (401), `!isQrBlocked(roles)` (403 — INACTIF is dominant, even combined with active roles). The driver/admin guard further down still bounds the return itself.
 - Authorization: userId must match trip.driverId OR trip.secondDriverId OR isAdminOrAbove(). Otherwise 403 with message "Vous n'êtes pas autorisé...".
 
 **Zod Schema (checkInSchema):**
@@ -47,7 +47,7 @@ Finalizes an active trip for a vehicle. Resolves QR token to vehicle, finds the 
 ### Internal
 - `db` (libSQL)
 - `auth` from `@/auth`
-- `@/lib/roles` — `isInactive()`, `isAdminOrAbove()`
+- `@/lib/roles` — `isQrBlocked()`, `isAdminOrAbove()`
 - `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)`, `isConnectedInDb(vehicleId)`
 
 ### Tables Touched

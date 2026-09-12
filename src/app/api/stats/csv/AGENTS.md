@@ -9,14 +9,14 @@ Trip data CSV export endpoint using two-step job pattern. POST generates a CSV b
 ## Key Files
 | File | Description |
 |------|-------------|
-| `route.ts` | POST: generate CSV job (returns jobId); GET: download CSV by jobId. Roles: active users (not INACTIF) |
+| `route.ts` | POST: generate CSV job (returns jobId); GET: download CSV by jobId. Denies an empty role list and INACTIF **alone** |
 
 ## For AI Agents
 
 ### Working In This Directory
 - **POST:** Accepts `{ dateFrom, dateTo }` query params, validates date range (max 62 days), queries Trip + Vehicle + User tables, generates CSV buffer, stores in global `__csvJobs` Map with UUID jobId, returns `{ jobId, status: 'ready' }`
 - **GET:** Accepts `jobId` query param, validates UUID format, retrieves buffer from global job map, streams as `text/csv` attachment with BOM, cleans up jobs older than 10 minutes
-- Roles: not INACTIF (uses `isInactive()` check)
+- Roles: the route does **not** call `isInactive()` — it recodes its own inline check (`roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')`), which is NOT dominant: an account carrying `['INACTIF','CHVL']` still passes here while `/api/stats` denies it. Known divergence, documented rather than silently assumed
 - Query columns: checkOutAt, checkInAt, driver name/email, second driver name/email, vehicle name/plate, mission type/name, mileage, fuel, condition, cleanliness, parking, DSA checked, incident, comments
 - CSV escapes: handles commas, quotes, newlines in cell values
 - Headers: French language
