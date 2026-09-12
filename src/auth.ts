@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
 import { isPreview, isDev as isDevEnv } from "@/lib/env";
 import { PREVIEW_ACCOUNTS } from "@/lib/preview-accounts";
+import { resolveSessionRoles } from "@/lib/session-roles";
 
 declare module "next-auth" {
     interface Session {
@@ -204,37 +205,16 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
 
         if (token.userId) {
             try {
-                const globalRolesRes = await db.execute({
-                    sql: `
-                        SELECT r.name
-                        FROM "UserRole" ur
-                        JOIN "Role" r ON ur.roleId = r.id
-                        WHERE ur.userId = ?
-                    `,
-                    args: [token.userId],
-                });
-                const globalRoles = (globalRolesRes?.rows || []).map(row => row.name as string);
-
-                let activeRoles: string[] = [];
-                const activeUlId = (token.ulId as string) || 'default';
-                if (activeUlId && activeUlId !== 'default') {
-                    const ulRoleRes = await db.execute({
-                        sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND ulId = ?',
-                        args: [token.userId, activeUlId],
-                    });
-                    if (ulRoleRes?.rows && ulRoleRes.rows.length > 0 && ulRoleRes.rows[0].roles) {
-                        activeRoles = (ulRoleRes.rows[0].roles as string).split(',').map(r => r.trim()).filter(Boolean);
-                    }
-                }
-
-                if (activeRoles.length === 0) {
-                    activeRoles = globalRoles.length > 0 ? globalRoles : ((token.roles as string[]) || []);
-                }
-                if (globalRoles.includes('SUPER_ADMIN') && !activeRoles.includes('SUPER_ADMIN')) {
-                    activeRoles.unshift('SUPER_ADMIN');
-                }
-                session.user.roles = activeRoles;
+                session.user.roles = await resolveSessionRoles(
+                    db,
+                    token.userId as string,
+                    (token.ulId as string) || 'default',
+                );
             } catch (e) {
+                // Repli de PANNE, et lui seul : base injoignable, on sert la dernière
+                // valeur connue plutôt que de déconnecter tout le monde. Ce n'est PAS
+                // un maillon de la cascade — l'y remettre rendrait les rôles collants
+                // et la révocation n'arriverait jamais (cf. src/lib/session-roles.ts).
                 console.error("Failed to fetch fresh roles for session:", e);
                 session.user.roles = (token.roles as string[]) || [];
             }
@@ -372,38 +352,11 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                         token.ulId = resolveActiveUL(token.availableULs);
                     }
 
-                    // Retrieve roles based on the active UL
-                    let activeRoles: string[] = [];
-                    if (token.userId) {
-                        const globalRolesRes = await db.execute({
-                            sql: `
-                                SELECT r.name
-                                FROM "UserRole" ur
-                                JOIN "Role" r ON ur.roleId = r.id
-                                WHERE ur.userId = ?
-                            `,
-                            args: [token.userId],
-                        });
-                        const globalRoles = globalRolesRes.rows.map(row => row.name as string);
-
-                        if (token.ulId && token.ulId !== 'default') {
-                            const ulRoleRes = await db.execute({
-                                sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND ulId = ?',
-                                args: [token.userId, token.ulId],
-                            });
-                            if (ulRoleRes.rows.length > 0 && ulRoleRes.rows[0].roles) {
-                                activeRoles = (ulRoleRes.rows[0].roles as string).split(',').map(r => r.trim()).filter(Boolean);
-                            }
-                        }
-
-                        if (activeRoles.length === 0) {
-                            activeRoles = globalRoles;
-                        }
-                        if (globalRoles.includes('SUPER_ADMIN') && !activeRoles.includes('SUPER_ADMIN')) {
-                            activeRoles.unshift('SUPER_ADMIN');
-                        }
-                    }
-                    token.roles = activeRoles;
+                    // Retrieve roles based on the active UL — même résolution que le
+                    // callback `session`, une seule implémentation partagée.
+                    token.roles = token.userId
+                        ? await resolveSessionRoles(db, token.userId as string, token.ulId ?? 'default')
+                        : [];
                 } else {
                     token.roles = [];
                 }

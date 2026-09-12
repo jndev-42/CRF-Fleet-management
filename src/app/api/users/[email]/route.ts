@@ -97,6 +97,18 @@ export async function PATCH(
                 }
             }
 
+            // Répercuter sur la ligne UserUL de rattachement — LA HOME SEULEMENT.
+            // Sans cela, décocher INACTIF depuis l'éditeur de rôles retire bien le rôle
+            // de "UserRole" mais le laisse dans la CSV home écrite antérieurement par
+            // PUT .../ul, et le compte resterait bloqué : la procédure de déblocage
+            // enseignée aux administrateurs échouerait.
+            // Pas les UL secondaires : les rôles par UL sont une fonctionnalité
+            // délibérée (CHVL ici, CADRE là) qu'un écrasement global détruirait.
+            await tx.execute({
+                sql: 'UPDATE "UserUL" SET roles = ? WHERE userId = ? AND is_home = 1',
+                args: [resolvedRoles.join(',') || null, userId],
+            });
+
             // Si le nouvel ensemble de rôles contient CHVL ou CHVPSP,
             // invalider les papiers s'ils n'ont jamais été validés (last_validation NULL).
             const isNowDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');

@@ -18,7 +18,8 @@ Singleton service clients and integration wrappers — DB, auth-adjacent role he
 | `drive.ts` | Google Drive service-account auth. Each trip gets a Drive folder (`driveFolderId` in `Trip` table). Quota errors are non-fatal |
 | `email.ts` | Nodemailer/SMTP for async notifications. Non-fatal — wrap in try/catch, never block main response |
 | `stats.ts` | Pure computation functions — no DB, no side effects. Unit-tested |
-| `roles.ts` | Role hierarchy/permission helpers |
+| `roles.ts` | Role hierarchy/permission helpers. `isInactive` / `isQrBlocked` are **dominant**: carrying INACTIF (or the legacy GUEST) is enough, even alongside active roles. They diverge on one point only, deliberately — the empty role list is denied by `isInactive`, allowed by `isQrBlocked` |
+| `session-roles.ts` | `resolveSessionRoles(exec, userId, activeUlId)` — the single role resolution shared by both `auth.ts` callbacks. INACTIF is a property of the ACCOUNT (home UL row ∪ global roles), not of the active UL. The cascade is `active UserUL row → global roles` and **nothing else**: it never reads `token.roles`, which would make roles sticky and prevent revocation |
 | `env.ts` | Environment variable access/validation |
 | `imageCompression.ts` | Client-side photo compression before upload |
 | `maintenanceUtils.ts` | Maintenance schedule/threshold helpers |

@@ -32,6 +32,8 @@ See `src/__tests__/AGENTS.md` for mocking patterns and the request factory.
 ### Common Patterns
 Roles enforced via `session.user.roles` in both API routes and UI. Role hierarchy: `ADMIN > RESPO > CHVL > CHVPSP > GUEST`.
 
+Both `auth.ts` callbacks (`jwt` and `session`) delegate role resolution to the single `resolveSessionRoles()` in `lib/session-roles.ts` — they each carried a copy that had already drifted apart. `token.roles` is used only on the `catch` path (database unreachable: serve the last known value rather than log everyone out). It is **not** a cascade fallback: putting it back would make roles sticky and a revocation would never take effect.
+
 ## Dependencies
 
 ### Internal
