@@ -1,0 +1,306 @@
+.page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px 48px;
+    background: var(--bg-primary);
+}
+
+.header {
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.headerLabel {
+    font-size: 12px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.container {
+    width: 100%;
+    max-width: 440px;
+}
+
+.stockName {
+    margin: 0 0 4px;
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* ── Bandeaux ─────────────────────────────────────────────────────────────── */
+
+.scopeNotice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #2563eb;
+    margin-bottom: 12px;
+}
+
+.volatileNotice {
+    background: rgba(245, 158, 11, 0.08);
+    border: 1px solid rgba(245, 158, 11, 0.28);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #b45309;
+    margin-bottom: 20px;
+}
+
+.errorBox {
+    background: rgba(239, 68, 68, 0.07);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 14px;
+    color: #b91c1c;
+    margin-bottom: 16px;
+}
+
+.emptyState,
+.loading {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 48px 16px;
+}
+
+/* ── Liste d'articles ─────────────────────────────────────────────────────── */
+
+.itemList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.itemRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+}
+
+.itemInfo {
+    flex: 1;
+    min-width: 0;
+}
+
+.itemName {
+    font-weight: 600;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+}
+
+.itemMeta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.itemQuantity {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    font-size: 18px;
+    min-width: 2.5ch;
+    text-align: right;
+}
+
+.low {
+    color: #d97706;
+}
+
+.stepper {
+    display: flex;
+    gap: 6px;
+}
+
+/* Cibles tactiles : 44 px, la page est faite pour être utilisée debout,
+   téléphone en main, devant une armoire. */
+.stepBtn {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.stepBtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.stepBtn:hover:not(:disabled) {
+    background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+/* ── Panier ───────────────────────────────────────────────────────────────── */
+
+.cart {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+}
+
+.cartTitle {
+    margin: 0 0 10px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.cartList {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.cartRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.cartLabel {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.cartChange {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+}
+
+.positive {
+    color: #059669;
+}
+
+.negative {
+    color: #dc2626;
+}
+
+.cartRemove {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+}
+
+.cartWarning {
+    font-size: 12px;
+    color: #b45309;
+    margin-bottom: 10px;
+}
+
+.submitBtn {
+    width: 100%;
+}
+
+/* ── Sélecteur de lot ─────────────────────────────────────────────────────── */
+
+.batchList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.batchOption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    padding: 12px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.batchOption:hover {
+    border-color: var(--accent-color, #2563eb);
+}
+
+.batchQty {
+    font-variant-numeric: tabular-nums;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.newBatchRow {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    margin-top: 4px;
+}
+
+.newBatchRow .form-group {
+    flex: 1;
+}
+
+/* ── Écran de succès ──────────────────────────────────────────────────────── */
+
+.successBox {
+    text-align: center;
+    padding: 32px 20px;
+    background: rgba(16, 185, 129, 0.07);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 16px;
+}
+
+.successIcon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.successTitle {
+    font-weight: 700;
+    font-size: 20px;
+    margin-bottom: 12px;
+}
+
+.successList {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 20px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+@media (max-width: 400px) {
+    .page {
+        padding: 16px 12px 40px;
+    }
+}
