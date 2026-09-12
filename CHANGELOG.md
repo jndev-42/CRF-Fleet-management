@@ -1,5 +1,33 @@
 # Changelog
 
+## [5.7.0] — 12 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Un QR code par stock d'inventaire** — un bouton QR apparaît sur chaque onglet de la page Inventaire, réservé aux administrateurs. Il produit une affichette à imprimer et à coller sur l'armoire ou l'étagère. En la scannant, n'importe quel bénévole connecté arrive sur une page dédiée à ce seul stock, sans passer par l'application.
+- **Déclarer ce qu'on prend et ce qu'on remet** — la page liste les articles du stock avec leur quantité, et un `−` / `+` sur chacun. On peut enchaîner plusieurs articles : les mouvements s'accumulent dans un récapitulatif, et un bouton unique valide le tout d'un coup. Tant qu'on n'a pas validé, rien n'est enregistré — la page le dit.
+- **Ajouter en désignant le lot** — un `+` demande à quel lot les unités s'ajoutent, en listant les dates de péremption existantes, avec la possibilité de créer un nouveau lot daté. Un `−`, lui, retire automatiquement du lot qui périme le plus tôt : c'est le bon réflexe, on n'a pas à y penser.
+- **Déclarer plus que ce que l'écran affiche** — si l'écran indique 2 compresses et que vous en avez pris 5, vous saisissez 5. Le stock tombe à 0 et l'historique conserve « −5 » : l'écart révèle un inventaire désynchronisé, au lieu de le masquer.
+- **Aucune création d'article depuis le QR** — on ne peut qu'ajuster des articles existants. Créer, renommer ou supprimer reste réservé à la page Inventaire.
+- **Le QR fonctionne pour tout le monde** — aucun rôle particulier n'est exigé, et aucune restriction d'unité locale : un renfort venu d'une autre UL peut déclarer ses mouvements. Chaque mouvement est enregistré au nom de la personne connectée.
+
+### 🔒 Accès et rôles — à lire par les administrateurs d'unité locale
+
+- **Cocher INACTIF bloque désormais réellement — et décocher débloque.** Jusqu'ici, cocher INACTIF dans l'éditeur de rôles répondait « enregistré » sans rien bloquer pour un compte rattaché à une unité locale, et l'opération inverse ne débloquait pas davantage. **Les administrateurs qui ont cru bloquer quelqu'un ne l'ont pas fait** : c'est l'information la plus utile de cette version. Le blocage vaut maintenant quelle que soit l'unité locale sur laquelle la personne se connecte, et prend effet au rafraîchissement de sa session.
+- **INACTIF l'emporte sur tous les autres rôles.** Un compte portant INACTIF **et** Chauffeur VL était jusqu'ici traité comme un chauffeur actif. Il est désormais bloqué partout : statistiques, notes de frais, budgets, signalement de bug, menu, QR véhicule et QR stock. **Les rôles attribués ne sont pas effacés** — décocher INACTIF rend l'accès immédiatement, sans rien avoir à réattribuer.
+- **INACTIF s'attribue sur l'unité locale de rattachement.** L'option n'est plus proposée sur une UL secondaire, et l'API refuse la requête. Posé ailleurs, le rôle ne bloquait le compte que par intermittence, selon l'UL active au moment de la connexion. Pour bloquer quelqu'un, c'est sur son unité locale de rattachement que ça se passe. Les comptes portant déjà un INACTIF mal placé restent modifiables : la règle ne s'applique qu'aux lignes nouvelles ou modifiées.
+- **Un compte sans rôle attribué peut utiliser les QR codes** — véhicules comme stocks. Un bénévole fraîchement inscrit, pas encore qualifié, peut consulter un véhicule, l'emprunter et déclarer des mouvements de stock. La restitution d'un véhicule reste réservée au conducteur du trajet ou à un administrateur, comme avant.
+
+### 🔧 Améliorations techniques
+
+- Nouvelle colonne `InvStockList.qrToken` avec index unique partiel, créée par `ensureStockTableExists()` et par le script de migration `scripts/add-stock-qr-token.ts` (dry-run par défaut, `--apply` pour écrire). **À exécuter avant la mise en ligne** : sans la colonne, chaque scan renvoie une erreur serveur.
+- Nouvelles routes `/api/inventory/stocks/[id]/qr-token` (fabrication du token, scopée sur l'UL du stock) et `/api/qr-stock/[token]/stock` et `/adjust` (consommation, sans filtre d'UL — scanner une affichette et énumérer les tokens par l'API sont deux choses distinctes).
+- La logique lots / FEFO / resynchronisation est extraite dans `src/lib/inventory/adjustments.ts` et partagée avec `/api/inventory/adjust` : une seule implémentation, plus deux copies qui divergent. La resynchronisation de `InvItem.quantity` passe par une sous-requête corrélée émise après les écritures, et non par un total calculé en mémoire, pour ne pas écraser un lot inséré entre-temps.
+- Le panier est validé en une transaction unique dont les écritures partent par paquets via `tx.batch()` : un panier de 25 mouvements tient le verrou d'écriture de la base environ 0,15 s au lieu de plusieurs secondes en envois séquentiels.
+- La résolution des rôles de session est factorisée dans `src/lib/session-roles.ts`, appelée par les deux callbacks NextAuth. Elle ne se replie jamais sur les rôles du jeton : un tel repli aurait rendu les rôles collants et empêché toute révocation.
+- Tous les prédicats d'autorisation de `src/lib/roles.ts` passent par une enveloppe qui refuse inconditionnellement un compte portant INACTIF. Un test énumère les exports du fichier et échoue si un prédicat futur n'est pas enveloppé : la règle tient par construction, pas par vigilance.
+- Couverture : 1759 tests au vert, dont un filet de non-régression écrit sur `POST /api/inventory/adjust` **avant** son refactor, et une spec E2E Playwright du flux QR stock.
+
 ## [5.6.0] — 10 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités
