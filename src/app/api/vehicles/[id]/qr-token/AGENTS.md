@@ -20,6 +20,10 @@ Manages QR code bypass tokens for vehicles. Lazy-creates tokens on first GET (st
 
 **DELETE /api/vehicles/[id]/qr-token** — ADMIN only. Regenerates token (new UUID), invalidating old QR codes. Returns `{ token: newToken }` or 404 if vehicle not found.
 
+**Known gaps — deliberately NOT fixed here (out of scope, do not "align" the other way):**
+- **No UL scope.** Any authenticated user can obtain the token of any vehicle in the organisation by iterating over IDs — i.e. fabricate QR-bypass access without ever seeing the printed QR. The newer `/api/inventory/stocks/[id]/qr-token` **does** scope on the stock's UL and is the reference to follow. This route is the one lagging behind; fixing it means adding the scope here, never removing it there.
+- **No unique index on `Vehicle.qrToken`** (`setup.ts` declares plain `qrToken TEXT`), whereas `InvStockList.qrToken` carries a partial unique index. Two vehicles sharing a token would be indistinguishable.
+
 **Key business rules:**
 - `[id]` is vehicle ID (UUID) in this route (unlike vehicles/[id] which uses name)
 - Token lazy-creation: first GET auto-stores UUID in database
