@@ -1,6 +1,6 @@
 import type { Session } from 'next-auth';
 import { db } from '@/lib/db';
-import { isSuperAdmin, ROLES } from '@/lib/roles';
+import { isSuperAdmin, isExpenseManager, isTresorier } from '@/lib/roles';
 
 type DriveFolderOwner =
     | { kind: 'trip' | 'incident'; ulId: string }
@@ -60,9 +60,9 @@ export async function canAccessDriveFolder(session: Session, folderId: string): 
 
     if (owner.kind === 'expense') {
         // Note de frais : même règle que expenses/[id]/route.ts (propriétaire, manager, ou trésorier en attente de paiement)
-        const isManager = roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.PRESIDENT);
+        const isManager = isExpenseManager(roles);
         const isOwner = session.user.id === owner.userId;
-        const isTresorierPending = roles.includes(ROLES.TRESORIER) && owner.status === 'en_attente_paiement';
+        const isTresorierPending = isTresorier(roles) && owner.status === 'en_attente_paiement';
         return isManager || isOwner || isTresorierPending;
     }
 

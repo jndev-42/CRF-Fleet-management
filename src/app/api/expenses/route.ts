@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
 import { validateItemBudgets } from '@/lib/expenses/budgets';
+import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -42,8 +43,8 @@ export async function GET(request: Request) {
         const includeProcessed = searchParams.get('includeProcessed') === 'true';
 
         const roles = session.user.roles || [];
-        const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
-        const isTresorier = roles.includes('TRESORIER');
+        const isManager = isExpenseManager(roles);
+        const isTresorier = isTresorierRole(roles);
         const ulId = session.user.ulId || 'ul-paris-18';
         const userId = session.user.id;
 

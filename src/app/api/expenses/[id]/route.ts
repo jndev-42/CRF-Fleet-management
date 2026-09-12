@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
 import { validateItemBudgets } from '@/lib/expenses/budgets';
+import { isExpenseManager, canPayExpense, isTresorier as isTresorierRole, isSuperAdmin as isSuperAdminRole } from '@/lib/roles';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -127,8 +128,8 @@ export async function GET(
         }
 
         const roles = session.user.roles || [];
-        const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
-        const isTresorier = roles.includes('TRESORIER');
+        const isManager = isExpenseManager(roles);
+        const isTresorier = isTresorierRole(roles);
         const isOwner = row.userId === session.user.id;
 
         if (!isManager && !isOwner && !(isTresorier && row.status === 'en_attente_paiement')) {
@@ -227,7 +228,7 @@ export async function PATCH(
 
         const { action, missionName, missionDate, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, userSignature, userFunction, validatorSignature, payerSignature, receiptKeys, items } = parsed.data;
         const roles = session.user.roles || [];
-        const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
+        const isManager = isExpenseManager(roles);
         const isOwner = report.userId === session.user.id;
         const now = new Date().toISOString();
 
@@ -338,7 +339,7 @@ export async function PATCH(
 
             return NextResponse.json({ success: true, status: 'refusé' });
         } else if (action === 'pay') {
-            const canPay = roles.includes('TRESORIER') || roles.includes('SUPER_ADMIN');
+            const canPay = canPayExpense(roles);
             if (!canPay) {
                 return forbiddenResponse('Seuls le Trésorier et les Super Administrateurs peuvent marquer une note comme payée.');
             }
@@ -558,14 +559,14 @@ export async function DELETE(
 
         const isOwner = report.userId === session.user.id;
         const roles = session.user.roles || [];
-        const isSuperAdmin = roles.includes('SUPER_ADMIN');
+        const isSuper = isSuperAdminRole(roles);
 
         // Owners can delete drafts.
-        if (!isOwner && !isSuperAdmin) {
+        if (!isOwner && !isSuper) {
             return forbiddenResponse();
         }
 
-        if (report.status !== 'brouillon' && !isSuperAdmin) {
+        if (report.status !== 'brouillon' && !isSuper) {
             return NextResponse.json({ error: 'Seules les notes de frais au statut brouillon peuvent être supprimées.' }, { status: 400 });
         }
 

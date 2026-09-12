@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
-import { isAdminOrAbove, isSuperAdmin, isReadOnlyManager } from '@/lib/roles';
+import { isAdminOrAbove, isSuperAdmin, isReadOnlyManager, isMissionContributor } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -50,7 +50,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         const isSuper = isSuperAdmin(roles);
         const isLocalAdmin = isAdminOrAbove(roles) && row.ulId === session.user.ulId;
         const isLocalManager = isReadOnlyManager(roles) && row.ulId === session.user.ulId;
-        const isSubmitter = (roles.includes('CI/RPAPS') || roles.includes('CHVL') || roles.includes('CHVPSP')) && row.submitted_by === session.user.id;
+        const isSubmitter = isMissionContributor(roles) && row.submitted_by === session.user.id;
 
         if (!isSuper && !isLocalAdmin && !isLocalManager && !isSubmitter) {
             return forbiddenResponse();

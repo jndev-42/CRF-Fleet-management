@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
 
 // Lecture R2 et manipulation de Buffer : runtime Node requis.
 export const runtime = 'nodejs';
@@ -28,8 +29,8 @@ export async function GET(
         }
 
         const roles = session.user.roles || [];
-        const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
-        const isTresorier = roles.includes('TRESORIER');
+        const isManager = isExpenseManager(roles);
+        const isTresorier = isTresorierRole(roles);
         const isOwner = row.userId === session.user.id;
         if (!isManager && !isOwner && !(isTresorier && row.status === 'en_attente_paiement')) {
             return forbiddenResponse();

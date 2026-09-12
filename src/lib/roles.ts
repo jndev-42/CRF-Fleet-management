@@ -142,6 +142,31 @@ export function canAccessAdminPanel(roles: string[]): boolean {
     return isAdminOrAbove(roles) || isReadOnlyManager(roles);
 }
 
+/** Président ou Super Admin : gestionnaire des notes de frais (voit et arbitre celles d'autrui). */
+export const isExpenseManager = denyWhenInactive(roles =>
+    roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.PRESIDENT));
+
+/** Trésorier ou Super Admin : peut marquer une note de frais comme payée (acte comptable). */
+export const canPayExpense = denyWhenInactive(roles =>
+    roles.includes(ROLES.TRESORIER) || roles.includes(ROLES.SUPER_ADMIN));
+
+/**
+ * CI/RPAPS, CHVL ou CHVPSP : contributeur d'un rapport de mission.
+ * Sert à décider si l'auteur d'un rapport peut le relire.
+ */
+export const isMissionContributor = denyWhenInactive(roles =>
+    roles.includes(ROLES.CI_RPAPS) || roles.includes(ROLES.CHVL) || roles.includes(ROLES.CHVPSP));
+
+/**
+ * Chauffeur VL / chauffeur VPSP, pris séparément.
+ *
+ * `isDriverRole` ne distingue pas les deux, or l'éligibilité à l'emprunt en dépend :
+ * un VPSP exige CHVPSP, un VL exige CHVL. Exportés plutôt que recalculés en ligne
+ * dans les routes, pour que le blocage INACTIF les couvre comme les autres.
+ */
+export const isChvlDriver = denyWhenInactive(roles => roles.includes(ROLES.CHVL));
+export const isChvpspDriver = denyWhenInactive(roles => roles.includes(ROLES.CHVPSP));
+
 /** Vérifie si l'utilisateur est un rôle chauffeur */
 export const isDriverRole = denyWhenInactive(roles =>
     roles.includes(ROLES.CHVL) || roles.includes(ROLES.CHVPSP));

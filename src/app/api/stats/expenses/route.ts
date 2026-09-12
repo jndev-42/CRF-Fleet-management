@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { fetchExpenseStatsData } from '@/lib/stats-expenses';
 import { z } from 'zod';
+import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
 
 const querySchema = z.object({
   dateFrom: z.string().min(1),
@@ -17,8 +18,8 @@ export async function GET(request: Request) {
     }
 
     const roles = (session.user.roles || []) as string[];
-    const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
-    const isTresorier = roles.includes('TRESORIER');
+    const isManager = isExpenseManager(roles);
+    const isTresorier = isTresorierRole(roles);
 
     if (!isManager && !isTresorier) {
       return NextResponse.json(
