@@ -40,7 +40,12 @@ export default function QRStockPage() {
         fetchAbortRef.current = controller;
         setLoading(true);
         try {
-            const res = await fetch(`/api/qr-stock/${token}/stock`, { signal: controller.signal });
+            // `encodeURIComponent` : `useParams()` rend le segment DÉCODÉ. Un lien
+            // forgé `/qr-stock/..%2F..%2Finventory%2Fstocks%3F` donnerait un token
+            // `../../inventory/stocks?`, que le navigateur normaliserait en une
+            // requête same-origin vers un endpoint arbitraire, cookie de session
+            // compris. Le `callbackUrl` ci-dessous l'encode déjà.
+            const res = await fetch(`/api/qr-stock/${encodeURIComponent(token)}/stock`, { signal: controller.signal });
             if (res.status === 401) {
                 router.push(`/login?callbackUrl=${encodeURIComponent(`/qr-stock/${token}`)}`);
                 return;

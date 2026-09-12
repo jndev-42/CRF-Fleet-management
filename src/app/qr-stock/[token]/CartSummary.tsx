@@ -51,7 +51,10 @@ export default function CartSummary({
         };
 
         try {
-            const res = await fetch(`/api/qr-stock/${token}/adjust`, {
+            // `encodeURIComponent` : le token vient de `useParams()`, donc décodé.
+            // Sans encodage, un token forgé transformerait ce POST en requête
+            // same-origin vers un endpoint arbitraire, avec le corps du panier.
+            const res = await fetch(`/api/qr-stock/${encodeURIComponent(token)}/adjust`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),

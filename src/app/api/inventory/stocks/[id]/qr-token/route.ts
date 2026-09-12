@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { getErrorMessage } from '@/lib/utils/error';
-import { canAccessAdminPanel } from '@/lib/roles';
+import { canAccessAdminPanel, isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import {
     ensureStockTableExists,
@@ -35,6 +35,22 @@ import {
  * Autrement dit : le QR contourne les rôles et les UL ; l'API qui le fabrique
  * ne les contourne pas.
  *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Le scope d'UL ne suffit pas : un compte INACTIF est un membre parfaitement
+ * légitime de l'UL au sens de `checkStockScope`. Les trois verbes portent donc
+ * aussi la garde `isQrBlocked`, AVANT toute lecture en base.
+ *
+ * Un token est un SECRET TRANSMISSIBLE : le compte bloqué ne peut pas s'en
+ * servir lui-même (`/api/qr-stock/[token]/*` le refuse), mais rien ne l'empêche
+ * de le communiquer à un tiers qui l'exploitera sans trace remontant à lui. Et
+ * `getOrCreateStockQrToken` CRÉE le token s'il n'existe pas encore : la simple
+ * lecture est déjà une écriture.
+ *
+ * Sur `DELETE`, la garde de rôle seule est insuffisante : `canAccessAdminPanel`
+ * est satisfait par `['ADMIN','INACTIF']`. Un administrateur bloqué régénérerait
+ * les tokens et invaliderait tous les QR papier déjà collés — déni de service
+ * sur la fonctionnalité. `isQrBlocked` est ce qui ferme ce chemin.
+ *
  * ⚠️ `/api/vehicles/[id]/qr-token` porte le même trou (aucun scope). C'est un
  * écart connu, hors périmètre de cette PR. Ne pas « aligner » cette route-ci
  * en lui retirant son scope : c'est le précédent véhicule qui est en retard.
@@ -65,6 +81,12 @@ export async function GET(
             return unauthorizedResponse();
         }
 
+        // Avant toute lecture en base : `getOrCreateStockQrToken` écrit le token
+        // s'il manque, un refus tardif aurait déjà eu un effet de bord.
+        if (isQrBlocked(session.user.roles || [])) {
+            return forbiddenResponse('Compte inactif');
+        }
+
         const { id } = await params;
         const ulId = session.user.ulId || 'default';
 
@@ -91,7 +113,11 @@ export async function GET(
     }
 }
 
-/** Identique au GET — conservé pour la cohérence sémantique, utilisé par la modale. */
+/**
+ * Identique au GET — conservé pour la cohérence sémantique, utilisé par la modale.
+ * Il hérite donc de TOUTES ses gardes, `isQrBlocked` comprise. Ne pas le réécrire
+ * en copie indépendante : la garde se perdrait au premier oubli.
+ */
 export async function POST(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -107,6 +133,12 @@ export async function DELETE(
         const session = await auth();
         if (!session?.user) {
             return unauthorizedResponse();
+        }
+
+        // `canAccessAdminPanel` plus bas ne suffit pas : il est satisfait par
+        // `['ADMIN','INACTIF']`. La garde d'inactivité vient donc en premier.
+        if (isQrBlocked(session.user.roles || [])) {
+            return forbiddenResponse('Compte inactif');
         }
 
         const { id } = await params;
