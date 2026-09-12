@@ -209,6 +209,30 @@ describe('PUT /api/users/[email]/ul — INACTIF restreint à l\'UL de rattacheme
         expect((rows[0].roles as string).split(',').sort()).toEqual(['CHVL', 'INACTIF']);
     });
 
+    it.each([
+        ['sans doublon', ['INACTIF']],
+        ['avec doublon — longueurs égales, le cas que l\'ancien prédicat ratait', ['INACTIF', 'INACTIF']],
+    ])('contrôle une entrée non-home modifiée, %s', async (_label, rolesPayload) => {
+        // `sameRoleSet` décide si une entrée est « nouvelle ou modifiée », donc si la
+        // validation F1 s'applique. Sous la forme initiale
+        // (`a.length === b.length && new Set(a).size === new Set([...a, ...b]).size`),
+        // elle testait `b ⊆ set(a)` à longueurs égales : la variante AVEC doublon
+        // passait pour « inchangée » et échappait au contrôle, la variante sans
+        // doublon (longueurs différentes) était contrôlée. Les deux doivent être
+        // refusées à l'identique — le doublon ne doit rien changer au verdict.
+        const suffixe = rolesPayload.length;
+        const user = await seedUser({ id: `u-dup-${suffixe}`, email: `dup${suffixe}@test.com`, name: 'Dup' });
+        await seedUserUL({ userId: user.id, ulId: HOME, isHome: true, roles: ['CHVL'] });
+        await seedUserUL({ userId: user.id, ulId: AUTRE, isHome: false, roles: ['CHVL', 'INACTIF'] });
+
+        const res = await callPut(user.email, [
+            { ulId: HOME, isHome: true, roles: ['CHVL'] },
+            { ulId: AUTRE, isHome: false, roles: rolesPayload },
+        ]);
+
+        expect(res.status).toBe(400);
+    });
+
     it('ne considère pas « inchangée » une entrée dont les rôles sont un sous-ensemble répété', async () => {
         // Garde du prédicat `sameRoleSet` : sous sa forme initiale, ['CHVL','INACTIF']
         // et ['INACTIF','INACTIF'] passaient pour identiques (longueurs égales,

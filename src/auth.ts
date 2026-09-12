@@ -208,7 +208,7 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                 session.user.roles = await resolveSessionRoles(
                     db,
                     token.userId as string,
-                    (token.ulId as string) || 'default',
+                    token.ulId ?? 'default',
                 );
             } catch (e) {
                 // Repli de PANNE, et lui seul : base injoignable, on sert la dernière
