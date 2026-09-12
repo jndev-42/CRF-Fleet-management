@@ -125,6 +125,12 @@ export async function PATCH(
                 : [];
             if (homeRoles.length > 0) {
                 const preserved = homeRoles.filter(r => r !== ROLES.INACTIF && r !== 'GUEST');
+                // Ce n'est PAS une décision d'autorisation mais une manipulation de la
+                // DONNÉE de rôles : on décide d'écrire ou non INACTIF dans la CSV de
+                // l'UL de rattachement. Passer par un prédicat durci serait circulaire —
+                // il faut pouvoir constater qu'un compte est marqué inactif précisément
+                // pour l'enregistrer comme tel.
+                // eslint-disable-next-line no-restricted-syntax -- manipulation de donnée, pas d'autorisation
                 const nextHomeRoles = resolvedRoles.includes(ROLES.INACTIF)
                     ? [...preserved, ROLES.INACTIF]
                     : preserved;

@@ -54,6 +54,60 @@ const eslintConfig = defineConfig([
       }],
     },
   },
+
+  // ── Dominance d'INACTIF : aucun test de rôle en ligne ────────────────────────
+  // Les prédicats de src/lib/roles.ts sont enveloppés dans `denyWhenInactive` :
+  // un compte portant INACTIF (ou la valeur héritée GUEST) n'exerce aucune
+  // autorisation. Un `roles.includes('PRESIDENT')` recodé dans une route court-
+  // circuite cette enveloppe, et le compte « bloqué » garde le droit en question
+  // — l'interface affiche le blocage, le serveur ne l'applique pas.
+  //
+  // C'est le pendant, côté APPELANTS, du test d'énumération de
+  // src/__tests__/unit/roles.test.ts qui garde le module lui-même. Sans cette
+  // règle, le filet ne couvrait que la moitié du chemin : la v1 de la revue de
+  // sécurité comptait les routes qui APPELLENT un prédicat, et ne pouvait pas
+  // voir les neuf qui comparaient la chaîne brute.
+  //
+  // Portée : le code serveur, seul à porter la décision d'autorisation. Les
+  // composants client gardent leurs `includes` d'affichage — la barrière réelle
+  // est la route, et le middleware redirige déjà l'inactif hors des pages.
+  {
+    files: ["src/app/api/**/*.ts", "src/lib/**/*.ts"],
+    // EXEMPTIONS, chacune motivée :
+    // - roles.ts : c'est le module qui DÉFINIT les prédicats et l'enveloppe.
+    // - session-roles.ts : construit la liste de rôles de la session. Y appeler
+    //   un prédicat durci serait circulaire — il faut pouvoir calculer les rôles
+    //   d'un compte précisément parce qu'il est bloqué.
+    // - licenseStatus.ts : `isDriverRole` y répond à « ce rôle exige-t-il des
+    //   papiers à jour ? », pas à « ce compte a-t-il le droit de… ». Le durcir
+    //   FERAIT SAUTER le contrôle des papiers pour un compte inactif, soit
+    //   l'inverse de l'effet recherché.
+    ignores: [
+      "src/lib/roles.ts",
+      "src/lib/session-roles.ts",
+      "src/lib/licenseStatus.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": ["error",
+        {
+          selector:
+            "CallExpression[callee.property.name='includes'][arguments.0.type='Literal']" +
+            "[arguments.0.value=/^(SUPER_ADMIN|ADMIN|PRESIDENT|TRESORIER|CADRE|DT|CHVPSP|CHVL|CI\\u002FRPAPS|INACTIF|GUEST)$/]",
+          message:
+            "Test de rôle en ligne interdit côté serveur : il court-circuite l'enveloppe " +
+            "`denyWhenInactive` et rend le droit à un compte INACTIF. Importer le prédicat " +
+            "correspondant depuis src/lib/roles.ts (ou l'y ajouter s'il manque).",
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name='includes'][arguments.0.object.name='ROLES']",
+          message:
+            "Test de rôle en ligne interdit côté serveur, même via la constante ROLES : " +
+            "il court-circuite `denyWhenInactive`. Importer le prédicat depuis src/lib/roles.ts.",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;
