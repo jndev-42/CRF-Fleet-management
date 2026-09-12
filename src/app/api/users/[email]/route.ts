@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, canAssignRole, resolveRoles, isSuperAdmin } from '@/lib/roles';
+import { isAdminOrAbove, canAssignRole, resolveRoles, isSuperAdmin, ROLES } from '@/lib/roles';
 import { forbiddenResponse } from '@/lib/apiAuth';
 
 const updateRolesSchema = z.object({
@@ -97,17 +97,42 @@ export async function PATCH(
                 }
             }
 
-            // Répercuter sur la ligne UserUL de rattachement — LA HOME SEULEMENT.
-            // Sans cela, décocher INACTIF depuis l'éditeur de rôles retire bien le rôle
-            // de "UserRole" mais le laisse dans la CSV home écrite antérieurement par
-            // PUT .../ul, et le compte resterait bloqué : la procédure de déblocage
-            // enseignée aux administrateurs échouerait.
-            // Pas les UL secondaires : les rôles par UL sont une fonctionnalité
-            // délibérée (CHVL ici, CADRE là) qu'un écrasement global détruirait.
-            await tx.execute({
-                sql: 'UPDATE "UserUL" SET roles = ? WHERE userId = ? AND is_home = 1',
-                args: [resolvedRoles.join(',') || null, userId],
+            // Répercuter sur la ligne UserUL de rattachement le SEUL delta sur INACTIF.
+            //
+            // Motif : décocher INACTIF dans l'éditeur global le retire de "UserRole",
+            // mais pas d'une CSV home qui le porterait déjà — le compte resterait
+            // bloqué et la procédure de déblocage enseignée aux administrateurs
+            // échouerait.
+            //
+            // DELTA, et non écrasement par l'ensemble global : la granularité par UL
+            // est délibérée (CHVL sur la home, CADRE ailleurs). Écrire `resolvedRoles`
+            // en bloc ferait disparaître sans avertissement les rôles propres de la
+            // home, et promouvrait en rôles EFFECTIFS des rôles globaux qui n'étaient
+            // qu'un repli — `resolveSessionRoles` ne lit les globaux que si la CSV de
+            // l'UL active est vide. C'est le même argument qui protège les UL
+            // secondaires, et il vaut tout autant ici.
+            //
+            // CSV vide laissée vide : la session se replie alors sur les rôles globaux,
+            // qui portent déjà le bon INACTIF. Y écrire quoi que ce soit couperait ce
+            // repli et changerait les rôles exercés.
+            const homeRes = await tx.execute({
+                sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND is_home = 1',
+                args: [userId],
             });
+            const homeRolesCsv = homeRes.rows[0]?.roles;
+            const homeRoles = typeof homeRolesCsv === 'string'
+                ? homeRolesCsv.split(',').map(r => r.trim()).filter(Boolean)
+                : [];
+            if (homeRoles.length > 0) {
+                const preserved = homeRoles.filter(r => r !== ROLES.INACTIF && r !== 'GUEST');
+                const nextHomeRoles = resolvedRoles.includes(ROLES.INACTIF)
+                    ? [...preserved, ROLES.INACTIF]
+                    : preserved;
+                await tx.execute({
+                    sql: 'UPDATE "UserUL" SET roles = ? WHERE userId = ? AND is_home = 1',
+                    args: [nextHomeRoles.join(',') || null, userId],
+                });
+            }
 
             // Si le nouvel ensemble de rôles contient CHVL ou CHVPSP,
             // invalider les papiers s'ils n'ont jamais été validés (last_validation NULL).

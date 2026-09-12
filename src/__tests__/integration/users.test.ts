@@ -237,6 +237,39 @@ describe('PATCH /api/users/[email]', () => {
         expect(res.status).toBe(403);
     });
 
+    it('9b. 403 pour un ADMIN portant INACTIF — il ne peut pas se débloquer lui-même', async () => {
+        // Preuve au niveau de la ROUTE, et pas seulement du prédicat : les gardes d'API
+        // passent par isAdminOrAbove, jamais par isInactive, et le middleware ne couvre
+        // pas /api (src/proxy.ts:8). Un compte « bloqué » gardait donc toute sa surface
+        // d'API — dont l'attribution des rôles, donc son propre déblocage.
+        await seedRoles();
+        const user = await seedUser({ id: 'cible-bloque', email: 'cible@test.com', name: 'Cible' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue({ user: { email: 'bloque@test.com', roles: ['ADMIN', 'INACTIF'] } } as any);
+
+        const res = await PATCH(
+            makePatchRequest(user.email, { roles: ['CHVL'] }),
+            { params: Promise.resolve({ email: user.email }) }
+        );
+        expect(res.status).toBe(403);
+
+        // Et aucune écriture : les rôles de la cible sont inchangés.
+        expect(await getUserRoles(user.id)).toEqual([]);
+    });
+
+    it('9c. 403 pour un SUPER_ADMIN portant la valeur héritée GUEST', async () => {
+        await seedRoles();
+        const user = await seedUser({ id: 'cible-guest', email: 'cibleguest@test.com', name: 'Cible Guest' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue({ user: { email: 'guest@test.com', roles: ['SUPER_ADMIN', 'GUEST'] } } as any);
+
+        const res = await PATCH(
+            makePatchRequest(user.email, { roles: ['CHVL'] }),
+            { params: Promise.resolve({ email: user.email }) }
+        );
+        expect(res.status).toBe(403);
+    });
+
     it('10. 404 si user inconnu', async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
         mockedAuth.mockResolvedValue(adminSession as any);
@@ -538,6 +571,75 @@ describe('PATCH /api/users/[email] → resolveSessionRoles (AC-J4)', () => {
             args: [user.id],
         });
         expect(row.rows[0].roles).toBe('CHVL');
+    });
+
+    it('PRÉSERVE les rôles propres de la home : seul le delta INACTIF est appliqué', async () => {
+        // La granularité par UL est délibérée. Écrire l'ensemble global en bloc ferait
+        // disparaître le CHVL de la home sans avertissement, et promouvrait CADRE —
+        // simple repli jusque-là — en rôle effectif sur cette UL.
+        const user = await seedCompteAvecCsv('j4-d', ['CHVL']);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue(adminSession as any);
+        const res = await PATCH(
+            makePatchRequest(user.email, { roles: ['CADRE'] }),
+            { params: Promise.resolve({ email: user.email }) }
+        );
+        expect(res.status).toBe(200);
+
+        const row = await db.execute({
+            sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND is_home = 1',
+            args: [user.id],
+        });
+        expect(row.rows[0].roles).toBe('CHVL');
+        // Les rôles globaux, eux, reflètent bien le geste.
+        expect((await getUserRoles(user.id))).toEqual(['CADRE']);
+    });
+
+    it('ajoute INACTIF à la home SANS toucher aux rôles qui y étaient', async () => {
+        const user = await seedCompteAvecCsv('j4-e', ['CHVL']);
+        await db.execute({
+            sql: 'UPDATE "UserUL" SET roles = ? WHERE userId = ? AND is_home = 1',
+            args: ['CHVL,CI/RPAPS', user.id],
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue(adminSession as any);
+        const res = await PATCH(
+            makePatchRequest(user.email, { roles: ['CHVL', 'INACTIF'] }),
+            { params: Promise.resolve({ email: user.email }) }
+        );
+        expect(res.status).toBe(200);
+
+        const row = await db.execute({
+            sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND is_home = 1',
+            args: [user.id],
+        });
+        expect((row.rows[0].roles as string).split(',')).toEqual(['CHVL', 'CI/RPAPS', 'INACTIF']);
+    });
+
+    it('laisse une CSV home VIDE intacte — le repli sur les rôles globaux doit survivre', async () => {
+        const user = await seedCompteAvecCsv('j4-f', ['CHVL']);
+        await db.execute({
+            sql: 'UPDATE "UserUL" SET roles = NULL WHERE userId = ? AND is_home = 1',
+            args: [user.id],
+        });
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue(adminSession as any);
+        const res = await PATCH(
+            makePatchRequest(user.email, { roles: ['CHVL', 'INACTIF'] }),
+            { params: Promise.resolve({ email: user.email }) }
+        );
+        expect(res.status).toBe(200);
+
+        const row = await db.execute({
+            sql: 'SELECT roles FROM "UserUL" WHERE userId = ? AND is_home = 1',
+            args: [user.id],
+        });
+        expect(row.rows[0].roles).toBeNull();
+        // Le blocage passe alors par les rôles globaux, que PATCH a bien écrits.
+        expect(await resolveSessionRoles(db, user.id, HOME)).toContain('INACTIF');
     });
 
     it('n\'écrase pas les rôles des UL secondaires', async () => {
