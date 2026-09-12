@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { loadItemBatchStates, planStockMovement } from '@/lib/inventory/adjustments';
 
 const adjustSchema = z.object({
     itemId: z.string().min(1),
@@ -47,98 +48,39 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Article non trouvé ou accès refusé' }, { status: 404 });
         }
 
-        if (change > 0) {
-            // Optional: deduct from no-date batch if specified (splitting stock)
-            if (deductFromNoDate && expiryDate) {
-                const noDateBatchRes = await db.execute({
-                    sql: `SELECT id, quantity FROM "InvBatch" WHERE itemId = ? AND expiryDate IS NULL`,
-                    args: [itemId],
-                });
+        // La logique de mouvement vit dans `src/lib/inventory/adjustments.ts`, partagée
+        // avec la route QR : lecture groupée des lots, planification pure, puis envoi
+        // des écritures en un seul paquet. La resynchronisation de `InvItem.quantity`
+        // y est une sous-requête corrélée, donc juste même si un lot est inséré par un
+        // écrivain concurrent entre la lecture et l'écriture — ce que la version
+        // précédente, qui relisait un `SUM` puis le réécrivait, ne garantissait pas.
+        const states = await loadItemBatchStates(db, [itemId]);
+        const planned = planStockMovement(
+            states,
+            { itemId, change, note, expiryDate, deductFromNoDate },
+            session.user.name || session.user.email || null,
+        );
 
-                const noDateBatch = noDateBatchRes.rows[0];
-                if (!noDateBatch || Number(noDateBatch.quantity) < change) {
-                    return NextResponse.json({ error: 'Quantité "sans date" insuffisante pour effectuer le découpage' }, { status: 400 });
-                }
-
-                // Deduct from no-date batch
-                await db.execute({
-                    sql: `UPDATE "InvBatch" SET quantity = quantity - ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-                    args: [change, noDateBatch.id],
-                });
+        if ('error' in planned) {
+            if (planned.error === 'NO_DATE_INSUFFICIENT') {
+                return NextResponse.json({ error: 'Quantité "sans date" insuffisante pour effectuer le découpage' }, { status: 400 });
             }
-
-            // Addition: target specific batch or create new one
-            const existingBatchRes = await db.execute({
-                sql: `SELECT id, quantity FROM "InvBatch" WHERE itemId = ? AND (expiryDate = ? OR (expiryDate IS NULL AND ? IS NULL))`,
-                args: [itemId, expiryDate || null, expiryDate || null],
-            });
-
-            if (existingBatchRes.rows.length > 0) {
-                await db.execute({
-                    sql: `UPDATE "InvBatch" SET quantity = quantity + ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-                    args: [change, existingBatchRes.rows[0].id],
-                });
-            } else {
-                await db.execute({
-                    sql: `INSERT INTO "InvBatch" (id, itemId, quantity, expiryDate) VALUES (?, ?, ?, ?)`,
-                    args: [crypto.randomUUID(), itemId, change, expiryDate || null],
-                });
-            }
-        } else if (change < 0) {
-            // Withdrawal: FEFO logic
-            let remainingToRemove = Math.abs(change);
-
-            // Get all batches for this item, sorted by expiry date (nulls last)
-            const batchesRes = await db.execute({
-                sql: `SELECT id, quantity FROM "InvBatch" WHERE itemId = ? AND quantity > 0 ORDER BY CASE WHEN expiryDate IS NULL THEN 1 ELSE 0 END, expiryDate ASC`,
-                args: [itemId],
-            });
-
-            for (const batch of batchesRes.rows) {
-                const batchQty = Number(batch.quantity);
-                if (remainingToRemove <= 0) break;
-
-                if (batchQty <= remainingToRemove) {
-                    await db.execute({
-                        sql: `UPDATE "InvBatch" SET quantity = 0, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-                        args: [batch.id],
-                    });
-                    remainingToRemove -= batchQty;
-                } else {
-                    await db.execute({
-                        sql: `UPDATE "InvBatch" SET quantity = quantity - ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-                        args: [remainingToRemove, batch.id],
-                    });
-                    remainingToRemove = 0;
-                }
-            }
-        }
-
-        // 1. Update quantity in InvItem (ensure >= 0 and sync with batches)
-        const totalBatchQtyRes = await db.execute({
-            sql: `SELECT SUM(quantity) as total FROM "InvBatch" WHERE itemId = ?`,
-            args: [itemId],
-        });
-        const totalQty = Number(totalBatchQtyRes.rows[0].total || 0);
-
-        const updateRes = await db.execute({
-            sql: `UPDATE "InvItem" SET quantity = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-            args: [totalQty, itemId],
-        });
-
-        if (updateRes.rowsAffected === 0) {
+            // Traduction de l'ancien `rowsAffected === 0` : inatteignable ici, le
+            // contrôle d'UL ci-dessus ayant déjà prouvé l'existence de l'article.
             return NextResponse.json({ error: 'Article non trouvé' }, { status: 404 });
         }
 
-        // 2. Log the change
-        await db.execute({
-            sql: `INSERT INTO "InvStockLog" (id, itemId, "change", userName, note) VALUES (?, ?, ?, ?, ?)`,
-            args: [crypto.randomUUID(), itemId, change, session.user.name || session.user.email || null, note || null],
-        });
+        await db.batch(planned.statements, 'write');
 
         return NextResponse.json({
             success: true,
-            newQuantity: totalQty
+            // Total PRÉVU par le planificateur, et non celui que la base vient
+            // d'écrire (sous-requête corrélée). Les deux ne divergent que si un
+            // écrivain concurrent s'est intercalé, auquel cas la base a raison et
+            // la réponse est périmée d'un rafraîchissement. Acceptable pour un
+            // champ d'affichage (`src/app/inventory/page.tsx` le pose sur la
+            // ligne) ; ne pas en déduire une décision.
+            newQuantity: planned.newQuantity
         });
     } catch (e) {
         console.error('POST /api/inventory/adjust error:', getErrorMessage(e));

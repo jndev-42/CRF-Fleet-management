@@ -1,6 +1,14 @@
 import { db } from '@/lib/db';
 import type { InStatement } from '@libsql/client';
 
+/**
+ * Projection publique d'un stock. `qrToken` en est DÉLIBÉRÉMENT absent : la
+ * colonne est un secret — quiconque la détient peut ajuster le stock sans
+ * aucun contrôle de rôle ni d'UL. La diffuser à chaque chargement de la page
+ * Inventaire reviendrait à donner le QR à toute l'UL en permanence. D'où
+ * l'absence de `SELECT *` sur cette table partout où la ligne est renvoyée
+ * au client.
+ */
 export interface InvStockListRow {
     id: string;
     name: string;
@@ -17,6 +25,7 @@ export async function ensureStockTableExists(): Promise<void> {
             "name"      TEXT NOT NULL,
             "ulId"      TEXT NOT NULL DEFAULT 'default',
             "isDefault" INTEGER NOT NULL DEFAULT 0,
+            "qrToken"   TEXT,
             "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
@@ -31,13 +40,37 @@ export async function ensureStockTableExists(): Promise<void> {
             console.error('Column stockId might already exist:', e);
         }
     }
+
+    // Colonne qrToken : gardée par son propre PRAGMA (base déjà créée sans elle).
+    const stockListCols = await db.execute(`PRAGMA table_info("InvStockList")`);
+    if (stockListCols?.rows && !stockListCols.rows.some((r: Record<string, unknown>) => r.name === 'qrToken')) {
+        try {
+            await db.execute(`ALTER TABLE "InvStockList" ADD COLUMN "qrToken" TEXT`);
+        } catch (e) {
+            console.error('Column qrToken might already exist:', e);
+        }
+    }
+
+    // Index : garde SÉPARÉE, sur PRAGMA index_list. Elle couvre d'un seul tenant
+    // la base neuve (colonne créée par le CREATE TABLE ci-dessus, donc jamais
+    // entrée dans la garde de colonne) et la base migrée. Émettre le CREATE INDEX
+    // hors garde le ferait payer au chemin chaud de GET /api/inventory à CHAQUE
+    // requête : cette fonction est appelée depuis getOrCreateDefaultStock.
+    const stockListIdx = await db.execute(`PRAGMA index_list("InvStockList")`);
+    if (stockListIdx?.rows && !stockListIdx.rows.some((r: Record<string, unknown>) => r.name === 'InvStockList_qrToken_key')) {
+        try {
+            await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "InvStockList_qrToken_key" ON "InvStockList"("qrToken") WHERE "qrToken" IS NOT NULL`);
+        } catch (e) {
+            console.error('Index InvStockList_qrToken_key:', e);
+        }
+    }
 }
 
 export async function getOrCreateDefaultStock(ulId: string): Promise<InvStockListRow> {
     await ensureStockTableExists();
 
     const existingStocks = await db.execute({
-        sql: `SELECT * FROM "InvStockList" WHERE ulId = ? ORDER BY isDefault DESC, createdAt ASC`,
+        sql: `SELECT id, name, ulId, isDefault, createdAt, updatedAt FROM "InvStockList" WHERE ulId = ? ORDER BY isDefault DESC, createdAt ASC`,
         args: [ulId],
     });
 
@@ -52,7 +85,7 @@ export async function getOrCreateDefaultStock(ulId: string): Promise<InvStockLis
         });
 
         const createdRes = await db.execute({
-            sql: `SELECT * FROM "InvStockList" WHERE id = ?`,
+            sql: `SELECT id, name, ulId, isDefault, createdAt, updatedAt FROM "InvStockList" WHERE id = ?`,
             args: [id],
         });
         defaultStock = (createdRes?.rows?.[0] as unknown as InvStockListRow) || {
@@ -260,7 +293,7 @@ export async function duplicateStock(params: DuplicateStockParams): Promise<Dupl
         // La ligne est relue plutôt que reconstruite à la main, pour que l'appelant
         // reçoive un `InvStockListRow` complet (`createdAt` / `updatedAt` inclus).
         const createdRes = await tx.execute({
-            sql: `SELECT * FROM "InvStockList" WHERE id = ?`,
+            sql: `SELECT id, name, ulId, isDefault, createdAt, updatedAt FROM "InvStockList" WHERE id = ?`,
             args: [newStockId],
         });
         const created = createdRes.rows[0] as unknown as InvStockListRow;
@@ -278,4 +311,72 @@ export async function duplicateStock(params: DuplicateStockParams): Promise<Dupl
         }
         throw e;
     }
+}
+
+// ── Token QR d'un stock ───────────────────────────────────────────────────────
+
+/**
+ * Retourne le token QR du stock, en le créant à la première demande.
+ *
+ * @returns `null` si le stock n'existe pas (l'appelant traduit en 404).
+ */
+export async function getOrCreateStockQrToken(stockId: string): Promise<string | null> {
+    // Hors transaction : cette fonction contient du DDL (CREATE / ALTER TABLE).
+    await ensureStockTableExists();
+
+    const res = await db.execute({
+        sql: `SELECT id, qrToken FROM "InvStockList" WHERE id = ?`,
+        args: [stockId],
+    });
+    if (!res?.rows || res.rows.length === 0) return null;
+
+    const existing = res.rows[0].qrToken as string | null;
+    if (existing) return existing;
+
+    const token = crypto.randomUUID();
+    await db.execute({
+        sql: `UPDATE "InvStockList" SET qrToken = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+        args: [token, stockId],
+    });
+    return token;
+}
+
+/**
+ * Remplace le token du stock : les QR déjà imprimés cessent d'être valides.
+ * C'est le seul moyen de couper une fuite de token.
+ *
+ * @returns `null` si le stock n'existe pas.
+ */
+export async function regenerateStockQrToken(stockId: string): Promise<string | null> {
+    await ensureStockTableExists();
+
+    const token = crypto.randomUUID();
+    const res = await db.execute({
+        sql: `UPDATE "InvStockList" SET qrToken = ?, updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+        args: [token, stockId],
+    });
+    if (res.rowsAffected === 0) return null;
+    return token;
+}
+
+/**
+ * Résout le stock désigné par un token de QR Code.
+ *
+ * AUCUN filtre d'UL : c'est la décision de conception de cette fonctionnalité —
+ * quiconque tient le QR papier peut consulter et ajuster le stock, quelle que
+ * soit son unité locale. La traçabilité nominative dans `InvStockLog` est le
+ * garde-fou, pas une barrière d'UL.
+ *
+ * `ensureStockTableExists()` n'est DÉLIBÉRÉMENT pas appelée : c'est le chemin
+ * chaud de chaque scan, et un `SELECT` sur une colonne absente lève — signal
+ * correct d'une migration de production non faite, plutôt qu'un DDL silencieux
+ * à chaque requête.
+ */
+export async function resolveStockByQrToken(token: string): Promise<{ id: string; name: string } | null> {
+    const res = await db.execute({
+        sql: `SELECT id, name FROM "InvStockList" WHERE qrToken = ?`,
+        args: [token],
+    });
+    if (!res?.rows || res.rows.length === 0) return null;
+    return { id: String(res.rows[0].id), name: String(res.rows[0].name) };
 }

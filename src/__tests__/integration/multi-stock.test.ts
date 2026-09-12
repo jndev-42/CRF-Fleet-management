@@ -39,6 +39,30 @@ describe('Multi-Stock Inventory API', () => {
             expect(data.stocks[0].name).toBe('Stock Principal');
             expect(data.stocks[0].isDefault).toBe(1);
         });
+
+        // AC-T9 — `qrToken` donne l'accès au stock sans contrôle de rôle ni d'UL.
+        // Cette réponse part à chaque chargement de la page Inventaire, pour tout
+        // utilisateur de l'UL : un `SELECT *` y diffuserait le QR en permanence.
+        it('ne diffuse jamais le qrToken, même quand le stock en porte un', async () => {
+            mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', ulId: 'ul-test', roles: ['ADMIN'] } } as never);
+            await getStocks();
+
+            const created = await db.execute({
+                sql: `SELECT id FROM "InvStockList" WHERE ulId = ?`,
+                args: ['ul-test'],
+            });
+            await db.execute({
+                sql: `UPDATE "InvStockList" SET qrToken = 'token-secret' WHERE id = ?`,
+                args: [created.rows[0].id],
+            });
+
+            const res = await getStocks();
+            const data = await res.json();
+
+            expect(data.stocks).toHaveLength(1);
+            expect(Object.keys(data.stocks[0])).not.toContain('qrToken');
+            expect(JSON.stringify(data)).not.toContain('token-secret');
+        });
     });
 
     describe('POST /api/inventory/stocks', () => {
