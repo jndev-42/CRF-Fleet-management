@@ -208,8 +208,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
         // Comparaison d'ENSEMBLES : `existingMap` lit les rôles depuis une CSV dont
         // l'ordre n'est pas garanti stable, et une comparaison positionnelle
         // classerait « modifiée » une entrée identique réordonnée.
-        const sameRoleSet = (a: string[], b: string[]) =>
-            a.length === b.length && new Set(a).size === new Set([...a, ...b]).size;
+        // Égalité d'ENSEMBLES. La forme précédente
+        // (`a.length === b.length && new Set(a).size === new Set([...a, ...b]).size`)
+        // testait en réalité `b ⊆ set(a)` à longueurs égales : ['CHVL','INACTIF'] et
+        // ['INACTIF','INACTIF'] y passaient pour « inchangés », donc exemptés du
+        // contrôle ci-dessous. L'effet net était nul (on ne peut pas INTRODUIRE un
+        // INACTIF par ce biais, seulement perpétuer une ligne héritée que la clause
+        // d'exemption tolère déjà), mais la garde repose entièrement sur ce prédicat.
+        const sameRoleSet = (a: string[], b: string[]) => {
+            const sa = new Set(a);
+            const sb = new Set(b);
+            return sa.size === sb.size && [...sa].every(r => sb.has(r));
+        };
 
         for (const item of mergedUls) {
             const previous = existingMap.get(item.ulId);

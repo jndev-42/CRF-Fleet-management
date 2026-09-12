@@ -208,4 +208,22 @@ describe('PUT /api/users/[email]/ul — INACTIF restreint à l\'UL de rattacheme
         const rows = await snapshotUserUL(user.id);
         expect((rows[0].roles as string).split(',').sort()).toEqual(['CHVL', 'INACTIF']);
     });
+
+    it('ne considère pas « inchangée » une entrée dont les rôles sont un sous-ensemble répété', async () => {
+        // Garde du prédicat `sameRoleSet` : sous sa forme initiale, ['CHVL','INACTIF']
+        // et ['INACTIF','INACTIF'] passaient pour identiques (longueurs égales,
+        // inclusion), donc exemptés du contrôle. On vérifie ici la nouvelle égalité
+        // d'ensembles par son effet observable : l'entrée est bien contrôlée, donc
+        // refusée.
+        const user = await seedUser({ id: 'u-set', email: 'set@test.com', name: 'Set' });
+        await seedUserUL({ userId: user.id, ulId: HOME, isHome: true, roles: ['CHVL'] });
+        await seedUserUL({ userId: user.id, ulId: AUTRE, isHome: false, roles: ['CHVL', 'INACTIF'] });
+
+        const res = await callPut(user.email, [
+            { ulId: HOME, isHome: true, roles: ['CHVL'] },
+            { ulId: AUTRE, isHome: false, roles: ['INACTIF', 'INACTIF'] },
+        ]);
+
+        expect(res.status).toBe(400);
+    });
 });
