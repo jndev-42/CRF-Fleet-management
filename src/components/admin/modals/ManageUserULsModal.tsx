@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import RoleLegend from '@/components/users/RoleLegend';
-import { isSuperAdmin } from '@/lib/roles';
+import { isSuperAdmin, ROLES } from '@/lib/roles';
 import type { User, ULEntry } from '../types';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
@@ -262,8 +262,14 @@ export default function ManageUserULsModal({
                                                             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
                                                                 {availableRoles.map(role => {
                                                                     const active = row.roles.includes(role);
+                                                                    // INACTIF ne vaut que sur l'UL de rattachement : l'API le
+                                                                    // refuse en 400 ailleurs. L'interface ne doit pas permettre
+                                                                    // de composer une requête qui sera refusée — et c'est elle
+                                                                    // qui tarit l'arrivée de nouvelles lignes non conformes.
+                                                                    const isInactifRole = role === ROLES.INACTIF;
+                                                                    const roleDisabled = !!isRowDisabled || isInactifRole;
                                                                     return (
-                                                                        <label key={role} style={{
+                                                                        <label key={role} title={isInactifRole ? "INACTIF ne s'attribue que sur l'UL de rattachement" : undefined} style={{
                                                                             display: 'flex',
                                                                             alignItems: 'center',
                                                                             gap: '4px',
@@ -272,8 +278,8 @@ export default function ManageUserULsModal({
                                                                             borderRadius: '100px',
                                                                             padding: '2px 8px',
                                                                             fontSize: '12px',
-                                                                            cursor: isRowDisabled ? 'not-allowed' : 'pointer',
-                                                                            opacity: isRowDisabled ? 0.6 : 1,
+                                                                            cursor: roleDisabled ? 'not-allowed' : 'pointer',
+                                                                            opacity: roleDisabled ? 0.6 : 1,
                                                                             color: active ? '#60A5FA' : 'var(--text-secondary)',
                                                                             transition: 'all 0.2s',
                                                                             userSelect: 'none'
@@ -282,10 +288,10 @@ export default function ManageUserULsModal({
                                                                                 type="checkbox"
                                                                                 checked={active}
                                                                                 onChange={() => {
-                                                                                    if (isRowDisabled) return;
+                                                                                    if (roleDisabled) return;
                                                                                     toggleRoleInRow(idx, role);
                                                                                 }}
-                                                                                disabled={!!isRowDisabled}
+                                                                                disabled={roleDisabled}
                                                                                 style={{ display: 'none' }}
                                                                             />
                                                                             {role}

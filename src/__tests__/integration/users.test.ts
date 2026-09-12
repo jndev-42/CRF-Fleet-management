@@ -180,6 +180,32 @@ describe('POST /api/users', () => {
         expect(roles.sort()).toEqual(['CHVL', 'INACTIF']);
     });
 
+    it('6d. POST insère toujours is_home = 1 — jamais de ligne non conforme par cette voie (AC-F7)', async () => {
+        // Conformité par construction : la rendre explicite pour qu'elle reste vraie si
+        // l'insertion change un jour. INACTIF ne vaut que sur l'UL de rattachement.
+        await seedRoles();
+        await seedUniteLocale({ id: 'ul-paris-18', name: 'Paris 18', slug: 'paris-18' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue(adminSession as any);
+
+        const res = await POST(makePostRequest({
+            email: 'home-flag@test.com',
+            name: 'Home Flag',
+            roles: ['INACTIF'],
+            ulId: 'ul-paris-18',
+        }));
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const row = await db.execute({
+            sql: 'SELECT is_home, roles FROM "UserUL" WHERE userId = ?',
+            args: [body.id],
+        });
+        expect(row.rows).toHaveLength(1);
+        expect(row.rows[0].is_home).toBe(1);
+        expect(row.rows[0].roles).toBe('INACTIF');
+    });
+
     it('7. 409 si email déjà existant', async () => {
         await seedRoles();
         await seedUser({ id: 'existing-user', email: 'existing@test.com', name: 'Existing' });

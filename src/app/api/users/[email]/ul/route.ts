@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, canAccessAdminPanel, isSuperAdmin } from '@/lib/roles';
+import { isAdminOrAbove, canAccessAdminPanel, isSuperAdmin, resolveRoles, ROLES } from '@/lib/roles';
 import { forbiddenResponse } from '@/lib/apiAuth';
 
 const ulAssignSchema = z.object({
@@ -193,6 +193,39 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
             }
         }
 
+        // INACTIF/GUEST ne valent que sur l'UL de rattachement : la session lit la
+        // qualité d'INACTIF sur la ligne home ∪ les rôles globaux, et "UserRole" n'est
+        // alimenté que depuis la home (plus bas). Posé ailleurs, le blocage serait
+        // intermittent et n'atteindrait jamais les rôles globaux.
+        //
+        // Seules les entrées NOUVELLES ou MODIFIÉES sont contrôlées. La branche
+        // non-super reconduit les autres UL telles quelles : valider en bloc rendrait
+        // tout compte porteur d'une ligne héritée non conforme définitivement non
+        // modifiable, y compris par le geste qui la corrigerait.
+        //
+        // Validation d'entrée : AVANT la transaction, elle ne doit rien ouvrir.
+        const BLOCKING_ROLES = new Set<string>([ROLES.INACTIF, 'GUEST']);
+        // Comparaison d'ENSEMBLES : `existingMap` lit les rôles depuis une CSV dont
+        // l'ordre n'est pas garanti stable, et une comparaison positionnelle
+        // classerait « modifiée » une entrée identique réordonnée.
+        const sameRoleSet = (a: string[], b: string[]) =>
+            a.length === b.length && new Set(a).size === new Set([...a, ...b]).size;
+
+        for (const item of mergedUls) {
+            const previous = existingMap.get(item.ulId);
+            const unchanged = previous
+                && previous.isHome === item.isHome
+                && sameRoleSet(previous.roles, item.roles);
+            if (unchanged) continue;          // donnée héritée tolérée
+            if (item.isHome) continue;
+            if (item.roles.some(r => BLOCKING_ROLES.has(r))) {
+                return NextResponse.json(
+                    { error: "Le rôle INACTIF ne peut être attribué que sur l'unité locale de rattachement de l'utilisateur." },
+                    { status: 400 },
+                );
+            }
+        }
+
         const tx = await db.transaction('write');
         try {
             // Supprimer tous les droits actuels
@@ -203,7 +236,12 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
 
             // Insérer les nouveaux droits fusionnés
             for (const item of mergedUls) {
-                const rolesStr = item.roles.join(',');
+                // Seul des trois chemins d'écriture à ne pas normaliser jusqu'ici : un
+                // 'GUEST' y restait 'GUEST' et les doublons passaient. Appliqué APRÈS
+                // la validation ci-dessus, sans quoi le message d'erreur désignerait un
+                // rôle que l'administrateur n'a pas coché.
+                const itemRoles = resolveRoles(item.roles);
+                const rolesStr = itemRoles.join(',');
                 await tx.execute({
                     sql: `INSERT INTO "UserUL" (userId, ulId, is_home, roles) VALUES (?, ?, ?, ?)`,
                     args: [userId, item.ulId, item.isHome ? 1 : 0, rolesStr || null],
@@ -219,18 +257,18 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
                     });
 
                     // Insérer les nouveaux rôles globaux — un seul lookup batché au lieu d'un par rôle
-                    if (item.roles.length > 0) {
-                        const placeholders = item.roles.map(() => '?').join(', ');
+                    if (itemRoles.length > 0) {
+                        const placeholders = itemRoles.map(() => '?').join(', ');
                         const roleRes = await tx.execute({
                             sql: `SELECT id, name FROM "Role" WHERE name IN (${placeholders}) OR id IN (${placeholders})`,
-                            args: [...item.roles, ...item.roles],
+                            args: [...itemRoles, ...itemRoles],
                         });
                         const roleIdByNameOrId = new Map<string, string>();
                         for (const r of roleRes.rows) {
                             roleIdByNameOrId.set(r.name as string, r.id as string);
                             roleIdByNameOrId.set(r.id as string, r.id as string);
                         }
-                        for (const roleName of item.roles) {
+                        for (const roleName of itemRoles) {
                             const roleId = roleIdByNameOrId.get(roleName);
                             if (roleId) {
                                 await tx.execute({

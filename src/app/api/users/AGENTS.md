@@ -26,6 +26,7 @@ Manages user accounts, roles, and local unit (UL) assignments. Provides endpoint
 **Key business rules:**
 - Local admins (RESPO without SUPER_ADMIN) can only create/manage users in their own UL
 - Driver role assignment (`CHVL`, `CHVPSP`) triggers paper invalidation if papers were never validated
+- `POST` always inserts the `UserUL` row with `is_home = 1`, so it can never produce a non-conforming row (INACTIF outside the home UL). Conformance by construction, pinned by a test rather than left accidental
 - All role assignments are normalised through `resolveRoles()`, which **preserves** INACTIF alongside active roles (it only maps the legacy `GUEST` to `INACTIF` and de-duplicates). Storage records what the administrator ticked; the runtime predicates (`isInactive`, `isQrBlocked`) derive the block from it, so unticking INACTIF restores the active roles without re-entering them.
 - User email is unique; attempted duplicates return 409
 
