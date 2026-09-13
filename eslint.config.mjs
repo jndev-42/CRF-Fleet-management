@@ -105,6 +105,24 @@ const eslintConfig = defineConfig([
             "Test de rôle en ligne interdit côté serveur, même via la constante ROLES : " +
             "il court-circuite `denyWhenInactive`. Importer le prédicat depuis src/lib/roles.ts.",
         },
+        // Troisième maille. Les deux sélecteurs ci-dessus ciblent `X.includes(...)` ;
+        // le test d'énumération garde le module. Une comparaison directe
+        // (`roles[0] === 'INACTIF'`) passe entre les deux — et c'est exactement sous
+        // cette forme qu'une copie manuscrite de l'ANCIENNE sémantique d'isInactive
+        // avait survécu dans les deux routes d'export de statistiques, laissant un
+        // compte bloqué exporter des données nominatives.
+        {
+          selector: "BinaryExpression[operator=/^===?$/][right.value='INACTIF']",
+          message:
+            "Ne pas recoder la détection d'inactivité : la sémantique d'INACTIF vit dans " +
+            "src/lib/roles.ts. Importer `isInactive` (ou `isQrBlocked` sur le chemin QR).",
+        },
+        {
+          selector: "BinaryExpression[operator=/^===?$/][left.value='INACTIF']",
+          message:
+            "Ne pas recoder la détection d'inactivité : la sémantique d'INACTIF vit dans " +
+            "src/lib/roles.ts. Importer `isInactive` (ou `isQrBlocked` sur le chemin QR).",
+        },
       ],
     },
   },

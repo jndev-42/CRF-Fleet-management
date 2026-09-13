@@ -294,6 +294,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
             // Si un rôle chauffeur (CHVL / CHVPSP) est présent et les papiers n'ont jamais été validés,
             // s'assurer que papiers_valides = 0 et start_date_invalidation_process est initialisé.
             const allAssignedRoles = mergedUls.flatMap(u => u.roles);
+            // Manipulation de DONNÉE, pas décision d'accès — même raison qu'à
+            // users/[email]/route.ts : invalider les papiers d'un nouveau conducteur.
             const isDriverNow = allAssignedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
             if (isDriverNow) {
                 const today = new Date().toISOString().slice(0, 10);

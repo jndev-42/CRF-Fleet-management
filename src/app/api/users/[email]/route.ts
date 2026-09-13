@@ -142,6 +142,12 @@ export async function PATCH(
 
             // Si le nouvel ensemble de rôles contient CHVL ou CHVPSP,
             // invalider les papiers s'ils n'ont jamais été validés (last_validation NULL).
+            // Manipulation de DONNÉE, pas décision d'accès : on regarde si le nouvel
+            // ensemble de rôles fait de ce compte un conducteur, pour invalider ses
+            // papiers. Un prédicat d'autorisation durci serait faux ici — un compte
+            // bloqué qui redevient conducteur doit quand même voir ses papiers
+            // réinitialisés. La règle ESLint ne vise que les formes `.includes(<rôle>)`
+            // et `=== 'INACTIF'`, d'où l'absence d'exemption explicite sur cette ligne.
             const isNowDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
             if (isNowDriver) {
                 const today = new Date().toISOString().slice(0, 10);

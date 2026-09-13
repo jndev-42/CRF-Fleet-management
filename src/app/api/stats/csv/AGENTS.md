@@ -16,7 +16,7 @@ Trip data CSV export endpoint using two-step job pattern. POST generates a CSV b
 ### Working In This Directory
 - **POST:** Accepts `{ dateFrom, dateTo }` query params, validates date range (max 62 days), queries Trip + Vehicle + User tables, generates CSV buffer, stores in global `__csvJobs` Map with UUID jobId, returns `{ jobId, status: 'ready' }`
 - **GET:** Accepts `jobId` query param, validates UUID format, retrieves buffer from global job map, streams as `text/csv` attachment with BOM, cleans up jobs older than 10 minutes
-- Roles: the route does **not** call `isInactive()` — it recodes its own inline check (`roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')`), which is NOT dominant: an account carrying `['INACTIF','CHVL']` still passes here while `/api/stats` denies it. Known divergence, documented rather than silently assumed
+- Roles: the route calls `isInactive()` from `@/lib/roles`, like `/api/stats` and `/api/stats/trips`. INACTIF is **dominant**: an account carrying `['INACTIF','CHVL']` is denied here too. Until 5.7.0 this route recoded the check inline (`roles.length === 1 && roles[0] === 'INACTIF'`) and let such an account export nominative trip data — do not reintroduce an inline variant, an ESLint rule now forbids it
 - Query columns: checkOutAt, checkInAt, driver name/email, second driver name/email, vehicle name/plate, mission type/name, mileage, fuel, condition, cleanliness, parking, DSA checked, incident, comments
 - CSV escapes: handles commas, quotes, newlines in cell values
 - Headers: French language

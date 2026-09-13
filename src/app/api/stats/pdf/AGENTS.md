@@ -16,7 +16,7 @@ Trip statistics PDF export endpoint using two-step job pattern. POST generates P
 ### Working In This Directory
 - **POST:** Accepts `{ dateFrom, dateTo }` body, validates Zod schema, calls `generatePdf()` helper, stores buffer in global `__pdfJobs` Map with UUID jobId, returns `{ success: true, jobId, status: 'ready' }`
 - **GET:** Accepts `jobId` query param, retrieves buffer from global map, streams as `application/pdf` attachment, cleans up jobs older than 10 minutes
-- Roles: not INACTIF (checks `roles.length === 0 || (roles[0] === 'INACTIF')`)
+- Roles: not INACTIF — calls `isInactive()` from `@/lib/roles`. INACTIF is **dominant**: `['INACTIF','CHVL']` is denied. Until 5.7.0 the check was recoded inline and let such an account through; an ESLint rule now forbids reintroducing an inline variant
 - `generatePdf()` helper: fetches trip stats via `fetchStatsData()`, queries incidents where `incident IS NOT NULL`, converts SVG logo to PNG via sharp, renders StatsPdfDocument React component, returns buffer
 - Timestamp: French locale formatting (day/month/year HH:mm)
 - Logo: public/crf-logo.svg converted to 96x96 PNG and embedded as data:image/png;base64

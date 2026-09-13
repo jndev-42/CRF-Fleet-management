@@ -57,4 +57,13 @@ describe('POST /api/stats/csv', () => {
         const text = await res.text();
         expect(text.length).toBeGreaterThan(0);
     });
+
+    it('retourne 403 pour un compte cumulant INACTIF et un rôle actif', async () => {
+        // La garde recopiait l'ANCIENNE sémantique d'isInactive (`length === 1 &&
+        // roles[0] === 'INACTIF'`) : un ['CHVL','INACTIF'] a une longueur de 2, la
+        // condition était fausse, et le compte bloqué exportait le CSV, qui projette nom et e-mail des conducteurs.
+        mockedAuth.mockResolvedValue({ user: { email: 'mixte@test.com', roles: ['CHVL', 'INACTIF'] } } as never);
+        const res = await POST(makePostRequest({ dateFrom: '2026-01-01', dateTo: '2026-01-31' }));
+        expect(res.status).toBe(403);
+    });
 });

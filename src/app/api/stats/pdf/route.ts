@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { fetchStatsData } from '@/lib/stats-trips';
 import { db } from '@/lib/db';
+import { isInactive } from '@/lib/roles';
 import { z } from 'zod';
 import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer';
 import { createElement, type JSXElementConstructor, type ReactElement } from 'react';
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
     }
 
     const roles = (session.user.roles || ['INACTIF']) as string[];
-    if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
+    if (isInactive(roles)) {
       return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 
