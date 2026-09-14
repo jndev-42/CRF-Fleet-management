@@ -4,7 +4,7 @@
 # vehicles/[id]/incidents
 
 ## Purpose
-Fetches incident reports for a vehicle. Non-admins see only their own reports; admins see all. Includes incident type, status, occurrence time, and submission time. Read-only. Touches `IncidentReport` and `User` tables.
+Fetches incident reports for a vehicle, scoped to the caller's UL. Every member of the UL sees all SUBMITTED reports plus their own drafts; admins see every report. The author's identity is stripped server-side unless the caller is the author or an admin. Read-only. Touches `IncidentReport`, `Vehicle` and `User` tables.
 
 ## Key Files
 | File | Description |
@@ -14,19 +14,22 @@ Fetches incident reports for a vehicle. Non-admins see only their own reports; a
 ## For AI Agents
 
 ### Working In This Directory
-**GET /api/vehicles/[id]/incidents** — Any authenticated user. Fetches incident reports for this vehicle. Non-admins filtered to `userId = session.user.id`; admins see all. Returns array sorted by `createdAt DESC` with fields: `id`, `vehicleId`, `userId`, `userName`, `userEmail`, `tripId`, `reservationId`, `type`, `status`, `occurredAt`, `createdAt`, `submittedAt`, `canEdit` (boolean = user is author or admin).
+**GET /api/vehicles/[id]/incidents** — Any authenticated, non-INACTIF user of the vehicle's UL. Non-admins are filtered to `(status = 'SUBMITTED' OR userId = session.user.id)`; admins see all. Returns array sorted by `createdAt DESC` with fields: `id`, `vehicleId`, `tripId`, `reservationId`, `type`, `status`, `occurredAt`, `createdAt`, `submittedAt`, `isOwn` (boolean), `canEdit` (boolean = author or admin), plus `userId`, `userName`, `userEmail` **only when the caller may see the author**.
 
 **Key business rules:**
-- `[id]` is vehicle name; resolved internally via `SELECT id FROM Vehicle WHERE name = ?`
-- `canEdit` flag: true if `userId === session.user.id` OR user is admin
-- Non-admin users cannot see other users' incident reports for this vehicle
+- `[id]` is vehicle name; resolved via `SELECT id, ulId FROM Vehicle WHERE name = ?`, then bounded to the caller's UL. Vehicle names are unique only WITHIN a UL — a vehicle of another UL returns 404 (not 403: confirming the homonym's existence adds nothing)
+- Authorization goes through `@/lib/incidentAccess` — never recode the predicates inline; the three incident read routes must not diverge
+- Author identity is stripped AT THE SOURCE (keys absent from the JSON), never hidden client-side
+- Another user's DRAFT is never returned to a non-admin — an unfinished declaration is not circulated
+- INACTIF (and legacy GUEST) → 403
 - Read-only; incident creation/update handled elsewhere
 
 ## Dependencies
 
 ### Internal
-- `@/lib/db` — `IncidentReport`, `User` tables (JOIN)
+- `@/lib/db` — `IncidentReport`, `Vehicle`, `User` tables (JOIN)
 - `@/lib/roles` — `isAdminOrAbove`
+- `@/lib/incidentAccess` — `isWithinUlScope`, `isIncidentAuthor`, `canRevealIncidentAuthor`, `isIncidentViewerBlocked`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

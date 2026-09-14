@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
-import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { isAdminOrAbove } from '@/lib/roles';
+import {
+    canRevealIncidentAuthor,
+    canViewIncident,
+    type IncidentViewer,
+} from '@/lib/incidentAccess';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 const updateIncidentSchema = z.object({
@@ -33,7 +38,7 @@ export async function GET(
 
     try {
         const result = await db.execute({
-            sql: `SELECT ir.*, v.name as vehicleName, v.ulId as vehicleUlId, u.name as userName
+            sql: `SELECT ir.*, v.name as vehicleName, v.ulId as vehicleUlId, u.name as userName, u.email as userEmail
                   FROM IncidentReport ir
                   JOIN Vehicle v ON v.id = ir.vehicleId
                   JOIN User u ON u.id = ir.userId
@@ -45,12 +50,33 @@ export async function GET(
             return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
         }
 
-        if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== result.rows[0].vehicleUlId) {
+        const viewer: IncidentViewer = {
+            userId: session.user.id,
+            ulId: session.user.ulId,
+            roles: session.user.roles || [],
+        };
+        const subject = {
+            authorId: String(result.rows[0].userId),
+            vehicleUlId: (result.rows[0].vehicleUlId as string | null) ?? null,
+            status: String(result.rows[0].status),
+        };
+
+        // Lecture ouverte à toute l'UL sur les rapports SOUMIS ; le brouillon d'autrui
+        // et les rapports hors UL restent refusés.
+        if (!canViewIncident(viewer, subject)) {
             return forbiddenResponse();
         }
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic DB row
         const report = { ...result.rows[0] } as any;
+
+        // Anonymisation à la source : l'identité du déclarant ne quitte le serveur que
+        // pour lui-même et les administrateurs.
+        if (!canRevealIncidentAuthor(viewer, subject)) {
+            delete report.userId;
+            delete report.userName;
+            delete report.userEmail;
+        }
 
         // Parse JSON fields
         const jsonFields = ['flashDetails', 'accidentDetails', 'damages', 'victims', 'actions', 'context'];
