@@ -4,7 +4,7 @@
 # [id]
 
 ## Purpose
-Single incident report retrieval and state management. GET fetches incident with vehicle and user metadata, parsing JSON detail fields. PATCH allows owner or admin to update any field (status, details, dates). DELETE removes reports (owner or admin only).
+Single incident report retrieval and state management. GET is readable by any member of the vehicle's UL for SUBMITTED reports, with the author's identity stripped unless the caller is the author or an admin. PATCH allows owner or admin to update any field (status, details, dates). DELETE removes reports (owner or admin only). Widening READ access did not widen write access.
 
 ## Key Files
 | File | Description |
@@ -19,8 +19,10 @@ Single incident report retrieval and state management. GET fetches incident with
 - Path param: `id` — incident report ID
 - Returns incident with joined vehicle name and user name
 - Auto-parses JSON fields: `flashDetails`, `accidentDetails`, `damages`, `victims`, `actions`, `context`
-- No role restrictions; returns 404 if not found
-- Returns 401 if not logged in
+- Auth via `canViewIncident()` from `@/lib/incidentAccess`: caller must be in the vehicle's UL (SUPER_ADMIN excepted) and the report must be SUBMITTED — unless the caller is its author or an admin. An author keeps access to their own report even from another active UL
+- `userId`, `userName` and `userEmail` are DELETED from the response unless `canRevealIncidentAuthor()` passes (author or admin). Strip at the source, never client-side
+- INACTIF (and legacy GUEST) → 403
+- Returns 403 when out of UL scope or on another user's DRAFT, 404 if not found, 401 if not logged in
 
 **PATCH:** Flexible field update (not action-driven like expenses).
 - Auth: Owner or admin (checked via `isAdminOrAbove` helper)
@@ -44,6 +46,7 @@ Single incident report retrieval and state management. GET fetches incident with
 ### Internal
 - `@/lib/db` — Turso SQL queries
 - `@/lib/roles` — `isAdminOrAbove()` role check
+- `@/lib/incidentAccess` — `canViewIncident()`, `canRevealIncidentAuthor()` (shared read boundary for the three incident read routes)
 - `@/auth` — Session & user ID
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

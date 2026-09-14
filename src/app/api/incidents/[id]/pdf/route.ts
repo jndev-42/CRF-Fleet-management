@@ -7,15 +7,17 @@ import IncidentPdfDocument from '@/components/incident/IncidentPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
 import { getDriveClient } from '@/lib/drive';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canViewIncident, type IncidentViewer } from '@/lib/incidentAccess';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
 async function generateIncidentPdf(reportId: string): Promise<Buffer> {
   const result = await db.execute({
-    sql: `SELECT ir.*, v.name as vehicleName, v.plate as vehiclePlate, u.name as userName, u.email as userEmail
+    // Pas de jointure sur User : le document est anonyme par construction, l'identité
+    // du déclarant n'a donc aucune raison d'être chargée ici. La retirer de la requête
+    // plutôt que de la laisser inutilisée évite qu'un futur champ l'imprime par accident.
+    sql: `SELECT ir.*, v.name as vehicleName, v.plate as vehiclePlate
           FROM IncidentReport ir
           JOIN Vehicle v ON v.id = ir.vehicleId
-          JOIN User u ON u.id = ir.userId
           WHERE ir.id = ?`,
     args: [reportId],
   });
@@ -127,17 +129,32 @@ export async function GET(
             return unauthorizedResponse();
         }
 
-        const ownershipRes = await db.execute({
-            sql: `SELECT userId FROM IncidentReport WHERE id = ?`,
+        // Le PDF porte les mêmes règles de lecture que le détail : un membre de l'UL
+        // télécharge tout rapport SOUMIS de ses véhicules. Le document lui-même ne
+        // porte aucun nom de déclarant — il est anonyme par construction.
+        const accessRes = await db.execute({
+            sql: `SELECT ir.userId, ir.status, v.ulId as vehicleUlId
+                  FROM IncidentReport ir
+                  JOIN Vehicle v ON v.id = ir.vehicleId
+                  WHERE ir.id = ?`,
             args: [id],
         });
-        const ownershipRow = ownershipRes.rows[0];
-        if (!ownershipRow) {
+        const accessRow = accessRes.rows[0];
+        if (!accessRow) {
             return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
         }
 
-        const isOwner = ownershipRow.userId === session.user.id;
-        if (!isOwner && !isAdminOrAbove(session.user.roles || [])) {
+        const viewer: IncidentViewer = {
+            userId: session.user.id,
+            ulId: session.user.ulId,
+            roles: session.user.roles || [],
+        };
+        const canView = canViewIncident(viewer, {
+            authorId: String(accessRow.userId),
+            vehicleUlId: (accessRow.vehicleUlId as string | null) ?? null,
+            status: String(accessRow.status),
+        });
+        if (!canView) {
             return forbiddenResponse();
         }
 

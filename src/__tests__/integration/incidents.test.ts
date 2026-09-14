@@ -43,16 +43,67 @@ describe('GET /api/incidents/[id]', () => {
         expect(res.status).toBe(403);
     });
 
-    it('retourne le rapport pour un utilisateur de la même UL (happy path)', async () => {
+    it('retourne le rapport SOUMIS pour un utilisateur de la même UL (happy path)', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
         await seedUser({ id: 'user-1', email: 'reporter@test.com' });
-        await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1' });
+        await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1', status: 'SUBMITTED' });
 
         const res = await GET(new Request('http://localhost/api/incidents/incident-1'), { params: Promise.resolve({ id: 'incident-1' }) });
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.id).toBe('incident-1');
+    });
+});
+
+describe("GET /api/incidents/[id] — ouverture à l'UL", () => {
+    it("retourne le rapport SOUMIS d'autrui, auteur dépouillé", async () => {
+        mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'autre@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
+        await seedUser({ id: 'user-1', email: 'reporter@test.com', name: 'Déclarant Un' });
+        await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1', status: 'SUBMITTED' });
+
+        const res = await GET(new Request('http://localhost/api/incidents/incident-1'), { params: Promise.resolve({ id: 'incident-1' }) });
+
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body).not.toHaveProperty('userName');
+        expect(body).not.toHaveProperty('userEmail');
+        expect(body).not.toHaveProperty('userId');
+    });
+
+    it("retourne 403 sur le brouillon d'autrui, même dans son UL", async () => {
+        mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'autre@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
+        await seedUser({ id: 'user-1', email: 'reporter@test.com' });
+        await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1', status: 'DRAFT' });
+
+        const res = await GET(new Request('http://localhost/api/incidents/incident-1'), { params: Promise.resolve({ id: 'incident-1' }) });
+
+        expect(res.status).toBe(403);
+    });
+
+    it('retourne 403 pour un compte INACTIF de la bonne UL', async () => {
+        mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'reporter@test.com', roles: ['CHVL', 'INACTIF'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
+        await seedUser({ id: 'user-1', email: 'reporter@test.com' });
+        await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1', status: 'SUBMITTED' });
+
+        const res = await GET(new Request('http://localhost/api/incidents/incident-1'), { params: Promise.resolve({ id: 'incident-1' }) });
+
+        expect(res.status).toBe(403);
+    });
+
+    it("conserve le nom pour l'auteur du rapport", async () => {
+        mockedAuth.mockResolvedValue({ user: { id: 'user-1', email: 'reporter@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
+        await seedUser({ id: 'user-1', email: 'reporter@test.com', name: 'Déclarant Un' });
+        await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1', status: 'SUBMITTED' });
+
+        const res = await GET(new Request('http://localhost/api/incidents/incident-1'), { params: Promise.resolve({ id: 'incident-1' }) });
+
+        expect(res.status).toBe(200);
+        expect((await res.json()).userName).toBe('Déclarant Un');
     });
 });
 
@@ -166,6 +217,31 @@ describe('GET /api/incidents/[id]/pdf', () => {
         await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1' });
 
         const res = await GET_PDF(new Request('http://localhost/api/incidents/incident-1/pdf'), { params: Promise.resolve({ id: 'incident-1' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it("génère le PDF d'un rapport SOUMIS pour un membre de l'UL", async () => {
+        mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'autre@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
+        await seedUser({ id: 'user-1', email: 'reporter@test.com' });
+        await seedUser({ id: 'user-2', email: 'autre@test.com' });
+        await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1', status: 'SUBMITTED' });
+
+        const res = await GET_PDF(new Request('http://localhost/api/incidents/incident-1/pdf'), { params: Promise.resolve({ id: 'incident-1' }) });
+
+        expect(res.status).toBe(200);
+        expect(res.headers.get('Content-Type')).toBe('application/pdf');
+    });
+
+    it("retourne 403 sur le PDF d'un rapport d'une autre UL", async () => {
+        mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'autre@test.com', roles: ['CHVL'], ulId: 'ul-lyon-3' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
+        await seedUser({ id: 'user-1', email: 'reporter@test.com' });
+        await seedUser({ id: 'user-2', email: 'autre@test.com' });
+        await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1', status: 'SUBMITTED' });
+
+        const res = await GET_PDF(new Request('http://localhost/api/incidents/incident-1/pdf'), { params: Promise.resolve({ id: 'incident-1' }) });
+
         expect(res.status).toBe(403);
     });
 

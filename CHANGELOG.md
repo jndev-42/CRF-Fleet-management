@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.8.0] — 14 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **L'historique des incidents s'ouvre à toute l'unité locale** — jusqu'ici, un bénévole n'y voyait que ses propres déclarations, et seuls les administrateurs voyaient l'ensemble. Désormais, tout membre de l'UL consulte l'historique complet des véhicules de son unité : la liste, le détail d'un rapport et son PDF. L'intérêt est collectif — savoir qu'un véhicule a déjà eu trois flashs radar ou un accrochage change la façon de le confier.
+- **Le déclarant reste anonyme** — sur le rapport d'une autre personne, la ligne Auteur affiche « Anonyme ». Sur les siens, le nom s'affiche avec un badge « Vous ». L'anonymat est appliqué par le serveur : le nom et l'adresse e-mail du déclarant ne sont tout simplement pas transmis au navigateur, ils ne sont donc pas récupérables. Les administrateurs continuent de voir qui a déclaré quoi.
+- **Les brouillons restent privés** — seuls les rapports validés sont partagés. Un brouillon en cours de rédaction n'est visible que de son auteur (et des administrateurs) : une déclaration inachevée n'a pas à circuler.
+- **Modifier et supprimer ne changent pas** — continuer ou supprimer un brouillon reste réservé à son auteur et aux administrateurs. Voir davantage ne signifie pas pouvoir toucher davantage.
+
+### 🔒 Correctifs de sécurité
+
+- **Cloisonnement entre unités locales sur l'historique des incidents** — la liste des incidents d'un véhicule était résolue par le nom du véhicule, sans vérifier l'unité locale. Deux ULs pouvant nommer un véhicule à l'identique, les incidents de l'homonyme d'une autre UL pouvaient remonter. La résolution est désormais bornée à l'UL de la personne connectée, et un véhicule d'une autre UL est traité comme inexistant.
+- **Les comptes INACTIF sont refusés sur l'historique des incidents** — au même titre que partout ailleurs dans l'application.
+
 ## [5.7.0] — 14 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

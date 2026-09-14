@@ -92,11 +92,20 @@ interface Context {
     motion?: string;
 }
 
+/**
+ * Données imprimées sur le rapport.
+ *
+ * AUCUN champ d'identité du déclarant n'y figure, et il ne faut pas en ajouter : ce
+ * document est téléchargeable par tous les membres de l'unité locale précisément
+ * parce qu'il est anonyme. `userName` a été retiré d'ici — il n'était pas rendu,
+ * mais sa seule présence dans le type invitait à l'afficher un jour. Si une identité
+ * doit un jour apparaître sur le PDF, il faut d'abord resserrer
+ * `canViewIncident()` dans `src/lib/incidentAccess.ts`.
+ */
 interface IncidentReport {
     type?: string;
     vehicleName?: string;
     vehiclePlate?: string;
-    userName?: string;
     occurredAt?: string;
     location?: string;
     flashDetails?: FlashDetails;

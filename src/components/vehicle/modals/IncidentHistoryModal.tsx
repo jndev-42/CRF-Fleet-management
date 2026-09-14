@@ -8,9 +8,16 @@ import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 interface Incident {
     id: string;
     vehicleId: string;
-    userId: string;
-    userName: string;
-    userEmail: string;
+    /**
+     * Identité du déclarant : ABSENTE de la réponse API pour un rapport d'autrui
+     * (anonymisation faite côté serveur). Présente pour ses propres rapports et
+     * pour les administrateurs — d'où l'optionalité.
+     */
+    userId?: string;
+    userName?: string;
+    userEmail?: string;
+    /** Vrai si le rapport a été déclaré par l'utilisateur connecté. */
+    isOwn: boolean;
     tripId: string | null;
     reservationId: string | null;
     type: 'FLASH' | 'ACCIDENT' | null;
@@ -146,7 +153,10 @@ export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: 
                                         </div>
                                         <div className="incident-details">
                                             <div><strong>Date :</strong> {formatOccurredAt(incident.occurredAt)}</div>
-                                            <div><strong>Auteur :</strong> {incident.userName || incident.userEmail}</div>
+                                            <div>
+                                                <strong>Auteur :</strong> {incident.userName || incident.userEmail || 'Anonyme'}
+                                                {incident.isOwn && <span className="own-badge">Vous</span>}
+                                            </div>
                                             {incident.submittedAt && (
                                                 <div><strong>Soumis le :</strong> {formatDate(incident.submittedAt)}</div>
                                             )}
@@ -203,6 +213,7 @@ export default function IncidentHistoryModal({ vehicle, onClose, onEditDraft }: 
                 .status-submitted { background: rgba(16, 185, 129, 0.1); color: var(--status-available); }
                 .status-draft { background: rgba(245, 158, 11, 0.1); color: var(--status-inuse); }
                 .incident-details { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 13px; color: var(--text-secondary); }
+                .own-badge { margin-left: 6px; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 700; text-transform: uppercase; background: var(--crf-red-glow); color: var(--text-accent); }
                 .incident-actions { display: flex; flex-direction: column; gap: 8px; }
             `}</style>
         </div>

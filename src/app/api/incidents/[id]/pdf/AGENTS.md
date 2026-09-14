@@ -27,7 +27,9 @@ Generate PDF export of an incident report. Assembles incident data including veh
   - Gracefully skips missing images (non-fatal)
 - Embeds CRF logo resized to 96x96px as base64 data URI
 - Renders React PDF component with all report fields, vehicle, user, timestamp
-- Returns 401 if not logged in, 500 on render/Drive error
+- Auth via `canViewIncident()` from `@/lib/incidentAccess` — the SAME boundary as `GET /api/incidents/[id]`. Any member of the vehicle's UL downloads a SUBMITTED report; the author keeps their own report, admins see everything, another user's DRAFT is refused. This route was historically MORE permissive than the detail route in one direction and less in another — keep them on the shared predicate, do not recode inline
+- The rendered document carries NO declarant name (`IncidentPdfDocument` never renders `userName`); it is anonymous by construction, which is what allows it to be shared across the UL. Do not add author identity to the PDF without revisiting this route's access rules
+- Returns 401 if not logged in, 403 out of UL scope / on another user's DRAFT / for INACTIF, 404 if not found, 500 on render/Drive error
 
 **PDF rendering:**
 - Uses `@react-pdf/renderer` with custom `IncidentPdfDocument` component
@@ -47,6 +49,7 @@ Generate PDF export of an incident report. Assembles incident data including veh
 - `@/lib/db` — Fetch incident with full metadata
 - `@/lib/drive` — Fetch photos from Drive folder
 - `@/auth` — Login check
+- `@/lib/incidentAccess` — `canViewIncident()` (shared read boundary)
 - `@/components/incident/IncidentPdfDocument` — React PDF component
 - `sharp` — Image processing (logo resize)
 
