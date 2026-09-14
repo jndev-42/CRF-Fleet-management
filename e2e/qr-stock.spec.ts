@@ -79,8 +79,11 @@ test('scan, panier et validation groupée', async ({ page }) => {
     await page.getByRole('dialog').getByText('Stock sans date').click();
     await expect(page.getByText(/Mouvements en attente \(2\)/)).toBeVisible();
 
-    // Annulation unitaire : on repart à un seul mouvement, le retrait.
-    await page.getByRole('button', { name: `Annuler le mouvement sur ${itemName}` }).first().click();
+    // Annulation unitaire : on annule l'AJOUT pour ne garder que le retrait.
+    // Cibler le libellé exact, et non `.first()` : les deux mouvements portent
+    // sur le même article, et `.first()` annulait le retrait en laissant l'ajout
+    // — la validation remontait alors le stock au lieu de le baisser.
+    await page.getByRole('button', { name: `Annuler l'ajout de 1 sur ${itemName} — sans date` }).click();
     await expect(page.getByText(/Mouvements en attente \(1\)/)).toBeVisible();
 
     // ── 4. Validation — c'est ici que Zod .strict() est réellement exercé ──

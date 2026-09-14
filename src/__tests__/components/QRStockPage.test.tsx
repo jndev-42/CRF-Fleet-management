@@ -125,10 +125,32 @@ describe('QRStockPage', () => {
 
         expect(screen.getByText(/Mouvements en attente \(2\)/)).toBeTruthy();
 
-        fireEvent.click(screen.getByLabelText('Annuler le mouvement sur Compresses'));
+        fireEvent.click(screen.getByLabelText('Annuler le retrait de 1 sur Compresses'));
 
         expect(screen.getByText(/Mouvements en attente \(1\)/)).toBeTruthy();
         expect(screen.getByText(/Garrot — sans date/)).toBeTruthy();
+    });
+
+    it('affiche le delta en attente sur la ligne cliquée, et le retire à l\'annulation', async () => {
+        mockFetch();
+        await renderPage();
+
+        // Aucun badge tant que rien n'est empilé.
+        expect(screen.queryByTestId('pending-item-1')).toBeNull();
+
+        fireEvent.click(screen.getByLabelText('Retirer une unité de Compresses'));
+        expect(screen.getByTestId('pending-item-1').textContent).toBe('-1');
+
+        fireEvent.click(screen.getByLabelText('Retirer une unité de Compresses'));
+        expect(screen.getByTestId('pending-item-1').textContent).toBe('-2');
+
+        // Le badge disparaît quand les mouvements de l'article s'annulent entre eux :
+        // c'est le total qui compte, pas le nombre de lignes du panier.
+        fireEvent.click(screen.getByLabelText('Ajouter une unité de Compresses'));
+        fireEvent.click(within(screen.getByRole('dialog')).getByText('Stock sans date'));
+        fireEvent.click(screen.getByLabelText('Ajouter une unité de Compresses'));
+        fireEvent.click(within(screen.getByRole('dialog')).getByText('Stock sans date'));
+        expect(screen.queryByTestId('pending-item-1')).toBeNull();
     });
 
     it('rend un article à 0 avec son « + » ACTIF (AC-I7)', async () => {

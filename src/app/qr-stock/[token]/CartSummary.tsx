@@ -93,7 +93,11 @@ export default function CartSummary({
                             type="button"
                             className={styles.cartRemove}
                             onClick={() => onCancelOne(movement.key)}
-                            aria-label={`Annuler le mouvement sur ${movement.itemName}`}
+                            // Le libellé porte le mouvement COMPLET, pas le seul nom
+                            // d'article : deux mouvements sur le même article donnaient
+                            // deux commandes au libellé identique — indiscernables au
+                            // lecteur d'écran, et impossibles à cibler dans un test.
+                            aria-label={`Annuler ${movement.change > 0 ? `l'ajout de ${movement.change}` : `le retrait de ${Math.abs(movement.change)}`} sur ${describe(movement)}`}
                         >
                             ✕
                         </button>

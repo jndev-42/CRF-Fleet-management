@@ -5,6 +5,8 @@ import styles from './page.module.css';
 
 interface Props {
     item: QRStockItem;
+    /** Somme des mouvements déjà empilés pour cet article, 0 si aucun. */
+    pending: number;
     /** Retrait immédiat : FEFO côté serveur, aucun choix de lot à faire. */
     onRemove: (item: QRStockItem) => void;
     /** Ajout : ouvre le sélecteur de lot. */
@@ -17,8 +19,9 @@ interface Props {
  * Aucun bouton de création, d'édition ou de suppression d'article — le
  * périmètre de la page est volontairement fermé (cf. `AGENTS.md`).
  */
-export default function StockItemRow({ item, onRemove, onAdd }: Props) {
+export default function StockItemRow({ item, pending, onRemove, onAdd }: Props) {
     const isLow = item.minStock !== null && item.quantity <= item.minStock;
+    const isEmpty = item.quantity <= 0;
 
     return (
         <div className={styles.itemRow} data-testid={`item-${item.id}`}>
@@ -36,12 +39,22 @@ export default function StockItemRow({ item, onRemove, onAdd }: Props) {
                 {item.quantity}
             </div>
 
+            {/* Retour immédiat là où le doigt se trouve. Sans lui, un clic en haut
+                d'une liste de 150 articles ne produisait rien de visible : la
+                quantité ne bouge qu'après validation et le panier est en bas. */}
+            {pending !== 0 && (
+                <div className={styles.pendingBadge} data-testid={`pending-${item.id}`}>
+                    {pending > 0 ? `+${pending}` : pending}
+                </div>
+            )}
+
             <div className={styles.stepper}>
                 <button
                     type="button"
                     className={styles.stepBtn}
                     onClick={() => onRemove(item)}
-                    disabled={item.quantity <= 0}
+                    disabled={isEmpty}
+                    title={isEmpty ? 'Stock à zéro : rien à retirer' : undefined}
                     aria-label={`Retirer une unité de ${item.name}`}
                 >
                     −

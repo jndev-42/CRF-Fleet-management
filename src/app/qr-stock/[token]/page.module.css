@@ -202,13 +202,57 @@
 
 /* ── Panier ───────────────────────────────────────────────────────────────── */
 
+/*
+ * Barre FIXE, et non `position: sticky`. Le panier est le dernier enfant, après
+ * la liste d'articles : un stock réel en compte plus de 150, si bien qu'un
+ * `sticky` le laissait à des écrans de distance. Cliquer « − » en haut de liste
+ * ne produisait alors AUCUN retour visible — la quantité ne bouge pas avant
+ * validation, par conception — et la fonctionnalité paraissait morte.
+ * En fixe, le panier est toujours sous le pouce dès le premier mouvement.
+ */
 .cart {
-    position: sticky;
+    position: fixed;
+    left: 0;
+    right: 0;
     bottom: 0;
+    z-index: 20;
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    max-height: 45vh;
+    overflow-y: auto;
     background: var(--bg-secondary);
     border: 1px solid var(--border-primary);
-    border-radius: var(--radius-md);
+    border-bottom: none;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
     padding: 14px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 20px rgb(0 0 0 / 18%);
+}
+
+/* Réserve sous la liste : sans elle, la barre fixe masque les derniers articles. */
+.cartSpacer {
+    height: 200px;
+    flex: none;
+}
+
+/* Delta en attente, affiché SUR la ligne cliquée : c'est le seul retour visible
+   à l'endroit où se trouve le doigt. La quantité, elle, ne bouge qu'après
+   validation — l'écran ne doit pas laisser croire que le stock est déjà écrit. */
+.pendingBadge {
+    min-width: 34px;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm, 6px);
+    font-size: 12px;
+    font-weight: 700;
+    text-align: center;
+    background: rgba(59, 130, 246, 0.14);
+    color: #1d4ed8;
+}
+
+:global(.dark) .pendingBadge {
+    background: rgba(147, 197, 253, 0.16);
+    color: #93c5fd;
 }
 
 .cartTitle {

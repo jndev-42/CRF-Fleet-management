@@ -82,6 +82,17 @@ export default function QRStockPage() {
         }]);
     }
 
+    /**
+     * Delta en attente par article, pour l'afficher sur sa ligne.
+     *
+     * Recalculé à chaque rendu plutôt que maintenu en parallèle du panier :
+     * deux états à synchroniser divergeraient à la première annulation unitaire.
+     */
+    const pendingByItem = new Map<string, number>();
+    for (const m of cart) {
+        pendingByItem.set(m.itemId, (pendingByItem.get(m.itemId) ?? 0) + m.change);
+    }
+
     function handleAdd(item: QRStockItem) {
         setPicking(item);
     }
@@ -174,12 +185,17 @@ export default function QRStockPage() {
                                     <StockItemRow
                                         key={item.id}
                                         item={item}
+                                        pending={pendingByItem.get(item.id) ?? 0}
                                         onRemove={i => pushMovement(i, -1, null)}
                                         onAdd={handleAdd}
                                     />
                                 ))}
                             </div>
                         )}
+
+                        {/* Réserve d'espace : la barre du panier est fixe et
+                            masquerait sinon les derniers articles de la liste. */}
+                        {cart.length > 0 && <div className={styles.cartSpacer} aria-hidden="true" />}
 
                         {cart.length > 0 && (
                             <CartSummary

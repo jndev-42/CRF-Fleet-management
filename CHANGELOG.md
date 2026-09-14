@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.7.1] — 14 septembre 2026
+
+### 🐛 Corrections
+
+- **Le QR d'inventaire semblait ne rien faire** — sur un stock réel (plus de 150 articles), appuyer sur « − » ou « + » ne produisait aucun retour visible : la quantité affichée ne bouge qu'après validation, et le récapitulatif du panier, placé en fin de liste, se trouvait à plusieurs écrans de distance. Le panier est désormais une **barre fixe en bas de l'écran**, visible dès le premier mouvement, et chaque ligne d'article affiche son **delta en attente** (« −2 », « +1 ») à l'endroit où l'on vient d'appuyer.
+- **Bouton « − » sur un article à zéro** — il reste désactivé, comme avant, mais indique maintenant pourquoi au survol (« Stock à zéro : rien à retirer ») au lieu de paraître inerte.
+- **Icône du QR Code dans l'inventaire** — l'emoji `🔳` se rendait en glyphe couleur, plus gros et mal aligné que les boutons voisins, et n'évoquait pas un QR Code. Remplacé par une icône vectorielle.
+- **Annulation d'un mouvement du panier** — deux mouvements sur le même article portaient un libellé d'annulation identique, indiscernables au lecteur d'écran. Le libellé précise désormais le mouvement concerné (« Annuler l'ajout de 1 sur Compresses — sans date »).
+
+### 🔧 Améliorations techniques
+
+- La spec E2E du flux QR annulait le mauvais mouvement (`.first()` visait le retrait, pas l'ajout) et validait donc une hausse de stock là où elle affirmait vérifier une baisse. Corrigée et exécutée : elle échouait réellement avant ce correctif.
+- Couverture : test de composant sur le delta en attente, y compris son effacement quand les mouvements d'un article s'annulent entre eux.
+
 ## [5.7.0] — 12 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

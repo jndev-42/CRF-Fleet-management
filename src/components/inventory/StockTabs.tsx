@@ -3,6 +3,7 @@
 import React from 'react';
 import { InvStockListRow } from '@/lib/inventory/stocks';
 import styles from './StockTabs.module.css';
+import { QrCode } from 'lucide-react';
 
 interface StockTabsProps {
     stocks: InvStockListRow[];
@@ -70,7 +71,11 @@ export default function StockTabs({
                                         title="QR Code du stock"
                                         onClick={() => onOpenQrCode(stock)}
                                     >
-                                        🔳
+                                        {/* Icône lucide et non un emoji : `🔳` se rendait en
+                                            glyphe couleur, plus gros et mal aligné à côté des
+                                            glyphes texte voisins, et ne ressemblait pas à un
+                                            QR Code. */}
+                                        <QrCode size={15} aria-hidden="true" />
                                     </button>
                                     {stocks.length > 1 && (
                                         <button
