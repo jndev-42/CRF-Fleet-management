@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { z } from 'zod';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { fetchExpenseStatsData } from '@/lib/stats-expenses';
+import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
 
 function csvEscape(value: unknown): string {
   const raw = value == null ? '' : String(value);
@@ -33,8 +34,8 @@ export async function POST(request: Request) {
     }
 
     const roles = (session.user.roles || []) as string[];
-    const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
-    const isTresorier = roles.includes('TRESORIER');
+    const isManager = isExpenseManager(roles);
+    const isTresorier = isTresorierRole(roles);
 
     if (!isManager && !isTresorier) {
       return forbiddenResponse('Accès réservé aux gestionnaires (Président, Trésorier, Super Admin)');

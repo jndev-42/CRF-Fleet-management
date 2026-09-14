@@ -4,7 +4,7 @@
 # QR
 
 ## Purpose
-Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass normal session-based auth and UL boundaries, allowing any authenticated non-INACTIF user to scan and interact with a physical vehicle's QR code. Drives the trip lifecycle: checkout (create trip), checkin (finalize trip, update vehicle status).
+Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass normal session-based auth and UL boundaries, allowing any authenticated user — with or without an assigned role — to scan and interact with a physical vehicle's QR code. Drives the trip lifecycle: checkout (create trip), checkin (finalize trip, update vehicle status).
 
 ## Subdirectories
 - `[token]/` — dynamic QR token container
@@ -18,7 +18,8 @@ Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass nor
 
 **QR Auth Model:**
 - No parent route files; endpoints live in leaf directories.
-- All routes require `session?.user` (401 if missing) and non-INACTIF status (403 if inactive).
+- All routes require `session?.user` (401 if missing) and pass `isQrBlocked()` (403 if the account carries INACTIF or the legacy GUEST value).
+- An account with NO role at all is allowed here — this is the single, deliberate divergence from `isInactive()`, which denies the empty list.
 - **No UL or role-based access control** — the QR token itself grants access. Any authenticated user can scan.
 
 **Trip Lifecycle:**
@@ -35,7 +36,7 @@ Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass nor
 ### Internal
 - `db` (libSQL)
 - `auth` from `@/auth`
-- `@/lib/roles` — `isInactive()`, `isAdminOrAbove()`
+- `@/lib/roles` — `isQrBlocked()`, `isAdminOrAbove()`
 - `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)` for live vehicle telemetry
 
 ### Tables Touched

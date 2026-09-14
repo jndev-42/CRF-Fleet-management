@@ -10,7 +10,7 @@
  * un véhicule non-VPSP est refusé des deux côtés, et un SUPER_ADMIN pur est
  * autorisé des deux côtés.
  */
-import { ROLES, isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isChvlDriver, isChvpspDriver } from '@/lib/roles';
 
 /** Raison typée d'un refus d'emprunt. */
 export type BorrowDenialReason =
@@ -66,8 +66,8 @@ export function getBorrowEligibility(input: BorrowEligibilityInput): {
     // ADMIN : bypass réservation + permis (parité VehicleDetailHeader.tsx:92,96,100)
     if (isAdminForBorrow(userRoles)) return { canBorrow: true, blockingReason: null };
 
-    const isCHVL = userRoles.includes(ROLES.CHVL);
-    const isCHVPSP = userRoles.includes(ROLES.CHVPSP);
+    const isCHVL = isChvlDriver(userRoles);
+    const isCHVPSP = isChvpspDriver(userRoles);
     const isVpsp = isVpspVehicle(vehicleType);
 
     // Cascade serveur : un utilisateur cumulant CHVL et CHVPSP passe sur les deux types.

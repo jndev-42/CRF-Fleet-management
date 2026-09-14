@@ -3,6 +3,7 @@
 import React from 'react';
 import { InvStockListRow } from '@/lib/inventory/stocks';
 import styles from './StockTabs.module.css';
+import { QrCode } from 'lucide-react';
 
 interface StockTabsProps {
     stocks: InvStockListRow[];
@@ -12,6 +13,7 @@ interface StockTabsProps {
     onOpenCreate: () => void;
     onOpenRename: (stock: InvStockListRow) => void;
     onOpenDuplicate: (stock: InvStockListRow) => void;
+    onOpenQrCode: (stock: InvStockListRow) => void;
     onDeleteStock: (stock: InvStockListRow) => void;
 }
 
@@ -23,6 +25,7 @@ export default function StockTabs({
     onOpenCreate,
     onOpenRename,
     onOpenDuplicate,
+    onOpenQrCode,
     onDeleteStock,
 }: StockTabsProps) {
     return (
@@ -61,6 +64,18 @@ export default function StockTabs({
                                         onClick={() => onOpenDuplicate(stock)}
                                     >
                                         ⧉
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={styles.tabActionButton}
+                                        title="QR Code du stock"
+                                        onClick={() => onOpenQrCode(stock)}
+                                    >
+                                        {/* Icône lucide et non un emoji : `🔳` se rendait en
+                                            glyphe couleur, plus gros et mal aligné à côté des
+                                            glyphes texte voisins, et ne ressemblait pas à un
+                                            QR Code. */}
+                                        <QrCode size={15} aria-hidden="true" />
                                     </button>
                                     {stocks.length > 1 && (
                                         <button

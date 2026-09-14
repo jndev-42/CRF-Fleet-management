@@ -63,6 +63,13 @@ describe('Budgets analytiques — routes API', () => {
             expect(res.status).toBe(403);
         });
 
+        it('GET retourne 403 pour un compte cumulant INACTIF et un rôle actif', async () => {
+            // AC-E3 — INACTIF est absorbant : donnée financière fermée au compte marqué inactif.
+            mockedAuth.mockResolvedValue(asSession({ id: 'user-chvl', email: 'chvl@test.com', roles: ['INACTIF', 'CHVL'], ulId: 'ul-paris-18' }));
+            const res = await listBudgets(makeRequest('http://localhost/api/expense-budgets', 'GET'));
+            expect(res.status).toBe(403);
+        });
+
         it('GET ne retourne que les budgets non archivés de l\'UL', async () => {
             await seedExpenseBudget({ id: 'b-actif', ulId: 'ul-paris-18', name: 'Repas' });
             await seedExpenseBudget({ id: 'b-archive', ulId: 'ul-paris-18', name: 'Essence', archived: true });

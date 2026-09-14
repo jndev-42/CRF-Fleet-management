@@ -677,6 +677,31 @@ export async function seedUserRole(userId: string, roleName: string) {
   }
 }
 
+/**
+ * Ligne "UserUL" (rattachement d'un utilisateur à une UL, avec ses rôles propres).
+ *
+ * `INSERT OR REPLACE` et non `INSERT OR IGNORE` : la clé primaire est (userId, ulId),
+ * et plusieurs tests doivent REMPLACER les rôles d'une ligne déjà posée — un IGNORE
+ * les laisserait silencieusement inchangés et rendrait les tests verts à tort.
+ *
+ * `roles` distingue `null` (colonne NULL) de `[]` (chaîne vide) : la cascade de
+ * `resolveSessionRoles` se replie sur les rôles globaux dans les deux cas, et ce
+ * comportement doit être testable explicitement.
+ */
+export async function seedUserUL(overrides: Partial<{
+  userId: string;
+  ulId: string;
+  isHome: boolean;
+  roles: string[] | null;
+}> = {}) {
+  const row = { userId: 'user-1', ulId: 'ul-paris-18', isHome: true, roles: null as string[] | null, ...overrides };
+  await db.execute({
+    sql: `INSERT OR REPLACE INTO "UserUL" (userId, ulId, is_home, roles) VALUES (?,?,?,?)`,
+    args: [row.userId, row.ulId, row.isHome ? 1 : 0, row.roles === null ? null : row.roles.join(',')],
+  });
+  return row;
+}
+
 export async function seedTrip(overrides: Partial<{
   id: string;
   vehicleId: string;

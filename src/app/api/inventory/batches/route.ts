@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { FEFO_ORDER_BY, RESYNC_ITEM_QUANTITY_SQL } from '@/lib/inventory/adjustments';
 
 const adjustBatchSchema = z.object({
     batchId: z.string().min(1),
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
         }
 
         const batchesRes = await db.execute({
-            sql: `SELECT * FROM "InvBatch" WHERE itemId = ? AND quantity > 0 ORDER BY CASE WHEN expiryDate IS NULL THEN 1 ELSE 0 END, expiryDate ASC`,
+            sql: `SELECT * FROM "InvBatch" WHERE itemId = ? AND quantity > 0 ORDER BY ${FEFO_ORDER_BY}`,
             args: [itemId],
         });
 
@@ -175,9 +176,11 @@ export async function PATCH(request: Request) {
             args: [newQuantity, batchId],
         });
 
-        // Resynchroniser la quantity de l'InvItem
+        // Resynchronisation par la constante partagée : elle ajoute le COALESCE
+        // (sans lui, un article dont tous les lots sont vides écrivait NULL dans une
+        // colonne NOT NULL) et le filtre `quantity > 0`.
         await db.execute({
-            sql: `UPDATE "InvItem" SET quantity = (SELECT SUM(quantity) FROM "InvBatch" WHERE itemId = ?), updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
+            sql: RESYNC_ITEM_QUANTITY_SQL,
             args: [itemId, itemId],
         });
 

@@ -403,4 +403,90 @@ describe('QR Code API Flow', () => {
     expect(incDb.rows[0].userId).toBe('usr-driver-1');
     expect(incDb.rows[0].status).toBe('DRAFT');
   });
+
+  // ── Règle d'accès QR : isQrBlocked (Questions D et E) ──────────────────────
+  //
+  // Tout compte connecté accède au QR, AVEC OU SANS rôle attribué, sauf s'il porte
+  // INACTIF (ou sa valeur héritée GUEST) — dominance, même en cumul.
+
+  /** Session QR factice portant exactement `roles`. */
+  function qrSession(roles: string[], id = 'usr-driver-1') {
+    return {
+      user: { id, name: 'Conducteur Un', email: 'driver1@croix-rouge.fr', roles, ulId: 'ul-paris-18' },
+      expires: '2026-01-01',
+    } as never;
+  }
+
+  it('GET /api/qr/[token]/vehicle autorise un compte sans aucun rôle (AC-G3)', async () => {
+    mockedAuth.mockResolvedValue(qrSession([]));
+    await seedVehicle({ id: 'VLNOROLE', name: 'Véhicule Sans Rôle', type: 'VL', status: 'AVAILABLE', qrToken: 'token-no-role' });
+
+    const req = new Request('http://localhost/api/qr/token-no-role/vehicle');
+    const res = await GET_QR_VEHICLE(req, { params: Promise.resolve({ token: 'token-no-role' }) });
+
+    expect(res.status).toBe(200);
+  });
+
+  it('POST /api/qr/[token]/checkout autorise un compte sans aucun rôle (AC-G4)', async () => {
+    mockedAuth.mockResolvedValue(qrSession([]));
+    await seedVehicle({ id: 'VLNRCO', name: 'Véhicule Sans Rôle Checkout', type: 'VL', status: 'AVAILABLE', qrToken: 'token-no-role-out' });
+
+    const req = new Request('http://localhost/api/qr/token-no-role-out/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état' }),
+    });
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-no-role-out' }) });
+
+    expect(res.status).toBe(201);
+  });
+
+  it('POST /api/qr/[token]/checkin autorise un compte sans rôle qui est le conducteur (AC-G5)', async () => {
+    // Le prédicat QR ne bloque plus ; la garde conducteur de checkin/route.ts reste
+    // seule à border la restitution, inchangée.
+    mockedAuth.mockResolvedValue(qrSession([]));
+    await seedVehicle({ id: 'VLNRCI', name: 'Véhicule Sans Rôle Checkin', type: 'VL', status: 'AVAILABLE', qrToken: 'token-no-role-in' });
+    const { mileageOut } = await qrCheckout('token-no-role-in');
+
+    const req = qrCheckinRequest('token-no-role-in', {
+      mileageIn: mileageOut + 10,
+      fuelIn: 50,
+      conditionIn: 'Bon état',
+    });
+    const res = await POST_QR_CHECKIN(req, { params: Promise.resolve({ token: 'token-no-role-in' }) });
+
+    expect(res.status).toBe(200);
+  });
+
+  it.each([
+    ['GUEST', ['GUEST']],
+    ['INACTIF cumulé à CHVL', ['INACTIF', 'CHVL']],
+    ['CHVL cumulé à INACTIF', ['CHVL', 'INACTIF']],
+  ])('refuse les 3 routes QR véhicule pour %s (AC-G7)', async (_label, roles) => {
+    mockedAuth.mockResolvedValue(qrSession(roles));
+    const token = `token-blocked-${roles.join('-').toLowerCase()}`;
+    await seedVehicle({ id: `VLB${roles.length}${roles[0][0]}`, name: 'Véhicule Bloqué', type: 'VL', status: 'AVAILABLE', qrToken: token });
+
+    const vehicleRes = await GET_QR_VEHICLE(
+      new Request(`http://localhost/api/qr/${token}/vehicle`),
+      { params: Promise.resolve({ token }) },
+    );
+    expect(vehicleRes.status).toBe(403);
+
+    const checkoutRes = await POST_QR_CHECKOUT(
+      new Request(`http://localhost/api/qr/${token}/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état' }),
+      }),
+      { params: Promise.resolve({ token }) },
+    );
+    expect(checkoutRes.status).toBe(403);
+
+    const checkinRes = await POST_QR_CHECKIN(
+      qrCheckinRequest(token, { mileageIn: 100, fuelIn: 50, conditionIn: 'Bon état' }),
+      { params: Promise.resolve({ token }) },
+    );
+    expect(checkinRes.status).toBe(403);
+  });
 });

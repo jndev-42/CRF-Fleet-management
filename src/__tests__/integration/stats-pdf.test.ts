@@ -57,4 +57,13 @@ describe('POST /api/stats/pdf', () => {
         const buffer = await res.arrayBuffer();
         expect(buffer.byteLength).toBeGreaterThan(0);
     }, 15000);
+
+    it('retourne 403 pour un compte cumulant INACTIF et un rôle actif', async () => {
+        // La garde recopiait l'ANCIENNE sémantique d'isInactive (`length === 1 &&
+        // roles[0] === 'INACTIF'`) : un ['CHVL','INACTIF'] a une longueur de 2, la
+        // condition était fausse, et le compte bloqué exportait le PDF des statistiques de trajets.
+        mockedAuth.mockResolvedValue({ user: { email: 'mixte@test.com', roles: ['CHVL', 'INACTIF'] } } as never);
+        const res = await POST(makePostRequest({ dateFrom: '2026-01-01', dateTo: '2026-01-31' }));
+        expect(res.status).toBe(403);
+    });
 });

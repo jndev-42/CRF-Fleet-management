@@ -4,7 +4,7 @@
 # QR [token] Vehicle
 
 ## Purpose
-Resolves a QR token to a vehicle and returns its public data plus active trip (if any). Used by mobile/web clients to populate the checkin screen. Access control: any authenticated, non-INACTIF user (no UL or role checks; QR is the bypass).
+Resolves a QR token to a vehicle and returns its public data plus active trip (if any). Used by mobile/web clients to populate the checkin screen. Access control: any authenticated user not carrying INACTIF/GUEST — an empty role list is allowed (no UL or role checks; QR is the bypass).
 
 ## Key Files
 | File | Description |
@@ -16,7 +16,7 @@ Resolves a QR token to a vehicle and returns its public data plus active trip (i
 ### Working In This Directory
 
 **Auth & Access:**
-- Requires: `session?.user` (401), non-INACTIF (403).
+- Requires: `session?.user` (401), `!isQrBlocked(roles)` (403 — INACTIF is dominant, even combined with active roles).
 - No UL or role check; any authenticated user can resolve any QR token.
 
 **Business Rules:**
@@ -62,7 +62,7 @@ Resolves a QR token to a vehicle and returns its public data plus active trip (i
 ### Internal
 - `db` (libSQL)
 - `auth` from `@/auth`
-- `@/lib/roles` — `isInactive()`
+- `@/lib/roles` — `isQrBlocked()`
 
 ### Tables Touched
 - `Vehicle` (lookup by qrToken, all fields)

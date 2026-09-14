@@ -20,6 +20,12 @@ Manages a user's local unit (UL) assignments and UL-scoped roles. Supports singl
 
 **PUT /api/users/[email]/ul** — ADMIN/RESPO only. Bulk synchronize all UL assignments in one request. Payload: `{ uls: [ { ulId, isHome, roles: [...] }, ... ] }`. Local admins cannot modify other ULs (merges keep other UL entries intact, only modifies their own). Syncs global `UserRole` table if updating home UL. Returns `{ success: true }`.
 
+**INACTIF is restricted to the home UL.** A `PUT` carrying `INACTIF` (or the legacy `GUEST`) on an entry with `isHome: false` is rejected with **400** before the transaction opens. Reason: the session reads the INACTIF flag from the home row ∪ global roles, and `UserRole` is only fed from the home entry — posted anywhere else, the block would be intermittent and would never reach the global roles.
+
+Only **new or modified** entries are validated; an entry carried over unchanged from `existingMap` is exempt. Validating the whole of `mergedUls` would make any account holding one legacy non-conforming row permanently unmodifiable — including by the very edit that would fix it. Role lists are compared as **sets**, since the stored CSV has no guaranteed ordering.
+
+`resolveRoles()` is applied to each entry **after** that validation (normalises `GUEST` → `INACTIF`, de-duplicates). After, not before: otherwise the error message would name a role the administrator never ticked.
+
 **Key business rules:**
 - `isHome = 1` = user's primary UL; user can have at most one
 - When `isHome` changes for home UL, global `UserRole` syncs with home UL's roles
@@ -31,7 +37,7 @@ Manages a user's local unit (UL) assignments and UL-scoped roles. Supports singl
 
 ### Internal
 - `@/lib/db` — `UserUL`, `UniteLocale`, `UserRole` tables
-- `@/lib/roles` — `canAccessAdminPanel`, `isAdminOrAbove`, `isSuperAdmin`
+- `@/lib/roles` — `canAccessAdminPanel`, `isAdminOrAbove`, `isSuperAdmin`, `resolveRoles`, `ROLES`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

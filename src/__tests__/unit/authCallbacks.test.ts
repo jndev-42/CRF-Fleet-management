@@ -193,6 +193,12 @@ describe('NextAuth Callbacks — Impersonation', () => {
                 roles: ['CHVL'],
             };
 
+            // Les rôles viennent de la BASE (rôles globaux + lignes UserUL), jamais du
+            // token : `resolveSessionRoles` émet ces deux requêtes, dans cet ordre.
+            mockExecute
+                .mockResolvedValueOnce({ rows: [{ name: 'CHVL' }] })
+                .mockResolvedValueOnce({ rows: [] });
+
             const result = await callSession({
                 session: session as unknown as Session,
                 token: token as unknown as JWT,
@@ -202,6 +208,50 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.user.originalEmail).toBe('jeannoel.durand@croix-rouge.fr');
             expect(result.user.impersonatedEmail).toBe('target@croix-rouge.fr');
             expect(result.user.roles).toContain('CHVL');
+        });
+
+        it('ne se replie PAS sur token.roles quand la base ne renvoie plus aucun rôle', async () => {
+            // Révocation : un administrateur retire tous les rôles. L'ancien 3ᵉ repli
+            // de la cascade (`token.roles`) rendait les rôles collants — le compte
+            // serait resté CHVL indéfiniment, et la révocation n'aurait jamais eu lieu.
+            const session = { user: { email: 'revoque@croix-rouge.fr' }, expires: '9999' };
+            const token = {
+                originalEmail: 'revoque@croix-rouge.fr',
+                userId: 'revoque-id',
+                roles: ['CHVL'],
+            };
+
+            mockExecute
+                .mockResolvedValueOnce({ rows: [] })
+                .mockResolvedValueOnce({ rows: [] });
+
+            const result = await callSession({
+                session: session as unknown as Session,
+                token: token as unknown as JWT,
+            });
+
+            expect(result.user.roles).toEqual([]);
+        });
+
+        it('sert la dernière valeur connue du token quand la base est injoignable (repli de PANNE)', async () => {
+            // La distinction est la correction : repli de panne, pas repli de cascade.
+            const session = { user: { email: 'panne@croix-rouge.fr' }, expires: '9999' };
+            const token = {
+                originalEmail: 'panne@croix-rouge.fr',
+                userId: 'panne-id',
+                roles: ['CHVL'],
+            };
+
+            mockExecute.mockRejectedValue(new Error('base injoignable'));
+            const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+            const result = await callSession({
+                session: session as unknown as Session,
+                token: token as unknown as JWT,
+            });
+
+            expect(result.user.roles).toEqual(['CHVL']);
+            consoleError.mockRestore();
         });
     });
 

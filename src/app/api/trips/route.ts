@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { isAdminOrAbove, isChvlDriver, isChvpspDriver } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
@@ -67,8 +67,8 @@ export async function POST(request: Request) {
             return forbiddenResponse('Ce véhicule est réservé par un autre utilisateur');
         }
 
-        const isCHVL = roles.includes('CHVL');
-        const isCHVPSP = roles.includes('CHVPSP');
+        const isCHVL = isChvlDriver(roles);
+        const isCHVPSP = isChvpspDriver(roles);
         const vehicleType = String(vehicle.type || '');
         const isVPSP = vehicleType.toUpperCase().includes('VPSP');
 

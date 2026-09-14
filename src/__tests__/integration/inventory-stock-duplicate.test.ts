@@ -256,6 +256,29 @@ describe('POST /api/inventory/stocks/duplicate', () => {
             expect(await logsOf(itemId)).toEqual(before.logs);
         });
 
+        // AC-T10 — le token est propre à un stock : un QR imprimé ne doit pas
+        // se mettre soudain à désigner deux stocks. Et la réponse ne le diffuse pas.
+        it('ne renvoie pas le qrToken et ne le fait pas hériter par la copie', async () => {
+            const sourceId = await createStock('Pharmacie', 'ul-test', 0);
+            await db.execute({
+                sql: `UPDATE "InvStockList" SET qrToken = 'token-source' WHERE id = ?`,
+                args: [sourceId],
+            });
+
+            const res = await duplicateStockRoute(makeRequest({ sourceStockId: sourceId, name: 'Copie' }));
+            expect(res.status).toBe(201);
+            const body = await res.json();
+
+            expect(Object.keys(body)).not.toContain('qrToken');
+            expect(JSON.stringify(body)).not.toContain('token-source');
+
+            const copie = await db.execute({
+                sql: `SELECT qrToken FROM "InvStockList" WHERE id = ?`,
+                args: [body.id],
+            });
+            expect(copie.rows[0].qrToken).toBeNull();
+        });
+
         it('duplique un stock vide', async () => {
             const sourceId = await createStock('Stock Vide', 'ul-test', 1);
             const res = await duplicateStockRoute(makeRequest({ sourceStockId: sourceId, name: 'Copie', copyStock: true }));

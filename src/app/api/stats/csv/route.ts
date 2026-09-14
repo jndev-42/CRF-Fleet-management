@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { z } from 'zod';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { isInactive } from '@/lib/roles';
 
 function csvEscape(value: unknown): string {
     const str = value == null ? '' : String(value);
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        if (roles.length === 0 || (roles.length === 1 && roles[0] === 'INACTIF')) {
+        if (isInactive(roles)) {
             return forbiddenResponse();
         }
 

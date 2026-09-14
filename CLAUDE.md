@@ -23,6 +23,7 @@ npx tsx scripts/add-expense-sealed-pdf.ts       # Migration prod : colonnes de s
 npx tsx scripts/add-expense-pending-receipts.ts # Migration prod : dépôt transitoire des justificatifs (pré-scellement)
 npx tsx scripts/add-expense-budgets.ts          # Migration prod : budgets analytiques (dry-run ; --apply pour écrire)
 npx tsx scripts/add-vehicle-transmission.ts     # Migration prod : colonne Vehicle.transmission (boîte de vitesses)
+npx tsx scripts/add-stock-qr-token.ts           # Migration prod : colonne InvStockList.qrToken + index unique (dry-run ; --apply pour écrire)
 npx tsx scripts/verify-signed-pdf.ts <fichier>  # Vérifie les signatures d'un PDF scellé
 npx tsx scripts/backfill-signed-pdfs.ts         # Scelle rétroactivement les notes existantes (dry-run par défaut, --apply pour écrire)
 npx tsx scripts/add-vehicle-connections.ts      # Migration prod : tables BrandCredential / VehicleConnection + reprise du compte MyRenault global (dry-run ; --apply --ul=<id> pour écrire)

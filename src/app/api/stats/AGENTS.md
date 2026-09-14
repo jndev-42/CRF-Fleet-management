@@ -15,14 +15,14 @@ Container directory for statistics and export endpoints. Provides aggregated dat
 ## Key Files
 | File | Description |
 |------|-------------|
-| `route.ts` | GET: fetch aggregated trip stats; roles: active users only (not INACTIF) |
+| `route.ts` | GET: fetch aggregated trip stats; denied to any account carrying INACTIF, even combined with active roles |
 
 ## For AI Agents
 
 ### Working In This Directory
 - Parent GET route fetches stats data via `fetchStatsData()` lib function, with optional filters: vehicleId, driverId, missionType
 - Date range validation: max 62 days, dateFrom must be before dateTo
-- Access requires active role (not INACTIF/GUEST)
+- Access denied by `isInactive()`, which is **dominant**: carrying INACTIF (or the legacy GUEST) is enough, and an empty role list is denied too
 - Returns `{ success: true, data: ... }` or `{ success: false, error: '...' }`
 - Subdirectories export stats as CSV/PDF via two-step job pattern: POST → jobId → GET with jobId to download
 

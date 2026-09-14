@@ -401,9 +401,17 @@ async function main() {
             "name"      TEXT NOT NULL,
             "ulId"      TEXT NOT NULL DEFAULT 'default',
             "isDefault" INTEGER NOT NULL DEFAULT 0,
+            "qrToken"   TEXT,
             "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
+    `);
+
+    // Index partiel : deux stocks ne peuvent pas porter le même token, mais
+    // autant de stocks qu'on veut peuvent n'en porter aucun.
+    await db.execute(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "InvStockList_qrToken_key"
+            ON "InvStockList"("qrToken") WHERE "qrToken" IS NOT NULL
     `);
 
     await db.execute(`

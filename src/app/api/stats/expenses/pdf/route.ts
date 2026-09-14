@@ -8,6 +8,7 @@ import { createElement, type JSXElementConstructor, type ReactElement } from 're
 import ExpenseStatsPdfDocument from '@/components/stats/ExpenseStatsPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
+import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
 
 const postSchema = z.object({
   dateFrom: z.string().min(1),
@@ -59,8 +60,8 @@ export async function POST(request: Request) {
     }
 
     const roles = (session.user.roles || []) as string[];
-    const isManager = roles.includes('SUPER_ADMIN') || roles.includes('PRESIDENT');
-    const isTresorier = roles.includes('TRESORIER');
+    const isManager = isExpenseManager(roles);
+    const isTresorier = isTresorierRole(roles);
 
     if (!isManager && !isTresorier) {
       return NextResponse.json({ success: false, error: 'Accès réservé aux gestionnaires (Président, Trésorier, Super Admin)' }, { status: 403 });

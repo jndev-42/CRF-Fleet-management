@@ -151,4 +151,32 @@ describe('ManageUserULsModal', () => {
         const options = screen.getAllByRole('option').map(o => o.textContent);
         expect(options).not.toContain('Unité Locale Lyon 3');
     });
+
+    it('désactive INACTIF sur une ligne non-home et le laisse actif sur la ligne home (AC-F9)', async () => {
+        // L'interface ne doit pas permettre de composer une requête que l'API refusera
+        // en 400 — et c'est elle qui tarit l'arrivée de nouvelles lignes non conformes.
+        mockSuperAdminSession();
+        mockFetch(async () => new Response(JSON.stringify({
+            uls: [
+                { id: 'ul-paris-18', isHome: true, roles: ['CHVL'] },
+                { id: 'ul-lyon-3', isHome: false, roles: ['CHVL'] },
+            ],
+        }), { status: 200 }));
+
+        const { container } = render(
+            <ManageUserULsModal user={targetUser} availableULs={uls} availableRoles={['CHVL', 'INACTIF']} onClose={vi.fn()} showToast={vi.fn()} />
+        );
+
+        await screen.findByText('Unité Locale Paris 18');
+
+        const inactifBoxes = Array.from(
+            container.querySelectorAll('label')
+        ).filter(l => l.textContent?.trim() === 'INACTIF')
+         .map(l => l.querySelector('input') as HTMLInputElement);
+
+        // Deux lignes affichées : la home en premier, puis la ligne externe.
+        expect(inactifBoxes).toHaveLength(2);
+        expect(inactifBoxes[0].disabled).toBe(false);   // ligne home
+        expect(inactifBoxes[1].disabled).toBe(true);    // ligne non-home
+    });
 });

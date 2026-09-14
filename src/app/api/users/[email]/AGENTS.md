@@ -20,6 +20,8 @@ User-specific endpoints for role management and deletion. Allows ADMIN to update
 ### Working In This Directory
 **PATCH /api/users/[email]** — ADMIN only. Updates user's global roles. Validates that actor can assign each role (SUPER_ADMIN restriction). If user is now a driver, invalidates papers (if never validated). Local admins cannot modify users from other ULs. Email parameter is URL-decoded. Returns `{ success: true }`.
 
+Also rewrites the **home** `UserUL` row (`is_home = 1`) with the same resolved roles — and that row only. Without it, unticking INACTIF here removes it from `UserRole` but leaves it in a home CSV written earlier by `PUT .../ul`, and the account stays blocked: the unblocking procedure taught to administrators would fail. Secondary UL rows are deliberately left alone — per-UL roles are a feature (CHVL here, CADRE there), and a global overwrite would destroy that.
+
 **DELETE /api/users/[email]** — ADMIN only. Deletes a user only if they have no mission reports (to preserve history). Local admins can only delete users in their own UL. Nullifies `driverId` and `secondDriverId` in `Trip` records and `driver_id` in `mission_reports`. Returns `{ success: true }` or 409 if user has submitted reports.
 
 **Key business rules:**

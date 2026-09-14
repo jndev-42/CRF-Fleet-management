@@ -10,6 +10,7 @@ import ItemBatchesModal from '@/components/inventory/modals/ItemBatchesModal';
 import ExpiringSoonModal from '@/components/inventory/modals/ExpiringSoonModal';
 import LowStockModal from '@/components/inventory/modals/LowStockModal';
 import StockTabs from '@/components/inventory/StockTabs';
+import StockQRCodeModal from '@/components/inventory/modals/StockQRCodeModal';
 import StockModal from '@/components/inventory/modals/StockModal';
 import { InvStockListRow } from '@/lib/inventory/stocks';
 import { isAdminOrAbove } from '@/lib/roles';
@@ -45,6 +46,8 @@ export default function InventoryPage() {
         stockToRename?: InvStockListRow;
         stockToDuplicate?: InvStockListRow;
     }>({ isOpen: false, mode: 'create' });
+    /** Stock dont la modale QR est ouverte, `null` sinon. */
+    const [qrStock, setQrStock] = useState<InvStockListRow | null>(null);
 
     const [items, setItems] = useState<InvItem[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -334,6 +337,7 @@ export default function InventoryPage() {
                     onOpenCreate={() => setStockModalState({ isOpen: true, mode: 'create' })}
                     onOpenRename={stock => setStockModalState({ isOpen: true, mode: 'rename', stockToRename: stock })}
                     onOpenDuplicate={stock => setStockModalState({ isOpen: true, mode: 'duplicate', stockToDuplicate: stock })}
+                    onOpenQrCode={setQrStock}
                     onDeleteStock={handleDeleteStock}
                 />
             )}
@@ -627,6 +631,15 @@ export default function InventoryPage() {
                             : handleRenameStock
                 }
             />
+
+            {qrStock && (
+                <StockQRCodeModal
+                    stockId={qrStock.id}
+                    stockName={qrStock.name}
+                    userRoles={userRoles}
+                    onClose={() => setQrStock(null)}
+                />
+            )}
         </div>
     );
 }

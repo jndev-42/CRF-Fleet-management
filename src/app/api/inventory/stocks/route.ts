@@ -26,8 +26,12 @@ export async function GET() {
         const ulId = session.user.ulId || 'default';
         await getOrCreateDefaultStock(ulId);
 
+        // Liste de colonnes explicite, jamais `SELECT *` : `InvStockList.qrToken`
+        // est un secret (il donne l'accès au stock sans contrôle de rôle ni d'UL)
+        // et cette réponse part à chaque chargement de la page Inventaire, pour
+        // tout utilisateur de l'UL.
         const stocksRes = await db.execute({
-            sql: `SELECT * FROM "InvStockList" WHERE ulId = ? ORDER BY isDefault DESC, createdAt ASC`,
+            sql: `SELECT id, name, ulId, isDefault, createdAt, updatedAt FROM "InvStockList" WHERE ulId = ? ORDER BY isDefault DESC, createdAt ASC`,
             args: [ulId],
         });
 
