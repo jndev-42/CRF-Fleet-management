@@ -56,7 +56,14 @@ export default async function RootLayout({
   const roles = session?.user?.roles || [];
 
   return (
-    <html lang="fr" className={inter.variable} data-scroll-behavior="smooth">
+    // `suppressHydrationWarning` sur <html> et non seulement sur <body> :
+    // `ThemeProvider` est configuré en `attribute="class"` (plus bas), donc
+    // next-themes écrit la classe du thème sur <html> depuis un script inline,
+    // AVANT l'hydratation. Le serveur rend `className="…"`, le client relit
+    // `className="… dark"` : React signalait l'écart à chaque page. L'attribut
+    // ne masque que cet élément-ci, pas ses descendants — un vrai décalage
+    // d'hydratation dans l'arbre reste donc signalé.
+    <html lang="fr" className={inter.variable} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <DemoProvider>
           <DemoBanner />

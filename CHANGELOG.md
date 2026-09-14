@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.7.2] — 14 septembre 2026
+
+### 🐛 Corrections
+
+- **Avertissement d'hydratation à chaque page** — `suppressHydrationWarning` était posé sur `<body>`, alors que `next-themes` est configuré en `attribute="class"` et écrit donc la classe du thème sur `<html>`, depuis un script inline exécuté avant l'hydratation. React signalait l'écart entre le rendu serveur et le rendu client à chaque chargement. L'attribut est désormais sur le bon élément. Aucun changement de comportement visible : c'était du bruit dans les journaux — mais du bruit qui aurait masqué un vrai décalage d'hydratation le jour où il serait survenu.
+
 ## [5.7.1] — 14 septembre 2026
 
 ### 🐛 Corrections
