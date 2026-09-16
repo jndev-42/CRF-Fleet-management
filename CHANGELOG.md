@@ -1,5 +1,22 @@
 # Changelog
 
+## [5.9.0] — 16 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Un véhicule parti en mission affiche désormais son bandeau de maintenance** — jusqu'ici, mettre en maintenance un véhicule déjà emprunté faisait disparaître l'information : la fiche n'affichait que « En mission », et la maintenance restait invisible jusqu'au retour du véhicule. Le cas est pourtant le plus courant — quelqu'un prend le véhicule justement pour l'amener à l'atelier. Le bandeau rouge s'affiche maintenant en même temps que le bandeau d'emprunt.
+- **La restitution reste toujours possible** — l'emprunteur d'un véhicule passé en maintenance pendant sa sortie peut le rendre normalement. Mettre un véhicule en maintenance ne le déclare plus rentré, et le bouton « Rendre le véhicule » ne disparaît plus. Une fois rendu, le véhicule bascule de lui-même en maintenance.
+- **La carte du tableau de bord cumule les deux états** — « En mission » et « 🔧 Maintenance » s'affichent côte à côte, au lieu que l'un masque l'autre.
+- **Le filtre « 🔴 Maintenance » liste aussi les véhicules partis en mission** — un véhicule emprunté et en maintenance porte bien le badge 🔧 sur sa carte, mais disparaissait du filtre censé le montrer, son statut restant « En mission ». Il y figure désormais.
+- **Un véhicule en maintenance ne peut plus être emprunté, pour de bon** — le refus est désormais appliqué par le serveur et non plus seulement par l'interface. Cela couvre aussi les maintenances programmées à l'avance, qui passaient jusqu'ici entre les mailles du filet.
+- **Modifier ou supprimer une maintenance depuis le calendrier** — un administrateur ouvre la fiche d'un événement de maintenance et peut en corriger les dates ou le motif, ou le supprimer. Cela vaut pour les maintenances à venir comme pour celles en cours ; les maintenances terminées restent en lecture seule. La suppression demande confirmation, et le statut du véhicule est recalculé aussitôt.
+- **« Remettre en service » n'est plus proposé pendant un emprunt** — le bouton disparaît tant qu'un trajet est ouvert. Il remettait le véhicule à « disponible » alors qu'il était physiquement dehors, ce qui pouvait autoriser un second emprunt du même véhicule.
+
+### 🔒 Correctifs de sécurité
+
+- **Un véhicule scanné par QR code ne peut plus être emprunté s'il est en maintenance** — le contrôle n'existait que sur le parcours d'emprunt classique ; la voie QR, qui est la moins protégée, laissait passer les maintenances programmées à l'avance.
+- **Cloisonnement des unités locales sur la mise en maintenance** — un administrateur ne peut plus mettre en maintenance, ni remettre en service, un véhicule appartenant à une autre unité locale. Le contrôle manquait sur ce parcours ; combiné au nouveau verrou d'emprunt, il permettait d'immobiliser la flotte d'une autre unité.
+
 ## [5.8.0] — 14 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

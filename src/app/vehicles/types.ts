@@ -15,6 +15,8 @@ export interface DashboardVehicle {
     type: string;
     plate: string;
     status: string;
+    /** Maintenance active en cours, indépendante de `status` (un véhicule IN_USE peut la porter). */
+    hasActiveMaintenance: boolean;
     parkingSpot: string | null;
     fuelLevel: number;
     mileage: number;

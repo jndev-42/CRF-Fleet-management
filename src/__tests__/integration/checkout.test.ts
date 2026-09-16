@@ -327,6 +327,122 @@ describe('POST /api/trips (checkout)', () => {
     });
   });
 
+
+  // ── Verrou maintenance (POST /api/trips, étape 5) ─────────────────────────
+  // `Vehicle.status` ne suffit pas comme garde : une maintenance datée du futur
+  // n'y est jamais projetée, et tout check-in réécrit la colonne à 'AVAILABLE'.
+  // Le verrou interroge donc directement `VehicleMaintenance`.
+  describe('verrou maintenance', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+
+    /** Insère une ligne `VehicleMaintenance` en SQL direct (patron maintenanceEvents.test.ts). */
+    async function seedMaintenance(overrides: Partial<{
+      id: string;
+      vehicleId: string;
+      startDate: string;
+      endDate: string | null;
+      reason: string;
+    }> = {}) {
+      const m = {
+        id: 'maint-1',
+        vehicleId: 'VL001',
+        startDate: new Date(Date.now() - DAY).toISOString(),
+        endDate: null,
+        reason: 'Panne embrayage',
+        ...overrides,
+      };
+      await db.execute({
+        sql: `INSERT INTO "VehicleMaintenance" (id, vehicleId, startDate, endDate, reason)
+              VALUES (?, ?, ?, ?, ?)`,
+        args: [m.id, m.vehicleId, m.startDate, m.endDate, m.reason],
+      });
+      return m;
+    }
+
+    async function tripCount(): Promise<number> {
+      const res = await db.execute({ sql: `SELECT COUNT(*) AS c FROM Trip`, args: [] });
+      return Number(res.rows[0].c);
+    }
+
+    it('returns 400 when an active maintenance covers the vehicle, even if status is AVAILABLE', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(driverWithNameSession);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      // Statut volontairement AVAILABLE en base : c'est bien la table de maintenance
+      // qui doit bloquer, pas la colonne `status`.
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+      await seedMaintenance({ endDate: new Date(Date.now() + DAY).toISOString() });
+
+      const before = await tripCount();
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(400);
+
+      const body = await response.json();
+      expect(body.error).toBe('Ce véhicule est en maintenance');
+
+      // Aucun effet de bord : ni trajet créé, ni statut modifié.
+      expect(await tripCount()).toBe(before);
+      const vehicleResult = await db.execute({
+        sql: `SELECT status FROM "Vehicle" WHERE id = ?`,
+        args: ['VL001'],
+      });
+      expect(vehicleResult.rows[0].status).toBe('AVAILABLE');
+    });
+
+    it('returns 400 when the active maintenance has no end date (endDate IS NULL)', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(driverWithNameSession);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+      await seedMaintenance({ endDate: null });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(400);
+      expect((await response.json()).error).toBe('Ce véhicule est en maintenance');
+      expect(await tripCount()).toBe(0);
+    });
+
+    it('allows checkout when the maintenance starts in the future', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(driverWithNameSession);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+      await seedMaintenance({
+        startDate: new Date(Date.now() + DAY).toISOString(),
+        endDate: new Date(Date.now() + 2 * DAY).toISOString(),
+      });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+      expect(await tripCount()).toBe(1);
+    });
+
+    it('allows checkout when the maintenance is already over', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(driverWithNameSession);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+      await seedMaintenance({
+        startDate: new Date(Date.now() - 2 * DAY).toISOString(),
+        endDate: new Date(Date.now() - DAY).toISOString(),
+      });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+      expect(await tripCount()).toBe(1);
+    });
+
+    it('allows checkout when the vehicle carries no maintenance row at all', async () => {
+      // @ts-expect-error — partial session object for testing
+      mockedAuth.mockResolvedValue(driverWithNameSession);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+  });
+
   // ── Garde de réservation (POST /api/trips) ────────────────────────────────
   // Un véhicule couvert par une réservation VALIDATED active n'est empruntable
   // que par son détenteur, ou par un administrateur.

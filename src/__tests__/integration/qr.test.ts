@@ -489,4 +489,121 @@ describe('QR Code API Flow', () => {
     );
     expect(checkinRes.status).toBe(403);
   });
+
+  // ── Verrou maintenance (POST /api/qr/[token]/checkout) ────────────────────
+  // Second chemin d'emprunt complet, symétrique de `POST /api/trips`
+  // (cf. `checkout.test.ts` § « verrou maintenance »). `Vehicle.status` ne suffit
+  // pas comme garde : une maintenance datée du futur n'y est jamais projetée, et
+  // tout check-in réécrit la colonne à 'AVAILABLE'.
+  describe('verrou maintenance', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+
+    async function seedMaintenance(vehicleId: string, overrides: Partial<{
+      id: string;
+      startDate: string;
+      endDate: string | null;
+      reason: string;
+    }> = {}) {
+      const m = {
+        id: `maint-${vehicleId}`,
+        startDate: new Date(Date.now() - DAY).toISOString(),
+        endDate: null as string | null,
+        reason: 'Panne embrayage',
+        ...overrides,
+      };
+      await db.execute({
+        sql: `INSERT INTO "VehicleMaintenance" (id, vehicleId, startDate, endDate, reason)
+              VALUES (?, ?, ?, ?, ?)`,
+        args: [m.id, vehicleId, m.startDate, m.endDate, m.reason],
+      });
+      return m;
+    }
+
+    async function tripCount(vehicleId: string): Promise<number> {
+      const res = await db.execute({
+        sql: `SELECT COUNT(*) AS c FROM Trip WHERE vehicleId = ?`,
+        args: [vehicleId],
+      });
+      return Number(res.rows[0].c);
+    }
+
+    function checkoutRequest(token: string) {
+      return new Request(`http://localhost/api/qr/${token}/checkout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état' }),
+      });
+    }
+
+    it('returns 400 when an active maintenance covers the vehicle, even if status is AVAILABLE', async () => {
+      // Statut volontairement AVAILABLE en base : c'est bien la table de maintenance
+      // qui doit bloquer, pas la colonne `status`.
+      await seedVehicle({ id: 'VLMNT1', name: 'VL Maintenance 1', type: 'VL', status: 'AVAILABLE', qrToken: 'token-maint-1' });
+      await seedMaintenance('VLMNT1', { endDate: new Date(Date.now() + DAY).toISOString() });
+
+      const res = await POST_QR_CHECKOUT(checkoutRequest('token-maint-1'), {
+        params: Promise.resolve({ token: 'token-maint-1' }),
+      });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe('Ce véhicule est en maintenance');
+
+      // Aucun effet de bord : ni trajet créé, ni statut modifié.
+      expect(await tripCount('VLMNT1')).toBe(0);
+      const vRes = await db.execute({
+        sql: `SELECT status FROM Vehicle WHERE id = ?`,
+        args: ['VLMNT1'],
+      });
+      expect(vRes.rows[0].status).toBe('AVAILABLE');
+    });
+
+    it('returns 400 when the active maintenance has no end date (endDate IS NULL)', async () => {
+      await seedVehicle({ id: 'VLMNT2', name: 'VL Maintenance 2', type: 'VL', status: 'AVAILABLE', qrToken: 'token-maint-2' });
+      await seedMaintenance('VLMNT2', { endDate: null });
+
+      const res = await POST_QR_CHECKOUT(checkoutRequest('token-maint-2'), {
+        params: Promise.resolve({ token: 'token-maint-2' }),
+      });
+      expect(res.status).toBe(400);
+      expect((await res.json()).error).toBe('Ce véhicule est en maintenance');
+      expect(await tripCount('VLMNT2')).toBe(0);
+    });
+
+    it('allows checkout when the maintenance starts in the future', async () => {
+      await seedVehicle({ id: 'VLMNT3', name: 'VL Maintenance 3', type: 'VL', status: 'AVAILABLE', qrToken: 'token-maint-3' });
+      await seedMaintenance('VLMNT3', {
+        startDate: new Date(Date.now() + DAY).toISOString(),
+        endDate: new Date(Date.now() + 2 * DAY).toISOString(),
+      });
+
+      const res = await POST_QR_CHECKOUT(checkoutRequest('token-maint-3'), {
+        params: Promise.resolve({ token: 'token-maint-3' }),
+      });
+      expect(res.status).toBe(201);
+      expect(await tripCount('VLMNT3')).toBe(1);
+    });
+
+    it('allows checkout when the maintenance is already over', async () => {
+      await seedVehicle({ id: 'VLMNT4', name: 'VL Maintenance 4', type: 'VL', status: 'AVAILABLE', qrToken: 'token-maint-4' });
+      await seedMaintenance('VLMNT4', {
+        startDate: new Date(Date.now() - 2 * DAY).toISOString(),
+        endDate: new Date(Date.now() - DAY).toISOString(),
+      });
+
+      const res = await POST_QR_CHECKOUT(checkoutRequest('token-maint-4'), {
+        params: Promise.resolve({ token: 'token-maint-4' }),
+      });
+      expect(res.status).toBe(201);
+      expect(await tripCount('VLMNT4')).toBe(1);
+    });
+
+    it('allows checkout when the vehicle carries no maintenance row at all', async () => {
+      await seedVehicle({ id: 'VLMNT5', name: 'VL Maintenance 5', type: 'VL', status: 'AVAILABLE', qrToken: 'token-maint-5' });
+
+      const res = await POST_QR_CHECKOUT(checkoutRequest('token-maint-5'), {
+        params: Promise.resolve({ token: 'token-maint-5' }),
+      });
+      expect(res.status).toBe(201);
+      expect(await tripCount('VLMNT5')).toBe(1);
+    });
+  });
 });

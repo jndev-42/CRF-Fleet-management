@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { recalcVehicleStatus } from '@/lib/vehicleStatusRecalc';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,7 +81,6 @@ export async function GET(
         // Fetch active maintenance (started today or in the past, and not ended)
         const nowISO = new Date().toISOString();
         const todayDate = nowISO.split('T')[0];
-        const currentStatusUpper = String(row.status || '').toUpperCase();
         const maintenanceResult = await db.execute({
             sql: `SELECT id, startDate, endDate, reason
                   FROM "VehicleMaintenance"
@@ -106,22 +106,10 @@ export async function GET(
         });
         const connectionRow = connectionResult.rows[0] ?? null;
 
-        let effectiveStatus = row.status as string;
-        if (activeMaint && currentStatusUpper !== 'IN_USE') {
-            effectiveStatus = 'MAINTENANCE';
-            if (currentStatusUpper !== 'MAINTENANCE') {
-                await db.execute({
-                    sql: `UPDATE "Vehicle" SET status = 'MAINTENANCE', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-                    args: [row.id]
-                });
-            }
-        } else if (!activeMaint && currentStatusUpper === 'MAINTENANCE') {
-            effectiveStatus = 'AVAILABLE';
-            await db.execute({
-                sql: `UPDATE "Vehicle" SET status = 'AVAILABLE', updatedAt = CURRENT_TIMESTAMP WHERE id = ?`,
-                args: [row.id]
-            });
-        }
+        const effectiveStatus = await recalcVehicleStatus(
+            row.id as string,
+            { currentStatus: row.status as string, hasActiveMaintenance: Boolean(activeMaint) },
+        );
 
         const vehicle = {
             id: row.id,
@@ -153,7 +141,9 @@ export async function GET(
             revisionYearInterval: row.revisionYearInterval as number | null,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
-            activeMaintenance: (effectiveStatus === 'MAINTENANCE' && activeMaint) ? {
+            // La maintenance est un flag parallèle au statut : elle survit à `IN_USE`
+            // (un véhicule parti en mission reste en maintenance et doit l'afficher).
+            activeMaintenance: activeMaint ? {
                 id: activeMaint.id as string,
                 startDate: activeMaint.startDate as string,
                 endDate: activeMaint.endDate as string | null,

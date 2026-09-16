@@ -189,3 +189,215 @@ describe('PATCH /api/vehicles/[id]/maintenance-events', () => {
     expect(v1.status).toBe('AVAILABLE');
   });
 });
+
+// ── Maintenance sur véhicule emprunté — flag parallèle au statut ───────────────
+// `GET /api/vehicles/[id]` auto-répare `Vehicle.status` : chaque critère portant sur
+// le statut est donc asserté par SELECT direct D'ABORD, la forme du payload ensuite.
+describe('maintenance active sur un véhicule IN_USE', () => {
+  const adminSession = { user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' } };
+
+  /** Statut réellement persisté en base. */
+  async function readStatus(vehicleId: string): Promise<string> {
+    const res = await db.execute({ sql: `SELECT status FROM "Vehicle" WHERE id = ?`, args: [vehicleId] });
+    return res.rows[0].status as string;
+  }
+
+  async function seedOpenMaintenance(vehicleId = 'v-1') {
+    await db.execute({
+      sql: `INSERT INTO "VehicleMaintenance" (id, vehicleId, startDate, endDate, reason)
+            VALUES (?, ?, ?, NULL, ?)`,
+      args: ['m-open', vehicleId, new Date(Date.now() - 86_400_000).toISOString(), 'Panne embrayage'],
+    });
+  }
+
+  async function seedOpenTrip(vehicleId = 'v-1') {
+    await seedUser({ id: 'user-driver', email: 'driver@dev.local', name: 'Test Driver' });
+    await db.execute({
+      sql: `INSERT INTO "Trip" (id, vehicleId, driverId, missionType, checkOutAt, conditionOut, mileageOut, fuelOut, checkInAt)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+      args: ['trip-open', vehicleId, 'user-driver', 'LOGISTIQUE', new Date().toISOString(), 'BON', 10000, 75],
+    });
+  }
+
+  function getVehicle() {
+    return GETVehicle(new Request('http://localhost/api/vehicles/VSAV%2001'), {
+      params: Promise.resolve({ id: 'VSAV 01' }),
+    });
+  }
+
+  beforeEach(() => {
+    mockedAuth.mockResolvedValue(adminSession as never);
+  });
+
+  it('expose activeMaintenance sans écraser le statut IN_USE, et n\'écrit rien en base', async () => {
+    await db.execute({ sql: `UPDATE "Vehicle" SET status = 'IN_USE' WHERE id = 'v-1'`, args: [] });
+    await seedOpenMaintenance();
+
+    const res = await getVehicle();
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.activeMaintenance).not.toBeNull();
+    expect(json.activeMaintenance.reason).toBe('Panne embrayage');
+    expect(json.status).toBe('IN_USE');
+
+    // Aucun UPDATE : la colonne reste telle quelle après le GET.
+    expect(await readStatus('v-1')).toBe('IN_USE');
+  });
+
+  it('bascule en MAINTENANCE — et le persiste — une fois le véhicule rendu', async () => {
+    await db.execute({ sql: `UPDATE "Vehicle" SET status = 'IN_USE' WHERE id = 'v-1'`, args: [] });
+    await seedOpenMaintenance();
+
+    // Effet du check-in : la route de restitution repasse la colonne à 'AVAILABLE'.
+    await db.execute({ sql: `UPDATE "Vehicle" SET status = 'AVAILABLE' WHERE id = 'v-1'`, args: [] });
+
+    const res = await getVehicle();
+    const json = await res.json();
+    expect(json.status).toBe('MAINTENANCE');
+    expect(json.activeMaintenance).not.toBeNull();
+
+    // Read-repair persisté, pas seulement projeté.
+    expect(await readStatus('v-1')).toBe('MAINTENANCE');
+  });
+
+  it('la liste /api/vehicles expose hasActiveMaintenance à côté du statut IN_USE', async () => {
+    await db.execute({ sql: `UPDATE "Vehicle" SET status = 'IN_USE' WHERE id = 'v-1'`, args: [] });
+    await seedOpenMaintenance();
+
+    const listRes = await GETVehicles(new Request('http://localhost/api/vehicles'));
+    expect(listRes.status).toBe(200);
+    const listJson = await listRes.json();
+    const v1 = listJson.find((v: { id: string }) => v.id === 'v-1');
+    expect(v1.status).toBe('IN_USE');
+    expect(v1.hasActiveMaintenance).toBe(true);
+  });
+
+  it('la liste expose hasActiveMaintenance false en l\'absence de maintenance', async () => {
+    const listRes = await GETVehicles(new Request('http://localhost/api/vehicles'));
+    const listJson = await listRes.json();
+    const v1 = listJson.find((v: { id: string }) => v.id === 'v-1');
+    expect(v1.status).toBe('AVAILABLE');
+    expect(v1.hasActiveMaintenance).toBe(false);
+  });
+
+  it('PATCH de collection (remise en service) ne libère pas un véhicule emprunté', async () => {
+    await db.execute({ sql: `UPDATE "Vehicle" SET status = 'IN_USE' WHERE id = 'v-1'`, args: [] });
+    await seedOpenMaintenance();
+    await seedOpenTrip();
+
+    const res = await PATCH(makePatchRequest('VSAV 01'), { params: Promise.resolve({ id: 'VSAV 01' }) });
+    expect(res.status).toBe(200);
+
+    // La clause `AND status != 'IN_USE'` protège le véhicule physiquement dehors.
+    expect(await readStatus('v-1')).toBe('IN_USE');
+  });
+
+  it('POST de collection sur un véhicule emprunté n\'écrase pas IN_USE (étape 8bis)', async () => {
+    // État construit PAR LA ROUTE, pas par un `db.execute` de seed : c'est la seule
+    // façon d'exercer l'écriture de `maintenance-events/route.ts` que ce cas couvre.
+    await db.execute({ sql: `UPDATE "Vehicle" SET status = 'IN_USE' WHERE id = 'v-1'`, args: [] });
+    await seedOpenTrip();
+
+    const res = await POST(
+      makePostRequest('VSAV 01', {
+        startDate: new Date().toISOString(),
+        endDate: null,
+        reason: 'Immobilisation en cours de mission',
+      }),
+      { params: Promise.resolve({ id: 'VSAV 01' }) }
+    );
+    expect(res.status).toBe(201);
+
+    // SQL DIRECT D'ABORD.
+    expect(await readStatus('v-1')).toBe('IN_USE');
+
+    // Puis la forme exposée : les deux informations coexistent.
+    const getRes = await getVehicle();
+    const getJson = await getRes.json();
+    expect(getJson.activeMaintenance).not.toBeNull();
+    expect(getJson.status).toBe('IN_USE');
+
+    // Et le GET n'a toujours rien écrasé.
+    expect(await readStatus('v-1')).toBe('IN_USE');
+  });
+});
+
+// ── Cloisonnement UL des routes de collection ─────────────────────────────────
+// `seedUser` accepte mais ne persiste PAS `ulId` (setup.ts) : le 403 inter-UL est donc
+// produit par la SESSION MOCKÉE (`ulId: 'ul-lyon'`) confrontée au `ulId` du véhicule,
+// que `seedVehicle`, lui, persiste bien (`v-1` → 'ul-paris').
+describe('cloisonnement UL de /api/vehicles/[id]/maintenance-events', () => {
+  const adminLyonSession = {
+    user: { id: 'user-admin-lyon', email: 'admin-lyon@dev.local', roles: ['ADMIN'], ulId: 'ul-lyon' },
+  };
+  const superAdminLyonSession = {
+    user: { id: 'user-super', email: 'super@dev.local', roles: ['SUPER_ADMIN'], ulId: 'ul-lyon' },
+  };
+
+  /** Statut réellement persisté — jamais lu via `GET /api/vehicles/[id]` (auto-réparation). */
+  async function readStatus(vehicleId: string): Promise<string> {
+    const res = await db.execute({ sql: `SELECT status FROM "Vehicle" WHERE id = ?`, args: [vehicleId] });
+    return res.rows[0].status as string;
+  }
+
+  beforeEach(async () => {
+    await seedUser({ id: 'user-admin-lyon', email: 'admin-lyon@dev.local', name: 'Admin Lyon', roles: ['ADMIN'] });
+    await seedUser({ id: 'user-super', email: 'super@dev.local', name: 'Super Admin', roles: ['SUPER_ADMIN'] });
+  });
+
+  it('POST renvoie 403 pour un ADMIN d\'une autre UL et n\'écrit rien', async () => {
+    mockedAuth.mockResolvedValue(adminLyonSession as never);
+
+    const res = await POST(
+      makePostRequest('VSAV 01', { startDate: '2026-07-22', endDate: null, reason: 'Immobilisation hostile' }),
+      { params: Promise.resolve({ id: 'VSAV 01' }) }
+    );
+    expect(res.status).toBe(403);
+
+    // Ni ligne de maintenance, ni bascule de statut.
+    const m = await db.execute({ sql: `SELECT id FROM "VehicleMaintenance" WHERE vehicleId = 'v-1'`, args: [] });
+    expect(m.rows).toHaveLength(0);
+    expect(await readStatus('v-1')).toBe('AVAILABLE');
+  });
+
+  it('PATCH renvoie 403 pour un ADMIN d\'une autre UL et laisse la maintenance ouverte', async () => {
+    // Maintenance ouverte posée par l'ADMIN légitime de l'UL propriétaire.
+    mockedAuth.mockResolvedValue({
+      user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris' },
+    } as never);
+    await POST(
+      makePostRequest('VSAV 01', { startDate: '2026-07-20', endDate: null, reason: 'Révision Renault' }),
+      { params: Promise.resolve({ id: 'VSAV 01' }) }
+    );
+    expect(await readStatus('v-1')).toBe('MAINTENANCE');
+
+    mockedAuth.mockResolvedValue(adminLyonSession as never);
+    const res = await PATCH(makePatchRequest('VSAV 01'), { params: Promise.resolve({ id: 'VSAV 01' }) });
+    expect(res.status).toBe(403);
+
+    // La maintenance n'est pas clôturée et le véhicule reste immobilisé.
+    const m = await db.execute({
+      sql: `SELECT endDate FROM "VehicleMaintenance" WHERE vehicleId = 'v-1'`,
+      args: [],
+    });
+    expect(m.rows).toHaveLength(1);
+    expect(m.rows[0].endDate).toBeNull();
+    expect(await readStatus('v-1')).toBe('MAINTENANCE');
+  });
+
+  it('POST reste autorisé pour un SUPER_ADMIN hors UL du véhicule', async () => {
+    mockedAuth.mockResolvedValue(superAdminLyonSession as never);
+
+    const res = await POST(
+      makePostRequest('VSAV 01', { startDate: '2026-07-22', endDate: null, reason: 'Contrôle national' }),
+      { params: Promise.resolve({ id: 'VSAV 01' }) }
+    );
+    expect(res.status).toBe(201);
+    expect(await readStatus('v-1')).toBe('MAINTENANCE');
+
+    // Et la remise en service l'est aussi.
+    const patchRes = await PATCH(makePatchRequest('VSAV 01'), { params: Promise.resolve({ id: 'VSAV 01' }) });
+    expect(patchRes.status).toBe(200);
+    expect(await readStatus('v-1')).toBe('AVAILABLE');
+  });
+});

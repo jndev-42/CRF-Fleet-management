@@ -41,6 +41,30 @@ export async function POST(request: Request) {
             );
         }
 
+        // Instant de référence partagé par toutes les gardes de pré-condition qui suivent
+        // (maintenance, puis réservation) : deux « maintenant » divergents dans une même
+        // requête seraient un piège.
+        const nowISO = new Date().toISOString();
+
+        // Verrou maintenance : la colonne Vehicle.status ne suffit pas — une maintenance
+        // datée du futur n'y est jamais projetée (maintenance-events/route.ts:61) et tout
+        // check-in la réécrit à 'AVAILABLE' (trips/[id]/checkin/route.ts:209).
+        // Prédicat copié de api/vehicles/[id]/route.ts:88-96 pour rester en phase avec
+        // la définition système de « maintenance active ».
+        // Hors transaction : garde de pré-condition, aucune écriture.
+        const todayDate = nowISO.split('T')[0];
+        const maintCheck = await db.execute({
+            sql: `SELECT 1 FROM "VehicleMaintenance"
+                  WHERE vehicleId = ?
+                    AND ((startDate LIKE '%T%' AND startDate <= ?) OR (startDate NOT LIKE '%T%' AND startDate <= ?))
+                    AND (endDate IS NULL OR (endDate LIKE '%T%' AND endDate > ?) OR (endDate NOT LIKE '%T%' AND endDate >= ?))
+                  LIMIT 1`,
+            args: [data.vehicleId, nowISO, todayDate, nowISO, todayDate],
+        });
+        if (maintCheck.rows.length > 0) {
+            return NextResponse.json({ error: 'Ce véhicule est en maintenance' }, { status: 400 });
+        }
+
         // Verify Roles
         const roles = session?.user?.roles || ['INACTIF'];
         const isAdmin = isAdminOrAbove(roles);
@@ -53,7 +77,6 @@ export async function POST(request: Request) {
         // donc exclue de la recherche du `holder` : tout chauffeur éligible peut prendre
         // le véhicule sur le créneau. Le `!=` écarte aussi le créateur d'un privilège
         // qu'il n'a pas — il emprunte au même titre que les autres.
-        const nowISO = new Date().toISOString();
         const activeRes = await db.execute({
             sql: `SELECT userEmail FROM "Reservation"
                   WHERE vehicleId = ? AND status = 'VALIDATED'

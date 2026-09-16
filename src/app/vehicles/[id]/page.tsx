@@ -7,8 +7,7 @@ import Link from 'next/link';
 import { Trip } from './types';
 import { useVehicleDetail } from './useVehicleDetail';
 import VehicleDetailHeader from './VehicleDetailHeader';
-import ActiveTripBanner from './ActiveTripBanner';
-import MaintenanceBanner from './MaintenanceBanner';
+import VehicleDetailBanners from './VehicleDetailBanners';
 import VehicleDetailGrid from './VehicleDetailGrid';
 import TripHistoryList from './TripHistoryList';
 import VehicleNotes from '@/components/vehicle/VehicleNotes';
@@ -228,24 +227,20 @@ function VehicleDetailPageContent() {
                 onManageChecklist={() => setShowChecklistManager(true)}
             />
 
-            {activeTrip && (
-                <ActiveTripBanner
-                    activeTrip={activeTrip}
-                    userRoles={userRoles}
-                    currentUserEmail={currentUserEmail}
-                    users={users}
-                    canCheckIn={canCheckIn}
-                    onShowDesinfPre={() => setShowDesinfPre(true)}
-                    onEditCheckOut={(trip) => setEditingCheckOutTrip(trip)}
-                    onCheckIn={() => setShowCheckIn(true)}
-                    onSecondDriverAdded={fetchVehicle}
-                    showToast={showToast}
-                />
-            )}
-
-            {vehicle?.status === 'MAINTENANCE' && (
-                <MaintenanceBanner vehicle={vehicle} userRoles={userRoles} onEndMaintenance={handleEndMaintenance} />
-            )}
+            <VehicleDetailBanners
+                vehicle={vehicle}
+                activeTrip={activeTrip}
+                userRoles={userRoles}
+                currentUserEmail={currentUserEmail}
+                users={users}
+                canCheckIn={canCheckIn}
+                onShowDesinfPre={() => setShowDesinfPre(true)}
+                onEditCheckOut={(trip) => setEditingCheckOutTrip(trip)}
+                onCheckIn={() => setShowCheckIn(true)}
+                onSecondDriverAdded={fetchVehicle}
+                showToast={showToast}
+                onEndMaintenance={handleEndMaintenance}
+            />
 
             <div style={{ marginTop: 24 }}>
                 {vehicle && (

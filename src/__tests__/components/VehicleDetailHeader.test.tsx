@@ -156,6 +156,10 @@ describe('VehicleDetailHeader — bouton « Prendre le véhicule »', () => {
             isReservedByOther: true,
             licenseBlocked: true,
             isDtView: false,
+            // Dérivé de `vehicle.activeMaintenance` : absent du fixture → false.
+            // Pas de cas `true` ici — le bloc d'emprunt est gaté sur `status === 'AVAILABLE'`
+            // et le helper n'est alors même pas appelé.
+            hasActiveMaintenance: false,
         };
         expect(getBorrowEligibility).toHaveBeenCalledWith(expectedInput);
         expect(getBorrowDenialTitle).toHaveBeenCalledWith(expectedInput);

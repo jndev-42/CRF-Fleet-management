@@ -90,6 +90,7 @@ export default function VehicleDetailHeader({
                         isReservedByOther,
                         licenseBlocked,
                         isDtView,
+                        hasActiveMaintenance: Boolean(vehicle.activeMaintenance),
                     };
                     const { canBorrow } = getBorrowEligibility(eligibilityInput);
                     const titleAttr = getBorrowDenialTitle(eligibilityInput);

@@ -43,6 +43,7 @@ import { PATCH } from '@/app/api/trips/[id]/checkin/route';
 import { auth } from '@/auth';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { db, seedVehicle, seedTrip, seedUser } from './setup';
+import { GET as GETVehicle } from '@/app/api/vehicles/[id]/route';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -305,5 +306,66 @@ describe('PATCH /api/trips/[id]/checkin', () => {
     const [req, ctx] = makeRequest('trip-1', validCheckInBody);
     const response = await PATCH(req, ctx);
     expect(response.status).toBe(200);
+  });
+});
+
+// ── Restitution d'un véhicule en maintenance (critères 1.5 et 1.6) ────────────
+// La maintenance est un flag parallèle : elle n'a jamais interdit le check-in, mais
+// rien ne le vérifiait. Et la route écrit inconditionnellement 'AVAILABLE' — c'est le
+// read-repair de `GET /api/vehicles/[id]` qui doit ensuite reposer 'MAINTENANCE'.
+describe('PATCH /api/trips/[id]/checkin — véhicule en maintenance', () => {
+  // `seedVehicle` persiste `ulId` ; la session doit donc porter la même UL pour le GET.
+  const driverParisSession = {
+    user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' },
+  };
+
+  async function readStatus(vehicleId: string): Promise<string> {
+    const res = await db.execute({ sql: `SELECT status FROM "Vehicle" WHERE id = ?`, args: [vehicleId] });
+    return res.rows[0].status as string;
+  }
+
+  async function seedOpenMaintenance(vehicleId = 'VL001') {
+    await db.execute({
+      sql: `INSERT INTO "VehicleMaintenance" (id, vehicleId, startDate, endDate, reason)
+            VALUES (?, ?, ?, NULL, ?)`,
+      args: ['maint-open', vehicleId, new Date(Date.now() - 86_400_000).toISOString(), 'Panne embrayage'],
+    });
+  }
+
+  beforeEach(async () => {
+    mockedAuth.mockResolvedValue(driverParisSession as never);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+    await seedVehicle({ id: 'VL001', name: 'VL186', status: 'IN_USE', mileage: 10000, ulId: 'ul-paris-18' });
+    await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', mileageOut: 10000 });
+    await seedOpenMaintenance();
+  });
+
+  it('le check-in aboutit malgré la maintenance active (critère 1.5)', async () => {
+    const [req, ctx] = makeRequest('trip-1', validCheckInBody);
+    const response = await PATCH(req, ctx);
+    expect(response.status).toBe(200);
+
+    const trip = await db.execute({ sql: `SELECT checkInAt FROM Trip WHERE id = ?`, args: ['trip-1'] });
+    expect(trip.rows[0].checkInAt).not.toBeNull();
+  });
+
+  it('la transition post-restitution est persistée : AVAILABLE puis MAINTENANCE (critère 1.6)', async () => {
+    const [req, ctx] = makeRequest('trip-1', validCheckInBody);
+    expect((await PATCH(req, ctx)).status).toBe(200);
+
+    // Écriture brute de la route de check-in.
+    expect(await readStatus('VL001')).toBe('AVAILABLE');
+
+    // Le read-repair de la fiche véhicule repose la maintenance…
+    const getRes = await GETVehicle(new Request('http://localhost/api/vehicles/VL186'), {
+      params: Promise.resolve({ id: 'VL186' }),
+    });
+    expect(getRes.status).toBe(200);
+    const getJson = await getRes.json();
+    expect(getJson.status).toBe('MAINTENANCE');
+    expect(getJson.activeMaintenance).not.toBeNull();
+
+    // …et il la PERSISTE, il ne la projette pas seulement.
+    expect(await readStatus('VL001')).toBe('MAINTENANCE');
   });
 });

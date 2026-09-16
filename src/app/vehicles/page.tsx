@@ -220,7 +220,14 @@ export default function VehiclesPage() {
         const filteredVehicles =
           filter === 'ALL'
             ? vehicles
-            : vehicles.filter((v) => v.status === filter);
+            : vehicles.filter((v) =>
+                // Un véhicule IN_USE peut porter une maintenance active : son statut
+                // projeté reste IN_USE (le badge 🔧 le signale), il doit malgré tout
+                // apparaître sous le filtre « Maintenance ».
+                filter === 'MAINTENANCE'
+                  ? v.status === 'MAINTENANCE' || v.hasActiveMaintenance
+                  : v.status === filter,
+              );
 
         if (filteredVehicles.length === 0) {
           return (
@@ -269,6 +276,12 @@ export default function VehiclesPage() {
                       <span className="status-dot" aria-hidden="true" />
                       {statusLabels[vehicle.status]}
                     </span>
+                    {vehicle.hasActiveMaintenance && vehicle.status !== 'MAINTENANCE' && (
+                      <span className="status-badge maintenance" aria-label="Statut : Maintenance en cours">
+                        <span className="status-dot" aria-hidden="true" />
+                        🔧 Maintenance
+                      </span>
+                    )}
                   </div>
                 </div>
 

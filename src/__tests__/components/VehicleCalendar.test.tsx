@@ -5,10 +5,18 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+// Seul mock du fichier : `VehicleCalendar` lit les rôles via `useSession` pour gater les
+// actions de maintenance. `useUL` n'est PAS mocké — `@/lib/contexts/ULContext` tolère
+// l'absence de provider, et la suite passe ainsi.
+const { mockUseSession } = vi.hoisted(() => ({ mockUseSession: vi.fn() }));
+vi.mock('next-auth/react', () => ({ useSession: mockUseSession }));
+
 import VehicleCalendar from '@/components/vehicle/VehicleCalendar';
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  mockUseSession.mockReturnValue({ data: null, status: 'unauthenticated' });
 });
 
 // VehicleCalendar affiche le mois courant par défaut (Date réelle, non mockable
@@ -211,3 +219,188 @@ describe('VehicleCalendar Component', () => {
   });
 });
 
+
+// ── Actions de maintenance depuis le calendrier (étape 10) ────────────────────
+// Réservées à l'ADMIN, masquées en vue DT (lecture seule, véhicules d'autres ULs :
+// le serveur répondrait 403) et masquées sur une maintenance déjà terminée.
+describe('VehicleCalendar — modifier / supprimer une maintenance', () => {
+  const EDIT_LABEL = '✏️ Modifier';
+  const DELETE_LABEL = '🗑️ Supprimer';
+  const CALENDAR_URL = '/api/vehicles/calendar';
+
+  const adminSession = { data: { user: { roles: ['ADMIN'] } }, status: 'authenticated' };
+  const benevoleSession = { data: { user: { roles: ['BENEVOLE'] } }, status: 'authenticated' };
+
+  // Maintenance EN COURS : `endDate` null → visible sur toutes les cases de la grille
+  // jusqu'à aujourd'hui, quel que soit le jour du mois où tourne le test.
+  const ongoingMaintenance = {
+    id: 'maint-open',
+    vehicleId: 'v-1',
+    vehicleName: 'VSAV 01',
+    vehiclePlate: 'AB-123-CD',
+    startDate: new Date(Date.now() - 86_400_000).toISOString(),
+    endDate: null,
+    reason: 'Panne embrayage',
+    isEndDateUnknown: true,
+  };
+
+  // Maintenance TERMINÉE : bornée au premier instant du mois courant. `endDate <= now`
+  // est donc toujours vrai (égalité comprise), et la case du 1er est toujours dans la
+  // grille — aucune fenêtre de flakiness.
+  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1, 0, 0, 0, 0).toISOString();
+  const closedMaintenance = {
+    id: 'maint-closed',
+    vehicleId: 'v-1',
+    vehicleName: 'VSAV 01',
+    vehiclePlate: 'AB-123-CD',
+    startDate: startOfMonth,
+    endDate: startOfMonth,
+    reason: 'Révision terminée',
+    isEndDateUnknown: false,
+  };
+
+  function calendarPayload(maintenances: unknown[]) {
+    return {
+      month: currentMonthStr,
+      vehicles: [{ id: 'v-1', name: 'VSAV 01', plate: 'AB-123-CD', type: 'VPSP', status: 'MAINTENANCE' }],
+      reservations: [],
+      trips: [],
+      maintenances,
+    };
+  }
+
+  /** Routeur de fetch : le calendrier renvoie le payload, tout le reste un 200 générique. */
+  function mockFetch(maintenances: unknown[]) {
+    return vi.spyOn(global, 'fetch').mockImplementation(async (url: RequestInfo | URL) => {
+      if (String(url).includes(CALENDAR_URL)) {
+        return { ok: true, json: async () => calendarPayload(maintenances) } as Response;
+      }
+      return { ok: true, json: async () => ({ success: true }) } as Response;
+    });
+  }
+
+  function calendarCalls(spy: ReturnType<typeof mockFetch>): number {
+    return spy.mock.calls.filter(c => String(c[0]).includes(CALENDAR_URL)).length;
+  }
+
+  /** Ouvre la fiche détail de l'événement de maintenance dont le motif est `reason`. */
+  async function openMaintenanceDetails(reason: string) {
+    // Une maintenance sans date de fin s'affiche sur chaque jour de la grille
+    // jusqu'à aujourd'hui : plusieurs pastilles, on ouvre la première.
+    const chips = await screen.findAllByTitle(new RegExp(reason));
+    fireEvent.click(chips[0]);
+    // `Raison / Motif` n'existe QUE dans la fiche détail d'une maintenance : attendre ce
+    // libellé (et non un vague /Maintenance/, présent dans la légende) garantit que les
+    // cas « bouton absent » ne passent pas parce que le panneau ne s'est pas ouvert.
+    await screen.findByText('Raison / Motif');
+    expect(screen.getByText(reason)).toBeTruthy();
+  }
+
+  beforeEach(() => {
+    localStorage.setItem('show_vehicle_calendar', 'true');
+  });
+
+  it('affiche « Modifier » et « Supprimer » pour un ADMIN sur une maintenance en cours', async () => {
+    mockUseSession.mockReturnValue(adminSession);
+    mockFetch([ongoingMaintenance]);
+
+    render(<VehicleCalendar />);
+    await openMaintenanceDetails('Panne embrayage');
+
+    expect(screen.getByRole('button', { name: EDIT_LABEL })).toBeTruthy();
+    expect(screen.getByRole('button', { name: DELETE_LABEL })).toBeTruthy();
+  });
+
+  it('masque les actions pour un non-ADMIN', async () => {
+    mockUseSession.mockReturnValue(benevoleSession);
+    mockFetch([ongoingMaintenance]);
+
+    render(<VehicleCalendar />);
+    await openMaintenanceDetails('Panne embrayage');
+
+    expect(screen.queryByText(EDIT_LABEL)).toBeNull();
+    expect(screen.queryByText(DELETE_LABEL)).toBeNull();
+  });
+
+  it('masque les actions sur une maintenance terminée, même pour un ADMIN', async () => {
+    mockUseSession.mockReturnValue(adminSession);
+    mockFetch([closedMaintenance]);
+
+    render(<VehicleCalendar />);
+    await openMaintenanceDetails('Révision terminée');
+
+    expect(screen.queryByText(EDIT_LABEL)).toBeNull();
+    expect(screen.queryByText(DELETE_LABEL)).toBeNull();
+  });
+
+  it('masque les actions en vue DT, même pour un ADMIN', async () => {
+    mockUseSession.mockReturnValue(adminSession);
+    mockFetch([ongoingMaintenance]);
+
+    render(<VehicleCalendar dtView />);
+    await openMaintenanceDetails('Panne embrayage');
+
+    expect(screen.queryByText(EDIT_LABEL)).toBeNull();
+    expect(screen.queryByText(DELETE_LABEL)).toBeNull();
+  });
+
+  it('demande confirmation avant de supprimer — aucun DELETE avant validation', async () => {
+    mockUseSession.mockReturnValue(adminSession);
+    const fetchSpy = mockFetch([ongoingMaintenance]);
+
+    render(<VehicleCalendar />);
+    await openMaintenanceDetails('Panne embrayage');
+
+    fireEvent.click(screen.getByRole('button', { name: DELETE_LABEL }));
+
+    // Le modal de confirmation est monté…
+    expect(await screen.findByText('🗑️ Supprimer la maintenance')).toBeTruthy();
+    // …et rien n'a encore été envoyé au serveur.
+    const deleteCalls = fetchSpy.mock.calls.filter(c => (c[1] as RequestInit | undefined)?.method === 'DELETE');
+    expect(deleteCalls).toHaveLength(0);
+  });
+
+  it('2.8 — rafraîchit le calendrier après une suppression confirmée', async () => {
+    mockUseSession.mockReturnValue(adminSession);
+    const fetchSpy = mockFetch([ongoingMaintenance]);
+
+    render(<VehicleCalendar />);
+    await openMaintenanceDetails('Panne embrayage');
+    fireEvent.click(screen.getByRole('button', { name: DELETE_LABEL }));
+    await screen.findByText('🗑️ Supprimer la maintenance');
+
+    const before = calendarCalls(fetchSpy);
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmer la suppression' }));
+
+    await waitFor(() => {
+      const deleteCalls = fetchSpy.mock.calls.filter(c => (c[1] as RequestInit | undefined)?.method === 'DELETE');
+      expect(deleteCalls).toHaveLength(1);
+      expect(String(deleteCalls[0][0])).toBe('/api/vehicles/v-1/maintenance-events/maint-open');
+    });
+
+    // `onSuccess → fetchData()` : un nouvel appel calendrier suit la suppression.
+    await waitFor(() => expect(calendarCalls(fetchSpy)).toBeGreaterThan(before));
+  });
+
+  it('2.8 — rafraîchit le calendrier après une modification enregistrée', async () => {
+    mockUseSession.mockReturnValue(adminSession);
+    const fetchSpy = mockFetch([ongoingMaintenance]);
+
+    render(<VehicleCalendar />);
+    await openMaintenanceDetails('Panne embrayage');
+    fireEvent.click(screen.getByRole('button', { name: EDIT_LABEL }));
+    await screen.findByText('✏️ Modifier la maintenance');
+
+    const before = calendarCalls(fetchSpy);
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
+
+    await waitFor(() => {
+      const patchCalls = fetchSpy.mock.calls.filter(c => (c[1] as RequestInit | undefined)?.method === 'PATCH');
+      expect(patchCalls).toHaveLength(1);
+      expect(String(patchCalls[0][0])).toBe('/api/vehicles/v-1/maintenance-events/maint-open');
+    });
+
+    // Chemin distinct de la suppression, bien qu'il partage `onSuccess → fetchData()`.
+    await waitFor(() => expect(calendarCalls(fetchSpy)).toBeGreaterThan(before));
+  });
+});

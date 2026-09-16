@@ -62,6 +62,24 @@ export async function POST(
             return NextResponse.json({ error: 'Ce véhicule n\'est pas disponible' }, { status: 400 });
         }
 
+        // Verrou maintenance — copie de `src/app/api/trips/route.ts:55-66`.
+        // `Vehicle.status` ne suffit pas : une maintenance datée du futur n'y est jamais
+        // projetée, et tout check-in réécrit la colonne à 'AVAILABLE'. On interroge donc
+        // directement `VehicleMaintenance`, hors transaction.
+        const maintNowISO = new Date().toISOString();
+        const maintTodayDate = maintNowISO.split('T')[0];
+        const maintCheck = await db.execute({
+            sql: `SELECT 1 FROM "VehicleMaintenance"
+                  WHERE vehicleId = ?
+                    AND ((startDate LIKE '%T%' AND startDate <= ?) OR (startDate NOT LIKE '%T%' AND startDate <= ?))
+                    AND (endDate IS NULL OR (endDate LIKE '%T%' AND endDate > ?) OR (endDate NOT LIKE '%T%' AND endDate >= ?))
+                  LIMIT 1`,
+            args: [vehicle.id as string, maintNowISO, maintTodayDate, maintNowISO, maintTodayDate],
+        });
+        if (maintCheck.rows.length > 0) {
+            return NextResponse.json({ error: 'Ce véhicule est en maintenance' }, { status: 400 });
+        }
+
         // Fetch live Renault data if connected
         let mileageOut = vehicle.mileage as number;
         let fuelOut = vehicle.fuelLevel as number;
