@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.10.1] — 17 septembre 2026
+
+### 🔒 Correctifs de sécurité
+
+- **Envoi d'emails sécurisé** — les emails envoyés par l'application (notifications, réinitialisation de mot de passe...) ne peuvent plus être détournés vers un domaine malveillant, et l'application est protégée contre un ralentissement provoqué par une liste de destinataires malformée.
+
 ## [5.10.0] — 17 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

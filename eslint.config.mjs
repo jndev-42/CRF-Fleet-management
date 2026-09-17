@@ -16,6 +16,9 @@ const eslintConfig = defineConfig([
     // avec leur propre `.next/` que le glob `.next/**` ci-dessus, ancré à la
     // racine, ne couvre pas. Les parcourir fait exploser la heap d'ESLint.
     "worktrees/**",
+    // Scripts d'outillage des skills BMad/OMC (CommonJS, hors app Next.js) :
+    // pas du code applicatif, ne doit pas bloquer le lint zéro-tolérance.
+    ".claude/**",
   ]),
 
   // ── Intégrité des PDF scellés ───────────────────────────────────────────────
