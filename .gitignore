@@ -53,3 +53,7 @@ DO_NOT_COMMIT
 .omc/
 .context/
 spike/
+.bmad-loop/runs/
+.bmad-loop/cache/
+.bmad-loop/policy.toml
+_bmad/render/
