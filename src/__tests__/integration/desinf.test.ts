@@ -79,6 +79,10 @@ const validCheckInBody = {
   fuelIn: 70,
 };
 
+// `ulId: 'ul-paris-18'` sur les sessions de ce bloc : `POST /api/trips` applique un
+// cloisonnement UL et refuse en 404 toute session dont l'UL ne correspond pas à celle
+// du véhicule ('ul-paris-18' est le défaut de `seedVehicle`). Même convention que les
+// sessions déjà explicites plus bas dans ce fichier.
 describe('Désinfection — checkout (POST /api/trips)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -91,7 +95,7 @@ describe('Désinfection — checkout (POST /api/trips)', () => {
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-chvpsp', email: 'chvpsp@test.com', roles: ['CHVPSP'] },
+      user: { id: 'user-chvpsp', email: 'chvpsp@test.com', roles: ['CHVPSP'], ulId: 'ul-paris-18' },
     });
 
     const res = await POST(makeCheckOutRequest({ ...validCheckOutDesinf, vehicleId: 'VL001' }));
@@ -113,7 +117,7 @@ describe('Désinfection — checkout (POST /api/trips)', () => {
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-chvpsp', email: 'chvpsp@test.com', name: 'Driver CHVPSP', roles: ['CHVPSP'] },
+      user: { id: 'user-chvpsp', email: 'chvpsp@test.com', name: 'Driver CHVPSP', roles: ['CHVPSP'], ulId: 'ul-paris-18' },
     });
 
     const res = await POST(makeCheckOutRequest(validCheckOutDesinf));

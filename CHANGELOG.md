@@ -1,5 +1,22 @@
 # Changelog
 
+## [5.9.0] — 16 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Un véhicule peut partir à l'atelier sans attendre d'être rendu** — c'est le cas le plus courant : quelqu'un prend le véhicule justement pour l'amener en révision. Jusqu'ici il fallait attendre son retour pour déclarer la maintenance, et une fois déclarée elle restait invisible — la fiche n'affichait que « En mission ». La maintenance se déclare désormais à tout moment, et le bandeau rouge s'affiche aux côtés du bandeau d'emprunt.
+- **Celui qui a le véhicule peut toujours le rendre** — le passer en maintenance pendant qu'il est dehors ne le déclare plus rentré : le bouton « Rendre le véhicule » reste en place pour son emprunteur. Une fois rendu, le véhicule bascule de lui-même en maintenance.
+- **Sur le tableau de bord, les deux états s'affichent ensemble** — « En mission » et « 🔧 Maintenance » cohabitent sur la même carte, au lieu que l'un masque l'autre. Le filtre « 🔴 Maintenance » liste lui aussi ces véhicules, alors qu'ils en disparaissaient.
+- **Le compteur « Maintenance » inclut les véhicules partis à l'atelier** — un véhicule conduit en révision était compté « En mission », ce qui laissait croire la flotte plus mobilisable qu'elle ne l'est. Il est désormais compté en maintenance, et une seule fois : le compteur annonce exactement ce que le filtre affiche.
+- **Corriger ou annuler une maintenance depuis le calendrier** — ouvrir la fiche d'un événement de maintenance permet d'en changer les dates ou le motif, ou de le supprimer, sans passer par la fiche du véhicule. Valable pour les maintenances à venir comme pour celles en cours ; les maintenances passées restent consultables sans être modifiables. La suppression demande confirmation, et le véhicule redevient disponible aussitôt.
+- **Un véhicule en maintenance ne peut plus être emprunté par mégarde** — y compris lorsque la maintenance a été programmée à l'avance, cas qui passait jusqu'ici entre les mailles du filet, et y compris en scannant le QR code du véhicule.
+- **« Remettre en service » n'apparaît plus tant que le véhicule est dehors** — le bouton pouvait déclarer disponible un véhicule physiquement en mission, et laisser quelqu'un d'autre l'emprunter au même moment.
+
+### 🔒 Correctifs de sécurité
+
+- **Chaque unité locale reste maîtresse de sa flotte** — il n'est plus possible de mettre en maintenance, de remettre en service ni d'emprunter un véhicule appartenant à une autre unité locale. L'emprunt par QR code reste quant à lui ouvert entre unités, comme auparavant : c'est tout son intérêt quand on croise un véhicule en déplacement.
+- **Les messages d'erreur ne renseignent plus sur la flotte des autres unités** — tenter d'emprunter un véhicule d'une autre unité répond exactement comme pour un véhicule inexistant, sans laisser deviner s'il existe ni dans quel état il se trouve.
+
 ## [5.8.0] — 14 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

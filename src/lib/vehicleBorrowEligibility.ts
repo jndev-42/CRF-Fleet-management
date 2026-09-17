@@ -20,7 +20,8 @@ export type BorrowDenialReason =
     | 'VPSP_REQUIRES_CHVPSP'    // CHVL face à un véhicule VPSP
     | 'VL_REQUIRES_CHVL'        // CHVPSP pur face à un véhicule non-VPSP
     | 'RESERVED_BY_OTHER'       // réservation VALIDATED active détenue par un tiers
-    | 'LICENSE_BLOCKED';        // papiers non validés hors délai de grâce
+    | 'LICENSE_BLOCKED'         // papiers non validés hors délai de grâce
+    | 'MAINTENANCE_ACTIVE';     // maintenance active, quel que soit le statut
 
 export interface BorrowEligibilityInput {
     vehicleStatus: string;      // 'AVAILABLE' | 'IN_USE' | 'MAINTENANCE'
@@ -29,6 +30,13 @@ export interface BorrowEligibilityInput {
     isReservedByOther: boolean;
     licenseBlocked: boolean;    // GET /api/me/license-check → blocked
     isDtView?: boolean;         // défaut false
+    /**
+     * Maintenance active sur le véhicule. Bloque l'emprunt indépendamment de
+     * `vehicleStatus` : la maintenance est un flag parallèle, jamais un statut —
+     * un véhicule `IN_USE` ou `AVAILABLE` peut porter une maintenance en cours.
+     * Défaut `false`.
+     */
+    hasActiveMaintenance?: boolean;
 }
 
 /** `type.toUpperCase().includes('VPSP')` */
@@ -58,9 +66,11 @@ export function getBorrowEligibility(input: BorrowEligibilityInput): {
         isReservedByOther,
         licenseBlocked,
         isDtView = false,
+        hasActiveMaintenance = false,
     } = input;
 
     if (isDtView) return { canBorrow: false, blockingReason: 'DT_VIEW' };
+    if (hasActiveMaintenance) return { canBorrow: false, blockingReason: 'MAINTENANCE_ACTIVE' };
     if (vehicleStatus !== 'AVAILABLE') return { canBorrow: false, blockingReason: 'NOT_AVAILABLE' };
 
     // ADMIN : bypass réservation + permis (parité VehicleDetailHeader.tsx:92,96,100)
@@ -104,6 +114,9 @@ export function getBorrowDenialTitle(input: BorrowEligibilityInput): string {
     if (input.isReservedByOther && !isAdmin) {
         return "Ce véhicule est actuellement réservé par quelqu'un d'autre.";
     }
+    if (input.hasActiveMaintenance) {
+        return "Ce véhicule est en maintenance — emprunt impossible.";
+    }
     return "Vous n'avez pas les droits pour emprunter ce véhicule";
 }
 
@@ -125,6 +138,7 @@ export const BORROW_CTA_MESSAGES: Record<AggregableReason | 'EMPTY_FLEET', strin
     VPSP_REQUIRES_CHVPSP: 'Les seuls véhicules disponibles sont des VPSP, réservés aux chauffeurs VPSP.',
     VL_REQUIRES_CHVL: 'Les seuls véhicules disponibles sont des véhicules légers, réservés aux chauffeurs VL.',
     RESERVED_BY_OTHER: "Tous les véhicules disponibles sont réservés par quelqu'un d'autre.",
+    MAINTENANCE_ACTIVE: "Les véhicules disponibles sont actuellement en maintenance.",
     EMPTY_FLEET: "Aucun véhicule n'est rattaché à votre Unité Locale.",
 };
 
@@ -140,7 +154,11 @@ const AGGREGATION_PRIORITY: AggregableReason[] = [
     'ROLE_NOT_ALLOWED',
     'VPSP_REQUIRES_CHVPSP',
     'VL_REQUIRES_CHVL',
+    // Sous `NOT_AVAILABLE` à dessein : un seul véhicule en maintenance dans une flotte
+    // de six ne doit pas réécrire le message global en une affirmation fausse pour les
+    // cinq autres. `NOT_AVAILABLE` reste le motif majoritaire et donc prioritaire.
     'NOT_AVAILABLE',
+    'MAINTENANCE_ACTIVE',
     'RESERVED_BY_OTHER',
 ];
 

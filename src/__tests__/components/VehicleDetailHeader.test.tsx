@@ -156,6 +156,10 @@ describe('VehicleDetailHeader — bouton « Prendre le véhicule »', () => {
             isReservedByOther: true,
             licenseBlocked: true,
             isDtView: false,
+            // Dérivé de `vehicle.activeMaintenance` : absent du fixture → false.
+            // Pas de cas `true` ici — le bloc d'emprunt est gaté sur `status === 'AVAILABLE'`
+            // et le helper n'est alors même pas appelé.
+            hasActiveMaintenance: false,
         };
         expect(getBorrowEligibility).toHaveBeenCalledWith(expectedInput);
         expect(getBorrowDenialTitle).toHaveBeenCalledWith(expectedInput);
@@ -187,5 +191,81 @@ describe('VehicleDetailHeader — garde de rendu par statut', () => {
 
         expect(vehicleActionLabels(container)).toEqual([]);
         expect(getBorrowEligibility).not.toHaveBeenCalled();
+    });
+});
+
+// ── Bouton « Maintenance » : déclarable sur un véhicule EMPRUNTÉ ──────────────
+//
+// VERROU DE COMPORTEMENT PRODUIT. Le scénario nominal de la fonctionnalité est
+// « quelqu'un prend le véhicule pour l'amener à l'atelier » : la maintenance doit
+// pouvoir être déclarée AVANT que le véhicule ne soit rendu. Une garde
+// `status !== 'IN_USE'` sur ce bouton rendrait le geste impossible depuis l'UI,
+// alors même que le serveur l'accepte. Ne pas « durcir » ces tests.
+describe('bouton Maintenance', () => {
+    const MAINT_LABEL = '🔧 Maintenance';
+    const END_MAINT_LABEL = '✅ Remettre en service';
+
+    it('IN_USE sans maintenance : un ADMIN peut déclarer la maintenance', () => {
+        renderHeader({
+            vehicle: { ...baseVehicle, status: 'IN_USE' },
+            userRoles: ['ADMIN'],
+            activeTrip,
+            canCheckIn: true,
+        });
+
+        expect(screen.getByRole('button', { name: MAINT_LABEL })).toBeTruthy();
+    });
+
+    it('IN_USE : « Remettre en service » n\'est jamais proposé dans l\'en-tête', () => {
+        renderHeader({
+            vehicle: { ...baseVehicle, status: 'IN_USE' },
+            userRoles: ['ADMIN'],
+            activeTrip,
+            canCheckIn: true,
+        });
+
+        expect(screen.queryByRole('button', { name: END_MAINT_LABEL })).toBeNull();
+    });
+
+    it('IN_USE avec maintenance active : le bouton disparaît, le bandeau prend le relais', () => {
+        renderHeader({
+            vehicle: {
+                ...baseVehicle,
+                status: 'IN_USE',
+                activeMaintenance: { id: 'm-1', startDate: '2026-09-17T08:00:00.000Z', endDate: null, reason: 'Révision' },
+            },
+            userRoles: ['ADMIN'],
+            activeTrip,
+            canCheckIn: true,
+        });
+
+        expect(screen.queryByRole('button', { name: MAINT_LABEL })).toBeNull();
+        expect(screen.queryByRole('button', { name: END_MAINT_LABEL })).toBeNull();
+    });
+
+    it('AVAILABLE : le bouton reste proposé comme avant', () => {
+        renderHeader({ userRoles: ['ADMIN'] });
+
+        expect(screen.getByRole('button', { name: MAINT_LABEL })).toBeTruthy();
+    });
+
+    it('MAINTENANCE hors emprunt : le libellé de remise en service est conservé', () => {
+        renderHeader({
+            vehicle: { ...baseVehicle, status: 'MAINTENANCE' },
+            userRoles: ['ADMIN'],
+        });
+
+        expect(screen.getByRole('button', { name: END_MAINT_LABEL })).toBeTruthy();
+    });
+
+    it('non-ADMIN sur un véhicule emprunté : aucun bouton de maintenance', () => {
+        renderHeader({
+            vehicle: { ...baseVehicle, status: 'IN_USE' },
+            userRoles: ['CHVL'],
+            activeTrip,
+            canCheckIn: true,
+        });
+
+        expect(screen.queryByRole('button', { name: MAINT_LABEL })).toBeNull();
     });
 });

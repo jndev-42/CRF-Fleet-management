@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
+import { computeEffectiveStatus } from '@/lib/vehicleStatusRecalc';
 
 export const dynamic = 'force-dynamic';
 
@@ -115,7 +116,11 @@ export async function GET(request: Request) {
                     name: row.name,
                     type: row.type,
                     plate: row.plate,
-                    status: (row.active_maint_id && row.status !== 'IN_USE') ? 'MAINTENANCE' : (row.status === 'MAINTENANCE' && !row.active_maint_id ? 'AVAILABLE' : row.status),
+                    // Règle unique de statut effectif (pure, sans I/O) — cf. `@/lib/vehicleStatusRecalc`.
+                    status: computeEffectiveStatus(row.status as string, Boolean(row.active_maint_id)),
+                    // Flag parallèle au statut : un véhicule `IN_USE` peut porter une
+                    // maintenance active, que la projection de `status` ci-dessus masque.
+                    hasActiveMaintenance: Boolean(row.active_maint_id),
                     parkingSpot: row.parkingSpot,
                     fuelLevel: row.fuelLevel,
                     mileage: row.mileage,

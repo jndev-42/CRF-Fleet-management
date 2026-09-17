@@ -238,3 +238,115 @@ describe('getBorrowCtaState', () => {
         expect(dtView.message).toBe(BORROW_CTA_MESSAGES.EMPTY_FLEET);
     });
 });
+
+// ── Maintenance active (flag parallèle au statut) ──────────────────────────────
+// La maintenance refuse l'emprunt quel que soit `vehicleStatus` et quel que soit le
+// rôle : elle précède le test de statut ET le bypass ADMIN dans la cascade.
+describe('getBorrowEligibility — maintenance active', () => {
+    it('refuse un véhicule AVAILABLE portant une maintenance active', () => {
+        expect(getBorrowEligibility(input({ vehicleStatus: 'AVAILABLE', hasActiveMaintenance: true })))
+            .toEqual({ canBorrow: false, blockingReason: 'MAINTENANCE_ACTIVE' });
+    });
+
+    it('MAINTENANCE_ACTIVE précède NOT_AVAILABLE sur un véhicule emprunté', () => {
+        expect(getBorrowEligibility(input({ vehicleStatus: 'IN_USE', hasActiveMaintenance: true })))
+            .toEqual({ canBorrow: false, blockingReason: 'MAINTENANCE_ACTIVE' });
+    });
+
+    it('aucun bypass ADMIN : la maintenance prime sur le rôle', () => {
+        expect(getBorrowEligibility(input({ userRoles: ['ADMIN'], hasActiveMaintenance: true })))
+            .toEqual({ canBorrow: false, blockingReason: 'MAINTENANCE_ACTIVE' });
+        expect(getBorrowEligibility(input({ userRoles: ['SUPER_ADMIN'], hasActiveMaintenance: true })))
+            .toEqual({ canBorrow: false, blockingReason: 'MAINTENANCE_ACTIVE' });
+    });
+
+    it('DT_VIEW reste prioritaire sur la maintenance', () => {
+        expect(getBorrowEligibility(input({ isDtView: true, hasActiveMaintenance: true })))
+            .toEqual({ canBorrow: false, blockingReason: 'DT_VIEW' });
+    });
+
+    it('non-régression : flag omis ou faux → décision inchangée', () => {
+        const omitted = getBorrowEligibility(input());
+        expect(omitted).toEqual({ canBorrow: true, blockingReason: null });
+        expect(getBorrowEligibility(input({ hasActiveMaintenance: false }))).toEqual(omitted);
+
+        const deniedOmitted = getBorrowEligibility(input({ vehicleStatus: 'IN_USE' }));
+        expect(deniedOmitted).toEqual({ canBorrow: false, blockingReason: 'NOT_AVAILABLE' });
+        expect(getBorrowEligibility(input({ vehicleStatus: 'IN_USE', hasActiveMaintenance: false })))
+            .toEqual(deniedOmitted);
+    });
+});
+
+describe('getBorrowDenialTitle — maintenance active', () => {
+    it('annonce la maintenance, libellé littéral', () => {
+        expect(getBorrowDenialTitle(input({ hasActiveMaintenance: true })))
+            .toBe('Ce véhicule est en maintenance — emprunt impossible.');
+    });
+
+    it('permis bloqué et réservation tierce restent prioritaires sur la maintenance', () => {
+        expect(getBorrowDenialTitle(input({ hasActiveMaintenance: true, licenseBlocked: true })))
+            .toBe("Vos papiers n'ont pas été validés — emprunt bloqué.");
+        expect(getBorrowDenialTitle(input({ hasActiveMaintenance: true, isReservedByOther: true })))
+            .toBe("Ce véhicule est actuellement réservé par quelqu'un d'autre.");
+    });
+
+    it('un ADMIN en maintenance voit bien le libellé maintenance', () => {
+        expect(getBorrowDenialTitle(input({ userRoles: ['ADMIN'], hasActiveMaintenance: true })))
+            .toBe('Ce véhicule est en maintenance — emprunt impossible.');
+    });
+});
+
+describe('getBorrowCtaState — agrégation MAINTENANCE_ACTIVE', () => {
+    // NOT_AVAILABLE passe devant : un seul véhicule en maintenance dans une flotte
+    // mixte ne doit pas réécrire le message global en une affirmation fausse pour
+    // les autres véhicules, simplement indisponibles.
+    it('NOT_AVAILABLE devance MAINTENANCE_ACTIVE dans une flotte mixte', () => {
+        const res = getBorrowCtaState({
+            loading: false,
+            eligibleCount: 0,
+            licenseBlocked: false,
+            userRoles: ['CHVL'],
+            denialReasons: ['MAINTENANCE_ACTIVE', 'NOT_AVAILABLE'],
+        });
+        expect(res.state).toBe('NONE_ELIGIBLE');
+        expect(res.reason).toBe('NOT_AVAILABLE');
+        expect(res.message).toBe(BORROW_CTA_MESSAGES.NOT_AVAILABLE);
+        expect(res.message).toBe("Aucun véhicule n'est disponible pour le moment.");
+    });
+
+    it('MAINTENANCE_ACTIVE reste le motif quand toute la flotte est en maintenance', () => {
+        const res = getBorrowCtaState({
+            loading: false,
+            eligibleCount: 0,
+            licenseBlocked: false,
+            userRoles: ['CHVL'],
+            denialReasons: ['MAINTENANCE_ACTIVE', 'MAINTENANCE_ACTIVE'],
+        });
+        expect(res.state).toBe('NONE_ELIGIBLE');
+        expect(res.reason).toBe('MAINTENANCE_ACTIVE');
+        expect(res.message).toBe(BORROW_CTA_MESSAGES.MAINTENANCE_ACTIVE);
+        expect(res.message).toBe('Les véhicules disponibles sont actuellement en maintenance.');
+    });
+
+    it('MAINTENANCE_ACTIVE devance RESERVED_BY_OTHER', () => {
+        const res = getBorrowCtaState({
+            loading: false,
+            eligibleCount: 0,
+            licenseBlocked: false,
+            userRoles: ['CHVL'],
+            denialReasons: ['RESERVED_BY_OTHER', 'MAINTENANCE_ACTIVE'],
+        });
+        expect(res.reason).toBe('MAINTENANCE_ACTIVE');
+    });
+
+    it('ROLE_NOT_ALLOWED reste devant MAINTENANCE_ACTIVE', () => {
+        const res = getBorrowCtaState({
+            loading: false,
+            eligibleCount: 0,
+            licenseBlocked: false,
+            userRoles: ['CI/RPAPS'],
+            denialReasons: ['MAINTENANCE_ACTIVE', 'ROLE_NOT_ALLOWED'],
+        });
+        expect(res.reason).toBe('ROLE_NOT_ALLOWED');
+    });
+});

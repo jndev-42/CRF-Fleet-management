@@ -46,6 +46,7 @@ function makeVehicle(overrides: Partial<DashboardVehicle> = {}): DashboardVehicl
         type: 'VL',
         plate: 'AB-123-CD',
         status: 'IN_USE',
+        hasActiveMaintenance: false,
         parkingSpot: 'Baigneur',
         fuelLevel: 80,
         mileage: 10000,

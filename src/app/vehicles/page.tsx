@@ -11,6 +11,7 @@ import VehicleCalendar from '@/components/vehicle/VehicleCalendar';
 import { useUL } from '@/lib/contexts/ULContext';
 import { isAdminOrAbove, hasDTRole } from '@/lib/roles';
 import FleetStatsRow from './FleetStatsRow';
+import { computeFleetStats, countsAsMaintenance } from '@/lib/fleetStats';
 import QuickBorrowSection from './QuickBorrowSection';
 import QuickReturnSection from './QuickReturnSection';
 import type { DashboardVehicle } from './types';
@@ -97,12 +98,9 @@ export default function VehiclesPage() {
     }
   }
 
-  const stats = {
-    total: vehicles.length,
-    available: vehicles.filter((v) => v.status === 'AVAILABLE').length,
-    inUse: vehicles.filter((v) => v.status === 'IN_USE').length,
-    maintenance: vehicles.filter((v) => v.status === 'MAINTENANCE').length,
-  };
+  // Priorité à la maintenance : un véhicule IN_USE portant une maintenance active
+  // est compté sous « Maintenance », pas sous « En mission ». Cf. `@/lib/fleetStats`.
+  const stats = computeFleetStats(vehicles);
 
   if (status === 'unauthenticated') return null;
 
@@ -220,7 +218,15 @@ export default function VehiclesPage() {
         const filteredVehicles =
           filter === 'ALL'
             ? vehicles
-            : vehicles.filter((v) => v.status === filter);
+            : vehicles.filter((v) =>
+                // Un véhicule IN_USE peut porter une maintenance active : son statut
+                // projeté reste IN_USE (le badge 🔧 le signale), il doit malgré tout
+                // apparaître sous le filtre « Maintenance ». Prédicat partagé avec le
+                // compteur : filtre et compteur désignent le même ensemble.
+                filter === 'MAINTENANCE'
+                  ? countsAsMaintenance(v)
+                  : v.status === filter,
+              );
 
         if (filteredVehicles.length === 0) {
           return (
@@ -269,6 +275,12 @@ export default function VehiclesPage() {
                       <span className="status-dot" aria-hidden="true" />
                       {statusLabels[vehicle.status]}
                     </span>
+                    {vehicle.hasActiveMaintenance && vehicle.status !== 'MAINTENANCE' && (
+                      <span className="status-badge maintenance" aria-label="Statut : Maintenance en cours">
+                        <span className="status-dot" aria-hidden="true" />
+                        🔧 Maintenance
+                      </span>
+                    )}
                   </div>
                 </div>
 

@@ -157,6 +157,7 @@ export function useBorrowEligibility(args: {
                 isReservedByOther: reservedByOtherIds.has(vehicle.id),
                 licenseBlocked,
                 isDtView,
+                hasActiveMaintenance: vehicle.hasActiveMaintenance,
             });
             if (canBorrow) eligible.push(vehicle);
             else if (blockingReason) reasons.push(blockingReason);

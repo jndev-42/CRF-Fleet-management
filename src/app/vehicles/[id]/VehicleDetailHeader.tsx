@@ -90,6 +90,7 @@ export default function VehicleDetailHeader({
                         isReservedByOther,
                         licenseBlocked,
                         isDtView,
+                        hasActiveMaintenance: Boolean(vehicle.activeMaintenance),
                     };
                     const { canBorrow } = getBorrowEligibility(eligibilityInput);
                     const titleAttr = getBorrowDenialTitle(eligibilityInput);
@@ -131,7 +132,25 @@ export default function VehicleDetailHeader({
                 >
                     📋 Historique des incidents
                 </button>
-                {!isDtView && vehicle.status !== 'IN_USE' && userRoles.includes('ADMIN') && (
+                {/*
+                  * Mettre en maintenance reste possible sur un véhicule EMPRUNTÉ : c'est même
+                  * le cas nominal — quelqu'un prend le véhicule justement pour l'amener à
+                  * l'atelier, et la maintenance doit pouvoir être déclarée avant son retour.
+                  * L'ancienne garde `status !== 'IN_USE'` rendait ce geste impossible.
+                  *
+                  * « ✅ Remettre en service » ne peut pas apparaître ici sur un véhicule
+                  * emprunté : ce libellé exige `status === 'MAINTENANCE'`, et la maintenance
+                  * n'écrase jamais IN_USE (clauses `AND status != 'IN_USE'` de
+                  * `maintenance-events/route.ts`, et `computeEffectiveStatus` qui ne dérive
+                  * jamais MAINTENANCE depuis IN_USE). Le seul chemin de remise en service vit
+                  * dans `MaintenanceBanner`, où il est fermé tant qu'un trajet est ouvert.
+                  *
+                  * Bouton masqué quand le véhicule est emprunté ET déjà en maintenance : le
+                  * bandeau porte alors l'information, et rouvrir la modale ne ferait qu'empiler
+                  * une seconde ligne de maintenance sur la même période.
+                  */}
+                {!isDtView && userRoles.includes('ADMIN')
+                    && !(vehicle.status === 'IN_USE' && vehicle.activeMaintenance) && (
                     <button
                         className="btn btn-secondary"
                         onClick={onToggleMaintenance}

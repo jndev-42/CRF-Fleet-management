@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isChvlDriver, isChvpspDriver } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { checkOutSchema } from './schema';
@@ -16,6 +16,12 @@ export async function POST(request: Request) {
         if (!session?.user) {
             return unauthorizedResponse();
         }
+
+        // Rôles résolus dès l'authentification : la garde de cloisonnement UL ci-dessous
+        // en a besoin, bien avant la garde d'éligibilité (`canBorrow`) qui les consommait
+        // seule auparavant.
+        const roles = session?.user?.roles || ['INACTIF'];
+        const isAdmin = isAdminOrAbove(roles);
 
         const body = await request.json();
         const data = checkOutSchema.parse(body);
@@ -34,6 +40,27 @@ export async function POST(request: Request) {
             );
         }
 
+        // Cloisonnement UL — placé AVANT les gardes d'état (disponibilité, maintenance)
+        // pour deux raisons distinctes :
+        //
+        // 1. Emprunt inter-UL. Cette route n'avait aucun contrôle d'UL : un `vehicleId`
+        //    récolté dans la vision DT (qui liste les véhicules des autres ULs) suffisait
+        //    à sortir le véhicule d'une autre unité. La garde de rôle (`canBorrow`) ne
+        //    ferme rien ici : un CHVL légitime de Lyon reste un CHVL face à un VL parisien.
+        // 2. Oracle d'état de flotte. Les gardes suivantes répondent 400 « pas disponible »
+        //    ou 400 « en maintenance » — trois réponses distinctes qui laissaient tout
+        //    compte authentifié, INACTIF compris, sonder la flotte d'une autre UL.
+        //
+        // Le refus est donc un 404 et non un 403 : il doit être indiscernable d'un
+        // identifiant inconnu. `isOutsideUl` refuse aussi les sentinelles (`ulId` vide ou
+        // `'default'`) avant toute comparaison, cf. `@/lib/apiAuth`.
+        if (isOutsideUl(roles, session.user.ulId, vehicle.ulId)) {
+            return NextResponse.json(
+                { error: 'Véhicule non trouvé' },
+                { status: 404 }
+            );
+        }
+
         if (vehicle.status !== 'AVAILABLE') {
             return NextResponse.json(
                 { error: 'Ce véhicule n\'est pas disponible' },
@@ -41,9 +68,29 @@ export async function POST(request: Request) {
             );
         }
 
-        // Verify Roles
-        const roles = session?.user?.roles || ['INACTIF'];
-        const isAdmin = isAdminOrAbove(roles);
+        // Instant de référence partagé par toutes les gardes de pré-condition qui suivent
+        // (maintenance, puis réservation) : deux « maintenant » divergents dans une même
+        // requête seraient un piège.
+        const nowISO = new Date().toISOString();
+
+        // Verrou maintenance : la colonne Vehicle.status ne suffit pas — une maintenance
+        // datée du futur n'y est jamais projetée (maintenance-events/route.ts:61) et tout
+        // check-in la réécrit à 'AVAILABLE' (trips/[id]/checkin/route.ts:209).
+        // Prédicat copié de api/vehicles/[id]/route.ts:88-96 pour rester en phase avec
+        // la définition système de « maintenance active ».
+        // Hors transaction : garde de pré-condition, aucune écriture.
+        const todayDate = nowISO.split('T')[0];
+        const maintCheck = await db.execute({
+            sql: `SELECT 1 FROM "VehicleMaintenance"
+                  WHERE vehicleId = ?
+                    AND ((startDate LIKE '%T%' AND startDate <= ?) OR (startDate NOT LIKE '%T%' AND startDate <= ?))
+                    AND (endDate IS NULL OR (endDate LIKE '%T%' AND endDate > ?) OR (endDate NOT LIKE '%T%' AND endDate >= ?))
+                  LIMIT 1`,
+            args: [data.vehicleId, nowISO, todayDate, nowISO, todayDate],
+        });
+        if (maintCheck.rows.length > 0) {
+            return NextResponse.json({ error: 'Ce véhicule est en maintenance' }, { status: 400 });
+        }
 
         // Garde de réservation : un véhicule couvert par une réservation VALIDATED
         // active maintenant n'est empruntable que par son détenteur — ou par un admin.
@@ -53,7 +100,6 @@ export async function POST(request: Request) {
         // donc exclue de la recherche du `holder` : tout chauffeur éligible peut prendre
         // le véhicule sur le créneau. Le `!=` écarte aussi le créateur d'un privilège
         // qu'il n'a pas — il emprunte au même titre que les autres.
-        const nowISO = new Date().toISOString();
         const activeRes = await db.execute({
             sql: `SELECT userEmail FROM "Reservation"
                   WHERE vehicleId = ? AND status = 'VALIDATED'

@@ -1,9 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import styles from './VehicleCalendar.module.css';
 import { useUL } from '@/lib/contexts/ULContext';
 import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
+import { isAdminOrAbove } from '@/lib/roles';
+import { isMaintenanceEditable } from '@/lib/maintenanceStatus';
+import EditMaintenanceEventModal from './modals/EditMaintenanceEventModal';
+import DeleteMaintenanceEventModal from './modals/DeleteMaintenanceEventModal';
 
 interface Vehicle {
   id: string;
@@ -77,6 +82,7 @@ interface VehicleCalendarProps {
 
 export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps) {
   const { activeUL } = useUL();
+  const { data: session } = useSession();
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('ALL');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -86,6 +92,12 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showCalendar, setShowCalendar] = useState<boolean>(true);
+  const [editingMaintenance, setEditingMaintenance] = useState<MaintenanceEvent | null>(null);
+  const [deletingMaintenance, setDeletingMaintenance] = useState<MaintenanceEvent | null>(null);
+
+  // La vue DT est en lecture seule par contrat et affiche des véhicules d'autres ULs :
+  // le serveur répondrait 403. On y masque donc les actions de maintenance.
+  const canEditMaintenance = isAdminOrAbove(session?.user?.roles || []) && !dtView;
 
   // Reset vehicle filter when active UL changes
   useEffect(() => {
@@ -679,11 +691,54 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
                     <span className={styles.detailLabel}>Raison / Motif</span>
                     <span className={styles.detailValue}>{selectedEvent.data.reason}</span>
                   </div>
+                  {canEditMaintenance && isMaintenanceEditable(selectedEvent.data.endDate) && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+                      <button
+                        className="btn btn-secondary"
+                        onClick={() => setEditingMaintenance(selectedEvent.data)}
+                      >
+                        ✏️ Modifier
+                      </button>
+                      <button
+                        className="btn btn-primary"
+                        style={{ background: 'var(--status-maintenance)', borderColor: 'var(--status-maintenance)' }}
+                        onClick={() => setDeletingMaintenance(selectedEvent.data)}
+                      >
+                        🗑️ Supprimer
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modification d'une maintenance (calendrier) */}
+      {editingMaintenance && (
+        <EditMaintenanceEventModal
+          event={editingMaintenance}
+          onClose={() => setEditingMaintenance(null)}
+          onSuccess={() => {
+            setSelectedEvent(null);
+            setEditingMaintenance(null);
+            fetchData();
+          }}
+        />
+      )}
+
+      {/* Suppression d'une maintenance (calendrier) */}
+      {deletingMaintenance && (
+        <DeleteMaintenanceEventModal
+          event={deletingMaintenance}
+          onClose={() => setDeletingMaintenance(null)}
+          onSuccess={() => {
+            setSelectedEvent(null);
+            setDeletingMaintenance(null);
+            fetchData();
+          }}
+        />
       )}
     </div>
   );

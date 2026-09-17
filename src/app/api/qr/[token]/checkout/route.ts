@@ -47,6 +47,18 @@ export async function POST(
         const data = checkOutSchema.parse(body);
 
         // Resolve token → vehicle
+        //
+        // AUCUN CLOISONNEMENT UL ICI, ET C'EST VOLONTAIRE. La possession physique du QR
+        // code fait foi : le bénévole qui scanne la vignette d'un véhicule en renfort sur
+        // une autre unité locale doit pouvoir le prendre. C'est le seul parcours d'emprunt
+        // inter-UL légitime du produit — `POST /api/trips` applique, lui, un cloisonnement
+        // strict (404 inter-UL, `isOutsideUl` de `@/lib/apiAuth`), et les deux routes sont
+        // indépendantes : celle-ci fait son propre INSERT Trip et son propre UPDATE Vehicle.
+        //
+        // Ne pas « harmoniser » les deux : le verrou de comportement est
+        // `src/__tests__/integration/qr.test.ts` → « l'emprunt QR reste ouvert entre unités
+        // locales (bypass volontaire des droits) ». Seul le verrou maintenance ci-dessous
+        // restreint ce parcours.
         const vehicleRes = await db.execute({
             sql: `SELECT * FROM Vehicle WHERE qrToken = ?`,
             args: [token],
@@ -60,6 +72,24 @@ export async function POST(
 
         if (vehicle.status !== 'AVAILABLE') {
             return NextResponse.json({ error: 'Ce véhicule n\'est pas disponible' }, { status: 400 });
+        }
+
+        // Verrou maintenance — copie de `src/app/api/trips/route.ts:55-66`.
+        // `Vehicle.status` ne suffit pas : une maintenance datée du futur n'y est jamais
+        // projetée, et tout check-in réécrit la colonne à 'AVAILABLE'. On interroge donc
+        // directement `VehicleMaintenance`, hors transaction.
+        const maintNowISO = new Date().toISOString();
+        const maintTodayDate = maintNowISO.split('T')[0];
+        const maintCheck = await db.execute({
+            sql: `SELECT 1 FROM "VehicleMaintenance"
+                  WHERE vehicleId = ?
+                    AND ((startDate LIKE '%T%' AND startDate <= ?) OR (startDate NOT LIKE '%T%' AND startDate <= ?))
+                    AND (endDate IS NULL OR (endDate LIKE '%T%' AND endDate > ?) OR (endDate NOT LIKE '%T%' AND endDate >= ?))
+                  LIMIT 1`,
+            args: [vehicle.id as string, maintNowISO, maintTodayDate, maintNowISO, maintTodayDate],
+        });
+        if (maintCheck.rows.length > 0) {
+            return NextResponse.json({ error: 'Ce véhicule est en maintenance' }, { status: 400 });
         }
 
         // Fetch live Renault data if connected
