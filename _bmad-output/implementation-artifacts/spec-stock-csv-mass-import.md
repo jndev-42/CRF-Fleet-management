@@ -2,7 +2,7 @@
 title: 'Import CSV massif pour la fonctionnalité stock'
 type: 'feature'
 created: '2026-09-17'
-status: 'in-review'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 context: ['{project-root}/src/app/api/CLAUDE.md', '{project-root}/src/__tests__/CLAUDE.md']
