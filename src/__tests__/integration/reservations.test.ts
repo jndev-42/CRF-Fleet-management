@@ -12,6 +12,7 @@
  *  4. 400 — endTime avant startTime
  *  5. 404 — ADMIN fournit un userId inconnu
  *  6. 201 — CHVL réserve pour lui-même → status PENDING, userEmail = CHVL
+ *  6 bis. Vehicle.status inchangé après création d'une réservation
  *  7. 201 — ADMIN réserve pour lui-même → status VALIDATED
  *  8. 201 — ADMIN réserve pour un autre → status VALIDATED, userEmail = cible
  *  9. 409 — conflit avec une réservation VALIDATED existante
@@ -126,6 +127,21 @@ describe('POST /api/vehicles/[id]/reservations — happy paths', () => {
         expect(rows.rows.length).toBe(1);
         expect(rows.rows[0].userEmail).toBe('chvl@dev.local');
         expect(rows.rows[0].status).toBe('PENDING');
+    });
+
+    // 🔴 Non-régression « réservation rapide » : réserver n'immobilise PAS le véhicule,
+    // contrairement à l'emprunt (`POST /api/trips`, qui bascule le statut en IN_USE).
+    it('6 bis. la création d\'une réservation ne modifie pas Vehicle.status', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        const before = await db.execute({ sql: `SELECT status FROM "Vehicle" WHERE id = ?`, args: [VEHICLE_ID] });
+        expect(before.rows[0].status).toBe('AVAILABLE');
+
+        const { startTime, endTime } = futureWindow(10, 2);
+        const res = await POST(makeRequest({ startTime, endTime }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        expect(res.status).toBe(201);
+
+        const after = await db.execute({ sql: `SELECT status FROM "Vehicle" WHERE id = ?`, args: [VEHICLE_ID] });
+        expect(after.rows[0].status).toBe('AVAILABLE');
     });
 
     it('7. ADMIN réservant pour lui-même → 201, status VALIDATED', async () => {

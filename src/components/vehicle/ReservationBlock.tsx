@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from './Reservation.module.css';
 import UserCombobox from '@/components/ui/UserCombobox';
 import { canAccessAdminPanel } from '@/lib/roles';
-import RecurrencePanel, { RecurrenceFormState } from './RecurrencePanel';
+import ReservationFormModal from './modals/ReservationFormModal';
 import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
 
 interface Reservation {
@@ -28,15 +28,6 @@ interface ReservationBlockProps {
     readOnly?: boolean;
 }
 
-const DEFAULT_RECURRENCE: RecurrenceFormState = {
-    enabled: false,
-    daysOfWeek: [],
-    startHour: '',
-    endHour: '',
-    firstOccurrenceDate: '',
-    recurrenceEndDate: '',
-};
-
 const PAGE_SIZE = 5;
 
 export default function ReservationBlock({ vehicleId, vehicleType, currentUserEmail, userRoles, onActiveReservationChange, licenseBlocked = false, readOnly = false }: ReservationBlockProps) {
@@ -47,17 +38,8 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const [validating, setValidating] = useState<string | null>(null);
     const [page, setPage] = useState(1);
 
-    // Form fields (Create)
-    const [startDate, setStartDate] = useState('');
-    const [startTime, setStartTime] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [endTime, setEndTime] = useState('');
-    const [reason, setReason] = useState('');
-    const [driverSelection, setDriverSelection] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-
-    // Recurrence state
-    const [recurrence, setRecurrence] = useState<RecurrenceFormState>(DEFAULT_RECURRENCE);
+    // Bandeau d'alerte (conflits de récurrence), alimenté par le formulaire partagé
+    // comme par la validation de groupe.
     const [recurrenceWarning, setRecurrenceWarning] = useState<string | null>(null);
 
     // Form fields (Edit)
@@ -142,90 +124,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         setPage(1);
     }, [vehicleId]);
 
-    // ── Helpers ────────────────────────────────────────────────────────────────
-    const resetCreateForm = () => {
-        setStartDate(''); setStartTime(''); setEndDate(''); setEndTime(''); setReason('');
-        setDriverSelection('');
-        setRecurrence(DEFAULT_RECURRENCE);
-    };
-
     // ── Handlers ───────────────────────────────────────────────────────────────
-    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        setSubmitting(true);
-        setRecurrenceWarning(null);
-        try {
-            if (recurrence.enabled) {
-                const payload = {
-                    recurrence: {
-                        daysOfWeek: recurrence.daysOfWeek,
-                        startHour: recurrence.startHour,
-                        endHour: recurrence.endHour,
-                        firstOccurrenceDate: recurrence.firstOccurrenceDate,
-                        recurrenceEndDate: recurrence.recurrenceEndDate,
-                        reason: reason || undefined,
-                        ...(canManageDriver && driverSelection === 'UNASSIGNED' ? { isUnassignedDriver: true } : {}),
-                        ...(canManageDriver && driverSelection && driverSelection !== 'UNASSIGNED' ? { onBehalfOfUserId: driverSelection } : {}),
-                    },
-                };
-
-                const res = await fetch(`/api/vehicles/${vehicleId}/reservations`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload),
-                });
-
-                const data = await res.json();
-
-                if (res.ok) {
-                    setShowModal(false);
-                    resetCreateForm();
-                    fetchReservations();
-
-                    if (data.skipped && data.skipped.length > 0) {
-                        const skippedFormatted = data.skipped
-                            .map((d: string) => new Date(`${d}T12:00:00`).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }))
-                            .join(', ');
-                        setRecurrenceWarning(
-                            `✅ ${data.created} créneau(x) créé(s). ⚠️ ${data.skipped.length} créneau(x) ignoré(s) car déjà réservé(s) : ${skippedFormatted}`
-                        );
-                    }
-                } else {
-                    alert(data.error || 'Erreur lors de la création des réservations récurrentes');
-                }
-            } else {
-                const startISO = new Date(`${startDate}T${startTime}`).toISOString();
-                const endISO = new Date(`${endDate}T${endTime}`).toISOString();
-
-                const bodyPayload: Record<string, unknown> = { startTime: startISO, endTime: endISO, reason };
-
-                if (canManageDriver) {
-                    if (driverSelection === 'UNASSIGNED') bodyPayload.isUnassignedDriver = true;
-                    else if (driverSelection) bodyPayload.onBehalfOfUserId = driverSelection;
-                }
-
-                const res = await fetch(`/api/vehicles/${vehicleId}/reservations`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bodyPayload),
-                });
-
-                if (res.ok) {
-                    setShowModal(false);
-                    resetCreateForm();
-                    fetchReservations();
-                } else {
-                    const data = await res.json();
-                    alert(data.error || 'Erreur lors de la réservation');
-                }
-            }
-        } catch {
-            alert('Erreur réseau');
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
     const handleOpenEdit = (res: Reservation) => {
         setEditingReservation(res);
         const start = new Date(res.startTime);
@@ -377,7 +276,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                         className={`btn btn-secondary ${styles.addBtn}`}
                         onClick={() => {
                             if (!licenseBlocked || canManageDriver) {
-                                setDriverSelection('');
+                                setRecurrenceWarning(null);
                                 setShowModal(true);
                             }
                         }}
@@ -541,110 +440,20 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                 </>
             )}
 
-            {/* Modal de création */}
+            {/* Modal de création — formulaire partagé avec la réservation rapide */}
             {showModal && (
-                <div className="modal-overlay" onClick={() => { setShowModal(false); resetCreateForm(); }} style={{ zIndex: 1000 }}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
-                        <h3>Réserver ce véhicule</h3>
-                        {!canValidate && (
-                            <p className={styles.pendingNotice}>
-                                Votre demande sera soumise à validation par un responsable.
-                            </p>
-                        )}
-                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-                            {canManageDriver && (
-                                <div className={styles.formGroup}>
-                                    <label>Chauffeur (Pour)</label>
-                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                        <div style={{ flex: 1 }}>
-                                            <UserCombobox
-                                                users={users}
-                                                value={driverSelection}
-                                                onChange={setDriverSelection}
-                                                excludeEmail={currentUserEmail ?? undefined}
-                                                defaultLabel="Moi-même"
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            className={`${styles.quickChBtn} ${driverSelection === 'UNASSIGNED' ? styles.quickChBtnActive : ''}`}
-                                            onClick={() => setDriverSelection(driverSelection === 'UNASSIGNED' ? '' : 'UNASSIGNED')}
-                                            title={`Indiquer ${UNASSIGNED_DRIVER_NAME}`}
-                                        >
-                                            {UNASSIGNED_DRIVER_NAME}
-                                        </button>
-                                    </div>
-                                    {driverSelection === 'UNASSIGNED' && (
-                                        <p className={styles.pendingNotice} style={{ marginTop: 4 }}>
-                                            Cette réservation sera enregistrée sans chauffeur attribué.
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Toggle récurrence */}
-                            <div className={styles.formGroup}>
-                                <div className={styles.recurrenceToggleRow}>
-                                    <label htmlFor="recurrence-toggle" className={styles.recurrenceToggleLabel}>
-                                        🔁 Réservation récurrente
-                                    </label>
-                                    <button
-                                        id="recurrence-toggle"
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={recurrence.enabled}
-                                        className={`${styles.toggleSwitch} ${recurrence.enabled ? styles.toggleSwitchOn : ''}`}
-                                        onClick={() => setRecurrence(prev => ({ ...prev, enabled: !prev.enabled }))}
-                                    >
-                                        <span className={styles.toggleThumb} />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {recurrence.enabled ? (
-                                <RecurrencePanel state={recurrence} onChange={setRecurrence} />
-                            ) : (
-                                <>
-                                    <div className={styles.formRow}>
-                                        <div className={styles.formGroup}>
-                                            <label>Date de début</label>
-                                            <input type="date" required value={startDate} onChange={e => setStartDate(e.target.value)} className="form-input" />
-                                        </div>
-                                        <div className={styles.formGroup}>
-                                            <label>Heure</label>
-                                            <input type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} className="form-input" />
-                                        </div>
-                                    </div>
-                                    <div className={styles.formRow}>
-                                        <div className={styles.formGroup}>
-                                            <label>Date de fin</label>
-                                            <input type="date" required value={endDate} onChange={e => setEndDate(e.target.value)} className="form-input" min={startDate} />
-                                        </div>
-                                        <div className={styles.formGroup}>
-                                            <label>Heure</label>
-                                            <input type="time" required value={endTime} onChange={e => setEndTime(e.target.value)} className="form-input" />
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-
-                            <div className={styles.formGroup}>
-                                <label>Motif / Mission (Optionnel)</label>
-                                <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="form-input" placeholder="Ex: Réserve pour une maraude" />
-                            </div>
-                            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
-                                    {submitting ? '...' : canValidate
-                                        ? (recurrence.enabled ? '🔁 Créer les réservations' : 'Valider')
-                                        : (recurrence.enabled ? '🔁 Soumettre la récurrence' : 'Soumettre la demande')}
-                                </button>
-                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setShowModal(false); resetCreateForm(); }}>
-                                    Annuler
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+                <ReservationFormModal
+                    vehicleId={vehicleId}
+                    vehicleType={vehicleType}
+                    currentUserEmail={currentUserEmail}
+                    userRoles={userRoles}
+                    onClose={() => setShowModal(false)}
+                    onSuccess={({ recurrenceWarning: warning }) => {
+                        setShowModal(false);
+                        setRecurrenceWarning(warning);
+                        fetchReservations();
+                    }}
+                />
             )}
 
             {/* Modal de modification */}

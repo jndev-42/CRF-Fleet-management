@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.10.0] — 17 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Réserver un véhicule en deux clics depuis le tableau de bord** — un bouton « 📅 Réserver » prend place aux côtés de « Emprunter » sur la page Véhicules. Il ouvre la liste des véhicules, puis le formulaire de réservation, sans jamais quitter la page ni passer par la fiche du véhicule.
+- **Les véhicules en mission ou à l'atelier sont réservables** — contrairement à l'emprunt, qui exige un véhicule disponible tout de suite, la réservation porte sur un créneau futur : un véhicule sorti aujourd'hui peut être réservé pour la semaine prochaine. Seul le permis filtre la liste — un chauffeur VL ne voit pas les VPSP, et inversement.
+- **L'occupation du véhicule est affichée pendant la réservation** — un mini-calendrier montre les jours déjà pris par une réservation, un emprunt ou une maintenance, et permet de choisir la plage de dates d'un clic à l'autre. La navigation d'un mois à l'autre permet de réserver au-delà du mois courant.
+- **Le formulaire rapide est le même que celui de la fiche véhicule** — mêmes dates et heures, même motif, même choix du chauffeur pour les responsables, même option de récurrence, et le même avertissement lorsque des créneaux sont ignorés faute de place.
+
+### 🔧 Notes techniques
+
+- Le formulaire de création de réservation a été extrait dans un composant partagé, utilisé à l'identique par la fiche véhicule et par le nouveau parcours rapide — une seule logique de réservation à maintenir.
+- Aucune nouvelle API : le parcours s'appuie sur les routes de réservation et de calendrier existantes. Réserver ne modifie jamais le statut du véhicule.
+
 ## [5.9.0] — 16 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités
