@@ -1,6 +1,8 @@
 import { signIn, auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { isPreview, isDev } from "@/lib/env";
+import { resolveCallbackUrl } from "@/lib/auth-callback-url";
 import { PREVIEW_ACCOUNTS } from "@/lib/preview-accounts";
 import Link from "next/link";
 
@@ -22,8 +24,9 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
 
     const searchParams = await props.searchParams;
     const error = searchParams?.error;
-    const rawCallback = searchParams?.callbackUrl || '/';
-    const callbackUrl = rawCallback.startsWith('/') && !rawCallback.startsWith('//') ? rawCallback : '/';
+    const h = await headers();
+    const host = h.get('x-forwarded-host') ?? h.get('host');
+    const callbackUrl = resolveCallbackUrl(searchParams?.callbackUrl || '/', host);
 
     // Comptes one-click : dev ou preview
     const oneClickRoles = isPreview
