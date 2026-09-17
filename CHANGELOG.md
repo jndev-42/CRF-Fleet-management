@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.10.1] — 17 septembre 2026
+
+### 🔒 Correctifs de sécurité
+
+- **Mise à jour de `nodemailer` (9.0.3 → 9.1.1)** — corrige quatre failles remontées par Dependabot : contournement de la liste blanche de domaines IDN/Punycode, déni de service par complexité quadratique dans l'analyse des adresses, contournement de validation du domaine destinataire via un commentaire RFC 5322 mal interprété, et un contournement de `disableFileAccess`/`disableUrlAccess` sur `resolveContent()`.
+- **Mise à jour de `vitest` (4.1.10 → 4.1.11)** — corrige une faille de traversée de répertoire permettant une lecture de fichier arbitraire via le mock de redirection de `@vitest/mocker`. N'affecte que l'environnement de test, jamais la production.
+
 ## [5.10.0] — 17 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités
