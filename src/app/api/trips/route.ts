@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isChvlDriver, isChvpspDriver } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { checkOutSchema } from './schema';
@@ -17,6 +17,12 @@ export async function POST(request: Request) {
             return unauthorizedResponse();
         }
 
+        // Rôles résolus dès l'authentification : la garde de cloisonnement UL ci-dessous
+        // en a besoin, bien avant la garde d'éligibilité (`canBorrow`) qui les consommait
+        // seule auparavant.
+        const roles = session?.user?.roles || ['INACTIF'];
+        const isAdmin = isAdminOrAbove(roles);
+
         const body = await request.json();
         const data = checkOutSchema.parse(body);
 
@@ -28,6 +34,27 @@ export async function POST(request: Request) {
         const vehicle = vehicleResult.rows[0];
 
         if (!vehicle) {
+            return NextResponse.json(
+                { error: 'Véhicule non trouvé' },
+                { status: 404 }
+            );
+        }
+
+        // Cloisonnement UL — placé AVANT les gardes d'état (disponibilité, maintenance)
+        // pour deux raisons distinctes :
+        //
+        // 1. Emprunt inter-UL. Cette route n'avait aucun contrôle d'UL : un `vehicleId`
+        //    récolté dans la vision DT (qui liste les véhicules des autres ULs) suffisait
+        //    à sortir le véhicule d'une autre unité. La garde de rôle (`canBorrow`) ne
+        //    ferme rien ici : un CHVL légitime de Lyon reste un CHVL face à un VL parisien.
+        // 2. Oracle d'état de flotte. Les gardes suivantes répondent 400 « pas disponible »
+        //    ou 400 « en maintenance » — trois réponses distinctes qui laissaient tout
+        //    compte authentifié, INACTIF compris, sonder la flotte d'une autre UL.
+        //
+        // Le refus est donc un 404 et non un 403 : il doit être indiscernable d'un
+        // identifiant inconnu. `isOutsideUl` refuse aussi les sentinelles (`ulId` vide ou
+        // `'default'`) avant toute comparaison, cf. `@/lib/apiAuth`.
+        if (isOutsideUl(roles, session.user.ulId, vehicle.ulId)) {
             return NextResponse.json(
                 { error: 'Véhicule non trouvé' },
                 { status: 404 }
@@ -64,10 +91,6 @@ export async function POST(request: Request) {
         if (maintCheck.rows.length > 0) {
             return NextResponse.json({ error: 'Ce véhicule est en maintenance' }, { status: 400 });
         }
-
-        // Verify Roles
-        const roles = session?.user?.roles || ['INACTIF'];
-        const isAdmin = isAdminOrAbove(roles);
 
         // Garde de réservation : un véhicule couvert par une réservation VALIDATED
         // active maintenant n'est empruntable que par son détenteur — ou par un admin.

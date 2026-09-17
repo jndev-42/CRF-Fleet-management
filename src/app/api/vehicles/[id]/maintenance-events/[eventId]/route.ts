@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { isMaintenanceClosed } from '@/lib/maintenanceStatus';
 import { recalcVehicleStatus } from '@/lib/vehicleStatusRecalc';
 
@@ -31,9 +31,10 @@ type ResolveResult =
  * Séquence commune à PATCH et DELETE : 401 → 403 rôle → 404 véhicule → 403 UL →
  * 404 appartenance → 409 maintenance terminée.
  *
- * Le cloisonnement UL est ajouté ici volontairement : il manque à
- * `../route.ts` (POST/PATCH de collection, follow-up ADR #1) et cet écart
- * n'est pas reproduit sur les nouvelles routes.
+ * Le cloisonnement UL passe par `isOutsideUl` (`@/lib/apiAuth`) et non par une
+ * comparaison `session.user.ulId !== vehicleRow.ulId` : celle-ci faisait matcher
+ * deux sentinelles identiques (`ulId` vide ou `'default'`). `../route.ts`
+ * (POST/PATCH de collection) applique désormais la même porte.
  */
 async function resolveMaintenanceEvent(id: string, eventId: string): Promise<ResolveResult> {
   const session = await auth();
@@ -59,7 +60,7 @@ async function resolveMaintenanceEvent(id: string, eventId: string): Promise<Res
 
   const vehicleRow = vehicleResult.rows[0];
 
-  if (!isSuperAdmin(roles) && session.user.ulId !== vehicleRow.ulId) {
+  if (isOutsideUl(roles, session.user.ulId, vehicleRow.ulId)) {
     return { error: forbiddenResponse() };
   }
 

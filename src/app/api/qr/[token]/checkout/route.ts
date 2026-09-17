@@ -47,6 +47,18 @@ export async function POST(
         const data = checkOutSchema.parse(body);
 
         // Resolve token → vehicle
+        //
+        // AUCUN CLOISONNEMENT UL ICI, ET C'EST VOLONTAIRE. La possession physique du QR
+        // code fait foi : le bénévole qui scanne la vignette d'un véhicule en renfort sur
+        // une autre unité locale doit pouvoir le prendre. C'est le seul parcours d'emprunt
+        // inter-UL légitime du produit — `POST /api/trips` applique, lui, un cloisonnement
+        // strict (404 inter-UL, `isOutsideUl` de `@/lib/apiAuth`), et les deux routes sont
+        // indépendantes : celle-ci fait son propre INSERT Trip et son propre UPDATE Vehicle.
+        //
+        // Ne pas « harmoniser » les deux : le verrou de comportement est
+        // `src/__tests__/integration/qr.test.ts` → « l'emprunt QR reste ouvert entre unités
+        // locales (bypass volontaire des droits) ». Seul le verrou maintenance ci-dessous
+        // restreint ce parcours.
         const vehicleRes = await db.execute({
             sql: `SELECT * FROM Vehicle WHERE qrToken = ?`,
             args: [token],

@@ -418,3 +418,84 @@ describe('convergence de Vehicle.status après mutation de maintenance', () => {
     expect(await readStatus('v-3')).toBe('IN_USE');
   });
 });
+
+/**
+ * Sentinelle d'UL sur la route par identifiant d'événement.
+ *
+ * La comparaison brute `session.user.ulId !== vehicleRow.ulId` traitait deux
+ * PLACEHOLDERS identiques comme une appartenance : une session non rattachée (`ulId`
+ * absent, ou épinglé à `'default'`) « possédait » tout véhicule portant la même valeur,
+ * donc pouvait modifier ou supprimer ses maintenances. `isOutsideUl` (`@/lib/apiAuth`)
+ * refuse ces valeurs AVANT toute comparaison, en conservant la dérogation SUPER_ADMIN.
+ */
+describe('sentinelle d\'UL de /api/vehicles/[id]/maintenance-events/[eventId]', () => {
+  beforeEach(async () => {
+    await seedVehicle({ id: 'v-default', name: 'VL SENTINELLE', plate: 'ZZ-999-ZZ', status: 'MAINTENANCE', ulId: 'default' });
+    await seedMaintenance({
+      id: 'm-default',
+      vehicleId: 'v-default',
+      startDate: new Date(Date.now() - DAY).toISOString(),
+      endDate: null,
+      reason: 'Maintenance sur véhicule sentinelle',
+    });
+  });
+
+  it('PATCH refuse une session épinglée à \'default\' face au même placeholder', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-admin', email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'default' },
+    } as never);
+
+    const res = await PATCH(
+      makePatchRequest('VL SENTINELLE', 'm-default', { reason: 'Détournée' }),
+      ctx('VL SENTINELLE', 'm-default'),
+    );
+    expect(res.status).toBe(403);
+
+    // Rien n'a bougé en base.
+    const row = await readMaintenance('m-default');
+    expect(row?.reason).toBe('Maintenance sur véhicule sentinelle');
+  });
+
+  it('DELETE refuse une session épinglée à \'default\' face au même placeholder', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-admin', email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'default' },
+    } as never);
+
+    const res = await DELETE(makeDeleteRequest('VL SENTINELLE', 'm-default'), ctx('VL SENTINELLE', 'm-default'));
+    expect(res.status).toBe(403);
+
+    expect(await readMaintenance('m-default')).not.toBeNull();
+    expect(await readStatus('v-default')).toBe('MAINTENANCE');
+  });
+
+  it('PATCH refuse une session sans ulId du tout', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-admin', email: 'admin@dev.local', roles: ['ADMIN'] },
+    } as never);
+
+    const res = await PATCH(
+      makePatchRequest('VSAV 01', 'm-open', { reason: 'Sans UL' }),
+      ctx('VSAV 01', 'm-open'),
+    );
+    expect(res.status).toBe(403);
+
+    const row = await readMaintenance('m-open');
+    expect(row?.reason).toBe('Panne embrayage');
+  });
+
+  it('laisse passer un SUPER_ADMIN, y compris sur le véhicule sentinelle', async () => {
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-super', email: 'super@dev.local', roles: ['SUPER_ADMIN'], ulId: 'ul-lyon' },
+    } as never);
+    await seedUser({ id: 'user-super', email: 'super@dev.local', name: 'Super Admin' });
+
+    const res = await PATCH(
+      makePatchRequest('VL SENTINELLE', 'm-default', { reason: 'Contrôle national' }),
+      ctx('VL SENTINELLE', 'm-default'),
+    );
+    expect(res.status).toBe(200);
+
+    const row = await readMaintenance('m-default');
+    expect(row?.reason).toBe('Contrôle national');
+  });
+});

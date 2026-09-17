@@ -441,6 +441,57 @@ describe('QR Code API Flow', () => {
     expect(res.status).toBe(201);
   });
 
+  /**
+   * VERROU DE COMPORTEMENT PRODUIT — ne pas « durcir » ce test.
+   *
+   * L'emprunt par QR est le SEUL parcours d'emprunt inter-UL légitime du produit :
+   * il contourne délibérément les droits (cf. la docstring de
+   * `src/app/api/qr/[token]/checkout/route.ts` : « tout compte CRF connecté, avec ou
+   * sans rôle attribué… Aucun contrôle d'UL ni de rôle chauffeur »). Le bénévole qui
+   * scanne la vignette d'un véhicule en renfort sur une autre UL doit pouvoir le
+   * prendre — c'est la raison d'être du QR.
+   *
+   * `POST /api/trips` applique, LUI, un cloisonnement UL strict (404 inter-UL, cf.
+   * `checkout.test.ts` § « cloisonnement UL »). Les deux routes sont indépendantes :
+   * celle-ci fait son propre INSERT Trip et son propre UPDATE Vehicle. Propager ici le
+   * cloisonnement de `/api/trips` casserait le parcours QR — ce test est là pour que
+   * la tentative échoue bruyamment.
+   */
+  it('l\'emprunt QR reste ouvert entre unités locales (bypass volontaire des droits)', async () => {
+    // Session rattachée à Paris ; véhicule immatriculé sur Lyon.
+    await seedVehicle({
+      id: 'VLXUL',
+      name: 'Véhicule Autre UL',
+      type: 'VL',
+      status: 'AVAILABLE',
+      qrToken: 'token-cross-ul',
+      ulId: 'ul-lyon',
+    });
+
+    const req = new Request('http://localhost/api/qr/token-cross-ul/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état' }),
+    });
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-cross-ul' }) });
+
+    // Surtout pas 403/404 : l'écart d'UL ne doit RIEN refuser sur ce parcours.
+    expect(res.status).toBe(201);
+
+    // Et l'emprunt a bien eu lieu — pas seulement un 201 de façade.
+    const trips = await db.execute({
+      sql: `SELECT COUNT(*) AS n FROM Trip WHERE vehicleId = ?`,
+      args: ['VLXUL'],
+    });
+    expect(Number(trips.rows[0].n)).toBe(1);
+
+    const vehicle = await db.execute({
+      sql: `SELECT status FROM Vehicle WHERE id = ?`,
+      args: ['VLXUL'],
+    });
+    expect(vehicle.rows[0].status).toBe('IN_USE');
+  });
+
   it('POST /api/qr/[token]/checkin autorise un compte sans rôle qui est le conducteur (AC-G5)', async () => {
     // Le prédicat QR ne bloque plus ; la garde conducteur de checkin/route.ts reste
     // seule à border la restitution, inchangée.

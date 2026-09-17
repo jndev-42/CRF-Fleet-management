@@ -67,10 +67,16 @@ const validCheckOutBody = {
 };
 
 // Session objects for mocking — kept as constants so @ts-expect-error applies to a single line
-const guestSession = { user: { id: 'guest-id', email: 'guest@test.com', roles: ['GUEST'] } };
-const driverSession = { user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] } };
-const driverWithNameSession = { user: { id: 'user-driver', email: 'driver@test.com', name: 'Test Driver', roles: ['CHVL'] } };
-const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'] } };
+//
+// `ulId` OBLIGATOIRE sur chaque session : la route applique un cloisonnement UL et
+// refuse en 404 toute session sans UL (cf. `isOutsideUl`). `seedUser` n'enregistre pas
+// `ulId` (la table "User" de test n'a pas la colonne) — l'UL de l'appelant vient donc
+// uniquement d'ici, et doit correspondre au défaut de `seedVehicle` ('ul-paris-18').
+const SESSION_UL = 'ul-paris-18';
+const guestSession = { user: { id: 'guest-id', email: 'guest@test.com', roles: ['GUEST'], ulId: SESSION_UL } };
+const driverSession = { user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'], ulId: SESSION_UL } };
+const driverWithNameSession = { user: { id: 'user-driver', email: 'driver@test.com', name: 'Test Driver', roles: ['CHVL'], ulId: SESSION_UL } };
+const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'], ulId: SESSION_UL } };
 
 describe('POST /api/trips (checkout)', () => {
   beforeEach(() => {
@@ -156,6 +162,88 @@ describe('POST /api/trips (checkout)', () => {
 
     const response = await POST(makeRequest({ ...validCheckOutBody, vehicleId: 'NONEXISTENT' }));
     expect(response.status).toBe(404);
+  });
+
+  /**
+   * Cloisonnement UL (`isOutsideUl`).
+   *
+   * Deux propriétés distinctes sont vérifiées ici, et il faut les garder séparées :
+   *  - l'emprunt d'un véhicule d'une autre UL est refusé (la garde de rôle ne le
+   *    ferme pas : un CHVL de Lyon reste un CHVL face à un VL parisien) ;
+   *  - le refus est INDISCERNABLE d'un identifiant inconnu — même statut, même corps.
+   *    C'est pourquoi le cas « véhicule d'une autre UL EN MAINTENANCE » est testé :
+   *    il rendait 400 « en maintenance » et divulguait l'état d'une flotte étrangère.
+   *
+   * `seedUser` ne persiste pas `ulId` : l'UL de l'appelant vient de la session mockée.
+   */
+  describe('cloisonnement UL', () => {
+    const lyonDriverSession = {
+      user: { id: 'user-driver', email: 'driver@test.com', name: 'Test Driver', roles: ['CHVL'], ulId: 'ul-lyon' },
+    };
+
+    it('refuse en 404 le véhicule d\'une autre UL, sans révéler son existence', async () => {
+      mockedAuth.mockResolvedValue(lyonDriverSession as never);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE', ulId: 'ul-paris-18' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(404);
+      const body = await response.json();
+      expect(body.error).toBe('Véhicule non trouvé');
+
+      // Aucun effet de bord : le véhicule étranger reste disponible.
+      const after = await db.execute({ sql: `SELECT status FROM Vehicle WHERE id = ?`, args: ['VL001'] });
+      expect(after.rows[0].status).toBe('AVAILABLE');
+      const trips = await db.execute({ sql: `SELECT COUNT(*) AS n FROM Trip WHERE vehicleId = ?`, args: ['VL001'] });
+      expect(Number(trips.rows[0].n)).toBe(0);
+    });
+
+    it('rend le même 404 pour un véhicule d\'une autre UL en maintenance (pas d\'oracle d\'état)', async () => {
+      mockedAuth.mockResolvedValue(lyonDriverSession as never);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'MAINTENANCE', ulId: 'ul-paris-18' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      // Surtout pas 400 « Ce véhicule est en maintenance » : la réponse doit être
+      // identique à celle d'un identifiant inconnu.
+      expect(response.status).toBe(404);
+      const body = await response.json();
+      expect(body.error).toBe('Véhicule non trouvé');
+    });
+
+    it('autorise un SUPER_ADMIN sur un véhicule hors de son UL', async () => {
+      mockedAuth.mockResolvedValue({
+        user: { id: 'user-super', email: 'super@test.com', name: 'Super Admin', roles: ['SUPER_ADMIN'], ulId: 'ul-lyon' },
+      } as never);
+      await seedUser({ id: 'user-super', email: 'super@test.com', name: 'Super Admin' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE', ulId: 'ul-paris-18' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+
+    it('refuse en 404 une session sans ulId, même face au véhicule attendu', async () => {
+      mockedAuth.mockResolvedValue({
+        user: { id: 'user-driver', email: 'driver@test.com', name: 'Test Driver', roles: ['CHVL'] },
+      } as never);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE', ulId: 'ul-paris-18' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(404);
+    });
+
+    it('refuse en 404 une session épinglée à la sentinelle \'default\' face au même placeholder', async () => {
+      mockedAuth.mockResolvedValue({
+        user: { id: 'user-driver', email: 'driver@test.com', name: 'Test Driver', roles: ['CHVL'], ulId: 'default' },
+      } as never);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+      // Le véhicule porte LA MÊME sentinelle : l'égalité brute aurait matché.
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE', ulId: 'default' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(404);
+    });
   });
 
   it('returns 400 when vehicle is not AVAILABLE', async () => {

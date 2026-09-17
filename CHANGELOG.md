@@ -16,6 +16,7 @@
 
 - **Un véhicule scanné par QR code ne peut plus être emprunté s'il est en maintenance** — le contrôle n'existait que sur le parcours d'emprunt classique ; la voie QR, qui est la moins protégée, laissait passer les maintenances programmées à l'avance.
 - **Cloisonnement des unités locales sur la mise en maintenance** — un administrateur ne peut plus mettre en maintenance, ni remettre en service, un véhicule appartenant à une autre unité locale. Le contrôle manquait sur ce parcours ; combiné au nouveau verrou d'emprunt, il permettait d'immobiliser la flotte d'une autre unité.
+- **Un véhicule d'une autre unité locale ne peut plus être emprunté ni sondé** — le parcours d'emprunt classique ne vérifiait pas l'unité locale du véhicule : un identifiant récupéré depuis la vue DT permettait d'emprunter le véhicule d'une autre unité, et les messages d'erreur renseignaient sur l'état d'une flotte étrangère. Le refus est désormais indiscernable d'un véhicule inexistant. L'emprunt par QR code reste volontairement ouvert entre unités locales — c'est son intérêt, et un test le garantit.
 
 ## [5.8.0] — 14 septembre 2026
 

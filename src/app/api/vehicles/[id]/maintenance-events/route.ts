@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { isAdminOrAbove } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ export async function POST(
 
     // Cloisonnement UL : `isAdminOrAbove` seul laissait un ADMIN d'une autre UL
     // immobiliser un véhicule étranger via la résolution tolérante par nom.
-    if (!isSuperAdmin(roles) && session.user.ulId !== vehicleRow.ulId) {
+    if (isOutsideUl(roles, session.user.ulId, vehicleRow.ulId)) {
       return forbiddenResponse();
     }
 
@@ -136,7 +136,7 @@ export async function PATCH(
 
     // Cloisonnement UL : sans cette garde, un ADMIN d'une autre UL clôturait toutes les
     // maintenances actives d'un véhicule étranger et le repassait 'AVAILABLE'.
-    if (!isSuperAdmin(roles) && session.user.ulId !== vehicleRow.ulId) {
+    if (isOutsideUl(roles, session.user.ulId, vehicleRow.ulId)) {
       return forbiddenResponse();
     }
 

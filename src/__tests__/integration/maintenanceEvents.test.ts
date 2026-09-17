@@ -400,4 +400,54 @@ describe('cloisonnement UL de /api/vehicles/[id]/maintenance-events', () => {
     expect(patchRes.status).toBe(200);
     expect(await readStatus('v-1')).toBe('AVAILABLE');
   });
+
+  /**
+   * Sentinelle d'UL. La comparaison brute `session.user.ulId !== vehicleRow.ulId`
+   * autorisait l'égalité de deux PLACEHOLDERS : une session non rattachée (`ulId`
+   * absent, ou épinglé à `'default'`) « appartenait » à tout véhicule portant la même
+   * valeur. `isOutsideUl` refuse ces valeurs AVANT toute comparaison.
+   */
+  describe('sentinelle d\'UL', () => {
+    it('POST refuse une session épinglée à \'default\' face à un véhicule portant le même placeholder', async () => {
+      await seedVehicle({ id: 'v-default', name: 'VL SENTINELLE', plate: 'ZZ-999-ZZ', status: 'AVAILABLE', ulId: 'default' });
+      mockedAuth.mockResolvedValue({
+        user: { id: 'user-admin', email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'default' },
+      } as never);
+
+      const res = await POST(
+        makePostRequest('VL SENTINELLE', { startDate: '2026-07-22', endDate: null, reason: 'Immobilisation via sentinelle' }),
+        { params: Promise.resolve({ id: 'VL SENTINELLE' }) }
+      );
+      expect(res.status).toBe(403);
+
+      const m = await db.execute({ sql: `SELECT id FROM "VehicleMaintenance" WHERE vehicleId = 'v-default'`, args: [] });
+      expect(m.rows).toHaveLength(0);
+      expect(await readStatus('v-default')).toBe('AVAILABLE');
+    });
+
+    it('POST refuse une session sans ulId du tout', async () => {
+      mockedAuth.mockResolvedValue({
+        user: { id: 'user-admin', email: 'admin@dev.local', roles: ['ADMIN'] },
+      } as never);
+
+      const res = await POST(
+        makePostRequest('VSAV 01', { startDate: '2026-07-22', endDate: null, reason: 'Sans UL' }),
+        { params: Promise.resolve({ id: 'VSAV 01' }) }
+      );
+      expect(res.status).toBe(403);
+      expect(await readStatus('v-1')).toBe('AVAILABLE');
+    });
+
+    it('PATCH refuse une session épinglée à \'default\' face au même placeholder', async () => {
+      await seedVehicle({ id: 'v-default', name: 'VL SENTINELLE', plate: 'ZZ-999-ZZ', status: 'MAINTENANCE', ulId: 'default' });
+      mockedAuth.mockResolvedValue({
+        user: { id: 'user-admin', email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'default' },
+      } as never);
+
+      const res = await PATCH(makePatchRequest('VL SENTINELLE'), { params: Promise.resolve({ id: 'VL SENTINELLE' }) });
+      expect(res.status).toBe(403);
+      // La remise en service n'a pas eu lieu.
+      expect(await readStatus('v-default')).toBe('MAINTENANCE');
+    });
+  });
 });
