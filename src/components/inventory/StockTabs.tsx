@@ -3,7 +3,7 @@
 import React from 'react';
 import { InvStockListRow } from '@/lib/inventory/stocks';
 import styles from './StockTabs.module.css';
-import { QrCode } from 'lucide-react';
+import { QrCode, Upload } from 'lucide-react';
 
 interface StockTabsProps {
     stocks: InvStockListRow[];
@@ -11,6 +11,7 @@ interface StockTabsProps {
     isAdmin: boolean;
     onSelectStock: (stockId: string) => void;
     onOpenCreate: () => void;
+    onOpenImport: () => void;
     onOpenRename: (stock: InvStockListRow) => void;
     onOpenDuplicate: (stock: InvStockListRow) => void;
     onOpenQrCode: (stock: InvStockListRow) => void;
@@ -23,6 +24,7 @@ export default function StockTabs({
     isAdmin,
     onSelectStock,
     onOpenCreate,
+    onOpenImport,
     onOpenRename,
     onOpenDuplicate,
     onOpenQrCode,
@@ -102,6 +104,18 @@ export default function StockTabs({
                     >
                         <span>+</span>
                         <span className={styles.addTabText}>Nouveau stock</span>
+                    </button>
+                )}
+
+                {isAdmin && (
+                    <button
+                        type="button"
+                        className={styles.addTabButton}
+                        onClick={onOpenImport}
+                        title="Importer un CSV"
+                    >
+                        <Upload size={15} aria-hidden="true" />
+                        <span className={styles.addTabText}>Importer un CSV</span>
                     </button>
                 )}
             </div>

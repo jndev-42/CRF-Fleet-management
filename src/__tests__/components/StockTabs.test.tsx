@@ -16,6 +16,7 @@ const baseProps = {
     activeStockId: 's1',
     onSelectStock: vi.fn(),
     onOpenCreate: vi.fn(),
+    onOpenImport: vi.fn(),
     onOpenRename: vi.fn(),
     onOpenDuplicate: vi.fn(),
     onOpenQrCode: vi.fn(),
@@ -99,5 +100,39 @@ describe('StockTabs', () => {
 
         expect(onOpenQrCode).toHaveBeenCalledWith(expect.objectContaining({ id: 's2' }));
         expect(onSelectStock).not.toHaveBeenCalled();
+    });
+
+    // ── Import CSV ───────────────────────────────────────────────────────────
+
+    it('masque le bouton d\'import CSV pour un non-admin', () => {
+        render(<StockTabs {...baseProps} stocks={[stock('s1', 'Stock Principal', 1)]} isAdmin={false} />);
+        expect(screen.queryByTitle('Importer un CSV')).toBeNull();
+    });
+
+    it('affiche un unique bouton d\'import CSV pour un admin', () => {
+        render(
+            <StockTabs
+                {...baseProps}
+                stocks={[stock('s1', 'Stock Principal', 1), stock('s2', 'Stock Véhicules')]}
+                isAdmin
+            />
+        );
+        expect(screen.getAllByTitle('Importer un CSV')).toHaveLength(1);
+    });
+
+    it('remonte l\'ouverture de la modale d\'import', () => {
+        const onOpenImport = vi.fn();
+        render(
+            <StockTabs
+                {...baseProps}
+                onOpenImport={onOpenImport}
+                stocks={[stock('s1', 'Stock Principal', 1)]}
+                isAdmin
+            />
+        );
+
+        fireEvent.click(screen.getByTitle('Importer un CSV'));
+
+        expect(onOpenImport).toHaveBeenCalled();
     });
 });
