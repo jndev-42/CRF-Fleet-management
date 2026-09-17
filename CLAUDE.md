@@ -44,7 +44,7 @@ npx tsx scripts/rewrap-credentials.ts           # Rotation de CREDENTIALS_ENCRYP
 
 **Auth:** Production = Google OAuth2 (`@croix-rouge.fr`). Dev = credentials (`@dev.local`). Roles in JWT.
 
-**Roles & access:** ADMIN > RESPO > CHVL > CHVPSP > GUEST. Enforced in API routes and UI via `session.user.roles`.
+**Roles & access:** `SUPER_ADMIN, ADMIN, PRESIDENT, TRESORIER, CADRE, DT, CHVPSP, CHVL, CI/RPAPS, INACTIF` — defined in `src/lib/roles.ts` (`ROLES`, `ROLE_LABELS`). `INACTIF` unconditionally blocks all authorization regardless of other roles held. Enforced in API routes and UI via `session.user.roles`.
 
 **Styling:** CSS Modules per component + global CSS variables in `app/globals.css`. `next-themes` for dark/light.
 

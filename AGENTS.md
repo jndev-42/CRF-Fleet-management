@@ -26,7 +26,7 @@ A Next.js fleet-management application for the Croix-Rouge française (CRF): veh
 ### Working In This Directory
 - This project also maintains directory-scoped `CLAUDE.md` files (root + several subdirectories) — where both exist, `CLAUDE.md` is the authoritative, actively-maintained source; this `AGENTS.md` hierarchy mirrors and cross-references it for tools that read `AGENTS.md` instead.
 - Direct SQL via `@libsql/client` — no ORM. Always parameterized: `{ sql: "... WHERE id = ?", args: [id] }`.
-- Auth: production = Google OAuth2 (`@croix-rouge.fr`), dev = credentials (`@dev.local`). Roles in JWT: `ADMIN > RESPO > CHVL > CHVPSP > GUEST`.
+- Auth: production = Google OAuth2 (`@croix-rouge.fr`), dev = credentials (`@dev.local`). Roles in JWT: `SUPER_ADMIN, ADMIN, PRESIDENT, TRESORIER, CADRE, DT, CHVPSP, CHVL, CI/RPAPS, INACTIF` (defined in `src/lib/roles.ts`); `INACTIF` unconditionally blocks all authorization.
 - Pages are Client Components with `useEffect` data fetching (Server Component migration is planned as M-4 but **not started** — don't convert yet).
 - Creating a new component/modal → invoke `/component-templates` skill. New page → `/page-template`. New API route file → `/api-route-template`.
 
