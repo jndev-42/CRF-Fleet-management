@@ -14,6 +14,7 @@ import FleetStatsRow from './FleetStatsRow';
 import { computeFleetStats, countsAsMaintenance } from '@/lib/fleetStats';
 import QuickBorrowSection from './QuickBorrowSection';
 import QuickReturnSection from './QuickReturnSection';
+import QuickReservationSection from './QuickReservationSection';
 import type { DashboardVehicle } from './types';
 
 const statusLabels: Record<string, string> = {
@@ -163,6 +164,15 @@ export default function VehiclesPage() {
         isDtView={isDtView}
         vehiclesLoading={loading}
         onCheckOutSuccess={() => fetchVehicles(isDtView)}
+      />
+
+      <QuickReservationSection
+        vehicles={vehicles}
+        userRoles={userRoles}
+        currentUserEmail={session?.user?.email}
+        isDtView={isDtView}
+        vehiclesLoading={loading}
+        onReservationSuccess={() => fetchVehicles(isDtView)}
       />
 
       <QuickReturnSection
