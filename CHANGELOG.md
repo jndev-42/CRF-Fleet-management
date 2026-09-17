@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.10.2] — 17 septembre 2026
+
+### 🐛 Corrections
+
+- **Scan de QR code avant connexion** — quand on scanne le QR code d'un véhicule ou d'un article de stock sans être connecté, on arrive maintenant directement sur la bonne page après s'être connecté, au lieu de retomber sur la page d'accueil et devoir re-scanner.
+
 ## [5.10.1] — 17 septembre 2026
 
 ### 🔒 Correctifs de sécurité

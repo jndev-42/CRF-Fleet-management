@@ -25,7 +25,7 @@ Three environment modes, resolved from `isPreview` / `isDev` in `@/lib/env`:
 
 Both one-click and Google forms are `<form action={async () => { "use server"; await signIn(...) }}>`. One-click uses the `dev-credentials` provider with a `role` key; Google uses the `google` provider.
 
-**Open-redirect guard — do not remove:** `callbackUrl` from `searchParams` is only honoured when it `startsWith('/')` and does **not** start with `//`, otherwise it falls back to `/`. Any change to `callbackUrl` handling must preserve that check.
+**Open-redirect guard — do not remove:** `callbackUrl` resolution lives in `resolveCallbackUrl()` (`src/lib/auth-callback-url.ts`). A bare relative path (`startsWith('/')`, not `//`) is kept as-is. An absolute URL (NextAuth's own auto-redirect-to-login always sends one) is only honoured when its `host` matches the current request's `host`/`x-forwarded-host` (from `next/headers`); otherwise it falls back to `/`. Any change to `callbackUrl` handling must preserve the same-host check — see `src/__tests__/unit/auth-callback-url.test.ts`.
 
 `DEV_ROLES` is a local `as const` array of `{ key, label, badge, color }`. Adding a dev persona means adding an entry here *and* a matching case in the `dev-credentials` provider in `src/auth.ts`.
 
@@ -35,6 +35,8 @@ Both one-click and Google forms are `<form action={async () => { "use server"; a
 - `@/auth` — `signIn`, `auth`
 - `@/lib/env` — `isPreview`, `isDev`
 - `@/lib/preview-accounts` — `PREVIEW_ACCOUNTS`
+- `@/lib/auth-callback-url` — `resolveCallbackUrl`
+- `next/headers` — `headers()` (host de la requête pour valider `callbackUrl`)
 - Links to `/mentions-legales` via `next/link`
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->
