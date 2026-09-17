@@ -178,8 +178,8 @@ describe('QuickReservationSection — filtrage du picker', () => {
         routeFetch();
         renderSection({ vehicles: FLEET, userRoles: ['CI/RPAPS'] });
 
-        await waitFor(() => expect(ctaButton().disabled).toBe(true));
-        expect(screen.getByText("Votre rôle ne vous permet pas de réserver de véhicule.")).toBeTruthy();
+        expect(await screen.findByText("Votre rôle ne vous permet pas de réserver de véhicule.")).toBeTruthy();
+        expect(ctaButton().disabled).toBe(true);
         expect(screen.getByRole('button', { name: 'Voir le calendrier' })).toBeTruthy();
     });
 
@@ -245,10 +245,10 @@ describe('QuickReservationSection — papiers et modes dégradés', () => {
         routeFetch({ license: { blocked: true } });
         renderSection();
 
-        await waitFor(() => expect(ctaButton().disabled).toBe(true));
-        expect(screen.getByText(
+        expect(await screen.findByText(
             "Vos papiers n'ont pas été validés — réservation bloquée. Présentez vos papiers à votre DLUS/DLAS.",
         )).toBeTruthy();
+        expect(ctaButton().disabled).toBe(true);
     });
 
     it('license-check bloqué pour un ADMIN : réservation toujours possible', async () => {
