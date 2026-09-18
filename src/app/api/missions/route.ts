@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
+import { INTERVENTION_MODE_CATEGORIES, INTERVENTION_NATURE_CATEGORIES } from '@/lib/mission-interventions';
 import { isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
@@ -11,6 +12,26 @@ const supplySchema = z.object({
     item_name: z.string().min(1),
     quantity_used: z.number().int().min(0),
 });
+
+/** Une case d'une grille de répartition. Chaque grille a sa propre énumération :
+ *  une catégorie NATURE envoyée dans `intervention_types` serait stockée avec
+ *  `breakdown='MODE'` puis ignorée à l'affichage (la fiche ne rend que les
+ *  catégories de son propre groupe) — le total détaillé ne retomberait plus sur
+ *  `victim_count` sans la moindre erreur. D'où deux schémas distincts. */
+const interventionModeEntrySchema = z.object({
+    category: z.enum(INTERVENTION_MODE_CATEGORIES as [string, ...string[]]),
+    quantity: z.number().int().min(0),
+});
+
+const interventionNatureEntrySchema = z.object({
+    category: z.enum(INTERVENTION_NATURE_CATEGORIES as [string, ...string[]]),
+    quantity: z.number().int().min(0),
+});
+
+const sumQuantities = (entries: { quantity: number }[]) => entries.reduce((acc, e) => acc + e.quantity, 0);
+
+const hasDuplicateCategory = (entries: { category: string }[]) =>
+    new Set(entries.map(e => e.category)).size !== entries.length;
 
 const createMissionReportSchema = z.object({
     /** Rattachement du poste — exactement un des deux est renseigné (cf. superRefine). */
@@ -36,6 +57,10 @@ const createMissionReportSchema = z.object({
     had_complex_care: z.boolean(),
     needs_followup: z.boolean(),
     supplies: z.array(supplySchema),
+    /** Répartition du total par type de prise en charge — somme = victim_count. */
+    intervention_types: z.array(interventionModeEntrySchema).default([]),
+    /** Répartition du total par nature clinique — somme = victim_count. */
+    intervention_natures: z.array(interventionNatureEntrySchema).default([]),
     drive_folder_id: z.string().nullable().optional(),
     signed_report_drive_id: z.string().nullable().optional(),
 }).superRefine((data, ctx) => {
@@ -59,6 +84,63 @@ const createMissionReportSchema = z.object({
                 ? 'Choisissez soit une UL, soit une Direction Territoriale — pas les deux.'
                 : 'Veuillez sélectionner l\'UL ou la Direction Territoriale qui héberge le poste.',
         });
+    }
+
+    // Invariant de la répartition : le total « nombre d'intervention » est ventilé
+    // deux fois — par type de prise en charge ET par nature clinique. Chaque grille
+    // doit retomber exactement sur le total, sinon le détail contredirait le total
+    // affiché partout ailleurs. À 0 intervention, aucune ligne n'a de sens.
+    const modeSum = sumQuantities(data.intervention_types);
+    const natureSum = sumQuantities(data.intervention_natures);
+
+    // Une catégorie répétée passerait le contrôle de somme mais insérerait deux
+    // lignes pour le même (report_id, breakdown, category) ; le regroupement du GET
+    // n'en garde qu'une, et la répartition affichée ne totaliserait plus victim_count.
+    if (hasDuplicateCategory(data.intervention_types)) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['intervention_types'],
+            message: 'Chaque catégorie de la répartition par type ne peut apparaître qu\'une fois.',
+        });
+    }
+    if (hasDuplicateCategory(data.intervention_natures)) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['intervention_natures'],
+            message: 'Chaque catégorie de la répartition par nature ne peut apparaître qu\'une fois.',
+        });
+    }
+
+    if (data.victim_count >= 1) {
+        if (modeSum !== data.victim_count) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['intervention_types'],
+                message: `La répartition par type doit totaliser ${data.victim_count} intervention(s) — actuellement ${modeSum}.`,
+            });
+        }
+        if (natureSum !== data.victim_count) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['intervention_natures'],
+                message: `La répartition par nature doit totaliser ${data.victim_count} intervention(s) — actuellement ${natureSum}.`,
+            });
+        }
+    } else {
+        if (modeSum > 0) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['intervention_types'],
+                message: 'Aucune répartition par type n\'est possible sans intervention.',
+            });
+        }
+        if (natureSum > 0) {
+            ctx.addIssue({
+                code: 'custom',
+                path: ['intervention_natures'],
+                message: 'Aucune répartition par nature n\'est possible sans intervention.',
+            });
+        }
     }
 });
 
@@ -323,6 +405,22 @@ export async function POST(request: Request) {
                         sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used)
                               VALUES (?, ?, ?, ?, ?)`,
                         args: [crypto.randomUUID(), reportId, supply.category, supply.item_name, supply.quantity_used],
+                    });
+                }
+            }
+
+            // Répartition des interventions — stockage sparse (seules les cases
+            // renseignées sont écrites) ; le `breakdown` vient du champ d'origine.
+            const interventionRows: { breakdown: 'MODE' | 'NATURE'; category: string; quantity: number }[] = [
+                ...data.intervention_types.map(e => ({ breakdown: 'MODE' as const, category: e.category, quantity: e.quantity })),
+                ...data.intervention_natures.map(e => ({ breakdown: 'NATURE' as const, category: e.category, quantity: e.quantity })),
+            ];
+            for (const entry of interventionRows) {
+                if (entry.quantity > 0) {
+                    await tx.execute({
+                        sql: `INSERT INTO "mission_report_interventions" (id, report_id, breakdown, category, quantity)
+                              VALUES (?, ?, ?, ?, ?)`,
+                        args: [crypto.randomUUID(), reportId, entry.breakdown, entry.category, entry.quantity],
                     });
                 }
             }

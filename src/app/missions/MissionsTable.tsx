@@ -54,7 +54,7 @@ export default function MissionsTable({ reports }: MissionsTableProps) {
                         <th>Type</th>
                         <th>Mission</th>
                         <th>Lieu</th>
-                        <th className={styles.centerCol}>Victimes</th>
+                        <th className={styles.centerCol}>Interventions</th>
                         <th className={styles.centerCol}>UL / DT</th>
                         <th className={styles.centerCol}>Incidents</th>
                         <th></th>

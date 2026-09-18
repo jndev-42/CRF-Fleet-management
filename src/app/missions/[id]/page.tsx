@@ -7,6 +7,12 @@ import Link from 'next/link';
 import { AlertCircle, ArrowLeft, Camera, FileText, Trash2, ZoomIn } from 'lucide-react';
 import { SUPPLIES_BY_CATEGORY, MISSION_TYPE_LABELS, TEAM_DYNAMICS_LABELS } from '@/lib/mission-supplies';
 import type { SupplyCategory } from '@/lib/mission-supplies';
+import {
+    INTERVENTION_MODE_CATEGORIES,
+    INTERVENTION_NATURE_CATEGORIES,
+    INTERVENTION_MODE_LABELS,
+    INTERVENTION_NATURE_LABELS,
+} from '@/lib/mission-interventions';
 import MissionPhotosModal from '@/components/missions/MissionPhotosModal';
 import SignedReportLightbox from '@/components/missions/SignedReportLightbox';
 import styles from './mission-detail.module.css';
@@ -53,11 +59,45 @@ interface MissionDetail {
     /** DT code the report belongs to (mr.dt_code) — null if the report is attached to a UL */
     dtCode: string | null;
     supplies: Record<string, SupplyEntry[]>;
+    /** Répartition du total d'interventions — vide pour les rapports antérieurs à la fonctionnalité. */
+    interventions: { mode: Record<string, number>; nature: Record<string, number> };
 }
 
 function boolLabel(val: boolean | null): string {
     if (val === null) return '—';
     return val ? 'Oui' : 'Non';
+}
+
+/** Une des deux grilles de répartition — n'affiche que les catégories à quantité > 0. */
+function InterventionCard({
+    title,
+    categories,
+    labels,
+    values,
+}: {
+    title: string;
+    categories: readonly string[];
+    labels: Record<string, string>;
+    values: Record<string, number>;
+}) {
+    const rows = categories.filter(cat => (values[cat] ?? 0) > 0);
+    if (rows.length === 0) return null;
+
+    return (
+        <div className="card">
+            <h3 className={styles.cardTitle}>{title}</h3>
+            <table className={styles.supplyTable}>
+                <tbody>
+                    {rows.map(cat => (
+                        <tr key={cat}>
+                            <td>{labels[cat] ?? cat}</td>
+                            <td className={styles.qtyCell}>{values[cat]}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
 }
 
 export default function MissionDetailPage() {
@@ -112,6 +152,13 @@ export default function MissionDetailPage() {
 
     const hasIncidents = report.had_acr || report.had_hemorrhage || report.had_complex_care;
     const supplyCategories = Object.keys(report.supplies) as SupplyCategory[];
+    // Répartition : absente des rapports créés avant la fonctionnalité — on n'affiche
+    // alors que le total, sans section ni message d'erreur.
+    const interventionModes = report.interventions?.mode ?? {};
+    const interventionNatures = report.interventions?.nature ?? {};
+    const hasInterventionBreakdown =
+        report.victim_count > 0
+        && (Object.keys(interventionModes).length > 0 || Object.keys(interventionNatures).length > 0);
     // Rattachement du rapport : UL réelle ou entité DT — jamais les deux.
     const attachmentLabel = report.ulName ? `UL ${report.ulName}` : report.dtCode;
 
@@ -169,7 +216,7 @@ export default function MissionDetailPage() {
                         <dt>Type</dt><dd>{MISSION_TYPE_LABELS[report.mission_type] ?? report.mission_type}</dd>
                         <dt>Date</dt><dd>{report.mission_date}</dd>
                         <dt>Lieu</dt><dd>{report.location}</dd>
-                        <dt>Victimes prises en charge</dt><dd>{report.victim_count}</dd>
+                        <dt>Nombre d&apos;intervention</dt><dd>{report.victim_count}</dd>
                         <dt>Inscriptions Pegass</dt><dd>{boolLabel(report.pegass_ok)}</dd>
                         {report.vehicle_name && <><dt>Véhicule</dt><dd>{report.vehicle_name}</dd></>}
                         {report.driver_name && <><dt>Chauffeur</dt><dd>{report.driver_name}</dd></>}
@@ -251,6 +298,27 @@ export default function MissionDetailPage() {
                     </div>
                 )}
             </div>
+
+            {/* Répartition des interventions */}
+            {hasInterventionBreakdown && (
+                <section className={styles.suppliesSection}>
+                    <h2 className={styles.sectionTitle}>Répartition des interventions</h2>
+                    <div className={styles.suppliesGrid}>
+                        <InterventionCard
+                            title="Par type de prise en charge"
+                            categories={INTERVENTION_MODE_CATEGORIES}
+                            labels={INTERVENTION_MODE_LABELS}
+                            values={interventionModes}
+                        />
+                        <InterventionCard
+                            title="Par nature de l'intervention"
+                            categories={INTERVENTION_NATURE_CATEGORIES}
+                            labels={INTERVENTION_NATURE_LABELS}
+                            values={interventionNatures}
+                        />
+                    </div>
+                </section>
+            )}
 
             {/* Matériel utilisé */}
             {supplyCategories.length > 0 && (

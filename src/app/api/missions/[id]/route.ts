@@ -82,6 +82,19 @@ export async function GET(_request: Request, { params }: RouteContext) {
             });
         }
 
+        // Fetch the intervention breakdown (may be empty for pre-migration reports)
+        const interventionsResult = await db.execute({
+            sql: `SELECT breakdown, category, quantity FROM "mission_report_interventions" WHERE report_id = ? ORDER BY breakdown, category`,
+            args: [id],
+        });
+
+        // Group by breakdown — only categories actually stored (sparse) appear.
+        const interventions: { mode: Record<string, number>; nature: Record<string, number> } = { mode: {}, nature: {} };
+        for (const i of interventionsResult.rows) {
+            const bucket = (i.breakdown as string) === 'NATURE' ? interventions.nature : interventions.mode;
+            bucket[i.category as string] = Number(i.quantity);
+        }
+
         const vehicleId = row.vehicle_id as string | null;
         const vehicleName = (row.vehicle_name as string | null) || (vehicleId ? EXTERNAL_VEHICLES[vehicleId]?.name : null);
         const vehicleType = (row.vehicle_type as string | null) || (vehicleId ? EXTERNAL_VEHICLES[vehicleId]?.type : null);
@@ -120,6 +133,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
             drive_folder_id: (row.drive_folder_id as string | null) ?? null,
             signed_report_drive_id: (row.signed_report_drive_id as string | null) ?? null,
             supplies: suppliesByCategory,
+            interventions,
         };
 
         return NextResponse.json(report);
@@ -130,7 +144,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
 }
 
 /** DELETE /api/missions/[id] — Suppression (ADMIN seulement).
- *  La suppression en cascade sur mission_report_supplies est gérée par la DB. */
+ *  La suppression en cascade sur mission_report_supplies et
+ *  mission_report_interventions est gérée par la DB. */
 export async function DELETE(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();

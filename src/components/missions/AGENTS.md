@@ -9,7 +9,7 @@ UI for mission reports ("comptes rendus de mission"): the multi-step submission 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `MissionWizard.tsx` | The wizard shell — owns `MissionFormData`, the flat `supplies` map, the signed-report file, the photo list, step index, validation, and submission. Exports the `MissionFormData` interface consumed by every step. |
+| `MissionWizard.tsx` | The wizard shell — owns `MissionFormData` (including the two intervention-breakdown maps), the flat `supplies` map, the signed-report file, the photo list, step index, validation, and submission. Exports the `MissionFormData` interface consumed by every step. |
 | `MissionWizard.module.css` | Styles for the wizard **and all of `steps/`** — progress bar, step content, toggles, radio groups, error box, nav. |
 | `MissionPhotosModal.tsx` | Lightbox-style modal listing a mission's Drive photos from `folderId`. |
 | `MissionPhotosSection.tsx` | Inline (non-modal) photo grid for the same data, with per-photo download links. **Currently unreferenced** — no importer in `src/`. |
@@ -25,6 +25,7 @@ UI for mission reports ("comptes rendus de mission"): the multi-step submission 
 ### Working In This Directory
 **The wizard's step list is dynamic — never index steps by a hard-coded number.** `activeSteps` is built at render time and steps are dispatched by *label*, not by number:
 - `UL / DT` is always first: it carries the report's attachment (`selected_ul_id` **xor** `selected_dt_code`) and blocks `Suivant` until one is picked.
+- `Répartition interventions` sits **directly after `Général`** and only exists when `formData.victim_count >= 1` — typing a count on the Général step makes it appear, back-navigating and zeroing the count makes it disappear (the index clamp handles the shrink).
 - `Matériel` + `Oxygène` are dropped when the chosen vehicle is external (`vehicle_id?.startsWith('EXTERNAL_')`).
 - `Rapport signé` only appears for `mission_type` `DPS` or `PAPS`.
 - `currentStepIndex = Math.min(step, activeSteps.length)` guards against the list shrinking under the user after a back-navigation.
@@ -33,7 +34,11 @@ Adding a step means adding its label to `activeSteps`, a `validateStep` branch k
 
 **All step state is lifted into `MissionWizard`.** Steps are pure controlled panels receiving `data` + `onChange(patch)` (or `supplies` + `onSupplyChange`). Validation is centralized in `validateStep(s)`; the signed report is mandatory when its step is active.
 
-**Submission order matters** (`handleSubmit`): the flat `supplies` map is expanded into `{ category, item_name, quantity_used }[]` by splitting keys on the `CATEGORY__item` convention; then the signed report uploads to Drive, then the communication photos, and only if both succeed does `POST /api/missions` run with `drive_folder_id` and `signed_report_drive_id`. An upload failure aborts before the POST so no orphan mission row is created. Both uploads go through `uploadFilesToDriveSafely` from `@/lib/imageCompression` (the signed report passes `allowPdf: true`).
+**Submission order matters** (`handleSubmit`): the flat `supplies` map is expanded into `{ category, item_name, quantity_used }[]` by splitting keys on the `CATEGORY__item` convention; the two breakdown maps are expanded into `{ category, quantity }[]` keeping only entries `> 0`, and are forced to `[]` when `victim_count === 0` (the API rejects a non-empty breakdown at 0). Then the signed report uploads to Drive, then the communication photos, and only if both succeed does `POST /api/missions` run with `drive_folder_id` and `signed_report_drive_id`. An upload failure aborts before the POST so no orphan mission row is created. Both uploads go through `uploadFilesToDriveSafely` from `@/lib/imageCompression` (the signed report passes `allowPdf: true`).
+
+Because the payload is built as `{ ...formData, … }`, the array forms **must** be listed after the spread — `formData` still holds the two maps under the same keys, and the server expects arrays.
+
+**The breakdown invariant is enforced twice.** `validateStep('Répartition interventions')` blocks `Suivant` with an inline French message when either grid's sum differs from `victim_count`; the API repeats the check in a Zod `superRefine` (400). Keep both — the client check is UX, the server check is the contract.
 
 Two Drive root folder IDs are hard-coded constants at the top of `MissionWizard.tsx` (`MISSION_COMM_FOLDER_ID`, `SIGNED_REPORTS_FOLDER_ID`).
 
@@ -47,6 +52,7 @@ Both photo components proxy Drive images through `/api/drive/photos/{id}` and th
 - `POST /api/missions` — mission report creation
 - `GET /api/drive/photos?folderId=…&flat=true` — photo listing; `GET /api/drive/photos/{id}` — image/PDF proxy
 - `@/lib/mission-supplies` — `SUPPLY_CATEGORIES`, `SupplyCategory`
+- `@/lib/mission-interventions` — the two category lists and their French labels (shared with the detail page)
 - `@/lib/imageCompression` — `uploadFilesToDriveSafely`
 - `@/components/ui/MarineApprovedOverlay` — success animation
 

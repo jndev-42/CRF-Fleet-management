@@ -234,4 +234,83 @@ describe('MissionWizard', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
         expect(screen.getByRole('alert')).toHaveProperty('textContent', 'Le rapport signé est obligatoire. Veuillez photographier ou importer le document.');
     });
+
+    // ── Répartition des interventions ─────────────────────────────────────────
+
+    it('n\'affiche pas l\'étape de répartition quand le nombre d\'intervention est 0', async () => {
+        render(<MissionWizard onSuccess={vi.fn()} />);
+        await chooseAttachment();
+        const items = screen.getAllByRole('listitem').map(el => el.textContent);
+        expect(items.some(t => t?.includes('Répartition interventions'))).toBe(false);
+    });
+
+    it('insère l\'étape de répartition juste après « Général » dès 1 intervention', async () => {
+        render(<MissionWizard onSuccess={vi.fn()} />);
+        await chooseAttachment();
+        fireEvent.change(screen.getByLabelText('Nombre d\'intervention'), { target: { value: '4' } });
+        const items = screen.getAllByRole('listitem').map(el => el.textContent);
+        expect(items).toContain('3. Répartition interventions');
+    });
+
+    it('bloque « Suivant » tant qu\'une des deux grilles ne totalise pas le nombre d\'intervention', async () => {
+        render(<MissionWizard onSuccess={vi.fn()} />);
+        await chooseAttachment();
+        fillStep1();
+        fireEvent.change(screen.getByLabelText('Nombre d\'intervention'), { target: { value: '4' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+
+        // Type = 4, nature = 3 → bloqué sur la grille « nature ».
+        fireEvent.change(screen.getByLabelText('Nombre de soins (sans décharge, ni évac)'), { target: { value: '4' } });
+        fireEvent.change(screen.getByLabelText('Malaise'), { target: { value: '3' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+
+        expect(screen.getByRole('alert')).toHaveProperty(
+            'textContent',
+            'La répartition par nature doit totaliser 4 interventions (actuellement 3).',
+        );
+    });
+
+    it('envoie les deux grilles dans le payload quand elles sont complètes', async () => {
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'mission-1' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard onSuccess={onSuccess} />);
+        await chooseAttachment();
+        fillStep1();
+        fireEvent.change(screen.getByLabelText('Nombre d\'intervention'), { target: { value: '2' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+
+        fireEvent.change(screen.getByLabelText('Nombre de décharge'), { target: { value: '2' } });
+        fireEvent.change(screen.getByLabelText('Petits soins'), { target: { value: '2' } });
+
+        // Répartition -> Équipage -> Matériel -> Oxygène -> Équipe -> Incidents -> Commentaire -> Photos
+        for (let i = 0; i < 7; i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-1'));
+
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/missions' && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body.victim_count).toBe(2);
+        expect(body.intervention_types).toEqual([{ category: 'DECHARGE', quantity: 2 }]);
+        expect(body.intervention_natures).toEqual([{ category: 'PETITS_SOINS', quantity: 2 }]);
+    });
+
+    it('envoie deux grilles vides quand le nombre d\'intervention est 0', async () => {
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'mission-1' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard onSuccess={onSuccess} />);
+        await goToLastStep();
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-1'));
+
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/missions' && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body.intervention_types).toEqual([]);
+        expect(body.intervention_natures).toEqual([]);
+    });
 });

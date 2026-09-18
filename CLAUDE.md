@@ -25,6 +25,7 @@ npx tsx scripts/add-expense-budgets.ts          # Migration prod : budgets analy
 npx tsx scripts/add-vehicle-transmission.ts     # Migration prod : colonne Vehicle.transmission (boîte de vitesses)
 npx tsx scripts/add-stock-qr-token.ts           # Migration prod : colonne InvStockList.qrToken + index unique (dry-run ; --apply pour écrire)
 npx tsx scripts/add-mission-report-dt-code.ts   # Migration prod : colonne mission_reports.dt_code (rattachement DT ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.12.0 : sans la colonne, chaque POST /api/missions répond 500
+npx tsx scripts/add-mission-report-interventions.ts # Migration prod : table mission_report_interventions (répartition par type et par nature ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.13.0 : sans la table, chaque POST /api/missions avec au moins une intervention répond 500
 npx tsx scripts/verify-signed-pdf.ts <fichier>  # Vérifie les signatures d'un PDF scellé
 npx tsx scripts/backfill-signed-pdfs.ts         # Scelle rétroactivement les notes existantes (dry-run par défaut, --apply pour écrire)
 npx tsx scripts/add-vehicle-connections.ts      # Migration prod : tables BrandCredential / VehicleConnection + reprise du compte MyRenault global (dry-run ; --apply --ul=<id> pour écrire)

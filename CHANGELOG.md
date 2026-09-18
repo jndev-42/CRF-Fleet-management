@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.13.0] — 18 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Détailler les interventions d'un poste** — quand un compte rendu déclare au moins une intervention, une nouvelle étape « Répartition interventions » s'ajoute juste après « Général ». On y ventile le même total deux fois : par type de prise en charge (soins sans décharge ni évac, décharge, mise en oeuvre DAE, évac CRF, évac Autres) et par nature (petits soins, malaise, traumatisme, inconscience, arrêt cardiaque).
+- **Un compteur en direct pour chaque grille** — chaque groupe affiche son total courant face au nombre d'intervention à atteindre (ex. « 2 / 3 »). Tant que l'une des deux grilles ne tombe pas juste, le passage à l'étape suivante est refusé avec un message explicite.
+- **La répartition apparaît sur la fiche du compte rendu** — deux tableaux « Répartition des interventions » listent les catégories renseignées. Les comptes rendus déposés avant cette nouveauté continuent d'afficher leur total seul, sans section ni erreur.
+
+### 🔧 Améliorations
+
+- **« Nombre de victimes prises en charge » devient « Nombre d'intervention »** dans le formulaire et sur la fiche détaillée ; la colonne « Victimes » de la liste des comptes rendus s'intitule désormais « Interventions ». Le chiffre affiché est inchangé.
+
 ## [5.12.0] — 18 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

@@ -4,13 +4,14 @@
 # steps
 
 ## Purpose
-The ten step panels of the mission-report wizard. Each is a presentational panel rendered one at a time by `../MissionWizard.tsx`, which owns all of the state; the steps only read `data`/`supplies` and emit patches.
+The eleven step panels of the mission-report wizard. Each is a presentational panel rendered one at a time by `../MissionWizard.tsx`, which owns all of the state; the steps only read `data`/`supplies` and emit patches.
 
 ## Key Files
 | File | Description |
 |------|-------------|
 | `Step0ULSelection.tsx` | **First step.** Single `<select>` combining every UL (`optgroup` "Unités Locales") and one synthetic entry per distinct `UniteLocale.dtCode` ("Directions Territoriales"). Sets `selected_ul_id` **xor** `selected_dt_code` — picking one always clears the other. |
-| `Step1General.tsx` | Mission type radios (`RESEAU` shown as "Réseaux", `DPS`, `PAPS`), mission name, date, location, victim count (clamped to ≥ 0). |
+| `Step1General.tsx` | Mission type radios (`RESEAU` shown as "Réseaux", `DPS`, `PAPS`), mission name, date, location, **"Nombre d'intervention"** (clamped to ≥ 0 — the field id and the `victim_count` key are deliberately unchanged, only the label was renamed). |
+| `StepInterventionBreakdown.tsx` | **Conditional, right after `Step1General`** — shown only when `victim_count >= 1`. Two independent 5-field grids (type de prise en charge, nature de l'intervention), each with a live `courant / cible` badge. Does not validate: the wizard's `validateStep` blocks `Suivant`. Takes its own prop shape (`victimCount`, the two maps, two `onChange`), not `data`/`onChange`. |
 | `Step2Vehicle.tsx` | Vehicle select (DB vehicles + `EXTERNAL_VEHICLES`), driver select, Pegass toggle, volunteers textarea. The only step that fetches. |
 | `Step3Supplies.tsx` | Consumed-supplies accordion by category (`SAC_PRIMAIRE` open by default), one number input per item, per-category total badge. |
 | `Step4Oxygen.tsx` | Same quantity-input pattern restricted to the oxygen category. |
@@ -23,7 +24,7 @@ The ten step panels of the mission-report wizard. Each is a presentational panel
 ## For AI Agents
 
 ### Working In This Directory
-**Two prop shapes, no local form state.** Steps that edit the report take `{ data: MissionFormData; onChange: (patch: Partial<MissionFormData>) => void }` and call `onChange` with only the changed keys. Supply steps take `{ supplies: Record<string, number>; onSupplyChange: (key, qty) => void }`. Import `MissionFormData` from `../MissionWizard` — never redeclare it, and never add a `useState` mirroring a `data` field.
+**Two prop shapes, no local form state.** Steps that edit the report take `{ data: MissionFormData; onChange: (patch: Partial<MissionFormData>) => void }` and call `onChange` with only the changed keys. Supply steps take `{ supplies: Record<string, number>; onSupplyChange: (key, qty) => void }`. `StepInterventionBreakdown` is a third, narrower shape (explicit `victimCount` + two maps + two callbacks) — deliberately so, since it reads a single `data` field and writes two others. Import `MissionFormData` from `../MissionWizard` — never redeclare it, and never add a `useState` mirroring a `data` field.
 
 **The supplies key convention is `` `${CATEGORY}__${item.name}` ``** — the wizard splits on that `__` separator when building the API payload, so any new supply input must use it. Quantities are clamped with `Math.max(0, parseInt(v, 10) || 0)`.
 
@@ -40,6 +41,7 @@ The ten step panels of the mission-report wizard. Each is a presentational panel
 ### Internal
 - `../MissionWizard` — `MissionFormData` type
 - `@/lib/mission-supplies` — `SUPPLIES_BY_CATEGORY`, `SupplyCategory`, `EXTERNAL_VEHICLES`
+- `@/lib/mission-interventions` — `INTERVENTION_MODE_CATEGORIES` / `INTERVENTION_NATURE_CATEGORIES` and their label maps (`StepInterventionBreakdown` only)
 - `@/components/ui/PhotoPicker` — steps 7 (single-file mode) and 8 (multi-file mode)
 - `GET /api/vehicles`, `GET /api/users?drivers=true` — `Step2Vehicle` only
 - `GET /api/ul` — `Step0ULSelection` only

@@ -67,7 +67,7 @@ export default function Step1General({ data, onChange }: Step1Props) {
             </div>
 
             <div className="form-group">
-                <label className="form-label" htmlFor="victim_count">Nombre de victimes prises en charge</label>
+                <label className="form-label" htmlFor="victim_count">Nombre d&apos;intervention</label>
                 <input
                     id="victim_count"
                     type="number"

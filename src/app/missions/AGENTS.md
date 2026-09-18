@@ -4,7 +4,7 @@
 # missions
 
 ## Purpose
-Mission report list (`/missions`) — the index of *comptes rendus de mission* filed after RESEAU / DPS / PAPS operations. Two views: **« Mes rapports »** (default, every report the viewer filed, across all ULs and DTs) and **« Tous les rapports »** (reports of the currently active UL, managers only). The table shows date, mission type badge, mission name + submitter, location, victim count, the **UL/DT attachment tag**, and a critical-incident flag. Reserved for admins, read-only managers (Président/Cadre), and the `CI/RPAPS` role.
+Mission report list (`/missions`) — the index of *comptes rendus de mission* filed after RESEAU / DPS / PAPS operations. Two views: **« Mes rapports »** (default, every report the viewer filed, across all ULs and DTs) and **« Tous les rapports »** (reports of the currently active UL, managers only). The table shows date, mission type badge, mission name + submitter, location, the **« Interventions »** count (still the `victim_count` field — only the column header was renamed), the **UL/DT attachment tag**, and a critical-incident flag. Reserved for admins, read-only managers (Président/Cadre), and the `CI/RPAPS` role.
 
 ## Key Files
 | File | Description |

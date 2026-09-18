@@ -3,6 +3,8 @@
  *
  * Couvre :
  *   - POST /api/missions → 401, 403 (GUEST), 400 (Zod), 201 happy path
+ *   - POST répartition interventions → 400 sommes incorrectes, 400 grilles non vides à 0, 201 + lignes sparse
+ *   - GET  /api/missions/[id] → 200 avec supplies groupés + répartition (présente ou vide)
  *   - POST rattachement UL/DT → 400 si aucun ou les deux, persistance exclusive
  *   - GET  /api/missions → 401, 403 (CHVL), scope=mine (cross-UL/DT), scope=all (UL active, 403 non-manager)
  *   - GET  /api/missions/[id] → 200 avec supplies groupés
@@ -96,6 +98,14 @@ const validPayload = {
         { category: 'SAC_PRIMAIRE', item_name: "Gants d'examen (paire)", quantity_used: 4 },
         { category: 'SAC_PRIMAIRE', item_name: 'Compresses stériles 10x10', quantity_used: 0 },
     ],
+    // `victim_count = 2` impose deux grilles sommant chacune exactement à 2.
+    intervention_types: [
+        { category: 'SOINS', quantity: 1 },
+        { category: 'EVAC_CRF', quantity: 1 },
+    ],
+    intervention_natures: [
+        { category: 'PETITS_SOINS', quantity: 2 },
+    ],
 };
 
 // ── Setup helpers ─────────────────────────────────────────────────────────────
@@ -140,9 +150,19 @@ async function createMissionReportTable() {
             "quantity_used" INTEGER NOT NULL DEFAULT 0
         )
     `);
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "mission_report_interventions" (
+            "id"        TEXT PRIMARY KEY,
+            "report_id" TEXT NOT NULL REFERENCES "mission_reports"(id) ON DELETE CASCADE,
+            "breakdown" TEXT NOT NULL CHECK ("breakdown" IN ('MODE', 'NATURE')),
+            "category"  TEXT NOT NULL,
+            "quantity"  INTEGER NOT NULL DEFAULT 0
+        )
+    `);
 }
 
 async function truncateMissions() {
+    await db.execute(`DELETE FROM "mission_report_interventions"`);
     await db.execute(`DELETE FROM "mission_report_supplies"`);
     await db.execute(`DELETE FROM "mission_reports"`);
 }
@@ -255,6 +275,181 @@ describe('POST /api/missions', () => {
         expect(sRes.rows).toHaveLength(1);
         expect(sRes.rows[0].item_name).toBe("Gants d'examen (paire)");
         expect(sRes.rows[0].quantity_used).toBe(4);
+    });
+
+    // ── Répartition des interventions ─────────────────────────────────────────
+
+    it('returns 201 and persists both intervention breakdowns (quantity > 0 only)', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 3,
+            intervention_types: [
+                { category: 'SOINS', quantity: 2 },
+                { category: 'DAE', quantity: 1 },
+                { category: 'DECHARGE', quantity: 0 },
+            ],
+            intervention_natures: [
+                { category: 'MALAISE', quantity: 1 },
+                { category: 'TRAUMATISME', quantity: 2 },
+            ],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const iRes = await db.execute({
+            sql: `SELECT breakdown, category, quantity FROM "mission_report_interventions" WHERE report_id = ? ORDER BY breakdown, category`,
+            args: [body.id],
+        });
+        // La case à 0 n'est pas insérée (stockage sparse).
+        expect(iRes.rows).toHaveLength(4);
+        expect(iRes.rows.map(r => `${r.breakdown}:${r.category}=${r.quantity}`)).toEqual([
+            'MODE:DAE=1',
+            'MODE:SOINS=2',
+            'NATURE:MALAISE=1',
+            'NATURE:TRAUMATISME=2',
+        ]);
+    });
+
+    it('returns 400 when the MODE breakdown does not sum to victim_count', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 3,
+            intervention_types: [{ category: 'SOINS', quantity: 2 }],
+            intervention_natures: [{ category: 'MALAISE', quantity: 3 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(JSON.stringify(body.details)).toContain('intervention_types');
+    });
+
+    it('returns 400 when the NATURE breakdown does not sum to victim_count', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 3,
+            intervention_types: [{ category: 'SOINS', quantity: 3 }],
+            intervention_natures: [{ category: 'MALAISE', quantity: 2 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(JSON.stringify(body.details)).toContain('intervention_natures');
+    });
+
+    it('returns 400 when a NATURE category is sent inside intervention_types', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 2,
+            // Somme correcte, mais catégorie du mauvais groupe : sans schéma dédié
+            // la ligne partirait en base sous breakdown='MODE' puis disparaîtrait
+            // de la fiche détail, sans erreur nulle part.
+            intervention_types: [{ category: 'MALAISE', quantity: 2 }],
+            intervention_natures: [{ category: 'MALAISE', quantity: 2 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        expect(JSON.stringify((await res.json()).details)).toContain('intervention_types');
+    });
+
+    it('returns 400 when a MODE category is sent inside intervention_natures', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 2,
+            intervention_types: [{ category: 'SOINS', quantity: 2 }],
+            intervention_natures: [{ category: 'SOINS', quantity: 2 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        expect(JSON.stringify((await res.json()).details)).toContain('intervention_natures');
+    });
+
+    it('returns 400 when the same category appears twice in a breakdown', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 3,
+            // La somme tombe juste, mais deux lignes seraient insérées pour
+            // (MODE, SOINS) et le GET n'en garderait qu'une.
+            intervention_types: [
+                { category: 'SOINS', quantity: 1 },
+                { category: 'SOINS', quantity: 2 },
+            ],
+            intervention_natures: [{ category: 'MALAISE', quantity: 3 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        expect(JSON.stringify((await res.json()).details)).toContain('intervention_types');
+    });
+
+    it('returns 400 when victim_count is 0 but a breakdown carries a quantity', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 0,
+            intervention_types: [{ category: 'SOINS', quantity: 1 }],
+            intervention_natures: [],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+    });
+
+    it('returns 201 with no intervention rows when victim_count is 0', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 0,
+            intervention_types: [],
+            intervention_natures: [],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const iRes = await db.execute({
+            sql: `SELECT id FROM "mission_report_interventions" WHERE report_id = ?`,
+            args: [body.id],
+        });
+        expect(iRes.rows).toHaveLength(0);
+    });
+
+    it('returns 400 when victim_count >= 1 and the breakdowns are omitted entirely', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- intentionally omitting both breakdowns
+        const { intervention_types, intervention_natures, ...withoutBreakdowns } = validPayload;
+        const res = await postCreate(makePostRequest(withoutBreakdowns));
+        expect(res.status).toBe(400);
     });
 
     it('returns 201 and persists drive_folder_id when provided', async () => {
@@ -672,6 +867,45 @@ describe('GET /api/missions/[id] (detail)', () => {
         expect(body.supplies['SAC_PRIMAIRE'][0].quantity_used).toBe(4);
     });
 
+    it('returns empty intervention breakdowns for a pre-migration report', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        // Rapport antérieur à la fonctionnalité : un total, aucune ligne de détail.
+        await db.execute({
+            sql: `UPDATE "mission_reports" SET victim_count = ? WHERE id = 'report-1'`,
+            args: [5],
+        });
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.victim_count).toBe(5);
+        expect(body.interventions).toEqual({ mode: {}, nature: {} });
+    });
+
+    it('returns the intervention breakdowns grouped by breakdown', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        await db.execute({
+            sql: `INSERT INTO "mission_report_interventions" (id, report_id, breakdown, category, quantity) VALUES (?, ?, ?, ?, ?)`,
+            args: ['int-1', 'report-1', 'MODE', 'SOINS', 1],
+        });
+        await db.execute({
+            sql: `INSERT INTO "mission_report_interventions" (id, report_id, breakdown, category, quantity) VALUES (?, ?, ?, ?, ?)`,
+            args: ['int-2', 'report-1', 'NATURE', 'MALAISE', 1],
+        });
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.interventions.mode).toEqual({ SOINS: 1 });
+        expect(body.interventions.nature).toEqual({ MALAISE: 1 });
+    });
+
     it('returns 404 for unknown report', async () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(adminSession);
@@ -867,6 +1101,10 @@ describe('DELETE /api/missions/[id]', () => {
             sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`,
             args: ['supply-1', 'report-to-delete', 'SAC_PRIMAIRE', "Gants d'examen (paire)", 2],
         });
+        await db.execute({
+            sql: `INSERT INTO "mission_report_interventions" (id, report_id, breakdown, category, quantity) VALUES (?, ?, ?, ?, ?)`,
+            args: ['int-to-delete', 'report-to-delete', 'MODE', 'SOINS', 1],
+        });
     });
 
     it('returns 403 when role is RESPO', async () => {
@@ -897,6 +1135,14 @@ describe('DELETE /api/missions/[id]', () => {
         // Note: the API deletes the report; supplies are handled by DB ON DELETE CASCADE
         // In the test DB (SQLite file), FK enforcement may not be active without PRAGMA
         // We verify the supplies were already cleaned by the delete logic
+
+        // La répartition, elle, porte bien une FK ON DELETE CASCADE (schéma identique
+        // à la prod) : ses lignes doivent disparaître avec le rapport.
+        const iRes = await db.execute({
+            sql: `SELECT id FROM "mission_report_interventions" WHERE report_id = 'report-to-delete'`,
+            args: [],
+        });
+        expect(iRes.rows).toHaveLength(0);
     });
 
     it('returns 404 for unknown report', async () => {

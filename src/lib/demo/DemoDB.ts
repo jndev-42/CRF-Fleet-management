@@ -92,7 +92,11 @@ const INITIAL_MISSIONS: MissionDetail[] = [
         needs_followup: false,
         drive_folder_id: null,
         signed_report_drive_id: null,
-        supplies: {}
+        supplies: {},
+        interventions: {
+            mode: { SOINS: 1, EVAC_CRF: 1 },
+            nature: { PETITS_SOINS: 1, MALAISE: 1 }
+        }
     }
 ];
 
@@ -128,6 +132,17 @@ interface MissionDetail {
     drive_folder_id: string | null;
     signed_report_drive_id: string | null;
     supplies: Record<string, unknown[]>;
+    /** Répartition du total d'interventions — vide pour les rapports sans détail. */
+    interventions: { mode: Record<string, number>; nature: Record<string, number> };
+}
+
+/** Convertit une grille de répartition envoyée par le wizard en map catégorie → quantité. */
+function toBreakdown(entries?: { category: string; quantity: number }[]): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const e of entries ?? []) {
+        if (e.quantity > 0) out[e.category] = e.quantity;
+    }
+    return out;
 }
 
 interface DemoData {
@@ -387,6 +402,10 @@ export class DemoDB {
         needs_followup?: boolean;
         drive_folder_id?: string | null;
         signed_report_drive_id?: string | null;
+        /** Répartition par type de prise en charge — non validée en mode démo. */
+        intervention_types?: { category: string; quantity: number }[];
+        /** Répartition par nature clinique — non validée en mode démo. */
+        intervention_natures?: { category: string; quantity: number }[];
     }) {
         const data = this.getData();
         const vehicle = data.vehicles.find(v => v.id === payload.vehicle_id);
@@ -423,7 +442,11 @@ export class DemoDB {
             needs_followup: payload.needs_followup || false,
             drive_folder_id: payload.drive_folder_id || null,
             signed_report_drive_id: payload.signed_report_drive_id || null,
-            supplies: {}
+            supplies: {},
+            interventions: {
+                mode: toBreakdown(payload.intervention_types),
+                nature: toBreakdown(payload.intervention_natures)
+            }
         };
 
         data.missions.push(newMission);

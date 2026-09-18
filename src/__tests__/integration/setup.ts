@@ -492,9 +492,18 @@ async function createTables() {
     "item_name"     TEXT NOT NULL,
     "quantity_used" INTEGER NOT NULL DEFAULT 0
   )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "mission_report_interventions" (
+    "id"        TEXT PRIMARY KEY,
+    "report_id" TEXT NOT NULL REFERENCES "mission_reports"(id) ON DELETE CASCADE,
+    "breakdown" TEXT NOT NULL CHECK ("breakdown" IN ('MODE', 'NATURE')),
+    "category"  TEXT NOT NULL,
+    "quantity"  INTEGER NOT NULL DEFAULT 0
+  )`);
 }
 
 async function truncateTables() {
+  await db.execute(`DELETE FROM "mission_report_interventions"`);
   await db.execute(`DELETE FROM "mission_report_supplies"`);
   await db.execute(`DELETE FROM "mission_reports"`);
   // Nouveau système inventaire (ordre FK-safe)

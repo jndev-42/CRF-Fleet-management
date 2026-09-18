@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { SUPPLY_CATEGORIES, type SupplyCategory } from '@/lib/mission-supplies';
 import Step0ULSelection from './steps/Step0ULSelection';
 import Step1General from './steps/Step1General';
+import StepInterventionBreakdown from './steps/StepInterventionBreakdown';
 import Step2Vehicle from './steps/Step2Vehicle';
 import Step3Supplies from './steps/Step3Supplies';
 import Step4Oxygen from './steps/Step4Oxygen';
@@ -40,6 +41,10 @@ export interface MissionFormData {
     had_hemorrhage: boolean;
     had_complex_care: boolean;
     needs_followup: boolean;
+    /** Répartition du total d'interventions par type de prise en charge — clé = catégorie. */
+    intervention_types: Record<string, number>;
+    /** Répartition du total d'interventions par nature clinique — clé = catégorie. */
+    intervention_natures: Record<string, number>;
 }
 
 const INITIAL_FORM: MissionFormData = {
@@ -64,6 +69,8 @@ const INITIAL_FORM: MissionFormData = {
     had_hemorrhage: false,
     had_complex_care: false,
     needs_followup: false,
+    intervention_types: {},
+    intervention_natures: {},
 };
 
 const MISSION_COMM_FOLDER_ID = '19ILEUHsq2pLZDwEeJDnhQcumFM9ztDJ3';
@@ -95,6 +102,7 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
     const activeSteps = [
         'UL / DT',
         'Général',
+        ...(formData.victim_count >= 1 ? ['Répartition interventions'] : []),
         'Équipage',
         ...(!isExternalVehicle ? ['Matériel', 'Oxygène'] : []),
         'Équipe',
@@ -116,6 +124,19 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
         setSupplies(prev => ({ ...prev, [key]: qty }));
     }
 
+    function handleInterventionTypeChange(category: string, qty: number) {
+        setFormData(prev => ({ ...prev, intervention_types: { ...prev.intervention_types, [category]: qty } }));
+    }
+
+    function handleInterventionNatureChange(category: string, qty: number) {
+        setFormData(prev => ({ ...prev, intervention_natures: { ...prev.intervention_natures, [category]: qty } }));
+    }
+
+    /** Somme d'une grille de répartition (les catégories non saisies valent 0). */
+    function breakdownTotal(values: Record<string, number>): number {
+        return Object.values(values).reduce((acc, qty) => acc + (qty || 0), 0);
+    }
+
     function validateStep(s: number): string | null {
         const label = activeSteps[s - 1];
         if (label === 'UL / DT') {
@@ -128,6 +149,16 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
             if (!formData.mission_name.trim()) return 'Le nom de la mission est requis.';
             if (!formData.mission_date) return 'La date est requise.';
             if (!formData.location.trim()) return 'Le lieu est requis.';
+        }
+        if (label === 'Répartition interventions') {
+            const modeTotal = breakdownTotal(formData.intervention_types);
+            const natureTotal = breakdownTotal(formData.intervention_natures);
+            if (modeTotal !== formData.victim_count) {
+                return `La répartition par type doit totaliser ${formData.victim_count} intervention${formData.victim_count > 1 ? 's' : ''} (actuellement ${modeTotal}).`;
+            }
+            if (natureTotal !== formData.victim_count) {
+                return `La répartition par nature doit totaliser ${formData.victim_count} intervention${formData.victim_count > 1 ? 's' : ''} (actuellement ${natureTotal}).`;
+            }
         }
         if (label === 'Équipage') {
             if (!formData.pegass_ok && !formData.volunteers.trim()) return 'Veuillez renseigner les bénévoles présents (requis si inscriptions Pegass non à jour).';
@@ -165,6 +196,17 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
                     quantity_used: qty,
                 }))
         );
+
+        // Répartition des interventions : seules les cases > 0 sont envoyées.
+        // À 0 intervention les deux tableaux partent vides (invariant côté API).
+        const toInterventionArr = (values: Record<string, number>) =>
+            formData.victim_count >= 1
+                ? Object.entries(values)
+                    .filter(([, qty]) => qty > 0)
+                    .map(([category, quantity]) => ({ category, quantity }))
+                : [];
+        const interventionTypesArr = toInterventionArr(formData.intervention_types);
+        const interventionNaturesArr = toInterventionArr(formData.intervention_natures);
 
         // Upload the signed report (mandatory for DPS/PAPS)
         let signedReportDriveId: string | null = null;
@@ -210,6 +252,8 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
                 body: JSON.stringify({
                     ...formData,
                     supplies: suppliesArr,
+                    intervention_types: interventionTypesArr,
+                    intervention_natures: interventionNaturesArr,
                     drive_folder_id: driveFolderId,
                     signed_report_drive_id: signedReportDriveId,
                 }),
@@ -265,6 +309,15 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
             {/* Step content */}
             {currentStepLabel === 'UL / DT' && <Step0ULSelection data={formData} onChange={patchFormData} />}
             {currentStepLabel === 'Général' && <Step1General data={formData} onChange={patchFormData} />}
+            {currentStepLabel === 'Répartition interventions' && (
+                <StepInterventionBreakdown
+                    victimCount={formData.victim_count}
+                    interventionTypes={formData.intervention_types}
+                    interventionNatures={formData.intervention_natures}
+                    onTypeChange={handleInterventionTypeChange}
+                    onNatureChange={handleInterventionNatureChange}
+                />
+            )}
             {currentStepLabel === 'Équipage' && <Step2Vehicle data={formData} onChange={patchFormData} currentUserId={currentUserId} currentUserName={currentUserName} />}
             {currentStepLabel === 'Matériel' && <Step3Supplies supplies={supplies} onSupplyChange={handleSupplyChange} />}
             {currentStepLabel === 'Oxygène' && <Step4Oxygen supplies={supplies} onSupplyChange={handleSupplyChange} />}
