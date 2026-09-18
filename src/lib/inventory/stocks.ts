@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import type { InStatement } from '@libsql/client';
+import type { ParsedRow } from './csvImport';
 
 /**
  * Projection publique d'un stock. `qrToken` en est DÉLIBÉRÉMENT absent : la
@@ -304,6 +305,91 @@ export async function duplicateStock(params: DuplicateStockParams): Promise<Dupl
     } catch (e) {
         // Le rollback est isolé : s'il échoue à son tour (transaction déjà avortée par
         // SQLite), c'est sa propre erreur qui remonterait et masquerait la cause réelle.
+        try {
+            await tx.rollback();
+        } catch {
+            // Transaction déjà close : rien à défaire.
+        }
+        throw e;
+    }
+}
+
+// ── Import CSV massif ─────────────────────────────────────────────────────────
+
+export interface ImportStockFromCsvParams {
+    ulId: string;
+    /** Nom du stock à créer (déjà trimé par l'appelant). */
+    name: string;
+    /** Auteur enregistré dans les lignes d'historique « Import initial ». */
+    userName: string;
+    /** Lignes déjà validées par `parseStockCsv` — cette fonction ne revalide rien. */
+    rows: ParsedRow[];
+}
+
+export interface ImportStockFromCsvResult {
+    stockId: string;
+    itemCount: number;
+}
+
+/**
+ * Crée un stock et y insère les articles issus d'un CSV, en une seule transaction.
+ *
+ * Aucun contrôle d'unicité sur le nom du stock : `POST /api/inventory/stocks` n'en
+ * impose aucun, et l'import ne doit pas diverger de la création manuelle.
+ *
+ * Un article de quantité non nulle reçoit un `InvBatch` portant sa date de péremption
+ * (nulle si absente) et une ligne d'historique « Import initial » — même schéma que
+ * `POST /api/inventory` pour un article créé un par un. Un article de quantité nulle
+ * n'a ni lot ni historique : il n'y a aucun mouvement à tracer.
+ *
+ * Les écritures sont groupées par paquets : un import de 2000 articles émet plus de
+ * 6000 instructions, impossibles à envoyer une par une dans le budget de la route.
+ */
+export async function importStockFromCsv(params: ImportStockFromCsvParams): Promise<ImportStockFromCsvResult> {
+    const { ulId, name, userName, rows } = params;
+
+    await ensureStockTableExists();
+
+    const tx = await db.transaction('write');
+    try {
+        const newStockId = crypto.randomUUID();
+
+        const writes: InStatement[] = [{
+            sql: `INSERT INTO "InvStockList" (id, name, ulId, isDefault) VALUES (?, ?, ?, 0)`,
+            args: [newStockId, name, ulId],
+        }];
+
+        for (const row of rows) {
+            const itemId = crypto.randomUUID();
+
+            writes.push({
+                sql: `INSERT INTO "InvItem" (id, stockId, name, category, quantity, minStock, notes, ulId, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+                args: [itemId, newStockId, row.nom, row.categorie, row.quantite, row.stockMin, row.notes, ulId],
+            });
+
+            if (row.quantite <= 0) continue;
+
+            writes.push({
+                sql: `INSERT INTO "InvBatch" (id, itemId, quantity, expiryDate) VALUES (?, ?, ?, ?)`,
+                args: [crypto.randomUUID(), itemId, row.quantite, row.datePeremption],
+            });
+
+            writes.push({
+                sql: `INSERT INTO "InvStockLog" (id, itemId, "change", userName, note) VALUES (?, ?, ?, ?, ?)`,
+                args: [crypto.randomUUID(), itemId, row.quantite, userName, 'Import initial'],
+            });
+        }
+
+        for (let i = 0; i < writes.length; i += WRITE_BATCH_SIZE) {
+            await tx.batch(writes.slice(i, i + WRITE_BATCH_SIZE));
+        }
+
+        await tx.commit();
+
+        return { stockId: newStockId, itemCount: rows.length };
+    } catch (e) {
+        // Rollback isolé, pour la même raison que dans `duplicateStock` : son propre
+        // échec masquerait la cause réelle.
         try {
             await tx.rollback();
         } catch {

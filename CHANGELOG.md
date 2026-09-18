@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.11.0] — 17 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Créer un stock complet depuis un fichier CSV** — un bouton « Importer un CSV » s'ajoute à côté de « Nouveau stock » sur la page Inventaire. On donne un nom au stock, on choisit son fichier, et tous les articles sont créés d'un coup, avec leurs quantités, catégories, dates de péremption, seuils d'alerte et notes. Fini la saisie article par article pour monter un nouveau stock.
+- **Import tout ou rien, avec les erreurs listées ligne par ligne** — si une seule ligne du fichier est incorrecte (nom manquant, quantité qui n'est pas un nombre, date impossible), rien n'est importé et la liste des lignes à corriger s'affiche avec leur numéro et la colonne fautive. Aucun stock à moitié rempli à nettoyer derrière.
+
 ## [5.10.2] — 17 septembre 2026
 
 ### 🐛 Corrections

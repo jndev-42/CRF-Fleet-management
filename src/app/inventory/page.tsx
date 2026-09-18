@@ -12,6 +12,7 @@ import LowStockModal from '@/components/inventory/modals/LowStockModal';
 import StockTabs from '@/components/inventory/StockTabs';
 import StockQRCodeModal from '@/components/inventory/modals/StockQRCodeModal';
 import StockModal from '@/components/inventory/modals/StockModal';
+import ImportCsvModal from '@/components/inventory/modals/ImportCsvModal';
 import { InvStockListRow } from '@/lib/inventory/stocks';
 import { isAdminOrAbove } from '@/lib/roles';
 import styles from './page.module.css';
@@ -48,6 +49,7 @@ export default function InventoryPage() {
     }>({ isOpen: false, mode: 'create' });
     /** Stock dont la modale QR est ouverte, `null` sinon. */
     const [qrStock, setQrStock] = useState<InvStockListRow | null>(null);
+    const [showImportCsv, setShowImportCsv] = useState(false);
 
     const [items, setItems] = useState<InvItem[]>([]);
     const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -193,6 +195,30 @@ export default function InventoryPage() {
         }
     };
 
+    /**
+     * Après un import CSV, la liste des stocks est rechargée depuis l'API plutôt
+     * qu'étendue localement : la réponse d'import ne porte que `stockId`, pas la
+     * ligne `InvStockList` complète attendue par les onglets.
+     */
+    const handleImportSuccess = async (result: { stockId: string; itemCount: number }) => {
+        try {
+            const res = await fetch('/api/inventory/stocks');
+            if (res.ok) {
+                const data = await res.json();
+                setStocks(data.stocks ?? []);
+                // N'active le nouvel onglet qu'après confirmation que le refetch l'a bien
+                // renvoyé : sinon `activeStockId` pointerait sur un stock absent de `stocks`
+                // et aucun onglet n'apparaîtrait actif.
+                setActiveStockId(result.stockId);
+                setSearch('');
+                setCategoryFilter('');
+                setPage(1);
+            }
+        } catch (e) {
+            console.error('Erreur rechargement stocks après import:', e);
+        }
+    };
+
     const handleRenameStock = async (name: string) => {
         if (!stockModalState.stockToRename) return;
         const stockId = stockModalState.stockToRename.id;
@@ -335,6 +361,7 @@ export default function InventoryPage() {
                         setPage(1);
                     }}
                     onOpenCreate={() => setStockModalState({ isOpen: true, mode: 'create' })}
+                    onOpenImport={() => setShowImportCsv(true)}
                     onOpenRename={stock => setStockModalState({ isOpen: true, mode: 'rename', stockToRename: stock })}
                     onOpenDuplicate={stock => setStockModalState({ isOpen: true, mode: 'duplicate', stockToDuplicate: stock })}
                     onOpenQrCode={setQrStock}
@@ -630,6 +657,12 @@ export default function InventoryPage() {
                             ? handleDuplicateStock
                             : handleRenameStock
                 }
+            />
+
+            <ImportCsvModal
+                isOpen={showImportCsv}
+                onClose={() => setShowImportCsv(false)}
+                onSuccess={handleImportSuccess}
             />
 
             {qrStock && (
