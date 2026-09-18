@@ -41,7 +41,6 @@ export default function NewMissionPage() {
             <MissionWizard
                 currentUserId={session?.user?.id}
                 currentUserName={session?.user?.name ?? undefined}
-                currentUserUlId={session?.user?.ulId ?? undefined}
                 currentUserUlName={currentUserUlName}
                 onSuccess={handleSuccess}
             />

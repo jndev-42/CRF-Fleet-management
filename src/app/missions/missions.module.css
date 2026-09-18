@@ -93,6 +93,25 @@
     color: var(--text-secondary);
 }
 
+/* Tag de rattachement UL / DT */
+.attachmentTag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+    white-space: nowrap;
+}
+
+.attachmentTagDt {
+    background: color-mix(in srgb, var(--crf-red, #c0122c) 10%, transparent);
+    color: var(--crf-red, #c0122c);
+    border-color: color-mix(in srgb, var(--crf-red, #c0122c) 35%, transparent);
+}
+
 /* Incident badge */
 .incidentBadge {
     display: inline-flex;

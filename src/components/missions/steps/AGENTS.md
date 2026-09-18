@@ -1,14 +1,15 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-08-11 | Updated: 2026-08-11 -->
+<!-- Generated: 2026-08-11 | Updated: 2026-09-18 -->
 
 # steps
 
 ## Purpose
-The nine step panels of the mission-report wizard. Each is a presentational panel rendered one at a time by `../MissionWizard.tsx`, which owns all of the state; the steps only read `data`/`supplies` and emit patches.
+The ten step panels of the mission-report wizard. Each is a presentational panel rendered one at a time by `../MissionWizard.tsx`, which owns all of the state; the steps only read `data`/`supplies` and emit patches.
 
 ## Key Files
 | File | Description |
 |------|-------------|
+| `Step0ULSelection.tsx` | **First step.** Single `<select>` combining every UL (`optgroup` "Unités Locales") and one synthetic entry per distinct `UniteLocale.dtCode` ("Directions Territoriales"). Sets `selected_ul_id` **xor** `selected_dt_code` — picking one always clears the other. |
 | `Step1General.tsx` | Mission type radios (`RESEAU` shown as "Réseaux", `DPS`, `PAPS`), mission name, date, location, victim count (clamped to ≥ 0). |
 | `Step2Vehicle.tsx` | Vehicle select (DB vehicles + `EXTERNAL_VEHICLES`), driver select, Pegass toggle, volunteers textarea. The only step that fetches. |
 | `Step3Supplies.tsx` | Consumed-supplies accordion by category (`SAC_PRIMAIRE` open by default), one number input per item, per-category total badge. |
@@ -28,11 +29,11 @@ The nine step panels of the mission-report wizard. Each is a presentational pane
 
 **Conditional reveals are one-way clears.** `Step5Team` resets the dependent fields to `null` when UL presence is set to "Non" (`presence_ul: false, team_dynamics: null, all_found_place: null, member_difficulties: null, free_comment: null`) so a hidden field can never be submitted with a stale value. Follow that pattern for any new conditional block. `Step6Incidents` hides (but does not clear) `needs_followup` when no incident is checked.
 
-**`Step2Vehicle` is the exception that fetches** — `GET /api/vehicles` and `GET /api/users?drivers=true` in parallel on mount, tolerating both an array and `{ vehicles }` response shape. It also holds the VPSP rule: when the selected vehicle is VPSP (`type === 'VPSP'` or `EXTERNAL_VPSP`), the driver list is filtered to holders of the `CHVPSP` role, including the "Moi" option. Changing the vehicle resets `driver_id` to `null`.
+**`Step2Vehicle` is the exception that fetches** — `GET /api/vehicles` and `GET /api/users?drivers=true` in parallel on mount, tolerating both an array and `{ vehicles }` response shape. It also holds the VPSP rule: when the selected vehicle is VPSP (`type === 'VPSP'` or `EXTERNAL_VPSP`), the driver list is filtered to holders of the `CHVPSP` role, including the "Moi" option. Changing the vehicle resets `driver_id` to `null`. **`Step0ULSelection` also fetches** — `GET /api/ul` on mount (open to every authenticated user); it lists **all** ULs, never only the submitter's, and derives the DT entries from distinct `dtCode` values. A failed load surfaces an inline `role="alert"` message and leaves the select disabled-empty rather than silently defaulting.
 
 **Only local UI state is allowed** — e.g. `Step3Supplies` keeps its open-accordion `Set<SupplyCategory>` locally. That's fine; form values are not.
 
-**Styling.** All eight steps import the parent's stylesheet: `import styles from '../MissionWizard.module.css'`. There is no per-step `.module.css` — add classes there, not in a new file. Structure uses global classes (`form-group`, `form-label`, `form-input`) with module classes for step-specific layout (`stepContent`, `stepTitle`, `radioGroup`, `toggleRow`, `accordion`). Icons from `lucide-react`. All text French.
+**Styling.** All steps import the parent's stylesheet: `import styles from '../MissionWizard.module.css'`. There is no per-step `.module.css` — add classes there, not in a new file. Structure uses global classes (`form-group`, `form-label`, `form-input`) with module classes for step-specific layout (`stepContent`, `stepTitle`, `radioGroup`, `toggleRow`, `accordion`). Icons from `lucide-react`. All text French.
 
 ## Dependencies
 
@@ -41,5 +42,6 @@ The nine step panels of the mission-report wizard. Each is a presentational pane
 - `@/lib/mission-supplies` — `SUPPLIES_BY_CATEGORY`, `SupplyCategory`, `EXTERNAL_VEHICLES`
 - `@/components/ui/PhotoPicker` — steps 7 (single-file mode) and 8 (multi-file mode)
 - `GET /api/vehicles`, `GET /api/users?drivers=true` — `Step2Vehicle` only
+- `GET /api/ul` — `Step0ULSelection` only
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

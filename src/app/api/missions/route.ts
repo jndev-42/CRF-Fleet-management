@@ -13,6 +13,9 @@ const supplySchema = z.object({
 });
 
 const createMissionReportSchema = z.object({
+    /** Rattachement du poste — exactement un des deux est renseigné (cf. superRefine). */
+    selected_ul_id: z.string().min(1).nullable().optional(),
+    selected_dt_code: z.string().min(1).nullable().optional(),
     mission_type: z.enum(['RESEAU', 'DPS', 'PAPS']),
     mission_name: z.string().min(1, 'Le nom de la mission est requis'),
     mission_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Format de date invalide (YYYY-MM-DD)' }),
@@ -43,13 +46,28 @@ const createMissionReportSchema = z.object({
             message: 'Requis si inscriptions Pegass non à jour',
         });
     }
+    // Invariant du rattachement : exactement un des deux champs. Une UL ET une DT
+    // rendraient la visibilité ambiguë ; aucune des deux rendrait le rapport
+    // invisible dans « Tous les rapports » sans que personne l'ait choisi.
+    const hasUl = Boolean(data.selected_ul_id);
+    const hasDt = Boolean(data.selected_dt_code);
+    if (hasUl === hasDt) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['selected_ul_id'],
+            message: hasUl
+                ? 'Choisissez soit une UL, soit une Direction Territoriale — pas les deux.'
+                : 'Veuillez sélectionner l\'UL ou la Direction Territoriale qui héberge le poste.',
+        });
+    }
 });
 
 const ALLOWED_ROLES = ['ADMIN', 'CI/RPAPS'];
 
 /** GET /api/missions — Liste paginée des comptes rendus.
- *  RESPO/ADMIN : tous. CHVL/CHVPSP : les siens uniquement.
- *  Query params: page, limit, type */
+ *  `scope=mine` (défaut) : tous les rapports du soumetteur, toutes UL/DT confondues.
+ *  `scope=all` : les rapports de l'UL ACTIVE, réservé aux cadres/présidents/admins.
+ *  Query params: page, limit, type, scope */
 export async function GET(request: Request) {
     try {
         const session = await auth();
@@ -63,16 +81,33 @@ export async function GET(request: Request) {
             return forbiddenResponse();
         }
 
+        const { searchParams } = new URL(request.url);
+        const scope = searchParams.get('scope') === 'all' ? 'all' : 'mine';
+
+        const isManager = isAdminOrAbove(roles) || isReadOnlyManager(roles);
+        if (scope === 'all' && !isManager) {
+            return forbiddenResponse();
+        }
+
         const ulId = session.user.ulId as string | undefined;
-        // Un utilisateur sans UL ne voit aucune mission
-        if (!ulId || ulId === 'default') {
+        // « Tous les rapports » est cadré par l'UL active : sans UL active, il n'y a
+        // aucun périmètre à afficher. « Mes rapports » n'en dépend pas.
+        if (scope === 'all' && (!ulId || ulId === 'default')) {
             return NextResponse.json({ reports: [], total: 0, page: 1, limit: 20, totalPages: 0 });
         }
 
-        const isManager = isAdminOrAbove(roles) || isReadOnlyManager(roles);
-        const userId = session.user.id;
+        // Le rapport stocke le `User.id` résolu depuis l'email (cf. POST) ; en dev
+        // `session.user.id` peut être un email de repli — sans résolution,
+        // « Mes rapports » reviendrait vide.
+        let userId = (session.user.id as string | undefined) ?? null;
+        if (session.user.email) {
+            const userRes = await db.execute({
+                sql: `SELECT id FROM "User" WHERE email = ?`,
+                args: [session.user.email],
+            });
+            if (userRes.rows.length > 0) userId = userRes.rows[0].id as string;
+        }
 
-        const { searchParams } = new URL(request.url);
         const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
         const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)));
         const typeFilter = searchParams.get('type');
@@ -81,14 +116,16 @@ export async function GET(request: Request) {
         const conditions: string[] = [];
         const args: (string | number | null)[] = [];
 
-        // Filtre UL via la colonne ulId du rapport de mission
-        conditions.push('mr.ulId = ?');
-        args.push(ulId);
-
-        if (!isManager) {
+        if (scope === 'all') {
+            // Un rapport rattaché à une DT (ulId NULL) n'est jamais rapproché d'une
+            // UL : il reste visible uniquement via « Mes rapports » de son auteur.
+            conditions.push('mr.ulId = ?');
+            args.push(ulId ?? null);
+        } else {
             conditions.push('mr.submitted_by = ?');
-            args.push(userId ?? null);
+            args.push(userId);
         }
+
         if (typeFilter) {
             conditions.push('mr.mission_type = ?');
             args.push(typeFilter);
@@ -117,13 +154,16 @@ export async function GET(request: Request) {
                     mr.had_complex_care,
                     mr.needs_followup,
                     mr.submitted_at,
+                    mr.dt_code,
                     u.name   AS submitter_name,
                     u.email  AS submitter_email,
                     mr.vehicle_id,
-                    v.name   AS vehicle_name
+                    v.name   AS vehicle_name,
+                    ul.name  AS ul_name
                 FROM "mission_reports" mr
                 LEFT JOIN "User"    u ON u.id = mr.submitted_by
                 LEFT JOIN "Vehicle" v ON v.id = mr.vehicle_id
+                LEFT JOIN "UniteLocale" ul ON ul.id = mr.ulId
                 ${where}
                 ORDER BY mr.mission_date DESC, mr.submitted_at DESC
                 LIMIT ? OFFSET ?
@@ -151,6 +191,8 @@ export async function GET(request: Request) {
                 submitter_name: row.submitter_name,
                 submitter_email: row.submitter_email,
                 vehicle_name: vehicleName,
+                ul_name: (row.ul_name as string | null) ?? null,
+                dt_code: (row.dt_code as string | null) ?? null,
             };
         });
 
@@ -188,6 +230,29 @@ export async function POST(request: Request) {
             throw zodErr;
         }
 
+        // Le rattachement vient du client : vérifier qu'il désigne une vraie UL /
+        // une DT réellement portée par une UL. Sans ce contrôle, un `ulId` inventé
+        // rendrait le rapport invisible dans « Tous les rapports » sans erreur, et
+        // un `dt_code` libre créerait une DT fantôme — or une DT n'existe QUE comme
+        // valeur d'un `UniteLocale.dtCode`.
+        if (data.selected_ul_id) {
+            const ulRes = await db.execute({
+                sql: `SELECT id FROM "UniteLocale" WHERE id = ?`,
+                args: [data.selected_ul_id],
+            });
+            if (ulRes.rows.length === 0) {
+                return NextResponse.json({ error: 'UL de rattachement introuvable.' }, { status: 400 });
+            }
+        } else if (data.selected_dt_code) {
+            const dtRes = await db.execute({
+                sql: `SELECT 1 FROM "UniteLocale" WHERE dtCode = ?`,
+                args: [data.selected_dt_code],
+            });
+            if (dtRes.rows.length === 0) {
+                return NextResponse.json({ error: 'Direction Territoriale de rattachement introuvable.' }, { status: 400 });
+            }
+        }
+
         // Resolve the actual DB User.id from email — session.user.id may be an email fallback in dev
         const userEmail = session.user.email;
         if (!userEmail) {
@@ -209,7 +274,8 @@ export async function POST(request: Request) {
         const reportId = crypto.randomUUID();
         const submittedAt = new Date().toISOString();
 
-        const ulId = session.user.ulId || 'default';
+        const ulId = data.selected_ul_id ?? null;
+        const dtCode = ulId ? null : (data.selected_dt_code ?? null);
         const tx = await db.transaction('write');
         try {
             await tx.execute({
@@ -218,8 +284,8 @@ export async function POST(request: Request) {
                     location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count,
                     presence_ul, team_dynamics, all_found_place, member_difficulties, free_comment,
                     mission_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup,
-                    drive_folder_id, signed_report_drive_id, ulId
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    drive_folder_id, signed_report_drive_id, ulId, dt_code
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     reportId,
                     submittedBy ?? null,
@@ -246,6 +312,7 @@ export async function POST(request: Request) {
                     data.drive_folder_id ?? null,
                     data.signed_report_drive_id ?? null,
                     ulId,
+                    dtCode,
                 ],
             });
 

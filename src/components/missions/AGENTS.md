@@ -1,5 +1,5 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-08-11 | Updated: 2026-08-11 -->
+<!-- Generated: 2026-08-11 | Updated: 2026-09-18 -->
 
 # missions
 
@@ -18,12 +18,13 @@ UI for mission reports ("comptes rendus de mission"): the multi-step submission 
 ## Subdirectories
 | Directory | Purpose |
 |-----------|---------|
-| `steps/` | The eight wizard step panels (see `steps/AGENTS.md`) |
+| `steps/` | The wizard step panels — `Step0ULSelection` (UL/DT attachment) plus the eight original panels (see `steps/AGENTS.md`) |
 
 ## For AI Agents
 
 ### Working In This Directory
 **The wizard's step list is dynamic — never index steps by a hard-coded number.** `activeSteps` is built at render time and steps are dispatched by *label*, not by number:
+- `UL / DT` is always first: it carries the report's attachment (`selected_ul_id` **xor** `selected_dt_code`) and blocks `Suivant` until one is picked.
 - `Matériel` + `Oxygène` are dropped when the chosen vehicle is external (`vehicle_id?.startsWith('EXTERNAL_')`).
 - `Rapport signé` only appears for `mission_type` `DPS` or `PAPS`.
 - `currentStepIndex = Math.min(step, activeSteps.length)` guards against the list shrinking under the user after a back-navigation.
@@ -36,7 +37,7 @@ Adding a step means adding its label to `activeSteps`, a `validateStep` branch k
 
 Two Drive root folder IDs are hard-coded constants at the top of `MissionWizard.tsx` (`MISSION_COMM_FOLDER_ID`, `SIGNED_REPORTS_FOLDER_ID`).
 
-**Easter egg, not a feature:** on success the `MarineApprovedOverlay` animation is shown *only* when `currentUserUlId === 'ul-paris-18'`; every other UL calls `onSuccess(id)` immediately. Keep both paths.
+**Easter egg, not a feature:** on success the `MarineApprovedOverlay` animation is shown *only* when `formData.selected_ul_id === 'ul-paris-18'` — the UL of the **poste chosen at step 1**, not the submitter's active UL (the `currentUserUlId` prop was removed). Every other selection calls `onSuccess(id)` immediately. Keep both paths.
 
 Both photo components proxy Drive images through `/api/drive/photos/{id}` and therefore use `<img>` with an `eslint-disable-next-line @next/next/no-img-element` comment — required, since `next/image` can't handle these proxy URLs.
 

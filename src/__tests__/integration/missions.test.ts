@@ -3,7 +3,8 @@
  *
  * Couvre :
  *   - POST /api/missions → 401, 403 (GUEST), 400 (Zod), 201 happy path
- *   - GET  /api/missions → 401, 200 RESPO (tous), 200 CHVL (les siens)
+ *   - POST rattachement UL/DT → 400 si aucun ou les deux, persistance exclusive
+ *   - GET  /api/missions → 401, 403 (CHVL), scope=mine (cross-UL/DT), scope=all (UL active, 403 non-manager)
  *   - GET  /api/missions/[id] → 200 avec supplies groupés
  *   - DELETE /api/missions/[id] → 403 (RESPO), 200 (ADMIN) + CASCADE
  */
@@ -70,6 +71,8 @@ function makeDeleteRequest(id: string): Request {
 }
 
 const validPayload = {
+    selected_ul_id: 'ul-paris-18',
+    selected_dt_code: null,
     mission_type: 'RESEAU',
     mission_name: 'Poste Secours Test',
     mission_date: '2026-03-15',
@@ -124,7 +127,8 @@ async function createMissionReportTable() {
             "needs_followup"        INTEGER NOT NULL DEFAULT 0,
             "drive_folder_id"       TEXT,
             "signed_report_drive_id" TEXT,
-            "ulId"                  TEXT
+            "ulId"                  TEXT,
+            "dt_code"               TEXT
         )
     `);
     await db.execute(`
@@ -153,6 +157,14 @@ describe('POST /api/missions', () => {
         await seedRoles();
         await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin Test' });
         await seedUser({ id: 'user-ci', email: 'ci@test.com', name: 'CI/RPAPS Test' });
+        // Le POST vérifie que le rattachement désigne une vraie UL / une DT portée
+        // par une UL : les fixtures doivent donc exister en base.
+        await seedUniteLocale({ id: 'ul-paris-18', name: 'Paris 18', slug: 'paris-18' });
+        await seedUniteLocale({ id: 'ul-lyon', name: 'Lyon', slug: 'lyon' });
+        await db.execute({
+            sql: `UPDATE "UniteLocale" SET dtCode = ? WHERE id = ?`,
+            args: ['DT 75', 'ul-paris-18'],
+        });
     });
 
     it('returns 401 when not authenticated', async () => {
@@ -325,6 +337,87 @@ describe('POST /api/missions', () => {
         });
         expect(Boolean(Number(mRes.rows[0].presence_ul))).toBe(true);
     });
+
+    // ── Rattachement UL / DT (exactement un des deux) ─────────────────────────
+
+    it('returns 400 when neither an UL nor a DT is selected', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: null, selected_dt_code: null }));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toBe('Données invalides');
+        expect(body.details).toBeDefined();
+    });
+
+    it('returns 400 when BOTH an UL and a DT are selected', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: 'ul-paris-18', selected_dt_code: 'DT 75' }));
+        expect(res.status).toBe(400);
+    });
+
+    it('persists the SELECTED ulId, not the submitter\'s active UL', async () => {
+        // adminSession.ulId is 'ul-paris-18' — choose a different UL to prove the
+        // report follows the explicit selection.
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: 'ul-lyon' }));
+        expect(res.status).toBe(201);
+
+        const body = await res.json();
+        const mRes = await db.execute({
+            sql: `SELECT ulId, dt_code FROM "mission_reports" WHERE id = ?`,
+            args: [body.id],
+        });
+        expect(mRes.rows[0].ulId).toBe('ul-lyon');
+        expect(mRes.rows[0].dt_code).toBeNull();
+    });
+
+    it('persists dt_code with a NULL ulId when a DT is selected', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: null, selected_dt_code: 'DT 75' }));
+        expect(res.status).toBe(201);
+
+        const body = await res.json();
+        const mRes = await db.execute({
+            sql: `SELECT ulId, dt_code FROM "mission_reports" WHERE id = ?`,
+            args: [body.id],
+        });
+        expect(mRes.rows[0].ulId).toBeNull();
+        expect(mRes.rows[0].dt_code).toBe('DT 75');
+    });
+
+    it('returns 400 when the selected UL does not exist', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: 'ul-inexistante' }));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toBe('UL de rattachement introuvable.');
+
+        const count = await db.execute(`SELECT COUNT(*) AS c FROM "mission_reports"`);
+        expect(Number(count.rows[0].c)).toBe(0);
+    });
+
+    it('returns 400 when the selected DT is not carried by any UL', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: null, selected_dt_code: 'DT 999' }));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toBe('Direction Territoriale de rattachement introuvable.');
+
+        const count = await db.execute(`SELECT COUNT(*) AS c FROM "mission_reports"`);
+        expect(Number(count.rows[0].c)).toBe(0);
+    });
 });
 
 // ── GET list ──────────────────────────────────────────────────────────────────
@@ -337,6 +430,8 @@ describe('GET /api/missions (list)', () => {
         await seedRoles();
         await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin Test' });
         await seedUser({ id: 'user-ci', email: 'ci@test.com', name: 'CI/RPAPS Test' });
+        await seedUniteLocale({ id: 'ul-paris-18', name: 'Paris 18', slug: 'paris-18' });
+        await seedUniteLocale({ id: 'ul-lyon', name: 'Lyon', slug: 'lyon' });
 
         // Insert 2 reports: 1 by admin, 1 by ci
         await db.execute({
@@ -367,11 +462,11 @@ describe('GET /api/missions (list)', () => {
         expect(res.status).toBe(403);
     });
 
-    it('returns 200 with all reports for ADMIN', async () => {
+    it('returns 200 with all UL reports for ADMIN with scope=all', async () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(adminSession);
 
-        const res = await getList(makeListRequest());
+        const res = await getList(makeListRequest('?scope=all'));
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.reports).toHaveLength(2);
@@ -394,11 +489,147 @@ describe('GET /api/missions (list)', () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(adminSession);
 
-        const res = await getList(makeListRequest('?type=PAPS'));
+        const res = await getList(makeListRequest('?scope=all&type=PAPS'));
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.reports).toHaveLength(1);
         expect(body.reports[0].mission_type).toBe('PAPS');
+    });
+
+    // ── scope=mine / scope=all ────────────────────────────────────────────────
+
+    it('scope=mine returns the submitter\'s reports across every UL and DT', async () => {
+        // Same submitter, three different attachments — including a DT report.
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-lyon', 'user-ci', '2026-02-01T12:00:00.000Z', 'DPS', 'Mission Lyon', '2026-02-01', 'Lyon', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-lyon', null],
+        });
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-dt', 'user-ci', '2026-01-01T12:00:00.000Z', 'DPS', 'Mission DT', '2026-01-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, null, 'DT 75'],
+        });
+
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(ciRpapsSession);
+
+        const res = await getList(makeListRequest('?scope=mine'));
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.reports.map((r: { id: string }) => r.id).sort()).toEqual(['report-2', 'report-dt', 'report-lyon']);
+
+        const byId = Object.fromEntries(body.reports.map((r: { id: string }) => [r.id, r]));
+        expect(byId['report-2'].ul_name).toBe('Paris 18');
+        expect(byId['report-2'].dt_code).toBeNull();
+        expect(byId['report-lyon'].ul_name).toBe('Lyon');
+        expect(byId['report-dt'].ul_name).toBeNull();
+        expect(byId['report-dt'].dt_code).toBe('DT 75');
+    });
+
+    it('scope=all is scoped to the ACTIVE UL and never surfaces a DT report', async () => {
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-lyon', 'user-ci', '2026-02-01T12:00:00.000Z', 'DPS', 'Mission Lyon', '2026-02-01', 'Lyon', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-lyon', null],
+        });
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-dt', 'user-admin', '2026-01-01T12:00:00.000Z', 'DPS', 'Mission DT', '2026-01-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, null, 'DT 75'],
+        });
+
+        // UL active = Paris 18
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+        const paris = await (await getList(makeListRequest('?scope=all'))).json();
+        expect(paris.reports.map((r: { id: string }) => r.id).sort()).toEqual(['report-1', 'report-2']);
+
+        // Même utilisateur, UL active = Lyon via le sélecteur de la Navbar
+        mockedAuth.mockResolvedValue({
+            user: { ...adminSession.user, ulId: 'ul-lyon' },
+        } as never);
+        const lyon = await (await getList(makeListRequest('?scope=all'))).json();
+        expect(lyon.reports.map((r: { id: string }) => r.id)).toEqual(['report-lyon']);
+    });
+
+    it('returns 403 on scope=all for a non-manager (CI/RPAPS)', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(ciRpapsSession);
+
+        const res = await getList(makeListRequest('?scope=all'));
+        expect(res.status).toBe(403);
+    });
+
+    it('returns an empty list on scope=all when no UL is active', async () => {
+        mockedAuth.mockResolvedValue({
+            user: { ...adminSession.user, ulId: 'default' },
+        } as never);
+
+        const res = await getList(makeListRequest('?scope=all'));
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.reports).toHaveLength(0);
+        expect(body.total).toBe(0);
+    });
+
+    it('scope=mine still works when no UL is active', async () => {
+        mockedAuth.mockResolvedValue({
+            user: { ...ciRpapsSession.user, ulId: 'default' },
+        } as never);
+
+        const res = await getList(makeListRequest('?scope=mine'));
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.reports).toHaveLength(1);
+        expect(body.reports[0].id).toBe('report-2');
+    });
+
+    it('scope=mine combines with the type filter', async () => {
+        // Deux rapports du MÊME auteur, de types différents : le filtre doit
+        // s'ajouter au périmètre auteur, pas le remplacer.
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-ci-reseau', 'user-ci', '2026-03-06T12:00:00.000Z', 'RESEAU', 'Réseau CI', '2026-03-06', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-lyon'],
+        });
+
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(ciRpapsSession);
+
+        const paps = await (await getList(makeListRequest('?scope=mine&type=PAPS'))).json();
+        expect(paps.reports.map((r: { id: string }) => r.id)).toEqual(['report-2']);
+        expect(paps.total).toBe(1);
+
+        // Le rapport de l'admin est RESEAU lui aussi : il ne doit pas remonter.
+        const reseau = await (await getList(makeListRequest('?scope=mine&type=RESEAU'))).json();
+        expect(reseau.reports.map((r: { id: string }) => r.id)).toEqual(['report-ci-reseau']);
+    });
+
+    it('paginates within the active scope', async () => {
+        // 3 rapports du même auteur, dates décroissantes garanties par l'ORDER BY.
+        for (const [id, date] of [['p-1', '2026-05-03'], ['p-2', '2026-05-02'], ['p-3', '2026-05-01']]) {
+            await db.execute({
+                sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [id, 'user-admin', `${date}T12:00:00.000Z`, 'DPS', `Mission ${id}`, date, 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-paris-18'],
+            });
+        }
+
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const page1 = await (await getList(makeListRequest('?scope=mine&type=DPS&limit=2&page=1'))).json();
+        expect(page1.reports.map((r: { id: string }) => r.id)).toEqual(['p-1', 'p-2']);
+        expect(page1.total).toBe(3);
+        expect(page1.page).toBe(1);
+        expect(page1.limit).toBe(2);
+
+        const page2 = await (await getList(makeListRequest('?scope=mine&type=DPS&limit=2&page=2'))).json();
+        expect(page2.reports.map((r: { id: string }) => r.id)).toEqual(['p-3']);
+        // `total` reste le total du périmètre, pas la taille de la page.
+        expect(page2.total).toBe(3);
+        expect(page2.page).toBe(2);
     });
 });
 
@@ -558,6 +789,62 @@ describe('GET /api/missions/[id] (detail)', () => {
 
         const body = await res.json();
         expect(body.ulName).toBeNull();
+    });
+
+    it('returns 200 for a plain ADMIN reading their OWN report attached to another UL', async () => {
+        // Rôle ADMIN nu (pas SUPER_ADMIN) : la branche « UL active » ne s'applique
+        // pas (ul-lyon ≠ ul-paris-18), seule la branche auteur peut ouvrir l'accès.
+        await seedUser({ id: 'user-plain-admin', email: 'plainadmin@test.com', name: 'Plain Admin' });
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-admin-lyon', 'user-plain-admin', '2026-04-01T12:00:00.000Z', 'DPS', 'Mission Lyon', '2026-04-01', 'Lyon', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-lyon'],
+        });
+
+        mockedAuth.mockResolvedValue({
+            user: { id: 'user-plain-admin', email: 'plainadmin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
+        } as never);
+
+        const res = await getDetail(makeDetailRequest('report-admin-lyon'), { params: Promise.resolve({ id: 'report-admin-lyon' }) });
+        expect(res.status).toBe(200);
+    });
+
+    it('returns 200 for a plain ADMIN reading their OWN report attached to a DT', async () => {
+        // Un rapport DT porte ulId = NULL : aucune UL ne peut le rapprocher, donc
+        // sans la branche auteur son propre rédacteur perdrait l'accès.
+        await seedUser({ id: 'user-plain-admin', email: 'plainadmin@test.com', name: 'Plain Admin' });
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-admin-dt', 'user-plain-admin', '2026-04-02T12:00:00.000Z', 'DPS', 'Mission DT', '2026-04-02', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, null, 'DT 75'],
+        });
+
+        mockedAuth.mockResolvedValue({
+            user: { id: 'user-plain-admin', email: 'plainadmin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
+        } as never);
+
+        const res = await getDetail(makeDetailRequest('report-admin-dt'), { params: Promise.resolve({ id: 'report-admin-dt' }) });
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.dtCode).toBe('DT 75');
+        expect(body.ulName).toBeNull();
+    });
+
+    it('returns 403 for a plain ADMIN reading SOMEONE ELSE\'S report attached to a DT', async () => {
+        // Contrepoint du test précédent : la branche auteur ne doit pas se
+        // transformer en passe-droit pour tout rapport DT.
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-other-dt', 'user-ci', '2026-04-03T12:00:00.000Z', 'DPS', 'Mission DT autrui', '2026-04-03', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, null, 'DT 75'],
+        });
+
+        mockedAuth.mockResolvedValue({
+            user: { id: 'user-plain-admin', email: 'plainadmin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
+        } as never);
+
+        const res = await getDetail(makeDetailRequest('report-other-dt'), { params: Promise.resolve({ id: 'report-other-dt' }) });
+        expect(res.status).toBe(403);
     });
 });
 

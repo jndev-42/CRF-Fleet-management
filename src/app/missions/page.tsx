@@ -4,27 +4,13 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, AlertCircle } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { MISSION_TYPE_LABELS } from '@/lib/mission-supplies';
 import { isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
+import MissionsTable, { type MissionReport } from './MissionsTable';
 import styles from './missions.module.css';
 
-interface MissionReport {
-    id: string;
-    mission_type: string;
-    mission_name: string;
-    mission_date: string;
-    location: string;
-    victim_count: number;
-    presence_ul: boolean | null;
-    had_acr: boolean;
-    had_hemorrhage: boolean;
-    had_complex_care: boolean;
-    needs_followup: boolean;
-    submitted_at: string;
-    submitter_name: string | null;
-    vehicle_name: string | null;
-}
+type Scope = 'mine' | 'all';
 
 export default function MissionsPage() {
     const { data: session, status } = useSession();
@@ -34,15 +20,16 @@ export default function MissionsPage() {
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [typeFilter, setTypeFilter] = useState('');
+    const [scope, setScope] = useState<Scope>('mine');
 
     const roles = (session?.user?.roles || ['GUEST']) as string[];
     const canAccess = isAdminOrAbove(roles) || isReadOnlyManager(roles) || roles.includes('CI/RPAPS');
     const canCreate = isAdminOrAbove(roles) || roles.includes('CI/RPAPS');
+    // « Tous les rapports » suit l'UL active du sélecteur de la Navbar ; l'API
+    // refuse le scope à quiconque n'est pas cadre/président/admin.
+    const canSeeAll = isAdminOrAbove(roles) || isReadOnlyManager(roles);
 
-    const availableULs = session?.user?.availableULs ?? [];
-    const currentUserUlName = availableULs.find(ul => ul.isHome)?.name
-        ?? availableULs.find(ul => ul.id === session?.user?.ulId)?.name;
-    const ulColumnLabel = currentUserUlName ? `UL ${currentUserUlName}` : 'UL';
+    const activeUlName = session?.user?.availableULs?.find(ul => ul.id === session?.user?.ulId)?.name;
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {
@@ -54,13 +41,13 @@ export default function MissionsPage() {
         if (status === 'authenticated' && canAccess) {
             fetchReports();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReports depends on typeFilter and is recreated each render
-    }, [status, typeFilter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchReports depends on typeFilter/scope and is recreated each render
+    }, [status, typeFilter, scope]);
 
     async function fetchReports() {
         setLoading(true);
         try {
-            const params = new URLSearchParams({ limit: '50' });
+            const params = new URLSearchParams({ limit: '50', scope });
             if (typeFilter) params.set('type', typeFilter);
             const res = await fetch(`/api/missions?${params.toString()}`);
             if (res.ok) {
@@ -75,8 +62,6 @@ export default function MissionsPage() {
         }
     }
 
-    const hasIncidents = (r: MissionReport) => r.had_acr || r.had_hemorrhage || r.had_complex_care;
-
     if (status === 'loading') return <div className="page-loading">Chargement...</div>;
 
     return (
@@ -90,6 +75,27 @@ export default function MissionsPage() {
                     </Link>
                 )}
             </div>
+
+            {canSeeAll && (
+                <div className="filters-bar" role="tablist" aria-label="Périmètre des comptes rendus">
+                    <button
+                        role="tab"
+                        aria-selected={scope === 'mine'}
+                        className={`filter-btn${scope === 'mine' ? ' active' : ''}`}
+                        onClick={() => setScope('mine')}
+                    >
+                        Mes rapports
+                    </button>
+                    <button
+                        role="tab"
+                        aria-selected={scope === 'all'}
+                        className={`filter-btn${scope === 'all' ? ' active' : ''}`}
+                        onClick={() => setScope('all')}
+                    >
+                        {activeUlName ? `Tous les rapports — ${activeUlName}` : 'Tous les rapports'}
+                    </button>
+                </div>
+            )}
 
             <div className="filters-bar">
                 <button
@@ -113,8 +119,12 @@ export default function MissionsPage() {
                 <div className="page-loading">Chargement...</div>
             ) : reports.length === 0 ? (
                 <div className={styles.emptyState}>
-                    <p>Aucun compte rendu trouvé.</p>
-                    {canCreate && (
+                    <p>
+                        {scope === 'all'
+                            ? 'Aucun compte rendu pour l\'UL sélectionnée.'
+                            : 'Aucun compte rendu trouvé.'}
+                    </p>
+                    {canCreate && scope === 'mine' && (
                         <Link href="/missions/new" className="btn btn-primary">
                             <Plus size={16} />
                             Créer le premier compte rendu
@@ -122,58 +132,7 @@ export default function MissionsPage() {
                     )}
                 </div>
             ) : (
-                <div className={styles.tableWrapper}>
-                    <table className={styles.table}>
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Type</th>
-                                <th>Mission</th>
-                                <th>Lieu</th>
-                                <th className={styles.centerCol}>Victimes</th>
-                                <th className={styles.centerCol}>{ulColumnLabel}</th>
-                                <th className={styles.centerCol}>Incidents</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {reports.map(r => (
-                                <tr key={r.id} className={styles.tableRow}>
-                                    <td className={styles.dateCell}>{r.mission_date}</td>
-                                    <td>
-                                        <span className={`${styles.typeBadge} ${styles[`type${r.mission_type}`]}`}>
-                                            {MISSION_TYPE_LABELS[r.mission_type] ?? r.mission_type}
-                                        </span>
-                                    </td>
-                                    <td className={styles.nameCell}>
-                                        <span className={styles.missionName}>{r.mission_name}</span>
-                                        {r.submitter_name && (
-                                            <span className={styles.submitterName}>{r.submitter_name}</span>
-                                        )}
-                                    </td>
-                                    <td className={styles.locationCell}>{r.location}</td>
-                                    <td className={styles.centerCol}>{r.victim_count > 0 ? r.victim_count : '—'}</td>
-                                    <td className={styles.centerCol}>
-                                        {r.presence_ul === null ? '—' : r.presence_ul ? 'Oui' : 'Non'}
-                                    </td>
-                                    <td className={styles.centerCol}>
-                                        {hasIncidents(r) ? (
-                                            <span className={styles.incidentBadge} title="Incidents signalés">
-                                                <AlertCircle size={15} />
-                                                {r.needs_followup && ' Suivi'}
-                                            </span>
-                                        ) : '—'}
-                                    </td>
-                                    <td>
-                                        <Link href={`/missions/${r.id}`} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.25rem 0.6rem' }}>
-                                            Voir
-                                        </Link>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <MissionsTable reports={reports} />
             )}
         </main>
     );

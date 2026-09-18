@@ -1,10 +1,10 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-08-11 | Updated: 2026-08-11 -->
+<!-- Generated: 2026-08-11 | Updated: 2026-09-18 -->
 
 # missions/[id]
 
 ## Purpose
-Mission report detail view (`/missions/{id}`) — read-only display of one *compte rendu de mission*: mission info (type, date, location, victim count, Pegass registration, vehicle, driver, volunteers), a critical-incidents card (ACR / hémorragie grave / prise en charge complexe, plus follow-up flag), the signed report scan or PDF, the team-dynamics section (labelled with the report's own UL name, e.g. "Présence UL Paris 18"), and consumed supplies grouped by category. ADMIN also gets a delete action.
+Mission report detail view (`/missions/{id}`) — read-only display of one *compte rendu de mission*: mission info (type, date, location, victim count, Pegass registration, vehicle, driver, volunteers), the UL/DT attachment label in the meta bar, a critical-incidents card (ACR / hémorragie grave / prise en charge complexe, plus follow-up flag), the signed report scan or PDF, the team-dynamics section (labelled with the report's own UL name, e.g. "Présence UL Paris 18"), and consumed supplies grouped by category. ADMIN also gets a delete action.
 
 ## Key Files
 | File | Description |
@@ -16,6 +16,10 @@ Mission report detail view (`/missions/{id}`) — read-only display of one *comp
 
 ### Working In This Directory
 **Access gate is server-side, not client-side.** This page only checks for a session (`status === 'unauthenticated'` → push `/`); the real authorization happens in `GET /api/missions/{id}`. When that route answers **403 or 404 the page redirects to `/missions`** — both statuses are treated identically on purpose, so an unauthorized reader cannot distinguish "forbidden" from "does not exist". Preserve that behaviour if you touch `fetchReport()`.
+
+**Who the API lets through:** SUPER_ADMIN always; an admin or read-only manager **only when the report's `ulId` matches the viewer's active UL** (a report attached to a DT carries `ulId = NULL` and is therefore reachable by nobody through that branch); and the submitter (contributor **or** admin role), always. That mirrors the list: a DT report shows up in « Mes rapports » of its author and nowhere else.
+
+The meta bar shows the attachment: `UL {ulName}` when the report belongs to an UL, otherwise the raw `dtCode` (e.g. "DT 75"). Exactly one of the two is non-null; both null (legacy rows) hides the label entirely.
 
 Delete is `ADMIN`-only, checked with a bare `roles.includes('ADMIN')` (note: **not** `isAdminOrAbove`, so SUPER_ADMIN does not get the button via this check). It confirms with `confirm()`, calls `DELETE /api/missions/{id}`, and on success routes back to `/missions`; failures surface via `alert()`.
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [5.12.0] — 18 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Choisir l'UL ou la DT du poste au début du compte rendu** — une première étape « UL / DT » s'ajoute au formulaire de compte rendu de mission. On y sélectionne l'unité locale qui héberge le poste, ou directement une Direction Territoriale (ex. « DT 75 ») pour un poste de niveau départemental. Le compte rendu reste rattaché à ce choix, et non plus à l'UL sur laquelle on se trouvait au moment de la saisie.
+- **Toutes les ULs sont proposées, pas seulement la sienne** — la liste couvre l'ensemble des unités locales ainsi qu'une entrée par Direction Territoriale existante. On peut donc renseigner un poste tenu pour une autre UL sans changer d'UL active au préalable.
+- **Onglet « Mes rapports »** — chacun retrouve l'intégralité des comptes rendus qu'il a déposés, toutes ULs et DT confondues, même après avoir changé d'UL active. Chaque ligne indique l'UL ou la DT de rattachement.
+- **Onglet « Tous les rapports » pour les responsables** — les administrateurs, présidents et cadres disposent d'une seconde vue listant les comptes rendus de l'UL actuellement sélectionnée en haut de page. Changer d'UL avec le sélecteur existant change la liste affichée.
+
+### 🔧 Améliorations
+
+- **L'UL ou la DT du rapport est affichée sur sa fiche détaillée**, à côté de la date et du lieu.
+
+### ⚠️ À faire avant la mise en production
+
+- **Lancer la migration `npx tsx scripts/add-mission-report-dt-code.ts --apply` AVANT de déployer cette version.** Elle ajoute la colonne qui stocke la Direction Territoriale d'un compte rendu. Tant qu'elle n'est pas passée, toute soumission de compte rendu échoue avec une erreur serveur.
+
 ## [5.11.0] — 17 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

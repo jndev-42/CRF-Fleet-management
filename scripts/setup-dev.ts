@@ -556,7 +556,8 @@ async function main() {
             "needs_followup"        INTEGER NOT NULL DEFAULT 0,
             "drive_folder_id"       TEXT,
             "mission_comment"       TEXT,
-            "ulId"                  TEXT
+            "ulId"                  TEXT,
+            "dt_code"               TEXT
         )
     `);
 
@@ -577,6 +578,12 @@ async function main() {
     if (!missionCols.rows.some(r => r.name === 'presence_ul') && missionCols.rows.some(r => r.name === 'ul18_present')) {
         await db.execute(`ALTER TABLE "mission_reports" RENAME COLUMN "ul18_present" TO "presence_ul"`);
         console.log('  ↳ Migration : colonne mission_reports.ul18_present renommée en presence_ul');
+    }
+    // Rattachement explicite du rapport : soit ulId, soit dt_code (jamais les deux).
+    // Équivalent local de scripts/add-mission-report-dt-code.ts.
+    if (!missionCols.rows.some(r => r.name === 'dt_code')) {
+        await db.execute(`ALTER TABLE "mission_reports" ADD COLUMN "dt_code" TEXT`);
+        console.log('  ↳ Migration : colonne mission_reports.dt_code ajoutée');
     }
 
     await db.execute(`

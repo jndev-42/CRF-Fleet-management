@@ -481,7 +481,8 @@ async function createTables() {
     "needs_followup"        INTEGER NOT NULL DEFAULT 0,
     "drive_folder_id"       TEXT,
     "signed_report_drive_id" TEXT,
-    "ulId"                  TEXT
+    "ulId"                  TEXT,
+    "dt_code"               TEXT
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "mission_report_supplies" (

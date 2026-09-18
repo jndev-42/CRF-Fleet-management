@@ -48,8 +48,10 @@ interface MissionDetail {
     needs_followup: boolean;
     drive_folder_id: string | null;
     signed_report_drive_id: string | null;
-    /** Name of the UL the report belongs to (mr.ulId) — null if the UL could not be resolved */
+    /** Name of the UL the report belongs to (mr.ulId) — null if the report is attached to a DT */
     ulName: string | null;
+    /** DT code the report belongs to (mr.dt_code) — null if the report is attached to a UL */
+    dtCode: string | null;
     supplies: Record<string, SupplyEntry[]>;
 }
 
@@ -110,6 +112,8 @@ export default function MissionDetailPage() {
 
     const hasIncidents = report.had_acr || report.had_hemorrhage || report.had_complex_care;
     const supplyCategories = Object.keys(report.supplies) as SupplyCategory[];
+    // Rattachement du rapport : UL réelle ou entité DT — jamais les deux.
+    const attachmentLabel = report.ulName ? `UL ${report.ulName}` : report.dtCode;
 
     return (
         <main id="main-content" className="page-container">
@@ -153,6 +157,7 @@ export default function MissionDetailPage() {
                 </span>
                 <span className={styles.metaItem}>{report.mission_date}</span>
                 <span className={styles.metaItem}>{report.location}</span>
+                {attachmentLabel && <span className={styles.metaItem}>{attachmentLabel}</span>}
                 {report.submitter_name && <span className={styles.metaItem}>Par {report.submitter_name}</span>}
             </div>
 

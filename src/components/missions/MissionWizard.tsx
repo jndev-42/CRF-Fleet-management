@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SUPPLY_CATEGORIES, type SupplyCategory } from '@/lib/mission-supplies';
+import Step0ULSelection from './steps/Step0ULSelection';
 import Step1General from './steps/Step1General';
 import Step2Vehicle from './steps/Step2Vehicle';
 import Step3Supplies from './steps/Step3Supplies';
@@ -16,6 +17,10 @@ import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 
 export interface MissionFormData {
+    /** UL de rattachement du poste — exclusif avec `selected_dt_code`. */
+    selected_ul_id: string | null;
+    /** Code DT de rattachement (ex. « DT 75 ») — exclusif avec `selected_ul_id`. */
+    selected_dt_code: string | null;
     mission_type: 'RESEAU' | 'DPS' | 'PAPS';
     mission_name: string;
     mission_date: string;
@@ -38,6 +43,8 @@ export interface MissionFormData {
 }
 
 const INITIAL_FORM: MissionFormData = {
+    selected_ul_id: null,
+    selected_dt_code: null,
     mission_type: 'RESEAU',
     mission_name: '',
     mission_date: new Date().toISOString().slice(0, 10),
@@ -65,14 +72,12 @@ const SIGNED_REPORTS_FOLDER_ID = '1UQ0TxOLUCmL09m6evy1Ofoeuo2RaD2ki';
 interface MissionWizardProps {
     currentUserId?: string;
     currentUserName?: string;
-    /** UL ID of the current user — animation only shown for Paris 18 */
-    currentUserUlId?: string;
     /** Name of the submitter's home UL — used to label the "Présence UL ?" toggle in Step5Team */
     currentUserUlName?: string;
     onSuccess: (id: string) => void;
 }
 
-export default function MissionWizard({ currentUserId, currentUserName, currentUserUlId, currentUserUlName, onSuccess }: MissionWizardProps) {
+export default function MissionWizard({ currentUserId, currentUserName, currentUserUlName, onSuccess }: MissionWizardProps) {
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<MissionFormData>(INITIAL_FORM);
     const [supplies, setSupplies] = useState<Record<string, number>>({});
@@ -88,6 +93,7 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
     const isExternalVehicle = formData.vehicle_id?.startsWith('EXTERNAL_');
 
     const activeSteps = [
+        'UL / DT',
         'Général',
         'Équipage',
         ...(!isExternalVehicle ? ['Matériel', 'Oxygène'] : []),
@@ -112,6 +118,11 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
 
     function validateStep(s: number): string | null {
         const label = activeSteps[s - 1];
+        if (label === 'UL / DT') {
+            if (!formData.selected_ul_id && !formData.selected_dt_code) {
+                return 'Veuillez sélectionner l\'UL ou la Direction Territoriale qui héberge le poste.';
+            }
+        }
         if (label === 'Général') {
             if (!formData.mission_type) return 'Veuillez sélectionner un type de mission.';
             if (!formData.mission_name.trim()) return 'Le nom de la mission est requis.';
@@ -212,8 +223,9 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
 
             const data = await res.json();
             setSuccessMissionId(data.id);
-            // Show success animation only for Paris 18 UL
-            if (currentUserUlId === 'ul-paris-18') {
+            // Show success animation only for Paris 18 UL — celle du POSTE choisi,
+            // pas celle du soumetteur : c'est le rattachement du rapport qui compte.
+            if (formData.selected_ul_id === 'ul-paris-18') {
                 setShowSuccessAnimation(true);
             } else {
                 onSuccess(data.id);
@@ -251,6 +263,7 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
             {error && <div className={styles.errorBox} role="alert">{error}</div>}
 
             {/* Step content */}
+            {currentStepLabel === 'UL / DT' && <Step0ULSelection data={formData} onChange={patchFormData} />}
             {currentStepLabel === 'Général' && <Step1General data={formData} onChange={patchFormData} />}
             {currentStepLabel === 'Équipage' && <Step2Vehicle data={formData} onChange={patchFormData} currentUserId={currentUserId} currentUserName={currentUserName} />}
             {currentStepLabel === 'Matériel' && <Step3Supplies supplies={supplies} onSupplyChange={handleSupplyChange} />}

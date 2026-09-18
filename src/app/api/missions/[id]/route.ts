@@ -48,9 +48,17 @@ export async function GET(_request: Request, { params }: RouteContext) {
         // Access control:
         const roles = (session.user.roles || ['INACTIF']) as string[];
         const isSuper = isSuperAdmin(roles);
-        const isLocalAdmin = isAdminOrAbove(roles) && row.ulId === session.user.ulId;
-        const isLocalManager = isReadOnlyManager(roles) && row.ulId === session.user.ulId;
-        const isSubmitter = isMissionContributor(roles) && row.submitted_by === session.user.id;
+        // Un rapport rattaché à une DT porte `ulId = NULL` : il n'est rapproché
+        // d'AUCUNE UL, donc ni l'admin ni le cadre de l'UL active ne le lisent —
+        // seul son auteur (ou un SUPER_ADMIN) y accède, comme dans la liste.
+        const reportUlId = (row.ulId as string | null) ?? null;
+        const sameUl = reportUlId !== null && reportUlId === session.user.ulId;
+        const isLocalAdmin = isAdminOrAbove(roles) && sameUl;
+        const isLocalManager = isReadOnlyManager(roles) && sameUl;
+        // L'auteur relit toujours son rapport — c'est ce que « Mes rapports »
+        // liste. `isMissionContributor`/`isAdminOrAbove` portent le blocage INACTIF.
+        const isSubmitter = (isMissionContributor(roles) || isAdminOrAbove(roles))
+            && row.submitted_by === session.user.id;
 
         if (!isSuper && !isLocalAdmin && !isLocalManager && !isSubmitter) {
             return forbiddenResponse();
@@ -99,6 +107,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
             victim_count: Number(row.victim_count),
             presence_ul: row.presence_ul !== null ? Boolean(Number(row.presence_ul)) : null,
             ulName: (row.ul_name as string | null) ?? null,
+            dtCode: (row.dt_code as string | null) ?? null,
             team_dynamics: row.team_dynamics,
             all_found_place: row.all_found_place !== null ? Boolean(Number(row.all_found_place)) : null,
             member_difficulties: row.member_difficulties !== null ? Boolean(Number(row.member_difficulties)) : null,
