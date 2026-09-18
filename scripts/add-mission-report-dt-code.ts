@@ -14,17 +14,25 @@
  * l'invariant « exactement un des deux » reste donc vrai pour l'historique.
  *
  * Usage :
- *   npx tsx scripts/add-mission-report-dt-code.ts            # dry-run, n'écrit rien
- *   npx tsx scripts/add-mission-report-dt-code.ts --apply    # applique, puis vérifie
+ *   npx tsx scripts/add-mission-report-dt-code.ts                        # .env, dry-run
+ *   npx tsx scripts/add-mission-report-dt-code.ts --apply                # .env, applique
+ *   npx tsx scripts/add-mission-report-dt-code.ts --env .env.preview --apply
  */
 import { createClient } from '@libsql/client';
-import "dotenv/config";
+import dotenv from 'dotenv';
+
+// Cible l'environnement passé en `--env` (défaut : .env).
+const envFile = (() => {
+    const i = process.argv.indexOf('--env');
+    return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : '.env';
+})();
+dotenv.config({ path: envFile });
 
 const COLUMN = 'dt_code';
 
 async function main() {
     const apply = process.argv.includes('--apply');
-    console.log(`Migration : mission_reports.${COLUMN} ${apply ? '(--apply)' : '(dry-run)'}`);
+    console.log(`Migration (${envFile}) : mission_reports.${COLUMN} ${apply ? '(--apply)' : '(dry-run)'}`);
 
     const db = createClient({
         url: process.env.TURSO_DATABASE_URL!,
