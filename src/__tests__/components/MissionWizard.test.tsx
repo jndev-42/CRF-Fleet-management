@@ -73,14 +73,14 @@ afterEach(() => {
 });
 
 describe('MissionWizard', () => {
-    it('affiche la barre de progression avec les étapes par défaut (mission RESEAU)', () => {
+    it('affiche le stepper avec les étapes par défaut (mission RESEAU)', () => {
         render(<MissionWizard onSuccess={vi.fn()} />);
+        expect(screen.getByRole('heading', { name: 'Étape 1 / 9 — UL / DT' })).toBeTruthy();
         const items = screen.getAllByRole('listitem').map(el => el.textContent);
-        expect(items).toContain('1. UL / DT');
-        expect(items).toContain('2. Général');
-        expect(items).toContain('4. Matériel');
-        expect(items).toContain('8. Commentaire');
-        expect(items).toContain('9. Photos');
+        expect(items.some(t => t?.includes('Étape 2 : Général'))).toBe(true);
+        expect(items.some(t => t?.includes('Étape 4 : Matériel'))).toBe(true);
+        expect(items.some(t => t?.includes('Étape 8 : Commentaire'))).toBe(true);
+        expect(items.some(t => t?.includes('Étape 9 : Photos'))).toBe(true);
         expect(items.some(t => t?.includes('Rapport signé'))).toBe(false);
     });
 
@@ -117,7 +117,7 @@ describe('MissionWizard', () => {
         await chooseAttachment();
         fillStep1();
         fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
-        expect(screen.getByRole('list', { name: 'Étapes du formulaire' })).toBeTruthy();
+        expect(screen.getByRole('heading', { name: 'Étape 3 / 9 — Équipage' })).toBeTruthy();
         expect(screen.queryByRole('alert')).toBeNull();
     });
 
@@ -249,7 +249,7 @@ describe('MissionWizard', () => {
         await chooseAttachment();
         fireEvent.change(screen.getByLabelText('Nombre d\'intervention'), { target: { value: '4' } });
         const items = screen.getAllByRole('listitem').map(el => el.textContent);
-        expect(items).toContain('3. Répartition interventions');
+        expect(items.some(t => t?.includes('Étape 3 : Répartition interventions'))).toBe(true);
     });
 
     it('bloque « Suivant » tant qu\'une des deux grilles ne totalise pas le nombre d\'intervention', async () => {

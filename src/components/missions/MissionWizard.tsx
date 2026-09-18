@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Check } from 'lucide-react';
 import { SUPPLY_CATEGORIES, type SupplyCategory } from '@/lib/mission-supplies';
 import Step0ULSelection from './steps/Step0ULSelection';
 import Step1General from './steps/Step1General';
@@ -285,24 +286,37 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
 
     return (
         <div className={styles.wizard}>
-            {/* Progress bar */}
-            <div className={styles.progressBar} role="list" aria-label="Étapes du formulaire">
+            {/* Step indicator: compact numbered-circle stepper, current step name shown once above it */}
+            <h2 id="wizard-step-heading" className={styles.stepperHeading}>
+                Étape {currentStepIndex} / {activeSteps.length} — {currentStepLabel}
+            </h2>
+            <ol className={styles.stepper} aria-labelledby="wizard-step-heading">
                 {activeSteps.map((label, idx) => {
                     const stepNum = idx + 1;
                     const isActive = stepNum === currentStepIndex;
                     const isDone = stepNum < currentStepIndex;
+                    const isLast = stepNum === activeSteps.length;
                     return (
-                        <div
-                            key={label}
-                            role="listitem"
-                            className={`${styles.progressStep} ${isActive ? styles.progressStepActive : ''} ${isDone ? styles.progressStepDone : ''}`}
-                            aria-current={isActive ? 'step' : undefined}
-                        >
-                            {stepNum}. {label}
-                        </div>
+                        <li key={label} className={styles.stepperItem}>
+                            <span
+                                className={`${styles.stepperCircle} ${isActive ? styles.stepperCircleActive : ''} ${isDone ? styles.stepperCircleDone : ''}`}
+                                aria-current={isActive ? 'step' : undefined}
+                            >
+                                {isDone ? <Check size={13} aria-hidden="true" /> : stepNum}
+                                <span className={styles.srOnly}>
+                                    {`Étape ${stepNum} : ${label}${isActive ? ' (étape en cours)' : isDone ? ' (étape terminée)' : ''}`}
+                                </span>
+                            </span>
+                            {!isLast && (
+                                <span
+                                    className={`${styles.stepperLine} ${isDone ? styles.stepperLineDone : ''}`}
+                                    aria-hidden="true"
+                                />
+                            )}
+                        </li>
                     );
                 })}
-            </div>
+            </ol>
 
             {error && <div className={styles.errorBox} role="alert">{error}</div>}
 

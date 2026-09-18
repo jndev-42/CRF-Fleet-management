@@ -4,38 +4,101 @@
     margin: 0 auto;
 }
 
-.progressBar {
+.stepperHeading {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.85rem;
+}
+
+.stepper {
     display: flex;
     align-items: center;
-    gap: 0;
-    margin-bottom: 2rem;
-    overflow: hidden;
-    border-radius: 8px;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 2rem;
+}
+
+.stepperItem {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.stepperItem:last-child {
+    flex: 0 0 auto;
+}
+
+.stepperCircle {
+    position: relative;
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 1;
     background: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
-}
-
-.progressStep {
-    flex: 1;
-    padding: 0.6rem 0.25rem;
-    text-align: center;
-    font-size: 0.72rem;
-    font-weight: 500;
     color: var(--text-secondary);
-    background: transparent;
-    border: none;
-    cursor: default;
-    transition: background 0.15s, color 0.15s;
+    border: 1px solid var(--border-primary);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.progressStepActive {
+.stepperCircleActive {
     background: var(--crf-red, #c0122c);
+    border-color: var(--crf-red, #c0122c);
     color: #fff;
 }
 
-.progressStepDone {
+.stepperCircleDone {
     background: var(--success-bg, #dcfce7);
+    border-color: var(--success-bg, #dcfce7);
     color: var(--success-text, #166534);
+}
+
+.stepperLine {
+    flex: 1 1 auto;
+    height: 2px;
+    min-width: 4px;
+    background: var(--border-primary);
+    margin: 0 2px;
+    transition: background 0.15s;
+}
+
+.stepperLineDone {
+    background: var(--success-bg, #dcfce7);
+}
+
+.srOnly {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (max-width: 480px) {
+    .stepperCircle {
+        width: 20px;
+        height: 20px;
+        font-size: 0.62rem;
+    }
+
+    .stepperLine {
+        margin: 0 1px;
+    }
+
+    .stepperHeading {
+        font-size: 0.85rem;
+    }
 }
 
 /* ── Step content ─────────────────────────────── */
