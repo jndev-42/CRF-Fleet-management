@@ -1,10 +1,10 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-08-11 | Updated: 2026-08-11 -->
+<!-- Generated: 2026-08-11 | Updated: 2026-09-18 -->
 
 # missions/[id]
 
 ## Purpose
-Mission report detail view (`/missions/{id}`) — read-only display of one *compte rendu de mission*: mission info (type, date, location, victim count, Pegass registration, vehicle, driver, volunteers), a critical-incidents card (ACR / hémorragie grave / prise en charge complexe, plus follow-up flag), the signed report scan or PDF, the team-dynamics section (labelled with the report's own UL name, e.g. "Présence UL Paris 18"), and consumed supplies grouped by category. ADMIN also gets a delete action.
+Mission report detail view (`/missions/{id}`) — read-only display of one *compte rendu de mission*: mission info (type, date, location, « Nombre d'intervention », Pegass registration, vehicle, driver, volunteers), the **intervention breakdown** (two cards: by care type, by clinical nature), the UL/DT attachment label in the meta bar, a critical-incidents card (ACR / hémorragie grave / prise en charge complexe, plus follow-up flag), the signed report scan or PDF, the team-dynamics section (labelled with the report's own UL name, e.g. "Présence UL Paris 18"), and consumed supplies grouped by category. ADMIN also gets a delete action.
 
 ## Key Files
 | File | Description |
@@ -17,6 +17,10 @@ Mission report detail view (`/missions/{id}`) — read-only display of one *comp
 ### Working In This Directory
 **Access gate is server-side, not client-side.** This page only checks for a session (`status === 'unauthenticated'` → push `/`); the real authorization happens in `GET /api/missions/{id}`. When that route answers **403 or 404 the page redirects to `/missions`** — both statuses are treated identically on purpose, so an unauthorized reader cannot distinguish "forbidden" from "does not exist". Preserve that behaviour if you touch `fetchReport()`.
 
+**Who the API lets through:** SUPER_ADMIN always; an admin or read-only manager **only when the report's `ulId` matches the viewer's active UL** (a report attached to a DT carries `ulId = NULL` and is therefore reachable by nobody through that branch); and the submitter (contributor **or** admin role), always. That mirrors the list: a DT report shows up in « Mes rapports » of its author and nowhere else.
+
+The meta bar shows the attachment: `UL {ulName}` when the report belongs to an UL, otherwise the raw `dtCode` (e.g. "DT 75"). Exactly one of the two is non-null; both null (legacy rows) hides the label entirely.
+
 Delete is `ADMIN`-only, checked with a bare `roles.includes('ADMIN')` (note: **not** `isAdminOrAbove`, so SUPER_ADMIN does not get the button via this check). It confirms with `confirm()`, calls `DELETE /api/missions/{id}`, and on success routes back to `/missions`; failures surface via `alert()`.
 
 Conditional sections — do not render them unconditionally:
@@ -24,18 +28,20 @@ Conditional sections — do not render them unconditionally:
 - Signed-report card + `SignedReportLightbox` only when `report.signed_report_drive_id` is set.
 - Team-dynamics card only when `report.presence_ul === true` (strict — `null` and `false` both hide it). Its heading uses `report.ulName` (joined server-side from the report's own `ulId`, not the viewer's) — falls back to plain "Présence UL" when `ulName` is null.
 - Supplies section only when `Object.keys(report.supplies).length > 0`.
+- Intervention-breakdown section only when `victim_count > 0` **and** at least one breakdown map is non-empty. Reports filed before the feature carry `victim_count > 0` with no detail rows: they must show the total alone, with no section and no error — hence the `report.interventions?.mode ?? {}` guard rather than a bare access. Inside the section, `InterventionCard` returns `null` for an empty grid, so a half-filled legacy row cannot render an empty table.
 
 **PDF-vs-image detection is a deliberate hack:** the signed report renders as `<img src="/api/drive/photos/{id}">` and its `onError` handler flips `signedReportIsPdf` to `true`, swapping in a `FileText` placeholder. There is no MIME check — the failed image load *is* the detection. The `<img>` carries an `@next/next/no-img-element` disable because the URL is a dynamic Drive proxy.
 
 `boolLabel(val)` renders `null` as `—`, otherwise `Oui`/`Non`. Use it for any new tri-state field instead of a ternary.
 
-Supplies arrive as `Record<category, SupplyEntry[]>` and are labelled via `SUPPLIES_BY_CATEGORY[cat].label`, falling back to the raw category key.
+Supplies arrive as `Record<category, SupplyEntry[]>` and are labelled via `SUPPLIES_BY_CATEGORY[cat].label`, falling back to the raw category key. The breakdown arrives as `interventions: { mode, nature }`, each a sparse `Record<category, quantity>` (zero-quantity categories are never stored), labelled via `INTERVENTION_MODE_LABELS` / `INTERVENTION_NATURE_LABELS` and rendered in the fixed order of the two category arrays.
 
 ## Dependencies
 
 ### Internal
 - `@/components/missions/MissionPhotosModal`, `@/components/missions/SignedReportLightbox`
 - `@/lib/mission-supplies` — `SUPPLIES_BY_CATEGORY`, `MISSION_TYPE_LABELS`, `TEAM_DYNAMICS_LABELS`, `SupplyCategory`
+- `@/lib/mission-interventions` — the two category arrays and their label maps
 - `GET /api/missions/{id}`, `DELETE /api/missions/{id}`
 - `GET /api/drive/photos/{driveId}` — signed-report image proxy
 

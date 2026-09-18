@@ -3,7 +3,10 @@
  *
  * Couvre :
  *   - POST /api/missions → 401, 403 (GUEST), 400 (Zod), 201 happy path
- *   - GET  /api/missions → 401, 200 RESPO (tous), 200 CHVL (les siens)
+ *   - POST répartition interventions → 400 sommes incorrectes, 400 grilles non vides à 0, 201 + lignes sparse
+ *   - GET  /api/missions/[id] → 200 avec supplies groupés + répartition (présente ou vide)
+ *   - POST rattachement UL/DT → 400 si aucun ou les deux, persistance exclusive
+ *   - GET  /api/missions → 401, 403 (CHVL), scope=mine (cross-UL/DT), scope=all (UL active, 403 non-manager)
  *   - GET  /api/missions/[id] → 200 avec supplies groupés
  *   - DELETE /api/missions/[id] → 403 (RESPO), 200 (ADMIN) + CASCADE
  */
@@ -70,6 +73,8 @@ function makeDeleteRequest(id: string): Request {
 }
 
 const validPayload = {
+    selected_ul_id: 'ul-paris-18',
+    selected_dt_code: null,
     mission_type: 'RESEAU',
     mission_name: 'Poste Secours Test',
     mission_date: '2026-03-15',
@@ -92,6 +97,14 @@ const validPayload = {
     supplies: [
         { category: 'SAC_PRIMAIRE', item_name: "Gants d'examen (paire)", quantity_used: 4 },
         { category: 'SAC_PRIMAIRE', item_name: 'Compresses stériles 10x10', quantity_used: 0 },
+    ],
+    // `victim_count = 2` impose deux grilles sommant chacune exactement à 2.
+    intervention_types: [
+        { category: 'SOINS', quantity: 1 },
+        { category: 'EVAC_CRF', quantity: 1 },
+    ],
+    intervention_natures: [
+        { category: 'PETITS_SOINS', quantity: 2 },
     ],
 };
 
@@ -124,7 +137,8 @@ async function createMissionReportTable() {
             "needs_followup"        INTEGER NOT NULL DEFAULT 0,
             "drive_folder_id"       TEXT,
             "signed_report_drive_id" TEXT,
-            "ulId"                  TEXT
+            "ulId"                  TEXT,
+            "dt_code"               TEXT
         )
     `);
     await db.execute(`
@@ -136,9 +150,19 @@ async function createMissionReportTable() {
             "quantity_used" INTEGER NOT NULL DEFAULT 0
         )
     `);
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "mission_report_interventions" (
+            "id"        TEXT PRIMARY KEY,
+            "report_id" TEXT NOT NULL REFERENCES "mission_reports"(id) ON DELETE CASCADE,
+            "breakdown" TEXT NOT NULL CHECK ("breakdown" IN ('MODE', 'NATURE')),
+            "category"  TEXT NOT NULL,
+            "quantity"  INTEGER NOT NULL DEFAULT 0
+        )
+    `);
 }
 
 async function truncateMissions() {
+    await db.execute(`DELETE FROM "mission_report_interventions"`);
     await db.execute(`DELETE FROM "mission_report_supplies"`);
     await db.execute(`DELETE FROM "mission_reports"`);
 }
@@ -153,6 +177,14 @@ describe('POST /api/missions', () => {
         await seedRoles();
         await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin Test' });
         await seedUser({ id: 'user-ci', email: 'ci@test.com', name: 'CI/RPAPS Test' });
+        // Le POST vérifie que le rattachement désigne une vraie UL / une DT portée
+        // par une UL : les fixtures doivent donc exister en base.
+        await seedUniteLocale({ id: 'ul-paris-18', name: 'Paris 18', slug: 'paris-18' });
+        await seedUniteLocale({ id: 'ul-lyon', name: 'Lyon', slug: 'lyon' });
+        await db.execute({
+            sql: `UPDATE "UniteLocale" SET dtCode = ? WHERE id = ?`,
+            args: ['DT 75', 'ul-paris-18'],
+        });
     });
 
     it('returns 401 when not authenticated', async () => {
@@ -245,6 +277,181 @@ describe('POST /api/missions', () => {
         expect(sRes.rows[0].quantity_used).toBe(4);
     });
 
+    // ── Répartition des interventions ─────────────────────────────────────────
+
+    it('returns 201 and persists both intervention breakdowns (quantity > 0 only)', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 3,
+            intervention_types: [
+                { category: 'SOINS', quantity: 2 },
+                { category: 'DAE', quantity: 1 },
+                { category: 'DECHARGE', quantity: 0 },
+            ],
+            intervention_natures: [
+                { category: 'MALAISE', quantity: 1 },
+                { category: 'TRAUMATISME', quantity: 2 },
+            ],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const iRes = await db.execute({
+            sql: `SELECT breakdown, category, quantity FROM "mission_report_interventions" WHERE report_id = ? ORDER BY breakdown, category`,
+            args: [body.id],
+        });
+        // La case à 0 n'est pas insérée (stockage sparse).
+        expect(iRes.rows).toHaveLength(4);
+        expect(iRes.rows.map(r => `${r.breakdown}:${r.category}=${r.quantity}`)).toEqual([
+            'MODE:DAE=1',
+            'MODE:SOINS=2',
+            'NATURE:MALAISE=1',
+            'NATURE:TRAUMATISME=2',
+        ]);
+    });
+
+    it('returns 400 when the MODE breakdown does not sum to victim_count', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 3,
+            intervention_types: [{ category: 'SOINS', quantity: 2 }],
+            intervention_natures: [{ category: 'MALAISE', quantity: 3 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(JSON.stringify(body.details)).toContain('intervention_types');
+    });
+
+    it('returns 400 when the NATURE breakdown does not sum to victim_count', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 3,
+            intervention_types: [{ category: 'SOINS', quantity: 3 }],
+            intervention_natures: [{ category: 'MALAISE', quantity: 2 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(JSON.stringify(body.details)).toContain('intervention_natures');
+    });
+
+    it('returns 400 when a NATURE category is sent inside intervention_types', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 2,
+            // Somme correcte, mais catégorie du mauvais groupe : sans schéma dédié
+            // la ligne partirait en base sous breakdown='MODE' puis disparaîtrait
+            // de la fiche détail, sans erreur nulle part.
+            intervention_types: [{ category: 'MALAISE', quantity: 2 }],
+            intervention_natures: [{ category: 'MALAISE', quantity: 2 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        expect(JSON.stringify((await res.json()).details)).toContain('intervention_types');
+    });
+
+    it('returns 400 when a MODE category is sent inside intervention_natures', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 2,
+            intervention_types: [{ category: 'SOINS', quantity: 2 }],
+            intervention_natures: [{ category: 'SOINS', quantity: 2 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        expect(JSON.stringify((await res.json()).details)).toContain('intervention_natures');
+    });
+
+    it('returns 400 when the same category appears twice in a breakdown', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 3,
+            // La somme tombe juste, mais deux lignes seraient insérées pour
+            // (MODE, SOINS) et le GET n'en garderait qu'une.
+            intervention_types: [
+                { category: 'SOINS', quantity: 1 },
+                { category: 'SOINS', quantity: 2 },
+            ],
+            intervention_natures: [{ category: 'MALAISE', quantity: 3 }],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+        expect(JSON.stringify((await res.json()).details)).toContain('intervention_types');
+    });
+
+    it('returns 400 when victim_count is 0 but a breakdown carries a quantity', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 0,
+            intervention_types: [{ category: 'SOINS', quantity: 1 }],
+            intervention_natures: [],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(400);
+    });
+
+    it('returns 201 with no intervention rows when victim_count is 0', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const payload = {
+            ...validPayload,
+            victim_count: 0,
+            intervention_types: [],
+            intervention_natures: [],
+        };
+
+        const res = await postCreate(makePostRequest(payload));
+        expect(res.status).toBe(201);
+        const body = await res.json();
+
+        const iRes = await db.execute({
+            sql: `SELECT id FROM "mission_report_interventions" WHERE report_id = ?`,
+            args: [body.id],
+        });
+        expect(iRes.rows).toHaveLength(0);
+    });
+
+    it('returns 400 when victim_count >= 1 and the breakdowns are omitted entirely', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars -- intentionally omitting both breakdowns
+        const { intervention_types, intervention_natures, ...withoutBreakdowns } = validPayload;
+        const res = await postCreate(makePostRequest(withoutBreakdowns));
+        expect(res.status).toBe(400);
+    });
+
     it('returns 201 and persists drive_folder_id when provided', async () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(adminSession);
@@ -325,6 +532,87 @@ describe('POST /api/missions', () => {
         });
         expect(Boolean(Number(mRes.rows[0].presence_ul))).toBe(true);
     });
+
+    // ── Rattachement UL / DT (exactement un des deux) ─────────────────────────
+
+    it('returns 400 when neither an UL nor a DT is selected', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: null, selected_dt_code: null }));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toBe('Données invalides');
+        expect(body.details).toBeDefined();
+    });
+
+    it('returns 400 when BOTH an UL and a DT are selected', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: 'ul-paris-18', selected_dt_code: 'DT 75' }));
+        expect(res.status).toBe(400);
+    });
+
+    it('persists the SELECTED ulId, not the submitter\'s active UL', async () => {
+        // adminSession.ulId is 'ul-paris-18' — choose a different UL to prove the
+        // report follows the explicit selection.
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: 'ul-lyon' }));
+        expect(res.status).toBe(201);
+
+        const body = await res.json();
+        const mRes = await db.execute({
+            sql: `SELECT ulId, dt_code FROM "mission_reports" WHERE id = ?`,
+            args: [body.id],
+        });
+        expect(mRes.rows[0].ulId).toBe('ul-lyon');
+        expect(mRes.rows[0].dt_code).toBeNull();
+    });
+
+    it('persists dt_code with a NULL ulId when a DT is selected', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: null, selected_dt_code: 'DT 75' }));
+        expect(res.status).toBe(201);
+
+        const body = await res.json();
+        const mRes = await db.execute({
+            sql: `SELECT ulId, dt_code FROM "mission_reports" WHERE id = ?`,
+            args: [body.id],
+        });
+        expect(mRes.rows[0].ulId).toBeNull();
+        expect(mRes.rows[0].dt_code).toBe('DT 75');
+    });
+
+    it('returns 400 when the selected UL does not exist', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: 'ul-inexistante' }));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toBe('UL de rattachement introuvable.');
+
+        const count = await db.execute(`SELECT COUNT(*) AS c FROM "mission_reports"`);
+        expect(Number(count.rows[0].c)).toBe(0);
+    });
+
+    it('returns 400 when the selected DT is not carried by any UL', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const res = await postCreate(makePostRequest({ ...validPayload, selected_ul_id: null, selected_dt_code: 'DT 999' }));
+        expect(res.status).toBe(400);
+        const body = await res.json();
+        expect(body.error).toBe('Direction Territoriale de rattachement introuvable.');
+
+        const count = await db.execute(`SELECT COUNT(*) AS c FROM "mission_reports"`);
+        expect(Number(count.rows[0].c)).toBe(0);
+    });
 });
 
 // ── GET list ──────────────────────────────────────────────────────────────────
@@ -337,6 +625,8 @@ describe('GET /api/missions (list)', () => {
         await seedRoles();
         await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin Test' });
         await seedUser({ id: 'user-ci', email: 'ci@test.com', name: 'CI/RPAPS Test' });
+        await seedUniteLocale({ id: 'ul-paris-18', name: 'Paris 18', slug: 'paris-18' });
+        await seedUniteLocale({ id: 'ul-lyon', name: 'Lyon', slug: 'lyon' });
 
         // Insert 2 reports: 1 by admin, 1 by ci
         await db.execute({
@@ -367,11 +657,11 @@ describe('GET /api/missions (list)', () => {
         expect(res.status).toBe(403);
     });
 
-    it('returns 200 with all reports for ADMIN', async () => {
+    it('returns 200 with all UL reports for ADMIN with scope=all', async () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(adminSession);
 
-        const res = await getList(makeListRequest());
+        const res = await getList(makeListRequest('?scope=all'));
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.reports).toHaveLength(2);
@@ -394,11 +684,147 @@ describe('GET /api/missions (list)', () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(adminSession);
 
-        const res = await getList(makeListRequest('?type=PAPS'));
+        const res = await getList(makeListRequest('?scope=all&type=PAPS'));
         expect(res.status).toBe(200);
         const body = await res.json();
         expect(body.reports).toHaveLength(1);
         expect(body.reports[0].mission_type).toBe('PAPS');
+    });
+
+    // ── scope=mine / scope=all ────────────────────────────────────────────────
+
+    it('scope=mine returns the submitter\'s reports across every UL and DT', async () => {
+        // Same submitter, three different attachments — including a DT report.
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-lyon', 'user-ci', '2026-02-01T12:00:00.000Z', 'DPS', 'Mission Lyon', '2026-02-01', 'Lyon', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-lyon', null],
+        });
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-dt', 'user-ci', '2026-01-01T12:00:00.000Z', 'DPS', 'Mission DT', '2026-01-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, null, 'DT 75'],
+        });
+
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(ciRpapsSession);
+
+        const res = await getList(makeListRequest('?scope=mine'));
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.reports.map((r: { id: string }) => r.id).sort()).toEqual(['report-2', 'report-dt', 'report-lyon']);
+
+        const byId = Object.fromEntries(body.reports.map((r: { id: string }) => [r.id, r]));
+        expect(byId['report-2'].ul_name).toBe('Paris 18');
+        expect(byId['report-2'].dt_code).toBeNull();
+        expect(byId['report-lyon'].ul_name).toBe('Lyon');
+        expect(byId['report-dt'].ul_name).toBeNull();
+        expect(byId['report-dt'].dt_code).toBe('DT 75');
+    });
+
+    it('scope=all is scoped to the ACTIVE UL and never surfaces a DT report', async () => {
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-lyon', 'user-ci', '2026-02-01T12:00:00.000Z', 'DPS', 'Mission Lyon', '2026-02-01', 'Lyon', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-lyon', null],
+        });
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-dt', 'user-admin', '2026-01-01T12:00:00.000Z', 'DPS', 'Mission DT', '2026-01-01', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, null, 'DT 75'],
+        });
+
+        // UL active = Paris 18
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+        const paris = await (await getList(makeListRequest('?scope=all'))).json();
+        expect(paris.reports.map((r: { id: string }) => r.id).sort()).toEqual(['report-1', 'report-2']);
+
+        // Même utilisateur, UL active = Lyon via le sélecteur de la Navbar
+        mockedAuth.mockResolvedValue({
+            user: { ...adminSession.user, ulId: 'ul-lyon' },
+        } as never);
+        const lyon = await (await getList(makeListRequest('?scope=all'))).json();
+        expect(lyon.reports.map((r: { id: string }) => r.id)).toEqual(['report-lyon']);
+    });
+
+    it('returns 403 on scope=all for a non-manager (CI/RPAPS)', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(ciRpapsSession);
+
+        const res = await getList(makeListRequest('?scope=all'));
+        expect(res.status).toBe(403);
+    });
+
+    it('returns an empty list on scope=all when no UL is active', async () => {
+        mockedAuth.mockResolvedValue({
+            user: { ...adminSession.user, ulId: 'default' },
+        } as never);
+
+        const res = await getList(makeListRequest('?scope=all'));
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.reports).toHaveLength(0);
+        expect(body.total).toBe(0);
+    });
+
+    it('scope=mine still works when no UL is active', async () => {
+        mockedAuth.mockResolvedValue({
+            user: { ...ciRpapsSession.user, ulId: 'default' },
+        } as never);
+
+        const res = await getList(makeListRequest('?scope=mine'));
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.reports).toHaveLength(1);
+        expect(body.reports[0].id).toBe('report-2');
+    });
+
+    it('scope=mine combines with the type filter', async () => {
+        // Deux rapports du MÊME auteur, de types différents : le filtre doit
+        // s'ajouter au périmètre auteur, pas le remplacer.
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-ci-reseau', 'user-ci', '2026-03-06T12:00:00.000Z', 'RESEAU', 'Réseau CI', '2026-03-06', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-lyon'],
+        });
+
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(ciRpapsSession);
+
+        const paps = await (await getList(makeListRequest('?scope=mine&type=PAPS'))).json();
+        expect(paps.reports.map((r: { id: string }) => r.id)).toEqual(['report-2']);
+        expect(paps.total).toBe(1);
+
+        // Le rapport de l'admin est RESEAU lui aussi : il ne doit pas remonter.
+        const reseau = await (await getList(makeListRequest('?scope=mine&type=RESEAU'))).json();
+        expect(reseau.reports.map((r: { id: string }) => r.id)).toEqual(['report-ci-reseau']);
+    });
+
+    it('paginates within the active scope', async () => {
+        // 3 rapports du même auteur, dates décroissantes garanties par l'ORDER BY.
+        for (const [id, date] of [['p-1', '2026-05-03'], ['p-2', '2026-05-02'], ['p-3', '2026-05-01']]) {
+            await db.execute({
+                sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                args: [id, 'user-admin', `${date}T12:00:00.000Z`, 'DPS', `Mission ${id}`, date, 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-paris-18'],
+            });
+        }
+
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        const page1 = await (await getList(makeListRequest('?scope=mine&type=DPS&limit=2&page=1'))).json();
+        expect(page1.reports.map((r: { id: string }) => r.id)).toEqual(['p-1', 'p-2']);
+        expect(page1.total).toBe(3);
+        expect(page1.page).toBe(1);
+        expect(page1.limit).toBe(2);
+
+        const page2 = await (await getList(makeListRequest('?scope=mine&type=DPS&limit=2&page=2'))).json();
+        expect(page2.reports.map((r: { id: string }) => r.id)).toEqual(['p-3']);
+        // `total` reste le total du périmètre, pas la taille de la page.
+        expect(page2.total).toBe(3);
+        expect(page2.page).toBe(2);
     });
 });
 
@@ -439,6 +865,45 @@ describe('GET /api/missions/[id] (detail)', () => {
         expect(body.supplies['SAC_PRIMAIRE']).toBeDefined();
         expect(body.supplies['SAC_PRIMAIRE']).toHaveLength(1);
         expect(body.supplies['SAC_PRIMAIRE'][0].quantity_used).toBe(4);
+    });
+
+    it('returns empty intervention breakdowns for a pre-migration report', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        // Rapport antérieur à la fonctionnalité : un total, aucune ligne de détail.
+        await db.execute({
+            sql: `UPDATE "mission_reports" SET victim_count = ? WHERE id = 'report-1'`,
+            args: [5],
+        });
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.victim_count).toBe(5);
+        expect(body.interventions).toEqual({ mode: {}, nature: {} });
+    });
+
+    it('returns the intervention breakdowns grouped by breakdown', async () => {
+        // @ts-expect-error — partial session for test
+        mockedAuth.mockResolvedValue(adminSession);
+
+        await db.execute({
+            sql: `INSERT INTO "mission_report_interventions" (id, report_id, breakdown, category, quantity) VALUES (?, ?, ?, ?, ?)`,
+            args: ['int-1', 'report-1', 'MODE', 'SOINS', 1],
+        });
+        await db.execute({
+            sql: `INSERT INTO "mission_report_interventions" (id, report_id, breakdown, category, quantity) VALUES (?, ?, ?, ?, ?)`,
+            args: ['int-2', 'report-1', 'NATURE', 'MALAISE', 1],
+        });
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(200);
+
+        const body = await res.json();
+        expect(body.interventions.mode).toEqual({ SOINS: 1 });
+        expect(body.interventions.nature).toEqual({ MALAISE: 1 });
     });
 
     it('returns 404 for unknown report', async () => {
@@ -559,6 +1024,62 @@ describe('GET /api/missions/[id] (detail)', () => {
         const body = await res.json();
         expect(body.ulName).toBeNull();
     });
+
+    it('returns 200 for a plain ADMIN reading their OWN report attached to another UL', async () => {
+        // Rôle ADMIN nu (pas SUPER_ADMIN) : la branche « UL active » ne s'applique
+        // pas (ul-lyon ≠ ul-paris-18), seule la branche auteur peut ouvrir l'accès.
+        await seedUser({ id: 'user-plain-admin', email: 'plainadmin@test.com', name: 'Plain Admin' });
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-admin-lyon', 'user-plain-admin', '2026-04-01T12:00:00.000Z', 'DPS', 'Mission Lyon', '2026-04-01', 'Lyon', 'Moi', 1, 0, 0, 0, 0, 0, 'ul-lyon'],
+        });
+
+        mockedAuth.mockResolvedValue({
+            user: { id: 'user-plain-admin', email: 'plainadmin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
+        } as never);
+
+        const res = await getDetail(makeDetailRequest('report-admin-lyon'), { params: Promise.resolve({ id: 'report-admin-lyon' }) });
+        expect(res.status).toBe(200);
+    });
+
+    it('returns 200 for a plain ADMIN reading their OWN report attached to a DT', async () => {
+        // Un rapport DT porte ulId = NULL : aucune UL ne peut le rapprocher, donc
+        // sans la branche auteur son propre rédacteur perdrait l'accès.
+        await seedUser({ id: 'user-plain-admin', email: 'plainadmin@test.com', name: 'Plain Admin' });
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-admin-dt', 'user-plain-admin', '2026-04-02T12:00:00.000Z', 'DPS', 'Mission DT', '2026-04-02', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, null, 'DT 75'],
+        });
+
+        mockedAuth.mockResolvedValue({
+            user: { id: 'user-plain-admin', email: 'plainadmin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
+        } as never);
+
+        const res = await getDetail(makeDetailRequest('report-admin-dt'), { params: Promise.resolve({ id: 'report-admin-dt' }) });
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.dtCode).toBe('DT 75');
+        expect(body.ulName).toBeNull();
+    });
+
+    it('returns 403 for a plain ADMIN reading SOMEONE ELSE\'S report attached to a DT', async () => {
+        // Contrepoint du test précédent : la branche auteur ne doit pas se
+        // transformer en passe-droit pour tout rapport DT.
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup, ulId, dt_code)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-other-dt', 'user-ci', '2026-04-03T12:00:00.000Z', 'DPS', 'Mission DT autrui', '2026-04-03', 'Paris', 'Moi', 1, 0, 0, 0, 0, 0, null, 'DT 75'],
+        });
+
+        mockedAuth.mockResolvedValue({
+            user: { id: 'user-plain-admin', email: 'plainadmin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
+        } as never);
+
+        const res = await getDetail(makeDetailRequest('report-other-dt'), { params: Promise.resolve({ id: 'report-other-dt' }) });
+        expect(res.status).toBe(403);
+    });
 });
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
@@ -579,6 +1100,10 @@ describe('DELETE /api/missions/[id]', () => {
         await db.execute({
             sql: `INSERT INTO "mission_report_supplies" (id, report_id, category, item_name, quantity_used) VALUES (?, ?, ?, ?, ?)`,
             args: ['supply-1', 'report-to-delete', 'SAC_PRIMAIRE', "Gants d'examen (paire)", 2],
+        });
+        await db.execute({
+            sql: `INSERT INTO "mission_report_interventions" (id, report_id, breakdown, category, quantity) VALUES (?, ?, ?, ?, ?)`,
+            args: ['int-to-delete', 'report-to-delete', 'MODE', 'SOINS', 1],
         });
     });
 
@@ -610,6 +1135,14 @@ describe('DELETE /api/missions/[id]', () => {
         // Note: the API deletes the report; supplies are handled by DB ON DELETE CASCADE
         // In the test DB (SQLite file), FK enforcement may not be active without PRAGMA
         // We verify the supplies were already cleaned by the delete logic
+
+        // La répartition, elle, porte bien une FK ON DELETE CASCADE (schéma identique
+        // à la prod) : ses lignes doivent disparaître avec le rapport.
+        const iRes = await db.execute({
+            sql: `SELECT id FROM "mission_report_interventions" WHERE report_id = 'report-to-delete'`,
+            args: [],
+        });
+        expect(iRes.rows).toHaveLength(0);
     });
 
     it('returns 404 for unknown report', async () => {

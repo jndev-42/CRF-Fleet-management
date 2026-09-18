@@ -48,9 +48,17 @@ export async function GET(_request: Request, { params }: RouteContext) {
         // Access control:
         const roles = (session.user.roles || ['INACTIF']) as string[];
         const isSuper = isSuperAdmin(roles);
-        const isLocalAdmin = isAdminOrAbove(roles) && row.ulId === session.user.ulId;
-        const isLocalManager = isReadOnlyManager(roles) && row.ulId === session.user.ulId;
-        const isSubmitter = isMissionContributor(roles) && row.submitted_by === session.user.id;
+        // Un rapport rattaché à une DT porte `ulId = NULL` : il n'est rapproché
+        // d'AUCUNE UL, donc ni l'admin ni le cadre de l'UL active ne le lisent —
+        // seul son auteur (ou un SUPER_ADMIN) y accède, comme dans la liste.
+        const reportUlId = (row.ulId as string | null) ?? null;
+        const sameUl = reportUlId !== null && reportUlId === session.user.ulId;
+        const isLocalAdmin = isAdminOrAbove(roles) && sameUl;
+        const isLocalManager = isReadOnlyManager(roles) && sameUl;
+        // L'auteur relit toujours son rapport — c'est ce que « Mes rapports »
+        // liste. `isMissionContributor`/`isAdminOrAbove` portent le blocage INACTIF.
+        const isSubmitter = (isMissionContributor(roles) || isAdminOrAbove(roles))
+            && row.submitted_by === session.user.id;
 
         if (!isSuper && !isLocalAdmin && !isLocalManager && !isSubmitter) {
             return forbiddenResponse();
@@ -72,6 +80,19 @@ export async function GET(_request: Request, { params }: RouteContext) {
                 item_name: s.item_name as string,
                 quantity_used: Number(s.quantity_used),
             });
+        }
+
+        // Fetch the intervention breakdown (may be empty for pre-migration reports)
+        const interventionsResult = await db.execute({
+            sql: `SELECT breakdown, category, quantity FROM "mission_report_interventions" WHERE report_id = ? ORDER BY breakdown, category`,
+            args: [id],
+        });
+
+        // Group by breakdown — only categories actually stored (sparse) appear.
+        const interventions: { mode: Record<string, number>; nature: Record<string, number> } = { mode: {}, nature: {} };
+        for (const i of interventionsResult.rows) {
+            const bucket = (i.breakdown as string) === 'NATURE' ? interventions.nature : interventions.mode;
+            bucket[i.category as string] = Number(i.quantity);
         }
 
         const vehicleId = row.vehicle_id as string | null;
@@ -99,6 +120,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
             victim_count: Number(row.victim_count),
             presence_ul: row.presence_ul !== null ? Boolean(Number(row.presence_ul)) : null,
             ulName: (row.ul_name as string | null) ?? null,
+            dtCode: (row.dt_code as string | null) ?? null,
             team_dynamics: row.team_dynamics,
             all_found_place: row.all_found_place !== null ? Boolean(Number(row.all_found_place)) : null,
             member_difficulties: row.member_difficulties !== null ? Boolean(Number(row.member_difficulties)) : null,
@@ -111,6 +133,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
             drive_folder_id: (row.drive_folder_id as string | null) ?? null,
             signed_report_drive_id: (row.signed_report_drive_id as string | null) ?? null,
             supplies: suppliesByCategory,
+            interventions,
         };
 
         return NextResponse.json(report);
@@ -121,7 +144,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
 }
 
 /** DELETE /api/missions/[id] — Suppression (ADMIN seulement).
- *  La suppression en cascade sur mission_report_supplies est gérée par la DB. */
+ *  La suppression en cascade sur mission_report_supplies et
+ *  mission_report_interventions est gérée par la DB. */
 export async function DELETE(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();

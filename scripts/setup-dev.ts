@@ -556,7 +556,8 @@ async function main() {
             "needs_followup"        INTEGER NOT NULL DEFAULT 0,
             "drive_folder_id"       TEXT,
             "mission_comment"       TEXT,
-            "ulId"                  TEXT
+            "ulId"                  TEXT,
+            "dt_code"               TEXT
         )
     `);
 
@@ -578,6 +579,12 @@ async function main() {
         await db.execute(`ALTER TABLE "mission_reports" RENAME COLUMN "ul18_present" TO "presence_ul"`);
         console.log('  ↳ Migration : colonne mission_reports.ul18_present renommée en presence_ul');
     }
+    // Rattachement explicite du rapport : soit ulId, soit dt_code (jamais les deux).
+    // Équivalent local de scripts/add-mission-report-dt-code.ts.
+    if (!missionCols.rows.some(r => r.name === 'dt_code')) {
+        await db.execute(`ALTER TABLE "mission_reports" ADD COLUMN "dt_code" TEXT`);
+        console.log('  ↳ Migration : colonne mission_reports.dt_code ajoutée');
+    }
 
     await db.execute(`
         CREATE TABLE IF NOT EXISTS "mission_report_supplies" (
@@ -589,9 +596,23 @@ async function main() {
         )
     `);
 
+    // Répartition du total « nombre d'intervention » (mission_reports.victim_count)
+    // en deux grilles indépendantes. Équivalent local de
+    // scripts/add-mission-report-interventions.ts.
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "mission_report_interventions" (
+            "id"        TEXT PRIMARY KEY,
+            "report_id" TEXT NOT NULL REFERENCES "mission_reports"(id) ON DELETE CASCADE,
+            "breakdown" TEXT NOT NULL CHECK ("breakdown" IN ('MODE', 'NATURE')),
+            "category"  TEXT NOT NULL,
+            "quantity"  INTEGER NOT NULL DEFAULT 0
+        )
+    `);
+
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_reports_submitted_by_idx" ON "mission_reports"("submitted_by")`);
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_reports_mission_date_idx" ON "mission_reports"("mission_date")`);
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_supplies_report_id_idx" ON "mission_report_supplies"("report_id")`);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_interventions_report_id_idx" ON "mission_report_interventions"("report_id")`);
 
     // ── MenuSetting ───────────────────────────────────────────────
 

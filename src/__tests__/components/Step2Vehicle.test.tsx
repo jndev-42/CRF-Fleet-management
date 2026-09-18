@@ -4,10 +4,12 @@ import Step2Vehicle from '@/components/missions/steps/Step2Vehicle';
 import type { MissionFormData } from '@/components/missions/MissionWizard';
 
 const baseData: MissionFormData = {
+    selected_ul_id: 'ul-paris-18', selected_dt_code: null,
     mission_type: 'DPS', mission_name: '', mission_date: '2026-01-01', location: '',
     volunteers: '', pegass_ok: true, vehicle_id: null, driver_id: null, victim_count: 0,
     presence_ul: null, team_dynamics: null, all_found_place: null, member_difficulties: null,
     free_comment: null, mission_comment: null, had_acr: false, had_hemorrhage: false, had_complex_care: false, needs_followup: false,
+    intervention_types: {}, intervention_natures: {},
 };
 
 const vehicles = [{ id: 'VL001', name: 'VL186', type: 'VL' }, { id: 'VPSP001', name: 'VPSP-1', type: 'VPSP' }];
