@@ -1,16 +1,17 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-08-11 | Updated: 2026-09-18 -->
+<!-- Generated: 2026-08-11 | Updated: 2026-09-21 -->
 
 # missions
 
 ## Purpose
-Mission report list (`/missions`) — the index of *comptes rendus de mission* filed after RESEAU / DPS / PAPS operations. Two views: **« Mes rapports »** (default, every report the viewer filed, across all ULs and DTs) and **« Tous les rapports »** (reports of the currently active UL, managers only). The table shows date, mission type badge, mission name + submitter, location, the **« Interventions »** count (still the `victim_count` field — only the column header was renamed), the **UL/DT attachment tag**, and a critical-incident flag. Reserved for admins, read-only managers (Président/Cadre), and the `CI/RPAPS` role.
+Mission report list (`/missions`) — the index of *comptes rendus de mission* filed after RESEAU / DPS / PAPS operations. Two views: **« Mes rapports »** (default, every report the viewer filed, across all ULs and DTs) and **« Tous les rapports »** (reports of the currently active UL, managers only). The table shows date, mission type badge, mission name + submitter, location, the **« Interventions »** count (still the `victim_count` field — only the column header was renamed), the **UL/DT attachment tag**, and a critical-incident flag. Reserved for admins, read-only managers (Président/Cadre), and the `CI/RPAPS` role. Managers also get a **« QR Code »** button in the page header, opening the QR code for the active UL (see below).
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `page.tsx` | Client page — role gate, scope tabs, type filter bar, data fetching. |
+| `page.tsx` | Client page — role gate, scope tabs, type filter bar, data fetching, QR Code button/modal for the active UL. |
 | `MissionsTable.tsx` | Co-located table component + the `MissionReport` type and the UL/DT `AttachmentTag`. |
+| `../../components/missions/ULQRCodeModal.tsx` | QR code of the active UL (`/qr-ul/[token]`), printed and posted at the poste so any connected account can file a mission report for it. Not colocated in this directory (lives in `src/components/missions/`, reused from here) — see its own header comment for the canvas-id/`canRegenerate` caveats. |
 | `missions.module.css` | **CSS Module** for the table, type badges (`typeRESEAU`/`typeDPS`/`typePAPS`), attachment tag, incident badge, and empty state. |
 
 ## Subdirectories
@@ -25,6 +26,8 @@ Mission report list (`/missions`) — the index of *comptes rendus de mission* f
 **Access gate:** `canAccess = isAdminOrAbove(roles) || isReadOnlyManager(roles) || roles.includes('CI/RPAPS')` — so SUPER_ADMIN, ADMIN, PRESIDENT, CADRE, and CI/RPAPS. Everyone else is pushed to `/vehicles` (not `/`) by a `useEffect`. **Creation** is narrower: `canCreate = isAdminOrAbove(roles) || roles.includes('CI/RPAPS')` — Président/Cadre can read but not file reports, so the "Nouveau compte rendu" button is hidden for them in both the header and the empty state.
 
 **Scope tabs:** `scope` state (`'mine' | 'all'`) drives the `scope` query param. The tab strip is rendered only when `canSeeAll = isAdminOrAbove(roles) || isReadOnlyManager(roles)`; the API enforces the same rule with a 403, so hiding the tab is convenience, not security. « Tous les rapports » follows the **active UL** picked in the Navbar switcher (`session.user.ulId`) and is labelled with its name — changing the active UL changes the list. Reports attached to a DT never appear there; they are reachable only through « Mes rapports » of their author.
+
+**QR Code button:** shown in the page header when `canSeeAll && hasActiveUl` (`hasActiveUl` = `session.user.ulId` is set and not `'default'` — the sentinel used elsewhere on this page). Opens `@/components/missions/ULQRCodeModal` for the **active** UL, letting a manager fetch/print/regenerate the QR code that opens `/qr-ul/[token]` for that UL without leaving the missions screen. `canRegenerate={canSeeAll}` — deliberately identical to `canAccessAdminPanel`, which is what the server-side `DELETE /api/ul/[id]/qr-token` actually checks. This mirrors why the vehicle/stock QR buttons live on those resources' own pages rather than in a separate admin settings screen — the button used to live in `ULsTab.tsx` (UL admin tab) and was moved here on user feedback, since managers look for it on the missions screen, not in general UL administration.
 
 Data flow: `fetchReports()` calls `GET /api/missions?limit=50&scope=…` plus an optional `type` param, and stores `data.reports` / `data.total`. The fetch effect re-runs on `typeFilter` **and** `scope` change; the `exhaustive-deps` disable is deliberate because `fetchReports` is recreated every render.
 
@@ -41,7 +44,9 @@ This directory is an exception to the global "pages use global CSS classes" rule
 ### Internal
 - `@/lib/roles` — `isAdminOrAbove`, `isReadOnlyManager`
 - `@/lib/mission-supplies` — `MISSION_TYPE_LABELS`
+- `@/components/missions/ULQRCodeModal` — QR code display/print/regenerate for the active UL
 - `GET /api/missions?limit=&type=&scope=` — returns `{ reports, total }`
+- `POST/DELETE /api/ul/[id]/qr-token` — via `ULQRCodeModal`
 - Navigates to `/missions/new` and `/missions/{id}`
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

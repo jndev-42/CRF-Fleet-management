@@ -3,7 +3,7 @@
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import ULQRCodeModal from '@/components/admin/modals/ULQRCodeModal';
+import ULQRCodeModal from '@/components/missions/ULQRCodeModal';
 
 function getUrl(input: string | URL | Request): string {
     if (typeof input === 'string') return input;

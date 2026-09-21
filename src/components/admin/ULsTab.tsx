@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import ULQRCodeModal from './modals/ULQRCodeModal';
 
 interface PhoneNum {
     label: string;
@@ -40,9 +39,6 @@ export default function ULsTab({
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
     const [stampImage, setStampImage] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
-
-    // UL dont le QR code est affiché (null = modale fermée)
-    const [qrUl, setQrUl] = useState<UL | null>(null);
 
     function showToast(message: string, type: 'success' | 'error' = 'success') {
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -352,15 +348,6 @@ export default function ULsTab({
                                         <button
                                             className="btn btn-secondary"
                                             style={{ fontSize: 13 }}
-                                            onClick={() => setQrUl(ul)}
-                                        >
-                                            QR Code
-                                        </button>
-                                    )}
-                                    {(isSuperAdmin || ul.id === userUlId) && (
-                                        <button
-                                            className="btn btn-secondary"
-                                            style={{ fontSize: 13 }}
                                             onClick={() => handleOpenModal(ul)}
                                         >
                                             Modifier
@@ -608,16 +595,6 @@ export default function ULsTab({
                         </form>
                     </div>
                 </div>
-            )}
-
-            {/* Modal QR Code de l'UL */}
-            {qrUl && (
-                <ULQRCodeModal
-                    ulId={qrUl.id}
-                    ulName={`Unité Locale ${qrUl.name}`}
-                    canRegenerate={isSuperAdmin || qrUl.id === userUlId}
-                    onClose={() => setQrUl(null)}
-                />
             )}
         </div>
     );

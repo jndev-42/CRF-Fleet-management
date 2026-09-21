@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, QrCode } from 'lucide-react';
 import { MISSION_TYPE_LABELS } from '@/lib/mission-supplies';
 import { isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
 import MissionsTable, { type MissionReport } from './MissionsTable';
+import ULQRCodeModal from '@/components/missions/ULQRCodeModal';
 import styles from './missions.module.css';
 
 type Scope = 'mine' | 'all';
@@ -21,6 +22,7 @@ export default function MissionsPage() {
     const [loading, setLoading] = useState(true);
     const [typeFilter, setTypeFilter] = useState('');
     const [scope, setScope] = useState<Scope>('mine');
+    const [showQrCode, setShowQrCode] = useState(false);
 
     const roles = (session?.user?.roles || ['GUEST']) as string[];
     const canAccess = isAdminOrAbove(roles) || isReadOnlyManager(roles) || roles.includes('CI/RPAPS');
@@ -30,6 +32,10 @@ export default function MissionsPage() {
     const canSeeAll = isAdminOrAbove(roles) || isReadOnlyManager(roles);
 
     const activeUlName = session?.user?.availableULs?.find(ul => ul.id === session?.user?.ulId)?.name;
+    // Le bouton QR Code cible l'UL active du gestionnaire — comme le sélecteur
+    // « Tous les rapports », il n'a pas de sens sans UL active réelle.
+    const activeUlId = session?.user?.ulId;
+    const hasActiveUl = Boolean(activeUlId && activeUlId !== 'default');
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {
@@ -68,6 +74,16 @@ export default function MissionsPage() {
         <main id="main-content" className="page-container">
             <div className="page-header">
                 <h1 className="page-title">Comptes rendus de mission</h1>
+                {canSeeAll && hasActiveUl && (
+                    <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => setShowQrCode(true)}
+                    >
+                        <QrCode size={16} />
+                        QR Code {activeUlName ? `— ${activeUlName}` : ''}
+                    </button>
+                )}
                 {canCreate && (
                     <Link href="/missions/new" className="btn btn-primary">
                         <Plus size={16} />
@@ -133,6 +149,15 @@ export default function MissionsPage() {
                 </div>
             ) : (
                 <MissionsTable reports={reports} />
+            )}
+
+            {showQrCode && activeUlId && (
+                <ULQRCodeModal
+                    ulId={activeUlId}
+                    ulName={activeUlName ? `Unité Locale ${activeUlName}` : 'votre UL'}
+                    canRegenerate={canSeeAll}
+                    onClose={() => setShowQrCode(false)}
+                />
             )}
         </main>
     );

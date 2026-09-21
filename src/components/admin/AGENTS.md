@@ -10,11 +10,10 @@ Admin-only administration UI. Four of the five files are *tab panels* rendered b
 | File | Description |
 |------|-------------|
 | `UsersTab.tsx` | User list with search + client-side pagination (6/page), role badges, papers validation, add/delete user, home-UL assignment, impersonation trigger. Also contains the private `ManageUserULsModal` (multi-UL rights editor) and renders `users/RoleLegend`. |
-| `ULsTab.tsx` | CRUD for ULs (unités locales): name, slug, DT code, phone numbers list, default parking spots, base64 stamp image. Per-row actions: `QR Code` (opens `modals/ULQRCodeModal`), `Modifier`, `Supprimer`. Owns its own toast state. |
+| `ULsTab.tsx` | CRUD for ULs (unités locales): name, slug, DT code, phone numbers list, default parking spots, base64 stamp image. Per-row actions: `Modifier`, `Supprimer`. Owns its own toast state. |
 | `BannersTab.tsx` | CRUD for in-app banners — message, `target_page` (`ALL`/`VEHICLES`/`MISSIONS`/`INVENTORY`), `type` (`info`/`warning`/`danger`/`success`), global vs per-UL scope, active flag, optional link URL/label. Exports the `Banner` interface. |
 | `MenusTab.tsx` | Per-module visibility switch (`stats`, `inventory`, `missions`) with three states: `available` / `admin_only` / `disabled`. Optimistic update with revert on failure. |
 | `ImpersonationBanner.tsx` | Red top banner while impersonating; "Retourner à mon compte" calls `useSession().update({ impersonateEmail: null })` then routes to `/users`. |
-| `modals/ULQRCodeModal.tsx` | QR code of a UL (`/qr-ul/[token]`), printed and posted at the poste so any connected account can file a mission report for that UL. Adapted from `vehicle/modals/QRCodeModal.tsx`; canvas id is `qr-ul-code-canvas` (must stay distinct — `downloadQRCode` does a global `getElementById`) and the Regenerate button is gated by an explicit `canRegenerate` prop, not by roles. |
 
 ## For AI Agents
 
@@ -36,7 +35,6 @@ Two distinct prop conventions coexist here — match the one already used by the
 
 ### Internal
 - `GET/POST /api/ul`, `PATCH/DELETE /api/ul/[id]` — UL list and CRUD
-- `POST /api/ul/[id]/qr-token` (get-or-create), `DELETE` (regenerate, admin-gated server-side) — UL QR token
 - `PATCH /api/users/[email]/ul` — assign/remove a user's UL and per-UL roles (`{ ulId, isHome, roles?, action }`)
 - `GET /api/banners?admin=true`, `PATCH/DELETE /api/banners/[id]` — banner list and mutations
 - `PATCH /api/settings/menus/[key]` — `{ visibility }`

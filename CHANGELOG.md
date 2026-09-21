@@ -4,7 +4,7 @@
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Générer et imprimer le QR code d'une UL depuis l'administration** — un bouton « QR Code » apparaît désormais sur chaque unité locale dans l'écran d'administration, ouvrant une fenêtre pour le télécharger, copier son lien ou le régénérer (ce qui invalide aussitôt l'ancien code imprimé).
+- **Générer et imprimer le QR code de son UL depuis l'écran des comptes rendus de mission** — un bouton « QR Code » apparaît dans l'en-tête de `/missions` pour les cadres, présidents et administrateurs, ouvrant une fenêtre pour télécharger le QR code de leur UL active, copier son lien ou le régénérer (ce qui invalide aussitôt l'ancien code imprimé).
 
 ### 🔧 Améliorations
 

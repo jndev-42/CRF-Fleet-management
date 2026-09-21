@@ -10,21 +10,25 @@ interface ULQRCodeModalProps {
     ulName: string;
     /** Identifiant de l'UL — sert à obtenir ou créer le token. */
     ulId: string;
-    /** Droit de régénérer le token, calculé par l'appelant (SUPER_ADMIN ou UL de l'utilisateur). */
+    /** Droit de régénérer le token, calculé par l'appelant (typiquement `canAccessAdminPanel`). */
     canRegenerate: boolean;
 }
 
 /**
  * QR Code d'une Unité Locale, à imprimer et afficher au poste.
  *
+ * Utilisé depuis `/missions` (bouton dans l'en-tête, pour l'UL active du
+ * gestionnaire) plutôt que depuis l'onglet d'administration des UL — même
+ * logique que pour le véhicule/le stock : le bouton QR vit sur l'écran
+ * opérationnel de la ressource, pas dans un panneau de réglages séparé.
+ *
  * Adapté de `src/components/vehicle/modals/QRCodeModal.tsx`, avec deux écarts
  * délibérés :
  *  - l'id du canvas est `qr-ul-code-canvas`, DISTINCT de `qr-code-canvas` :
  *    `downloadQRCode` fait un `getElementById` global, et deux modales partageant
  *    le même id téléchargeraient le QR de l'autre ;
- *  - la visibilité du bouton « Régénérer » vient de la prop `canRegenerate`
- *    (même garde que le bouton « Modifier » de la ligne) au lieu d'être déduite
- *    des rôles : le droit dépend ici de l'UL, pas seulement du rôle.
+ *  - la visibilité du bouton « Régénérer » vient de la prop `canRegenerate`,
+ *    calculée par l'appelant, plutôt que d'être déduite des rôles ici.
  */
 export default function ULQRCodeModal({ onClose, ulName, ulId, canRegenerate }: ULQRCodeModalProps) {
     useEscapeKey(onClose);

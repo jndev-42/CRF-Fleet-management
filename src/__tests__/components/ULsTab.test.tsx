@@ -19,9 +19,6 @@ async function defaultFetchHandler(input: string | URL | Request, init?: Request
     if (url === '/api/ul' && init?.method === 'POST') {
         return new Response(JSON.stringify({ success: true }), { status: 200 });
     }
-    if (url.includes('/qr-token')) {
-        return new Response(JSON.stringify({ token: 'tok-ul-1' }), { status: 200 });
-    }
     if (url.includes('/api/ul/') && init?.method === 'PATCH') {
         return new Response(JSON.stringify({ success: true }), { status: 200 });
     }
@@ -165,36 +162,5 @@ describe('ULsTab', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
         expect(await screen.findByText(/Slug déjà utilisé/)).toBeTruthy();
-    });
-
-    it('affiche le bouton QR Code sous la même garde que « Modifier »', async () => {
-        mockFetch();
-        render(<ULsTab isSuperAdmin={false} userUlId="ul-paris-18" />);
-        await screen.findByText('Unité Locale Paris 18');
-
-        expect(screen.getAllByRole('button', { name: 'QR Code' })).toHaveLength(1);
-    });
-
-    it('affiche un bouton QR Code par UL pour un SUPER_ADMIN', async () => {
-        mockFetch();
-        render(<ULsTab isSuperAdmin />);
-        await screen.findByText('Unité Locale Paris 18');
-
-        expect(screen.getAllByRole('button', { name: 'QR Code' })).toHaveLength(2);
-    });
-
-    it('ouvre la modale QR Code de l\'UL au clic', async () => {
-        const fetchMock = mockFetch();
-        render(<ULsTab isSuperAdmin userUlId="ul-paris-18" />);
-        await screen.findByText('Unité Locale Paris 18');
-
-        fireEvent.click(screen.getAllByRole('button', { name: 'QR Code' })[0]);
-
-        expect(await screen.findByText('QR Code — Unité Locale Paris 18')).toBeTruthy();
-        await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
-            '/api/ul/ul-paris-18/qr-token',
-            expect.objectContaining({ method: 'POST' }),
-        ));
-        expect(await screen.findByText(/\/qr-ul\/tok-ul-1/)).toBeTruthy();
     });
 });
