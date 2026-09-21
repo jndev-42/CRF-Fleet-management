@@ -72,24 +72,26 @@ export default function MissionsPage() {
 
     return (
         <main id="main-content" className="page-container">
-            <div className="page-header">
+            <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
                 <h1 className="page-title">Comptes rendus de mission</h1>
-                {canSeeAll && hasActiveUl && (
-                    <button
-                        type="button"
-                        className="btn btn-secondary"
-                        onClick={() => setShowQrCode(true)}
-                    >
-                        <QrCode size={16} />
-                        QR Code {activeUlName ? `— ${activeUlName}` : ''}
-                    </button>
-                )}
-                {canCreate && (
-                    <Link href="/missions/new" className="btn btn-primary">
-                        <Plus size={16} />
-                        Nouveau compte rendu
-                    </Link>
-                )}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {canSeeAll && hasActiveUl && (
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => setShowQrCode(true)}
+                        >
+                            <QrCode size={16} />
+                            QR Code {activeUlName ? `— ${activeUlName}` : ''}
+                        </button>
+                    )}
+                    {canCreate && (
+                        <Link href="/missions/new" className="btn btn-primary">
+                            <Plus size={16} />
+                            Nouveau compte rendu
+                        </Link>
+                    )}
+                </div>
             </div>
 
             {canSeeAll && (
