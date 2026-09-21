@@ -82,7 +82,8 @@ async function main() {
             "phoneNumbers" TEXT,
             "defaultParkingSpots" TEXT,
             "stampImage" TEXT,
-            "dtCode" TEXT
+            "dtCode" TEXT,
+            "qrToken" TEXT
         )
     `);
 
@@ -96,6 +97,17 @@ async function main() {
     if (!ulCols.rows.some(r => r.name === 'dtCode')) {
         await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "dtCode" TEXT`);
     }
+    if (!ulCols.rows.some(r => r.name === 'qrToken')) {
+        await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "qrToken" TEXT`);
+    }
+
+    // Index partiel : deux UL ne peuvent pas porter le même token (un rapport
+    // scanné se retrouverait rattaché à l'autre), mais autant d'UL qu'on veut
+    // peuvent n'en porter aucun.
+    await db.execute(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "UniteLocale_qrToken_key"
+            ON "UniteLocale"("qrToken") WHERE "qrToken" IS NOT NULL
+    `);
 
     await db.execute(`
         CREATE TABLE IF NOT EXISTS "UserUL" (

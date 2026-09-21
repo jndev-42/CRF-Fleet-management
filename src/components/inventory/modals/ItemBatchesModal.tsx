@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { isAdminOrAbove } from '@/lib/roles';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import styles from './ItemBatchesModal.module.css';
 
 interface Batch {
     id: string;
@@ -79,6 +80,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
 
     const handleAddBatch = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (submitting) return;
         const qty = parseInt(newQuantity);
         if (!newExpiryDate || isNaN(qty) || qty <= 0) return;
 
@@ -149,8 +151,8 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
-            <div className="modal" onClick={_e => _e.stopPropagation()} style={{ maxWidth: '520px' }}>
+        <div className={`modal-overlay ${styles.overlay}`} onClick={onClose}>
+            <div className={`modal ${styles.modal}`} onClick={_e => _e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">Détails des lots — {itemName}</h2>
                     <button className="modal-close" onClick={onClose}>✕</button>
@@ -160,28 +162,29 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                         <p>Chargement...</p>
                     ) : (
                         <>
-                            <div style={{ marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-primary)', borderRadius: '4px', fontSize: '0.9rem' }}>
+                            <div className={styles.noDateBox}>
                                 <strong>{batches.find(b => b.expiryDate === null)?.quantity || 0}</strong> items sans date de péremption
                             </div>
 
                             {batches.length > 0 && (
-                                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem' }}>
+                                <table className={styles.table}>
                                     <thead>
-                                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-primary)' }}>
-                                            <th style={{ padding: '8px' }}>Date de péremption</th>
-                                            <th style={{ padding: '8px', textAlign: 'right' }}>Quantité</th>
-                                            {isAdmin && <th style={{ padding: '8px', textAlign: 'center', width: '90px' }}>Action</th>}
+                                        <tr className={styles.headRow}>
+                                            <th className={styles.headCell}>Date de péremption</th>
+                                            <th className={styles.headCellRight}>Quantité</th>
+                                            {isAdmin && <th className={styles.headCellAction}>Action</th>}
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {batches.map(batch => {
                                             const expired = isExpired(batch.expiryDate);
                                             return (
-                                                <tr key={batch.id} style={{
-                                                    borderBottom: '1px solid var(--border-primary)',
-                                                    background: expired ? 'rgba(220,38,38,0.05)' : undefined,
-                                                }}>
-                                                    <td style={{ padding: '8px' }}>
+                                                <tr
+                                                    key={batch.id}
+                                                    className={styles.row}
+                                                    style={{ background: expired ? 'rgba(220,38,38,0.05)' : undefined }}
+                                                >
+                                                    <td className={styles.dateCell}>
                                                         <span style={{
                                                             fontWeight: expired ? 600 : 400,
                                                             color: expired ? 'var(--status-maintenance)' : undefined,
@@ -190,27 +193,14 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                                             {expired && ' ⚠️ Périmé'}
                                                         </span>
                                                     </td>
-                                                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                                                    <td className={styles.qtyCell}>
+                                                        <div className={styles.qtyControls}>
                                                             {isAdmin && (
                                                                 <>
                                                                     <button
                                                                         onClick={() => handleAdjustBatchQuantity(batch.id, -10)}
                                                                         disabled={adjustingBatch[batch.id] || batch.quantity < 10}
-                                                                        style={{
-                                                                            minWidth: '32px',
-                                                                            height: '24px',
-                                                                            display: 'inline-flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            border: '1px solid var(--border-primary)',
-                                                                            background: 'var(--bg-muted)',
-                                                                            borderRadius: '4px',
-                                                                            cursor: 'pointer',
-                                                                            fontSize: '0.75rem',
-                                                                            fontWeight: 'bold',
-                                                                            opacity: (adjustingBatch[batch.id] || batch.quantity < 10) ? 0.5 : 1,
-                                                                        }}
+                                                                        className={`${styles.qtyBtn} ${styles.qtyBtnTen}`}
                                                                         title="-10"
                                                                     >
                                                                         -10
@@ -218,46 +208,20 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                                                     <button
                                                                         onClick={() => handleAdjustBatchQuantity(batch.id, -1)}
                                                                         disabled={adjustingBatch[batch.id] || batch.quantity <= 0}
-                                                                        style={{
-                                                                            width: '24px',
-                                                                            height: '24px',
-                                                                            display: 'inline-flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            border: '1px solid var(--border-primary)',
-                                                                            background: 'var(--bg-muted)',
-                                                                            borderRadius: '4px',
-                                                                            cursor: 'pointer',
-                                                                            fontSize: '0.8rem',
-                                                                            fontWeight: 'bold',
-                                                                            opacity: (adjustingBatch[batch.id] || batch.quantity <= 0) ? 0.5 : 1,
-                                                                        }}
+                                                                        className={`${styles.qtyBtn} ${styles.qtyBtnUnit}`}
                                                                         title="-1"
                                                                     >
                                                                         -
                                                                     </button>
                                                                 </>
                                                             )}
-                                                            <span style={{ minWidth: '32px', textAlign: 'center', display: 'inline-block' }}>{batch.quantity}</span>
+                                                            <span className={styles.qtyValue}>{batch.quantity}</span>
                                                             {isAdmin && (
                                                                 <>
                                                                     <button
                                                                         onClick={() => handleAdjustBatchQuantity(batch.id, 1)}
                                                                         disabled={adjustingBatch[batch.id]}
-                                                                        style={{
-                                                                            width: '24px',
-                                                                            height: '24px',
-                                                                            display: 'inline-flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            border: '1px solid var(--border-primary)',
-                                                                            background: 'var(--bg-muted)',
-                                                                            borderRadius: '4px',
-                                                                            cursor: 'pointer',
-                                                                            fontSize: '0.8rem',
-                                                                            fontWeight: 'bold',
-                                                                            opacity: adjustingBatch[batch.id] ? 0.5 : 1,
-                                                                        }}
+                                                                        className={`${styles.qtyBtn} ${styles.qtyBtnUnit}`}
                                                                         title="+1"
                                                                     >
                                                                         +
@@ -265,20 +229,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                                                     <button
                                                                         onClick={() => handleAdjustBatchQuantity(batch.id, 10)}
                                                                         disabled={adjustingBatch[batch.id]}
-                                                                        style={{
-                                                                            minWidth: '32px',
-                                                                            height: '24px',
-                                                                            display: 'inline-flex',
-                                                                            alignItems: 'center',
-                                                                            justifyContent: 'center',
-                                                                            border: '1px solid var(--border-primary)',
-                                                                            background: 'var(--bg-muted)',
-                                                                            borderRadius: '4px',
-                                                                            cursor: 'pointer',
-                                                                            fontSize: '0.75rem',
-                                                                            fontWeight: 'bold',
-                                                                            opacity: adjustingBatch[batch.id] ? 0.5 : 1,
-                                                                        }}
+                                                                        className={`${styles.qtyBtn} ${styles.qtyBtnTen}`}
                                                                         title="+10"
                                                                     >
                                                                         +10
@@ -288,22 +239,12 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                                         </div>
                                                     </td>
                                                     {isAdmin && (
-                                                        <td style={{ padding: '8px', textAlign: 'center' }}>
+                                                        <td className={styles.actionCell}>
                                                             {expired && (
                                                                 <button
                                                                     onClick={() => handleDeleteBatch(batch)}
                                                                     disabled={deleting[batch.id]}
-                                                                    style={{
-                                                                        background: 'none',
-                                                                        border: '1px solid var(--status-maintenance)',
-                                                                        color: 'var(--status-maintenance)',
-                                                                        borderRadius: '6px',
-                                                                        padding: '3px 10px',
-                                                                        fontSize: '0.8rem',
-                                                                        cursor: 'pointer',
-                                                                        fontWeight: 600,
-                                                                        opacity: deleting[batch.id] ? 0.5 : 1,
-                                                                    }}
+                                                                    className={styles.deleteBtn}
                                                                 >
                                                                     {deleting[batch.id] ? '...' : '🗑 Supprimer'}
                                                                 </button>
@@ -317,12 +258,12 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                 </table>
                             )}
 
-                            <div style={{ border: '1px solid var(--border-primary)', padding: '1rem', borderRadius: '8px' }}>
-                                <h3 style={{ fontSize: '1rem', marginBottom: '1rem' }}>Ajouter une date de péremption</h3>
+                            <div className={styles.addBatchBox}>
+                                <h3 className={styles.addBatchTitle}>Ajouter une date de péremption</h3>
                                 <form onSubmit={handleAddBatch}>
-                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                                        <div style={{ flex: 2 }}>
-                                            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Date</label>
+                                    <div className={styles.fieldRow}>
+                                        <div className={styles.fieldDate}>
+                                            <label className={styles.fieldLabel}>Date</label>
                                             <input
                                                 type="date"
                                                 className="form-input"
@@ -331,8 +272,8 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                                 required
                                             />
                                         </div>
-                                        <div style={{ flex: 1 }}>
-                                            <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Qté</label>
+                                        <div className={styles.fieldQty}>
+                                            <label className={styles.fieldLabel}>Qté</label>
                                             <input
                                                 type="number"
                                                 className="form-input"
@@ -343,8 +284,8 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                             />
                                         </div>
                                     </div>
-                                    <div style={{ marginBottom: '1rem' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', cursor: 'pointer' }}>
+                                    <div className={styles.checkboxRow}>
+                                        <label className={styles.checkboxLabel}>
                                             <input
                                                 type="checkbox"
                                                 checked={deductFromNoDate}
@@ -355,8 +296,7 @@ export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDel
                                     </div>
                                     <button
                                         type="submit"
-                                        className="btn btn-primary"
-                                        style={{ width: '100%' }}
+                                        className={`btn btn-primary ${styles.submitBtn}`}
                                         disabled={submitting}
                                     >
                                         {submitting ? 'Enregistrement...' : 'Enregistrer'}

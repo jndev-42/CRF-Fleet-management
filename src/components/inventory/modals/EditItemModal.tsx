@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import styles from './EditItemModal.module.css';
 
 interface InvItem {
     id: string;
@@ -45,6 +46,7 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         if (!item) return;
+        if (submitting) return;
         setSubmitting(true);
         setError('');
 
@@ -74,7 +76,7 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
     }
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
+        <div className={`modal-overlay ${styles.overlay}`} onClick={onClose}>
             <div className="modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">Modifier l&apos;article</h2>
@@ -83,14 +85,7 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
                         {error && (
-                            <div style={{
-                                background: 'var(--error-bg)',
-                                color: 'var(--error-text)',
-                                padding: '10px 14px',
-                                borderRadius: '8px',
-                                marginBottom: '16px',
-                                fontSize: '0.9rem',
-                            }}>
+                            <div className={styles.errorBox} role="alert">
                                 {error}
                             </div>
                         )}
@@ -108,23 +103,17 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
 
                         <div className="form-group">
                             <label className="form-label">Type / Catégorie</label>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                            <div className={styles.categoryChips}>
                                 {CATEGORY_OPTIONS.map(opt => (
                                     <button
                                         key={opt}
                                         type="button"
                                         onClick={() => setCategory(opt)}
+                                        className={styles.categoryChip}
                                         style={{
-                                            padding: '4px 12px',
-                                            borderRadius: '20px',
-                                            border: '1.5px solid',
                                             borderColor: category === opt ? 'var(--primary, #2563eb)' : 'var(--border-primary)',
                                             background: category === opt ? 'var(--primary, #2563eb)' : 'transparent',
                                             color: category === opt ? '#fff' : 'inherit',
-                                            cursor: 'pointer',
-                                            fontSize: '0.85rem',
-                                            fontWeight: 500,
-                                            transition: 'all 0.15s',
                                         }}
                                     >
                                         {opt}
@@ -154,10 +143,9 @@ export default function EditItemModal({ isOpen, item, onClose, onSuccess }: Edit
                         <div className="form-group">
                             <label className="form-label">Notes</label>
                             <textarea
-                                className="form-input"
+                                className={`form-input ${styles.notesInput}`}
                                 value={notes}
                                 onChange={e => setNotes(e.target.value)}
-                                style={{ minHeight: '80px' }}
                                 placeholder="Informations complémentaires..."
                             />
                         </div>

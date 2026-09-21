@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import styles from './InventoryHistoryModal.module.css';
 
 interface InvStockLog {
     id: string;
@@ -37,8 +38,8 @@ export default function InventoryHistoryModal({ itemId, itemName, onClose }: Pro
     }, [itemId]);
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+        <div className={`modal-overlay ${styles.overlay}`} onClick={onClose}>
+            <div className={`modal ${styles.modal}`} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">Historique : {itemName}</h2>
                     <button className="modal-close" onClick={onClose}>&times;</button>
@@ -49,25 +50,25 @@ export default function InventoryHistoryModal({ itemId, itemName, onClose }: Pro
                     ) : logs.length === 0 ? (
                         <p>Aucun historique pour cet article.</p>
                     ) : (
-                        <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                                <thead style={{ position: 'sticky', top: 0, background: 'var(--bg-card)' }}>
-                                    <tr style={{ borderBottom: '1px solid var(--border-primary)', textAlign: 'left' }}>
-                                        <th style={{ padding: '8px' }}>Date</th>
-                                        <th style={{ padding: '8px' }}>Utilisateur</th>
-                                        <th style={{ padding: '8px' }}>Action</th>
-                                        <th style={{ padding: '8px' }}>Note</th>
+                        <div className={styles.tableWrapper}>
+                            <table className={styles.table}>
+                                <thead className={styles.tableHead}>
+                                    <tr className={styles.headRow}>
+                                        <th className={styles.cell}>Date</th>
+                                        <th className={styles.cell}>Utilisateur</th>
+                                        <th className={styles.cell}>Action</th>
+                                        <th className={styles.cell}>Note</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {logs.map(log => (
-                                        <tr key={log.id} style={{ borderBottom: '1px solid var(--border-primary)' }}>
-                                            <td style={{ padding: '8px' }}>{new Date(log.timestamp).toLocaleString()}</td>
-                                            <td style={{ padding: '8px' }}>{log.userName}</td>
-                                            <td style={{ padding: '8px', fontWeight: 600, color: log.change > 0 ? 'green' : 'red' }}>
+                                        <tr key={log.id} className={styles.row}>
+                                            <td className={styles.cell}>{new Date(log.timestamp).toLocaleString()}</td>
+                                            <td className={styles.cell}>{log.userName}</td>
+                                            <td className={styles.changeCell} style={{ color: log.change > 0 ? 'green' : 'red' }}>
                                                 {log.change > 0 ? `+${log.change}` : log.change}
                                             </td>
-                                            <td style={{ padding: '8px', color: 'var(--text-secondary)' }}>{log.note || '—'}</td>
+                                            <td className={styles.noteCell}>{log.note || '—'}</td>
                                         </tr>
                                     ))}
                                 </tbody>

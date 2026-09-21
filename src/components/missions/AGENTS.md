@@ -1,10 +1,10 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-08-11 | Updated: 2026-09-18 -->
+<!-- Generated: 2026-08-11 | Updated: 2026-09-21 -->
 
 # missions
 
 ## Purpose
-UI for mission reports ("comptes rendus de mission"): the multi-step submission wizard used by `src/app/missions/new/page.tsx`, and the photo/signed-report viewers used by the mission detail page `src/app/missions/[id]/page.tsx`.
+UI for mission reports ("comptes rendus de mission"): the multi-step submission wizard used by `src/app/missions/new/page.tsx` **and** by the QR scan page `src/app/qr-ul/[token]/page.tsx`, plus the photo/signed-report viewers used by the mission detail page `src/app/missions/[id]/page.tsx`.
 
 ## Key Files
 | File | Description |
@@ -24,13 +24,15 @@ UI for mission reports ("comptes rendus de mission"): the multi-step submission 
 
 ### Working In This Directory
 **The wizard's step list is dynamic — never index steps by a hard-coded number.** `activeSteps` is built at render time and steps are dispatched by *label*, not by number:
-- `UL / DT` is always first: it carries the report's attachment (`selected_ul_id` **xor** `selected_dt_code`) and blocks `Suivant` until one is picked.
+- `UL / DT` is first **unless the wizard is locked** (see below): it carries the report's attachment (`selected_ul_id` **xor** `selected_dt_code`) and blocks `Suivant` until one is picked.
 - `Répartition interventions` sits **directly after `Général`** and only exists when `formData.victim_count >= 1` — typing a count on the Général step makes it appear, back-navigating and zeroing the count makes it disappear (the index clamp handles the shrink).
 - `Matériel` + `Oxygène` are dropped when the chosen vehicle is external (`vehicle_id?.startsWith('EXTERNAL_')`).
 - `Rapport signé` only appears for `mission_type` `DPS` or `PAPS`.
 - `currentStepIndex = Math.min(step, activeSteps.length)` guards against the list shrinking under the user after a back-navigation.
 
 Adding a step means adding its label to `activeSteps`, a `validateStep` branch keyed on that label, and a `{currentStepLabel === '…' && <StepN …/>}` line.
+
+**Locked-UL mode (QR scan entry point).** Three optional props drive it: `lockedUlId`, `lockedUlName` and `submitEndpoint` (default `/api/missions`). When `lockedUlId` is set, the initial form starts with `selected_ul_id: lockedUlId`, the `UL / DT` step is **removed** from `activeSteps` entirely, and a read-only `lockedUlBanner` ("Rattaché à …") is rendered above the step content instead. Leaving the step visible would let the volunteer pick a different structure than the one scanned — which the server overwrites from the token anyway, so the choice would be a lie. `submitEndpoint` is the only other difference: the QR page posts to `/api/qr-ul/[token]/mission-report`, which has no role gate. Everything else (validation, uploads, payload shape) is shared, on purpose.
 
 **All step state is lifted into `MissionWizard`.** Steps are pure controlled panels receiving `data` + `onChange(patch)` (or `supplies` + `onSupplyChange`). Validation is centralized in `validateStep(s)`; the signed report is mandatory when its step is active.
 
@@ -49,7 +51,8 @@ Both photo components proxy Drive images through `/api/drive/photos/{id}` and th
 ## Dependencies
 
 ### Internal
-- `POST /api/missions` — mission report creation
+- `POST /api/missions` — mission report creation (default `submitEndpoint`)
+- `POST /api/qr-ul/[token]/mission-report` — creation from a scanned UL QR code (locked-UL mode)
 - `GET /api/drive/photos?folderId=…&flat=true` — photo listing; `GET /api/drive/photos/{id}` — image/PDF proxy
 - `@/lib/mission-supplies` — `SUPPLY_CATEGORIES`, `SupplyCategory`
 - `@/lib/mission-interventions` — the two category lists and their French labels (shared with the detail page)

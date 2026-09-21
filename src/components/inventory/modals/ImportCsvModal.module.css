@@ -1,0 +1,47 @@
+.overlay {
+    z-index: 110;
+}
+
+.modal {
+    max-width: 520px;
+}
+
+.errorBox {
+    background: var(--error-bg);
+    color: var(--error-text);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+}
+
+.lineErrors {
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    max-height: 220px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+}
+
+.lineErrorsList {
+    margin: 0;
+    padding: 10px 10px 10px 26px;
+}
+
+.lineErrorItem {
+    margin-bottom: 4px;
+}
+
+.formatHint {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-top: 8px;
+}
+
+.footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 24px;
+}

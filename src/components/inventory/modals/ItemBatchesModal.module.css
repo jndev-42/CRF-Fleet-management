@@ -1,0 +1,162 @@
+.overlay {
+    z-index: 100;
+}
+
+.modal {
+    max-width: 520px;
+}
+
+.noDateBox {
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+}
+
+.headRow {
+    text-align: left;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.headCell {
+    padding: 8px;
+}
+
+.headCellRight {
+    padding: 8px;
+    text-align: right;
+}
+
+.headCellAction {
+    padding: 8px;
+    text-align: center;
+    width: 90px;
+}
+
+.row {
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.dateCell {
+    padding: 8px;
+}
+
+.qtyCell {
+    padding: 8px;
+    text-align: right;
+    font-weight: bold;
+}
+
+.qtyControls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.qtyBtn {
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-primary);
+    background: var(--bg-muted);
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.qtyBtn:disabled {
+    opacity: 0.5;
+}
+
+.qtyBtnUnit {
+    width: 24px;
+    font-size: 0.8rem;
+}
+
+.qtyBtnTen {
+    min-width: 32px;
+    font-size: 0.75rem;
+}
+
+.qtyValue {
+    min-width: 32px;
+    text-align: center;
+    display: inline-block;
+}
+
+.actionCell {
+    padding: 8px;
+    text-align: center;
+}
+
+.deleteBtn {
+    background: none;
+    border: 1px solid var(--status-maintenance);
+    color: var(--status-maintenance);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.deleteBtn:disabled {
+    opacity: 0.5;
+}
+
+.addBatchBox {
+    border: 1px solid var(--border-primary);
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.addBatchTitle {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+.fieldRow {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.fieldDate {
+    flex: 2;
+}
+
+.fieldQty {
+    flex: 1;
+}
+
+.fieldLabel {
+    display: block;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+}
+
+.checkboxRow {
+    margin-bottom: 1rem;
+}
+
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.submitBtn {
+    width: 100%;
+}

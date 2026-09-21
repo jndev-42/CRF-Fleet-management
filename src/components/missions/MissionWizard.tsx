@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Check } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Check, Lock } from 'lucide-react';
 import { SUPPLY_CATEGORIES, type SupplyCategory } from '@/lib/mission-supplies';
 import Step0ULSelection from './steps/Step0ULSelection';
 import Step1General from './steps/Step1General';
@@ -82,12 +83,31 @@ interface MissionWizardProps {
     currentUserName?: string;
     /** Name of the submitter's home UL — used to label the "Présence UL ?" toggle in Step5Team */
     currentUserUlName?: string;
+    /** Verrouillage du rattachement (accès par QR code d'UL) : l'étape « UL / DT »
+     *  disparaît et le rapport part sur CETTE UL, sans que l'utilisateur puisse en changer. */
+    lockedUlId?: string;
+    lockedUlName?: string;
+    /** Route de soumission — la variante QR poste sur `/api/qr-ul/[token]/mission-report`,
+     *  qui n'applique PAS le filtre de rôles de `/api/missions`. */
+    submitEndpoint?: string;
     onSuccess: (id: string) => void;
 }
 
-export default function MissionWizard({ currentUserId, currentUserName, currentUserUlName, onSuccess }: MissionWizardProps) {
+export default function MissionWizard({
+    currentUserId,
+    currentUserName,
+    currentUserUlName,
+    lockedUlId,
+    lockedUlName,
+    submitEndpoint = '/api/missions',
+    onSuccess,
+}: MissionWizardProps) {
+    const router = useRouter();
+    const pathname = usePathname();
     const [step, setStep] = useState(1);
-    const [formData, setFormData] = useState<MissionFormData>(INITIAL_FORM);
+    const [formData, setFormData] = useState<MissionFormData>(
+        lockedUlId ? { ...INITIAL_FORM, selected_ul_id: lockedUlId } : INITIAL_FORM
+    );
     const [supplies, setSupplies] = useState<Record<string, number>>({});
     const [signedReportFile, setSignedReportFile] = useState<File | null>(null);
     const [photos, setPhotos] = useState<File[]>([]);
@@ -101,7 +121,10 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
     const isExternalVehicle = formData.vehicle_id?.startsWith('EXTERNAL_');
 
     const activeSteps = [
-        'UL / DT',
+        // Verrouillée par le QR : l'étape n'a plus rien à demander, et la laisser
+        // visible permettrait de choisir une AUTRE structure que celle scannée —
+        // que le serveur écraserait de toute façon.
+        ...(lockedUlId ? [] : ['UL / DT']),
         'Général',
         ...(formData.victim_count >= 1 ? ['Répartition interventions'] : []),
         'Équipage',
@@ -247,7 +270,7 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
         }
 
         try {
-            const res = await fetch('/api/missions', {
+            const res = await fetch(submitEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -261,6 +284,14 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
             });
 
             if (!res.ok) {
+                // Session expirée pendant la saisie : un message d'erreur générique
+                // laisserait le bénévole bloqué sur un formulaire rempli sans issue.
+                // On le renvoie vers la connexion, puis sur CETTE page (classique
+                // comme QR d'UL — le wizard est partagé par les deux parcours).
+                if (res.status === 401) {
+                    router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+                    return;
+                }
                 const data = await res.json();
                 setError(data.error || 'Erreur lors de la soumission.');
                 return;
@@ -319,6 +350,14 @@ export default function MissionWizard({ currentUserId, currentUserName, currentU
             </ol>
 
             {error && <div className={styles.errorBox} role="alert">{error}</div>}
+
+            {/* Rattachement verrouillé par le QR code — affiché à la place de l'étape « UL / DT ». */}
+            {lockedUlId && (
+                <div className={styles.lockedUlBanner}>
+                    <Lock size={16} aria-hidden="true" />
+                    <span>Rattaché à <strong>{lockedUlName ?? lockedUlId}</strong></span>
+                </div>
+            )}
 
             {/* Step content */}
             {currentStepLabel === 'UL / DT' && <Step0ULSelection data={formData} onChange={patchFormData} />}

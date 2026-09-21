@@ -47,6 +47,24 @@ describe('StockModal', () => {
         expect((screen.getByPlaceholderText(/ex: Stock Véhicules/) as HTMLInputElement).value).toBe('Ancien nom');
     });
 
+    it('ignore une seconde soumission tant que la première est en cours', async () => {
+        let resolveSubmit: () => void = () => {};
+        const onSubmit = vi.fn().mockReturnValue(new Promise<void>(resolve => { resolveSubmit = resolve; }));
+        const { container } = render(
+            <StockModal isOpen mode="create" initialName="Stock UL18" onClose={vi.fn()} onSubmit={onSubmit} />
+        );
+
+        // `fireEvent.submit` contourne l'attribut `disabled` du bouton : c'est le
+        // double-Enter/double-clic que la garde `if (submitting) return` doit bloquer.
+        const form = container.querySelector('form')!;
+        fireEvent.submit(form);
+        fireEvent.submit(form);
+
+        expect(onSubmit).toHaveBeenCalledTimes(1);
+        resolveSubmit();
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    });
+
     describe('mode duplicate', () => {
         it('affiche le titre, le stock source et pré-remplit le nom', () => {
             render(

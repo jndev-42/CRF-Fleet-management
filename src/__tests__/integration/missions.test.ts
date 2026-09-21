@@ -1080,6 +1080,35 @@ describe('GET /api/missions/[id] (detail)', () => {
         const res = await getDetail(makeDetailRequest('report-other-dt'), { params: Promise.resolve({ id: 'report-other-dt' }) });
         expect(res.status).toBe(403);
     });
+
+    it('returns 200 for the submitter when session.user.id is an email fallback (dev)', async () => {
+        // En dev, `session.user.id` peut valoir l'email et non le `User.id` : sans
+        // résolution email → id, l'auteur se verrait refuser son propre rapport.
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, victim_count, had_acr, had_hemorrhage, had_complex_care, needs_followup)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['report-ci-dev', 'user-ci', '2026-03-11T12:00:00.000Z', 'DPS', 'Mission CI dev', '2026-03-11', 'Lyon', 'Moi', 1, 0, 0, 0, 0, 0],
+        });
+
+        mockedAuth.mockResolvedValue({
+            user: { id: 'ci@test.com', email: 'ci@test.com', roles: ['CI/RPAPS'], ulId: 'ul-paris-18' },
+        } as never);
+
+        const res = await getDetail(makeDetailRequest('report-ci-dev'), { params: Promise.resolve({ id: 'report-ci-dev' }) });
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.id).toBe('report-ci-dev');
+    });
+
+    it('still returns 403 on someone else\'s report when session.user.id is an email fallback', async () => {
+        // La résolution ne doit pas élargir l'accès : report-1 appartient à l'admin.
+        mockedAuth.mockResolvedValue({
+            user: { id: 'ci@test.com', email: 'ci@test.com', roles: ['CI/RPAPS'], ulId: 'ul-paris-18' },
+        } as never);
+
+        const res = await getDetail(makeDetailRequest('report-1'), { params: Promise.resolve({ id: 'report-1' }) });
+        expect(res.status).toBe(403);
+    });
 });
 
 // ── DELETE ────────────────────────────────────────────────────────────────────

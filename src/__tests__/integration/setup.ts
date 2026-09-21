@@ -126,8 +126,14 @@ async function createTables() {
     phoneNumbers TEXT,
     defaultParkingSpots TEXT,
     stampImage TEXT,
-    dtCode TEXT
+    dtCode TEXT,
+    qrToken TEXT
   )`);
+
+  // Index partiel — deux UL ne peuvent pas porter le même token QR, mais autant
+  // d'UL qu'on veut peuvent n'en porter aucun.
+  await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "UniteLocale_qrToken_key"
+    ON "UniteLocale"("qrToken") WHERE "qrToken" IS NOT NULL`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "Role" (
     id TEXT PRIMARY KEY,
@@ -443,8 +449,14 @@ async function createTables() {
     phoneNumbers TEXT,
     defaultParkingSpots TEXT,
     stampImage TEXT,
-    dtCode TEXT
+    dtCode TEXT,
+    qrToken TEXT
   )`);
+
+  // Index partiel — deux UL ne peuvent pas porter le même token QR, mais autant
+  // d'UL qu'on veut peuvent n'en porter aucun.
+  await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "UniteLocale_qrToken_key"
+    ON "UniteLocale"("qrToken") WHERE "qrToken" IS NOT NULL`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "UserUL" (
     userId TEXT NOT NULL,

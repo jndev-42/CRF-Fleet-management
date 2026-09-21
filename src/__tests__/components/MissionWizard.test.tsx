@@ -1,5 +1,12 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+const mockPush = vi.fn();
+
+vi.mock('next/navigation', () => ({
+    useRouter: () => ({ push: mockPush }),
+    usePathname: () => '/missions/new',
+}));
 
 vi.mock('@/lib/imageCompression', () => ({
     compressImage: vi.fn((f: File) => Promise.resolve(f)),
@@ -64,12 +71,14 @@ async function goToLastStep(attachment?: string) {
 
 beforeEach(() => {
     vi.restoreAllMocks();
+    mockPush.mockClear();
     mockedUpload.mockResolvedValue({ success: true, folderId: 'folder-1', fileIds: ['file-1'] });
     mockFetch();
 });
 
 afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
 });
 
 describe('MissionWizard', () => {
@@ -212,6 +221,27 @@ describe('MissionWizard', () => {
         expect(onSuccess).not.toHaveBeenCalled();
     });
 
+    it('appelle onSuccess une fois l\'animation Paris 18 terminée', async () => {
+        // `shouldAdvanceTime` : le reste du test (fetch, waitFor) reste asynchrone
+        // normalement ; seule la timeline de l'overlay est avancée manuellement.
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        mockFetch(async () => new Response(JSON.stringify({ id: 'mission-1' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard onSuccess={onSuccess} />);
+        await goToLastStep('ul:ul-paris-18');
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(screen.getByAltText('MARINE APPROVED')).toBeTruthy());
+        expect(onSuccess).not.toHaveBeenCalled();
+
+        // MarineApprovedOverlay déclenche `onAnimationComplete` à t=3700 ms.
+        await act(async () => { await vi.advanceTimersByTimeAsync(3700); });
+
+        expect(onSuccess).toHaveBeenCalledWith('mission-1');
+        expect(screen.queryByAltText('MARINE APPROVED')).toBeNull();
+    });
+
     it('affiche une erreur si la soumission échoue', async () => {
         mockFetch(async () => new Response(JSON.stringify({ error: 'Véhicule déjà réservé' }), { status: 400 }));
 
@@ -220,6 +250,19 @@ describe('MissionWizard', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
 
         expect(await screen.findByText('Véhicule déjà réservé')).toBeTruthy();
+    });
+
+    it('redirige vers /login quand la soumission répond 401', async () => {
+        mockFetch(async () => new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard onSuccess={onSuccess} />);
+        await goToLastStep();
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login?callbackUrl=%2Fmissions%2Fnew'));
+        expect(screen.queryByRole('alert')).toBeNull();
+        expect(onSuccess).not.toHaveBeenCalled();
     });
 
     it('bloque la soumission d\'un DPS sans rapport signé', async () => {
@@ -312,5 +355,58 @@ describe('MissionWizard', () => {
         const body = JSON.parse((postCall![1] as RequestInit).body as string);
         expect(body.intervention_types).toEqual([]);
         expect(body.intervention_natures).toEqual([]);
+    });
+});
+
+/**
+ * Mode verrouillé — point d'entrée `/qr-ul/[token]`.
+ *
+ * L'étape « UL / DT » doit DISPARAÎTRE, pas seulement être désactivée : la
+ * laisser visible offrirait un choix que le serveur écrase depuis le token.
+ */
+describe('MissionWizard — rattachement verrouillé par QR code', () => {
+    // Volontairement PAS `ul-paris-18` : cette UL déclenche l'animation de succès,
+    // qui diffère `onSuccess` — le verrouillage n'a rien à voir avec elle.
+    const LOCKED = { lockedUlId: 'ul-lyon-3', lockedUlName: 'Lyon 3' };
+    const QR_ENDPOINT = '/api/qr-ul/token-abc/mission-report';
+
+    function fillLockedStep1() {
+        fireEvent.change(screen.getByLabelText('Nom de la mission *'), { target: { value: 'Poste Secours Test' } });
+        fireEvent.change(screen.getByLabelText('Lieu *'), { target: { value: 'Local UL 18' } });
+    }
+
+    it('retire l\'étape « UL / DT » et démarre sur « Général »', () => {
+        render(<MissionWizard {...LOCKED} onSuccess={vi.fn()} />);
+
+        expect(screen.getByRole('heading', { name: 'Étape 1 / 8 — Général' })).toBeTruthy();
+        const items = screen.getAllByRole('listitem').map(el => el.textContent);
+        expect(items.some(t => t?.includes('UL / DT'))).toBe(false);
+        expect(screen.queryByLabelText('Structure de rattachement *')).toBeNull();
+    });
+
+    it('affiche le bandeau lecture seule « Rattaché à … »', () => {
+        render(<MissionWizard {...LOCKED} onSuccess={vi.fn()} />);
+        expect(screen.getByText('Lyon 3')).toBeTruthy();
+    });
+
+    it('poste sur `submitEndpoint` avec l\'UL verrouillée, sans DT', async () => {
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'mission-qr' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard {...LOCKED} submitEndpoint={QR_ENDPOINT} onSuccess={onSuccess} />);
+        fillLockedStep1();
+        // Général -> Équipage -> Matériel -> Oxygène -> Équipe -> Incidents -> Commentaire -> Photos
+        for (let i = 0; i < 7; i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-qr'));
+
+        expect(fetchMock.mock.calls.some(c => getUrl(c[0]) === '/api/missions')).toBe(false);
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === QR_ENDPOINT && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body.selected_ul_id).toBe('ul-lyon-3');
+        expect(body.selected_dt_code).toBeNull();
     });
 });

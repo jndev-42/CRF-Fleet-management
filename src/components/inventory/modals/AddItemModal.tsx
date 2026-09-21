@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import styles from './AddItemModal.module.css';
 
 interface AddItemModalProps {
     isOpen: boolean;
@@ -31,6 +32,7 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
+        if (submitting) return;
         setSubmitting(true);
         setError('');
 
@@ -60,7 +62,7 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
     }
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
+        <div className={`modal-overlay ${styles.overlay}`} onClick={onClose}>
             <div className="modal" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">Créer un nouvel article</h2>
@@ -69,14 +71,7 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
                         {error && (
-                            <div style={{
-                                background: 'var(--error-bg)',
-                                color: 'var(--error-text)',
-                                padding: '10px 14px',
-                                borderRadius: '8px',
-                                marginBottom: '16px',
-                                fontSize: '0.9rem',
-                            }}>
+                            <div className={styles.errorBox} role="alert">
                                 {error}
                             </div>
                         )}
@@ -94,23 +89,17 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
 
                         <div className="form-group">
                             <label className="form-label">Type / Catégorie</label>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                            <div className={styles.categoryChips}>
                                 {CATEGORY_OPTIONS.map(opt => (
                                     <button
                                         key={opt}
                                         type="button"
                                         onClick={() => setForm({ ...form, category: opt })}
+                                        className={styles.categoryChip}
                                         style={{
-                                            padding: '4px 12px',
-                                            borderRadius: '20px',
-                                            border: '1.5px solid',
                                             borderColor: form.category === opt ? 'var(--primary, #2563eb)' : 'var(--border-primary)',
                                             background: form.category === opt ? 'var(--primary, #2563eb)' : 'transparent',
                                             color: form.category === opt ? '#fff' : 'inherit',
-                                            cursor: 'pointer',
-                                            fontSize: '0.85rem',
-                                            fontWeight: 500,
-                                            transition: 'all 0.15s',
                                         }}
                                     >
                                         {opt}
@@ -125,8 +114,8 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
                             />
                         </div>
 
-                        <div className="form-row" style={{ display: 'flex', gap: '12px' }}>
-                            <div className="form-group" style={{ flex: 1 }}>
+                        <div className={`form-row ${styles.formRow}`}>
+                            <div className={`form-group ${styles.formRowField}`}>
                                 <label className="form-label">Quantité initiale</label>
                                 <input
                                     type="number"
@@ -136,7 +125,7 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
                                     onChange={e => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })}
                                 />
                             </div>
-                            <div className="form-group" style={{ flex: 1 }}>
+                            <div className={`form-group ${styles.formRowField}`}>
                                 <label className="form-label">Date de péremption (Optionnel)</label>
                                 <input
                                     type="date"
@@ -163,10 +152,9 @@ export default function AddItemModal({ isOpen, stockId, onClose, onSuccess }: Ad
                         <div className="form-group">
                             <label className="form-label">Notes</label>
                             <textarea
-                                className="form-input"
+                                className={`form-input ${styles.notesInput}`}
                                 value={form.notes}
                                 onChange={e => setForm({ ...form, notes: e.target.value })}
-                                style={{ minHeight: '80px' }}
                             />
                         </div>
                     </div>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import styles from './StockQRCodeModal.module.css';
 
 interface StockQRCodeModalProps {
     onClose: () => void;
@@ -108,18 +109,17 @@ export default function StockQRCodeModal({ onClose, stockName, stockId, userRole
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 10000 }}>
+        <div className={`modal-overlay ${styles.overlay}`} onClick={onClose}>
             <div
-                className="modal-content"
+                className={`modal-content ${styles.modal}`}
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="stock-qr-title"
                 onClick={e => e.stopPropagation()}
-                style={{ textAlign: 'center', maxWidth: 380 }}
             >
-                <h3 id="stock-qr-title" style={{ marginBottom: 8, marginTop: 0 }}>QR Code — {stockName}</h3>
+                <h3 id="stock-qr-title" className={styles.title}>QR Code — {stockName}</h3>
 
-                <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 20, lineHeight: 1.5 }}>
+                <p className={styles.intro}>
                     Ce QR Code permet à n&apos;importe quel utilisateur Croix-Rouge connecté de déclarer
                     des entrées et des sorties sur <strong>{stockName}</strong>, sans restriction d&apos;UL
                     ni de rôle. Chaque mouvement est enregistré à son nom.
@@ -128,22 +128,17 @@ export default function StockQRCodeModal({ onClose, stockName, stockId, userRole
                 </p>
 
                 {loading && (
-                    <div style={{ padding: 32, color: 'var(--text-secondary)' }}>
+                    <div className={styles.loadingBox}>
                         ⏳ Génération du QR Code...
                     </div>
                 )}
 
                 {error && (
-                    <div style={{
-                        padding: '12px 16px', marginBottom: 20,
-                        background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)',
-                        borderRadius: 8, color: 'var(--error-text)', fontSize: 13,
-                    }}>
+                    <div className={styles.errorBox} role="alert">
                         {error}
                         <button
                             onClick={fetchToken}
-                            style={{ marginLeft: 8, textDecoration: 'underline', cursor: 'pointer',
-                                background: 'none', border: 'none', color: 'var(--error-text)', fontSize: 13 }}
+                            className={styles.retryBtn}
                         >
                             Réessayer
                         </button>
@@ -152,10 +147,7 @@ export default function StockQRCodeModal({ onClose, stockName, stockId, userRole
 
                 {!loading && token && (
                     <>
-                        <div style={{
-                            background: 'white', padding: 16, borderRadius: 8,
-                            display: 'inline-block', marginBottom: 16,
-                        }}>
+                        <div className={styles.qrFrame}>
                             <QRCodeCanvas
                                 id="qr-stock-code-canvas"
                                 value={qrUrl}
@@ -173,15 +165,12 @@ export default function StockQRCodeModal({ onClose, stockName, stockId, userRole
                             />
                         </div>
 
-                        <div style={{
-                            fontSize: 11, color: 'var(--text-muted)', marginBottom: 16,
-                            wordBreak: 'break-all', padding: '0 8px',
-                        }}>
+                        <div className={styles.qrUrl}>
                             {qrUrl}
                         </div>
 
                         <button
-                            className="btn btn-secondary"
+                            className={`btn btn-secondary ${styles.copyBtn}`}
                             onClick={() => {
                                 navigator.clipboard.writeText(qrUrl).then(() => {
                                     setCopied(true);
@@ -189,43 +178,36 @@ export default function StockQRCodeModal({ onClose, stockName, stockId, userRole
                                 });
                             }}
                             disabled={!token}
-                            style={{
-                                width: '100%',
-                                marginBottom: 20,
-                                fontSize: 13,
-                                ...(copied ? {
-                                    background: 'rgba(16,185,129,0.12)',
-                                    borderColor: 'rgba(16,185,129,0.5)',
-                                    color: 'var(--status-available)',
-                                } : {}),
-                            }}
+                            style={copied ? {
+                                background: 'rgba(16,185,129,0.12)',
+                                borderColor: 'rgba(16,185,129,0.5)',
+                                color: 'var(--status-available)',
+                            } : undefined}
                         >
                             {copied ? 'Lien copié !' : 'Copier le lien du QR Code'}
                         </button>
                     </>
                 )}
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    <div style={{ display: 'flex', gap: 10 }}>
+                <div className={styles.actions}>
+                    <div className={styles.actionsRow}>
                         <button
-                            className="btn btn-primary"
+                            className={`btn btn-primary ${styles.actionBtn}`}
                             onClick={downloadQRCode}
                             disabled={loading || !token}
-                            style={{ flex: 1 }}
                         >
                             Télécharger
                         </button>
-                        <button className="btn btn-secondary" onClick={onClose} style={{ flex: 1 }}>
+                        <button className={`btn btn-secondary ${styles.actionBtn}`} onClick={onClose}>
                             Fermer
                         </button>
                     </div>
 
                     {canAccessAdminPanel(userRoles) && (
                         <button
-                            className="btn btn-secondary"
+                            className={`btn btn-secondary ${styles.regenerateBtn}`}
                             onClick={handleRegenerate}
                             disabled={loading || regenerating}
-                            style={{ fontSize: 12, color: 'var(--text-muted)', borderColor: 'var(--border-secondary)' }}
                             title="Invalide l'ancien QR Code et génère un nouveau lien"
                         >
                             {regenerating ? '⏳ Régénération...' : '🔄 Régénérer le QR Code'}

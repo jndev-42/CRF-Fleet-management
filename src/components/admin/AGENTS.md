@@ -10,7 +10,7 @@ Admin-only administration UI. Four of the five files are *tab panels* rendered b
 | File | Description |
 |------|-------------|
 | `UsersTab.tsx` | User list with search + client-side pagination (6/page), role badges, papers validation, add/delete user, home-UL assignment, impersonation trigger. Also contains the private `ManageUserULsModal` (multi-UL rights editor) and renders `users/RoleLegend`. |
-| `ULsTab.tsx` | CRUD for ULs (unités locales): name, slug, DT code, phone numbers list, default parking spots, base64 stamp image. Owns its own toast state. |
+| `ULsTab.tsx` | CRUD for ULs (unités locales): name, slug, DT code, phone numbers list, default parking spots, base64 stamp image. Per-row actions: `Modifier`, `Supprimer`. Owns its own toast state. |
 | `BannersTab.tsx` | CRUD for in-app banners — message, `target_page` (`ALL`/`VEHICLES`/`MISSIONS`/`INVENTORY`), `type` (`info`/`warning`/`danger`/`success`), global vs per-UL scope, active flag, optional link URL/label. Exports the `Banner` interface. |
 | `MenusTab.tsx` | Per-module visibility switch (`stats`, `inventory`, `missions`) with three states: `available` / `admin_only` / `disabled`. Optimistic update with revert on failure. |
 | `ImpersonationBanner.tsx` | Red top banner while impersonating; "Retourner à mon compte" calls `useSession().update({ impersonateEmail: null })` then routes to `/users`. |

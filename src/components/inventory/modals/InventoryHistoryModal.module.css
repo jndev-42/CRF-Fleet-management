@@ -1,0 +1,47 @@
+.overlay {
+    z-index: 100;
+}
+
+.modal {
+    max-width: 600px;
+}
+
+.tableWrapper {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.tableHead {
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+}
+
+.headRow {
+    border-bottom: 1px solid var(--border-primary);
+    text-align: left;
+}
+
+.cell {
+    padding: 8px;
+}
+
+.row {
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.changeCell {
+    padding: 8px;
+    font-weight: 600;
+}
+
+.noteCell {
+    padding: 8px;
+    color: var(--text-secondary);
+}

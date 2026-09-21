@@ -1,5 +1,30 @@
 # Changelog
 
+## [5.15.0] — 21 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Générer et imprimer le QR code de son UL depuis l'écran des comptes rendus de mission** — un bouton « QR Code » apparaît dans l'en-tête de `/missions` pour les cadres, présidents et administrateurs, ouvrant une fenêtre pour télécharger le QR code de leur UL active, copier son lien ou le régénérer (ce qui invalide aussitôt l'ancien code imprimé).
+
+### 🔧 Améliorations
+
+- **Reconnexion automatique en cas de session expirée** — si la session expire pendant la rédaction d'un compte rendu de mission (formulaire classique ou dépôt par QR code), l'application propose désormais de se reconnecter au lieu d'afficher une erreur générique.
+- **Accessibilité des pages de scan** — les états de chargement et d'erreur des pages ouvertes par un QR code (véhicule, stock, UL) sont maintenant annoncés aux lecteurs d'écran.
+- **Fiche d'un compte rendu de mission** — la consultation de sa propre fiche fonctionne désormais de façon fiable même dans certaines configurations où l'identifiant de session diffère de l'identifiant en base.
+- **Modales de gestion du stock** — une double validation accidentelle (double-clic ou double-Entrée) sur un formulaire (article, lot, import CSV) n'envoie plus deux fois la même demande.
+
+## [5.14.0] — 21 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Déposer un compte rendu de mission en scannant le QR code de son UL** — chaque unité locale dispose désormais de son propre QR code. Le scanner ouvre directement le formulaire de compte rendu, déjà rattaché à l'UL : plus besoin de choisir la structure, l'étape « UL / DT » disparaît et un bandeau rappelle « Rattaché à … ». La génération et l'impression du QR code seront disponibles dans une prochaine version.
+- **Ouvert à tous les bénévoles présents sur le poste** — contrairement au formulaire habituel, réservé aux CI/RPAPS et aux administrateurs, le dépôt par QR code est accessible à n'importe quel compte actif, y compris à un bénévole sans rôle attribué. Seuls les comptes inactifs sont refusés.
+- **Confirmation sur place, sans quitter la page** — une fois le compte rendu envoyé, un message de confirmation s'affiche avec un bouton « Nouveau rapport » pour enchaîner un second dépôt. Aucune redirection vers un écran dont le bénévole n'aurait pas forcément l'accès.
+
+### ⚠️ À faire avant la mise en production
+
+- **Lancer la migration `npx tsx scripts/add-ul-qr-token.ts --apply` AVANT de déployer cette version.** Elle ajoute la colonne qui stocke le QR code de chaque UL. Tant qu'elle n'est pas passée, la génération ou la lecture d'un QR code d'UL échoue avec une erreur serveur.
+
 ## [5.13.0] — 18 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

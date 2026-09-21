@@ -1,5 +1,5 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-08-11 | Updated: 2026-08-11 -->
+<!-- Generated: 2026-08-11 | Updated: 2026-09-21 -->
 
 # app
 
@@ -18,7 +18,11 @@ Next.js App Router root: page routes (French-language UI, Client Components) and
 | Directory | Purpose |
 |-----------|---------|
 | `api/` | REST API routes (see `api/AGENTS.md`) |
-| `aide/`, `expenses/`, `inactif/`, `inventory/`, `login/`, `mentions-legales/`, `missions/`, `qr/`, `stats/`, `users/`, `vehicles/` | Feature pages, one directory per route (see each `AGENTS.md`) |
+| `aide/`, `expenses/`, `inactif/`, `inventory/`, `login/`, `mentions-legales/`, `missions/`, `qr/`, `qr-stock/`, `qr-ul/`, `stats/`, `users/`, `vehicles/` | Feature pages, one directory per route (see each `AGENTS.md`) |
+
+### The QR scan pages — a family, not one-offs
+`qr/[token]` (vehicle), `qr-stock/[token]` (stock) and `qr-ul/[token]` (mission report) share one shape and must keep it: rendered **outside the app shell**, mobile-first, no outgoing navigation, errors shown inline (never `alert()`), a `401` from their API redirecting to `/login?callbackUrl=…`, and a local `done` confirmation card instead of a redirect to a role-gated screen. Their APIs apply **no UL and no role filter** — only `isQrBlocked` — because possession of the printed QR is the credential. Do not "harmonize" them with the role-gated routes they mirror.
+`qr-ul/[token]` embeds the existing `MissionWizard` with `lockedUlId` / `lockedUlName` / `submitEndpoint`, so the wizard's ten steps are never duplicated; a `key` bump resets it for the "Nouveau rapport" button.
 
 ## For AI Agents
 

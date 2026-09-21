@@ -1,0 +1,99 @@
+.overlay {
+    z-index: 100;
+}
+
+.modal {
+    max-width: 680px;
+    width: 90%;
+}
+
+.emptyState {
+    text-align: center;
+    padding: 2rem;
+    color: var(--status-available);
+}
+
+.emptyIcon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+}
+
+.hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.tableWrapper {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.headRow {
+    text-align: left;
+    border-bottom: 2px solid var(--border-primary);
+}
+
+.headCell {
+    padding: 8px 10px;
+}
+
+.headCellCenter {
+    padding: 8px 10px;
+    text-align: center;
+}
+
+.row {
+    border-bottom: 1px solid var(--border-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.nameCell {
+    padding: 10px;
+    font-weight: 500;
+}
+
+.arrow {
+    margin-left: 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.categoryCell {
+    padding: 10px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.quantityCell {
+    padding: 10px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+
+.minStockCell {
+    padding: 10px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.deficitCell {
+    padding: 10px;
+    text-align: center;
+}
+
+.deficitBadge {
+    display: inline-block;
+    color: #fff;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    min-width: 36px;
+}

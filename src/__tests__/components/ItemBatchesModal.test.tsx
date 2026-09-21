@@ -138,4 +138,32 @@ describe('ItemBatchesModal', () => {
             expect(body.change).toBe(20);
         });
     });
+
+    it('ignore une seconde soumission du formulaire de lot tant que la première est en cours', async () => {
+        mockSession(['ADMIN']);
+        let resolveAdjust: (res: Response) => void = () => {};
+        const fetchMock = mockFetch(async (input, init) => {
+            const url = getUrl(input);
+            if (url.includes('/api/inventory/adjust') && init?.method === 'POST') {
+                return new Promise<Response>(resolve => { resolveAdjust = resolve; });
+            }
+            return defaultFetchHandler(input, init);
+        });
+        const { container } = render(<ItemBatchesModal itemId="item-1" itemName="Gants" onClose={vi.fn()} />);
+
+        await screen.findByText('2027/01/01');
+        fireEvent.change(document.querySelector('input[type="date"]') as HTMLInputElement, { target: { value: '2027-06-01' } });
+        fireEvent.change(document.querySelector('input[type="number"]') as HTMLInputElement, { target: { value: '20' } });
+
+        // `fireEvent.submit` contourne l'attribut `disabled` du bouton : c'est le
+        // double-Enter/double-clic que la garde `if (submitting) return` doit bloquer.
+        const form = container.querySelector('form')!;
+        fireEvent.submit(form);
+        fireEvent.submit(form);
+
+        const adjustCalls = () => fetchMock.mock.calls.filter(c => getUrl(c[0]).includes('/api/inventory/adjust'));
+        expect(adjustCalls()).toHaveLength(1);
+        resolveAdjust(new Response(JSON.stringify({ success: true }), { status: 200 }));
+        await waitFor(() => expect(adjustCalls()).toHaveLength(1));
+    });
 });

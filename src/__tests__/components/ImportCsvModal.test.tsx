@@ -82,4 +82,23 @@ describe('ImportCsvModal', () => {
         await waitFor(() => expect(onSuccess).toHaveBeenCalledWith({ stockId: 'stock-1', itemCount: 3 }));
         expect(onClose).toHaveBeenCalled();
     });
+
+    it('ignore une seconde soumission tant que la première est en cours', async () => {
+        let resolveFetch: (res: Response) => void = () => {};
+        vi.mocked(fetch).mockReturnValue(new Promise<Response>(resolve => { resolveFetch = resolve; }));
+
+        const { container } = render(<ImportCsvModal isOpen onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        fireEvent.change(screen.getByPlaceholderText(/ex: Stock Véhicules/), { target: { value: 'Stock Import' } });
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        fireEvent.change(fileInput, { target: { files: [makeFile()] } });
+
+        const form = container.querySelector('form')!;
+        fireEvent.submit(form);
+        fireEvent.submit(form);
+
+        expect(fetch).toHaveBeenCalledTimes(1);
+        resolveFetch(new Response(JSON.stringify({ stockId: 'stock-1', itemCount: 1 }), { status: 201 }));
+        await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+    });
 });

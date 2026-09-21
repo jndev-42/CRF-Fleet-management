@@ -360,3 +360,22 @@
     margin-bottom: 1rem;
     font-size: 0.875rem;
 }
+
+/* Rattachement imposé par le QR code de l'UL : lecture seule, affiché à la
+   place de l'étape « UL / DT » qui disparaît alors du parcours. */
+.lockedUlBanner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.lockedUlBanner strong {
+    color: var(--text-primary);
+}
