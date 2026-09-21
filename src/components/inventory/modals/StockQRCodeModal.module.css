@@ -1,0 +1,88 @@
+.overlay {
+    z-index: 10000;
+}
+
+.modal {
+    text-align: center;
+    max-width: 380px;
+}
+
+.title {
+    margin-bottom: 8px;
+    margin-top: 0;
+}
+
+.intro {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.loadingBox {
+    padding: 32px;
+    color: var(--text-secondary);
+}
+
+.errorBox {
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 8px;
+    color: var(--error-text);
+    font-size: 13px;
+}
+
+.retryBtn {
+    margin-left: 8px;
+    text-decoration: underline;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: var(--error-text);
+    font-size: 13px;
+}
+
+.qrFrame {
+    background: white;
+    padding: 16px;
+    border-radius: 8px;
+    display: inline-block;
+    margin-bottom: 16px;
+}
+
+.qrUrl {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    word-break: break-all;
+    padding: 0 8px;
+}
+
+.copyBtn {
+    width: 100%;
+    margin-bottom: 20px;
+    font-size: 13px;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.actionsRow {
+    display: flex;
+    gap: 10px;
+}
+
+.actionBtn {
+    flex: 1;
+}
+
+.regenerateBtn {
+    font-size: 12px;
+    color: var(--text-muted);
+    border-color: var(--border-secondary);
+}

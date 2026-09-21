@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Check, Lock } from 'lucide-react';
 import { SUPPLY_CATEGORIES, type SupplyCategory } from '@/lib/mission-supplies';
 import Step0ULSelection from './steps/Step0ULSelection';
@@ -101,6 +102,8 @@ export default function MissionWizard({
     submitEndpoint = '/api/missions',
     onSuccess,
 }: MissionWizardProps) {
+    const router = useRouter();
+    const pathname = usePathname();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState<MissionFormData>(
         lockedUlId ? { ...INITIAL_FORM, selected_ul_id: lockedUlId } : INITIAL_FORM
@@ -281,6 +284,14 @@ export default function MissionWizard({
             });
 
             if (!res.ok) {
+                // Session expirée pendant la saisie : un message d'erreur générique
+                // laisserait le bénévole bloqué sur un formulaire rempli sans issue.
+                // On le renvoie vers la connexion, puis sur CETTE page (classique
+                // comme QR d'UL — le wizard est partagé par les deux parcours).
+                if (res.status === 401) {
+                    router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+                    return;
+                }
                 const data = await res.json();
                 setError(data.error || 'Erreur lors de la soumission.');
                 return;

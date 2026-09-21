@@ -84,6 +84,24 @@ describe('EditItemModal', () => {
         expect(await screen.findByText('Nom déjà utilisé')).toBeTruthy();
     });
 
+    it('ignore une seconde soumission tant que la première est en cours', async () => {
+        let resolveFetch: (res: Response) => void = () => {};
+        const fetchMock = vi.fn().mockReturnValue(new Promise<Response>(resolve => { resolveFetch = resolve; }));
+        vi.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+
+        const { container } = render(<EditItemModal isOpen item={mockItem} onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        // `fireEvent.submit` contourne l'attribut `disabled` du bouton : c'est le
+        // double-Enter/double-clic que la garde `if (submitting) return` doit bloquer.
+        const form = container.querySelector('form')!;
+        fireEvent.submit(form);
+        fireEvent.submit(form);
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        resolveFetch(new Response(JSON.stringify({ success: true }), { status: 200 }));
+        await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    });
+
     it('appelle onClose au clic sur Annuler', () => {
         const onClose = vi.fn();
         render(<EditItemModal isOpen item={mockItem} onClose={onClose} onSuccess={vi.fn()} />);

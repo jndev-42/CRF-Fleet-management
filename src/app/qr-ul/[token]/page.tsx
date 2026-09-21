@@ -87,14 +87,14 @@ export default function QRUnitLocalePage() {
 
             <div style={{ width: '100%', maxWidth: 640 }}>
                 {loading && (
-                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 48 }}>
+                    <div role="status" aria-live="polite" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 48 }}>
                         <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
                         Chargement...
                     </div>
                 )}
 
                 {!loading && error && (
-                    <div style={{
+                    <div role="alert" style={{
                         textAlign: 'center',
                         padding: 32,
                         background: 'rgba(239,68,68,0.07)',

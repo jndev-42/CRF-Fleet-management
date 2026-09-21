@@ -1,5 +1,12 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+const mockPush = vi.fn();
+
+vi.mock('next/navigation', () => ({
+    useRouter: () => ({ push: mockPush }),
+    usePathname: () => '/missions/new',
+}));
 
 vi.mock('@/lib/imageCompression', () => ({
     compressImage: vi.fn((f: File) => Promise.resolve(f)),
@@ -64,12 +71,14 @@ async function goToLastStep(attachment?: string) {
 
 beforeEach(() => {
     vi.restoreAllMocks();
+    mockPush.mockClear();
     mockedUpload.mockResolvedValue({ success: true, folderId: 'folder-1', fileIds: ['file-1'] });
     mockFetch();
 });
 
 afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
 });
 
 describe('MissionWizard', () => {
@@ -212,6 +221,27 @@ describe('MissionWizard', () => {
         expect(onSuccess).not.toHaveBeenCalled();
     });
 
+    it('appelle onSuccess une fois l\'animation Paris 18 terminée', async () => {
+        // `shouldAdvanceTime` : le reste du test (fetch, waitFor) reste asynchrone
+        // normalement ; seule la timeline de l'overlay est avancée manuellement.
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        mockFetch(async () => new Response(JSON.stringify({ id: 'mission-1' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard onSuccess={onSuccess} />);
+        await goToLastStep('ul:ul-paris-18');
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(screen.getByAltText('MARINE APPROVED')).toBeTruthy());
+        expect(onSuccess).not.toHaveBeenCalled();
+
+        // MarineApprovedOverlay déclenche `onAnimationComplete` à t=3700 ms.
+        await act(async () => { await vi.advanceTimersByTimeAsync(3700); });
+
+        expect(onSuccess).toHaveBeenCalledWith('mission-1');
+        expect(screen.queryByAltText('MARINE APPROVED')).toBeNull();
+    });
+
     it('affiche une erreur si la soumission échoue', async () => {
         mockFetch(async () => new Response(JSON.stringify({ error: 'Véhicule déjà réservé' }), { status: 400 }));
 
@@ -220,6 +250,19 @@ describe('MissionWizard', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
 
         expect(await screen.findByText('Véhicule déjà réservé')).toBeTruthy();
+    });
+
+    it('redirige vers /login quand la soumission répond 401', async () => {
+        mockFetch(async () => new Response(JSON.stringify({ error: 'Non authentifié' }), { status: 401 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard onSuccess={onSuccess} />);
+        await goToLastStep();
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/login?callbackUrl=%2Fmissions%2Fnew'));
+        expect(screen.queryByRole('alert')).toBeNull();
+        expect(onSuccess).not.toHaveBeenCalled();
     });
 
     it('bloque la soumission d\'un DPS sans rapport signé', async () => {

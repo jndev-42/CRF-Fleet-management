@@ -45,6 +45,18 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
         const row = reportResult.rows[0];
 
+        // Le rapport stocke le `User.id` résolu depuis l'email (cf. POST) ; en dev
+        // `session.user.id` peut être un email de repli — sans résolution, l'auteur
+        // se verrait refuser son propre rapport.
+        let userId = (session.user.id as string | undefined) ?? null;
+        if (session.user.email) {
+            const userRes = await db.execute({
+                sql: `SELECT id FROM "User" WHERE email = ?`,
+                args: [session.user.email],
+            });
+            if (userRes.rows.length > 0) userId = userRes.rows[0].id as string;
+        }
+
         // Access control:
         const roles = (session.user.roles || ['INACTIF']) as string[];
         const isSuper = isSuperAdmin(roles);
@@ -58,7 +70,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         // L'auteur relit toujours son rapport — c'est ce que « Mes rapports »
         // liste. `isMissionContributor`/`isAdminOrAbove` portent le blocage INACTIF.
         const isSubmitter = (isMissionContributor(roles) || isAdminOrAbove(roles))
-            && row.submitted_by === session.user.id;
+            && row.submitted_by === userId;
 
         if (!isSuper && !isLocalAdmin && !isLocalManager && !isSubmitter) {
             return forbiddenResponse();

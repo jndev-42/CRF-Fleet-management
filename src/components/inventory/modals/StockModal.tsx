@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import styles from './StockModal.module.css';
 
 interface StockModalProps {
     isOpen: boolean;
@@ -35,6 +36,7 @@ export default function StockModal({ isOpen, mode, initialName = '', sourceStock
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (submitting) return;
         if (!name.trim()) {
             setError('Le nom du stock est requis');
             return;
@@ -58,8 +60,8 @@ export default function StockModal({ isOpen, mode, initialName = '', sourceStock
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 110 }}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <div className={`modal-overlay ${styles.overlay}`} onClick={onClose}>
+            <div className={`modal ${styles.modal}`} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">
                         {mode === 'create' && '➕ Créer un nouveau stock'}
@@ -71,14 +73,7 @@ export default function StockModal({ isOpen, mode, initialName = '', sourceStock
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
                         {error && (
-                            <div style={{
-                                background: 'var(--error-bg)',
-                                color: 'var(--error-text)',
-                                padding: '10px 14px',
-                                borderRadius: '8px',
-                                marginBottom: '16px',
-                                fontSize: '0.9rem',
-                            }}>
+                            <div className={styles.errorBox} role="alert">
                                 {error}
                             </div>
                         )}
@@ -86,13 +81,7 @@ export default function StockModal({ isOpen, mode, initialName = '', sourceStock
                         {mode === 'duplicate' && sourceStockName && (
                             <div className="form-group">
                                 <label className="form-label">Stock source</label>
-                                <div style={{
-                                    padding: '10px 14px',
-                                    borderRadius: '8px',
-                                    background: 'var(--bg-secondary)',
-                                    color: 'var(--text-secondary)',
-                                    fontSize: '0.95rem',
-                                }}>
+                                <div className={styles.sourceStock}>
                                     📦 {sourceStockName}
                                 </div>
                             </div>
@@ -112,21 +101,16 @@ export default function StockModal({ isOpen, mode, initialName = '', sourceStock
 
                         {mode === 'duplicate' && (
                             <div className="form-group">
-                                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                                <label className={styles.checkboxLabel}>
                                     <input
                                         type="checkbox"
                                         checked={copyStock}
                                         onChange={e => setCopyStock(e.target.checked)}
-                                        style={{ marginTop: '3px' }}
+                                        className={styles.checkboxInput}
                                     />
                                     <span>
                                         Copier le stock actuel (quantités + dates de péremption)
-                                        <span style={{
-                                            display: 'block',
-                                            color: 'var(--text-secondary)',
-                                            fontSize: '0.85rem',
-                                            marginTop: '2px',
-                                        }}>
+                                        <span className={styles.checkboxHint}>
                                             Sinon, seuls les articles sont copiés, avec une quantité à zéro.
                                             L&apos;historique des mouvements n&apos;est jamais copié.
                                         </span>
@@ -135,7 +119,7 @@ export default function StockModal({ isOpen, mode, initialName = '', sourceStock
                             </div>
                         )}
                     </div>
-                    <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '16px 24px' }}>
+                    <div className={`modal-footer ${styles.footer}`}>
                         <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
                             Annuler
                         </button>

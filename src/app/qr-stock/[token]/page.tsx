@@ -147,7 +147,7 @@ export default function QRStockPage() {
             </div>
 
             <div className={styles.container}>
-                {loading && <div className={styles.loading}>Chargement…</div>}
+                {loading && <div className={styles.loading} role="status" aria-live="polite">Chargement…</div>}
 
                 {error && (
                     <div className={styles.errorBox} role="alert">

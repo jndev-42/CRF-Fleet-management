@@ -1,0 +1,70 @@
+.overlay {
+    z-index: 100;
+}
+
+.modal {
+    max-width: 700px;
+    width: 90%;
+}
+
+.hint {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.tableWrapper {
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.headRow {
+    text-align: left;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.headCell {
+    padding: 8px;
+}
+
+.headCellRight {
+    padding: 8px;
+    text-align: right;
+}
+
+.row {
+    border-bottom: 1px solid var(--border-primary);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.nameCell {
+    padding: 8px;
+    font-weight: 500;
+}
+
+.arrow {
+    margin-left: 6px;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.categoryCell {
+    padding: 8px;
+    font-size: 0.85rem;
+}
+
+.expiryCell {
+    padding: 8px;
+    font-weight: 600;
+}
+
+.quantityCell {
+    padding: 8px;
+    text-align: right;
+    font-weight: bold;
+}

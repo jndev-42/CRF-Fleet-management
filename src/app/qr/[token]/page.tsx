@@ -102,7 +102,7 @@ export default function QRVehiclePage() {
 
                 {/* Loading */}
                 {loading && (
-                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 48 }}>
+                    <div role="status" aria-live="polite" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 48 }}>
                         <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
                         Chargement...
                     </div>
@@ -110,7 +110,7 @@ export default function QRVehiclePage() {
 
                 {/* Error */}
                 {!loading && error && (
-                    <div style={{
+                    <div role="alert" style={{
                         textAlign: 'center',
                         padding: 32,
                         background: 'rgba(239,68,68,0.07)',

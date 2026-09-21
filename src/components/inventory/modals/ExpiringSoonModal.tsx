@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import styles from './ExpiringSoonModal.module.css';
 
 interface ExpiringItem {
     batchId: string;
@@ -56,8 +57,8 @@ export default function ExpiringSoonModal({ stockId, onClose, onOpenBatches }: E
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px', width: '90%' }}>
+        <div className={`modal-overlay ${styles.overlay}`} onClick={onClose}>
+            <div className={`modal ${styles.modal}`} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">Périmé bientôt (sous 1 mois)</h2>
                     <button className="modal-close" onClick={onClose}>✕</button>
@@ -69,17 +70,17 @@ export default function ExpiringSoonModal({ stockId, onClose, onOpenBatches }: E
                         <p>Aucun article ne périme bientôt.</p>
                     ) : (
                         <>
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                            <p className={styles.hint}>
                                 Cliquez sur une ligne pour voir le détail des lots.
                             </p>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <div className={styles.tableWrapper}>
+                                <table className={styles.table}>
                                     <thead>
-                                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-primary)' }}>
-                                            <th style={{ padding: '8px' }}>Article</th>
-                                            <th style={{ padding: '8px' }}>Catégorie</th>
-                                            <th style={{ padding: '8px' }}>Péremption</th>
-                                            <th style={{ padding: '8px', textAlign: 'right' }}>Quantité</th>
+                                        <tr className={styles.headRow}>
+                                            <th className={styles.headCell}>Article</th>
+                                            <th className={styles.headCell}>Catégorie</th>
+                                            <th className={styles.headCell}>Péremption</th>
+                                            <th className={styles.headCellRight}>Quantité</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -92,30 +93,25 @@ export default function ExpiringSoonModal({ stockId, onClose, onOpenBatches }: E
                                                         onClose();
                                                         onOpenBatches(item.itemId, item.itemName);
                                                     }}
-                                                    style={{
-                                                        borderBottom: '1px solid var(--border-primary)',
-                                                        cursor: 'pointer',
-                                                        background: expired ? 'rgba(220,38,38,0.06)' : undefined,
-                                                        transition: 'background 0.15s',
-                                                    }}
+                                                    className={styles.row}
+                                                    style={{ background: expired ? 'rgba(220,38,38,0.06)' : undefined }}
                                                     onMouseEnter={e => (e.currentTarget.style.background = expired ? 'rgba(220,38,38,0.12)' : 'var(--bg-hover, rgba(0,0,0,0.04))')}
                                                     onMouseLeave={e => (e.currentTarget.style.background = expired ? 'rgba(220,38,38,0.06)' : '')}
                                                     title={`Voir les lots de « ${item.itemName} »`}
                                                 >
-                                                    <td style={{ padding: '8px', fontWeight: 500 }}>
+                                                    <td className={styles.nameCell}>
                                                         {item.itemName}
-                                                        <span style={{ marginLeft: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>→</span>
+                                                        <span className={styles.arrow}>→</span>
                                                     </td>
-                                                    <td style={{ padding: '8px', fontSize: '0.85rem' }}>{item.category || '-'}</td>
-                                                    <td style={{
-                                                        padding: '8px',
-                                                        color: expired ? 'var(--status-maintenance)' : 'var(--status-inuse)',
-                                                        fontWeight: 600,
-                                                    }}>
+                                                    <td className={styles.categoryCell}>{item.category || '-'}</td>
+                                                    <td
+                                                        className={styles.expiryCell}
+                                                        style={{ color: expired ? 'var(--status-maintenance)' : 'var(--status-inuse)' }}
+                                                    >
                                                         {formatDate(item.expiryDate)}
                                                         {expired && ' ⚠️ PÉRIMÉ'}
                                                     </td>
-                                                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 'bold' }}>
+                                                    <td className={styles.quantityCell}>
                                                         {item.quantity}
                                                     </td>
                                                 </tr>

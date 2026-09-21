@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import styles from './LowStockModal.module.css';
 
 interface LowStockItem {
     id: string;
@@ -41,8 +42,8 @@ export default function LowStockModal({ stockId, onClose, onOpenBatches }: LowSt
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 100 }}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '680px', width: '90%' }}>
+        <div className={`modal-overlay ${styles.overlay}`} onClick={onClose}>
+            <div className={`modal ${styles.modal}`} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">📦 Stock faible</h2>
                     <button className="modal-close" onClick={onClose}>✕</button>
@@ -51,25 +52,25 @@ export default function LowStockModal({ stockId, onClose, onOpenBatches }: LowSt
                     {loading ? (
                         <p>Chargement...</p>
                     ) : items.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--status-available)' }}>
-                            <div style={{ fontSize: '2rem', marginBottom: '8px' }}>✅</div>
+                        <div className={styles.emptyState}>
+                            <div className={styles.emptyIcon}>✅</div>
                             <p>Tous les stocks sont au-dessus du seuil minimum.</p>
                         </div>
                     ) : (
                         <>
-                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                            <p className={styles.hint}>
                                 {items.length} article{items.length > 1 ? 's' : ''} en dessous du stock minimum.
                                 Cliquez sur une ligne pour voir les lots.
                             </p>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <div className={styles.tableWrapper}>
+                                <table className={styles.table}>
                                     <thead>
-                                        <tr style={{ textAlign: 'left', borderBottom: '2px solid var(--border-primary)' }}>
-                                            <th style={{ padding: '8px 10px' }}>Article</th>
-                                            <th style={{ padding: '8px 10px' }}>Catégorie</th>
-                                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Stock actuel</th>
-                                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Minimum</th>
-                                            <th style={{ padding: '8px 10px', textAlign: 'center' }}>Déficit</th>
+                                        <tr className={styles.headRow}>
+                                            <th className={styles.headCell}>Article</th>
+                                            <th className={styles.headCell}>Catégorie</th>
+                                            <th className={styles.headCellCenter}>Stock actuel</th>
+                                            <th className={styles.headCellCenter}>Minimum</th>
+                                            <th className={styles.headCellCenter}>Déficit</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -80,39 +81,26 @@ export default function LowStockModal({ stockId, onClose, onOpenBatches }: LowSt
                                                     onClose();
                                                     onOpenBatches(item.id, item.name);
                                                 }}
-                                                style={{
-                                                    borderBottom: '1px solid var(--border-primary)',
-                                                    cursor: 'pointer',
-                                                    transition: 'background 0.15s',
-                                                }}
+                                                className={styles.row}
                                                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-hover, rgba(0,0,0,0.04))')}
                                                 onMouseLeave={e => (e.currentTarget.style.background = '')}
                                                 title={`Voir les lots de « ${item.name} »`}
                                             >
-                                                <td style={{ padding: '10px', fontWeight: 500 }}>
+                                                <td className={styles.nameCell}>
                                                     {item.name}
-                                                    <span style={{ marginLeft: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>→</span>
+                                                    <span className={styles.arrow}>→</span>
                                                 </td>
-                                                <td style={{ padding: '10px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                <td className={styles.categoryCell}>
                                                     {item.category || '—'}
                                                 </td>
-                                                <td style={{ padding: '10px', textAlign: 'center', fontWeight: 700, fontSize: '1.05rem', color: deficitColor(item) }}>
+                                                <td className={styles.quantityCell} style={{ color: deficitColor(item) }}>
                                                     {item.quantity}
                                                 </td>
-                                                <td style={{ padding: '10px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                                <td className={styles.minStockCell}>
                                                     {item.minStock}
                                                 </td>
-                                                <td style={{ padding: '10px', textAlign: 'center' }}>
-                                                    <span style={{
-                                                        display: 'inline-block',
-                                                        background: deficitColor(item),
-                                                        color: '#fff',
-                                                        borderRadius: '12px',
-                                                        padding: '2px 10px',
-                                                        fontWeight: 700,
-                                                        fontSize: '0.85rem',
-                                                        minWidth: '36px',
-                                                    }}>
+                                                <td className={styles.deficitCell}>
+                                                    <span className={styles.deficitBadge} style={{ background: deficitColor(item) }}>
                                                         -{deficit(item)}
                                                     </span>
                                                 </td>

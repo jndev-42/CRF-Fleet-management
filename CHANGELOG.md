@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.15.0] — 21 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Générer et imprimer le QR code d'une UL depuis l'administration** — un bouton « QR Code » apparaît désormais sur chaque unité locale dans l'écran d'administration, ouvrant une fenêtre pour le télécharger, copier son lien ou le régénérer (ce qui invalide aussitôt l'ancien code imprimé).
+
+### 🔧 Améliorations
+
+- **Reconnexion automatique en cas de session expirée** — si la session expire pendant la rédaction d'un compte rendu de mission (formulaire classique ou dépôt par QR code), l'application propose désormais de se reconnecter au lieu d'afficher une erreur générique.
+- **Accessibilité des pages de scan** — les états de chargement et d'erreur des pages ouvertes par un QR code (véhicule, stock, UL) sont maintenant annoncés aux lecteurs d'écran.
+- **Fiche d'un compte rendu de mission** — la consultation de sa propre fiche fonctionne désormais de façon fiable même dans certaines configurations où l'identifiant de session diffère de l'identifiant en base.
+- **Modales de gestion du stock** — une double validation accidentelle (double-clic ou double-Entrée) sur un formulaire (article, lot, import CSV) n'envoie plus deux fois la même demande.
+
 ## [5.14.0] — 21 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

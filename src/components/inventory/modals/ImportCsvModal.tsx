@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import styles from './ImportCsvModal.module.css';
 
 /** Erreur de ligne renvoyée par `POST /api/inventory/stocks/import`. */
 interface CsvLineError {
@@ -37,6 +38,7 @@ export default function ImportCsvModal({ isOpen, onClose, onSuccess }: ImportCsv
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (submitting) return;
         const file = fileInputRef.current?.files?.[0];
 
         if (!name.trim()) {
@@ -76,8 +78,8 @@ export default function ImportCsvModal({ isOpen, onClose, onSuccess }: ImportCsv
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose} style={{ zIndex: 110 }}>
-            <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 520 }}>
+        <div className={`modal-overlay ${styles.overlay}`} onClick={onClose}>
+            <div className={`modal ${styles.modal}`} onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h2 className="modal-title">📥 Importer un CSV</h2>
                     <button className="modal-close" onClick={onClose}>✕</button>
@@ -85,30 +87,16 @@ export default function ImportCsvModal({ isOpen, onClose, onSuccess }: ImportCsv
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
                         {error && (
-                            <div style={{
-                                background: 'var(--error-bg)',
-                                color: 'var(--error-text)',
-                                padding: '10px 14px',
-                                borderRadius: '8px',
-                                marginBottom: '16px',
-                                fontSize: '0.9rem',
-                            }}>
+                            <div className={styles.errorBox} role="alert">
                                 {error}
                             </div>
                         )}
 
                         {lineErrors.length > 0 && (
-                            <div style={{
-                                border: '1px solid var(--border-primary)',
-                                borderRadius: '8px',
-                                marginBottom: '16px',
-                                maxHeight: '220px',
-                                overflowY: 'auto',
-                                fontSize: '0.85rem',
-                            }}>
-                                <ul style={{ margin: 0, padding: '10px 10px 10px 26px' }}>
+                            <div className={styles.lineErrors}>
+                                <ul className={styles.lineErrorsList}>
                                     {lineErrors.map((lineError, index) => (
-                                        <li key={`${lineError.line}-${lineError.column}-${index}`} style={{ marginBottom: '4px' }}>
+                                        <li key={`${lineError.line}-${lineError.column}-${index}`} className={styles.lineErrorItem}>
                                             <strong>Ligne {lineError.line}</strong>
                                             {lineError.column && <> — colonne <code>{lineError.column}</code></>}
                                             {' : '}{lineError.reason}
@@ -139,7 +127,7 @@ export default function ImportCsvModal({ isOpen, onClose, onSuccess }: ImportCsv
                                 ref={fileInputRef}
                                 required
                             />
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '8px' }}>
+                            <p className={styles.formatHint}>
                                 Encodage UTF-8, séparateur point-virgule, en-tête obligatoire en première ligne :
                                 <br />
                                 <code>nom;categorie;quantite;date_peremption;stock_min;notes</code>
@@ -151,7 +139,7 @@ export default function ImportCsvModal({ isOpen, onClose, onSuccess }: ImportCsv
                             </p>
                         </div>
                     </div>
-                    <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '16px 24px' }}>
+                    <div className={`modal-footer ${styles.footer}`}>
                         <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
                             Annuler
                         </button>
