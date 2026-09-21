@@ -314,3 +314,56 @@ describe('MissionWizard', () => {
         expect(body.intervention_natures).toEqual([]);
     });
 });
+
+/**
+ * Mode verrouillé — point d'entrée `/qr-ul/[token]`.
+ *
+ * L'étape « UL / DT » doit DISPARAÎTRE, pas seulement être désactivée : la
+ * laisser visible offrirait un choix que le serveur écrase depuis le token.
+ */
+describe('MissionWizard — rattachement verrouillé par QR code', () => {
+    // Volontairement PAS `ul-paris-18` : cette UL déclenche l'animation de succès,
+    // qui diffère `onSuccess` — le verrouillage n'a rien à voir avec elle.
+    const LOCKED = { lockedUlId: 'ul-lyon-3', lockedUlName: 'Lyon 3' };
+    const QR_ENDPOINT = '/api/qr-ul/token-abc/mission-report';
+
+    function fillLockedStep1() {
+        fireEvent.change(screen.getByLabelText('Nom de la mission *'), { target: { value: 'Poste Secours Test' } });
+        fireEvent.change(screen.getByLabelText('Lieu *'), { target: { value: 'Local UL 18' } });
+    }
+
+    it('retire l\'étape « UL / DT » et démarre sur « Général »', () => {
+        render(<MissionWizard {...LOCKED} onSuccess={vi.fn()} />);
+
+        expect(screen.getByRole('heading', { name: 'Étape 1 / 8 — Général' })).toBeTruthy();
+        const items = screen.getAllByRole('listitem').map(el => el.textContent);
+        expect(items.some(t => t?.includes('UL / DT'))).toBe(false);
+        expect(screen.queryByLabelText('Structure de rattachement *')).toBeNull();
+    });
+
+    it('affiche le bandeau lecture seule « Rattaché à … »', () => {
+        render(<MissionWizard {...LOCKED} onSuccess={vi.fn()} />);
+        expect(screen.getByText('Lyon 3')).toBeTruthy();
+    });
+
+    it('poste sur `submitEndpoint` avec l\'UL verrouillée, sans DT', async () => {
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'mission-qr' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard {...LOCKED} submitEndpoint={QR_ENDPOINT} onSuccess={onSuccess} />);
+        fillLockedStep1();
+        // Général -> Équipage -> Matériel -> Oxygène -> Équipe -> Incidents -> Commentaire -> Photos
+        for (let i = 0; i < 7; i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-qr'));
+
+        expect(fetchMock.mock.calls.some(c => getUrl(c[0]) === '/api/missions')).toBe(false);
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === QR_ENDPOINT && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body.selected_ul_id).toBe('ul-lyon-3');
+        expect(body.selected_dt_code).toBeNull();
+    });
+});

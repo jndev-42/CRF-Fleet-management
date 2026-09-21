@@ -1,5 +1,5 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-08-11 | Updated: 2026-09-18 -->
+<!-- Generated: 2026-08-11 | Updated: 2026-09-21 -->
 
 # Missions
 
@@ -21,6 +21,10 @@ Manages mission reports (comptes rendus de mission) submitted by CRF volunteers.
 **Roles & Access:**
 - GET: Allowed roles = `[ADMIN, CI/RPAPS]` OR `isAdminOrAbove()` OR `isReadOnlyManager()`.
 - POST: same gate minus `isReadOnlyManager` (`ALLOWED_ROLES` + `isAdminOrAbove`). Input is Zod-validated.
+
+**POST is no longer the only writer — but it is still the only *role-gated* one.**
+The Zod schema and the whole insert (UL/DT existence check, `submitted_by` resolution, the three-table transaction) live in `src/lib/missions/create-mission-report.ts` as `createMissionReportSchema` + `insertMissionReport(data, userEmail, sessionUserId?)`. This route keeps its `ALLOWED_ROLES` / `isAdminOrAbove` gate **before** calling it; `POST /api/qr-ul/[token]/mission-report` calls the same function behind `isQrBlocked` only, and forces the attachment from the scanned token. `insertMissionReport` performs **no** authorization of its own and must never start to — the two callers have deliberately opposite rules. It returns `{ ok: true, id }` or `{ ok: false, status: 400|401, error }`; exceptions still bubble up to the route's 500.
+Regression lock: `src/__tests__/integration/qr-ul-mission-report.test.ts` asserts that a role-less volunteer and a CHVL both get **403** here while succeeding through the QR route.
 
 **`scope` — the visibility split (GET):**
 - `scope=mine` (**default**): every report of the submitter, **no UL filter at all** — a submitter keeps sight of their reports after switching active UL, including reports attached to a DT. Works even when no UL is active.
@@ -57,8 +61,9 @@ Manages mission reports (comptes rendus de mission) submitted by CRF volunteers.
 - `db` (libSQL) — direct parameterized SQL, no ORM
 - `auth` from `@/auth` — NextAuth v5 session
 - `@/lib/roles` — `isAdminOrAbove()`, `isReadOnlyManager()`
+- `@/lib/missions/create-mission-report` — `createMissionReportSchema`, `insertMissionReport()` (shared with `/api/qr-ul/[token]/mission-report`)
 - `@/lib/mission-supplies` — `EXTERNAL_VEHICLES` lookup table
-- `@/lib/mission-interventions` — `INTERVENTION_MODE_CATEGORIES`, `INTERVENTION_NATURE_CATEGORIES` (source of the Zod enum)
+- `@/lib/mission-interventions` — `INTERVENTION_MODE_CATEGORIES`, `INTERVENTION_NATURE_CATEGORIES` (source of the Zod enum, now imported by the shared lib)
 
 ### Tables Touched
 - `mission_reports` — main report store (id, mission_type, mission_name, mission_date, location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count, presence_ul, team_dynamics, all_found_place, member_difficulties, free_comment, mission_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup, drive_folder_id, signed_report_drive_id, ulId, dt_code, submitted_by, submitted_at)
