@@ -11,6 +11,11 @@ interface MenuConfig {
 
 const MENU_CONFIGS: MenuConfig[] = [
     {
+        key: 'expenses',
+        label: 'Frais',
+        description: 'Accès à la page des notes de frais.',
+    },
+    {
         key: 'stats',
         label: 'Statistiques',
         description: 'Accès à la page de statistiques et à l\'export PDF/CSV.',
@@ -35,6 +40,7 @@ const MENU_CONFIGS: MenuConfig[] = [
 const VISIBILITY_OPTIONS: { value: MenuVisibility; label: string }[] = [
     { value: 'available', label: 'Activé' },
     { value: 'admin_only', label: 'Admin uniquement' },
+    { value: 'super_admin_only', label: 'Super admin uniquement' },
     { value: 'disabled', label: 'Désactivé' },
 ];
 
@@ -121,7 +127,7 @@ export default function MenusTab() {
                             <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{menu.description}</div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', padding: '4px' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', padding: '4px' }}>
                             {VISIBILITY_OPTIONS.map(opt => (
                                 <button
                                     key={opt.value}
@@ -135,7 +141,7 @@ export default function MenusTab() {
                                         fontWeight: currentValue === opt.value ? 600 : 400,
                                         background: currentValue === opt.value ? 'var(--bg-primary)' : 'transparent',
                                         color: currentValue === opt.value
-                                            ? (opt.value === 'disabled' ? 'var(--status-maintenance)' : opt.value === 'admin_only' ? 'var(--status-inuse)' : 'var(--status-available)')
+                                            ? (opt.value === 'disabled' ? 'var(--status-maintenance)' : opt.value === 'available' ? 'var(--status-available)' : 'var(--status-inuse)')
                                             : 'var(--text-secondary)',
                                         cursor: isUpdating ? 'not-allowed' : 'pointer',
                                         transition: 'all 0.15s',

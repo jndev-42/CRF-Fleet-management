@@ -1,21 +1,21 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isSuperAdmin } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse } from '@/lib/apiAuth';
 
 /** GET /api/settings/menus — Retourne tous les paramètres de visibilité des menus.
- *  ADMIN uniquement. */
+ *
+ *  Ouvert à tout compte connecté : la barre de navigation de CHAQUE utilisateur
+ *  en a besoin pour masquer un menu désactivé ou réservé. Réservée au
+ *  SUPER_ADMIN, la lecture renvoyait 403 à tous les autres, et
+ *  `MenuSettingsProvider` retombait alors sur « available » — les réglages ne
+ *  s'appliquaient qu'au SUPER_ADMIN lui-même. La modification (PATCH) reste
+ *  réservée au SUPER_ADMIN. Ces réglages ne sont pas sensibles. */
 export async function GET() {
     try {
         const session = await auth();
         if (!session?.user) {
             return unauthorizedResponse();
-        }
-
-        const roles = (session.user.roles || ['INACTIF']) as string[];
-        if (!isSuperAdmin(roles)) {
-            return forbiddenResponse();
         }
 
         const result = await db.execute(`SELECT menu_key, visibility FROM "MenuSetting" ORDER BY menu_key`);

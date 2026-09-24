@@ -4,23 +4,23 @@
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Nouveau module « Uniformes » : emprunter et rendre les pièces d'uniforme de son UL** — un nouveau menu « Uniformes » présente le catalogue de l'unité locale (polos, vestes…, par taille) avec le nombre de pièces disponibles. On remplit un panier puis on valide l'emprunt ; si une taille n'est plus disponible entre-temps, l'emprunt est refusé avec un message clair et rien n'est enregistré.
-- **Vos pièces empruntées toujours sous les yeux** — tant que vous avez des pièces empruntées, une carte « Mes pièces empruntées » les liste en haut de la page Uniformes (et de la page du QR code). Vous pouvez rendre une pièce à la fois, ou « Tout rendre » d'un coup pour un même emprunt, en indiquant si elle est propre ou sale et en laissant un commentaire (bouton manquant, tache…).
-- **Liste « À laver »** — une pièce rendue sale n'est pas reprêtée : elle apparaît dans l'onglet « À laver », où n'importe quel bénévole peut la marquer lavée une fois nettoyée. Elle redevient alors disponible.
-- **Emprunter en scannant le QR code « Uniformes » de l'UL** — chaque unité locale peut imprimer son propre QR code Uniformes (distinct de celui des comptes rendus de mission). Tout bénévole connecté, même sans rôle attribué ou rattaché à une autre UL, peut l'utiliser pour emprunter et marquer des pièces lavées ; l'emprunt est enregistré à son nom. Seuls les comptes inactifs sont refusés.
-- **Suivi des emprunts pour les cadres** — l'onglet « Emprunts » montre aux cadres, présidents et administrateurs qui a emprunté quoi parmi les pièces de leur UL (y compris des bénévoles d'autres UL), avec les dates, l'état au retour et les commentaires. L'historique reste consultable même quand un article ou une taille est retiré du catalogue.
-- **Gestion du catalogue par les administrateurs** — l'onglet « Gestion » permet de créer, renommer et retirer des articles, d'ajouter ou retirer des tailles et d'ajuster le nombre de pièces possédées, ainsi que d'afficher, télécharger ou régénérer le QR code Uniformes. Une pièce encore empruntée empêche son retrait du catalogue.
-- **Menu désactivable** — le menu « Uniformes » peut être activé, réservé aux administrateurs ou désactivé depuis l'administration, comme les menus Inventaire et Missions.
+- **Nouveau menu « Uniformes »** — empruntez les pièces d'uniforme de votre unité locale : choisissez les articles et les tailles disponibles, ajoutez-les à votre panier puis validez. Si une pièce n'est plus disponible entre-temps, l'emprunt est refusé et rien n'est enregistré.
+- **Emprunter en scannant le QR code Uniformes de l'UL** — tout bénévole connecté peut s'en servir, même sans rôle attribué ou s'il appartient à une autre unité locale. L'emprunt est enregistré à son nom.
+- **« Mes pièces empruntées »** — en haut de la page Uniformes, retrouvez les pièces que vous détenez. Rendez-les une par une ou toutes d'un coup, en indiquant si elles sont propres ou sales et en laissant un commentaire si besoin (bouton manquant, tache…).
+- **Liste « À laver »** — une pièce rendue sale n'est pas reprêtée tant qu'elle n'a pas été lavée. N'importe quel bénévole peut la marquer propre, elle redevient alors disponible.
+- **Suivi des emprunts** — les cadres, présidents et administrateurs voient qui a emprunté quoi parmi les pièces de leur UL, avec les dates, l'état au retour et les commentaires.
+- **Gestion du catalogue** — les administrateurs ajoutent, renomment ou retirent des articles et des tailles, ajustent le nombre de pièces, et impriment le QR code Uniformes de leur UL.
+- **Plus de réglages pour les menus** — les menus « Frais » et « Uniformes » peuvent maintenant être activés, réservés ou désactivés depuis l'administration, et une nouvelle option « Super admin uniquement » s'ajoute à « Admin uniquement ».
 
-### ⚠️ À faire avant la mise en production
+### 🐛 Corrections
 
-- **Lancer la migration `npx tsx scripts/add-uniforms.ts --apply` AVANT de déployer cette version.** Elle crée les tables du module Uniformes, la colonne du QR code Uniformes de chaque UL et le réglage du menu. Tant qu'elle n'est pas passée, les écrans Uniformes échouent avec une erreur serveur.
+- **Les réglages des menus s'appliquent à tous les utilisateurs** — un menu désactivé ou réservé restait jusqu'ici visible pour la plupart des utilisateurs. « Admin uniquement » concerne désormais tous les administrateurs, et plus seulement les super admins.
 
 ## [5.15.0] — 21 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Générer et imprimer le QR code de son UL depuis l'écran des comptes rendus de mission** — un bouton « QR Code » apparaît dans l'en-tête de `/missions` pour les cadres, présidents et administrateurs, ouvrant une fenêtre pour télécharger le QR code de leur UL active, copier son lien ou le régénérer (ce qui invalide aussitôt l'ancien code imprimé).
+- **Générer et imprimer le QR code de son UL depuis l'écran des comptes rendus de mission** — un bouton « QR Code » apparaît en haut de la page Missions pour les cadres, présidents et administrateurs, ouvrant une fenêtre pour télécharger le QR code de leur UL active, copier son lien ou le régénérer (ce qui invalide aussitôt l'ancien code imprimé).
 
 ### 🔧 Améliorations
 
@@ -36,10 +36,6 @@
 - **Déposer un compte rendu de mission en scannant le QR code de son UL** — chaque unité locale dispose désormais de son propre QR code. Le scanner ouvre directement le formulaire de compte rendu, déjà rattaché à l'UL : plus besoin de choisir la structure, l'étape « UL / DT » disparaît et un bandeau rappelle « Rattaché à … ». La génération et l'impression du QR code seront disponibles dans une prochaine version.
 - **Ouvert à tous les bénévoles présents sur le poste** — contrairement au formulaire habituel, réservé aux CI/RPAPS et aux administrateurs, le dépôt par QR code est accessible à n'importe quel compte actif, y compris à un bénévole sans rôle attribué. Seuls les comptes inactifs sont refusés.
 - **Confirmation sur place, sans quitter la page** — une fois le compte rendu envoyé, un message de confirmation s'affiche avec un bouton « Nouveau rapport » pour enchaîner un second dépôt. Aucune redirection vers un écran dont le bénévole n'aurait pas forcément l'accès.
-
-### ⚠️ À faire avant la mise en production
-
-- **Lancer la migration `npx tsx scripts/add-ul-qr-token.ts --apply` AVANT de déployer cette version.** Elle ajoute la colonne qui stocke le QR code de chaque UL. Tant qu'elle n'est pas passée, la génération ou la lecture d'un QR code d'UL échoue avec une erreur serveur.
 
 ## [5.13.0] — 18 septembre 2026
 
@@ -65,10 +61,6 @@
 ### 🔧 Améliorations
 
 - **L'UL ou la DT du rapport est affichée sur sa fiche détaillée**, à côté de la date et du lieu.
-
-### ⚠️ À faire avant la mise en production
-
-- **Lancer la migration `npx tsx scripts/add-mission-report-dt-code.ts --apply` AVANT de déployer cette version.** Elle ajoute la colonne qui stocke la Direction Territoriale d'un compte rendu. Tant qu'elle n'est pas passée, toute soumission de compte rendu échoue avec une erreur serveur.
 
 ## [5.11.0] — 17 septembre 2026
 
@@ -97,11 +89,6 @@
 - **Les véhicules en mission ou à l'atelier sont réservables** — contrairement à l'emprunt, qui exige un véhicule disponible tout de suite, la réservation porte sur un créneau futur : un véhicule sorti aujourd'hui peut être réservé pour la semaine prochaine. Seul le permis filtre la liste — un chauffeur VL ne voit pas les VPSP, et inversement.
 - **L'occupation du véhicule est affichée pendant la réservation** — un mini-calendrier montre les jours déjà pris par une réservation, un emprunt ou une maintenance, et permet de choisir la plage de dates d'un clic à l'autre. La navigation d'un mois à l'autre permet de réserver au-delà du mois courant.
 - **Le formulaire rapide est le même que celui de la fiche véhicule** — mêmes dates et heures, même motif, même choix du chauffeur pour les responsables, même option de récurrence, et le même avertissement lorsque des créneaux sont ignorés faute de place.
-
-### 🔧 Notes techniques
-
-- Le formulaire de création de réservation a été extrait dans un composant partagé, utilisé à l'identique par la fiche véhicule et par le nouveau parcours rapide — une seule logique de réservation à maintenir.
-- Aucune nouvelle API : le parcours s'appuie sur les routes de réservation et de calendrier existantes. Réserver ne modifie jamais le statut du véhicule.
 
 ## [5.9.0] — 16 septembre 2026
 
@@ -149,16 +136,8 @@
 
 - **Cocher INACTIF bloque désormais réellement — et décocher débloque.** Jusqu'ici, cocher INACTIF dans l'éditeur de rôles répondait « enregistré » sans rien bloquer pour un compte rattaché à une unité locale, et l'opération inverse ne débloquait pas davantage. **Les administrateurs qui ont cru bloquer quelqu'un ne l'ont pas fait** : c'est l'information la plus importante de cette version. Le blocage vaut quelle que soit l'unité locale sur laquelle la personne se connecte, et prend effet au rafraîchissement de sa session.
 - **INACTIF l'emporte sur tous les autres rôles.** Un compte portant INACTIF **et** Chauffeur VL était traité comme un chauffeur actif. Il est désormais bloqué partout : statistiques, notes de frais, budgets, signalement de bug, menu, QR véhicule et QR stock. **Les rôles attribués ne sont pas effacés** — décocher INACTIF rend l'accès immédiatement, sans rien réattribuer.
-- **INACTIF s'attribue sur l'unité locale de rattachement.** L'option n'est plus proposée sur une UL secondaire, et l'API refuse la requête. Posé ailleurs, le rôle ne bloquait le compte que par intermittence, selon l'UL active au moment de la connexion. Les comptes portant déjà un INACTIF mal placé restent modifiables.
+- **INACTIF s'attribue sur l'unité locale de rattachement.** L'option n'est plus proposée sur une UL secondaire, et la modification y est refusée. Posé ailleurs, le rôle ne bloquait le compte que par intermittence, selon l'UL active au moment de la connexion. Les comptes portant déjà un INACTIF mal placé restent modifiables.
 - **Un compte sans rôle attribué peut utiliser les QR codes** — véhicules comme stocks. Un bénévole fraîchement inscrit, pas encore qualifié, peut consulter un véhicule, l'emprunter et déclarer des mouvements de stock. La restitution d'un véhicule reste réservée au conducteur du trajet ou à un administrateur, comme avant.
-
-### 🔧 Notes techniques
-
-- **Migration à exécuter avant la mise en ligne** : `npx tsx scripts/add-stock-qr-token.ts --apply` ajoute la colonne `InvStockList.qrToken` et son index unique partiel. Sans elle, chaque scan renvoie une erreur serveur.
-- La logique lots / FEFO / resynchronisation est extraite dans `src/lib/inventory/adjustments.ts` et partagée avec `/api/inventory/adjust`. Le panier est validé en une transaction unique dont les écritures partent par paquets via `tx.batch()`.
-- La résolution des rôles de session est factorisée dans `src/lib/session-roles.ts`, appelée par les deux callbacks NextAuth, et ne se replie jamais sur les rôles du jeton — un tel repli aurait empêché toute révocation.
-- Tous les prédicats d'autorisation passent par une enveloppe refusant les comptes INACTIF ; un test énumère les exports du module et échoue si un prédicat futur n'est pas enveloppé, et une règle ESLint interdit les tests de rôle en ligne côté serveur.
-- Couverture : 1769 tests, dont un filet de non-régression écrit sur `POST /api/inventory/adjust` avant son refactor et une spec E2E Playwright du flux QR stock.
 
 ## [5.6.0] — 10 septembre 2026
 
@@ -169,14 +148,6 @@
 - **Une ligne d'historique honnête** — l'historique des mouvements n'est jamais recopié : ces mouvements n'ont pas eu lieu dans le nouveau stock. À la place, chaque article repris avec du stock reçoit une seule ligne « Import initial — dupliqué depuis <stock source> », à votre nom et à la date du jour.
 - **Réservé aux administrateurs** — comme la création, le renommage et la suppression d'un stock. Le bouton n'apparaît pas pour les autres rôles.
 - **Le stock d'origine n'est jamais touché** — la duplication ne lit que la source. En cas d'erreur en cours de copie, rien n'est écrit du tout : pas de stock à moitié rempli à nettoyer à la main.
-
-### 🔧 Améliorations techniques
-
-- Nouvelle route `POST /api/inventory/stocks/duplicate` et fonction `duplicateStock()` dans `src/lib/inventory/stocks.ts`, exécutées dans une transaction unique (`db.transaction('write')`) pour garantir le tout-ou-rien.
-- Les lots du stock source sont lus en une requête groupée par tranches de 500 identifiants, sans requête par article, et dans la limite des variables liées de SQLite.
-- Les écritures sont envoyées par paquets de 500 via `tx.batch()` plutôt qu'une par une : la duplication d'un stock de 500 articles passe de plusieurs milliers d'allers-retours réseau à une poignée, ce qui la garde dans le budget de temps de la route.
-- Aucune migration de base : la duplication n'ajoute ni table ni colonne.
-- Couverture : 13 tests d'intégration sur la route (401, 403, 400, 404, copies avec et sans stock, invariants, retour arrière sur échec) et 16 tests de composants sur `StockTabs` et `StockModal`.
 
 ## [5.5.0] — 10 septembre 2026
 
@@ -196,35 +167,8 @@
 
 ### 🔒 Sécurité
 
-- **Les mots de passe constructeur sont chiffrés en base** — chiffrement AES-256-GCM (`CREDENTIALS_ENCRYPTION_KEY`), jamais renvoyés par l'API ni journalisés. Le compte MyRenault unique et partagé, jusqu'ici stocké en variables d'environnement du serveur (`RENAULT_MAIL` / `RENAULT_PASS`), est supprimé.
+- **Les mots de passe constructeur sont protégés** — ils sont chiffrés et ne sont jamais réaffichés. L'ancien compte MyRenault unique, partagé par toute l'application, n'est plus utilisé.
 - **Le QR code n'expose pas le motif d'erreur** — la page atteinte par QR code, accessible sans contrôle d'unité locale, affiche l'état de la connexion mais jamais le message du constructeur, qui contient l'identifiant du compte.
-
-### 🔧 Améliorations techniques
-
-- Chiffrement AES-256-GCM au format `iv:authTag:ciphertext` (`src/lib/crypto.ts`), avec clé de rotation optionnelle `CREDENTIALS_ENCRYPTION_KEY_PREVIOUS` et script de re-chiffrement dédié.
-- Nouvelles tables `BrandCredential` (un compte par unité locale × marque) et `VehicleConnection` (véhicule ↔ compte, VIN, statut).
-- Le cache de session Gigya passe d'une ligne unique globale à une ligne par compte (`RenaultSession.credentialId`) : deux unités locales ne se volent plus leur jeton.
-- `src/lib/renault.ts` redevient un pur client de fetch, sans lecture de la base ni écriture de statut ; la résolution du véhicule et les effets métier vivent dans `src/lib/vehicle-connection.ts`. La télémétrie se demande par identifiant technique de véhicule, jamais par VIN ni par nom.
-- La tâche quotidienne isole chaque véhicule : un compte en échec n'interrompt plus le traitement des suivants, et le nombre d'exceptions est journalisé à chaque passage.
-- `GIGYA_API_KEY` est conservée : c'est une constante de configuration de marque, pas un secret de compte.
-
-### ⚙️ Mise en service
-
-> **La migration de production doit être exécutée AVANT le merge sur `main`.**
-
-```bash
-# 1. Générer et déclarer la clé de chiffrement (Vercel : Production, Preview, Development)
-openssl rand -hex 32   # → CREDENTIALS_ENCRYPTION_KEY
-
-# 2. Migration (dry-run puis écriture ; --ul est obligatoire en --apply)
-npx tsx scripts/add-vehicle-connections.ts
-npx tsx scripts/add-vehicle-connections.ts --apply --ul=ul-paris-18
-
-# 3. Vérification bloquante, en lecture seule
-npx tsx scripts/verify-vehicle-connections.ts
-```
-
-> `RENAULT_MAIL` et `RENAULT_PASS` ne doivent être retirés de Vercel qu'**après** le déploiement sur `main` et une vérification verte.
 
 ## [5.4.0] — 9 septembre 2026
 
@@ -234,12 +178,11 @@ npx tsx scripts/verify-vehicle-connections.ts
 - **Le créneau se libère à la prise du véhicule** — le premier chauffeur qui emprunte consomme la réservation, exactement comme pour une réservation nominative. Le créneau ne reste donc pas ouvert à un second emprunt derrière lui.
 - **Le bouton « Emprunter » et la fiche véhicule suivent la même règle** — un véhicule sous réservation sans chauffeur apparaît dans la liste des véhicules empruntables du tableau de bord, et son bouton « Prendre le véhicule » reste actif sur sa fiche.
 
-### 🔧 Améliorations techniques
+### 🔧 Changements
 
 - Les règles de rôle restent prioritaires : un chauffeur qui n'a pas le droit de conduire ce type de véhicule (VL / VPSP) reste refusé, réservation libre ou non.
 - Une réservation sans chauffeur encore en attente de validation n'est pas consommée par un emprunt.
 - Une réservation nominative concomitante continue de bloquer normalement, même si une réservation sans chauffeur couvre le même créneau.
-- Le libellé « Chauffeur non décidé » est désormais une constante partagée (`src/lib/reservationDriver.ts`) au lieu d'être recopié dans sept fichiers.
 
 ## [5.3.0] — 4 septembre 2026
 
@@ -264,7 +207,7 @@ npx tsx scripts/verify-vehicle-connections.ts
 
 ### 🔒 Sécurité
 
-- **Authentification renforcée** — correction d'une faille permettant de contourner la restriction des connexions au domaine `@croix-rouge.fr` à l'aide d'un caractère ressemblant visuellement à `@`, et d'une faiblesse des cookies de connexion Google. Douze vulnérabilités de dépendances au total ont été corrigées, dont deux critiques ; il n'en reste aucune.
+- **Authentification renforcée** — correction d'une faille permettant de contourner la restriction des connexions aux adresses @croix-rouge.fr, et renforcement de la connexion Google. Plusieurs failles de sécurité, dont deux critiques, ont été corrigées.
 
 ### 📌 À savoir
 
@@ -277,16 +220,6 @@ npx tsx scripts/verify-vehicle-connections.ts
 - **Boîte de vitesses du véhicule** — la fiche de création et d'édition d'un véhicule propose désormais un choix « Manuelle » ou « Automatique ». L'information sert aux conducteurs qui ne sont à l'aise qu'avec l'une des deux boîtes : elle se lit avant la réservation, sans ouvrir la fiche.
 - **Tag boîte de vitesses** — un tag ⚙️ apparaît sur la carte du véhicule (tableau de bord) et sur sa page de détail, au même titre que le tag d'énergie. Violet pour une boîte manuelle, turquoise pour une automatique.
 
-### ⚙️ Mise en service
-
-> **La migration de production doit être exécutée AVANT le merge sur `main`.**
-
-```bash
-npx tsx scripts/add-vehicle-transmission.ts
-```
-
-Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne s'affiche tant qu'un administrateur ne l'a pas complétée depuis la fiche du véhicule.
-
 ## [5.1.0] — 29 août 2026
 
 ### ✨ Nouvelles fonctionnalités
@@ -295,18 +228,6 @@ Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne
 - **Liste de budgets gérée par l'Unité Locale** — les cadres, présidents, trésoriers et administrateurs ajoutent, renomment et archivent les budgets depuis une modale dédiée sur l'écran des notes de frais. Chaque UL dispose de sa propre liste, initialisée automatiquement à sa création. Renommer un budget met à jour l'historique : les statistiques passées affichent le nouveau nom.
 - **Archiver plutôt que supprimer** — un budget retiré disparaît du menu de saisie mais conserve son nom dans les statistiques des années écoulées : un bilan clos ne change plus rétroactivement. Le dernier budget actif d'une UL ne peut pas être archivé, sans quoi plus aucune note ne pourrait y être saisie.
 - **Statistiques par budget** — l'écran des statistiques, l'export CSV et l'export PDF présentent une répartition des dépenses par budget. Les lignes antérieures à cette version, qui n'en portent aucun, sont regroupées sous « N/A » — un libellé d'affichage, jamais un choix proposé à la saisie.
-
-### ⚙️ Mise en service
-
-> **La migration de production doit être exécutée AVANT le merge sur `main`.**
-> Sans la table `ExpenseBudget`, le déploiement Vercel rend la saisie de toute note de frais impossible.
->
-> ```
-> npx tsx scripts/add-expense-budgets.ts            # dry-run : DDL seule, aucun budget inséré
-> npx tsx scripts/add-expense-budgets.ts --apply    # migration réelle
-> ```
->
-> Contrôler ensuite que chaque UL possède au moins un budget actif, puis merger sur `main`.
 
 ## [5.0.0] — 28 août 2026
 
@@ -354,7 +275,7 @@ Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne
 
 ### 🐛 Corrections & Améliorations
 
-- **Compte rendu de mission — présence UL dynamique** — le champ "Présence UL 18 ?" de l'étape Équipe affichait ce libellé pour tous les utilisateurs, quelle que soit leur unité locale réelle. Il affiche désormais le nom de l'UL d'appartenance du soumetteur (ex. "Présence UL Paris 18 ?"). La colonne UL du tableau des comptes rendus et la fiche détaillée d'un compte rendu affichent également le nom réel de l'UL concernée au lieu de "18" en dur. Le champ en base de données a été renommé de `ul18_present` en `presence_ul` pour refléter cette généralisation.
+- **Compte rendu de mission — présence UL dynamique** — le champ "Présence UL 18 ?" de l'étape Équipe affichait ce libellé pour tous les utilisateurs, quelle que soit leur unité locale réelle. Il affiche désormais le nom de l'UL d'appartenance du soumetteur (ex. "Présence UL Paris 18 ?"). La colonne UL du tableau des comptes rendus et la fiche détaillée d'un compte rendu affichent également le nom réel de l'UL concernée au lieu de « 18 » pour tout le monde.
 
 ## [4.10.0] — 18 août 2026
 
@@ -408,79 +329,74 @@ Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne
 
 ### 🐛 Correctifs
 
-- **Fix du chargement infini lors de l'affichage de toutes les notes de frais** — Résolution du blocage/timeout réseau sur l'écran des notes de frais (`/expenses`) lors du cochage du filtre *"Afficher toutes les notes (y compris déjà traitées)"* :
-  - **Optimisation du payload SQL** : Remplacement de `SELECT er.*` par une sélection explicite de colonnes dans `/api/expenses`. Les chaînes base64 très lourdes des signatures manuscrites (`userSignature`, `validatorSignature`) des notes traitées ne sont plus rapatriées inutilement dans la liste globale, réduisant la réponse réseau de plusieurs mégaoctets à quelques kilo-octets (temps de réponse sous les 170ms).
-  - **Requête SQL & Jointures** : Remplacement des `JOIN` stricts par des `LEFT JOIN` sur la table `User` afin d'éviter tout blocage si l'utilisateur lié n'est plus présent en base.
-  - **Parsing & Sécurisation** : Sécurisation du parsing JSON du champ `items` et du montant `total` pour parer aux données `null`.
-  - **Gestion réactive du chargement** : Déclenchement réactif de `fetchReports` sur les changements d'état (`viewScope`, `includeProcessed`) avec gestion de `tableLoading` sans démontage de la page.
-- **Remise en attente de validation lors de la modification de date de réservation** — Lorsqu'une réservation déjà validée voit sa date ou son horaire modifié, son statut repasse automatiquement en attente de validation (`PENDING`).
+- **Fin du chargement infini des notes de frais** — l'écran des notes de frais ne reste plus bloqué quand on coche « Afficher toutes les notes (y compris déjà traitées) ». La liste s'affiche désormais quasi instantanément, même avec de nombreuses notes signées, et même si l'auteur d'une note n'a plus de compte.
+- **Remise en attente de validation lors de la modification de date de réservation** — lorsqu'une réservation déjà validée voit sa date ou son horaire modifié, elle repasse automatiquement en attente de validation.
 
 ### 📱 Améliorations & Responsivité
 
-- **Ergonomie et responsivité de la Saisie de Note de Frais** — Optimisation complète de l'écran de saisie et de gestion des notes de frais pour l'utilisation sur mobile et tablette (`/expenses`) :
-  - **Empilement intelligent des dépenses** : Ajustement automatique (`flex-wrap`) des lignes de dépenses sur les écrans mobiles (< 640px). La description s'affiche sur la première ligne et le montant avec bouton de suppression sur la seconde, garantissant un accès sans défilement horizontal ni tronquage de la partie droite.
-  - **Actions et formulaires adaptés** : Mise en forme responsive du sélecteur d'imputation et alignement vertical des boutons d'action ("Annuler", "Brouillon", "Signer et Soumettre") sur mobile pour faciliter la saisie tactile.
-  - **Grille adaptative & Modales** : Bascule dynamique en 1 colonne sur mobile pour la vue tableau et le panneau de détails, ajustement du défilement des modales et correction de l'échelle des coordonnées tactiles du canvas de signature manuscrite.
+- **Notes de frais plus confortables sur mobile et tablette** :
+  - Les lignes de dépenses s'empilent sur petit écran : la description sur une ligne, le montant et le bouton de suppression sur la suivante, sans défilement horizontal.
+  - Le choix de l'imputation et les boutons « Annuler », « Brouillon » et « Signer et Soumettre » s'adaptent à la saisie tactile.
+  - Le tableau, le panneau de détail et les fenêtres s'affichent sur une colonne, et la signature manuscrite suit correctement le doigt.
 
 ## [4.8.0] — 28 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Bandeaux de communication administrables** — Outil dans le menu Administration (`/users`) permettant de configurer des bandeaux d'information affichés en haut de l'application.
-  - **Permissions & Scoping** : accessible aux rôles `SUPER_ADMIN`, `ADMIN`, `PRESIDENT` et `CADRE`. Les `SUPER_ADMIN` peuvent créer des bandeaux communs à toutes les ULs (`is_global`), tandis que les autres rôles sont restreints à leur Unité Locale.
-  - **Ciblage par page** : possibilité de diffuser le bandeau partout (`ALL`), ou uniquement sur les pages Véhicules (`VEHICLES`), Missions (`MISSIONS`) ou Inventaire (`INVENTORY`).
-  - **Pagination intelligente** : en cas de pluralité de bandeaux actifs sur le même écran, une barre de pagination (`‹ 1/N ›`) s'affiche automatiquement dans le bandeau pour naviguer entre les messages.
+- **Bandeaux de communication administrables** — depuis le menu Administration, configurez des bandeaux d'information affichés en haut de l'application.
+  - **Qui peut les créer** : super admins, administrateurs, présidents et cadres. Les super admins peuvent créer des bandeaux communs à toutes les ULs ; les autres sont limités à leur unité locale.
+  - **Où les afficher** : partout, ou uniquement sur les pages Véhicules, Missions ou Inventaire.
+  - **Plusieurs bandeaux à la fois** : une petite pagination (‹ 1/N ›) permet de passer de l'un à l'autre.
 
 ## [4.7.0] — 27 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
 
 - **Notion de DT de rattachement pour les ULs** — Ajout d'une notion de Délégation Territoriale (DT) de rattachement pour les Unités Locales (ex: DT 75, DT 69).
-  - Gestion du champ `dtCode` dans les formulaires d'administration des ULs (création et édition).
+  - Choix de la DT dans les formulaires d'administration des ULs (création et édition).
   - Badges visuels DT sur les cartes des ULs dans l'onglet Administration.
-- **Vision DT de la Flotte de Véhicules & Calendrier** — Bascule d'affichage "Vue UL / Vue DT" sur le tableau de bord des véhicules pour les utilisateurs disposant du rôle `DT` :
+- **Vision DT de la Flotte de Véhicules & Calendrier** — Bascule d'affichage "Vue UL / Vue DT" sur le tableau de bord des véhicules pour les utilisateurs disposant du rôle DT :
   - Consultation globale de la flotte et du calendrier de toutes les ULs rattachées à la même DT.
   - Mode lecture seule complet appliqué à la vision DT (désactivation des emprunts, restitutions, incidents, maintenances et réservations cross-UL avec bannière d'information).
 - **Réservations récurrentes** — Possibilité de créer une série de réservations récurrentes pour un véhicule depuis la fiche véhicule.
-  - **Toggle de récurrence** dans la modale `+ Réserver` : activer le mode récurrence remplace le formulaire date/heure classique par un panneau dédié.
+  - **Toggle de récurrence** dans la fenêtre « + Réserver » : activer le mode récurrence remplace le formulaire date/heure classique par un panneau dédié.
   - **Sélection des jours** : cases à cocher pour choisir un ou plusieurs jours de la semaine (Lundi, Mardi, … Dimanche).
   - **Plage horaire** : saisie des heures de début et de fin valable pour chaque occurrence.
   - **Période de récurrence** : date de premier et dernier passage, avec une limite maximale de **6 mois** à partir de la date du jour.
   - **Résumé humain** en temps réel : _"Tous les Lundi et Mercredi de 08:00 à 12:00 jusqu'au 31/01/2027 (12 occurrences)"_.
-  - **Insertion partielle** : les créneaux en conflit avec une réservation existante sont automatiquement ignorés. Un bandeau d'alerte liste les dates skippées.
+  - **Insertion partielle** : les créneaux en conflit avec une réservation existante sont automatiquement ignorés. Un bandeau d'alerte liste les dates ignorées.
   - **Badge 🔁 Récurrente** visible sur chaque occurrence dans la liste des réservations.
-  - **Annulation groupée** : bouton `🔁✕ Annuler tout` pour supprimer toutes les occurrences **futures** d'une même récurrence en une seule action.
+  - **Annulation groupée** : bouton « 🔁✕ Annuler tout » pour supprimer toutes les occurrences **futures** d'une même récurrence en une seule action.
   - Les occurrences individuelles restent modifiables et supprimables indépendamment.
-  - Migration DB : ajout de la colonne `recurrenceGroupId` sur la table `Reservation` (index inclus).
 
 ### 🐛 Correctifs
 
-- **Rafraîchissement automatique du calendrier lors du changement d'UL** — Le calendrier des véhicules se rafraîchit désormais automatiquement lors du changement d'Unité Logistique via le sélecteur d'UL.
+- **Rafraîchissement automatique du calendrier lors du changement d'UL** — Le calendrier des véhicules se rafraîchit désormais automatiquement lors du changement d'Unité Locale via le sélecteur d'UL.
 
 ## [4.6.0] — 22 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
 
 - **Déclaration d'incident via QR Code** — Possibilité pour tout utilisateur d'un QR Code de véhicule d'accéder au bouton "Déclarer un incident" et de remplir la modale de déclaration d'incident (avec génération PDF) directement sur la page QR Code.
-- **Export des Statistiques de Frais (CSV & PDF)** — Export complet au format CSV et génération d'un rapport PDF officiel pour les statistiques de frais, avec filtres par période, isolation par UL et accès sécurisé réservé aux rôles gestionnaires (`PRESIDENT`, `TRESORIER`, `SUPER_ADMIN`).
+- **Export des Statistiques de Frais (CSV & PDF)** — Export complet au format CSV et génération d'un rapport PDF officiel pour les statistiques de frais, avec filtres par période, isolation par UL et accès sécurisé réservé aux présidents, trésoriers et super admins.
 - **Support des justificatifs PDF (Notes de frais)** — Prise en charge des fichiers PDF en tant que justificatifs de dépenses avec aperçu en icône et ouverture/téléchargement depuis la modale dédiée.
-- **Onglets Statistiques (Véhicules & Frais)** — Organisation de la page des statistiques en onglets ("Véhicules" et "Frais"). Analyse complète des dépenses par mois, par bénévole et par imputation, avec accès restreint aux gestionnaires (`PRESIDENT`, `TRESORIER`, `SUPER_ADMIN`) et isolation par UL.
+- **Onglets Statistiques (Véhicules & Frais)** — Organisation de la page des statistiques en onglets ("Véhicules" et "Frais"). Analyse complète des dépenses par mois, par bénévole et par imputation, réservée aux présidents, trésoriers et super admins, et limitée à leur UL.
 - **Notifications cloche pour les notes de frais (Président & Trésorier)** — Notification automatique dans la cloche d'alerte en haut à droite de l'application :
-  - **Pour le Président (`PRESIDENT`)** : Lorsqu'une nouvelle note de frais est soumise pour validation.
-  - **Pour le Trésorier (`TRESORIER`)** : Lorsqu'une note de frais avec demande de remboursement est validée et passe en attente de paiement.
+  - **Pour le Président** : Lorsqu'une nouvelle note de frais est soumise pour validation.
+  - **Pour le Trésorier** : Lorsqu'une note de frais avec demande de remboursement est validée et passe en attente de paiement.
 - **Modale de mise en maintenance & Suivi des motifs** — Passage d'un véhicule en maintenance via modale avec date de début, date de fin optionnelle (ou "Date de fin inconnue") et motif explicatif.
   - Encadré d'information sur la fiche véhicule et affichage visuel différencié sur le calendrier (rouge plein / rouge pointillé).
   - Date de fin automatique lors de la remise en service du véhicule.
-- **Imputation des dépenses (Notes de frais)** — Sélection de l'imputation de la dépense (`DLUS`, `DLAS`, `UL`, `Autre`) avec saisie libre en cas de choix "Autre".
+- **Imputation des dépenses (Notes de frais)** — Sélection de l'imputation de la dépense (DLUS, DLAS, UL, Autre) avec saisie libre en cas de choix "Autre".
 - **Génération PDF Note de frais conforme (C2 INTERNE) & signature électronique** — Génération du PDF officiel de note de frais respectant le modèle C2 INTERNE avec signature électronique et manuscrite du demandeur et du responsable, et tampon officiel de l'UL.
-- **Refus de la note de frais avec commentaire** — Possibilité pour les valideurs (`SUPER_ADMIN` ou `PRESIDENT`) de refuser une note soumise en joignant obligatoirement un commentaire explicatif.
-- **Rôle Trésorier (`TRESORIER`) & Workflow de paiement** — Rôle centralisé `TRESORIER` avec accès aux notes en attente de paiement et possibilité d'indiquer les notes comme payées (`traité`).
+- **Refus de la note de frais avec commentaire** — Possibilité pour les valideurs (président ou super admin) de refuser une note soumise en joignant obligatoirement un commentaire explicatif.
+- **Rôle Trésorier & suivi des paiements** — le trésorier accède aux notes en attente de paiement et peut les marquer comme payées.
 - **Pagination et tri interactif du tableau de notes de frais** — Tri ascendant/descendant interactif sur toutes les colonnes et barre de pagination configurable (5, 10, 25, 50 par page).
 
 ### 🐛 Corrections & Améliorations
 
-- **Affichage de la cloche pour tous les utilisateurs actifs** — Modification de la `Navbar` pour afficher la cloche de notification à l'ensemble des rôles d'utilisateurs actifs (Présidents, Trésoriers, Cadres, Chauffeurs) et non plus uniquement aux administrateurs.
-- **Fonctionnement des notifications in-app sans OneSignal** — Prise en charge intégrale de la création et du traitement des notifications in-app en base de données, même lorsque l'intégration OneSignal est absente ou désactivée (ex: environnement Preview ou local).
+- **Affichage de la cloche pour tous les utilisateurs actifs** — la cloche de notification s'affiche désormais à l'ensemble des rôles d'utilisateurs actifs (Présidents, Trésoriers, Cadres, Chauffeurs) et non plus uniquement aux administrateurs.
+- **Notifications dans l'application toujours disponibles** — la cloche reçoit les notifications même lorsque les notifications push du téléphone ne sont pas activées.
 
 ## [4.3.0] — 19 juillet 2026
 
@@ -491,15 +407,14 @@ Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne
   - Option de remboursement commutable et téléversement de justificatifs photo dans un dossier parent dédié sur Google Drive.
   - Déclaration sur l'honneur obligatoire en l'absence de justificatif papier.
   - Possibilité de sauvegarder au format brouillon, de modifier les brouillons existants et de les soumettre.
-  - Validation des notes de frais par les rôles d'administration (`PRESIDENT` et `SUPER_ADMIN`).
-  - Mock de l'intégration Google Drive en environnement de prévisualisation (preview) pour éviter les dépendances externes.
+  - Validation des notes de frais par le président ou un super admin.
 
 ## [4.2.0] — 19 juillet 2026
 
 ### ✨ Nouvelles fonctionnalités
 
-- **Bypass QR Code — Accès véhicule sans restriction d'UL** — Génération d'un lien unique `/qr/[token]` par véhicule permettant à tout utilisateur connecté d'effectuer un emprunt ou un retour, indépendamment de son Unité Locale ou de son rôle chauffeur. Interface épurée dédiée hors dashboard et possibilité de régénérer le token (réservé aux rôles d'administration).
-- **Gestion multi-stocks par onglets** — Ajout d'onglets dans le module d'inventaire pour gérer séparément plusieurs stocks, avec prise en charge du dark mode et compatibilité avec le rôle `SUPER_ADMIN`.
+- **QR Code véhicule — accès sans restriction d'UL** — chaque véhicule dispose d'un QR code permettant à tout utilisateur connecté d'effectuer un emprunt ou un retour, indépendamment de son Unité Locale ou de son rôle chauffeur. Interface épurée dédiée hors dashboard et possibilité de régénérer le QR code (réservé aux administrateurs).
+- **Gestion multi-stocks par onglets** — Ajout d'onglets dans le module d'inventaire pour gérer séparément plusieurs stocks, avec prise en charge du mode sombre.
 - **Édition des réservations & Chauffeur non décidé** — Possibilité d'éditer les réservations existantes et sélection du statut "CH (Chauffeur non décidé)" lors de leur création ou modification.
 - **Modification des informations de prise d'emprunt** — Autorisation pour les administrateurs et super-administrateurs de modifier les détails de départ (compteur, carburant, remarques) d'un emprunt en cours de trajet.
 
@@ -512,22 +427,21 @@ Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne
 ### ✨ Nouvelles fonctionnalités
 
 - **Calendrier des véhicules sur le Tableau de bord** — Ajout d'un calendrier mensuel sur le tableau de bord affichant les réservations (en jaune), les emprunts effectués (en vert) et les emprunts en cours (en vert avec bordure en pointillés).
-- **Emplacements de parking par Unité Locale** — Gestion et attribution des places de parking par défaut spécifiques à chaque Unité Locale (`defaultParkingSpots`).
+- **Emplacements de parking par Unité Locale** — Gestion et attribution des places de parking par défaut spécifiques à chaque Unité Locale.
 - **Suivi de la désinfection des véhicules** — Extension du suivi de la désinfection aux véhicules non-VPSP et affichage du statut dans l'historique des sorties.
-- **Refonte des rôles & permissions** — Restructuration complète des niveaux d'accès (`SUPER_ADMIN`, `ADMIN`, `RESPO`, `CHVL`, `CHVPSP`, `GUEST`, `INACTIF`) avec mise à jour des droits.
+- **Refonte des rôles & permissions** — restructuration complète des niveaux d'accès (super admin, admin, responsable, chauffeurs VL et VPSP, inactif) avec mise à jour des droits.
 - **Conformité RGPD & Mentions légales** — Implémentation des pages relatives à la gestion des données personnelles et aux mentions légales.
 - **Isolation des notifications par UL** — Filtrage et ciblage des notifications de la flotte selon l'Unité Locale de l'utilisateur.
 - **Gestion des numéros de téléphone des ULs & VCard** — Gestion dynamique des contacts de garde et export au format VCard.
-- **Tutoriel interactif adaptatif** — Prise en charge des étapes adaptées selon le rôle de l'utilisateur dans le `GuidedTour`.
-- **Support des environnements de prévisualisation (Preview Env)** — Intégration de la configuration d'environnement de prévisualisation.
+- **Tutoriel interactif adaptatif** — Prise en charge des étapes adaptées selon le rôle de l'utilisateur dans la visite guidée.
 
 ### 🐛 Corrections & Améliorations
 
 - **Plage visuelle des emprunts en cours** : Restriction de la plage visuelle d'un trajet en cours sur le calendrier pour qu'il s'arrête au jour courant et ne déborde plus sur les jours futurs du mois.
-- **Gestion des sessions & rafraîchissement des rôles** : Correction du rafraîchissement en temps réel des rôles utilisateur depuis la base de données et préservation des droits d'administration.
+- **Rafraîchissement des rôles** : un changement de rôle s'applique désormais sans avoir à se reconnecter, sans perte des droits d'administration.
 - **Validation à la création des véhicules** : Vérification de l'unicité du nom et de la plaque d'immatriculation et rattachement automatique à l'UL active.
-- **Correction du formulaire de restitution (CheckInModal)** : Résolution des problèmes de typage TypeScript et d'état initial lors du retour d'un véhicule.
-- **Correction des étapes du GuidedTour** : Correctif pour la fonction `buildActiveSteps` afin d'éviter tout blocage lors de la visite guidée.
+- **Formulaire de restitution** : correction de valeurs initiales erronées lors du retour d'un véhicule.
+- **Visite guidée** : elle ne reste plus bloquée sur certaines étapes.
 
 ## [4.0.0] — 08 juillet 2026
 
@@ -574,20 +488,20 @@ Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne
 
 ### 🐛 Corrections
 
-- **Correction des listes en mode démo** — Les listes de missions, véhicules et utilisateurs s'affichent désormais correctement même avec des paramètres de filtrage ou de pagination. L'intercepteur `fetch` a été assoupli pour supporter les query strings.
+- **Correction des listes en mode démo** — Les listes de missions, véhicules et utilisateurs s'affichent désormais correctement même avec des paramètres de filtrage ou de pagination.
 - **Missions de test** — Ajout d'un jeu de données initial pour les missions en mode démo afin que la page ne soit pas vide à la première activation.
 
 ## [2.4.8] — 12 avril 2026
 
 ### 🐛 Corrections
 
-- **Statistiques en mode démo** — Correction d'un crash sur la page statistiques dû à des champs manquants dans le mock global (`completedTrips`, `totalIncidents`, etc.).
+- **Statistiques en mode démo** — Correction d'un crash sur la page statistiques dû à des données de démonstration incomplètes.
 
 ## [2.4.7] — 12 avril 2026
 
 ### 🐛 Corrections
 
-- **Stabilité du Mode Démo** — Correction des erreurs `filter is not a function` dues à des formats de réponse API incorrects. Le mode démo respecte désormais strictement les structures de données attendues par le frontend (tableaux vs objets).
+- **Stabilité du Mode Démo** — correction de plantages de certains écrans en mode démo.
 - **Réinitialisation des données** — Ajout d'un bouton "Réinitialiser" dans la bannière démo pour effacer le stockage local et repartir sur une base propre en cas de corruption de données.
 
 ## [2.4.6] — 12 avril 2026
@@ -609,9 +523,8 @@ Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne
 ### ✨ Nouvelles fonctionnalités
 
 - **Mode Démo (Bac à sable)** — Ajout d'un mode démo accessible depuis la page Aide. Il permet de tester toutes les fonctionnalités (emprunt, rendu, missions) sans impacter la base de données réelle.
-- **Isolation totale** — Les données du mode démo sont stockées uniquement dans le navigateur de l'utilisateur (LocalStorage). Les modifications faites par un utilisateur ne sont pas visibles par les autres.
+- **Isolation totale** — Les données du mode démo sont stockées uniquement dans le navigateur de l'utilisateur . Les modifications faites par un utilisateur ne sont pas visibles par les autres.
 - **Indicateur visuel** — Une bannière orange persistante s'affiche en mode démo pour éviter toute confusion avec l'environnement réel.
-- **Moteur d'interception** — Utilisation d'un proxy `fetch` transparent pour simuler les réponses API sans changer le code métier.
 
 ## [2.4.3] — 12 avril 2026
 
@@ -641,16 +554,9 @@ Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne
 
 ## [2.4.0] — 29 mars 2026
 
-### ✨ Nouvelles fonctionnalités
-
-- **Environnement de développement modernisé** — Lancement automatique d'une base de données locale isolée et performante pour les tests.
-- **Mode test avec données réelles** — Possibilité d'initialiser l'environnement de travail avec une copie sécurisée des données réelles pour des tests plus fiables.
-- **Outils de gestion simplifiés** — Nouvelles commandes pour réinitialiser ou arrêter l'environnement de travail en toute simplicité.
-
 ### 🔧 Changements
 
-- **Configuration adaptative** — L'environnement s'adapte désormais automatiquement au mode de travail sélectionné.
-- **Documentation à jour** — Guide de contribution mis à jour avec les nouveaux outils de démarrage.
+- Améliorations internes, sans changement visible pour les utilisateurs.
 
 ## [2.3.2] — 29 mars 2026
 
@@ -942,7 +848,7 @@ Les véhicules existants restent sans boîte renseignée (`NULL`) : aucun tag ne
 
 ### 🔧 Changements
 
-- **Amélioration de la stabilité** — Optimisation interne du code pour une application plus fluide.
+- **Amélioration de la stabilité** — application plus fluide.
 
 ### 🐛 Corrections
 

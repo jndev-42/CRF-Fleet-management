@@ -45,16 +45,15 @@ describe('GET /api/settings/menus', () => {
         expect(res.status).toBe(401);
     });
 
-    it('returns 403 for non-ADMIN user (CHVL)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@test.com', roles: ['CHVL'] } } as never);
-        const res = await GET();
-        expect(res.status).toBe(403);
-    });
-
-    it('returns 403 for PRESIDENT (lecture seule, pas de gestion modules)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
-        const res = await GET();
-        expect(res.status).toBe(403);
+    it('lisible par tout compte connecté (CHVL, PRESIDENT) : la navigation de chacun en dépend', async () => {
+        await seedMenuSettings({ expenses: 'super_admin_only' });
+        for (const roles of [['CHVL'], ['PRESIDENT'], []]) {
+            mockedAuth.mockResolvedValue({ user: { email: 'chvl@test.com', roles } } as never);
+            const res = await GET();
+            expect(res.status).toBe(200);
+            const data = await res.json();
+            expect(data.settings).toContainEqual({ menu_key: 'expenses', visibility: 'super_admin_only' });
+        }
     });
 
     it('returns 3 settings with available visibility for ADMIN', async () => {
@@ -140,6 +139,25 @@ describe('PATCH /api/settings/menus/[key]', () => {
             args: ['missions'],
         });
         expect(row.rows[0].visibility).toBe('admin_only');
+    });
+
+    it('SUPER_ADMIN peut régler le menu Frais sur « Super admin uniquement »', async () => {
+        await seedMenuSettings({ expenses: 'available' });
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] } } as never);
+        const res = await callPatch('expenses', { visibility: 'super_admin_only' });
+        expect(res.status).toBe(200);
+
+        const row = await db.execute({
+            sql: `SELECT visibility FROM "MenuSetting" WHERE menu_key = ?`,
+            args: ['expenses'],
+        });
+        expect(row.rows[0].visibility).toBe('super_admin_only');
+    });
+
+    it('PATCH reste réservé au SUPER_ADMIN (403 pour un ADMIN)', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        const res = await callPatch('expenses', { visibility: 'disabled' });
+        expect(res.status).toBe(403);
     });
 
     it('ADMIN can disable the uniforms menu', async () => {

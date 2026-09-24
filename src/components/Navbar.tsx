@@ -8,21 +8,16 @@ import { signOut } from 'next-auth/react';
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
 import { User } from 'next-auth';
-import { useMenuSettings, MenuVisibility } from '@/lib/contexts/MenuSettingsContext';
+import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
+import { canSeeMenu } from '@/lib/menuVisibility';
 import { useUL } from '@/lib/contexts/ULContext';
-import { isSuperAdmin, isAdminOrAbove, canAccessAdminPanel, isInactive } from '@/lib/roles';
+import { isAdminOrAbove, canAccessAdminPanel, isInactive } from '@/lib/roles';
 
 const isPreview = process.env.NEXT_PUBLIC_APP_ENV === 'preview';
 
 type NavbarProps = {
     user?: User & { roles?: string[] };
 };
-
-function canSeeMenu(key: string, visibility: MenuVisibility, userRoles: string[]): boolean {
-    if (visibility === 'disabled') return false;
-    if (visibility === 'admin_only') return isSuperAdmin(userRoles);
-    return true;
-}
 
 export default function Navbar({ user }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false);
@@ -123,17 +118,19 @@ export default function Navbar({ user }: NavbarProps) {
                             </button>
                         </div>
                         <Link href="/vehicles" className={`nav-link${pathname.startsWith('/vehicles') || pathname === '/' ? ' active' : ''}`} data-tour="nav-vehicles" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/vehicles') || pathname === '/' ? 'page' : undefined}>Véhicules</Link>
-                        <Link href="/expenses" className={`nav-link${pathname === '/expenses' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/expenses' ? 'page' : undefined}>Frais</Link>
-                        {!isInactive(userRoles) && canSeeMenu('stats', getVisibility('stats'), userRoles) && (
+                        {canSeeMenu(getVisibility('expenses'), userRoles) && (
+                            <Link href="/expenses" className={`nav-link${pathname === '/expenses' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/expenses' ? 'page' : undefined}>Frais</Link>
+                        )}
+                        {!isInactive(userRoles) && canSeeMenu(getVisibility('stats'), userRoles) && (
                             <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} data-tour="nav-stats" onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
                         )}
-                        {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles)) && canSeeMenu('inventory', getVisibility('inventory'), userRoles) && (
+                        {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles)) && canSeeMenu(getVisibility('inventory'), userRoles) && (
                             <Link href="/inventory" className={`nav-link${pathname === '/inventory' ? ' active' : ''}`} data-tour="nav-inventory" onClick={() => setIsOpen(false)} aria-current={pathname === '/inventory' ? 'page' : undefined}>Inventaire</Link>
                         )}
-                        {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles) || userRoles.includes('CI/RPAPS')) && canSeeMenu('missions', getVisibility('missions'), userRoles) && (
+                        {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles) || userRoles.includes('CI/RPAPS')) && canSeeMenu(getVisibility('missions'), userRoles) && (
                             <Link href="/missions" className={`nav-link${pathname.startsWith('/missions') ? ' active' : ''}`} data-tour="nav-missions" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/missions') ? 'page' : undefined}>Missions</Link>
                         )}
-                        {!isInactive(userRoles) && canSeeMenu('uniforms', getVisibility('uniforms'), userRoles) && (
+                        {!isInactive(userRoles) && canSeeMenu(getVisibility('uniforms'), userRoles) && (
                             <Link href="/uniforms" className={`nav-link${pathname.startsWith('/uniforms') ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/uniforms') ? 'page' : undefined}>Uniformes</Link>
                         )}
                         {canAccessAdminPanel(userRoles) && (

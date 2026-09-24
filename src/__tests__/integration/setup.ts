@@ -11,6 +11,7 @@ import { beforeEach, afterAll } from 'vitest';
 import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { menuSettingTableDdl } from '@/lib/menu-settings-schema';
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'martine-test-'));
 /** Exporté pour les tests de concurrence, qui ouvrent un second client sur le même fichier. */
@@ -399,12 +400,7 @@ async function createTables() {
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  await db.execute(`CREATE TABLE IF NOT EXISTS "MenuSetting" (
-    menu_key TEXT NOT NULL PRIMARY KEY,
-    visibility TEXT NOT NULL DEFAULT 'available'
-               CHECK (visibility IN ('available', 'admin_only', 'disabled')),
-    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`);
+  await db.execute(menuSettingTableDdl());
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "CommunicationBanner" (
     id TEXT NOT NULL PRIMARY KEY,

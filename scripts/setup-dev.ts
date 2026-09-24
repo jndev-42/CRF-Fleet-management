@@ -8,6 +8,7 @@ import { createClient } from '@libsql/client';
 import crypto from 'crypto';
 // Chemin relatif volontaire : ce script tourne hors du bundler Next, l'alias `@/` n'y est pas résolu.
 import { DEFAULT_EXPENSE_BUDGETS, seedDefaultBudgets } from '../src/lib/expenses/budgets';
+import { menuSettingNeedsRebuild, menuSettingTableDdl, rebuildMenuSettingTable } from '../src/lib/menu-settings-schema';
 
 // DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
 // Defaults to file:./dev.db when run directly via npm run dev:setup.
@@ -701,14 +702,11 @@ async function main() {
 
     // ── MenuSetting ───────────────────────────────────────────────
 
-    await db.execute(`
-        CREATE TABLE IF NOT EXISTS "MenuSetting" (
-            "menu_key"   TEXT NOT NULL PRIMARY KEY,
-            "visibility" TEXT NOT NULL DEFAULT 'available'
-                         CHECK (visibility IN ('available', 'admin_only', 'disabled')),
-            "updatedAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
+    await db.execute(menuSettingTableDdl());
+    // Base de dev persistante créée avant l'option « Super admin uniquement » :
+    // la contrainte CHECK doit être reconstruite (même logique que la migration
+    // `scripts/update-menu-settings.ts`).
+    if (await menuSettingNeedsRebuild(db)) await rebuildMenuSettingTable(db);
 
     // ── Rapports d'incidents ──────────────────────────────────────
 
@@ -879,6 +877,7 @@ async function main() {
         ON "CommunicationBanner"("is_active", "ul_id", "is_global")
     `);
 
+    await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['expenses', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['stats', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['inventory', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['missions', 'available'] });

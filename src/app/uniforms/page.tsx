@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { canAccessAdminPanel, isAdminOrAbove, isInactive, isSuperAdmin } from '@/lib/roles';
+import { canAccessAdminPanel, isAdminOrAbove, isInactive } from '@/lib/roles';
+import { canSeeMenu } from '@/lib/menuVisibility';
 import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
 import UniformTabs, { type UniformTab } from '@/components/uniforms/UniformTabs';
 import UniformCatalog from '@/components/uniforms/UniformCatalog';
@@ -28,9 +29,7 @@ export default function UniformsPage() {
     const [tab, setTab] = useState<UniformTab>('borrow');
 
     const roles = (session?.user?.roles || []) as string[];
-    const visibility = getVisibility('uniforms');
-    const menuHidden = visibility === 'disabled' || (visibility === 'admin_only' && !isSuperAdmin(roles));
-    const canAccess = !isInactive(roles) && !menuHidden;
+    const canAccess = !isInactive(roles) && canSeeMenu(getVisibility('uniforms'), roles);
 
     const ulId = session?.user?.ulId;
     const hasActiveUl = Boolean(ulId && ulId !== 'default');
