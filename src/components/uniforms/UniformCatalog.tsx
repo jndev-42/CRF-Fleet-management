@@ -71,7 +71,7 @@ export default function UniformCatalog({ items, submitUrl, onSubmitted }: Props)
                 return;
             }
             setCart({});
-            setSuccess(`${totalPieces} pièce${totalPieces > 1 ? 's' : ''} empruntée${totalPieces > 1 ? 's' : ''}. Pensez à les rendre depuis le bandeau en haut de page.`);
+            setSuccess(`${totalPieces} pièce${totalPieces > 1 ? 's' : ''} empruntée${totalPieces > 1 ? 's' : ''}. Pensez à les rendre depuis « Mes pièces empruntées », en haut de cette page.`);
             notifyUniformsChanged();
             onSubmitted();
         } catch {

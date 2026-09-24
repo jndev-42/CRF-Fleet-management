@@ -8,6 +8,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const mockUseSession = vi.fn();
 vi.mock('next-auth/react', () => ({ useSession: () => mockUseSession() }));
 const mockRouter = { push: vi.fn() };
+// La card « Mes pièces empruntées » a ses propres tests et son propre appel API.
+vi.mock('@/components/uniforms/UniformMyLoansCard', () => ({ default: () => <div data-testid="my-loans-card" /> }));
 vi.mock('next/navigation', () => ({ useRouter: () => mockRouter }));
 vi.mock('@/lib/contexts/MenuSettingsContext', () => ({
     useMenuSettings: () => ({ getVisibility: () => 'available' }),
@@ -41,6 +43,14 @@ describe('UniformsPage', () => {
         mockUseSession.mockReturnValue(sessionFor(['CHVL']));
         render(<UniformsPage />);
         expect(screen.getAllByRole('tab').map(t => t.textContent)).toEqual(['Emprunter', 'À laver']);
+    });
+
+    it('affiche la card « Mes pièces empruntées » au-dessus des onglets', () => {
+        mockUseSession.mockReturnValue(sessionFor(['CHVL']));
+        render(<UniformsPage />);
+        const card = screen.getByTestId('my-loans-card');
+        const firstTab = screen.getAllByRole('tab')[0];
+        expect(card.compareDocumentPosition(firstTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('ADMIN : les quatre onglets', () => {

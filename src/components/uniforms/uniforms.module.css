@@ -1,4 +1,4 @@
-/* Styles partagés du module Uniformes (page appli, page QR, bandeau). */
+/* Styles partagés du module Uniformes (page appli, page QR, card des emprunts). */
 
 .section {
     display: flex;
@@ -195,33 +195,25 @@
     overflow-wrap: anywhere;
 }
 
-/* ── Bandeau des emprunts en cours ───────────────────────────────────────── */
+/* ── Card « Mes pièces empruntées » ────────────────────────────────────── */
 
-.banner {
-    background: rgba(59, 130, 246, 0.1);
-    border-bottom: 2px solid rgba(59, 130, 246, 0.5);
-    color: var(--text-primary);
-    padding: 10px 20px;
-    font-size: 14px;
-}
-
-.bannerHeader {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-}
-
-.bannerSummary {
-    flex: 1;
-    min-width: 0;
-}
-
-.bannerBody {
-    margin-top: 10px;
+.loansCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-left: 4px solid var(--crf-red);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 16px;
+    margin-bottom: 20px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+}
+
+.loansCardTitle {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
 }
 
 .batch {

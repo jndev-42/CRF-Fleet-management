@@ -1,5 +1,5 @@
 /**
- * Tests RTL — `UniformLoansBanner` : bandeau global des pièces détenues.
+ * Tests RTL — `UniformMyLoansCard` : card « Mes pièces empruntées » de la page Uniformes.
  */
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -7,7 +7,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const mockUseSession = vi.fn();
 vi.mock('next-auth/react', () => ({ useSession: () => mockUseSession() }));
 
-import UniformLoansBanner from '@/components/uniforms/UniformLoansBanner';
+import UniformMyLoansCard from '@/components/uniforms/UniformMyLoansCard';
 import { notifyUniformsChanged } from '@/components/uniforms/events';
 
 const BATCHES = [
@@ -39,41 +39,40 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe('UniformLoansBanner', () => {
+describe('UniformMyLoansCard', () => {
     it('ne rend rien sans emprunt en cours', async () => {
         mineResponse = { batches: [] };
-        const { container } = render(<UniformLoansBanner />);
+        const { container } = render(<UniformMyLoansCard />);
         await act(async () => { await Promise.resolve(); });
         expect(container.firstChild).toBeNull();
     });
 
     it('ne sollicite pas l\'API pour un compte INACTIF', async () => {
         mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: ['INACTIF'] } } });
-        const { container } = render(<UniformLoansBanner />);
+        const { container } = render(<UniformMyLoansCard />);
         await act(async () => { await Promise.resolve(); });
         expect(container.firstChild).toBeNull();
         expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('résume les pièces détenues, y compris pour un compte sans rôle', async () => {
+    it('liste les pièces détenues, y compris pour un compte sans rôle', async () => {
         mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: [] } } });
-        render(<UniformLoansBanner />);
-        expect(await screen.findByText(/Vous détenez 2 pièces d'uniforme/)).toBeTruthy();
-        expect(screen.getByText(/Polo M, Veste L/)).toBeTruthy();
+        render(<UniformMyLoansCard />);
+        expect(await screen.findByRole('heading', { name: 'Mes pièces empruntées (2)' })).toBeTruthy();
+        expect(screen.getByText('Polo M')).toBeTruthy();
+        expect(screen.getByText('Veste L')).toBeTruthy();
     });
 
-    it('déplié : « Rendre » par pièce et « Tout rendre » par emprunt', async () => {
-        render(<UniformLoansBanner />);
-        fireEvent.click(await screen.findByRole('button', { name: 'Rendre…' }));
-        expect(screen.getByRole('button', { name: 'Rendre Polo M' })).toBeTruthy();
+    it('« Rendre » par pièce et « Tout rendre » par emprunt, sans dépliage', async () => {
+        render(<UniformMyLoansCard />);
+        expect(await screen.findByRole('button', { name: 'Rendre Polo M' })).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Rendre Veste L' })).toBeTruthy();
         expect(screen.getByRole('button', { name: 'Tout rendre' })).toBeTruthy();
     });
 
     it('« Rendre » ouvre la modale sur la bonne pièce et rafraîchit après rendu', async () => {
-        render(<UniformLoansBanner />);
-        fireEvent.click(await screen.findByRole('button', { name: 'Rendre…' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Rendre Polo M' }));
+        render(<UniformMyLoansCard />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Rendre Polo M' }));
         expect(screen.getByRole('heading', { name: 'Rendre Polo M' })).toBeTruthy();
 
         mineResponse = { batches: [{ ...BATCHES[0], pieces: [BATCHES[0].pieces[1]] }] };
@@ -82,30 +81,29 @@ describe('UniformLoansBanner', () => {
 
         await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
         expect(fetchMock).toHaveBeenCalledWith('/api/uniforms/loans/l1/return', expect.objectContaining({ method: 'POST' }));
-        expect(await screen.findByText(/Vous détenez 1 pièce d'uniforme/)).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Mes pièces empruntées (1)' })).toBeTruthy();
     });
 
     it('« Tout rendre » cible l\'emprunt entier', async () => {
-        render(<UniformLoansBanner />);
-        fireEvent.click(await screen.findByRole('button', { name: 'Rendre…' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Tout rendre' }));
+        render(<UniformMyLoansCard />);
+        fireEvent.click(await screen.findByRole('button', { name: 'Tout rendre' }));
         fireEvent.click(screen.getByLabelText(/Sale/));
         mineResponse = { batches: [] };
         fireEvent.click(screen.getByRole('button', { name: 'Confirmer le rendu' }));
 
         await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/uniforms/loan-batches/b1/return', expect.anything()));
-        // Tout est rendu : le bandeau disparaît.
-        await waitFor(() => expect(screen.queryByRole('region')).toBeNull());
+        // Tout est rendu : la card disparaît.
+        await waitFor(() => expect(screen.queryByRole('heading', { name: /Mes pièces empruntées/ })).toBeNull());
     });
 
     it('se rafraîchit sur l\'événement émis après un emprunt', async () => {
         mineResponse = { batches: [] };
-        render(<UniformLoansBanner />);
+        render(<UniformMyLoansCard />);
         await act(async () => { await Promise.resolve(); });
-        expect(screen.queryByRole('region')).toBeNull();
+        expect(screen.queryByRole('heading', { name: /Mes pièces empruntées/ })).toBeNull();
 
         mineResponse = { batches: BATCHES };
         act(() => notifyUniformsChanged());
-        expect(await screen.findByRole('region', { name: 'Uniformes empruntés' })).toBeTruthy();
+        expect(await screen.findByRole('heading', { name: 'Mes pièces empruntées (2)' })).toBeTruthy();
     });
 });

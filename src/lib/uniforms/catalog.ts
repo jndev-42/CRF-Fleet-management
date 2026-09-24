@@ -211,7 +211,7 @@ export async function updateSize(
 
 /**
  * Archive un article ou une taille. Refusé tant qu'une pièce concernée n'est
- * pas rendue : l'emprunteur perdrait la ligne de son bandeau, et l'onglet
+ * pas rendue : l'emprunteur perdrait la ligne de sa card « Mes pièces empruntées », et l'onglet
  * Emprunts afficherait une pièce sortie d'un article introuvable au catalogue.
  * Une pièce rendue sale non lavée n'empêche PAS l'archivage : elle est rendue.
  *

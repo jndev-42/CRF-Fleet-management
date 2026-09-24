@@ -1,9 +1,9 @@
 /**
  * Événement fenêtre émis après un emprunt, un rendu ou un lavage.
  *
- * Le bandeau des emprunts en cours est monté dans le layout, loin des écrans
- * qui modifient les emprunts : l'événement lui évite un sondage périodique et
- * rafraîchit aussi la liste « À laver » et le catalogue ouverts.
+ * La card « Mes pièces empruntées », la liste « À laver » et le catalogue sont
+ * des composants indépendants : l'événement les rafraîchit tous après une
+ * action faite dans l'un d'eux, sans sondage périodique.
  */
 export const UNIFORMS_CHANGED_EVENT = 'uniforms-changed';
 

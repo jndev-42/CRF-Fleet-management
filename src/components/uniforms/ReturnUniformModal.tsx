@@ -44,7 +44,7 @@ export default function ReturnUniformModal({ subject, url, onClose, onReturned }
             if (!res.ok) {
                 setError(data.error || 'Erreur lors du rendu');
                 // 404 / 409 : la pièce a déjà été rendue (autre onglet, autre
-                // appareil) — le bandeau doit refléter l'état réel.
+                // appareil) — la card des emprunts doit refléter l'état réel.
                 if (res.status === 404 || res.status === 409) notifyUniformsChanged();
                 return;
             }

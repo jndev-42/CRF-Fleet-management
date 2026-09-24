@@ -4,6 +4,7 @@ import { useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import UniformCatalog from '@/components/uniforms/UniformCatalog';
+import UniformMyLoansCard from '@/components/uniforms/UniformMyLoansCard';
 import LaundryList from '@/components/uniforms/LaundryList';
 import { useUniformCatalog } from '@/components/uniforms/useUniformCatalog';
 import styles from './page.module.css';
@@ -13,7 +14,7 @@ import styles from './page.module.css';
  * connecté non INACTIF, sans filtre de rôle ni d'UL.
  *
  * Périmètre fermé : emprunter dans le catalogue de l'UL du token et marquer
- * lavées ses pièces sales. Le rendu se fait depuis le bandeau global, au nom de
+ * lavées ses pièces sales. Le rendu se fait depuis la card « Mes pièces empruntées », au nom de
  * l'emprunteur.
  */
 export default function QRUniformsPage() {
@@ -49,8 +50,10 @@ export default function QRUniformsPage() {
                         <h1 className={styles.title}>UL {data.ul.name}</h1>
                         <div className={styles.notice}>
                             📲 Accès via QR Code — l&apos;emprunt est enregistré à votre nom. Rendez les pièces
-                            depuis le bandeau « Vous détenez… » en haut de page.
+                            depuis « Mes pièces empruntées » ci-dessous.
                         </div>
+
+                        <UniformMyLoansCard />
 
                         <h2 className={styles.sectionTitle}>Emprunter</h2>
                         <UniformCatalog items={data.items} submitUrl={`${base}/loans`} onSubmitted={refresh} />

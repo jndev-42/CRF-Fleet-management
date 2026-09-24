@@ -8,6 +8,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // ne doit jamais être réinjecté brut dans une URL d'API.
 const TOKEN = 'tok/../x?y';
 
+// La card « Mes pièces empruntées » a ses propres tests et son propre appel API.
+vi.mock('@/components/uniforms/UniformMyLoansCard', () => ({ default: () => <div data-testid="my-loans-card" /> }));
 vi.mock('next/navigation', () => ({
     useParams: vi.fn(() => ({ token: TOKEN })),
     useRouter: vi.fn(),
@@ -83,5 +85,13 @@ describe('QRUniformsPage', () => {
         expect(await screen.findByText('Polo')).toBeTruthy();
         expect(screen.getByText('Emprunter')).toBeTruthy();
         expect(await screen.findByText('Aucune pièce à laver.')).toBeTruthy();
+    });
+
+    it('affiche la card « Mes pièces empruntées » au-dessus du catalogue', async () => {
+        mockFetch(() => new Response(JSON.stringify(CATALOG), { status: 200 }));
+        render(<QRUniformsPage />);
+        const card = await screen.findByTestId('my-loans-card');
+        const borrowTitle = screen.getByText('Emprunter');
+        expect(card.compareDocumentPosition(borrowTitle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 });

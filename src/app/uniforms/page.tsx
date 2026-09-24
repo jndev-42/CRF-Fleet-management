@@ -7,6 +7,7 @@ import { canAccessAdminPanel, isAdminOrAbove, isInactive, isSuperAdmin } from '@
 import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
 import UniformTabs, { type UniformTab } from '@/components/uniforms/UniformTabs';
 import UniformCatalog from '@/components/uniforms/UniformCatalog';
+import UniformMyLoansCard from '@/components/uniforms/UniformMyLoansCard';
 import LaundryList from '@/components/uniforms/LaundryList';
 import UniformLoansTable from '@/components/uniforms/UniformLoansTable';
 import UniformManagement from '@/components/uniforms/UniformManagement';
@@ -18,7 +19,7 @@ const laundryMarkUrl = (loanId: string) => `/api/uniforms/laundry/${encodeURICom
  * Uniformes — emprunt et rendu des pièces d'uniforme de l'UL active.
  * « Emprunter » et « À laver » : tout compte actif ; « Emprunts » :
  * `canAccessAdminPanel` ; « Gestion » : `isAdminOrAbove`. Le rendu se fait
- * depuis le bandeau global, présent sur toutes les pages.
+ * depuis la card « Mes pièces empruntées », au-dessus des onglets.
  */
 export default function UniformsPage() {
     const { data: session, status } = useSession();
@@ -62,6 +63,8 @@ export default function UniformsPage() {
             <div className="page-header">
                 <h1 className="page-title">Uniformes{ulName ? ` — UL ${ulName}` : ''}</h1>
             </div>
+
+            <UniformMyLoansCard />
 
             {!hasActiveUl ? (
                 <p>Sélectionnez une unité locale pour accéder à ses uniformes.</p>

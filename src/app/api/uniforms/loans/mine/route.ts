@@ -8,7 +8,7 @@ import { uniformErrorResponse } from '@/lib/uniforms/errors';
 
 /**
  * GET /api/uniforms/loans/mine — pièces non rendues de l'utilisateur, groupées
- * par emprunt. Alimente le bandeau global.
+ * par emprunt. Alimente la card « Mes pièces empruntées ».
  *
  * Garde `isQrBlocked` et non `isInactive` : un bénévole SANS rôle peut emprunter
  * via le QR d'une UL, il doit donc pouvoir voir et rendre ce qu'il détient.

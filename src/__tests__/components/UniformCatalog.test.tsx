@@ -49,7 +49,7 @@ describe('UniformCatalog', () => {
         expect(screen.getByText('Panier (2 pièces)')).toBeTruthy();
     });
 
-    it('poste le panier projeté, vide le panier et notifie le bandeau', async () => {
+    it('poste le panier projeté, vide le panier et notifie la card des emprunts', async () => {
         const fetchMock = mockFetch(201, { success: true, batchId: 'b1', count: 2 });
         const onSubmitted = vi.fn();
         const listener = vi.fn();

@@ -71,7 +71,7 @@ describe('ReturnUniformModal', () => {
         expect(props.onReturned).not.toHaveBeenCalled();
     });
 
-    it.each([404, 409])('sur %i (déjà rendue ailleurs), notifie le bandeau pour qu\'il se rafraîchisse', async (status) => {
+    it.each([404, 409])('sur %i (déjà rendue ailleurs), notifie la card des emprunts pour qu\'elle se rafraîchisse', async (status) => {
         mockFetch(status, { error: 'Cette pièce a déjà été rendue' });
         const listener = vi.fn();
         window.addEventListener(UNIFORMS_CHANGED_EVENT, listener);
