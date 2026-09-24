@@ -1,5 +1,21 @@
 # Changelog
 
+## [5.16.0] — 24 septembre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Nouveau module « Uniformes » : emprunter et rendre les pièces d'uniforme de son UL** — un nouveau menu « Uniformes » présente le catalogue de l'unité locale (polos, vestes…, par taille) avec le nombre de pièces disponibles. On remplit un panier puis on valide l'emprunt ; si une taille n'est plus disponible entre-temps, l'emprunt est refusé avec un message clair et rien n'est enregistré.
+- **Un rappel permanent des pièces que vous détenez** — tant que vous avez des pièces empruntées, un bandeau en haut de chaque page les liste. Vous pouvez rendre une pièce à la fois, ou « Tout rendre » d'un coup pour un même emprunt, en indiquant si elle est propre ou sale et en laissant un commentaire (bouton manquant, tache…).
+- **Liste « À laver »** — une pièce rendue sale n'est pas reprêtée : elle apparaît dans l'onglet « À laver », où n'importe quel bénévole peut la marquer lavée une fois nettoyée. Elle redevient alors disponible.
+- **Emprunter en scannant le QR code « Uniformes » de l'UL** — chaque unité locale peut imprimer son propre QR code Uniformes (distinct de celui des comptes rendus de mission). Tout bénévole connecté, même sans rôle attribué ou rattaché à une autre UL, peut l'utiliser pour emprunter et marquer des pièces lavées ; l'emprunt est enregistré à son nom. Seuls les comptes inactifs sont refusés.
+- **Suivi des emprunts pour les cadres** — l'onglet « Emprunts » montre aux cadres, présidents et administrateurs qui a emprunté quoi parmi les pièces de leur UL (y compris des bénévoles d'autres UL), avec les dates, l'état au retour et les commentaires. L'historique reste consultable même quand un article ou une taille est retiré du catalogue.
+- **Gestion du catalogue par les administrateurs** — l'onglet « Gestion » permet de créer, renommer et retirer des articles, d'ajouter ou retirer des tailles et d'ajuster le nombre de pièces possédées, ainsi que d'afficher, télécharger ou régénérer le QR code Uniformes. Une pièce encore empruntée empêche son retrait du catalogue.
+- **Menu désactivable** — le menu « Uniformes » peut être activé, réservé aux administrateurs ou désactivé depuis l'administration, comme les menus Inventaire et Missions.
+
+### ⚠️ À faire avant la mise en production
+
+- **Lancer la migration `npx tsx scripts/add-uniforms.ts --apply` AVANT de déployer cette version.** Elle crée les tables du module Uniformes, la colonne du QR code Uniformes de chaque UL et le réglage du menu. Tant qu'elle n'est pas passée, les écrans Uniformes et le bandeau des pièces empruntées échouent avec une erreur serveur.
+
 ## [5.15.0] — 21 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

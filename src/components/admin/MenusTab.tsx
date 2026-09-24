@@ -25,6 +25,11 @@ const MENU_CONFIGS: MenuConfig[] = [
         label: 'Missions',
         description: 'Accès à la page des comptes rendus de mission.',
     },
+    {
+        key: 'uniforms',
+        label: 'Uniformes',
+        description: 'Accès à la page d\'emprunt et de rendu des pièces d\'uniforme.',
+    },
 ];
 
 const VISIBILITY_OPTIONS: { value: MenuVisibility; label: string }[] = [

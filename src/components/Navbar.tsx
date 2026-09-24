@@ -133,6 +133,9 @@ export default function Navbar({ user }: NavbarProps) {
                         {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles) || userRoles.includes('CI/RPAPS')) && canSeeMenu('missions', getVisibility('missions'), userRoles) && (
                             <Link href="/missions" className={`nav-link${pathname.startsWith('/missions') ? ' active' : ''}`} data-tour="nav-missions" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/missions') ? 'page' : undefined}>Missions</Link>
                         )}
+                        {!isInactive(userRoles) && canSeeMenu('uniforms', getVisibility('uniforms'), userRoles) && (
+                            <Link href="/uniforms" className={`nav-link${pathname.startsWith('/uniforms') ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/uniforms') ? 'page' : undefined}>Uniformes</Link>
+                        )}
                         {canAccessAdminPanel(userRoles) && (
                             <Link href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} data-tour="nav-admin" onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Administration</Link>
                         )}

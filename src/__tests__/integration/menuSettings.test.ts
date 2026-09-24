@@ -141,4 +141,17 @@ describe('PATCH /api/settings/menus/[key]', () => {
         });
         expect(row.rows[0].visibility).toBe('admin_only');
     });
+
+    it('ADMIN can disable the uniforms menu', async () => {
+        await seedMenuSettings({ uniforms: 'available' });
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['SUPER_ADMIN'] } } as never);
+        const res = await callPatch('uniforms', { visibility: 'disabled' });
+        expect(res.status).toBe(200);
+
+        const row = await db.execute({
+            sql: `SELECT visibility FROM "MenuSetting" WHERE menu_key = ?`,
+            args: ['uniforms'],
+        });
+        expect(row.rows[0].visibility).toBe('disabled');
+    });
 });

@@ -5,7 +5,7 @@ import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
-const VALID_KEYS = ['stats', 'inventory', 'missions'] as const;
+const VALID_KEYS = ['stats', 'inventory', 'missions', 'uniforms'] as const;
 
 const patchSchema = z.object({
     visibility: z.enum(['available', 'admin_only', 'disabled']),
