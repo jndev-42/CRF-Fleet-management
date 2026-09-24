@@ -4,11 +4,12 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { MENU_KEYS, MENU_VISIBILITIES } from '@/lib/menuVisibility';
 
-const VALID_KEYS = ['stats', 'inventory', 'missions'] as const;
+const VALID_KEYS = MENU_KEYS;
 
 const patchSchema = z.object({
-    visibility: z.enum(['available', 'admin_only', 'disabled']),
+    visibility: z.enum(MENU_VISIBILITIES),
 });
 
 type RouteContext = { params: Promise<{ key: string }> };

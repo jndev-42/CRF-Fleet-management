@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 let mockPathname = '/vehicles';
 const mockSignOut = vi.fn();
 const mockSwitchUL = vi.fn();
-type Visibility = 'available' | 'admin_only' | 'disabled';
+type Visibility = 'available' | 'admin_only' | 'super_admin_only' | 'disabled';
 let mockGetVisibility = vi.fn<(key: string) => Visibility>(() => 'available');
 let mockUL: {
     activeUL: { id: string; name: string } | null;
@@ -92,10 +92,29 @@ describe('Navbar', () => {
         expect(screen.queryByTestId('notification-bell')).toBeNull();
     });
 
-    it('respecte un réglage de menu admin_only pour un non-super-admin', () => {
+    it('admin_only : masqué pour un CADRE, visible pour un ADMIN', () => {
         mockGetVisibility = vi.fn((key: string) => (key === 'stats' ? 'admin_only' : 'available'));
-        render(<Navbar user={{ email: 'admin@test.com', roles: ['ADMIN'] }} />);
+        const { unmount } = render(<Navbar user={{ email: 'cadre@test.com', roles: ['CADRE'] }} />);
         expect(screen.queryByText('Statistiques')).toBeNull();
+        unmount();
+        render(<Navbar user={{ email: 'admin@test.com', roles: ['ADMIN'] }} />);
+        expect(screen.getByText('Statistiques')).toBeTruthy();
+    });
+
+    it('super_admin_only : masqué pour un ADMIN, visible pour un SUPER_ADMIN', () => {
+        mockGetVisibility = vi.fn((key: string) => (key === 'stats' ? 'super_admin_only' : 'available'));
+        const { unmount } = render(<Navbar user={{ email: 'admin@test.com', roles: ['ADMIN'] }} />);
+        expect(screen.queryByText('Statistiques')).toBeNull();
+        unmount();
+        render(<Navbar user={{ email: 'sa@test.com', roles: ['SUPER_ADMIN'] }} />);
+        expect(screen.getByText('Statistiques')).toBeTruthy();
+    });
+
+    it('le menu Frais suit son réglage de visibilité', () => {
+        mockGetVisibility = vi.fn((key: string) => (key === 'expenses' ? 'disabled' : 'available'));
+        render(<Navbar user={{ email: 'chvl@test.com', roles: ['CHVL'] }} />);
+        expect(screen.queryByText('Frais')).toBeNull();
+        expect(screen.getByText('Véhicules')).toBeTruthy();
     });
 
     it('ouvre et ferme le menu mobile via le bouton burger', () => {

@@ -8,6 +8,7 @@ import { createClient } from '@libsql/client';
 import crypto from 'crypto';
 // Chemin relatif volontaire : ce script tourne hors du bundler Next, l'alias `@/` n'y est pas résolu.
 import { DEFAULT_EXPENSE_BUDGETS, seedDefaultBudgets } from '../src/lib/expenses/budgets';
+import { menuSettingNeedsRebuild, menuSettingTableDdl, rebuildMenuSettingTable } from '../src/lib/menu-settings-schema';
 
 // DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
 // Defaults to file:./dev.db when run directly via npm run dev:setup.
@@ -83,7 +84,8 @@ async function main() {
             "defaultParkingSpots" TEXT,
             "stampImage" TEXT,
             "dtCode" TEXT,
-            "qrToken" TEXT
+            "qrToken" TEXT,
+            "uniformQrToken" TEXT
         )
     `);
 
@@ -100,6 +102,9 @@ async function main() {
     if (!ulCols.rows.some(r => r.name === 'qrToken')) {
         await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "qrToken" TEXT`);
     }
+    if (!ulCols.rows.some(r => r.name === 'uniformQrToken')) {
+        await db.execute(`ALTER TABLE "UniteLocale" ADD COLUMN "uniformQrToken" TEXT`);
+    }
 
     // Index partiel : deux UL ne peuvent pas porter le même token (un rapport
     // scanné se retrouverait rattaché à l'autre), mais autant d'UL qu'on veut
@@ -107,6 +112,13 @@ async function main() {
     await db.execute(`
         CREATE UNIQUE INDEX IF NOT EXISTS "UniteLocale_qrToken_key"
             ON "UniteLocale"("qrToken") WHERE "qrToken" IS NOT NULL
+    `);
+
+    // Token QR « Uniformes » : distinct de `qrToken` (qui ouvre le rapport de
+    // mission), même contrainte d'unicité partielle.
+    await db.execute(`
+        CREATE UNIQUE INDEX IF NOT EXISTS "UniteLocale_uniformQrToken_key"
+            ON "UniteLocale"("uniformQrToken") WHERE "uniformQrToken" IS NOT NULL
     `);
 
     await db.execute(`
@@ -626,16 +638,75 @@ async function main() {
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_supplies_report_id_idx" ON "mission_report_supplies"("report_id")`);
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_interventions_report_id_idx" ON "mission_report_interventions"("report_id")`);
 
-    // ── MenuSetting ───────────────────────────────────────────────
+    // ── Uniformes ─────────────────────────────────────────────────
+    // Le disponible d'une taille n'est JAMAIS stocké : il se dérive de
+    // `quantity` moins les pièces non rendues et les pièces rendues sales non
+    // encore lavées (cf. `src/lib/uniforms/catalog.ts`).
 
     await db.execute(`
-        CREATE TABLE IF NOT EXISTS "MenuSetting" (
-            "menu_key"   TEXT NOT NULL PRIMARY KEY,
-            "visibility" TEXT NOT NULL DEFAULT 'available'
-                         CHECK (visibility IN ('available', 'admin_only', 'disabled')),
+        CREATE TABLE IF NOT EXISTS "UniformItem" (
+            "id"         TEXT NOT NULL PRIMARY KEY,
+            "ulId"       TEXT NOT NULL REFERENCES "UniteLocale"("id") ON DELETE CASCADE,
+            "name"       TEXT NOT NULL,
+            "archivedAt" DATETIME,
+            "createdAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     `);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "UniformItem_ulId_idx" ON "UniformItem"("ulId")`);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "UniformSize" (
+            "id"         TEXT NOT NULL PRIMARY KEY,
+            "itemId"     TEXT NOT NULL REFERENCES "UniformItem"("id") ON DELETE CASCADE,
+            "label"      TEXT NOT NULL,
+            "quantity"   INTEGER NOT NULL DEFAULT 0 CHECK ("quantity" >= 0),
+            "archivedAt" DATETIME,
+            "createdAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "updatedAt"  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "UniformSize_itemId_idx" ON "UniformSize"("itemId")`);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "UniformLoanBatch" (
+            "id"            TEXT NOT NULL PRIMARY KEY,
+            "ulId"          TEXT NOT NULL,
+            "borrowerId"    TEXT NOT NULL,
+            "borrowerName"  TEXT,
+            "borrowerEmail" TEXT,
+            "source"        TEXT NOT NULL DEFAULT 'app' CHECK ("source" IN ('app', 'qr')),
+            "createdAt"     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoanBatch_borrowerId_idx" ON "UniformLoanBatch"("borrowerId")`);
+
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "UniformLoan" (
+            "id"            TEXT NOT NULL PRIMARY KEY,
+            "batchId"       TEXT NOT NULL REFERENCES "UniformLoanBatch"("id") ON DELETE CASCADE,
+            "sizeId"        TEXT NOT NULL REFERENCES "UniformSize"("id") ON DELETE CASCADE,
+            "borrowerId"    TEXT NOT NULL,
+            "borrowedAt"    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "returnedAt"    DATETIME,
+            "returnedClean" INTEGER,
+            "returnComment" TEXT,
+            "washedAt"      DATETIME,
+            "washedBy"      TEXT,
+            "washedByName"  TEXT
+        )
+    `);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_sizeId_idx" ON "UniformLoan"("sizeId")`);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_batchId_idx" ON "UniformLoan"("batchId")`);
+    await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_borrowerId_returnedAt_idx" ON "UniformLoan"("borrowerId", "returnedAt")`);
+
+    // ── MenuSetting ───────────────────────────────────────────────
+
+    await db.execute(menuSettingTableDdl());
+    // Base de dev persistante créée avant l'option « Super admin uniquement » :
+    // la contrainte CHECK doit être reconstruite (même logique que la migration
+    // `scripts/update-menu-settings.ts`).
+    if (await menuSettingNeedsRebuild(db)) await rebuildMenuSettingTable(db);
 
     // ── Rapports d'incidents ──────────────────────────────────────
 
@@ -806,9 +877,11 @@ async function main() {
         ON "CommunicationBanner"("is_active", "ul_id", "is_global")
     `);
 
+    await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['expenses', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['stats', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['inventory', 'available'] });
     await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['missions', 'available'] });
+    await db.execute({ sql: `INSERT OR IGNORE INTO "MenuSetting" (menu_key, visibility) VALUES (?, ?)`, args: ['uniforms', 'available'] });
 
     console.log('✅ Tables créées\n');
 

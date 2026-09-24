@@ -2,7 +2,9 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 
-export type MenuVisibility = 'available' | 'admin_only' | 'disabled';
+import type { MenuVisibility } from '@/lib/menuVisibility';
+
+export type { MenuVisibility };
 
 export interface MenuSetting {
     menu_key: string;

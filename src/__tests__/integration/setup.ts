@@ -11,9 +11,11 @@ import { beforeEach, afterAll } from 'vitest';
 import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { menuSettingTableDdl } from '@/lib/menu-settings-schema';
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'martine-test-'));
-const dbPath = join(tmpDir, 'test.db');
+/** Exporté pour les tests de concurrence, qui ouvrent un second client sur le même fichier. */
+export const dbPath = join(tmpDir, 'test.db');
 
 export const db = createClient({ url: `file:${dbPath}` });
 
@@ -127,13 +129,16 @@ async function createTables() {
     defaultParkingSpots TEXT,
     stampImage TEXT,
     dtCode TEXT,
-    qrToken TEXT
+    qrToken TEXT,
+    uniformQrToken TEXT
   )`);
 
   // Index partiel — deux UL ne peuvent pas porter le même token QR, mais autant
   // d'UL qu'on veut peuvent n'en porter aucun.
   await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "UniteLocale_qrToken_key"
     ON "UniteLocale"("qrToken") WHERE "qrToken" IS NOT NULL`);
+  await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "UniteLocale_uniformQrToken_key"
+    ON "UniteLocale"("uniformQrToken") WHERE "uniformQrToken" IS NOT NULL`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "Role" (
     id TEXT PRIMARY KEY,
@@ -324,6 +329,58 @@ async function createTables() {
   if (!cols.rows.some((r: Record<string, unknown>) => r.name === 'templateId')) {
     await db.execute(`ALTER TABLE "InvLocation" ADD COLUMN templateId TEXT REFERENCES "InvBagTemplate"(id) ON DELETE SET NULL`);
   }
+  // ── Uniformes ──────────────────────────────────────────────────────────────
+
+  // Aligné sur scripts/add-uniforms.ts (tables, clés étrangères, index).
+  await db.execute(`CREATE TABLE IF NOT EXISTS "UniformItem" (
+    id TEXT NOT NULL PRIMARY KEY,
+    ulId TEXT NOT NULL REFERENCES "UniteLocale"("id") ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    archivedAt DATETIME,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "UniformSize" (
+    id TEXT NOT NULL PRIMARY KEY,
+    itemId TEXT NOT NULL REFERENCES "UniformItem"("id") ON DELETE CASCADE,
+    label TEXT NOT NULL,
+    quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+    archivedAt DATETIME,
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "UniformLoanBatch" (
+    id TEXT NOT NULL PRIMARY KEY,
+    ulId TEXT NOT NULL,
+    borrowerId TEXT NOT NULL,
+    borrowerName TEXT,
+    borrowerEmail TEXT,
+    source TEXT NOT NULL DEFAULT 'app' CHECK (source IN ('app', 'qr')),
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  await db.execute(`CREATE TABLE IF NOT EXISTS "UniformLoan" (
+    id TEXT NOT NULL PRIMARY KEY,
+    batchId TEXT NOT NULL REFERENCES "UniformLoanBatch"("id") ON DELETE CASCADE,
+    sizeId TEXT NOT NULL REFERENCES "UniformSize"("id") ON DELETE CASCADE,
+    borrowerId TEXT NOT NULL,
+    borrowedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    returnedAt DATETIME,
+    returnedClean INTEGER,
+    returnComment TEXT,
+    washedAt DATETIME,
+    washedBy TEXT,
+    washedByName TEXT
+  )`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS "UniformItem_ulId_idx" ON "UniformItem"("ulId")`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS "UniformSize_itemId_idx" ON "UniformSize"("itemId")`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoanBatch_borrowerId_idx" ON "UniformLoanBatch"("borrowerId")`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_sizeId_idx" ON "UniformLoan"("sizeId")`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_batchId_idx" ON "UniformLoan"("batchId")`);
+  await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_borrowerId_returnedAt_idx" ON "UniformLoan"("borrowerId", "returnedAt")`);
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
     id TEXT PRIMARY KEY,
     vehicleId TEXT NOT NULL REFERENCES "Vehicle"(id),
@@ -343,12 +400,7 @@ async function createTables() {
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
 
-  await db.execute(`CREATE TABLE IF NOT EXISTS "MenuSetting" (
-    menu_key TEXT NOT NULL PRIMARY KEY,
-    visibility TEXT NOT NULL DEFAULT 'available'
-               CHECK (visibility IN ('available', 'admin_only', 'disabled')),
-    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )`);
+  await db.execute(menuSettingTableDdl());
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "CommunicationBanner" (
     id TEXT NOT NULL PRIMARY KEY,
@@ -450,13 +502,16 @@ async function createTables() {
     defaultParkingSpots TEXT,
     stampImage TEXT,
     dtCode TEXT,
-    qrToken TEXT
+    qrToken TEXT,
+    uniformQrToken TEXT
   )`);
 
   // Index partiel — deux UL ne peuvent pas porter le même token QR, mais autant
   // d'UL qu'on veut peuvent n'en porter aucun.
   await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "UniteLocale_qrToken_key"
     ON "UniteLocale"("qrToken") WHERE "qrToken" IS NOT NULL`);
+  await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS "UniteLocale_uniformQrToken_key"
+    ON "UniteLocale"("uniformQrToken") WHERE "uniformQrToken" IS NOT NULL`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "UserUL" (
     userId TEXT NOT NULL,
@@ -515,6 +570,10 @@ async function createTables() {
 }
 
 async function truncateTables() {
+  await db.execute(`DELETE FROM "UniformLoan"`);
+  await db.execute(`DELETE FROM "UniformLoanBatch"`);
+  await db.execute(`DELETE FROM "UniformSize"`);
+  await db.execute(`DELETE FROM "UniformItem"`);
   await db.execute(`DELETE FROM "mission_report_interventions"`);
   await db.execute(`DELETE FROM "mission_report_supplies"`);
   await db.execute(`DELETE FROM "mission_reports"`);
@@ -1154,4 +1213,33 @@ export async function seedVehicleConnection(overrides: Partial<{
     args: [vc.id, vc.vehicleId, vc.credentialId, vc.brand, vc.vin, vc.status, vc.lastError, new Date().toISOString(), vc.lastCheckedAt],
   });
   return vc;
+}
+
+export async function seedUniformItem(overrides: Partial<{
+  id: string;
+  ulId: string;
+  name: string;
+  archivedAt: string | null;
+}> = {}) {
+  const item = { id: 'uitem-polo', ulId: 'ul-paris-18', name: 'Polo', archivedAt: null as string | null, ...overrides };
+  await db.execute({
+    sql: `INSERT INTO "UniformItem" (id, ulId, name, archivedAt) VALUES (?, ?, ?, ?)`,
+    args: [item.id, item.ulId, item.name, item.archivedAt],
+  });
+  return item;
+}
+
+export async function seedUniformSize(overrides: Partial<{
+  id: string;
+  itemId: string;
+  label: string;
+  quantity: number;
+  archivedAt: string | null;
+}> = {}) {
+  const size = { id: 'usize-polo-m', itemId: 'uitem-polo', label: 'M', quantity: 3, archivedAt: null as string | null, ...overrides };
+  await db.execute({
+    sql: `INSERT INTO "UniformSize" (id, itemId, label, quantity, archivedAt) VALUES (?, ?, ?, ?, ?)`,
+    args: [size.id, size.itemId, size.label, size.quantity, size.archivedAt],
+  });
+  return size;
 }
