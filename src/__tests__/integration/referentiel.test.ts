@@ -340,6 +340,32 @@ describe('POST /api/referentiel/process — échecs, lots courts, classement, ba
         expect(body.results[0]).toMatchObject({ page: 2, title: 'Hémorragie externe — Urgences vitales · IV.B.2' });
     });
 
+    it('renomme au-delà du premier paquet de titres lus (plus de 200 pages, plus de 100 renommages)', async () => {
+        extraction.pageCount = 450;
+        const defaultExtract = vi.mocked(extractPages).getMockImplementation()!;
+        vi.mocked(extractPages).mockImplementation(async (_source: unknown, from: number, to: number) =>
+            Array.from({ length: Math.min(to, 450) - from + 1 }, (_, i) => {
+                const page = from + i;
+                return {
+                    page,
+                    title: page === 1 ? 'Brûlures — Affections traumatiques · IV.D.2' : 'Conduite à tenir / Affections traumatiques / IV.D.2',
+                    body: `Contenu ${page}.`,
+                };
+            }));
+        let id: string;
+        try {
+            id = await importReferentiel();
+        } finally {
+            vi.mocked(extractPages).mockImplementation(defaultExtract);
+        }
+
+        const rows = (await db.execute({
+            sql: `SELECT COUNT(*) AS n FROM ReferentielPage WHERE referentielId = ? AND title = 'Brûlures — Affections traumatiques · IV.D.2'`,
+            args: [id],
+        })).rows;
+        expect(rows[0].n).toBe(450);
+    });
+
     it('purge à la bascule un import resté `uploading` (dépôt jamais fait) et son objet R2', async () => {
         asSession(SUPER_ADMIN);
         const abandoned = (await (await upload(post('/api/referentiel/upload', { fileName: 'abandon.pdf' }))).json()).id;

@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.18.2] — 1er octobre 2026
+
+### 🐛 Corrections
+
+- **Fin d'import du référentiel bloquée** — la dernière étape de l'import (mise en service du nouveau guide) restait suspendue jusqu'à expiration du délai sur un guide de plusieurs centaines de pages. Elle se termine désormais en une seconde environ.
+
 ## [5.18.1] — 1er octobre 2026
 
 ### 🐛 Corrections

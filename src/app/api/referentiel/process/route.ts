@@ -14,6 +14,7 @@
  *    budget de `maxDuration`.
  */
 import { NextResponse } from 'next/server';
+import type { Transaction } from '@libsql/client';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
@@ -65,6 +66,28 @@ function r2Source(key: string): PdfSource {
     };
 }
 
+/**
+ * Titres de toutes les pages, lus par paquets : le client libSQL installé (0.5.6,
+ * transport `node-fetch`) ne termine JAMAIS une réponse HTTP de plus de ~64 Ko — la
+ * requête reste suspendue sans erreur. 826 titres d'un coup (≈ 88 Ko) bloquaient la
+ * bascule jusqu'au `maxDuration`. 200 titres ≈ 20 Ko. Voir aussi `scripts/dev-db-init.ts`.
+ */
+const TITLES_PAGE_SIZE = 200;
+const RENAME_BATCH_SIZE = 100;
+
+async function readTitles(tx: Transaction, id: string): Promise<{ page: number; title: string }[]> {
+    const titles: { page: number; title: string }[] = [];
+    for (let after = 0; ;) {
+        const res = await tx.execute({
+            sql: `SELECT page, title FROM ReferentielPage WHERE referentielId = ? AND page > ? ORDER BY page LIMIT ?`,
+            args: [id, after, TITLES_PAGE_SIZE],
+        });
+        for (const r of res.rows) titles.push({ page: Number(r.page), title: String(r.title ?? '') });
+        if (res.rows.length < TITLES_PAGE_SIZE) return titles;
+        after = titles[titles.length - 1].page;
+    }
+}
+
 async function markFailed(id: string): Promise<void> {
     await db.execute({ sql: `UPDATE Referentiel SET status = 'failed' WHERE id = ?`, args: [id] });
 }
@@ -92,13 +115,11 @@ async function activate(id: string): Promise<string[] | null> {
         await tx.execute({ sql: `DELETE FROM ReferentielPage WHERE referentielId != ?`, args: [id] });
         await tx.execute({ sql: `DELETE FROM Referentiel WHERE id != ?`, args: [id] });
         // Les pages de suite reprennent le nom de fiche lu sur leur page de couverture.
-        const titles = await tx.execute({
-            sql: `SELECT page, title FROM ReferentielPage WHERE referentielId = ?`,
-            args: [id],
-        });
-        const renamed = applyFicheNames(titles.rows.map(r => ({ page: Number(r.page), title: String(r.title ?? '') })));
-        if (renamed.length > 0) {
-            await tx.batch(renamed.map(({ page, title }) => ({
+        const renamed = applyFicheNames(await readTitles(tx, id));
+        // Par paquets, pour la même raison que `readTitles` : un batch renvoie un résultat
+        // par instruction, et ~600 résultats dépasseraient 64 Ko.
+        for (let i = 0; i < renamed.length; i += RENAME_BATCH_SIZE) {
+            await tx.batch(renamed.slice(i, i + RENAME_BATCH_SIZE).map(({ page, title }) => ({
                 sql: `UPDATE ReferentielPage SET title = ? WHERE referentielId = ? AND page = ?`,
                 args: [title, id, page],
             })));
