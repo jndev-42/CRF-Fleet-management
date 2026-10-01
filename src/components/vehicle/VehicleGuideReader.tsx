@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, Download, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, RotateCw, X } from 'lucide-react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
-import { useElementWidth, useGuidePageRender, useGuidePdf } from './useGuidePdf';
+import { useElementSize, useGuidePageRender, useGuidePdf } from './useGuidePdf';
 import styles from './VehicleGuideReader.module.css';
 
 interface VehicleGuideReaderProps {
@@ -14,13 +14,35 @@ interface VehicleGuideReaderProps {
     onClose: () => void;
 }
 
-/** Distance horizontale minimale (px) pour qu'un glissé tourne la page. */
+/** Distance minimale (px) pour qu'un glissé tourne la page. */
 const SWIPE_THRESHOLD = 50;
+
+/** Préférence d'affichage pivoté, mémorisée sur l'appareil (confort, jamais critique). */
+const ROTATED_STORAGE_KEY = 'vehicleGuideReader.rotated';
+
+function readRotatedPreference(): boolean {
+    try {
+        return window.localStorage.getItem(ROTATED_STORAGE_KEY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+function writeRotatedPreference(rotated: boolean) {
+    try {
+        window.localStorage.setItem(ROTATED_STORAGE_KEY, rotated ? '1' : '0');
+    } catch {
+        // Stockage indisponible (navigation privée…) : la préférence ne survit simplement pas.
+    }
+}
 
 /**
  * Liseuse plein écran du guide de vérification : une page à la fois, ajustée à
  * la largeur. Navigation par boutons, flèches du clavier ou glissé sur mobile ;
  * fermeture par bouton ou Échap.
+ *
+ * « Pivoter » affiche la page tournée de 90° pour la lire téléphone en paysage :
+ * l'appli installée est verrouillée en portrait, l'écran ne bascule donc pas seul.
  */
 export default function VehicleGuideReader({ src, fileName, onClose }: VehicleGuideReaderProps) {
     useEscapeKey(onClose);
@@ -30,10 +52,18 @@ export default function VehicleGuideReader({ src, fileName, onClose }: VehicleGu
     const closeRef = useRef<HTMLButtonElement>(null);
     const touchStart = useRef<{ x: number; y: number } | null>(null);
     const [pageNumber, setPageNumber] = useState(1);
+    const [rotated, setRotated] = useState(readRotatedPreference);
 
     const { doc, error, setError } = useGuidePdf(src);
-    const width = useElementWidth(viewportRef);
-    useGuidePageRender(doc, pageNumber, width, canvasRef, setError);
+    const size = useElementSize(viewportRef);
+    useGuidePageRender(doc, pageNumber, size, rotated, canvasRef, setError);
+
+    function toggleRotated() {
+        setRotated(r => {
+            writeRotatedPreference(!r);
+            return !r;
+        });
+    }
 
     const pageCount = doc?.numPages ?? 0;
     const goPrev = useCallback(() => setPageNumber(p => Math.max(1, p - 1)), []);
@@ -70,12 +100,14 @@ export default function VehicleGuideReader({ src, fileName, onClose }: VehicleGu
         touchStart.current = null;
         const end = e.changedTouches[0];
         if (!start || !end) return;
-        const dx = end.clientX - start.x;
-        const dy = end.clientY - start.y;
-        // Un geste plutôt vertical (ou diagonal) est un défilement.
-        if (Math.abs(dy) >= Math.abs(dx)) return;
-        if (dx > SWIPE_THRESHOLD) goPrev();
-        else if (-dx > SWIPE_THRESHOLD) goNext();
+        // Page pivotée : le téléphone est tenu en paysage, le « glissé horizontal »
+        // du lecteur suit l'axe vertical de l'écran (sa gauche est le haut de l'écran).
+        const along = rotated ? end.clientY - start.y : end.clientX - start.x;
+        const across = rotated ? end.clientX - start.x : end.clientY - start.y;
+        // Un geste plutôt transversal (ou diagonal) est un défilement.
+        if (Math.abs(across) >= Math.abs(along)) return;
+        if (along > SWIPE_THRESHOLD) goPrev();
+        else if (-along > SWIPE_THRESHOLD) goNext();
     }
 
     const downloadHref = `${src}${src.includes('?') ? '&' : '?'}download=1`;
@@ -86,6 +118,16 @@ export default function VehicleGuideReader({ src, fileName, onClose }: VehicleGu
         <div role="dialog" aria-modal="true" aria-label={`Guide de vérification : ${fileName}`} className={styles.overlay}>
             <div className={styles.bar}>
                 <div className={styles.title}>{fileName}</div>
+                <button
+                    type="button"
+                    onClick={toggleRotated}
+                    aria-pressed={rotated}
+                    aria-label={rotated ? 'Afficher en portrait' : 'Afficher en paysage'}
+                    title={rotated ? 'Afficher en portrait' : 'Afficher en paysage'}
+                    className={styles.iconButton}
+                >
+                    <RotateCw size={20} />
+                </button>
                 <a href={downloadHref} download={fileName} aria-label="Télécharger le guide" className={styles.iconButton}>
                     <Download size={20} />
                 </a>
@@ -96,7 +138,7 @@ export default function VehicleGuideReader({ src, fileName, onClose }: VehicleGu
 
             <div
                 ref={viewportRef}
-                className={styles.viewport}
+                className={rotated ? `${styles.viewport} ${styles.viewportRotated}` : styles.viewport}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
             >

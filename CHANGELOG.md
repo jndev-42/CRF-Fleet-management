@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.17.1] — 1er octobre 2026
+
+### 🔧 Améliorations
+
+- **Guide de vérification en paysage sur téléphone** — un nouveau bouton « Pivoter » dans la liseuse affiche la page tournée pour la lire téléphone tenu en paysage, en plein écran. Le glissé du doigt suit le sens de lecture, et le choix est mémorisé sur l'appareil pour les prochaines ouvertures.
+
 ## [5.17.0] — 1er octobre 2026
 
 ### ✨ Nouvelles fonctionnalités
