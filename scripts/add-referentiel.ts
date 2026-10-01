@@ -4,8 +4,10 @@
  * Crée `Referentiel`, `ReferentielPage` et la table virtuelle FTS5
  * `ReferentielFts` (contenu externe sur `ReferentielPage`, insensible aux accents).
  *
- * FTS5 doit être disponible sur la base cible : la migration le TESTE d'abord
- * (table virtuelle temporaire) et s'arrête avec un message clair s'il manque.
+ * FTS5 doit être disponible sur la base cible. Turso refuse les tables virtuelles
+ * temporaires (`temp.`) : le dry-run ne peut donc pas tester FTS5 sans écrire. Avec
+ * `--apply`, la création de `ReferentielFts` fait office de test et la migration
+ * s'arrête avec un message clair si FTS5 manque.
  *
  * À exécuter AVANT le déploiement : sans les tables, `/api/referentiel/*`
  * répond 500 et le chatbot affiche une erreur.
@@ -31,23 +33,6 @@ async function main() {
         authToken: process.env.TURSO_AUTH_TOKEN
     });
 
-    // Test FTS5 avec une table TEMP, dans UN batch (une seule connexion : sur Turso, en
-    // HTTP, une table temporaire ne survit pas d'une requête à l'autre). Elle disparaît
-    // avec la connexion, donc même le dry-run n'écrit rien de persistant.
-    try {
-        await db.batch([
-            `CREATE VIRTUAL TABLE temp."_fts5_probe" USING fts5(x, tokenize='unicode61 remove_diacritics 2')`,
-            `DROP TABLE temp."_fts5_probe"`,
-        ], 'write');
-        console.log("  FTS5 : disponible");
-    } catch (error: unknown) {
-        console.error(
-            "❌ FTS5 indisponible sur cette base — le référentiel ne peut pas être indexé :",
-            error instanceof Error ? error.message : String(error),
-        );
-        process.exit(1);
-    }
-
     const existing = new Set(
         (await db.execute(`SELECT name FROM sqlite_master WHERE type = 'table'`)).rows.map(r => String(r.name)),
     );
@@ -66,13 +51,22 @@ async function main() {
         console.log("\nPlan (aucune écriture) :");
         for (const t of missingTables) console.log(`  ${t.ddl.replace(/\s+/g, ' ')}`);
         if (!hasFts) console.log(`  ${REFERENTIEL_FTS_DDL.replace(/\s+/g, ' ')}`);
-        console.log("\nRelancer avec --apply pour exécuter.");
+        console.log("\nFTS5 n'est testé qu'avec --apply (Turso refuse les tables virtuelles temporaires).");
+        console.log("Relancer avec --apply pour exécuter.");
         return;
     }
 
     // `Referentiel` avant `ReferentielPage` (clé étrangère), l'index FTS en dernier.
     for (const t of REFERENTIEL_TABLES) await db.execute(t.ddl);
-    await db.execute(REFERENTIEL_FTS_DDL);
+    try {
+        await db.execute(REFERENTIEL_FTS_DDL);
+    } catch (error: unknown) {
+        console.error(
+            "❌ FTS5 indisponible sur cette base — le référentiel ne peut pas être indexé :",
+            error instanceof Error ? error.message : String(error),
+        );
+        process.exit(1);
+    }
 
     const after = new Set(
         (await db.execute(`SELECT name FROM sqlite_master WHERE type = 'table'`)).rows.map(r => String(r.name)),
