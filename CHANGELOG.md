@@ -1,5 +1,14 @@
 # Changelog
 
+## [5.18.0] — 1er octobre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Interroger le guide pratique PSE** — un nouveau bouton flottant (livre), au-dessus du bouton « Signaler un bug », ouvre un chat : posez votre question (« hémorragie », « PLS », « RCP enfant », « DAE »…) et obtenez les 5 pages les plus pertinentes du guide, avec le titre de la fiche et un extrait où vos mots sont surlignés. La recherche ignore les accents et les mots courants, et comprend quelques abréviations (RCP, DAE, AVC, PLS).
+- **Ouvrir la page dans le guide** — « Ouvrir p. X » affiche la page dans la liseuse plein écran, directement au bon endroit, sans télécharger tout le document.
+- **Import du référentiel par le super admin** — un nouvel onglet « Référentiel » dans l'administration permet d'importer le PDF du guide, avec une barre de progression pour l'envoi puis pour l'indexation des pages. L'ancien référentiel reste consultable jusqu'à la fin de l'import du nouveau.
+- Le chat n'affiche que le texte officiel du guide, rappelé en permanence : « Extraits du référentiel — ne remplace ni la formation ni la régulation (15) ».
+
 ## [5.17.1] — 1er octobre 2026
 
 ### 🔧 Améliorations

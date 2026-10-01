@@ -49,6 +49,26 @@ describe('VehicleGuideReader', () => {
         expect(global.fetch).toHaveBeenCalledWith('/api/vehicles/VL1/guide');
     });
 
+    it('lit une URL directe par Range (sans fetch du fichier) et s\'ouvre à la page demandée', async () => {
+        getDocument.mockClear();
+        render(<VehicleGuideReader rangeUrl="https://r2.test/g.pdf?sig=1" initialPage={5} label="Référentiel secourisme" fileName="guide.pdf" onClose={vi.fn()} />);
+        expect(screen.getByRole('dialog', { name: 'Référentiel secourisme : guide.pdf' })).toBeTruthy();
+        expect(await screen.findByText('5 / 7')).toBeTruthy();
+        await waitFor(() => expect(getPage).toHaveBeenCalledWith(5));
+        expect(global.fetch).not.toHaveBeenCalled();
+        expect(getDocument).toHaveBeenCalledWith({ url: 'https://r2.test/g.pdf?sig=1', disableAutoFetch: true, disableStream: true });
+        // Une URL signée ne se télécharge pas avec « ?download=1 » : le bouton est masqué.
+        expect(screen.queryByRole('link', { name: 'Télécharger le guide' })).toBeNull();
+    });
+
+    it('ramène une page demandée au-delà de la fin à la dernière page', async () => {
+        render(<VehicleGuideReader rangeUrl="https://r2.test/g.pdf" initialPage={99} fileName="guide.pdf" onClose={vi.fn()} />);
+        expect(await screen.findByText('7 / 7')).toBeTruthy();
+        await waitFor(() => expect(getPage).toHaveBeenCalledWith(7));
+        fireEvent.click(screen.getByRole('button', { name: 'Page précédente' }));
+        expect(screen.getByText('6 / 7')).toBeTruthy();
+    });
+
     it('navigue avec les boutons et les flèches du clavier, dans les bornes', async () => {
         render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
         await screen.findByText('1 / 7');

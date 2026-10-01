@@ -9,7 +9,16 @@ import styles from './VehicleGuideReader.module.css';
 
 interface VehicleGuideReaderProps {
     /** URL de lecture du guide (`inline`). Le téléchargement ajoute `?download=1`. */
-    src: string;
+    src?: string;
+    /**
+     * URL directe d'un gros PDF : pdf.js le lit par requêtes `Range` (seules les
+     * pages affichées sont téléchargées). Le bouton « Télécharger » est alors masqué.
+     */
+    rangeUrl?: string;
+    /** Page affichée à l'ouverture (1 par défaut). */
+    initialPage?: number;
+    /** Nom du document dans le libellé accessible de la boîte de dialogue. */
+    label?: string;
     fileName: string;
     onClose: () => void;
 }
@@ -44,18 +53,28 @@ function writeRotatedPreference(rotated: boolean) {
  * « Pivoter » affiche la page tournée de 90° pour la lire téléphone en paysage :
  * l'appli installée est verrouillée en portrait, l'écran ne bascule donc pas seul.
  */
-export default function VehicleGuideReader({ src, fileName, onClose }: VehicleGuideReaderProps) {
+export default function VehicleGuideReader({
+    src = '',
+    rangeUrl,
+    initialPage = 1,
+    label = 'Guide de vérification',
+    fileName,
+    onClose,
+}: VehicleGuideReaderProps) {
     useEscapeKey(onClose);
 
     const viewportRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const closeRef = useRef<HTMLButtonElement>(null);
     const touchStart = useRef<{ x: number; y: number } | null>(null);
-    const [pageNumber, setPageNumber] = useState(1);
+    const [requestedPage, setRequestedPage] = useState(Math.max(1, Math.floor(initialPage)));
     const [rotated, setRotated] = useState(readRotatedPreference);
 
-    const { doc, error, setError } = useGuidePdf(src);
+    const { doc, error, setError } = useGuidePdf(src, { rangeUrl });
     const size = useElementSize(viewportRef);
+    const pageCount = doc?.numPages ?? 0;
+    // Une page demandée au-delà de la fin (ouverture sur un n° trop grand) est ramenée à la dernière.
+    const pageNumber = pageCount > 0 ? Math.min(requestedPage, pageCount) : requestedPage;
     useGuidePageRender(doc, pageNumber, size, rotated, canvasRef, setError);
 
     function toggleRotated() {
@@ -65,9 +84,8 @@ export default function VehicleGuideReader({ src, fileName, onClose }: VehicleGu
         });
     }
 
-    const pageCount = doc?.numPages ?? 0;
-    const goPrev = useCallback(() => setPageNumber(p => Math.max(1, p - 1)), []);
-    const goNext = useCallback(() => setPageNumber(p => Math.min(Math.max(pageCount, 1), p + 1)), [pageCount]);
+    const goPrev = useCallback(() => setRequestedPage(p => Math.max(1, Math.min(p, pageCount || p) - 1)), [pageCount]);
+    const goNext = useCallback(() => setRequestedPage(p => Math.min(Math.max(pageCount, 1), p + 1)), [pageCount]);
 
     useEffect(() => {
         function onKeyDown(e: KeyboardEvent) {
@@ -115,7 +133,7 @@ export default function VehicleGuideReader({ src, fileName, onClose }: VehicleGu
     // Portail sur <body> : un ancêtre transformé ferait de `position: fixed` un
     // positionnement relatif à lui, et la liseuse ne couvrirait plus l'écran.
     return createPortal(
-        <div role="dialog" aria-modal="true" aria-label={`Guide de vérification : ${fileName}`} className={styles.overlay}>
+        <div role="dialog" aria-modal="true" aria-label={`${label} : ${fileName}`} className={styles.overlay}>
             <div className={styles.bar}>
                 <div className={styles.title}>{fileName}</div>
                 <button
@@ -128,9 +146,11 @@ export default function VehicleGuideReader({ src, fileName, onClose }: VehicleGu
                 >
                     <RotateCw size={20} />
                 </button>
-                <a href={downloadHref} download={fileName} aria-label="Télécharger le guide" className={styles.iconButton}>
-                    <Download size={20} />
-                </a>
+                {!rangeUrl && (
+                    <a href={downloadHref} download={fileName} aria-label="Télécharger le guide" className={styles.iconButton}>
+                        <Download size={20} />
+                    </a>
+                )}
                 <button ref={closeRef} type="button" onClick={onClose} aria-label="Fermer" className={styles.iconButton}>
                     <X size={22} />
                 </button>
