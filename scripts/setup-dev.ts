@@ -264,6 +264,12 @@ async function main() {
         await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "transmission" TEXT`);
         console.log('  ↳ Migration : colonne Vehicle.transmission ajoutée');
     }
+    for (const [col, type] of [['guideR2Key', 'TEXT'], ['guideFileName', 'TEXT'], ['guideSize', 'INTEGER'], ['guideUpdatedAt', 'TEXT']] as const) {
+        if (!vehicleCols.rows.some(r => r.name === col)) {
+            await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "${col}" ${type}`);
+            console.log(`  ↳ Migration : colonne Vehicle.${col} ajoutée`);
+        }
+    }
 
     // Migrations idempotentes pour DBs existantes
     const tripCols = await db.execute(`PRAGMA table_info("Trip")`);

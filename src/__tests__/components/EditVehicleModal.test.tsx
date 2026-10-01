@@ -177,6 +177,68 @@ describe('EditVehicleModal Component', () => {
         });
     });
 
+    it('retire le guide après la modification, sous le nouveau nom du véhicule', async () => {
+        const calls: Array<{ url: string; method: string }> = [];
+        mockFetch(async (input: string | URL | Request, init?: RequestInit) => {
+            const urlStr = getUrl(input);
+            const method = String(init?.method || 'GET').toUpperCase();
+            calls.push({ url: urlStr, method });
+            if (urlStr.includes('/api/ul')) {
+                return new Response(JSON.stringify({ uls: [] }), { status: 200 });
+            }
+            return new Response(JSON.stringify({}), { status: 200 });
+        });
+        const handleSuccess = vi.fn();
+
+        render(
+            <EditVehicleModal
+                isOpen={true}
+                onClose={vi.fn()}
+                onSuccess={handleSuccess}
+                vehicle={{ ...mockVehicle, guideFileName: 'VPSP 182.pdf' }}
+            />
+        );
+
+        const nameInput = await screen.findByDisplayValue('VL186');
+        fireEvent.change(nameInput, { target: { value: 'VL186-MOD' } });
+        expect(screen.getByTestId('guide-status').textContent).toContain('VPSP 182.pdf');
+        fireEvent.click(screen.getByRole('button', { name: /Retirer/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
+
+        await waitFor(() => expect(handleSuccess).toHaveBeenCalled());
+        const writes = calls.filter(c => c.method !== 'GET');
+        expect(writes).toEqual([
+            { url: '/api/vehicles/VL186', method: 'PATCH' },
+            { url: '/api/vehicles/VL186-MOD/guide', method: 'DELETE' },
+        ]);
+    });
+
+    it("signale l'échec du guide sans annuler la modification", async () => {
+        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+        mockFetch(async (input: string | URL | Request) => {
+            const urlStr = getUrl(input);
+            if (urlStr.endsWith('/guide')) {
+                return new Response(JSON.stringify({ error: 'Le fichier est trop volumineux (4 Mo maximum).' }), { status: 413 });
+            }
+            if (urlStr.includes('/api/ul')) {
+                return new Response(JSON.stringify({ uls: [] }), { status: 200 });
+            }
+            return new Response(JSON.stringify({}), { status: 200 });
+        });
+        const handleSuccess = vi.fn();
+
+        render(<EditVehicleModal isOpen={true} onClose={vi.fn()} onSuccess={handleSuccess} vehicle={mockVehicle} />);
+
+        await screen.findByDisplayValue('VL186');
+        fireEvent.change(screen.getByLabelText('Guide de vérification (PDF, 4 Mo max) — Optionnel'), {
+            target: { files: [new File(['%PDF-1.7'], 'guide.pdf', { type: 'application/pdf' })] },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
+
+        await waitFor(() => expect(handleSuccess).toHaveBeenCalled());
+        expect(alertSpy).toHaveBeenCalledWith('Véhicule modifié, guide non enregistré : Le fichier est trop volumineux (4 Mo maximum).');
+    });
+
     it('displays error message when API returns error', async () => {
         mockFetch(async (input: string | URL | Request, init?: RequestInit) => {
             const urlStr = getUrl(input);

@@ -87,6 +87,12 @@ export interface Vehicle {
     revisionKmInterval: number | null;
     /** Intervalle en années entre deux révisions */
     revisionYearInterval: number | null;
+    /** Nom d'origine du guide de vérification PDF — `null` si le véhicule n'en a pas */
+    guideFileName?: string | null;
+    /** Taille du guide en octets */
+    guideSize?: number | null;
+    /** Date ISO du dernier dépôt du guide */
+    guideUpdatedAt?: string | null;
     ulId?: string | null;
     activeMaintenance?: {
         id: string;

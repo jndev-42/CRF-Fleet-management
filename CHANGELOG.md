@@ -1,5 +1,15 @@
 # Changelog
 
+## [5.17.0] — 1er octobre 2026
+
+### ✨ Nouvelles fonctionnalités
+
+- **Guide de vérification du véhicule** — les administrateurs peuvent joindre un guide de vérification au format PDF (4 Mo maximum) depuis la création ou la modification d'un véhicule, puis le remplacer ou le retirer. Un fichier qui n'est pas un PDF, ou trop volumineux, est refusé avec un message explicite.
+- **Lire le guide dans l'appli** — sur la page du véhicule, une carte « Guide de vérification » permet de l'ouvrir en plein écran, page par page : boutons précédent / suivant, flèches du clavier ou glissé du doigt sur téléphone, avec le numéro de page affiché. Il se ferme par la croix ou la touche Échap.
+- **Télécharger le guide** — le fichier est enregistré sous son nom d'origine.
+- **Aussi depuis le QR code du véhicule** — tout bénévole qui scanne le QR code peut lire et télécharger le guide, même s'il appartient à une autre unité locale.
+- Si le véhicule est créé mais que le guide est refusé, le véhicule est bien conservé : un message l'indique, et le guide peut être joint à nouveau depuis la modification du véhicule.
+
 ## [5.16.0] — 24 septembre 2026
 
 ### ✨ Nouvelles fonctionnalités

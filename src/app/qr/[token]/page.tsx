@@ -8,6 +8,7 @@ import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal
 import CheckOutForm from './CheckOutForm';
 import CheckInForm from './CheckInForm';
 import VehicleInfoCard from './VehicleInfoCard';
+import VehicleGuideCard from '@/components/vehicle/VehicleGuideCard';
 import QRActions from './QRActions';
 import type { QRVehicle } from './types';
 
@@ -173,6 +174,15 @@ export default function QRVehiclePage() {
                         </div>
 
                         <VehicleInfoCard vehicle={vehicle} />
+
+                        {step === 'view' && vehicle.guideFileName && (
+                            <VehicleGuideCard
+                                src={`/api/qr/${encodeURIComponent(token)}/guide`}
+                                fileName={vehicle.guideFileName}
+                                size={vehicle.guideSize}
+                                updatedAt={vehicle.guideUpdatedAt}
+                            />
+                        )}
 
                         {/* Actions */}
                         {step === 'view' && (

@@ -43,6 +43,10 @@ async function createTables() {
     firstRegistrationDate TEXT,
     revisionKmInterval INTEGER,
     revisionYearInterval INTEGER,
+    guideR2Key TEXT,
+    guideFileName TEXT,
+    guideSize INTEGER,
+    guideUpdatedAt TEXT,
     ulId TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP

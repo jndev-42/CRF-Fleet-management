@@ -114,6 +114,11 @@ export async function GET(
             maxFuelCapacity: row.maxFuelCapacity as number | null,
             maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
             ulId: row.ulId as string,
+            // Métadonnées du guide seulement : le binaire passe par /api/qr/[token]/guide,
+            // la clé R2 n'est jamais exposée.
+            guideFileName: row.guideR2Key ? row.guideFileName as string | null : null,
+            guideSize: row.guideR2Key ? row.guideSize as number | null : null,
+            guideUpdatedAt: row.guideR2Key ? row.guideUpdatedAt as string | null : null,
             activeTrip,
         };
 

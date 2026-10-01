@@ -33,6 +33,10 @@ export interface QRVehicle {
      */
     connection: { status: string } | null;
     maxFuelCapacity: number | null;
+    /** Guide de vérification PDF — `null` si le véhicule n'en a pas. */
+    guideFileName?: string | null;
+    guideSize?: number | null;
+    guideUpdatedAt?: string | null;
     activeTrip: ActiveTrip | null;
 }
 
