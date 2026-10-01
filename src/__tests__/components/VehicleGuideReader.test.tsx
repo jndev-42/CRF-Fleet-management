@@ -1,9 +1,17 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-const renderPage = vi.fn(() => ({ promise: Promise.resolve(), cancel: vi.fn() }));
+interface RenderedViewport { width: number; height: number; rotation: number }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- signature typée pour lire `mock.calls`
+const renderPage = vi.fn((_params: { viewport: RenderedViewport }) => ({ promise: Promise.resolve(), cancel: vi.fn() }));
+/** Viewport du dernier rendu de page. */
+const lastViewport = () => renderPage.mock.calls.at(-1)![0].viewport;
+// Page paysage 842 × 595 ; une rotation de 90° en inverse les dimensions.
 const getPage = vi.fn(async () => ({
-    getViewport: ({ scale }: { scale: number }) => ({ width: 842 * scale, height: 595 * scale }),
+    rotate: 0,
+    getViewport: ({ scale, rotation = 0 }: { scale: number; rotation?: number }) => (rotation % 180
+        ? { width: 595 * scale, height: 842 * scale, rotation }
+        : { width: 842 * scale, height: 595 * scale, rotation }),
     render: renderPage,
 }));
 const getDocument = vi.fn(() => ({
@@ -21,7 +29,9 @@ import VehicleGuideReader from '@/components/vehicle/VehicleGuideReader';
 beforeEach(() => {
     vi.spyOn(global, 'fetch').mockResolvedValue(new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46]), { status: 200 }));
     // jsdom ne calcule aucune mise en page : on fixe une largeur pour déclencher le rendu.
-    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(800);
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(700);
+    window.localStorage.clear();
     renderPage.mockClear();
     getPage.mockClear();
 });
@@ -87,6 +97,51 @@ describe('VehicleGuideReader', () => {
         } finally {
             Object.defineProperty(window, 'visualViewport', { configurable: true, value: original });
         }
+    });
+
+    it('pivote la page en paysage, ajustée pour tenir entière, et mémorise le choix', async () => {
+        const { unmount } = render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        await waitFor(() => expect(renderPage).toHaveBeenCalled());
+        expect(lastViewport().rotation).toBe(0);
+
+        const toggle = screen.getByRole('button', { name: 'Afficher en paysage' });
+        expect(toggle.getAttribute('aria-pressed')).toBe('false');
+        fireEvent.click(toggle);
+
+        await waitFor(() => expect(lastViewport().rotation).toBe(90));
+        const rotated = lastViewport();
+        // Zone 400 × 700, page pivotée 595 × 842 : 400/595 < 700/842, la largeur borne
+        // l'échelle et la page tient entière (pas de défilement).
+        const ratio = window.devicePixelRatio || 1;
+        expect(rotated.width / ratio).toBeCloseTo(400, 0);
+        expect(rotated.height / ratio).toBeLessThanOrEqual(700);
+        expect(screen.getByRole('button', { name: 'Afficher en portrait' }).getAttribute('aria-pressed')).toBe('true');
+        expect(window.localStorage.getItem('vehicleGuideReader.rotated')).toBe('1');
+
+        unmount();
+        render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        expect(screen.getByRole('button', { name: 'Afficher en portrait' })).toBeTruthy();
+    });
+
+    it('page pivotée : tourne la page au glissé le long de la hauteur de l\'écran', async () => {
+        window.localStorage.setItem('vehicleGuideReader.rotated', '1');
+        render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        await screen.findByText('1 / 7');
+        const viewport = screen.getByRole('dialog').querySelector('canvas')!.parentElement!;
+
+        // Glissé horizontal à l'écran : transversal une fois pivoté, ignoré.
+        fireEvent.touchStart(viewport, { touches: [{ clientX: 300, clientY: 300 }] });
+        fireEvent.touchEnd(viewport, { changedTouches: [{ clientX: 100, clientY: 310 }] });
+        expect(screen.getByText('1 / 7')).toBeTruthy();
+
+        // Vers le haut de l'écran = vers la gauche du lecteur : page suivante.
+        fireEvent.touchStart(viewport, { touches: [{ clientX: 200, clientY: 500 }] });
+        fireEvent.touchEnd(viewport, { changedTouches: [{ clientX: 210, clientY: 300 }] });
+        expect(await screen.findByText('2 / 7')).toBeTruthy();
+
+        fireEvent.touchStart(viewport, { touches: [{ clientX: 200, clientY: 300 }] });
+        fireEvent.touchEnd(viewport, { changedTouches: [{ clientX: 210, clientY: 500 }] });
+        expect(await screen.findByText('1 / 7')).toBeTruthy();
     });
 
     it('se ferme par le bouton ou par Échap', async () => {

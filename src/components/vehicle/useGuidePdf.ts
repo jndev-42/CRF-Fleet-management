@@ -54,17 +54,30 @@ export function useGuidePdf(src: string) {
     return { doc, error, setError };
 }
 
+/** Dimensions intérieures (px CSS) de la zone d'affichage de la liseuse. */
+export interface ElementSize {
+    width: number;
+    height: number;
+}
+
 /**
- * Dessine une page dans le canvas, ajustée à `width` (px CSS) et nette sur
- * écran haute densité. Une page quittée en cours de rendu annule sa tâche.
+ * Dessine une page dans le canvas, nette sur écran haute densité. Une page
+ * quittée en cours de rendu annule sa tâche.
+ *
+ * - Portrait : ajustée à la largeur (on fait défiler si la page est haute).
+ * - `rotated` : pivotée de 90° et ajustée pour tenir entière dans la zone, pour
+ *   lire une page paysage téléphone tourné — même quand l'appli est verrouillée
+ *   en portrait (manifeste PWA).
  */
 export function useGuidePageRender(
     doc: PDFDocumentProxy | null,
     pageNumber: number,
-    width: number,
+    size: ElementSize,
+    rotated: boolean,
     canvasRef: RefObject<HTMLCanvasElement | null>,
     onError: (message: string) => void,
 ) {
+    const { width, height } = size;
     useEffect(() => {
         if (!doc || !canvasRef.current || width <= 0) return;
         let cancelled = false;
@@ -76,8 +89,12 @@ export function useGuidePageRender(
                 const canvas = canvasRef.current;
                 if (cancelled || !canvas) return;
                 const ratio = window.devicePixelRatio || 1;
-                const cssScale = width / page.getViewport({ scale: 1 }).width;
-                const viewport = page.getViewport({ scale: cssScale * ratio });
+                const rotation = rotated ? (page.rotate + 90) % 360 : page.rotate;
+                const base = page.getViewport({ scale: 1, rotation });
+                const cssScale = rotated && height > 0
+                    ? Math.min(width / base.width, height / base.height)
+                    : width / base.width;
+                const viewport = page.getViewport({ scale: cssScale * ratio, rotation });
                 canvas.width = Math.floor(viewport.width);
                 canvas.height = Math.floor(viewport.height);
                 canvas.style.width = `${Math.floor(viewport.width / ratio)}px`;
@@ -94,21 +111,24 @@ export function useGuidePageRender(
             cancelled = true;
             task?.cancel();
         };
-    }, [doc, pageNumber, width, canvasRef, onError]);
+    }, [doc, pageNumber, width, height, rotated, canvasRef, onError]);
 }
 
-/** Largeur intérieure d'un élément, suivie au redimensionnement. */
-export function useElementWidth(ref: RefObject<HTMLElement | null>) {
-    const [width, setWidth] = useState(0);
+/** Dimensions intérieures d'un élément, suivies au redimensionnement (rotation de l'écran comprise). */
+export function useElementSize(ref: RefObject<HTMLElement | null>): ElementSize {
+    const [size, setSize] = useState<ElementSize>({ width: 0, height: 0 });
     useEffect(() => {
         const el = ref.current;
         if (!el) return;
-        const update = () => setWidth(el.clientWidth);
+        const update = () => setSize(prev =>
+            prev.width === el.clientWidth && prev.height === el.clientHeight
+                ? prev
+                : { width: el.clientWidth, height: el.clientHeight });
         update();
         if (typeof ResizeObserver === 'undefined') return;
         const observer = new ResizeObserver(update);
         observer.observe(el);
         return () => observer.disconnect();
     }, [ref]);
-    return width;
+    return size;
 }
