@@ -139,6 +139,10 @@ export async function GET(
             firstRegistrationDate: row.firstRegistrationDate as string | null,
             revisionKmInterval: row.revisionKmInterval as number | null,
             revisionYearInterval: row.revisionYearInterval as number | null,
+            // Métadonnées du guide de vérification — jamais la clé R2, servie par /guide.
+            guideFileName: row.guideR2Key ? row.guideFileName as string | null : null,
+            guideSize: row.guideR2Key ? row.guideSize as number | null : null,
+            guideUpdatedAt: row.guideR2Key ? row.guideUpdatedAt as string | null : null,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
             // La maintenance est un flag parallèle au statut : elle survit à `IN_USE`
@@ -349,7 +353,7 @@ export async function DELETE(
 
         // Find the vehicle by name first to get its UUID
         const vehicleResult = await db.execute({
-            sql: `SELECT id, ulId FROM Vehicle WHERE name = ?`,
+            sql: `SELECT id, ulId, guideR2Key FROM Vehicle WHERE name = ?`,
             args: [id]
         });
 
@@ -391,6 +395,14 @@ export async function DELETE(
             sql: `DELETE FROM Vehicle WHERE id = ?`,
             args: [realId]
         });
+
+        // Guide de vérification : après la suppression en base, best-effort (un orphelin R2 est inoffensif).
+        const guideKey = vehicleResult.rows[0].guideR2Key as string | null;
+        if (guideKey) {
+            const { deleteObject } = await import('@/lib/r2');
+            await deleteObject(guideKey).catch((e: unknown) =>
+                console.error(`[vehicle-guide] suppression du guide ${guideKey} impossible :`, e instanceof Error ? e.message : String(e)));
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

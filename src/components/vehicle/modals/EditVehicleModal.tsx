@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import { useUL } from '@/lib/contexts/ULContext';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import VehicleGuideField, { applyGuideChange, GuideChange } from '@/components/vehicle/VehicleGuideField';
 
 interface EditVehicleModalProps {
     isOpen: boolean;
@@ -32,6 +33,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
         revisionKmInterval: vehicle.revisionKmInterval ? String(vehicle.revisionKmInterval) : '',
         revisionYearInterval: vehicle.revisionYearInterval ? String(vehicle.revisionYearInterval) : '',
     });
+    const [guide, setGuide] = useState<GuideChange>({ kind: 'keep' });
     const [submitting, setSubmitting] = useState(false);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
         if (!isOpen) return;
 
         setErrorMsg(null);
+        setGuide({ kind: 'keep' });
 
         // Fetch parking spots from active UL
         fetch('/api/ul')
@@ -120,6 +123,11 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
             });
             const data = await res.json();
             if (res.ok) {
+                // Après la modification seulement, et sous le nom éventuellement renommé.
+                const guideError = await applyGuideChange(payload.name, guide);
+                if (guideError) {
+                    alert(`Véhicule modifié, guide non enregistré : ${guideError}`);
+                }
                 onSuccess({ ...payload, name: payload.name });
                 onClose();
             } else {
@@ -360,6 +368,12 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
                                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                             />
                         </div>
+                        <VehicleGuideField
+                            currentFileName={vehicle.guideFileName ?? null}
+                            value={guide}
+                            onChange={setGuide}
+                            disabled={submitting}
+                        />
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>

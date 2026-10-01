@@ -85,6 +85,20 @@ export function buildExpenseStagingKey(stagingId: string, filename: string): str
     return `expenses-staging/${stagingId}/${crypto.randomUUID()}-${safeName}`;
 }
 
+/**
+ * Clé R2 du guide de vérification d'un véhicule.
+ *
+ * VERSIONNÉE comme les PDF scellés : un remplacement écrit une nouvelle clé, la
+ * base bascule dessus, puis seulement l'ancien objet est supprimé. Une lecture
+ * concurrente ne tombe donc jamais sur un objet à moitié remplacé.
+ */
+export function buildVehicleGuideKey(vehicleId: string, attempt: string): string {
+    if (!vehicleId) throw new R2Error('vehicleId requis pour construire une clé de guide R2');
+    const safeVehicleId = vehicleId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeAttempt = attempt.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'x';
+    return `vehicle-guides/${safeVehicleId}/${safeAttempt}.pdf`;
+}
+
 const MAX_ATTEMPTS = 3;
 
 /**

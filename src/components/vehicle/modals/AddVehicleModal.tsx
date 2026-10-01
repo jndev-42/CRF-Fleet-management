@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUL } from '@/lib/contexts/ULContext';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import VehicleGuideField, { applyGuideChange, GuideChange } from '@/components/vehicle/VehicleGuideField';
 
 interface AddVehicleModalProps {
     isOpen: boolean;
@@ -30,11 +31,15 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
         revisionKmInterval: '',
         revisionYearInterval: '',
     });
+    const [guide, setGuide] = useState<GuideChange>({ kind: 'keep' });
     const [submitting, setSubmitting] = useState(false);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
 
     useEffect(() => {
         if (!isOpen) return;
+        // La modale reste montée entre deux ouvertures : un guide choisi pour une
+        // création précédente ne doit jamais partir sur le véhicule suivant.
+        setGuide({ kind: 'keep' });
         fetch('/api/ul')
             .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
             .then(ulData => {
@@ -92,6 +97,15 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                 }),
             });
             if (res.ok) {
+                // Le guide part dans une requête dédiée, une fois le véhicule créé :
+                // son échec ne doit pas annuler la création.
+                if (guide.kind === 'replace') {
+                    const created = await res.json().catch(() => null) as { name?: string } | null;
+                    const guideError = await applyGuideChange(created?.name || form.name, guide);
+                    if (guideError) {
+                        alert(`Véhicule créé, guide non enregistré : ${guideError}\nVous pouvez le joindre à nouveau depuis la modification du véhicule.`);
+                    }
+                }
                 onSuccess();
             } else {
                 const data = await res.json();
@@ -331,6 +345,12 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                             />
                         </div>
+                        <VehicleGuideField
+                            currentFileName={null}
+                            value={guide}
+                            onChange={setGuide}
+                            disabled={submitting}
+                        />
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-secondary" onClick={onClose}>
