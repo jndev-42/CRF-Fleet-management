@@ -89,20 +89,38 @@ export default function ReferentielTab({ showToast }: ReferentielTabProps) {
             const { id, uploadUrl } = await postJson<{ id: string; uploadUrl: string }>('/api/referentiel/upload', { fileName: file.name });
             await putWithProgress(uploadUrl, file, percent => setPhase({ step: 'uploading', percent }));
 
-            setPhase({ step: 'indexing', processed: 0, total: null });
-            let fromPage = 1;
-            for (;;) {
-                const result = await postJson<ProcessResponse>('/api/referentiel/process', { id, fromPage });
-                setPhase({ step: 'indexing', processed: result.processedPages, total: result.pageCount });
-                if (result.done) break;
-                fromPage = result.processedPages + 1;
-            }
+            await runIndexing(id, 1, 0, null);
             showToast('Référentiel importé et indexé.', 'success');
         } catch (e: unknown) {
             showToast(e instanceof Error ? e.message : "Échec de l'import", 'error');
         } finally {
             setPhase({ step: 'idle' });
             if (inputRef.current) inputRef.current.value = '';
+            void refresh();
+        }
+    }
+
+    /** Appelle `process` lot après lot, jusqu'à la bascule (`done`). */
+    async function runIndexing(id: string, fromPage: number, processed: number, total: number | null) {
+        setPhase({ step: 'indexing', processed, total });
+        let next = fromPage;
+        for (;;) {
+            const result = await postJson<ProcessResponse>('/api/referentiel/process', { id, fromPage: next });
+            setPhase({ step: 'indexing', processed: result.processedPages, total: result.pageCount });
+            if (result.done) return;
+            next = result.processedPages + 1;
+        }
+    }
+
+    /** Reprend un import interrompu (onglet fermé, coupure) là où il s'était arrêté, sans renvoyer le fichier. */
+    async function handleResume(pending: NonNullable<ReferentielStatus['pending']>) {
+        try {
+            await runIndexing(pending.id, pending.processedPages + 1, pending.processedPages, pending.pageCount);
+            showToast('Référentiel importé et indexé.', 'success');
+        } catch (e: unknown) {
+            showToast(e instanceof Error ? e.message : "Échec de l'import", 'error');
+        } finally {
+            setPhase({ step: 'idle' });
             void refresh();
         }
     }
@@ -132,9 +150,19 @@ export default function ReferentielTab({ showToast }: ReferentielTabProps) {
             </div>
 
             {status?.pending && !busy && (
-                <p className={styles.meta}>
-                    Un import précédent est resté inachevé ({status.pending.fileName}). Un nouvel import l&apos;abandonne.
-                </p>
+                <div className={styles.meta}>
+                    <p>
+                        Un import précédent est resté inachevé ({status.pending.fileName}
+                        {status.pending.status === 'processing' && status.pending.pageCount
+                            ? ` — ${status.pending.processedPages}/${status.pending.pageCount} pages`
+                            : ''}). Un nouvel import l&apos;abandonne.
+                    </p>
+                    {status.pending.status === 'processing' && (
+                        <button type="button" className="btn btn-primary" onClick={() => void handleResume(status.pending!)}>
+                            Reprendre l&apos;indexation
+                        </button>
+                    )}
+                </div>
             )}
 
             <div>

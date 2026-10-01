@@ -73,3 +73,21 @@ describe('getObjectRange', () => {
         expect(await getObjectRange('absent.pdf', 0, 3)).toBeNull();
     });
 });
+
+describe('getObjectSize', () => {
+    it('renvoie la taille lue dans Content-Length (HEAD)', async () => {
+        const spy = vi.fn(async () => new Response(null, { status: 200, headers: { 'Content-Length': '182828956' } }));
+        vi.stubGlobal('fetch', spy);
+        const { getObjectSize } = await import('@/lib/r2');
+        expect(await getObjectSize('g.pdf')).toBe(182828956);
+        const request = spy.mock.calls[0] as unknown as [Request | string, RequestInit?];
+        const method = request[0] instanceof Request ? request[0].method : request[1]?.method;
+        expect(method).toBe('HEAD');
+    });
+
+    it('renvoie null pour un objet absent (404)', async () => {
+        vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 404 })));
+        const { getObjectSize } = await import('@/lib/r2');
+        expect(await getObjectSize('absent.pdf')).toBeNull();
+    });
+});

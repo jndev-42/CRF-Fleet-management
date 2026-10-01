@@ -209,6 +209,19 @@ export async function presignUrl(key: string, method: 'GET' | 'PUT' | 'HEAD', ex
     return signed.url;
 }
 
+/** Taille d'un objet en octets (HEAD). `null` si absent. */
+export async function getObjectSize(key: string): Promise<number | null> {
+    const { client, bucketUrl } = config();
+    return withRetry(`HEAD ${key}`, async () => {
+        const res = await client.fetch(`${bucketUrl}/${key}`, { method: 'HEAD' });
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const size = Number(res.headers.get('content-length'));
+        if (!Number.isFinite(size)) throw new Error('Content-Length manquant');
+        return size;
+    });
+}
+
 /** Lit les octets `start`..`end` (inclus) d'un objet (requête `Range`). `null` si absent. */
 export async function getObjectRange(key: string, start: number, end: number): Promise<Uint8Array | null> {
     const { client, bucketUrl } = config();

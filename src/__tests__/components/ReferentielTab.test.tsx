@@ -95,6 +95,24 @@ describe('ReferentielTab', () => {
         expect(processCalls).toEqual([{ id: 'ref-1', fromPage: 1 }, { id: 'ref-1', fromPage: 81 }]);
     });
 
+    it('reprend un import interrompu là où il s\'était arrêté, sans renvoyer le fichier', async () => {
+        mockFetch({ status: { ready: false, pending: { id: 'ref-1', fileName: 'guide.pdf', status: 'processing', pageCount: 160, processedPages: 80 } } });
+        render(<ReferentielTab showToast={showToast} />);
+        expect(await screen.findByText(/80\/160 pages/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: "Reprendre l'indexation" }));
+
+        await waitFor(() => expect(showToast).toHaveBeenCalledWith('Référentiel importé et indexé.', 'success'));
+        expect(processCalls).toEqual([{ id: 'ref-1', fromPage: 81 }]);
+        expect(FakeXhr.instances).toHaveLength(0);
+    });
+
+    it('ne propose pas de reprise pour un dépôt jamais terminé', async () => {
+        mockFetch({ status: { ready: false, pending: { id: 'ref-1', fileName: 'guide.pdf', status: 'uploading', pageCount: null, processedPages: 0 } } });
+        render(<ReferentielTab showToast={showToast} />);
+        expect(await screen.findByText(/resté inachevé/)).toBeTruthy();
+        expect(screen.queryByRole('button', { name: "Reprendre l'indexation" })).toBeNull();
+    });
+
     it('signale un envoi refusé par R2 et ne lance pas l\'indexation', async () => {
         FakeXhr.status = 403;
         mockFetch();

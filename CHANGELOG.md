@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.18.1] — 1er octobre 2026
+
+### 🐛 Corrections
+
+- **Import du référentiel qui n'aboutissait pas** — l'indexation d'un gros guide (plusieurs centaines de pages) pouvait échouer en fin de traitement sur un dépassement de délai. Elle est désormais bien plus rapide et va jusqu'au bout.
+- **Reprendre une indexation interrompue** — si un import s'arrête en cours de route (onglet fermé, coupure réseau), l'onglet « Référentiel » affiche où il en était et propose « Reprendre l'indexation », sans avoir à renvoyer le fichier.
+
 ## [5.18.0] — 1er octobre 2026
 
 ### ✨ Nouvelles fonctionnalités

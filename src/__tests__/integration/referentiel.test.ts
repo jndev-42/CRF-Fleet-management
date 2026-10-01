@@ -31,7 +31,7 @@ vi.mock('@/lib/r2', () => ({
 const extraction = vi.hoisted(() => ({ pageCount: 3 }));
 vi.mock('@/lib/referentiel/extract', () => ({
     countPages: vi.fn(async () => extraction.pageCount),
-    extractPages: vi.fn(async (_url: string, from: number, to: number) => {
+    extractPages: vi.fn(async (_source: unknown, from: number, to: number) => {
         const pages = [];
         for (let page = from; page <= Math.min(to, extraction.pageCount); page++) {
             pages.push({
@@ -229,6 +229,9 @@ describe('POST /api/referentiel/process', () => {
         asSession(SUPER_ADMIN);
         await processRoute(post('/api/referentiel/process', { id: newId, fromPage: 81 }));
         await processRoute(post('/api/referentiel/process', { id: newId, fromPage: 161 }));
+        // Toutes les pages sont indexées mais l'ancien répond encore : la bascule est un appel à part.
+        expect((await db.execute({ sql: `SELECT status FROM Referentiel WHERE id = ?`, args: [oldId] })).rows[0].status).toBe('ready');
+        await processRoute(post('/api/referentiel/process', { id: newId, fromPage: 201 }));
 
         const rows = (await db.execute(`SELECT id, status FROM Referentiel`)).rows;
         expect(rows).toHaveLength(1);
@@ -236,6 +239,31 @@ describe('POST /api/referentiel/process', () => {
         expect((await db.execute({ sql: `SELECT COUNT(*) AS n FROM ReferentielPage WHERE referentielId = ?`, args: [oldId] })).rows[0].n).toBe(0);
         expect(deleteObject).toHaveBeenCalledTimes(1);
         expect(deleteObject).toHaveBeenCalledWith('referentiels/key-att1.pdf');
+    });
+});
+
+describe('POST /api/referentiel/process — bascule séparée', () => {
+    it('le dernier lot ne bascule pas ; l\'appel suivant bascule sans rien extraire', async () => {
+        asSession(SUPER_ADMIN);
+        const { id } = await (await upload(post('/api/referentiel/upload', { fileName: 'g.pdf' }))).json();
+        const last = await (await processRoute(post('/api/referentiel/process', { id, fromPage: 1 }))).json();
+        expect(last).toMatchObject({ processedPages: 3, pageCount: 3, done: false, status: 'processing' });
+        vi.mocked(extractPages).mockClear();
+
+        const switched = await (await processRoute(post('/api/referentiel/process', { id, fromPage: 4 }))).json();
+        expect(switched).toMatchObject({ processedPages: 3, pageCount: 3, done: true, status: 'ready' });
+        expect(extractPages).not.toHaveBeenCalled();
+    });
+
+    it('reprend un import resté `processing` après une coupure (bascule perdue)', async () => {
+        asSession(SUPER_ADMIN);
+        const { id } = await (await upload(post('/api/referentiel/upload', { fileName: 'g.pdf' }))).json();
+        await processRoute(post('/api/referentiel/process', { id, fromPage: 1 }));
+        // L'onglet a été fermé : on relit l'état, puis on reprend à processedPages + 1.
+        const pending = (await (await getStatus()).json()).pending;
+        expect(pending).toMatchObject({ id, status: 'processing', processedPages: 3, pageCount: 3 });
+        const res = await (await processRoute(post('/api/referentiel/process', { id, fromPage: pending.processedPages + 1 }))).json();
+        expect(res.done).toBe(true);
     });
 });
 
@@ -327,11 +355,12 @@ describe('POST /api/referentiel/process — échecs, lots courts, classement, ba
 
     it('409 si l\'import est abandonné pendant son dernier lot : il ne s\'active pas', async () => {
         const id = await startImport();
-        vi.mocked(extractPages).mockImplementationOnce(async (_url: string, from: number, to: number) => {
+        vi.mocked(extractPages).mockImplementationOnce(async (_source: unknown, from: number, to: number) => {
             await db.execute({ sql: `UPDATE Referentiel SET status = 'failed' WHERE id = ?`, args: [id] });
             return Array.from({ length: to - from + 1 }, (_, i) => ({ page: from + i, title: '', body: 'x' }));
         });
-        const res = await processRoute(post('/api/referentiel/process', { id, fromPage: 1 }));
+        expect((await processRoute(post('/api/referentiel/process', { id, fromPage: 1 }))).status).toBe(200);
+        const res = await processRoute(post('/api/referentiel/process', { id, fromPage: 4 }));
         expect(res.status).toBe(409);
         expect((await rowOf(id)).status).toBe('failed');
         asSession(VOLUNTEER);

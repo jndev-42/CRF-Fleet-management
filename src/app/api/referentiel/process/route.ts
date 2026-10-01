@@ -7,9 +7,11 @@
  *
  *  - 1er appel (`uploading`) : vérifie la signature `%PDF`, fixe `pageCount`,
  *    abandonne tout autre import en cours.
- *  - dernier lot : en UNE transaction, la nouvelle version passe `ready`, les
- *    anciennes disparaissent et l'index FTS est reconstruit — la recherche ne
- *    voit jamais un état vide. Puis l'ancien objet R2 est supprimé.
+ *  - appel suivant le dernier lot (`fromPage = pageCount + 1`) : bascule SEULE, en
+ *    UNE transaction — la nouvelle version passe `ready`, les anciennes disparaissent
+ *    et l'index FTS est reconstruit (la recherche ne voit jamais un état vide). Puis
+ *    l'ancien objet R2 est supprimé. Séparée de l'extraction pour garder tout le
+ *    budget de `maxDuration`.
  */
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -18,10 +20,10 @@ import { db } from '@/lib/db';
 import { isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
-import { deleteObject, getObjectRange, presignUrl } from '@/lib/r2';
+import { deleteObject, getObjectRange, getObjectSize } from '@/lib/r2';
 import { hasPdfSignature } from '@/lib/vehicleGuide';
-import { countPages, extractPages } from '@/lib/referentiel/extract';
-import { PAGES_PER_BATCH, READ_URL_TTL_SEC } from '@/lib/referentiel/repository';
+import { countPages, extractPages, type PdfSource } from '@/lib/referentiel/extract';
+import { PAGES_PER_BATCH } from '@/lib/referentiel/repository';
 import { REFERENTIEL_REBUILD_SQL } from '@/lib/referentiel/schema';
 import { applyFicheNames } from '@/lib/referentiel/pageTitle';
 
@@ -45,6 +47,22 @@ async function deleteObjectQuietly(key: string): Promise<void> {
     } catch (e: unknown) {
         console.error('referentiel: suppression R2 échouée', key, getErrorMessage(e));
     }
+}
+
+/** Le PDF déposé sur R2, lu par plages d'octets (jamais en entier). */
+function r2Source(key: string): PdfSource {
+    return {
+        async size() {
+            const size = await getObjectSize(key);
+            if (size === null) throw new Error('Objet R2 introuvable');
+            return size;
+        },
+        async read(start, end) {
+            const bytes = await getObjectRange(key, start, end - 1);
+            if (!bytes) throw new Error('Objet R2 introuvable');
+            return bytes;
+        },
+    };
 }
 
 async function markFailed(id: string): Promise<void> {
@@ -144,7 +162,7 @@ export async function POST(request: Request) {
             });
 
             try {
-                pageCount = await countPages(await presignUrl(r2Key, 'GET', READ_URL_TTL_SEC));
+                pageCount = await countPages(r2Source(r2Key));
             } catch (e: unknown) {
                 await markFailed(id);
                 console.error('referentiel: lecture du PDF échouée', getErrorMessage(e));
@@ -166,11 +184,20 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: `Reprise attendue à la page ${processedPages + 1}` }, { status: 409 });
         }
 
+        // Toutes les pages sont indexées : cet appel ne fait QUE la bascule, avec tout
+        // son budget de temps (reconstruction de l'index comprise).
+        if (fromPage > pageCount) {
+            const orphanKeys = await activate(id);
+            if (!orphanKeys) return NextResponse.json({ error: 'Import abandonné' }, { status: 409 });
+            for (const key of orphanKeys.filter(k => k !== r2Key)) await deleteObjectQuietly(key);
+            return NextResponse.json({ id, status: 'ready', processedPages: pageCount, pageCount, done: true });
+        }
+
         const toPage = Math.min(fromPage + PAGES_PER_BATCH - 1, pageCount);
         let pages;
         try {
             pages = await extractPages(
-                await presignUrl(r2Key, 'GET', READ_URL_TTL_SEC),
+                r2Source(r2Key),
                 fromPage,
                 toPage,
                 { deadline: Date.now() + BATCH_TIME_BUDGET_MS },
@@ -194,19 +221,14 @@ export async function POST(request: Request) {
         const newProcessed = Math.max(processedPages, lastPage);
         await db.execute({ sql: `UPDATE Referentiel SET processedPages = ? WHERE id = ?`, args: [newProcessed, id] });
 
-        const done = newProcessed >= pageCount;
-        if (done) {
-            const orphanKeys = await activate(id);
-            if (!orphanKeys) return NextResponse.json({ error: 'Import abandonné' }, { status: 409 });
-            for (const key of orphanKeys.filter(k => k !== r2Key)) await deleteObjectQuietly(key);
-        }
-
+        // Même au dernier lot, la bascule attend l'appel suivant (`fromPage = pageCount + 1`) :
+        // enchaînée ici, elle dépassait `maxDuration` après un lot d'extraction complet.
         return NextResponse.json({
             id,
-            status: done ? 'ready' : 'processing',
+            status: 'processing',
             processedPages: newProcessed,
             pageCount,
-            done,
+            done: false,
         });
     } catch (e: unknown) {
         console.error('POST /api/referentiel/process error:', getErrorMessage(e));

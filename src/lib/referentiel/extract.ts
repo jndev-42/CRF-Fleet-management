@@ -1,9 +1,14 @@
 /**
  * Extraction du texte d'un PDF distant, page par page, côté serveur.
  *
- * pdf.js lit le fichier par requêtes `Range` sur l'URL signée R2 : on ne
+ * pdf.js lit le fichier UNIQUEMENT par plages d'octets, via un
+ * `PDFDataRangeTransport` branché sur une `PdfSource` (R2 en production) : on ne
  * télécharge ni ne garde jamais le PDF entier en mémoire — seules les pages
  * demandées (et la table de références) sont lues.
+ *
+ * Pourquoi pas `getDocument({ url })` : pdf.js commence alors par un GET complet
+ * du fichier, qu'il n'interrompt pas assez tôt — sur Vercel, ~180 Mo téléchargés
+ * et ~500 Mo de mémoire à CHAQUE appel, jusqu'au dépassement de `maxDuration`.
  */
 import path from 'path';
 import { pathToFileURL } from 'url';
@@ -56,14 +61,64 @@ function toLines(items: unknown[]): string[] {
     return lines;
 }
 
-/** Nombre de pages du PDF. */
-export async function countPages(url: string): Promise<number> {
-    const { getDocument } = await loadPdfjs();
-    const task = getDocument({ url, disableAutoFetch: true, disableStream: true, verbosity: 0 });
+/** Accès par plages d'octets à un PDF distant. */
+export interface PdfSource {
+    /** Taille totale du fichier, en octets. */
+    size(): Promise<number>;
+    /** Octets `start` (inclus) à `end` (exclu). */
+    read(start: number, end: number): Promise<Uint8Array>;
+}
+
+/**
+ * Plages lues par pdf.js : 512 Ko plutôt que 64 Ko par défaut — chaque plage est
+ * une requête R2, et ce sont les allers-retours, pas le volume, qui coûtent.
+ */
+const RANGE_CHUNK_SIZE = 512 * 1024;
+
+interface OpenedDocument {
+    doc: { numPages: number; getPage(n: number): Promise<{ getTextContent(): Promise<{ items: unknown[] }>; cleanup(): void }> };
+    /** Rejette dès qu'une lecture de plage échoue (pdf.js, lui, attendrait indéfiniment). */
+    guard<T>(promise: Promise<T>): Promise<T>;
+    destroy(): Promise<void>;
+}
+
+async function openDocument(source: PdfSource): Promise<OpenedDocument> {
+    const pdfjs = await loadPdfjs();
+    let fail: (error: unknown) => void = () => undefined;
+    const failure = new Promise<never>((_, reject) => { fail = reject; });
+    failure.catch(() => undefined); // évite un rejet non géré si personne n'attend plus
+
+    class SourceTransport extends pdfjs.PDFDataRangeTransport {
+        requestDataRange(begin: number, end: number) {
+            source.read(begin, end).then(chunk => this.onDataRange(begin, chunk), fail);
+        }
+    }
+
+    const transport = new SourceTransport(await source.size(), null);
+    const task = pdfjs.getDocument({
+        range: transport,
+        rangeChunkSize: RANGE_CHUNK_SIZE,
+        disableAutoFetch: true,
+        disableStream: true,
+        verbosity: 0,
+    });
+    const guard = <T,>(promise: Promise<T>) => Promise.race([promise, failure]);
     try {
-        return (await task.promise).numPages;
-    } finally {
+        const doc = await guard(task.promise);
+        return { doc, guard, destroy: () => task.destroy() };
+    } catch (e: unknown) {
         await task.destroy();
+        throw e;
+    }
+}
+
+/** Nombre de pages du PDF. */
+export async function countPages(source: PdfSource): Promise<number> {
+    const opened = await openDocument(source);
+    try {
+        return opened.doc.numPages;
+    } finally {
+        await opened.destroy();
     }
 }
 
@@ -77,23 +132,21 @@ export interface ExtractOptions {
  * `to` tronqué au nombre de pages réel). Avec `deadline`, s'arrête proprement
  * entre deux pages : l'appelant reprend à la page suivant la dernière rendue.
  */
-export async function extractPages(url: string, from: number, to: number, options: ExtractOptions = {}): Promise<ExtractedPage[]> {
-    const { getDocument } = await loadPdfjs();
-    const task = getDocument({ url, disableAutoFetch: true, disableStream: true, verbosity: 0 });
+export async function extractPages(source: PdfSource, from: number, to: number, options: ExtractOptions = {}): Promise<ExtractedPage[]> {
+    const { doc, guard, destroy } = await openDocument(source);
     try {
-        const doc = await task.promise;
         const last = Math.min(to, doc.numPages);
         const pages: ExtractedPage[] = [];
         for (let n = Math.max(1, from); n <= last; n++) {
             if (options.deadline !== undefined && pages.length > 0 && Date.now() > options.deadline) break;
-            const page = await doc.getPage(n);
-            const content = await page.getTextContent();
+            const page = await guard(doc.getPage(n));
+            const content = await guard(page.getTextContent());
             const { title, bodyLines } = splitPageHeader(toLines(content.items));
             pages.push({ page: n, title, body: bodyLines.join('\n') });
             page.cleanup();
         }
         return pages;
     } finally {
-        await task.destroy();
+        await destroy();
     }
 }
