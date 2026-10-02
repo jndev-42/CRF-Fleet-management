@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.18.3] — 2 octobre 2026
+
+### 🔧 Améliorations
+
+- **Fenêtre du chat du référentiel opaque** — la fenêtre n'est plus transparente : le contenu de la page ne se voit plus à travers, les réponses se lisent sans gêne en thème clair comme en sombre.
+
 ## [5.18.2] — 1er octobre 2026
 
 ### 🐛 Corrections
