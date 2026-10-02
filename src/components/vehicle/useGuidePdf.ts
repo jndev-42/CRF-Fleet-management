@@ -10,11 +10,19 @@ const LOAD_ERROR = 'Impossible de charger le guide.';
  * Build `legacy` : le build moderne exige des API JavaScript encore absentes de
  * nombreux téléphones (ex. `Map.prototype.getOrInsertComputed`).
  *
- * Le fichier est récupéré par `fetch` puis passé en mémoire, plutôt que par
- * l'URL : la route ne gère pas les requêtes partielles (`Range`), et un refus
- * (404, 403) doit afficher le message du serveur.
+ * Par défaut, le fichier est récupéré par `fetch` puis passé en mémoire, plutôt
+ * que par l'URL : la route ne gère pas les requêtes partielles (`Range`), et un
+ * refus (404, 403) doit afficher le message du serveur.
+ *
+ * Avec `rangeUrl` (URL directe d'un gros PDF, ex. signée R2), pdf.js lit le
+ * fichier lui-même par requêtes `Range` : seules les pages affichées sont
+ * téléchargées, jamais le fichier entier.
  */
-export function useGuidePdf(src: string) {
+export interface GuidePdfOptions {
+    rangeUrl?: string;
+}
+
+export function useGuidePdf(src: string, { rangeUrl }: GuidePdfOptions = {}) {
     const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -25,19 +33,24 @@ export function useGuidePdf(src: string) {
 
         (async () => {
             try {
-                const res = await fetch(src);
-                if (!res.ok) {
-                    const body = await res.json().catch(() => null) as { error?: string } | null;
-                    throw new Error(body?.error || LOAD_ERROR);
+                let data: Uint8Array | null = null;
+                if (!rangeUrl) {
+                    const res = await fetch(src);
+                    if (!res.ok) {
+                        const body = await res.json().catch(() => null) as { error?: string } | null;
+                        throw new Error(body?.error || LOAD_ERROR);
+                    }
+                    data = new Uint8Array(await res.arrayBuffer());
                 }
-                const data = new Uint8Array(await res.arrayBuffer());
                 const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
                 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
                     'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
                     import.meta.url,
                 ).toString();
                 if (cancelled) return;
-                loadingTask = pdfjs.getDocument({ data });
+                loadingTask = rangeUrl
+                    ? pdfjs.getDocument({ url: rangeUrl, disableAutoFetch: true, disableStream: true })
+                    : pdfjs.getDocument({ data: data ?? new Uint8Array() });
                 const loaded = await loadingTask.promise;
                 if (!cancelled) setDoc(loaded);
             } catch (e: unknown) {
@@ -49,7 +62,7 @@ export function useGuidePdf(src: string) {
             cancelled = true;
             loadingTask?.destroy();
         };
-    }, [src]);
+    }, [src, rangeUrl]);
 
     return { doc, error, setError };
 }

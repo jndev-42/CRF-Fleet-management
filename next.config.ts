@@ -21,6 +21,12 @@ const nextConfig: NextConfig = {
     '@signpdf/utils',
   ],
 
+  // Le worker pdf.js est chargé par `import()` dynamique (invisible du traçage) : sans
+  // cette inclusion, il manque dans la fonction Vercel et l'indexation du référentiel échoue.
+  outputFileTracingIncludes: {
+    '/api/referentiel/process': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
+  },
+
   experimental: {
     serverActions: {
       bodySizeLimit: '150mb',

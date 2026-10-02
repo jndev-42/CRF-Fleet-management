@@ -12,6 +12,7 @@ import { mkdtempSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { menuSettingTableDdl } from '@/lib/menu-settings-schema';
+import { REFERENTIEL_FTS_DDL, REFERENTIEL_TABLES } from '@/lib/referentiel/schema';
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'martine-test-'));
 /** Exporté pour les tests de concurrence, qui ouvrent un second client sur le même fichier. */
@@ -385,6 +386,9 @@ async function createTables() {
   await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_batchId_idx" ON "UniformLoan"("batchId")`);
   await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_borrowerId_returnedAt_idx" ON "UniformLoan"("borrowerId", "returnedAt")`);
 
+  for (const table of REFERENTIEL_TABLES) await db.execute(table.ddl);
+  await db.execute(REFERENTIEL_FTS_DDL);
+
   await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
     id TEXT PRIMARY KEY,
     vehicleId TEXT NOT NULL REFERENCES "Vehicle"(id),
@@ -574,6 +578,10 @@ async function createTables() {
 }
 
 async function truncateTables() {
+  // Table FTS5 à contenu externe : `delete-all` vide l'index sans lire les pages.
+  await db.execute(`INSERT INTO "ReferentielFts"("ReferentielFts") VALUES('delete-all')`);
+  await db.execute(`DELETE FROM "ReferentielPage"`);
+  await db.execute(`DELETE FROM "Referentiel"`);
   await db.execute(`DELETE FROM "UniformLoan"`);
   await db.execute(`DELETE FROM "UniformLoanBatch"`);
   await db.execute(`DELETE FROM "UniformSize"`);

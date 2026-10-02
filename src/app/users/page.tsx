@@ -7,6 +7,7 @@ import UsersTab from '@/components/admin/UsersTab';
 import MenusTab from '@/components/admin/MenusTab';
 import ULsTab from '@/components/admin/ULsTab';
 import BannersTab from '@/components/admin/BannersTab';
+import ReferentielTab from '@/components/admin/ReferentielTab';
 import { isSuperAdmin, isAdminOrAbove, isReadOnlyManager, canAccessAdminPanel } from '@/lib/roles';
 
 interface User {
@@ -23,7 +24,7 @@ interface User {
     homeUlName?: string | null;
 }
 
-type TabId = 'users' | 'menus' | 'uls' | 'banners';
+type TabId = 'users' | 'menus' | 'uls' | 'banners' | 'referentiel';
 
 export default function AdminPage() {
     const [users, setUsers] = useState<User[]>([]);
@@ -216,6 +217,16 @@ export default function AdminPage() {
                 >
                     Bandeaux
                 </button>
+                {isSuperAdminUser && (
+                    <button
+                        role="tab"
+                        aria-selected={activeTab === 'referentiel'}
+                        className={`tab-btn${activeTab === 'referentiel' ? ' active' : ''}`}
+                        onClick={() => setActiveTab('referentiel')}
+                    >
+                        Référentiel
+                    </button>
+                )}
             </div>
 
             {activeTab === 'users' && (
@@ -242,6 +253,8 @@ export default function AdminPage() {
                     userUlId={session?.user?.ulId}
                 />
             )}
+
+            {activeTab === 'referentiel' && isSuperAdminUser && <ReferentielTab showToast={showToast} />}
 
             {activeTab === 'banners' && (
                 <BannersTab

@@ -19,6 +19,7 @@ import DemoBanner from "@/components/DemoBanner";
 import GuidedTour from "@/components/GuidedTour";
 import KonamiEasterEgg from "@/components/KonamiEasterEgg";
 import BugReportButton from "@/components/BugReportButton";
+import ReferentielChatButton from '@/components/referentiel/ReferentielChatButton';
 import LicenseBanner from "@/components/LicenseBanner";
 import CommunicationBanner from "@/components/CommunicationBanner";
 import ImpersonationBanner from "@/components/admin/ImpersonationBanner";
@@ -88,6 +89,7 @@ export default async function RootLayout({
                   </main>
                   {session?.user && <GuidedTour roles={roles} />}
                   {session?.user && <KonamiEasterEgg />}
+                  {session?.user && <ReferentielChatButton />}
                   {session?.user && <BugReportButton />}
                   <footer role="contentinfo" style={{
                     textAlign: 'center',

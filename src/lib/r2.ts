@@ -180,3 +180,58 @@ export async function deleteObject(key: string): Promise<void> {
 export function assertR2Configured(): void {
     config();
 }
+
+/**
+ * Clé R2 d'un référentiel PDF (guide pratique, plusieurs centaines de Mo).
+ *
+ * VERSIONNÉE : un nouvel import écrit une nouvelle clé, la base bascule dessus
+ * une fois l'indexation terminée, puis seulement l'ancien objet est supprimé.
+ */
+export function buildReferentielKey(attempt: string): string {
+    const safeAttempt = attempt.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'x';
+    return `referentiels/${crypto.randomUUID()}-${safeAttempt}.pdf`;
+}
+
+/**
+ * URL signée (query string SigV4) vers un objet R2.
+ *
+ * Sert à ce que le navigateur envoie et lise les gros PDF DIRECTEMENT vers R2 :
+ * un fichier de plusieurs centaines de Mo ne peut pas transiter par une fonction
+ * Vercel (corps limité à 4,5 Mo). `signQuery` met la signature dans l'URL, sans
+ * en-tête `Authorization` — indispensable pour un `fetch` ou un `<a>` navigateur.
+ * L'URL expire au bout de `expiresSec` secondes.
+ */
+export async function presignUrl(key: string, method: 'GET' | 'PUT' | 'HEAD', expiresSec: number): Promise<string> {
+    const { client, bucketUrl } = config();
+    const url = new URL(`${bucketUrl}/${key}`);
+    url.searchParams.set('X-Amz-Expires', String(expiresSec));
+    const signed = await client.sign(url.toString(), { method, aws: { signQuery: true } });
+    return signed.url;
+}
+
+/** Taille d'un objet en octets (HEAD). `null` si absent. */
+export async function getObjectSize(key: string): Promise<number | null> {
+    const { client, bucketUrl } = config();
+    return withRetry(`HEAD ${key}`, async () => {
+        const res = await client.fetch(`${bucketUrl}/${key}`, { method: 'HEAD' });
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const size = Number(res.headers.get('content-length'));
+        if (!Number.isFinite(size)) throw new Error('Content-Length manquant');
+        return size;
+    });
+}
+
+/** Lit les octets `start`..`end` (inclus) d'un objet (requête `Range`). `null` si absent. */
+export async function getObjectRange(key: string, start: number, end: number): Promise<Uint8Array | null> {
+    const { client, bucketUrl } = config();
+    return withRetry(`GET ${key} [${start}-${end}]`, async () => {
+        const res = await client.fetch(`${bucketUrl}/${key}`, {
+            method: 'GET',
+            headers: { Range: `bytes=${start}-${end}` },
+        });
+        if (res.status === 404) return null;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return new Uint8Array(await res.arrayBuffer());
+    });
+}

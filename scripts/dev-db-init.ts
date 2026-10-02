@@ -20,6 +20,7 @@ import { createClient } from '@libsql/client';
 import { config } from 'dotenv';
 import { spawnSync } from 'child_process';
 import path from 'path';
+import { isFtsShadowTable, REFERENTIEL_FTS_DDL, REFERENTIEL_FTS_TABLE, REFERENTIEL_REBUILD_SQL } from '../src/lib/referentiel/schema';
 
 const CONTAINER_DB_URL = 'http://localhost:8080';
 
@@ -65,10 +66,15 @@ async function prodCloneMode(): Promise<void> {
   const tablesResult = await prod.execute(
     `SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
   );
-  const tableDefs = tablesResult.rows.map((r) => ({
-    name: r.name as string,
-    sql: r.sql as string | null,
-  }));
+  // L'index FTS5 du référentiel et ses tables fantômes ne se clonent pas ligne à
+  // ligne (`CREATE TABLE` ne sait pas les recréer) : on les ignore ici et on
+  // reconstruit l'index à partir des pages clonées en fin de copie.
+  const tableDefs = tablesResult.rows
+    .map((r) => ({
+      name: r.name as string,
+      sql: r.sql as string | null,
+    }))
+    .filter((t) => !isFtsShadowTable(t.name));
   console.log(`[dev-db-init] Found ${tableDefs.length} tables: ${tableDefs.map((t) => t.name).join(', ')}`);
 
   // sqld's HTTP/Hrana bridge does not appear to honor `PRAGMA foreign_keys =
@@ -125,6 +131,7 @@ async function prodCloneMode(): Promise<void> {
     // stale local table (older/fewer columns from a prior seed run or prior
     // clone) doesn't linger and break the row copy below with "no column
     // named X".
+    await tx.execute(`DROP TABLE IF EXISTS "${REFERENTIEL_FTS_TABLE}"`);
     for (const table of [...insertOrder].reverse()) {
       await tx.execute(`DROP TABLE IF EXISTS "${table}"`);
     }
@@ -172,6 +179,13 @@ async function prodCloneMode(): Promise<void> {
       } else {
         console.log(`[dev-db-init]   ${table}: ${totalRows} rows cloned`);
       }
+    }
+
+    // Index FTS5 du référentiel : recréé puis reconstruit depuis les pages clonées.
+    if (tableNames.has('ReferentielPage')) {
+      await tx.execute(REFERENTIEL_FTS_DDL);
+      await tx.execute(REFERENTIEL_REBUILD_SQL);
+      console.log('[dev-db-init]   ReferentielFts: index rebuilt');
     }
 
     await tx.commit();

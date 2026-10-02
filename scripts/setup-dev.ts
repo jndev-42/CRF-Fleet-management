@@ -8,6 +8,7 @@ import { createClient } from '@libsql/client';
 import crypto from 'crypto';
 // Chemin relatif volontaire : ce script tourne hors du bundler Next, l'alias `@/` n'y est pas résolu.
 import { DEFAULT_EXPENSE_BUDGETS, seedDefaultBudgets } from '../src/lib/expenses/budgets';
+import { REFERENTIEL_FTS_DDL, REFERENTIEL_TABLES } from '../src/lib/referentiel/schema';
 import { menuSettingNeedsRebuild, menuSettingTableDdl, rebuildMenuSettingTable } from '../src/lib/menu-settings-schema';
 
 // DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
@@ -705,6 +706,11 @@ async function main() {
     await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_sizeId_idx" ON "UniformLoan"("sizeId")`);
     await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_batchId_idx" ON "UniformLoan"("batchId")`);
     await db.execute(`CREATE INDEX IF NOT EXISTS "UniformLoan_borrowerId_returnedAt_idx" ON "UniformLoan"("borrowerId", "returnedAt")`);
+
+    // ── Référentiel secourisme (chatbot) ──────────────────────────
+
+    for (const table of REFERENTIEL_TABLES) await db.execute(table.ddl);
+    await db.execute(REFERENTIEL_FTS_DDL);
 
     // ── MenuSetting ───────────────────────────────────────────────
 

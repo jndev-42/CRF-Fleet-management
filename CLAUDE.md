@@ -30,6 +30,7 @@ npx tsx scripts/add-mission-report-interventions.ts # Migration prod : table mis
 npx tsx scripts/add-uniforms.ts                 # Migration prod : module Uniformes (tables UniformItem/UniformSize/UniformLoanBatch/UniformLoan, colonne UniteLocale.uniformQrToken + index unique partiel, MenuSetting `uniforms` ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.16.0 : sans les tables, /api/uniforms/* et /api/qr-uniforms/* répondent 500
 npx tsx scripts/update-menu-settings.ts         # Migration prod : MenuSetting accepte la visibilité « super_admin_only » (reconstruction de la table) + ligne `expenses` (menu Frais) ; dry-run ; --apply pour écrire — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.16.0 : sans elle, choisir « Super admin uniquement » répond 500
 npx tsx scripts/add-vehicle-guide.ts           # Migration prod : colonnes Vehicle.guideR2Key / guideFileName / guideSize / guideUpdatedAt (guide de vérification PDF ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.17.0 : sans les colonnes, /api/vehicles/[id]/guide et /api/qr/[token]/guide répondent 500 (dépôt, lecture et retrait du guide impossibles)
+npx tsx scripts/add-referentiel.ts             # Migration prod : tables Referentiel / ReferentielPage + index FTS5 ReferentielFts (chatbot du référentiel secourisme ; teste FTS5 ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.18.0 : sans les tables, /api/referentiel/* répondent 500 (chatbot et import inutilisables)
 npx tsx scripts/verify-signed-pdf.ts <fichier>  # Vérifie les signatures d'un PDF scellé
 npx tsx scripts/backfill-signed-pdfs.ts         # Scelle rétroactivement les notes existantes (dry-run par défaut, --apply pour écrire)
 npx tsx scripts/add-vehicle-connections.ts      # Migration prod : tables BrandCredential / VehicleConnection + reprise du compte MyRenault global (dry-run ; --apply --ul=<id> pour écrire)
@@ -55,6 +56,17 @@ npx tsx scripts/rewrap-credentials.ts           # Rotation de CREDENTIALS_ENCRYP
 **Styling:** CSS Modules per component + global CSS variables in `app/globals.css`. `next-themes` for dark/light.
 
 **Deployment:** Vercel (auto-deploy on `main`). DB: Turso cloud. Uses `--webpack` (not Turbopack).
+
+## Référentiel secourisme (chatbot)
+
+Le PDF (plusieurs centaines de Mo) ne transite jamais par Vercel : le navigateur l'envoie et le lit directement sur R2 via des URL signées (`presignUrl` dans `src/lib/r2.ts`). **Règle CORS à configurer à la main sur le bucket R2 (Cloudflare)**, sans quoi l'import et la liseuse échouent côté navigateur :
+
+- origines : celle de l'appli (prod, preview, `http://localhost:3000`) ;
+- méthodes : `GET`, `PUT`, `HEAD` ;
+- en-têtes autorisés : `Range`, `Content-Type` ;
+- en-têtes exposés : `Accept-Ranges`, `Content-Range`, `Content-Length`, `ETag`.
+
+L'index plein texte est une table FTS5 à contenu externe (`src/lib/referentiel/schema.ts`) : il se reconstruit (`rebuild`) à la bascule d'un import, et après un clonage prod (`dev:prod`).
 
 ## Testing
 
