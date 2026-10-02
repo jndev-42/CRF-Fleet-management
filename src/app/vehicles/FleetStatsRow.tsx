@@ -3,11 +3,12 @@
 import styles from './QuickBorrow.module.css';
 
 interface FleetStatsRowProps {
+    /** `null` = compteur indisponible (Vue DT, période invalide) : affiché « — ». */
     stats: {
-        total: number;
-        available: number;
-        inUse: number;
-        maintenance: number;
+        total: number | null;
+        available: number | null;
+        inUse: number | null;
+        maintenance: number | null;
     };
 }
 
@@ -19,19 +20,19 @@ export default function FleetStatsRow({ stats }: FleetStatsRowProps) {
     return (
         <div className={styles.statsRow} data-tour="stats">
             <div className={styles.stat}>
-                <span className={styles.statValue}>{stats.total}</span>
+                <span className={styles.statValue}>{stats.total ?? '—'}</span>
                 <span className={styles.statLabel}>Total</span>
             </div>
             <div className={`${styles.stat} ${styles.available}`}>
-                <span className={styles.statValue}>{stats.available}</span>
+                <span className={styles.statValue}>{stats.available ?? '—'}</span>
                 <span className={styles.statLabel}>Disponibles</span>
             </div>
             <div className={`${styles.stat} ${styles.inuse}`}>
-                <span className={styles.statValue}>{stats.inUse}</span>
+                <span className={styles.statValue}>{stats.inUse ?? '—'}</span>
                 <span className={styles.statLabel}>En mission</span>
             </div>
             <div className={`${styles.stat} ${styles.maintenance}`}>
-                <span className={styles.statValue}>{stats.maintenance}</span>
+                <span className={styles.statValue}>{stats.maintenance ?? '—'}</span>
                 <span className={styles.statLabel}>Maintenance</span>
             </div>
         </div>

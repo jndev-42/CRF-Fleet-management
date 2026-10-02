@@ -1,0 +1,191 @@
+/* Panneau de filtres de la Vue DT — remplace la barre statut (Tous / 🟢 / 🟡 / 🔴) en Vue DT */
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.disclosure {
+    display: none;
+}
+
+.body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.groupLabel {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.group .groupLabel {
+    margin-bottom: 0;
+}
+
+.segmented {
+    display: inline-flex;
+    align-self: flex-start;
+    gap: 4px;
+    padding: 4px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+}
+
+.segment {
+    padding: 6px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.segmentActive {
+    background: var(--crf-red);
+    color: white;
+}
+
+.segment:focus-visible,
+.chip:focus-visible,
+.linkButton:focus-visible,
+.disclosure:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+}
+
+.period {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 220px;
+    max-width: 280px;
+}
+
+.shortcuts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.error {
+    margin: 0;
+    font-size: 13px;
+    color: var(--error-text);
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+.chips legend {
+    width: 100%;
+    padding: 0;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.count {
+    min-width: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.countZero {
+    color: var(--text-muted);
+}
+
+.linkButton {
+    align-self: flex-start;
+    padding: 0;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-accent);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.summary {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+@media (max-width: 639px) {
+    .disclosure {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+        min-height: 44px;
+        padding: 8px 12px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-primary);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .collapsed {
+        display: none;
+    }
+
+    .field {
+        max-width: none;
+        flex-basis: 100%;
+    }
+
+    .chip,
+    .shortcuts button {
+        min-height: 44px;
+    }
+}

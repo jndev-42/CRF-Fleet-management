@@ -12,3 +12,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-vehicle-verification-guide-pdf.md`
   summary: La ligne de migration v5.17.0 dans CLAUDE.md doit aussi signaler que DELETE /api/vehicles/[id] répond 500 tant que les colonnes guide n'existent pas.
   evidence: `src/app/api/vehicles/[id]/route.ts` sélectionne explicitement `guideR2Key` dans le DELETE ; la ligne CLAUDE.md ne cite que les routes /guide.
+- source_spec: `_bmad-output/implementation-artifacts/spec-vue-dt-filtres-disponibilite.md`
+  summary: Vue DT — option « Regrouper par UL » (sections par UL, UL active en premier puis par nombre de véhicules disponibles décroissant).
+  evidence: Proposé par bmad-ux (EXPERIENCE.md) ; reporté par l'humain pour garder une PR de taille raisonnable.
+- source_spec: `_bmad-output/implementation-artifacts/spec-vue-dt-filtres-disponibilite.md`
+  summary: Vue DT — synchroniser le calendrier mensuel avec les filtres (filtre Type, ouverture sur le mois du début, surlignage de la période).
+  evidence: Proposé par bmad-ux (EXPERIENCE.md) ; reporté par l'humain pour garder une PR de taille raisonnable.
+- source_spec: `_bmad-output/implementation-artifacts/spec-vue-dt-filtres-disponibilite.md`
+  summary: Vue DT — tuiles FleetStatsRow propres au mode (Réservés / Potentiellement disponibles) pour que la somme des tuiles égale le Total, et tuiles cliquables.
+  evidence: Revue (Blind Hunter) : en Vue DT, Réservé et Potentiel ne sont comptés que dans le Total ; prévu par EXPERIENCE.md mais hors tâches de la spec.

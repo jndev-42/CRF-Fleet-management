@@ -1,5 +1,20 @@
 # Changelog
 
+## [5.19.1] — 2 octobre 2026
+
+### 🐛 Corrections
+
+- **Vue DT : badge d'UL déformé sur les cartes** — avec un statut long (« Potentiellement disponible ») ou un nom de véhicule long (« 176 - Renault Kangoo »), le badge de l'UL était écrasé à côté du nom. Le nom revient à la ligne entre ses mots et le badge d'UL passe proprement en dessous.
+
+## [5.19.0] — 2 octobre 2026
+
+### ✨ Nouveautés
+
+- **Vue DT : trouver les véhicules libres, maintenant ou sur une période** — en Vue DT, un panneau de filtres remplace la barre de statut. Choisissez `Maintenant` ou une `Période` (début et fin, ou les raccourcis Aujourd'hui, Demain, Ce week-end, 7 prochains jours), puis filtrez par disponibilité et par type de véhicule : chaque puce indique combien de véhicules correspondent, et une phrase résume le résultat (« 4 véhicules · VPSP · disponibles du sam. 10 oct. 08:00 au sam. 10 oct. 20:00 »).
+- **Cinq statuts de disponibilité** — Disponible, Potentiellement disponible (véhicule parti en mission sans retour saisi, pour une période à venir), Réservé, En mission et Maintenance. Un véhicule réservé affiche chaque réservation de la période : créneau, réservant, « en attente » ou « validée », et motif.
+- **Lien partageable** — les filtres sont conservés dans l'adresse de la page : un lien copié ouvre exactement la même vue pour un autre cadre de la même DT.
+- Une période déjà terminée est signalée avec un lien « Revenir à Maintenant » ; une période déjà commencée est calculée à partir de maintenant. Sur téléphone, les filtres se replient derrière un bouton « Filtres ».
+
 ## [5.18.4] — 2 octobre 2026
 
 ### 🐛 Corrections
