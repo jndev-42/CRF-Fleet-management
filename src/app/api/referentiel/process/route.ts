@@ -67,10 +67,10 @@ function r2Source(key: string): PdfSource {
 }
 
 /**
- * Titres de toutes les pages, lus par paquets : le client libSQL installé (0.5.6,
- * transport `node-fetch`) ne termine JAMAIS une réponse HTTP de plus de ~64 Ko — la
- * requête reste suspendue sans erreur. 826 titres d'un coup (≈ 88 Ko) bloquaient la
- * bascule jusqu'au `maxDuration`. 200 titres ≈ 20 Ko. Voir aussi `scripts/dev-db-init.ts`.
+ * Titres de toutes les pages, lus par paquets de 200 (≈ 20 Ko par réponse). À l'origine
+ * un contournement de @libsql/client 0.5.6, qui ne terminait jamais une réponse HTTP de
+ * plus de ~64 Ko ; le client actuel (fetch natif) n'a plus ce défaut, mais des réponses
+ * bornées gardent la bascule prévisible. Voir aussi `scripts/dev-db-init.ts`.
  */
 const TITLES_PAGE_SIZE = 200;
 const RENAME_BATCH_SIZE = 100;
@@ -116,8 +116,7 @@ async function activate(id: string): Promise<string[] | null> {
         await tx.execute({ sql: `DELETE FROM Referentiel WHERE id != ?`, args: [id] });
         // Les pages de suite reprennent le nom de fiche lu sur leur page de couverture.
         const renamed = applyFicheNames(await readTitles(tx, id));
-        // Par paquets, pour la même raison que `readTitles` : un batch renvoie un résultat
-        // par instruction, et ~600 résultats dépasseraient 64 Ko.
+        // Par paquets, comme `readTitles` : un batch renvoie un résultat par instruction.
         for (let i = 0; i < renamed.length; i += RENAME_BATCH_SIZE) {
             await tx.batch(renamed.slice(i, i + RENAME_BATCH_SIZE).map(({ page, title }) => ({
                 sql: `UPDATE ReferentielPage SET title = ? WHERE referentielId = ? AND page = ?`,

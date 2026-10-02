@@ -111,12 +111,10 @@ async function prodCloneMode(): Promise<void> {
   for (const { name } of tableDefs) visit(name);
 
   // Row reads from prod are paginated rather than one unbounded `SELECT *`.
-  // The installed @libsql/client (0.5.6) HTTP transport silently kills the
-  // process — no rejection, no error, just a clean exit — once a single
-  // response crosses a few KB (observed: fine at 50 narrow-ish rows, dead at
-  // 55; unrelated to row content, purely response size, so wide tables like
-  // Trip die at far fewer rows than narrow ones like User). A small page
-  // size keeps every response well under that threshold.
+  // Originally a workaround: @libsql/client 0.5.6 (node-fetch transport) never
+  // completed an HTTP response above ~64 KB. The client now uses native fetch
+  // (≥ 0.6) and handles large responses, but small pages still bound memory
+  // and keep the per-statement payloads modest on wide tables.
   const PAGE_SIZE = 20;
 
   const schemaByName = new Map(tableDefs.map((t) => [t.name, t.sql]));

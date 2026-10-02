@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.18.4] — 2 octobre 2026
+
+### 🐛 Corrections
+
+- **Pages qui pouvaient rester bloquées sur de gros volumes** — l'affichage ou l'enregistrement de données volumineuses (longues listes, statistiques, exports) pouvait rester suspendu sans message jusqu'à l'expiration du délai. Ces opérations aboutissent désormais normalement.
+
 ## [5.18.3] — 2 octobre 2026
 
 ### 🔧 Améliorations
