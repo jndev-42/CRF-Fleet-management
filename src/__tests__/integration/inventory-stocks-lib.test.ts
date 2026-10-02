@@ -3,6 +3,7 @@
  * DB réelle (pas de mock).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { InStatement } from '@libsql/client';
 
 vi.mock('@/lib/db', async () => {
     const { db } = await import('./setup');
@@ -145,7 +146,7 @@ describe('ensureStockTableExists — colonne qrToken', () => {
         // Second appel : seules les gardes doivent parler.
         const realExecute = db.execute.bind(db);
         const emitted: string[] = [];
-        vi.spyOn(db, 'execute').mockImplementation(async (stmt: Parameters<typeof realExecute>[0]) => {
+        vi.spyOn(db, 'execute').mockImplementation(async (stmt: InStatement) => {
             emitted.push(typeof stmt === 'string' ? stmt : stmt.sql);
             return realExecute(stmt);
         });

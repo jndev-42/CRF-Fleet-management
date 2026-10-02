@@ -9,6 +9,7 @@
  * Couvre AC-N1 → AC-N6.
  */
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import type { InStatement } from '@libsql/client';
 
 vi.mock('@/lib/db', async () => {
     const { db } = await import('./setup');
@@ -312,7 +313,7 @@ describe('POST /api/inventory/adjust', () => {
             // refléter la somme de TOUS les lots, pas le total dérivé de l'état lu.
             const realExecute = db.execute.bind(db);
             let injected = false;
-            vi.spyOn(db, 'execute').mockImplementation(async (stmt: Parameters<typeof realExecute>[0]) => {
+            vi.spyOn(db, 'execute').mockImplementation(async (stmt: InStatement) => {
                 const result = await realExecute(stmt);
                 const sql = typeof stmt === 'string' ? stmt : stmt.sql;
                 if (!injected && /SELECT/i.test(sql) && /FROM "InvBatch"/.test(sql)) {
