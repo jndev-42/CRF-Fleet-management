@@ -9,6 +9,7 @@ import {
     type IncidentViewer,
 } from '@/lib/incidentAccess';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const updateIncidentSchema = z.object({
     type: z.enum(['ACCIDENT', 'FLASH']).optional().nullable(),
@@ -97,7 +98,7 @@ export async function GET(
     }
 }
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -166,7 +167,7 @@ export async function PATCH(
     }
 }
 
-export async function DELETE(
+async function deleteHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -202,3 +203,6 @@ export async function DELETE(
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'un incident", entityType: 'incident' });
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un incident", entityType: 'incident' });

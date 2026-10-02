@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { archiveItem, getItemRef, renameItem } from '@/lib/uniforms/catalog';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { parseBody, renameItemSchema } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * PATCH  /api/uniforms/items/[id] — renomme l'article.
@@ -17,7 +18,7 @@ import { parseBody, renameItemSchema } from '@/lib/uniforms/schemas';
  */
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function PATCH(request: Request, { params }: RouteContext) {
+async function patchHandler(request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -44,7 +45,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
 }
 
-export async function DELETE(_request: Request, { params }: RouteContext) {
+async function deleteHandler(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -67,3 +68,6 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'un article d'uniforme", entityType: 'uniformItem' });
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un article d'uniforme", entityType: 'uniformItem' });

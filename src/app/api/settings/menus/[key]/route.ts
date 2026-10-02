@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { MENU_KEYS, MENU_VISIBILITIES } from '@/lib/menuVisibility';
+import { withAudit } from '@/lib/audit/log';
 
 const VALID_KEYS = MENU_KEYS;
 
@@ -16,7 +17,7 @@ type RouteContext = { params: Promise<{ key: string }> };
 
 /** PATCH /api/settings/menus/[key] — Modifie la visibilité d'un menu.
  *  ADMIN uniquement. */
-export async function PATCH(request: Request, { params }: RouteContext) {
+async function patchHandler(request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -58,3 +59,5 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         return NextResponse.json({ error: 'Erreur lors de la mise à jour du paramètre' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification de la visibilité d'un menu", entityType: 'menu' });

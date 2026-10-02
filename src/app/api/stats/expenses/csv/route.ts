@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { fetchExpenseStatsData } from '@/lib/stats-expenses';
 import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
+import { withAudit } from '@/lib/audit/log';
 
 function csvEscape(value: unknown): string {
   const raw = value == null ? '' : String(value);
@@ -26,7 +27,7 @@ const postSchema = z.object({
   { message: 'La date de début doit être antérieure à la date de fin.', path: ['dateFrom'] }
 );
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const session = await auth();
     if (!session?.user) {
@@ -169,3 +170,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Erreur lors de la génération du CSV des notes de frais' }, { status: 500 });
   }
 }
+
+export const POST = withAudit(postHandler, { action: "Export CSV des statistiques de frais", entityType: 'stats' });

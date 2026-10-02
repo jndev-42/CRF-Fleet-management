@@ -6,6 +6,7 @@ import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
 import { validateItemBudgets } from '@/lib/expenses/budgets';
 import { isExpenseManager, canPayExpense, isTresorier as isTresorierRole, isSuperAdmin as isSuperAdminRole } from '@/lib/roles';
+import { withAudit } from '@/lib/audit/log';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -191,7 +192,7 @@ export async function GET(
     }
 }
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -534,7 +535,7 @@ export async function PATCH(
     }
 }
 
-export async function DELETE(
+async function deleteHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -581,3 +582,14 @@ export async function DELETE(
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, {
+    action: "Modification d'une note de frais",
+    entityType: 'expense',
+    actionsByBodyAction: {
+        validate: "Validation d'une note de frais",
+        reject: "Refus d'une note de frais",
+        pay: "Paiement d'une note de frais",
+    },
+});
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'une note de frais", entityType: 'expense' });

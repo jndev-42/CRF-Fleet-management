@@ -4,12 +4,13 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, canAssignRole, resolveRoles, isSuperAdmin, ROLES } from '@/lib/roles';
 import { forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const updateRolesSchema = z.object({
     roles: z.array(z.string()),
 });
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ email: string }> }
 ) {
@@ -173,7 +174,7 @@ export async function PATCH(
     }
 }
 
-export async function DELETE(
+async function deleteHandler(
     _request: Request,
     { params }: { params: Promise<{ email: string }> }
 ) {
@@ -262,3 +263,6 @@ export async function DELETE(
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification des rôles d'un utilisateur", entityType: 'user' });
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un utilisateur", entityType: 'user' });

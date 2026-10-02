@@ -27,6 +27,7 @@ import { countPages, extractPages, type PdfSource } from '@/lib/referentiel/extr
 import { PAGES_PER_BATCH } from '@/lib/referentiel/repository';
 import { REFERENTIEL_REBUILD_SQL } from '@/lib/referentiel/schema';
 import { applyFicheNames } from '@/lib/referentiel/pageTitle';
+import { withAudit } from '@/lib/audit/log';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -132,7 +133,7 @@ async function activate(id: string): Promise<string[] | null> {
     }
 }
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -255,3 +256,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Indexation du référentiel secourisme", entityType: 'referentiel' });

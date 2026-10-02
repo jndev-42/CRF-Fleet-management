@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { createMissionReportSchema, insertMissionReport } from '@/lib/missions/create-mission-report';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/qr-ul/[token]/mission-report
@@ -21,7 +22,7 @@ import { createMissionReportSchema, insertMissionReport } from '@/lib/missions/c
  * opposées volontairement. Le verrou de comportement est
  * `src/__tests__/integration/qr-ul-mission-report.test.ts`.
  */
-export async function POST(
+async function postHandler(
     request: Request,
     { params }: { params: Promise<{ token: string }> }
 ) {
@@ -75,3 +76,5 @@ export async function POST(
         return NextResponse.json({ error: 'Erreur lors de la création du compte rendu' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'un rapport de mission via QR code", entityType: 'missionReport' });

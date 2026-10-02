@@ -5,6 +5,7 @@ import { isAdminOrAbove } from '@/lib/roles';
 import { parseStockCsv } from '@/lib/inventory/csvImport';
 import { importStockFromCsv } from '@/lib/inventory/stocks';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 // Lecture d'un fichier via `formData()` : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -15,7 +16,7 @@ export const maxDuration = 30;
 /** 2 Mo : très au-delà d'un CSV de 2000 lignes, et sous la limite de corps Vercel. */
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -75,3 +76,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de l\'import du stock' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Import CSV d'un stock d'inventaire", entityType: 'inventoryStock' });

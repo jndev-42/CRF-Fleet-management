@@ -24,6 +24,7 @@ import {
     type RenaultVehicleData,
 } from '@/lib/renault';
 import { getErrorMessage } from '@/lib/utils/error';
+import { withAudit } from '@/lib/audit/log';
 
 // ── Schémas ───────────────────────────────────────────────────────────────────
 
@@ -387,7 +388,7 @@ function invalidBody(e: unknown): NextResponse {
 
 // ── Verbes ────────────────────────────────────────────────────────────────────
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function postHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
 
@@ -407,7 +408,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function patchHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
 
@@ -439,7 +440,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 }
 
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function deleteHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
 
@@ -496,3 +497,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         return serverError('DELETE', e);
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Connexion d'un véhicule au compte constructeur", entityType: 'vehicle' });
+export const PATCH = withAudit(patchHandler, { action: "Modification de la connexion constructeur d'un véhicule", entityType: 'vehicle' });
+export const DELETE = withAudit(deleteHandler, { action: "Déconnexion d'un véhicule du compte constructeur", entityType: 'vehicle' });

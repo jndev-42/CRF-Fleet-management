@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const updateBannerSchema = z.object({
     title: z.string().optional().nullable(),
@@ -17,7 +18,7 @@ const updateBannerSchema = z.object({
     link_label: z.string().optional().nullable(),
 });
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -144,7 +145,7 @@ export async function PATCH(
     }
 }
 
-export async function DELETE(
+async function deleteHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -191,3 +192,6 @@ export async function DELETE(
         return NextResponse.json({ error: 'Erreur lors de la suppression du bandeau' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'une bannière", entityType: 'banner' });
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'une bannière", entityType: 'banner' });

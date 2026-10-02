@@ -9,6 +9,7 @@ import { createElement, type JSXElementConstructor, type ReactElement } from 're
 import StatsPdfDocument from '@/components/stats/StatsPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
+import { withAudit } from '@/lib/audit/log';
 
 const postSchema = z.object({
   dateFrom: z.string().min(1),
@@ -62,7 +63,7 @@ async function generatePdf(dateFrom: string, dateTo: string): Promise<Buffer> {
   return Buffer.from(buffer);
 }
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const session = await auth();
     if (!session?.user) {
@@ -98,3 +99,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: 'Erreur lors de la génération du PDF' }, { status: 500 });
   }
 }
+
+export const POST = withAudit(postHandler, { action: "Export PDF des statistiques de trajets", entityType: 'stats' });

@@ -6,6 +6,7 @@ import { isSuperAdmin } from '@/lib/roles';
 import { compressStampImage } from '@/lib/stamp';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { seedDefaultBudgets } from '@/lib/expenses/budgets';
+import { withAudit } from '@/lib/audit/log';
 
 const createULSchema = z.object({
     name: z.string().min(1, 'Le nom est requis'),
@@ -46,7 +47,7 @@ export async function GET() {
 }
 
 /** POST /api/ul — Créer une nouvelle UL (ADMIN uniquement) */
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!isSuperAdmin(session?.user?.roles || [])) {
@@ -94,3 +95,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'une UL", entityType: 'ul' });

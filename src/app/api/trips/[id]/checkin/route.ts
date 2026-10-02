@@ -13,10 +13,11 @@ import {
     formatElapsed,
     negativeMileageMessage,
 } from '@/lib/utils/mileageAnomaly';
+import { withAudit } from '@/lib/audit/log';
 // Increase duration limits for Vercel Serverless Functions
 export const maxDuration = 30; // 30 seconds max duration
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -287,3 +288,5 @@ export async function PATCH(
         );
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Restitution d'un véhicule", entityType: 'trip' });

@@ -5,13 +5,14 @@ import { auth } from '@/auth';
 import { sendPushNotification } from '@/lib/onesignal';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const updateMetricsSchema = z.object({
     mileage: z.number().min(0).optional(),
     fuelLevel: z.number().min(0).max(100).optional(),
 });
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -132,3 +133,5 @@ export async function PATCH(
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification des compteurs d'un véhicule", entityType: 'vehicle' });

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const PAGE_SIZE = 5;
 
@@ -74,7 +75,7 @@ export async function GET(
     }
 }
 
-export async function POST(
+async function postHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -139,3 +140,5 @@ export async function POST(
         );
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Ajout d'un entretien", entityType: 'vehicle' });

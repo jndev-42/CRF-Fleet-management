@@ -27,6 +27,7 @@ import {
     sanitizeGuideFileName,
 } from '@/lib/vehicleGuide';
 import { vehicleGuideResponse } from '@/lib/vehicleGuideResponse';
+import { withAudit } from '@/lib/audit/log';
 
 // Lecture multipart, Buffer et R2 : runtime Node requis.
 export const runtime = 'nodejs';
@@ -73,7 +74,7 @@ export async function GET(
     }
 }
 
-export async function POST(
+async function postHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -158,7 +159,7 @@ export async function POST(
     }
 }
 
-export async function DELETE(
+async function deleteHandler(
     _request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -201,3 +202,6 @@ export async function DELETE(
         return NextResponse.json({ error: 'Erreur lors du retrait du guide.' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Dépôt du guide de vérification d'un véhicule", entityType: 'vehicle' });
+export const DELETE = withAudit(deleteHandler, { action: "Retrait du guide de vérification d'un véhicule", entityType: 'vehicle' });

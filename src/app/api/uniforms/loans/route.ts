@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { createLoanBatch, resolveActor } from '@/lib/uniforms/loans';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { activeUlId, loanSchema, parseBody } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/uniforms/loans — valide un panier depuis l'appli.
@@ -15,7 +16,7 @@ import { activeUlId, loanSchema, parseBody } from '@/lib/uniforms/schemas';
  * tout-ou-rien — 409 si une taille n'a plus assez de disponible au moment de la
  * validation, aucune ligne créée (cf. `createLoanBatch`).
  */
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -37,3 +38,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Prêt d'uniformes", entityType: 'uniformLoan' });

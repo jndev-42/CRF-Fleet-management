@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * DELETE /api/reservations/recurrence/:groupId
@@ -10,7 +11,7 @@ import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
  * Préserve les occurrences passées (archivage).
  * Accessible par : le propriétaire de la réservation ou un ADMIN.
  */
-export async function DELETE(
+async function deleteHandler(
     request: Request,
     props: { params: Promise<{ groupId: string }> }
 ) {
@@ -77,7 +78,7 @@ export async function DELETE(
  * Seuls les rôles pouvant valider (ADMIN, RESPO, CADRE, PRESIDENT) sont autorisés.
  * Les occurrences en conflit avec une réservation déjà validée sont ignorées (skip).
  */
-export async function PATCH(
+async function patchHandler(
     request: Request,
     props: { params: Promise<{ groupId: string }> }
 ) {
@@ -203,3 +204,6 @@ export async function PATCH(
         return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
     }
 }
+
+export const DELETE = withAudit(deleteHandler, { action: "Annulation d'une série de réservations", entityType: 'reservationGroup' });
+export const PATCH = withAudit(patchHandler, { action: "Validation d'une série de réservations", entityType: 'reservationGroup' });

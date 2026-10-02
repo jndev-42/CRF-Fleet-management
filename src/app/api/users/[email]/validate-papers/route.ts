@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 /** PATCH /api/users/[email]/validate-papers
  *
@@ -14,7 +15,7 @@ import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
  * - last_validation = aujourd'hui (YYYY-MM-DD)
  * - start_date_invalidation_process = NULL
  */
-export async function PATCH(
+async function patchHandler(
     _request: Request,
     { params }: { params: Promise<{ email: string }> }
 ) {
@@ -63,3 +64,5 @@ export async function PATCH(
         );
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Validation des papiers d'un utilisateur", entityType: 'user' });

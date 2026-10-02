@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 import { forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const patchItemSchema = z.object({
     label: z.string().min(1).max(200).optional(),
@@ -15,7 +16,7 @@ const patchItemSchema = z.object({
  * PATCH /api/checklist/[itemId]
  * Admin only — updates label, required, or order of a checklist item.
  */
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ itemId: string }> }
 ) {
@@ -90,7 +91,7 @@ export async function PATCH(
  * DELETE /api/checklist/[itemId]
  * Admin only — removes a checklist item.
  */
-export async function DELETE(
+async function deleteHandler(
     request: Request,
     { params }: { params: Promise<{ itemId: string }> }
 ) {
@@ -128,3 +129,6 @@ export async function DELETE(
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'un élément de checklist", entityType: 'checklistItem' });
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un élément de checklist", entityType: 'checklistItem' });

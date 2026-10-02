@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { auth } from '@/auth';
 import { isInactive } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const reportSchema = z.object({
   title: z.string().min(1).max(200),
@@ -13,7 +14,7 @@ const reportSchema = z.object({
   pageUrl: z.string().optional(),
 });
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   const session = await auth();
   if (!session?.user) {
     return unauthorizedResponse();
@@ -95,3 +96,5 @@ export async function POST(request: Request) {
   const issue = await ghRes.json() as { html_url: string };
   return NextResponse.json({ issueUrl: issue.html_url }, { status: 201 });
 }
+
+export const POST = withAudit(postHandler, { action: "Signalement d'un bug", entityType: 'bug' });

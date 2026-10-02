@@ -9,6 +9,7 @@ import {
     getOrCreateStockQrToken,
     regenerateStockQrToken,
 } from '@/lib/inventory/stocks';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * GET|POST /api/inventory/stocks/[id]/qr-token
@@ -118,14 +119,14 @@ export async function GET(
  * Il hérite donc de TOUTES ses gardes, `isQrBlocked` comprise. Ne pas le réécrire
  * en copie indépendante : la garde se perdrait au premier oubli.
  */
-export async function POST(
+async function postHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     return GET(request, { params });
 }
 
-export async function DELETE(
+async function deleteHandler(
     _request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -171,3 +172,6 @@ export async function DELETE(
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Génération du QR code d'un stock", entityType: 'inventoryStock' });
+export const DELETE = withAudit(deleteHandler, { action: "Régénération du QR code d'un stock", entityType: 'inventoryStock' });

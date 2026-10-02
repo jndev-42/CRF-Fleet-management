@@ -15,6 +15,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { buildReferentielKey, newAttemptId, presignUrl } from '@/lib/r2';
 import { sanitizeGuideFileName } from '@/lib/vehicleGuide';
 import { UPLOAD_URL_TTL_SEC } from '@/lib/referentiel/repository';
+import { withAudit } from '@/lib/audit/log';
 
 export const runtime = 'nodejs';
 
@@ -22,7 +23,7 @@ const uploadSchema = z.object({
     fileName: z.string().trim().min(1, 'Nom de fichier requis').max(255),
 }).strict();
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -53,3 +54,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Import du référentiel secourisme", entityType: 'referentiel' });

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
 import { unauthorizedResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 export const maxDuration = 30;
 
@@ -10,7 +11,7 @@ const VALIDATION_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const THROTTLE_MS = 5 * 60 * 1000; // 5 minutes between checks
 const MAX_RETRY_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 hours max retry window
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -135,3 +136,5 @@ export async function PATCH(
         return NextResponse.json({ error: 'Erreur Renault API' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Actualisation des données constructeur d'un trajet", entityType: 'trip' });

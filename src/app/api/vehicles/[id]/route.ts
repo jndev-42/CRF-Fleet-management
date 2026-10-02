@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 import { recalcVehicleStatus } from '@/lib/vehicleStatusRecalc';
+import { withAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -202,7 +203,7 @@ export async function GET(
     }
 }
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -336,7 +337,7 @@ export async function PATCH(
 import { deleteDriveFolder } from '@/lib/drive';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
-export async function DELETE(
+async function deleteHandler(
     _request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -413,3 +414,6 @@ export async function DELETE(
         );
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'un véhicule", entityType: 'vehicle' });
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un véhicule", entityType: 'vehicle' });

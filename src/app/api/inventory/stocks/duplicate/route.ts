@@ -5,6 +5,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
 import { duplicateStock } from '@/lib/inventory/stocks';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 // La duplication écrit 1 + 2N lignes ; on laisse de la marge sur un gros stock.
 export const maxDuration = 30;
@@ -15,7 +16,7 @@ const duplicateStockSchema = z.object({
     copyStock: z.boolean().default(false),
 });
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -62,3 +63,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la duplication du stock' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Duplication d'un stock d'inventaire", entityType: 'inventoryStock' });

@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
+import { withAudit } from '@/lib/audit/log';
 
 /** Validates incoming POST body for creating a reservation */
 const createReservationSchema = z.object({
@@ -100,7 +101,7 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
     }
 }
 
-export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
+async function postHandler(request: Request, props: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -411,3 +412,5 @@ export async function POST(request: Request, props: { params: Promise<{ id: stri
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Réservation d'un véhicule", entityType: 'reservation' });

@@ -4,8 +4,9 @@ import { auth } from '@/auth';
 import { deleteDriveFolder } from '@/lib/drive';
 import { isAdminOrAbove } from '@/lib/roles';
 import { forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
-export async function DELETE(
+async function deleteHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -97,3 +98,5 @@ export async function DELETE(
         );
     }
 }
+
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un trajet", entityType: 'trip' });

@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/vehicle-connection';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
+import { purgeAuditLogs } from '@/lib/audit/log';
 
 // Route sécurisée par Vercel Cron. On n'associe pas d'auth NextAuth ici.
 export async function GET(request: Request) {
@@ -10,6 +11,15 @@ export async function GET(request: Request) {
     const authHeader = request.headers.get('authorization');
     if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return unauthorizedResponse();
+    }
+
+    // Journal d'audit : rétention de 30 jours. Isolé, et lancé en premier : un échec
+    // de purge n'empêche pas la suite du cron, et un échec de la suite ne la saute pas.
+    try {
+        const purged = await purgeAuditLogs();
+        console.log(`Cron: ${purged} entrée(s) du journal d'audit purgée(s)`);
+    } catch (e: unknown) {
+        console.error('[audit] purge impossible :', getErrorMessage(e));
     }
 
     try {

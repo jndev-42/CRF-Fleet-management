@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, canAccessAdminPanel, resolveRoles, isSuperAdmin, MANAGEABLE_ROLES } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 /** Zod schema for creating a new user */
 const createUserSchema = z.object({
@@ -140,7 +141,7 @@ export async function GET(request: Request) {
 }
 
 /** POST /api/users — Admin: create a new user with optional initial roles */
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         const roles = session?.user?.roles || [];
@@ -237,3 +238,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la création de l\'utilisateur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'un utilisateur", entityType: 'user' });

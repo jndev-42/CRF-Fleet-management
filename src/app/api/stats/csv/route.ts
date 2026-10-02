@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { z } from 'zod';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { isInactive } from '@/lib/roles';
+import { withAudit } from '@/lib/audit/log';
 
 function csvEscape(value: unknown): string {
     const str = value == null ? '' : String(value);
@@ -28,7 +29,7 @@ const postSchema = z.object({
 }, { message: `La plage de dates est limitée à ${MAX_DATE_RANGE_DAYS} jours.`, path: ['dateTo'] });
 
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -132,3 +133,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la génération du CSV' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Export CSV des statistiques de trajets", entityType: 'stats' });

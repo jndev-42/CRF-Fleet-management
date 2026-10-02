@@ -5,6 +5,7 @@ import { canAccessDriveFolder } from '@/lib/driveAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { Readable } from 'stream';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const SHARED_FOLDER_ID = '11UwzHHOzNhn--f16eMaoWk9NgvOwOt2G';
 const PREVIEW_FOLDER_NAME = 'PREVIEW';
@@ -44,7 +45,7 @@ const MAX_FILE_SIZE = 4.2 * 1024 * 1024; // 4.2 MB per file (Serverless function
 const MAX_TOTAL_SIZE = 4.2 * 1024 * 1024; // 4.2 MB total max per request
 const ALLOWED_MIME_PREFIX = 'image/';
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         // Just verify they are logged in. We don't need their tokens anymore.
@@ -222,3 +223,5 @@ export async function POST(request: Request) {
         );
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Envoi d'une photo", entityType: 'photo' });

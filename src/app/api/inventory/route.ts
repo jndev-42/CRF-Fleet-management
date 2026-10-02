@@ -6,6 +6,7 @@ import type { InValue } from '@libsql/client';
 import { isAdminOrAbove } from '@/lib/roles';
 import { getOrCreateDefaultStock } from '@/lib/inventory/stocks';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 export async function GET(request: Request) {
     try {
@@ -91,7 +92,7 @@ export async function GET(request: Request) {
 }
 
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
     }
 }
 
-export async function PATCH(request: Request) {
+async function patchHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -188,7 +189,7 @@ export async function PATCH(request: Request) {
     }
 }
 
-export async function DELETE(request: Request) {
+async function deleteHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -223,3 +224,7 @@ export async function DELETE(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la suppression de l\'article' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'un article d'inventaire", entityType: 'inventoryItem' });
+export const PATCH = withAudit(patchHandler, { action: "Modification d'un article d'inventaire", entityType: 'inventoryItem' });
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un article d'inventaire", entityType: 'inventoryItem' });

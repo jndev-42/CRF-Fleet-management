@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { z } from 'zod';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const desinfPreSchema = z.object({
     desinfResponsableId: z.string().min(1, 'L\'identifiant du responsable est requis'),
@@ -11,7 +12,7 @@ const desinfPreSchema = z.object({
     desinfLotNumber: z.string().min(1, 'Le numéro de lot est requis'),
 });
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -70,3 +71,5 @@ export async function PATCH(
         );
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Désinfection avant restitution", entityType: 'trip' });

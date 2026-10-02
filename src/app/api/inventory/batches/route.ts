@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { FEFO_ORDER_BY, RESYNC_ITEM_QUANTITY_SQL } from '@/lib/inventory/adjustments';
+import { withAudit } from '@/lib/audit/log';
 
 const adjustBatchSchema = z.object({
     batchId: z.string().min(1),
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
     }
 }
 
-export async function DELETE(request: Request) {
+async function deleteHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -121,7 +122,7 @@ export async function DELETE(request: Request) {
     }
 }
 
-export async function PATCH(request: Request) {
+async function patchHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -203,3 +204,6 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la modification de la quantité du lot' }, { status: 500 });
     }
 }
+
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un lot d'inventaire", entityType: 'inventoryBatch' });
+export const PATCH = withAudit(patchHandler, { action: "Modification d'un lot d'inventaire", entityType: 'inventoryBatch' });

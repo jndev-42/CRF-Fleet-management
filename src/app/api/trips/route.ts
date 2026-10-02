@@ -8,8 +8,9 @@ import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiA
 import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { checkOutSchema } from './schema';
+import { withAudit } from '@/lib/audit/log';
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         // Auth check must happen before any body parsing or DB queries
         const session = await auth();
@@ -336,3 +337,5 @@ export async function POST(request: Request) {
         );
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Prise d'un véhicule", entityType: 'trip' });

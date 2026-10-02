@@ -141,6 +141,40 @@ describe('GET /api/cron/daily-mileage-check', () => {
         expect(remaining.rows).toHaveLength(0);
     });
 
+    it("purge les entrées du journal d'audit de plus de 30 jours", async () => {
+        delete process.env.CRON_SECRET;
+        const day = 24 * 60 * 60 * 1000;
+        for (const [id, age] of [['recent', 29 * day], ['old', 31 * day]] as const) {
+            await db.execute({
+                sql: `INSERT INTO "AuditLog" (id, createdAt, method, path, action, status) VALUES (?, ?, 'POST', '/api/x', 'X', 200)`,
+                args: [id, new Date(Date.now() - age).toISOString()],
+            });
+        }
+
+        const res = await GET(makeRequest());
+        expect(res.status).toBe(200);
+        const rows = await db.execute(`SELECT id FROM "AuditLog"`);
+        expect(rows.rows.map(r => r.id)).toEqual(['recent']);
+    });
+
+    it("un échec de purge du journal d'audit n'interrompt pas le cron", async () => {
+        delete process.env.CRON_SECRET;
+        await seedRoles();
+        await seedUser({ id: 'admin-1', email: 'admin@test.com' });
+        await seedUserRole('admin-1', 'ADMIN');
+        const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        await db.execute(`ALTER TABLE "AuditLog" RENAME TO "AuditLog_hidden"`);
+        try {
+            const res = await GET(makeRequest());
+            expect(res.status).toBe(200);
+            expect((await res.json()).success).toBe(true);
+            expect(spy).toHaveBeenCalledWith('[audit] purge impossible :', expect.any(String));
+        } finally {
+            await db.execute(`ALTER TABLE "AuditLog_hidden" RENAME TO "AuditLog"`);
+            spy.mockRestore();
+        }
+    });
+
     it('ignore les véhicules connectés en maintenance sans planter (isMaintenance dérivé de status)', async () => {
         delete process.env.CRON_SECRET;
         await seedRoles();
