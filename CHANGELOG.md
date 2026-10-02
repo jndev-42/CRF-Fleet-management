@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.19.1] — 2 octobre 2026
+
+### 🐛 Corrections
+
+- **Vue DT : badge d'UL déformé sur les cartes** — avec un statut long (« Potentiellement disponible »), le nom du véhicule se coupait et le badge de l'UL était écrasé à côté. Le badge d'UL passe désormais proprement sous le nom.
+
 ## [5.19.0] — 2 octobre 2026
 
 ### ✨ Nouveautés

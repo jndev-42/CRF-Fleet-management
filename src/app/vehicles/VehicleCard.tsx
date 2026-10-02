@@ -46,12 +46,15 @@ export default function VehicleCard({ vehicle, isDtView, renaultData: rData, isF
       href={`/vehicles/${vehicle.name}${isDtView ? '?dtView=true' : ''}`}
       className="vehicle-card"
     >
-      <div className="vehicle-card-header">
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span className="vehicle-name">{vehicle.name}</span>
+      <div className="vehicle-card-header" style={{ gap: 12 }}>
+        {/* minWidth 0 + nowrap : un badge de statut long ne doit ni couper le nom ni écraser le badge d'UL,
+            qui passe sous le nom plutôt que d'être compressé à côté. */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+            <span className="vehicle-name" style={{ whiteSpace: 'nowrap' }}>{vehicle.name}</span>
             {isDtView && vehicle.ulName && (
               <span style={{
+                whiteSpace: 'nowrap',
                 fontSize: 10,
                 fontWeight: 600,
                 padding: '1px 6px',
@@ -66,10 +69,10 @@ export default function VehicleCard({ vehicle, isDtView, renaultData: rData, isF
           </div>
           <div className="vehicle-plate">{vehicle.plate}</div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, maxWidth: '55%' }}>
           <span className="vehicle-type-badge">{vehicle.type}</span>
           {dtMeta ? (
-            <span className={`status-badge ${dtMeta.className}`} aria-label={`Statut : ${dtMeta.badge}`}>
+            <span className={`status-badge ${dtMeta.className}`} style={{ textAlign: 'right' }} aria-label={`Statut : ${dtMeta.badge}`}>
               <span aria-hidden="true">{dtMeta.icon}</span>
               {dtMeta.badge}
             </span>
