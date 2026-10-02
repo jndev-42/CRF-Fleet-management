@@ -47,11 +47,11 @@ export default function VehicleCard({ vehicle, isDtView, renaultData: rData, isF
       className="vehicle-card"
     >
       <div className="vehicle-card-header" style={{ gap: 12 }}>
-        {/* minWidth 0 + nowrap : un badge de statut long ne doit ni couper le nom ni écraser le badge d'UL,
-            qui passe sous le nom plutôt que d'être compressé à côté. */}
+        {/* Le nom revient à la ligne entre ses mots ; le badge d'UL, insécable, passe sous le nom
+            quand la place manque au lieu d'être écrasé à côté (statut long, nom long). */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
-            <span className="vehicle-name" style={{ whiteSpace: 'nowrap' }}>{vehicle.name}</span>
+            <span className="vehicle-name" style={{ overflowWrap: 'anywhere' }}>{vehicle.name}</span>
             {isDtView && vehicle.ulName && (
               <span style={{
                 whiteSpace: 'nowrap',

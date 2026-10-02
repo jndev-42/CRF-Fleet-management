@@ -4,7 +4,7 @@
 
 ### 🐛 Corrections
 
-- **Vue DT : badge d'UL déformé sur les cartes** — avec un statut long (« Potentiellement disponible »), le nom du véhicule se coupait et le badge de l'UL était écrasé à côté. Le badge d'UL passe désormais proprement sous le nom.
+- **Vue DT : badge d'UL déformé sur les cartes** — avec un statut long (« Potentiellement disponible ») ou un nom de véhicule long (« 176 - Renault Kangoo »), le badge de l'UL était écrasé à côté du nom. Le nom revient à la ligne entre ses mots et le badge d'UL passe proprement en dessous.
 
 ## [5.19.0] — 2 octobre 2026
 
