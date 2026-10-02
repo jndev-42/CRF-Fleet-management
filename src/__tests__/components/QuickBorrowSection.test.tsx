@@ -261,8 +261,10 @@ describe('QuickBorrowSection — filtrage du picker', () => {
             ],
         });
 
-        await waitFor(() => expect(ctaButton().disabled).toBe(true));
-        expect(screen.getByText("Aucun véhicule n'est disponible pour le moment.")).toBeTruthy();
+        // Attendre la raison, pas seulement la CTA désactivée : elle l'est déjà pendant le
+        // chargement (« Emprunter… »), et un CI lent passait ce `waitFor` trop tôt.
+        expect(await screen.findByText("Aucun véhicule n'est disponible pour le moment.")).toBeTruthy();
+        expect(ctaButton().disabled).toBe(true);
         expect(screen.getByRole('button', { name: 'Voir le calendrier' })).toBeTruthy();
     });
 });
@@ -342,10 +344,11 @@ describe('QuickBorrowSection — permis et modes dégradés', () => {
         routeFetch({ license: { blocked: true } });
         renderSection({ vehicles: [makeVehicle({ id: 'uuid-1' })] });
 
-        await waitFor(() => expect(ctaButton().disabled).toBe(true));
-        expect(screen.getByText(
+        // Même course que « zéro éligible » : la CTA est déjà désactivée pendant le chargement.
+        expect(await screen.findByText(
             "Vos papiers n'ont pas été validés dans les délais — emprunt impossible. Présentez vos papiers à votre DLUS/DLAS.",
         )).toBeTruthy();
+        expect(ctaButton().disabled).toBe(true);
     });
 
     it('license-check rejeté : pas de crash, fail-open assumé (licenseBlocked reste false)', async () => {
