@@ -28,6 +28,106 @@ const createVehicleSchema = z.object({
 
 import { hasDTRole } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import {
+    computeVehicleAvailability,
+    parseDtWindow,
+    type DtMaintenance,
+    type DtReservation,
+    type DtWindow,
+} from '@/lib/dtAvailability';
+
+/**
+ * Ajoute `availability` à chaque véhicule de la DT, calculée sur la fenêtre demandée.
+ * Deux requêtes groupées sur toute la DT (réservations, maintenances) ; le trajet ouvert
+ * vient déjà de la jointure principale (`t.checkInAt IS NULL`).
+ */
+async function attachDtAvailability(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- même Map non typée que le GET (forme Prisma historique)
+    vehiclesMap: Map<string, any>,
+    rows: Array<Record<string, unknown>>,
+    dtCode: string,
+    window: DtWindow,
+    now: Date,
+) {
+    const startISO = window.start.toISOString();
+    const endISO = window.end.toISOString();
+    const dtVehicles = `v.ulId IN (SELECT id FROM "UniteLocale" WHERE dtCode = ?)`;
+
+    // Préfiltre large (bornes incluses) ; le chevauchement exact est tranché par
+    // `computeVehicleAvailability`.
+    const [resResult, maintResult] = await Promise.all([
+        db.execute({
+            sql: `SELECT r.id, r.vehicleId, r.userName, r.startTime, r.endTime, r.reason, r.status
+                  FROM "Reservation" r
+                  JOIN Vehicle v ON v.id = r.vehicleId
+                  WHERE ${dtVehicles}
+                    AND r.status IN ('PENDING', 'VALIDATED')
+                    AND r.startTime <= ? AND r.endTime >= ?`,
+            args: [dtCode, endISO, startISO],
+        }),
+        // Même comparaison « jour vs ISO » que la jointure de maintenance du GET.
+        db.execute({
+            sql: `SELECT m.vehicleId, m.startDate, m.endDate
+                  FROM VehicleMaintenance m
+                  JOIN Vehicle v ON v.id = m.vehicleId
+                  WHERE ${dtVehicles}
+                    AND (
+                      (m.startDate LIKE '%T%' AND m.startDate <= ?) OR
+                      (m.startDate NOT LIKE '%T%' AND m.startDate <= ?)
+                    )
+                    AND (
+                      m.endDate IS NULL OR
+                      (m.endDate LIKE '%T%' AND m.endDate >= ?) OR
+                      (m.endDate NOT LIKE '%T%' AND m.endDate >= ?)
+                    )`,
+            args: [dtCode, endISO, endISO.split('T')[0], startISO, startISO.split('T')[0]],
+        }),
+    ]);
+
+    const reservationsByVehicle = new Map<string, DtReservation[]>();
+    for (const row of resResult.rows) {
+        const list = reservationsByVehicle.get(row.vehicleId as string) ?? [];
+        list.push({
+            id: row.id as string,
+            startTime: row.startTime as string,
+            endTime: row.endTime as string,
+            userName: row.userName as string,
+            status: row.status as DtReservation['status'],
+            reason: (row.reason as string | null) ?? null,
+        });
+        reservationsByVehicle.set(row.vehicleId as string, list);
+    }
+
+    const maintenancesByVehicle = new Map<string, DtMaintenance[]>();
+    for (const row of maintResult.rows) {
+        const list = maintenancesByVehicle.get(row.vehicleId as string) ?? [];
+        list.push({ startDate: row.startDate as string, endDate: (row.endDate as string | null) ?? null });
+        maintenancesByVehicle.set(row.vehicleId as string, list);
+    }
+
+    const openTripByVehicle = new Map<string, string>();
+    for (const row of rows) {
+        if (row.trip_id && row.trip_checkOutAt) {
+            const checkOutAt = new Date(row.trip_checkOutAt as string);
+            openTripByVehicle.set(
+                row.id as string,
+                Number.isNaN(checkOutAt.getTime()) ? String(row.trip_checkOutAt) : checkOutAt.toISOString(),
+            );
+        }
+    }
+
+    for (const [vehicleId, vehicle] of vehiclesMap) {
+        const checkOutAt = openTripByVehicle.get(vehicleId);
+        vehicle.availability = computeVehicleAvailability({
+            reservations: reservationsByVehicle.get(vehicleId) ?? [],
+            maintenances: maintenancesByVehicle.get(vehicleId) ?? [],
+            openTrip: checkOutAt ? { checkOutAt } : null,
+            windowStart: window.start,
+            windowEnd: window.end,
+            now,
+        });
+    }
+}
 
 export async function GET(request: Request) {
     try {
@@ -65,7 +165,19 @@ export async function GET(request: Request) {
             }
         }
 
-        const nowISO = new Date().toISOString();
+        const now = new Date();
+        // Vue DT uniquement : fenêtre de disponibilité (instant présent sans `from`/`to`).
+        // Hors Vue DT, ces paramètres sont ignorés.
+        let dtWindow: DtWindow | null = null;
+        if (isDtView) {
+            const parsedWindow = parseDtWindow(searchParams.get('from'), searchParams.get('to'), now);
+            if (!parsedWindow.ok) {
+                return NextResponse.json({ error: parsedWindow.error }, { status: 400 });
+            }
+            dtWindow = parsedWindow.window;
+        }
+
+        const nowISO = now.toISOString();
         const todayDate = nowISO.split('T')[0];
 
         const whereClause = isDtView && dtCode
@@ -157,6 +269,10 @@ export async function GET(request: Request) {
                     checkOutAt: new Date(row.trip_checkOutAt as string),
                 });
             }
+        }
+
+        if (dtWindow && dtCode) {
+            await attachDtAvailability(vehiclesMap, result.rows, dtCode, dtWindow, now);
         }
 
         return NextResponse.json(Array.from(vehiclesMap.values()));

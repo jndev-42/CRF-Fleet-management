@@ -1,3 +1,5 @@
+import type { DtAvailability } from '@/lib/dtAvailability';
+
 /**
  * Forme réellement renvoyée par `GET /api/vehicles` pour la liste du dashboard.
  *
@@ -32,6 +34,8 @@ export interface DashboardVehicle {
     transmission: string | null;
     ulId?: string | null;
     ulName?: string | null;
+    /** Vue DT uniquement : disponibilité calculée par le serveur sur la fenêtre demandée. */
+    availability?: DtAvailability;
     trips: {
         id: string;
         driverName: string;

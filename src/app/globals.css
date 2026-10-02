@@ -588,6 +588,19 @@ body {
   color: var(--status-maintenance);
 }
 
+/* Vue DT : variantes composées de variables existantes (pas de nouveau token) */
+.status-badge.reserved {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.status-badge.potential {
+  background: transparent;
+  color: var(--status-available);
+  border: 1px dashed var(--status-available);
+}
+
 .status-dot {
   width: 6px;
   height: 6px;

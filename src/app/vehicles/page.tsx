@@ -1,10 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { RenaultVehicleData } from '@/lib/renault';
 import { DashboardSkeletons } from '@/components/ui/Skeleton';
 import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
 import VehicleCalendar from '@/components/vehicle/VehicleCalendar';
@@ -15,40 +13,42 @@ import { computeFleetStats, countsAsMaintenance } from '@/lib/fleetStats';
 import QuickBorrowSection from './QuickBorrowSection';
 import QuickReturnSection from './QuickReturnSection';
 import QuickReservationSection from './QuickReservationSection';
-import type { DashboardVehicle } from './types';
+import VehicleCard from './VehicleCard';
+import DtFilterPanel from './DtFilterPanel';
+import DtVehicleResults from './DtVehicleResults';
+import { useDtFilters } from './useDtFilters';
+import { useFleetVehicles } from './useFleetVehicles';
+import { DT_STATUS_META, applyDtFilters, buildDtSummary } from './dtFilters';
 
-const statusLabels: Record<string, string> = {
-  AVAILABLE: 'Disponible',
-  IN_USE: 'En mission',
-  MAINTENANCE: 'Maintenance',
-};
-
-const statusClass: Record<string, string> = {
-  AVAILABLE: 'available',
-  IN_USE: 'inuse',
-  MAINTENANCE: 'maintenance',
-};
-
-function getFuelClass(level: number) {
-  if (level >= 50) return 'full';
-  if (level >= 25) return 'mid';
-  return 'low';
+// useSearchParams() (filtres de la Vue DT dans l'URL) exige une frontière Suspense.
+export default function VehiclesPage() {
+  return (
+    <Suspense fallback={<DashboardSkeletons count={6} />}>
+      <VehiclesPageContent />
+    </Suspense>
+  );
 }
 
-export default function VehiclesPage() {
-  const [vehicles, setVehicles] = useState<DashboardVehicle[]>([]);
-  const [renaultData, setRenaultData] = useState<Record<string, RenaultVehicleData>>({});
-  const [loading, setLoading] = useState(true);
+function VehiclesPageContent() {
   const [filter, setFilter] = useState('ALL');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isDtView, setIsDtView] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
   const { activeUL } = useUL();
 
   const userRoles = session?.user?.roles || [];
+  const isAdmin = isAdminOrAbove(userRoles);
   const canAccessDtView = hasDTRole(userRoles) && Boolean(activeUL?.dtCode);
+  const dt = useDtFilters(canAccessDtView);
+  const { isDtView } = dt;
+
+  const fleet = useFleetVehicles({
+    enabled: status === 'authenticated',
+    isDtView,
+    dtWindow: dt.fetchWindow,
+    ulKey: activeUL?.id,
+  });
+  const { vehicles, loading } = fleet;
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -56,52 +56,17 @@ export default function VehiclesPage() {
     }
   }, [status, router]);
 
-  useEffect(() => {
-    if (status === 'authenticated') {
-      fetchVehicles(isDtView);
-      if (isAdminOrAbove(session?.user?.roles || [])) {
-        setIsAdmin(true);
-      }
-    }
-  }, [status, session, isDtView, activeUL?.id]);
-
-  async function fetchVehicles(dtMode = false) {
-    setLoading(true);
-    try {
-      const url = dtMode ? `/api/vehicles?view=dt&t=${Date.now()}` : `/api/vehicles?t=${Date.now()}`;
-      const res = await fetch(url, { cache: 'no-store' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur lors de la récupération');
-      setVehicles(data);
-
-      // Fetch Renault data for supported vehicles
-      const renaultVehicles = data.filter((v: DashboardVehicle) => v.connection?.status === 'CONNECTED');
-      if (renaultVehicles.length > 0) {
-        Promise.all(renaultVehicles.map(async (v: DashboardVehicle) => {
-          // Plus de repli `|| v.name` : le nom n'a jamais été un VIN, il produisait un appel
-          // voué à l'échec. Sans VIN, il n'y a rien à demander à l'API Renault.
-          if (!v.vin) return;
-          try {
-            const rRes = await fetch(`/api/renault/${encodeURIComponent(v.vin)}`);
-            const rData = await rRes.json();
-            if (!rData.error) {
-              setRenaultData(prev => ({ ...prev, [v.name]: rData }));
-            }
-          } catch (e) {
-            console.error('Failed to get Renault data for', v.name, e);
-          }
-        }));
-      }
-    } catch (error) {
-      console.error('Erreur:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const facets = useMemo(() => applyDtFilters(vehicles, { dispo: dt.dispo, types: dt.types }), [vehicles, dt.dispo, dt.types]);
+  const periodInvalid = Boolean(dt.periodError);
+  // Premier chargement tant que les données affichées ne sont pas celles de la Vue DT de l'UL active.
+  const dtInitialLoading = !fleet.hasDtData || status === 'loading';
+  const dtBusy = !dtInitialLoading && (loading || dt.pendingWindow);
 
   // Priorité à la maintenance : un véhicule IN_USE portant une maintenance active
   // est compté sous « Maintenance », pas sous « En mission ». Cf. `@/lib/fleetStats`.
-  const stats = computeFleetStats(vehicles);
+  const stats = isDtView
+    ? (periodInvalid || dtInitialLoading ? { total: null, available: null, inUse: null, maintenance: null } : facets.stats)
+    : computeFleetStats(vehicles);
 
   if (status === 'unauthenticated') return null;
 
@@ -120,14 +85,14 @@ export default function VehiclesPage() {
             <button
               className={`btn ${!isDtView ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: 13, padding: '6px 14px' }}
-              onClick={() => setIsDtView(false)}
+              onClick={() => dt.setDtView(false)}
             >
               🏢 Vue UL ({activeUL?.name})
             </button>
             <button
               className={`btn ${isDtView ? 'btn-primary' : 'btn-secondary'}`}
               style={{ fontSize: 13, padding: '6px 14px' }}
-              onClick={() => setIsDtView(true)}
+              onClick={() => dt.setDtView(true)}
             >
               🌐 Vue DT ({activeUL?.dtCode})
             </button>
@@ -163,7 +128,7 @@ export default function VehiclesPage() {
         currentUserEmail={session?.user?.email}
         isDtView={isDtView}
         vehiclesLoading={loading}
-        onCheckOutSuccess={() => fetchVehicles(isDtView)}
+        onCheckOutSuccess={fleet.refetch}
       />
 
       <QuickReservationSection
@@ -172,7 +137,7 @@ export default function VehiclesPage() {
         currentUserEmail={session?.user?.email}
         isDtView={isDtView}
         vehiclesLoading={loading}
-        onReservationSuccess={() => fetchVehicles(isDtView)}
+        onReservationSuccess={fleet.refetch}
       />
 
       <QuickReturnSection
@@ -180,7 +145,7 @@ export default function VehiclesPage() {
         currentUserEmail={session?.user?.email}
         currentUserUlId={activeUL?.id}
         isDtView={isDtView}
-        onCheckInSuccess={() => fetchVehicles(isDtView)}
+        onCheckInSuccess={fleet.refetch}
       />
 
       <FleetStatsRow stats={stats} />
@@ -189,7 +154,7 @@ export default function VehiclesPage() {
 
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 className="section-title" style={{ margin: 0 }}>
-          {isDtView ? `Véhicules de la DT (${stats.total})` : 'Véhicules'}
+          {isDtView ? (dtInitialLoading ? 'Véhicules de la DT' : `Véhicules de la DT (${vehicles.length})`) : 'Véhicules'}
         </h2>
         {isAdmin && !isDtView && (
           <button
@@ -202,206 +167,120 @@ export default function VehiclesPage() {
         )}
       </div>
 
-      <div className="filters-bar" data-tour="filters" role="group" aria-label="Filtrer les véhicules par statut">
-        {[
-          { key: 'ALL', label: 'Tous' },
-          { key: 'AVAILABLE', label: '🟢 Disponibles' },
-          { key: 'IN_USE', label: '🟡 En mission' },
-          { key: 'MAINTENANCE', label: '🔴 Maintenance' },
-        ].map((f) => (
-          <button
-            key={f.key}
-            className={`filter-btn ${filter === f.key ? 'active' : ''}`}
-            onClick={() => setFilter(f.key)}
-            aria-pressed={filter === f.key}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
-
-      {loading || status === 'loading' ? (
-        <div role="status" aria-label="Chargement des véhicules…">
-          <DashboardSkeletons count={6} />
-        </div>
-      ) : (() => {
-        const filteredVehicles =
-          filter === 'ALL'
-            ? vehicles
-            : vehicles.filter((v) =>
-                // Un véhicule IN_USE peut porter une maintenance active : son statut
-                // projeté reste IN_USE (le badge 🔧 le signale), il doit malgré tout
-                // apparaître sous le filtre « Maintenance ». Prédicat partagé avec le
-                // compteur : filtre et compteur désignent le même ensemble.
-                filter === 'MAINTENANCE'
-                  ? countsAsMaintenance(v)
-                  : v.status === filter,
-              );
-
-        if (filteredVehicles.length === 0) {
-          return (
-            <div className="empty-state">
-              <div className="empty-state-icon">🚗</div>
-              <div className="empty-state-title">Aucun véhicule trouvé</div>
-              <p>Aucun véhicule ne correspond au filtre sélectionné.</p>
-            </div>
-          );
-        }
-
-        return (
-          <div className="vehicle-grid" data-tour="vehicle-card">
-            {filteredVehicles.map((vehicle) => (
-              <Link
-                key={vehicle.id}
-                href={`/vehicles/${vehicle.name}${isDtView ? '?dtView=true' : ''}`}
-                className="vehicle-card"
+      {isDtView ? (
+        <>
+          <DtFilterPanel
+            mode={dt.mode}
+            from={dt.from}
+            to={dt.to}
+            periodError={dt.periodError}
+            dispo={dt.dispo}
+            dispoCounts={periodInvalid || dtInitialLoading ? null : facets.dispoCounts}
+            types={facets.activeTypes}
+            typeOptions={facets.typeOptions}
+            summary={periodInvalid ? '' : buildDtSummary({
+              count: facets.visible.length,
+              types: facets.activeTypes,
+              dispo: dt.dispo,
+              mode: dt.mode,
+              from: dt.from,
+              to: dt.to,
+              now: new Date(),
+            })}
+            busy={!periodInvalid && !fleet.error && (dtBusy || dtInitialLoading)}
+            onModeChange={dt.setMode}
+            onPeriodChange={dt.setPeriod}
+            onToggleDispo={dt.toggleDispo}
+            onToggleType={dt.toggleType}
+            onReset={dt.reset}
+          />
+          <DtVehicleResults
+            visible={facets.visible}
+            totalCount={vehicles.length}
+            initialLoading={dtInitialLoading}
+            busy={dtBusy}
+            error={fleet.error}
+            periodInvalid={periodInvalid}
+            activeFilters={[
+              ...dt.dispo.map((s) => ({ key: `dispo-${s}`, label: DT_STATUS_META[s].chip, onRemove: () => dt.toggleDispo(s) })),
+              ...facets.activeTypes.map((t) => ({ key: `type-${t}`, label: t, onRemove: () => dt.toggleType(t) })),
+            ]}
+            renaultData={fleet.renaultData}
+            onRetry={fleet.refetch}
+            onReset={dt.reset}
+          />
+        </>
+      ) : (
+        <>
+          <div className="filters-bar" data-tour="filters" role="group" aria-label="Filtrer les véhicules par statut">
+            {[
+              { key: 'ALL', label: 'Tous' },
+              { key: 'AVAILABLE', label: '🟢 Disponibles' },
+              { key: 'IN_USE', label: '🟡 En mission' },
+              { key: 'MAINTENANCE', label: '🔴 Maintenance' },
+            ].map((f) => (
+              <button
+                key={f.key}
+                className={`filter-btn ${filter === f.key ? 'active' : ''}`}
+                onClick={() => setFilter(f.key)}
+                aria-pressed={filter === f.key}
               >
-                <div className="vehicle-card-header">
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span className="vehicle-name">{vehicle.name}</span>
-                      {isDtView && vehicle.ulName && (
-                        <span style={{
-                          fontSize: 10,
-                          fontWeight: 600,
-                          padding: '1px 6px',
-                          borderRadius: 4,
-                          background: 'rgba(255, 255, 255, 0.08)',
-                          border: '1px solid var(--border-primary)',
-                          color: 'var(--text-secondary)'
-                        }}>
-                          UL {vehicle.ulName}
-                        </span>
-                      )}
-                    </div>
-                    <div className="vehicle-plate">{vehicle.plate}</div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                    <span className="vehicle-type-badge">{vehicle.type}</span>
-                    <span
-                      className={`status-badge ${statusClass[vehicle.status]}`}
-                      aria-label={`Statut : ${statusLabels[vehicle.status]}`}
-                    >
-                      <span className="status-dot" aria-hidden="true" />
-                      {statusLabels[vehicle.status]}
-                    </span>
-                    {vehicle.hasActiveMaintenance && vehicle.status !== 'MAINTENANCE' && (
-                      <span className="status-badge maintenance" aria-label="Statut : Maintenance en cours">
-                        <span className="status-dot" aria-hidden="true" />
-                        🔧 Maintenance
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {vehicle.status === 'IN_USE' && vehicle.trips[0] && (
-                  <div style={{
-                    padding: '8px 12px',
-                    background: 'var(--status-inuse-bg)',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: 13,
-                    color: 'var(--status-inuse)',
-                    marginBottom: 12,
-                  }}>
-                    🧑‍✈️ {vehicle.trips[0].driverName} {vehicle.trips[0].secondDriverName ? ` & ${vehicle.trips[0].secondDriverName}` : ''} — {vehicle.trips[0].missionType}
-                  </div>
-                )}
-
-                {vehicle.hasDSA && (
-                  <div style={{ fontSize: 12, color: 'var(--status-available)', marginBottom: 8, fontWeight: 600 }}>🫀 DSA</div>
-                )}
-
-                {vehicle.fuelType === 'Électrique' ? (
-                  <div style={{ fontSize: 12, color: '#3B82F6', marginBottom: 8, fontWeight: 600 }}>⚡ Électrique</div>
-                ) : vehicle.fuelType === 'Diesel' ? (
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 600 }}>⛽ Diesel</div>
-                ) : vehicle.fuelType === 'Essence' ? (
-                  <div style={{ fontSize: 12, color: 'var(--status-inuse)', marginBottom: 8, fontWeight: 600 }}>⛽ Essence</div>
-                ) : null}
-
-                {vehicle.transmission === 'Automatique' ? (
-                  <div style={{ fontSize: 12, color: '#14B8A6', marginBottom: 8, fontWeight: 600 }}>⚙️ Automatique</div>
-                ) : vehicle.transmission === 'Manuelle' ? (
-                  <div style={{ fontSize: 12, color: '#8B5CF6', marginBottom: 8, fontWeight: 600 }}>⚙️ Manuelle</div>
-                ) : null}
-
-                <div className="vehicle-meta">
-                  <div className="meta-item">
-                    <span className="meta-label">Kilométrage</span>
-                    <span className="meta-value">
-                      {renaultData[vehicle.name]?.totalMileage
-                        ? <span>{renaultData[vehicle.name].totalMileage?.toLocaleString('fr-FR')} km</span>
-                        : `${vehicle.mileage.toLocaleString('fr-FR')} km`
-                      }
-                    </span>
-                  </div>
-                  <div className="meta-item">
-                    <span className="meta-label">Stationnement</span>
-                    <span className="meta-value">
-                      {vehicle.parkingSpot || '—'}
-                    </span>
-                  </div>
-                </div>
-
-                {(() => {
-                  const isFirstVehicle = filteredVehicles.indexOf(vehicle) === 0;
-                  const rData = renaultData[vehicle.name];
-
-                  // Display Live Renault Data if available
-                  if (rData) {
-                    const isElec = rData.isElectric;
-                    const val = isElec ? rData.batteryLevel : rData.fuelQuantity;
-                    const label = isElec ? '🔋 Batterie (live)' : (vehicle.fuelType === 'Diesel' ? '⛽ Diesel (live)' : '⛽ Essence (live)');
-                    const displayVal = isElec ? `${val}%` : `${val} L`;
-                    const fillPct = isElec ? (val || 0) : Math.min(((val || 0) / 50) * 100, 100);
-
-                    return (
-                      <div className="fuel-bar-container" {...(isFirstVehicle ? { 'data-tour': 'fuel-bar' } : {})}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span className="meta-label" style={{ color: isElec ? '#2563EB' : 'var(--status-inuse)', fontWeight: 600 }}>{label}</span>
-                          <span className="meta-label" style={{ fontWeight: 600 }}>{displayVal}</span>
-                        </div>
-                        <div className="fuel-bar">
-                          <div
-                            className={`fuel-bar-fill ${getFuelClass(fillPct)}`}
-                            style={{ width: `${fillPct}%` }}
-                          />
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 4, textAlign: 'right' }}>
-                          Autonomie: {rData.batteryAutonomy || rData.fuelAutonomy || '—'} km
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  // Fallback to manual manual data
-                  return (
-                    <div className="fuel-bar-container" {...(isFirstVehicle ? { 'data-tour': 'fuel-bar' } : {})}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span className="meta-label">{vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}</span>
-                        <span className="meta-label">{vehicle.fuelLevel}%</span>
-                      </div>
-                      <div className="fuel-bar">
-                        <div
-                          className={`fuel-bar-fill ${getFuelClass(vehicle.fuelLevel)}`}
-                          style={{ width: `${vehicle.fuelLevel}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })()}
-              </Link>
+                {f.label}
+              </button>
             ))}
           </div>
-        );
-      })()}
+
+          {loading || status === 'loading' ? (
+            <div role="status" aria-label="Chargement des véhicules…">
+              <DashboardSkeletons count={6} />
+            </div>
+          ) : (() => {
+            const filteredVehicles =
+              filter === 'ALL'
+                ? vehicles
+                : vehicles.filter((v) =>
+                    // Un véhicule IN_USE peut porter une maintenance active : son statut
+                    // projeté reste IN_USE (le badge 🔧 le signale), il doit malgré tout
+                    // apparaître sous le filtre « Maintenance ». Prédicat partagé avec le
+                    // compteur : filtre et compteur désignent le même ensemble.
+                    filter === 'MAINTENANCE'
+                      ? countsAsMaintenance(v)
+                      : v.status === filter,
+                  );
+
+            if (filteredVehicles.length === 0) {
+              return (
+                <div className="empty-state">
+                  <div className="empty-state-icon">🚗</div>
+                  <div className="empty-state-title">Aucun véhicule trouvé</div>
+                  <p>Aucun véhicule ne correspond au filtre sélectionné.</p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="vehicle-grid" data-tour="vehicle-card">
+                {filteredVehicles.map((vehicle, index) => (
+                  <VehicleCard
+                    key={vehicle.id}
+                    vehicle={vehicle}
+                    isDtView={false}
+                    renaultData={fleet.renaultData[vehicle.name]}
+                    isFirst={index === 0}
+                  />
+                ))}
+              </div>
+            );
+          })()}
+        </>
+      )}
 
       <AddVehicleModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onSuccess={() => {
           setShowAddModal(false);
-          fetchVehicles();
+          fleet.refetch();
         }}
       />
     </>
