@@ -7,13 +7,14 @@ import { markWashed } from '@/lib/uniforms/laundry';
 import { resolveActor } from '@/lib/uniforms/loans';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { resolveUlByUniformQrToken } from '@/lib/uniforms/qr-token';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/qr-uniforms/[token]/laundry/[loanId] — marque lavée une pièce sale
  * de l'UL du token. `isQrBlocked` seulement ; une pièce d'une autre UL répond
  * 404. 409 si déjà lavée.
  */
-export async function POST(
+async function postHandler(
     _request: Request,
     { params }: { params: Promise<{ token: string; loanId: string }> },
 ) {
@@ -35,3 +36,5 @@ export async function POST(
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Passage d'un uniforme au lavage via QR code", entityType: 'uniformLoan' });

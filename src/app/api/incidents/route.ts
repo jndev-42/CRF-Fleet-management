@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import crypto from 'crypto';
 import { unauthorizedResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const incidentSchema = z.object({
     vehicleId: z.string().min(1),
@@ -24,7 +25,7 @@ const incidentSchema = z.object({
     driveFolderId: z.string().optional().nullable(),
 });
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     const session = await auth();
     if (!session?.user?.id) {
         return unauthorizedResponse();
@@ -78,3 +79,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Déclaration d'un incident", entityType: 'incident' });

@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { createItem, listCatalog } from '@/lib/uniforms/catalog';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { activeUlId, createItemSchema, parseBody } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * GET /api/uniforms/items
@@ -31,7 +32,7 @@ export async function GET() {
     }
 }
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -56,3 +57,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'un article d'uniforme", entityType: 'uniformItem' });

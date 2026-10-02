@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 import { computeEffectiveStatus } from '@/lib/vehicleStatusRecalc';
+import { withAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -286,7 +287,7 @@ export async function GET(request: Request) {
     }
 }
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -393,3 +394,5 @@ export async function POST(request: Request) {
         );
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'un véhicule", entityType: 'vehicle' });

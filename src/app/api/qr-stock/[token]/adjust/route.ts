@@ -12,6 +12,7 @@ import {
     runStatements,
 } from '@/lib/inventory/adjustments';
 import type { InStatement } from '@libsql/client';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/qr-stock/[token]/adjust
@@ -51,7 +52,7 @@ const adjustSchema = z.object({
 
 export const maxDuration = 30;
 
-export async function POST(
+async function postHandler(
     request: Request,
     { params }: { params: Promise<{ token: string }> }
 ) {
@@ -144,3 +145,5 @@ export async function POST(
         return NextResponse.json({ error: 'Erreur lors de la mise à jour du stock' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Ajustement d'un stock via QR code", entityType: 'inventoryStock' });

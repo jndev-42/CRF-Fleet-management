@@ -12,6 +12,7 @@ import {
     formatElapsed,
     negativeMileageMessage,
 } from '@/lib/utils/mileageAnomaly';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/qr/[token]/checkin
@@ -37,7 +38,7 @@ const checkInSchema = z.object({
     confirmMileageAnomaly: z.boolean().optional(),
 });
 
-export async function POST(
+async function postHandler(
     request: Request,
     { params }: { params: Promise<{ token: string }> }
 ) {
@@ -229,3 +230,5 @@ export async function POST(
         return NextResponse.json({ error: 'Erreur lors du retour du véhicule' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Restitution d'un véhicule via QR code", entityType: 'trip' });

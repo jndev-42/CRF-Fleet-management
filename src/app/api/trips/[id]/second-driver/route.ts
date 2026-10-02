@@ -4,12 +4,13 @@ import { auth } from '@/auth';
 import { z } from 'zod';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const updateSecondDriverSchema = z.object({
     secondDriverId: z.string().min(1, 'L\'identifiant du 2ème conducteur est requis'),
 });
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -69,3 +70,5 @@ export async function PATCH(
         );
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification du second conducteur d'un trajet", entityType: 'trip' });

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin, canManageExpenseBudgets } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const renameBudgetSchema = z.object({
     name: z.string().trim().min(1, 'Le nom du budget est requis'),
@@ -28,7 +29,7 @@ async function loadScopedBudget(id: string, roles: string[], sessionUlId: string
 }
 
 /** PATCH /api/expense-budgets/[id] — Renommer un budget analytique */
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function patchHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -86,7 +87,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
  * 2025, les statistiques résolvant les noms y compris pour les budgets archivés.
  * Cette route ne touche à aucun `ExpenseReport.items`.
  */
-export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function deleteHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -127,3 +128,6 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         return NextResponse.json({ error: "Erreur serveur lors de l'archivage du budget." }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'un budget analytique", entityType: 'expenseBudget' });
+export const DELETE = withAudit(deleteHandler, { action: "Archivage d'un budget analytique", entityType: 'expenseBudget' });

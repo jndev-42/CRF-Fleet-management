@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { loadItemBatchStates, planStockMovement } from '@/lib/inventory/adjustments';
+import { withAudit } from '@/lib/audit/log';
 
 const adjustSchema = z.object({
     itemId: z.string().min(1),
@@ -15,7 +16,7 @@ const adjustSchema = z.object({
     deductFromNoDate: z.boolean().optional(),
 });
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -87,3 +88,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la mise à jour du stock' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Ajustement d'un stock d'inventaire", entityType: 'inventoryItem' });

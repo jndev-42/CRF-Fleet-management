@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const createItemSchema = z.object({
     label: z.string().min(1, 'Le libellé est requis').max(200),
@@ -62,7 +63,7 @@ export async function GET(
  * POST /api/vehicles/[id]/checklist
  * Admin only — creates a new checklist item for this vehicle.
  */
-export async function POST(
+async function postHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -110,3 +111,5 @@ export async function POST(
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Ajout d'un élément de checklist", entityType: 'vehicle' });

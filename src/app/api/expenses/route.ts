@@ -7,6 +7,7 @@ import { unauthorizedResponse } from '@/lib/apiAuth';
 import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
 import { validateItemBudgets } from '@/lib/expenses/budgets';
 import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
+import { withAudit } from '@/lib/audit/log';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -201,7 +202,7 @@ export async function GET(request: Request) {
     }
 }
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
@@ -344,3 +345,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur serveur lors de la création de la note de frais.' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'une note de frais", entityType: 'expense' });

@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { isSuperAdmin, isAdminOrAbove } from '@/lib/roles';
 import { compressStampImage } from '@/lib/stamp';
 import { forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const updateUlSchema = z.object({
     name: z.string().min(1).optional(),
@@ -16,7 +17,7 @@ const updateUlSchema = z.object({
 });
 
 /** DELETE /api/ul/[id] — Supprimer une UL (ADMIN uniquement) */
-export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function deleteHandler(_request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!isSuperAdmin(session?.user?.roles || [])) {
@@ -41,7 +42,7 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
 }
 
 /** PATCH /api/ul/[id] — Modifier une UL (ADMIN uniquement) */
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function patchHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         const roles = session?.user?.roles || [];
@@ -87,3 +88,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'une UL", entityType: 'ul' });
+export const PATCH = withAudit(patchHandler, { action: "Modification d'une UL", entityType: 'ul' });

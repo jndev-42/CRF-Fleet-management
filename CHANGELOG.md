@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.20.0] — 2 octobre 2026
+
+### ✨ Nouveautés
+
+- **Journal d'audit (super admin)** — un nouvel onglet « Journal d'audit » dans Administration montre qui a fait quoi dans l'application : connexions, créations, modifications et suppressions (véhicules, trajets, réservations, notes de frais, rôles des utilisateurs…), avec la date, l'auteur, l'action, l'élément concerné et le résultat. Les actions refusées ou en erreur apparaissent aussi, signalées en couleur.
+- **Filtre par personne** — choisissez un utilisateur pour ne voir que ses actions ; « Charger plus » remonte dans l'historique.
+- Lors d'une impersonnalisation, l'action est attribuée au super admin qui l'a réalisée, avec la mention de la personne incarnée. Seules les actions des 30 derniers jours sont conservées ; aucune donnée saisie (contenu des formulaires, mots de passe, fichiers) n'est enregistrée.
+
 ## [5.19.1] — 2 octobre 2026
 
 ### 🐛 Corrections

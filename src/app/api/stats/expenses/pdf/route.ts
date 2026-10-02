@@ -9,6 +9,7 @@ import ExpenseStatsPdfDocument from '@/components/stats/ExpenseStatsPdfDocument'
 import path from 'path';
 import sharp from 'sharp';
 import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
+import { withAudit } from '@/lib/audit/log';
 
 const postSchema = z.object({
   dateFrom: z.string().min(1),
@@ -52,7 +53,7 @@ async function generateExpensePdf(dateFrom: string, dateTo: string, ulId: string
   return Buffer.from(buffer);
 }
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
   try {
     const session = await auth();
     if (!session?.user) {
@@ -92,3 +93,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: false, error: 'Erreur lors de la génération du PDF des notes de frais' }, { status: 500 });
   }
 }
+
+export const POST = withAudit(postHandler, { action: "Export PDF des statistiques de frais", entityType: 'stats' });

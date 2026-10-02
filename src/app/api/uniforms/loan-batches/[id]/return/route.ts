@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { resolveActor, returnBatch } from '@/lib/uniforms/loans';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { parseBody, returnSchema } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/uniforms/loan-batches/[id]/return — « Tout rendre ».
@@ -14,7 +15,7 @@ import { parseBody, returnSchema } from '@/lib/uniforms/schemas';
  * (propre/sale) et le même commentaire. Mêmes règles que le rendu unitaire :
  * emprunteur uniquement, 404 indiscernable pour autrui.
  */
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function postHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -37,3 +38,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Retour d'un lot d'uniformes prêtés", entityType: 'uniformLoanBatch' });

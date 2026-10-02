@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const editCheckOutSchema = z.object({
     driverId: z.string().min(1, 'Le conducteur principal est requis'),
@@ -19,7 +20,7 @@ const editCheckOutSchema = z.object({
     dsaChecked: z.boolean().optional(),
 });
 
-export async function PATCH(
+async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -172,3 +173,5 @@ export async function PATCH(
         );
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'une prise de véhicule", entityType: 'trip' });

@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { isQrBlocked } from '@/lib/roles';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/qr/[token]/checkout
@@ -28,7 +29,7 @@ const checkOutSchema = z.object({
     correctedFuel: z.number().int().min(0).max(100).optional(),
 });
 
-export async function POST(
+async function postHandler(
     request: Request,
     { params }: { params: Promise<{ token: string }> }
 ) {
@@ -181,3 +182,5 @@ export async function POST(
         return NextResponse.json({ error: 'Erreur lors de la prise du véhicule' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Prise d'un véhicule via QR code", entityType: 'trip' });

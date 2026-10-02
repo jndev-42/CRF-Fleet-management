@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { resolveActor, returnLoan } from '@/lib/uniforms/loans';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { parseBody, returnSchema } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/uniforms/loans/[id]/return — rend UNE pièce.
@@ -14,7 +15,7 @@ import { parseBody, returnSchema } from '@/lib/uniforms/schemas';
  * d'un identifiant inconnu. Aucun tiers — administrateur compris — ne rend à
  * sa place. Garde `isQrBlocked` pour la même raison que `/loans/mine`.
  */
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function postHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -37,3 +38,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Retour d'un uniforme prêté", entityType: 'uniformLoan' });

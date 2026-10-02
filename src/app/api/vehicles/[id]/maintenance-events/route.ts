@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,7 @@ const createMaintenanceEventSchema = z.object({
   reason: z.string().min(1, 'Raison requise'),
 });
 
-export async function POST(
+async function postHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -105,7 +106,7 @@ export async function POST(
   }
 }
 
-export async function PATCH(
+async function patchHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -169,3 +170,6 @@ export async function PATCH(
     );
   }
 }
+
+export const POST = withAudit(postHandler, { action: "Mise en maintenance d'un véhicule", entityType: 'vehicle' });
+export const PATCH = withAudit(patchHandler, { action: "Remise en service d'un véhicule", entityType: 'vehicle' });

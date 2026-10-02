@@ -5,6 +5,7 @@ import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { getOrCreateUniformQrToken, regenerateUniformQrToken } from '@/lib/uniforms/qr-token';
 import { activeUlId } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * GET|POST /api/uniforms/qr-token
@@ -46,11 +47,11 @@ export async function GET() {
 }
 
 /** Identique au GET — hérite de TOUTES ses gardes. Utilisé par la modale. */
-export async function POST() {
+async function postHandler() {
     return GET();
 }
 
-export async function DELETE() {
+async function deleteHandler() {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -69,3 +70,6 @@ export async function DELETE() {
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Génération du QR code Uniformes", entityType: 'ul' });
+export const DELETE = withAudit(deleteHandler, { action: "Régénération du QR code Uniformes", entityType: 'ul' });

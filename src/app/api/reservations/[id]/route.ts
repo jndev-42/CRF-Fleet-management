@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
+import { withAudit } from '@/lib/audit/log';
 
-export async function DELETE(request: Request, props: { params: Promise<{ id: string }> }) {
+async function deleteHandler(request: Request, props: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -63,7 +64,7 @@ const updateReservationSchema = z.strictObject({
     action: z.enum(['validate', 'update']).optional(),
 });
 
-export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
+async function patchHandler(request: Request, props: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -272,7 +273,22 @@ export async function PATCH(request: Request, props: { params: Promise<{ id: str
     }
 }
 
-export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
-    return PATCH(request, props);
+async function putHandler(request: Request, props: { params: Promise<{ id: string }> }) {
+    return patchHandler(request, props);
 }
 
+export const DELETE = withAudit(deleteHandler, { action: "Annulation d'une réservation", entityType: 'reservation' });
+export const PATCH = withAudit(patchHandler, {
+    action: "Modification d'une réservation",
+    entityType: 'reservation',
+    actionsByBodyAction: { validate: "Validation d'une réservation" },
+    // Corps vide = bouton « valider » (cf. patchHandler) ; PUT délègue à patchHandler.
+    emptyBodyAction: "Validation d'une réservation",
+});
+export const PUT = withAudit(putHandler, {
+    action: "Modification d'une réservation",
+    entityType: 'reservation',
+    actionsByBodyAction: { validate: "Validation d'une réservation" },
+    // Corps vide = bouton « valider » (cf. patchHandler) ; PUT délègue à patchHandler.
+    emptyBodyAction: "Validation d'une réservation",
+});

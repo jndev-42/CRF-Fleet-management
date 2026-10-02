@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, canAccessAdminPanel, isSuperAdmin, resolveRoles, ROLES } from '@/lib/roles';
 import { forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const ulAssignSchema = z.object({
     ulId: z.string().nullable(),        // null = retirer l'UL d'appartenance
@@ -57,7 +58,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ ema
 }
 
 /** PATCH /api/users/[email]/ul — Ajouter ou retirer une UL pour un utilisateur (pour la colonne simple de la table) */
-export async function PATCH(request: Request, { params }: { params: Promise<{ email: string }> }) {
+async function patchHandler(request: Request, { params }: { params: Promise<{ email: string }> }) {
     try {
         const session = await auth();
         const actorRoles = session?.user?.roles || [];
@@ -130,7 +131,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ em
 }
 
 /** PUT /api/users/[email]/ul — Synchronise en masse tous les droits UL (home + externes) pour un utilisateur */
-export async function PUT(request: Request, { params }: { params: Promise<{ email: string }> }) {
+async function putHandler(request: Request, { params }: { params: Promise<{ email: string }> }) {
     try {
         const session = await auth();
         const actorRoles = session?.user?.roles || [];
@@ -322,3 +323,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ emai
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification de l'UL d'un utilisateur", entityType: 'user' });
+export const PUT = withAudit(putHandler, { action: "Modification des droits par UL d'un utilisateur", entityType: 'user' });

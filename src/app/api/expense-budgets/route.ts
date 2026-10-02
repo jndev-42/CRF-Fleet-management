@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isSuperAdmin, isInactive, canManageExpenseBudgets } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const createBudgetSchema = z.object({
     name: z.string().trim().min(1, 'Le nom du budget est requis'),
@@ -75,7 +76,7 @@ export async function GET(request: Request) {
 }
 
 /** POST /api/expense-budgets — Créer un budget analytique dans une UL */
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -125,3 +126,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur serveur lors de la création du budget.' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'un budget analytique", entityType: 'expenseBudget' });

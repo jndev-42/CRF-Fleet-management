@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { unauthorizedResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 // Fetch all notifications for the authenticated user
 export async function GET() {
@@ -56,7 +57,7 @@ export async function GET() {
 }
 
 // Clear all notifications for the authenticated user for the current active UL
-export async function DELETE() {
+async function deleteHandler() {
     try {
         const session = await auth();
         if (!session?.user?.email) {
@@ -87,3 +88,5 @@ export async function DELETE() {
         return NextResponse.json({ error: 'Failed to clear notifications' }, { status: 500 });
     }
 }
+
+export const DELETE = withAudit(deleteHandler, { action: "Suppression de toutes ses notifications", entityType: 'notification' });

@@ -7,13 +7,14 @@ import { markWashed } from '@/lib/uniforms/laundry';
 import { resolveActor } from '@/lib/uniforms/loans';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { activeUlId } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/uniforms/laundry/[loanId] — marque lavée une pièce rendue sale de
  * l'UL active ; elle redevient empruntable. Tout compte actif, pas seulement
  * l'emprunteur : c'est celui qui lave qui déclare. 409 si déjà lavée.
  */
-export async function POST(_request: Request, { params }: { params: Promise<{ loanId: string }> }) {
+async function postHandler(_request: Request, { params }: { params: Promise<{ loanId: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -32,3 +33,5 @@ export async function POST(_request: Request, { params }: { params: Promise<{ lo
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Passage d'un uniforme au lavage", entityType: 'uniformLoan' });

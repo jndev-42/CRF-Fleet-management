@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * GET /api/vehicles/[id]/qr-token
@@ -62,14 +63,14 @@ export async function GET(
     }
 }
 
-export async function POST(
+async function postHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
     return GET(request, { params });
 }
 
-export async function DELETE(
+async function deleteHandler(
     _request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -95,3 +96,6 @@ export async function DELETE(
 
     return NextResponse.json({ token: newToken });
 }
+
+export const POST = withAudit(postHandler, { action: "Génération du QR code d'un véhicule", entityType: 'vehicle' });
+export const DELETE = withAudit(deleteHandler, { action: "Régénération du QR code d'un véhicule", entityType: 'vehicle' });

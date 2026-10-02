@@ -4,8 +4,9 @@ import { auth } from '@/auth';
 import { deleteDriveFolder } from '@/lib/drive';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
-export async function DELETE(
+async function deleteHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
 ) {
@@ -72,3 +73,5 @@ export async function DELETE(
         );
     }
 }
+
+export const DELETE = withAudit(deleteHandler, { action: "Suppression de l'historique de trajets d'un véhicule", entityType: 'vehicle' });

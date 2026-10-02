@@ -6,6 +6,7 @@ import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { isMaintenanceClosed } from '@/lib/maintenanceStatus';
 import { recalcVehicleStatus } from '@/lib/vehicleStatusRecalc';
+import { withAudit } from '@/lib/audit/log';
 
 export const dynamic = 'force-dynamic';
 
@@ -96,7 +97,7 @@ async function resolveMaintenanceEvent(id: string, eventId: string): Promise<Res
   return { vehicleId, event };
 }
 
-export async function PATCH(
+async function patchHandler(
   request: Request,
   { params }: { params: Promise<{ id: string; eventId: string }> }
 ) {
@@ -166,7 +167,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+async function deleteHandler(
   _request: Request,
   { params }: { params: Promise<{ id: string; eventId: string }> }
 ) {
@@ -200,3 +201,6 @@ export async function DELETE(
     );
   }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'une maintenance", entityType: 'maintenanceEvent' });
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'une maintenance", entityType: 'maintenanceEvent' });

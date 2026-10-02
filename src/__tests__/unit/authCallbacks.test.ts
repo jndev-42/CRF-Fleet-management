@@ -22,7 +22,11 @@ vi.mock('@/lib/db', () => ({
     },
 }));
 
+// Journal d'audit : mocké pour ne pas consommer les réponses DB ordonnées ci-dessous.
+vi.mock('@/lib/audit/log', () => ({ recordAudit: vi.fn(async () => undefined) }));
+
 import { authCallbacks } from '@/auth';
+import { recordAudit } from '@/lib/audit/log';
 
 // `NextAuthConfig["callbacks"]` déclare `jwt` et `session` optionnels, et `jwt` peut
 // renvoyer `null`. On fige les références une fois pour toutes et on centralise ici la
@@ -110,6 +114,12 @@ describe('NextAuth Callbacks — Impersonation', () => {
             });
 
             expect(result.impersonatedEmail).toBe('target@croix-rouge.fr');
+            expect(recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+                actorEmail: 'jeannoel.durand@croix-rouge.fr',
+                action: "Début d'impersonation",
+                entityType: 'user',
+                entityId: 'target@croix-rouge.fr',
+            }));
             expect(result.email).toBe('target@croix-rouge.fr');
             expect(result.userId).toBe('target-user-id');
             expect(result.ulId).toBe('ul-paris-17');
@@ -117,6 +127,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
         });
 
         it('should NOT allow other users to impersonate', async () => {
+            vi.mocked(recordAudit).mockClear();
             const token = {
                 originalEmail: 'other-admin@croix-rouge.fr',
                 email: 'other-admin@croix-rouge.fr',
@@ -139,6 +150,7 @@ describe('NextAuth Callbacks — Impersonation', () => {
             });
 
             expect(result.impersonatedEmail).toBeUndefined();
+            expect(recordAudit).not.toHaveBeenCalled();
             expect(result.email).toBe('other-admin@croix-rouge.fr');
             expect(result.userId).toBe('other-admin-id');
             expect(result.roles).toContain('SUPER_ADMIN');
@@ -171,6 +183,12 @@ describe('NextAuth Callbacks — Impersonation', () => {
             });
 
             expect(result.impersonatedEmail).toBeNull();
+            expect(recordAudit).toHaveBeenCalledWith(expect.objectContaining({
+                actorEmail: 'jeannoel.durand@croix-rouge.fr',
+                action: "Fin d'impersonation",
+                entityType: 'user',
+                entityId: 'target@croix-rouge.fr',
+            }));
             expect(result.email).toBe('jeannoel.durand@croix-rouge.fr');
             expect(result.userId).toBe('jeannoel-id');
             expect(result.ulId).toBe('ul-paris-18');

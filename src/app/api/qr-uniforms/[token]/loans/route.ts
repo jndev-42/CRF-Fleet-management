@@ -7,6 +7,7 @@ import { createLoanBatch, resolveActor } from '@/lib/uniforms/loans';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { resolveUlByUniformQrToken } from '@/lib/uniforms/qr-token';
 import { loanSchema, parseBody } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/qr-uniforms/[token]/loans — valide un panier via le QR d'une UL.
@@ -15,7 +16,7 @@ import { loanSchema, parseBody } from '@/lib/uniforms/schemas';
  * l'appli (`createLoanBatch`), seul le catalogue change : celui de l'UL du
  * token. L'emprunt est enregistré au nom du compte connecté.
  */
-export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
+async function postHandler(request: Request, { params }: { params: Promise<{ token: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -38,3 +39,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Prêt d'uniformes via QR code", entityType: 'uniformLoan' });

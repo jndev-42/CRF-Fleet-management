@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
+import { withAudit } from '@/lib/audit/log';
 
 // Compression (sharp) + upload R2 : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -18,7 +19,7 @@ export const runtime = 'nodejs';
 const MAX_FILE_SIZE = 4.2 * 1024 * 1024; // 4.2 Mo par fichier
 const MAX_TOTAL_SIZE = 4.2 * 1024 * 1024; // 4.2 Mo au total par envoi — sous la limite de corps Vercel (4.5 Mo)
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -85,3 +86,5 @@ export async function POST(request: Request) {
         );
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Envoi d'un justificatif de frais", entityType: 'expenseReceipt' });

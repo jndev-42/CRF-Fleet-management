@@ -3,8 +3,9 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
-export async function DELETE(
+async function deleteHandler(
     _request: Request,
     { params }: { params: Promise<{ id: string; recordId: string }> }
 ) {
@@ -61,3 +62,5 @@ export async function DELETE(
         );
     }
 }
+
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un entretien", entityType: 'maintenanceRecord' });

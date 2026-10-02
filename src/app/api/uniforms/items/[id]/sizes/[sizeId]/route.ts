@@ -6,6 +6,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { archiveSize, getSizeRef, updateSize } from '@/lib/uniforms/catalog';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { parseBody, updateSizeSchema } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * PATCH  /api/uniforms/items/[id]/sizes/[sizeId] — modifie libellé et/ou quantité possédée.
@@ -18,7 +19,7 @@ import { parseBody, updateSizeSchema } from '@/lib/uniforms/schemas';
  */
 type RouteContext = { params: Promise<{ id: string; sizeId: string }> };
 
-export async function PATCH(request: Request, { params }: RouteContext) {
+async function patchHandler(request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -45,7 +46,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     }
 }
 
-export async function DELETE(_request: Request, { params }: RouteContext) {
+async function deleteHandler(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -68,3 +69,6 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'une taille d'uniforme", entityType: 'uniformSize' });
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'une taille d'uniforme", entityType: 'uniformSize' });

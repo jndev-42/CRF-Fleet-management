@@ -6,12 +6,13 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { addSize, getItemRef } from '@/lib/uniforms/catalog';
 import { uniformErrorResponse } from '@/lib/uniforms/errors';
 import { parseBody, sizeInputSchema } from '@/lib/uniforms/schemas';
+import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/uniforms/items/[id]/sizes — ajoute une taille (libellé + quantité
  * possédée) à un article. `isAdminOrAbove`, cloisonné à l'UL de session.
  */
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function postHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
@@ -37,3 +38,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Ajout d'une taille d'uniforme", entityType: 'uniformItem' });

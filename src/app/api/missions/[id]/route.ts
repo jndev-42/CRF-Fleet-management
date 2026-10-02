@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
 import { isAdminOrAbove, isSuperAdmin, isReadOnlyManager, isMissionContributor } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -158,7 +159,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 /** DELETE /api/missions/[id] — Suppression (ADMIN seulement).
  *  La suppression en cascade sur mission_report_supplies et
  *  mission_report_interventions est gérée par la DB. */
-export async function DELETE(_request: Request, { params }: RouteContext) {
+async function deleteHandler(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -192,3 +193,5 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
         return NextResponse.json({ error: 'Erreur lors de la suppression du compte rendu' }, { status: 500 });
     }
 }
+
+export const DELETE = withAudit(deleteHandler, { action: "Suppression d'un rapport de mission", entityType: 'missionReport' });

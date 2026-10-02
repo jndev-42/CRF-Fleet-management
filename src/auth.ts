@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { isPreview, isDev as isDevEnv } from "@/lib/env";
 import { PREVIEW_ACCOUNTS } from "@/lib/preview-accounts";
 import { resolveSessionRoles } from "@/lib/session-roles";
+import { recordAudit } from "@/lib/audit/log";
 
 declare module "next-auth" {
     interface Session {
@@ -244,8 +245,20 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
         if (trigger === "update" && session) {
             if (token.originalEmail === 'jeannoel.durand@croix-rouge.fr') {
                 if (session.impersonateEmail !== undefined) {
+                    const previous = token.impersonatedEmail ?? null;
                     token.impersonatedEmail = session.impersonateEmail; // string or null
                     delete token.ulId; // Reset active UL when starting/stopping impersonation
+                    // Journal d'audit : passe par /api/auth/*, hors de `withAudit`. Ne lève jamais.
+                    const target = session.impersonateEmail || previous;
+                    await recordAudit({
+                        actorEmail: token.originalEmail ?? null,
+                        method: "POST",
+                        path: "/api/auth/session",
+                        action: session.impersonateEmail ? "Début d'impersonation" : "Fin d'impersonation",
+                        entityType: "user",
+                        entityId: typeof target === "string" ? target : null,
+                        status: 200,
+                    });
                 }
             }
             // Allow any authenticated user to switch active UL
@@ -369,6 +382,36 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
     },
 };
 
+export const authEvents: NonNullable<NextAuthConfig["events"]> = {
+    // Journal d'audit : connexion RÉUSSIE uniquement (`events.signIn` ne part qu'après
+    // un `callbacks.signIn` accepté). Non fatal : `recordAudit` ne lève jamais.
+    async signIn({ user, account }) {
+        let ip: string | null = null;
+        let userAgent: string | null = null;
+        try {
+            const { headers } = await import("next/headers");
+            const h = await headers();
+            ip = h.get("x-forwarded-for")?.split(",")[0].trim() || h.get("x-real-ip");
+            userAgent = h.get("user-agent");
+        } catch {
+            // Hors contexte de requête : connexion tracée sans IP ni navigateur.
+        }
+        const provider = account?.provider ?? "inconnu";
+        await recordAudit({
+            actorEmail: user?.email ?? null,
+            actorName: user?.name ?? null,
+            method: "POST",
+            path: `/api/auth/callback/${provider}`,
+            action: "Connexion",
+            entityType: "session",
+            entityId: provider,
+            status: 200,
+            ip,
+            userAgent,
+        });
+    },
+};
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
     providers,
     pages: {
@@ -376,4 +419,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         error: "/login",
     },
     callbacks: authCallbacks,
+    events: authEvents,
 });

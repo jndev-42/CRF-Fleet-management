@@ -10,6 +10,7 @@ import {
     insertMissionReport,
     type CreateMissionReportInput,
 } from '@/lib/missions/create-mission-report';
+import { withAudit } from '@/lib/audit/log';
 
 const ALLOWED_ROLES = ['ADMIN', 'CI/RPAPS'];
 
@@ -154,7 +155,7 @@ export async function GET(request: Request) {
 
 /** POST /api/missions — Créer un compte rendu de mission.
  *  Accessible aux rôles CHVL, CHVPSP, RESPO, ADMIN. */
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -195,3 +196,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la création du compte rendu' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'un rapport de mission", entityType: 'missionReport' });

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { withAudit } from '@/lib/audit/log';
 
 const bannerSchema = z.object({
     title: z.string().optional().nullable(),
@@ -172,7 +173,7 @@ export async function GET(request: Request) {
     }
 }
 
-export async function POST(request: Request) {
+async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) {
@@ -256,3 +257,5 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Erreur lors de la création du bandeau' }, { status: 500 });
     }
 }
+
+export const POST = withAudit(postHandler, { action: "Création d'une bannière", entityType: 'banner' });
