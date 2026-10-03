@@ -1,0 +1,65 @@
+.pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+/* Sans résumé, les boutons restent centrés. */
+.pagination:not(:has(.side)) {
+    justify-content: center;
+}
+
+.side {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.button {
+    padding: 4px 8px;
+}
+
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.current {
+    padding: 0 4px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.jump {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 6px;
+}
+
+.jumpInput {
+    width: 72px;
+    padding: 4px 8px;
+}
+
+.compact {
+    font-size: 12px;
+    gap: 8px;
+}
+
+.compact .button {
+    padding: 2px 6px;
+}

@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollText } from 'lucide-react';
+import { RefreshCw, ScrollText } from 'lucide-react';
+import Pagination from '@/components/Pagination';
+import { AUDIT_PAGE_SIZE, useAuditLog } from './useAuditLog';
 import styles from './AuditLogTab.module.css';
 
 export interface AuditLogEntry {
@@ -19,18 +20,10 @@ export interface AuditLogEntry {
     ip: string | null;
 }
 
-interface AuditLogResponse {
-    entries: AuditLogEntry[];
-    nextBefore: string | null;
-    error?: string;
-}
-
 interface AuditLogTabProps {
     /** Liste des utilisateurs déjà chargée par la page Administration (sélecteur de personne). */
     users: { email: string; name: string | null }[];
 }
-
-const PAGE_SIZE = 50;
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleString('fr-FR', {
@@ -44,42 +37,15 @@ function resourceLabel(entry: AuditLogEntry): string {
     return entry.entityType ?? entry.path;
 }
 
+function summary(page: number, total: number): string {
+    const first = (page - 1) * AUDIT_PAGE_SIZE + 1;
+    const last = Math.min(page * AUDIT_PAGE_SIZE, total);
+    return `${first} à ${last} sur ${total} événement${total > 1 ? 's' : ''}`;
+}
+
 /** Onglet SUPER_ADMIN : derniers événements du journal d'audit, filtrables par personne. */
 export default function AuditLogTab({ users }: AuditLogTabProps) {
-    const [entries, setEntries] = useState<AuditLogEntry[]>([]);
-    const [nextBefore, setNextBefore] = useState<string | null>(null);
-    const [userEmail, setUserEmail] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    // Seule la dernière requête lancée a le droit d'écrire : une réponse arrivée après
-    // un changement de personne ne doit ni remplacer ni compléter la nouvelle liste.
-    const requestIdRef = useRef(0);
-
-    const load = useCallback(async (email: string, before: string | null) => {
-        const requestId = ++requestIdRef.current;
-        setLoading(true);
-        setError(null);
-        try {
-            const params = new URLSearchParams({ limit: String(PAGE_SIZE) });
-            if (email) params.set('userEmail', email);
-            if (before) params.set('before', before);
-            const res = await fetch(`/api/audit-logs?${params.toString()}`);
-            const data = await res.json().catch(() => ({})) as Partial<AuditLogResponse>;
-            if (requestId !== requestIdRef.current) return;
-            if (!res.ok) throw new Error(data.error || 'Erreur serveur');
-            const page = data.entries ?? [];
-            setEntries(prev => (before ? [...prev, ...page] : page));
-            setNextBefore(data.nextBefore ?? null);
-        } catch (e: unknown) {
-            if (requestId === requestIdRef.current) setError(e instanceof Error ? e.message : 'Erreur serveur');
-        } finally {
-            if (requestId === requestIdRef.current) setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        void load(userEmail, null);
-    }, [load, userEmail]);
+    const { entries, page, total, totalPages, userEmail, loading, error, setPage, setUserEmail, refresh } = useAuditLog();
 
     const sortedUsers = [...users].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, 'fr'));
 
@@ -100,6 +66,16 @@ export default function AuditLogTab({ users }: AuditLogTabProps) {
                         </option>
                     ))}
                 </select>
+                <button
+                    type="button"
+                    className={`btn btn-secondary ${styles.refresh}`}
+                    onClick={refresh}
+                    disabled={loading}
+                    title="Afficher les événements arrivés depuis l'ouverture de la liste"
+                >
+                    <RefreshCw size={14} aria-hidden="true" />
+                    Actualiser
+                </button>
             </div>
 
             <p className={styles.help}>
@@ -159,14 +135,15 @@ export default function AuditLogTab({ users }: AuditLogTabProps) {
 
             {loading && <div className={styles.meta}>Chargement…</div>}
 
-            {!loading && nextBefore && (
-                <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => void load(userEmail, nextBefore)}
-                >
-                    Charger plus
-                </button>
+            {total > 0 && (
+                <Pagination
+                    label="Pagination du journal d'audit"
+                    page={page}
+                    totalPages={totalPages}
+                    onChange={setPage}
+                    summary={summary(page, total)}
+                    extended
+                />
             )}
         </section>
     );

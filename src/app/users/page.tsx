@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import UsersTab from '@/components/admin/UsersTab';
 import MenusTab from '@/components/admin/MenusTab';
 import ULsTab from '@/components/admin/ULsTab';
@@ -27,16 +27,41 @@ interface User {
 }
 
 type TabId = 'users' | 'menus' | 'uls' | 'banners' | 'referentiel' | 'audit' | 'themes';
+const TAB_IDS: readonly TabId[] = ['users', 'menus', 'uls', 'banners', 'referentiel', 'audit', 'themes'];
 
+function isTabId(value: string | null): value is TabId {
+    return TAB_IDS.includes(value as TabId);
+}
+
+function canSeeTab(tab: TabId, superAdmin: boolean, admin: boolean): boolean {
+    if (tab === 'uls') return admin;
+    if (tab === 'menus' || tab === 'referentiel' || tab === 'audit' || tab === 'themes') return superAdmin;
+    return true;
+}
+
+// useSearchParams() (onglet actif dans l'URL) exige une frontière Suspense.
 export default function AdminPage() {
+    return (
+        <Suspense fallback={<div className="loading-container"><div className="loading-spinner" /></div>}>
+            <AdminPageContent />
+        </Suspense>
+    );
+}
+
+function AdminPageContent() {
     const [users, setUsers] = useState<User[]>([]);
     const [availableRoles, setAvailableRoles] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const [activeTab, setActiveTab] = useState<TabId>('users');
     const { data: session, status, update } = useSession();
     const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    // Changer d'onglet repart d'une URL propre : la page et le filtre du journal ne le suivent pas.
+    const setActiveTab = (tab: TabId) => {
+        router.replace(tab === 'users' ? pathname : `${pathname}?onglet=${tab}`, { scroll: false });
+    };
 
     const sessionRoles = (session?.user?.roles || []) as string[];
     const isSuperAdminUser = isSuperAdmin(sessionRoles);
@@ -44,6 +69,11 @@ export default function AdminPage() {
     // isReadOnly is only true if the user is a read-only manager AND NOT an admin/super-admin
     const isReadOnly = isReadOnlyManager(sessionRoles) && !isAdminUser;
     const canAccess = canAccessAdminPanel(sessionRoles);
+
+    // Onglet porté par l'URL (`?onglet=audit`) : un rechargement ou un lien rouvre le même onglet.
+    // Un onglet inconnu ou hors de portée du rôle retombe sur « Utilisateurs ».
+    const requestedTab = searchParams.get('onglet');
+    const activeTab: TabId = isTabId(requestedTab) && canSeeTab(requestedTab, isSuperAdminUser, isAdminUser) ? requestedTab : 'users';
 
     useEffect(() => {
         if (status === 'unauthenticated' || (status === 'authenticated' && !canAccess)) {

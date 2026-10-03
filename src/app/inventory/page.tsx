@@ -16,6 +16,7 @@ import ImportCsvModal from '@/components/inventory/modals/ImportCsvModal';
 import { InvStockListRow } from '@/lib/inventory/stocks';
 import { isAdminOrAbove } from '@/lib/roles';
 import styles from './page.module.css';
+import Pagination from '@/components/Pagination';
 
 interface InvItem {
     id: string;
@@ -569,21 +570,7 @@ export default function InventoryPage() {
 
             {pagination && pagination.totalPages > 1 && (
                 <div className={styles.pagination}>
-                    <button
-                        className="btn btn-secondary"
-                        disabled={page === 1}
-                        onClick={() => setPage(p => p - 1)}
-                    >
-                        Précédent
-                    </button>
-                    <span>Page {page} sur {pagination.totalPages}</span>
-                    <button
-                        className="btn btn-secondary"
-                        disabled={page === pagination.totalPages}
-                        onClick={() => setPage(p => p + 1)}
-                    >
-                        Suivant
-                    </button>
+                    <Pagination label="Pagination de l'inventaire" page={page} totalPages={pagination.totalPages} onChange={setPage} />
                 </div>
             )}
 

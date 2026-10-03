@@ -124,3 +124,10 @@
     color: var(--text-muted);
     padding: 24px 12px;
 }
+
+.refresh {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}

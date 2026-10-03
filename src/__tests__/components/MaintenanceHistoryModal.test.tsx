@@ -134,9 +134,9 @@ describe('MaintenanceHistoryModal', () => {
         render(<MaintenanceHistoryModal vehicle={mockVehicle} isAdmin={false} onClose={vi.fn()} onSuccess={vi.fn()} />);
         await screen.findByText('Contrôle technique');
 
-        expect(screen.getByText('1 / 2')).toBeTruthy();
+        expect(screen.getByText('Page 1 sur 2')).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Page suivante' }));
 
-        await waitFor(() => expect(screen.getByText('2 / 2')).toBeTruthy());
+        await waitFor(() => expect(screen.getByText('Page 2 sur 2')).toBeTruthy());
     });
 });
