@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.22.0] — 3 octobre 2026
+
+### ✨ Nouveautés
+
+- **Journal d'audit paginé** — l'onglet « Journal d'audit » affiche désormais les événements par pages de 10 lignes, au lieu d'une longue liste à rallonger avec « Charger plus ». Des boutons page précédente / suivante permettent de naviguer, avec l'indication « Page X sur Y » et le nombre total d'événements. Changer de personne dans le filtre ramène à la première page.
+
 ## [5.21.0] — 3 octobre 2026
 
 ### ✨ Nouveautés
