@@ -384,7 +384,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                         {/* Essence */}
                         {(manualEntry || !connected) && (
                             <div className="form-group">
-                                <label className="form-label" htmlFor="checkin-fuel">{vehicle.fuelType === 'Électrique' ? 'Niveau de batterie *' : (vehicle.fuelType === 'Diesel' ? 'Niveau de diesel *' : 'Niveau d\'essence *')}</label>
+                                <label className="form-label" htmlFor="checkin-fuel">{vehicle.fuelType === 'Électrique' ? 'Niveau de batterie *' : (vehicle.fuelType === 'Diesel' ? 'Niveau de diesel *' : 'Niveau d\'essence *')} : {form.fuelIn}%</label>
                                 <input
                                     id="checkin-fuel"
                                     type="range"
@@ -393,7 +393,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     max={100}
                                     value={form.fuelIn}
                                     onChange={(e) => setForm({ ...form, fuelIn: Number(e.target.value) })}
-                                    aria-label="Niveau de carburant"
+                                    aria-label={vehicle.fuelType === 'Électrique' ? 'Niveau de batterie' : 'Niveau de carburant'}
                                     aria-valuemin={0}
                                     aria-valuemax={100}
                                     aria-valuenow={form.fuelIn}
