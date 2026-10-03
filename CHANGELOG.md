@@ -1,22 +1,16 @@
 # Changelog
 
-## [5.23.0] — 3 octobre 2026
-
-### ✨ Nouveautés
-
-- **Journal d'audit : navigation rapide** — en plus de page précédente / suivante, des boutons mènent directement à la première et à la dernière page, et un champ « Aller à » ouvre la page de votre choix.
-- **Journal d'audit : vue conservée** — l'onglet, la page et la personne filtrée sont gardés dans l'adresse : un rechargement ou un lien partagé à un autre super admin rouvre exactement la même vue. Les autres onglets d'Administration sont eux aussi conservés au rechargement.
-- **Journal d'audit : liste stable** — la liste est figée au moment où vous l'ouvrez : de nouvelles actions pendant la consultation ne décalent plus les pages. Le bouton **Actualiser** affiche les événements arrivés entre-temps et revient à la première page.
-
-### 🎨 Améliorations
-
-- **Pagination harmonisée** — les listes paginées (notes de frais, historique des trajets, historique d'entretien, réservations à venir, inventaire, journal d'audit) partagent désormais la même barre : flèches précédent / suivant et « Page X sur Y ».
-
 ## [5.22.0] — 3 octobre 2026
 
 ### ✨ Nouveautés
 
-- **Journal d'audit paginé** — l'onglet « Journal d'audit » affiche désormais les événements par pages de 10 lignes, au lieu d'une longue liste à rallonger avec « Charger plus ». Des boutons page précédente / suivante permettent de naviguer, avec l'indication « Page X sur Y » et le nombre total d'événements. Changer de personne dans le filtre ramène à la première page.
+- **Journal d'audit paginé** — l'onglet « Journal d'audit » affiche désormais les événements par pages de 10 lignes, au lieu d'une longue liste à rallonger avec « Charger plus ». On navigue page par page, ou directement vers la première ou la dernière page, et un champ « Aller à » ouvre la page de votre choix. La barre indique « Page X sur Y » et le nombre total d'événements. Changer de personne dans le filtre ramène à la première page.
+- **Journal d'audit : liste stable** — la liste est figée au moment où vous l'ouvrez : de nouvelles actions pendant la consultation ne décalent plus les pages. Le bouton **Actualiser** affiche les événements arrivés entre-temps et revient à la première page.
+- **Administration : vue conservée** — l'onglet ouvert est gardé dans l'adresse, ainsi que la page et la personne filtrée du journal d'audit : un rechargement ou un lien partagé rouvre exactement la même vue.
+
+### 🎨 Améliorations
+
+- **Pagination harmonisée** — les listes paginées (notes de frais, historique des trajets, historique d'entretien, réservations à venir, inventaire, journal d'audit) partagent désormais la même barre : flèches précédent / suivant et « Page X sur Y ».
 
 ## [5.21.0] — 3 octobre 2026
 
