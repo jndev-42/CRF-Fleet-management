@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { ThemeToggle } from "@/components/ThemeToggle";
+import SeasonalThemeToggle from "@/components/themes/SeasonalThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
 import { User } from 'next-auth';
 import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
@@ -142,6 +143,7 @@ export default function Navbar({ user }: NavbarProps) {
                             {!isInactive(userRoles) && (
                                 <span data-tour="notifications"><NotificationBell /></span>
                             )}
+                            <SeasonalThemeToggle />
                             <ThemeToggle />
                             <button
                                 className="btn btn-danger nav-logout-btn"

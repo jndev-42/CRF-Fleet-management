@@ -30,6 +30,15 @@ vi.mock('@/lib/contexts/MenuSettingsContext', () => ({
     useMenuSettings: () => ({ getVisibility: mockGetVisibility }),
 }));
 
+let mockSeasonal: { theme: string | null; hidden: boolean; toggleHidden: () => void } = {
+    theme: null,
+    hidden: false,
+    toggleHidden: () => undefined,
+};
+vi.mock('@/lib/contexts/SeasonalThemeContext', () => ({
+    useSeasonalTheme: () => mockSeasonal,
+}));
+
 vi.mock('@/lib/contexts/ULContext', () => ({
     useUL: () => mockUL,
 }));
@@ -43,6 +52,7 @@ import Navbar from '@/components/Navbar';
 beforeEach(() => {
     vi.clearAllMocks();
     mockPathname = '/vehicles';
+    mockSeasonal = { theme: null, hidden: false, toggleHidden: vi.fn() };
     mockGetVisibility = vi.fn<(key: string) => Visibility>(() => 'available');
     mockUL = {
         activeUL: { id: 'ul-1', name: 'Paris 18' },
@@ -53,6 +63,18 @@ beforeEach(() => {
 });
 
 describe('Navbar', () => {
+    it('affiche le bouton du thème saisonnier et le bascule quand un thème est actif', () => {
+        mockSeasonal = { theme: 'vendanges-montmartre', hidden: false, toggleHidden: vi.fn() };
+        render(<Navbar user={{ email: 'user@test.com', roles: ['CHVL'] }} />);
+        fireEvent.click(screen.getByLabelText('Masquer le thème'));
+        expect(mockSeasonal.toggleHidden).toHaveBeenCalledTimes(1);
+    });
+
+    it('n\'affiche pas le bouton du thème sans thème actif', () => {
+        render(<Navbar user={{ email: 'user@test.com', roles: ['CHVL'] }} />);
+        expect(screen.queryByLabelText(/le thème/)).toBeNull();
+    });
+
     it('affiche seulement le logo et le toggle de thème sans utilisateur', () => {
         render(<Navbar />);
         expect(screen.getByText('Martine')).toBeTruthy();

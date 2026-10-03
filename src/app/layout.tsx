@@ -1,13 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from 'next/font/google';
+import { Inter, Anton } from 'next/font/google';
 import Link from 'next/link';
 import "./globals.css";
+import "@/styles/seasons/vendanges-montmartre.css";
 
 const inter = Inter({
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700', '800'],
   display: 'swap',
   variable: '--font-inter',
+});
+// Typo condensée (affiche sérigraphiée) du thème saisonnier « Fête des vendanges de Montmartre » :
+// exposée en variable CSS, utilisée uniquement sous `html[data-season="vendanges-montmartre"]`.
+const anton = Anton({
+  subsets: ['latin'],
+  weight: '400',
+  display: 'swap',
+  preload: false,
+  variable: '--font-season-vendanges',
 });
 import { auth } from "@/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -26,6 +36,7 @@ import ImpersonationBanner from "@/components/admin/ImpersonationBanner";
 import { MenuSettingsProvider } from "@/lib/contexts/MenuSettingsContext";
 import { DemoProvider } from "@/lib/contexts/DemoContext";
 import { ULProvider } from "@/lib/contexts/ULContext";
+import { SeasonalThemeProvider } from "@/lib/contexts/SeasonalThemeContext";
 
 export const metadata: Metadata = {
   title: "Martine | Croix-Rouge Paris 18",
@@ -64,7 +75,7 @@ export default async function RootLayout({
     // `className="… dark"` : React signalait l'écart à chaque page. L'attribut
     // ne masque que cet élément-ci, pas ses descendants — un vrai décalage
     // d'hydratation dans l'arbre reste donc signalé.
-    <html lang="fr" className={inter.variable} data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="fr" className={`${inter.variable} ${anton.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <DemoProvider>
           <DemoBanner />
@@ -78,6 +89,7 @@ export default async function RootLayout({
           <SessionProvider session={session}>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
               <MenuSettingsProvider>
+                <SeasonalThemeProvider>
                 <ULProvider>
                 <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                   <Navbar user={session?.user} />
@@ -110,6 +122,7 @@ export default async function RootLayout({
                   </footer>
                 </div>
                 </ULProvider>
+                </SeasonalThemeProvider>
               </MenuSettingsProvider>
             </ThemeProvider>
           </SessionProvider>

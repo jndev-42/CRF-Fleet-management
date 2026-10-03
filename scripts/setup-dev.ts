@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import { DEFAULT_EXPENSE_BUDGETS, seedDefaultBudgets } from '../src/lib/expenses/budgets';
 import { REFERENTIEL_FTS_DDL, REFERENTIEL_TABLES } from '../src/lib/referentiel/schema';
 import { AUDIT_LOG_DDL, AUDIT_LOG_INDEXES } from '../src/lib/audit/schema';
+import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '../src/lib/themes/schema';
 import { menuSettingNeedsRebuild, menuSettingTableDdl, rebuildMenuSettingTable } from '../src/lib/menu-settings-schema';
 
 // DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
@@ -717,6 +718,11 @@ async function main() {
 
     await db.execute(AUDIT_LOG_DDL);
     for (const index of AUDIT_LOG_INDEXES) await db.execute(index.ddl);
+
+    // ── Thèmes saisonniers ────────────────────────────────────────
+
+    await db.execute(SEASONAL_THEME_DDL);
+    await db.execute(SEASONAL_THEME_UL_DDL);
 
     // ── MenuSetting ───────────────────────────────────────────────
 

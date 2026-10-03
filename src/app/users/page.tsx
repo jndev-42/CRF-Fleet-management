@@ -9,6 +9,7 @@ import ULsTab from '@/components/admin/ULsTab';
 import BannersTab from '@/components/admin/BannersTab';
 import ReferentielTab from '@/components/admin/ReferentielTab';
 import AuditLogTab from '@/components/admin/AuditLogTab';
+import ThemesTab from '@/components/admin/ThemesTab';
 import { isSuperAdmin, isAdminOrAbove, isReadOnlyManager, canAccessAdminPanel } from '@/lib/roles';
 
 interface User {
@@ -25,7 +26,7 @@ interface User {
     homeUlName?: string | null;
 }
 
-type TabId = 'users' | 'menus' | 'uls' | 'banners' | 'referentiel' | 'audit';
+type TabId = 'users' | 'menus' | 'uls' | 'banners' | 'referentiel' | 'audit' | 'themes';
 
 export default function AdminPage() {
     const [users, setUsers] = useState<User[]>([]);
@@ -238,6 +239,16 @@ export default function AdminPage() {
                         Journal d&apos;audit
                     </button>
                 )}
+                {isSuperAdminUser && (
+                    <button
+                        role="tab"
+                        aria-selected={activeTab === 'themes'}
+                        className={`tab-btn${activeTab === 'themes' ? ' active' : ''}`}
+                        onClick={() => setActiveTab('themes')}
+                    >
+                        Thèmes
+                    </button>
+                )}
             </div>
 
             {activeTab === 'users' && (
@@ -268,6 +279,8 @@ export default function AdminPage() {
             {activeTab === 'referentiel' && isSuperAdminUser && <ReferentielTab showToast={showToast} />}
 
             {activeTab === 'audit' && isSuperAdminUser && <AuditLogTab users={users} />}
+
+            {activeTab === 'themes' && isSuperAdminUser && <ThemesTab />}
 
             {activeTab === 'banners' && (
                 <BannersTab

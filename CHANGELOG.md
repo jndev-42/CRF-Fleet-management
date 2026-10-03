@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.21.0] — 3 octobre 2026
+
+### ✨ Nouveautés
+
+- **Thèmes saisonniers** — le super admin peut désormais habiller l'application pour un événement, depuis le nouvel onglet **Administration → Thèmes**. Chaque thème s'active sur une plage de dates précise (début et fin incluses, heure de Paris) ; la plage d'un thème activé ne peut pas recouvrir celle d'un autre thème activé sur les mêmes UL. Le premier thème est la **Fête des vendanges de Montmartre**, habillée comme l'affiche de la fête (sérigraphie pop : jaune, bleu, rose, vert feuille et violet raisin) avec du raisin et de la vigne partout : une branche de vigne chargée de grappes pend le long de la barre de navigation, soulignée d'un gros filet (noir en clair, jaune en sombre), « Martine » et les titres passent en grandes capitales condensées, soulignées d'un trait épais et suivies d'une grappe et d'une feuille, le logo est entouré d'un cadre et de feuilles de vigne, les boutons principaux deviennent violet raisin avec une ombre jaune et une petite grappe, les cartes prennent un trait d'encre, une ombre décalée jaune, bleue ou rose et une feuille avec une grappe dans un coin, et le fond de page reçoit une fine trame de points. Sur les grands écrans (à partir de 1400 px de large et 720 px de haut), le Sacré-Cœur, la vigne chargée de grappes, des enceintes et un casque s'installent dans les marges, sans jamais empiéter sur le contenu. La croix rouge du logo, les boutons de suppression et les alertes restent inchangés. Rien ne se décale et aucun bandeau n'apparaît.
+- **Thème réservé à certaines UL** — un thème peut être limité à une ou plusieurs unités locales, ou rester ouvert à toutes. Il s'affiche selon l'UL active dans le sélecteur d'UL : en passant de Paris 17 à Paris 18, l'habillage apparaît (ou disparaît) sans recharger la page. Deux thèmes ne sont en conflit que si leurs dates et leurs UL se recouvrent.
+- **Afficher ou masquer le thème** — quand un thème est actif, une petite icône de grappe apparaît dans la barre de navigation, à côté du bouton clair/sombre, pour le masquer ou le réafficher. Le choix est mémorisé sur votre appareil.
+
 ## [5.20.1] — 3 octobre 2026
 
 ### 🐛 Corrections
