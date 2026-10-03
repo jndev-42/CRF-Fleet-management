@@ -1,14 +1,17 @@
 /*
- * Thème saisonnier « Fête des vendanges de Montmartre » — affiche Belle Époque.
+ * Thème saisonnier « Fête des vendanges de Montmartre » — affiche sérigraphiée (riso).
  *
- * Bordeaux, or et crème, titres en Federo (variable `--font-season-vendanges`,
- * chargée dans layout.tsx), arabesques de vigne et filets dorés.
+ * Encres vives à plat (jaune tournesol, bleu cyan, rose, vert feuille, violet raisin),
+ * léger décalage de repérage, trame de points, titres en Anton (variable
+ * `--font-season-vendanges`, chargée dans layout.tsx) soulignés d'un gros filet noir.
+ * Raisins et feuilles de vigne en motif dominant, avec des clins d'œil au 18e :
+ * Sacré-Cœur jaune, enceintes et casque. Illustrations dans `public/seasons/vendanges/`.
  *
  * Aucun décalage de mise en page : on ne change ici ni padding, ni marges, ni
  * dimensions, ni largeur de bordure. Seuls varient les couleurs, fonds, ombres,
- * polices et des pseudo-éléments `position: absolute`, `pointer-events: none`,
- * posés hors du texte. Masquer le thème (ou sortir de la plage) retire
- * `data-season` de <html> : l'appli redevient strictement identique.
+ * polices et des pseudo-éléments `position: absolute` (ou en ligne à encombrement
+ * nul), `pointer-events: none`, posés hors du texte. Masquer le thème (ou sortir de
+ * la plage) retire `data-season` de <html> : l'appli redevient strictement identique.
  *
  * Toutes les règles sont préfixées par `html[data-season="vendanges-montmartre"]`
  * (variante sombre : `html[data-season="vendanges-montmartre"].dark`). On ne
@@ -17,86 +20,139 @@
  */
 
 html[data-season="vendanges-montmartre"] {
-    --vm-burgundy: #6d1230;
-    --vm-burgundy-2: #8a1c42;
-    --vm-burgundy-3: #a02552;
-    --vm-burgundy-deep: #4a0b20;
-    --vm-gold: #c9a24a;
-    --vm-gold-light: #ecd08a;
-    --vm-cream: #f6ecd6;
+    --vm-yellow: #ffc72c;
+    --vm-cyan: #2ba8e0;
+    --vm-pink: #f49ac1;
+    --vm-green: #3db54a;
+    --vm-grape: #4a1e4f;
+    --vm-font: var(--font-season-vendanges, Impact, 'Arial Narrow', sans-serif);
 
-    /* Accent des surfaces de page : bordeaux en clair, or en sombre. */
-    --vm-accent: #6d1230;
-    --vm-rule: #9a7414;
-    --vm-card-border: rgba(154, 116, 20, 0.45);
-    --vm-focus-ring: rgba(154, 116, 20, 0.3);
-    --vm-font: var(--font-season-vendanges, Georgia, 'Times New Roman', serif);
+    /* Encre des traits : noir en clair, crème en sombre. */
+    --vm-ink: #111111;
+    --vm-title-shadow: var(--vm-pink);
+    --vm-btn-bg: #4a1e4f;
+    --vm-nav-bg: #fffbf0;
 
-    --vm-grape-gold: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cg%3E%3Cpath d='M8 0v3' stroke='%238fc060' stroke-width='1.2' fill='none'/%3E%3Cpath d='M8 2c2-1 4 0 4.5 1.5C10.5 4 8.5 3.5 8 2z' fill='%238fc060'/%3E%3Cg fill='%23e6c875'%3E%3Ccircle cx='5' cy='5.5' r='2'/%3E%3Ccircle cx='9' cy='5.5' r='2'/%3E%3Ccircle cx='7' cy='8.5' r='2'/%3E%3Ccircle cx='11' cy='8.5' r='1.8'/%3E%3Ccircle cx='5' cy='11.5' r='1.8'/%3E%3Ccircle cx='9' cy='11.5' r='1.8'/%3E%3Ccircle cx='7' cy='14' r='1.7'/%3E%3C/g%3E%3Cg fill='%23fff' opacity='.35'%3E%3Ccircle cx='4.4' cy='4.9' r='.6'/%3E%3Ccircle cx='8.4' cy='4.9' r='.6'/%3E%3Ccircle cx='6.4' cy='7.9' r='.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    --vm-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M1 23C1 11 11 1 23 1' stroke='%239a7414' stroke-width='1.4' fill='none'/%3E%3Cpath d='M5 14c-2.5-.5-3.5-3-2.5-5 2.500.5 3.500 3 2.500 5z' fill='%235a8a34'/%3E%3Cpath d='M14 5c.5-2.500 3-3.500 5-2.500-.5 2.500-3 3.500-5 2.500z' fill='%235a8a34'/%3E%3Cpath d='M8 8c1.500-1.500 3.500-1 3.500.8s-2.500 2-3 .2' stroke='%239a7414' stroke-width='1' fill='none'/%3E%3Ccircle cx='3' cy='3' r='1.600' fill='%239a7414'/%3E%3C/svg%3E");
-    --vm-filet: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 4' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='0'%3E%3Cstop offset='0' stop-color='%239a7414'/%3E%3Cstop offset='1' stop-color='%239a7414' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6' y='1.500' width='154' height='1' fill='url(%23g)'/%3E%3Cpath d='M2 0l2 2-2 2-2-2z' fill='%239a7414'/%3E%3C/svg%3E");
-    --vm-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 54 54'%3E%3Crect x='8' y='8' width='38' height='38' rx='9' fill='none' stroke='%23e0bd68' stroke-width='1.500'/%3E%3Cg fill='%237fb352'%3E%3Cpath d='M8 30c-4 0-6-3-6-6 4 0 6 2 6 6z'/%3E%3Cpath d='M7 40c-4-1-5-4-4.500-7 4 1 5.500 3.500 4.500 7z'/%3E%3Cpath d='M46 30c4 0 6-3 6-6-4 0-6 2-6 6z'/%3E%3Cpath d='M47 40c4-1 5-4 4.500-7-4 1-5.500 3.500-4.500 7z'/%3E%3Cpath d='M27 8c-3-3-2-6 0-8 2 2 3 5 0 8z'/%3E%3C/g%3E%3Cg transform='translate(21.5 45) scale(0.56)'%3E%3Cpath d='M8 0v3' stroke='%238fc060' stroke-width='1.2' fill='none'/%3E%3Cpath d='M8 2c2-1 4 0 4.5 1.5C10.5 4 8.5 3.5 8 2z' fill='%237fb352'/%3E%3Cg fill='%23e6c875'%3E%3Ccircle cx='5' cy='5.5' r='2'/%3E%3Ccircle cx='9' cy='5.5' r='2'/%3E%3Ccircle cx='7' cy='8.5' r='2'/%3E%3Ccircle cx='11' cy='8.5' r='1.8'/%3E%3Ccircle cx='5' cy='11.5' r='1.8'/%3E%3Ccircle cx='9' cy='11.5' r='1.8'/%3E%3Ccircle cx='7' cy='14' r='1.7'/%3E%3C/g%3E%3Cg fill='%23fff' opacity='.35'%3E%3Ccircle cx='4.4' cy='4.9' r='.6'/%3E%3Ccircle cx='8.4' cy='4.9' r='.6'/%3E%3Ccircle cx='6.4' cy='7.9' r='.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    --vm-header-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='64' viewBox='0 0 72 64'%3E%3Cg fill='none' stroke='%23c9a24a' stroke-opacity='.22' stroke-width='1'%3E%3Cpath d='M0 48C12 40 24 56 36 48S60 40 72 48'/%3E%3Cpath d='M18 46c-1-6 3-10 8-10'/%3E%3Cpath d='M54 46c-1-6 3-10 8-10'/%3E%3C/g%3E%3Cg fill='%23c9a24a' fill-opacity='.2'%3E%3Cpath d='M26 36c3-3 7-1 7 2-3 2-6 1-7-2z'/%3E%3Cpath d='M62 36c3-3 7-1 7 2-3 2-6 1-7-2z'/%3E%3Ccircle cx='36' cy='20' r='1.500'/%3E%3Ccircle cx='0' cy='20' r='1.500'/%3E%3Ccircle cx='72' cy='20' r='1.500'/%3E%3C/g%3E%3C/svg%3E");
-    --vm-page-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%236d1230' stroke-opacity='.07' stroke-width='1'%3E%3Cpath d='M10 60c10-14 24-14 34-4'/%3E%3Cpath d='M52 26c8-10 20-10 28-2'/%3E%3C/g%3E%3Cg fill='%236d1230' fill-opacity='.07'%3E%3Cpath d='M24 49c4-5 9-3 9 1-4 3-8 2-9-1z'/%3E%3Cpath d='M66 17c4-5 9-3 9 1-4 3-8 2-9-1z'/%3E%3Ccircle cx='80' cy='70' r='2'/%3E%3Ccircle cx='84' cy='74' r='2'/%3E%3Ccircle cx='78' cy='75' r='2'/%3E%3C/g%3E%3C/svg%3E");
+    --vm-img-branch: url("/seasons/vendanges/vine-branch.svg");
+    --vm-img-wreath: url("/seasons/vendanges/logo-wreath.svg");
+    --vm-img-cluster: url("/seasons/vendanges/grape-cluster.svg");
+    --vm-img-title: url("/seasons/vendanges/title-ornament.svg");
+    --vm-img-rule: url("/seasons/vendanges/title-rule.svg");
+    --vm-img-card: url("/seasons/vendanges/card-ornament.svg");
+    --vm-img-scene-l: url("/seasons/vendanges/scene-left.svg");
+    --vm-img-scene-r: url("/seasons/vendanges/scene-right.svg");
+    --vm-img-pattern: url("/seasons/vendanges/pattern.svg");
 
-    --bg-primary: #fbf6ea;
-    --border-focus: rgba(154, 116, 20, 0.7);
+    --bg-primary: #fffef9;
+    --border-focus: #111111;
 }
 
 html[data-season="vendanges-montmartre"].dark {
-    --vm-accent: #ecd08a;
-    --vm-rule: #e0bd68;
-    --vm-card-border: rgba(224, 189, 104, 0.4);
-    --vm-focus-ring: rgba(224, 189, 104, 0.3);
+    --vm-ink: #f4efe0;
+    --vm-btn-bg: #6d2f7a;
+    --vm-nav-bg: #0e0b12;
 
-    --vm-corner: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M1 23C1 11 11 1 23 1' stroke='%23e0bd68' stroke-width='1.4' fill='none'/%3E%3Cpath d='M5 14c-2.5-.5-3.5-3-2.5-5 2.500.5 3.500 3 2.500 5z' fill='%237fb352'/%3E%3Cpath d='M14 5c.5-2.500 3-3.500 5-2.500-.5 2.500-3 3.500-5 2.500z' fill='%237fb352'/%3E%3Cpath d='M8 8c1.500-1.500 3.500-1 3.500.8s-2.500 2-3 .2' stroke='%23e0bd68' stroke-width='1' fill='none'/%3E%3Ccircle cx='3' cy='3' r='1.600' fill='%23e0bd68'/%3E%3C/svg%3E");
-    --vm-filet: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 160 4' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='0'%3E%3Cstop offset='0' stop-color='%23e0bd68'/%3E%3Cstop offset='1' stop-color='%23e0bd68' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='6' y='1.500' width='154' height='1' fill='url(%23g)'/%3E%3Cpath d='M2 0l2 2-2 2-2-2z' fill='%23e0bd68'/%3E%3C/svg%3E");
-    --vm-frame: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 54 54'%3E%3Crect x='8' y='8' width='38' height='38' rx='9' fill='none' stroke='%23e0bd68' stroke-width='1.500'/%3E%3Cg fill='%237fb352'%3E%3Cpath d='M8 30c-4 0-6-3-6-6 4 0 6 2 6 6z'/%3E%3Cpath d='M7 40c-4-1-5-4-4.500-7 4 1 5.500 3.500 4.500 7z'/%3E%3Cpath d='M46 30c4 0 6-3 6-6-4 0-6 2-6 6z'/%3E%3Cpath d='M47 40c4-1 5-4 4.500-7-4 1-5.500 3.500-4.500 7z'/%3E%3Cpath d='M27 8c-3-3-2-6 0-8 2 2 3 5 0 8z'/%3E%3C/g%3E%3Cg transform='translate(21.5 45) scale(0.56)'%3E%3Cpath d='M8 0v3' stroke='%238fc060' stroke-width='1.2' fill='none'/%3E%3Cpath d='M8 2c2-1 4 0 4.5 1.5C10.5 4 8.5 3.5 8 2z' fill='%237fb352'/%3E%3Cg fill='%23e6c875'%3E%3Ccircle cx='5' cy='5.5' r='2'/%3E%3Ccircle cx='9' cy='5.5' r='2'/%3E%3Ccircle cx='7' cy='8.5' r='2'/%3E%3Ccircle cx='11' cy='8.5' r='1.8'/%3E%3Ccircle cx='5' cy='11.5' r='1.8'/%3E%3Ccircle cx='9' cy='11.5' r='1.8'/%3E%3Ccircle cx='7' cy='14' r='1.7'/%3E%3C/g%3E%3Cg fill='%23fff' opacity='.35'%3E%3Ccircle cx='4.4' cy='4.9' r='.6'/%3E%3Ccircle cx='8.4' cy='4.9' r='.6'/%3E%3Ccircle cx='6.4' cy='7.9' r='.6'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    --vm-page-pattern: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23c9a24a' stroke-opacity='.07' stroke-width='1'%3E%3Cpath d='M10 60c10-14 24-14 34-4'/%3E%3Cpath d='M52 26c8-10 20-10 28-2'/%3E%3C/g%3E%3Cg fill='%23c9a24a' fill-opacity='.07'%3E%3Cpath d='M24 49c4-5 9-3 9 1-4 3-8 2-9-1z'/%3E%3Cpath d='M66 17c4-5 9-3 9 1-4 3-8 2-9-1z'/%3E%3Ccircle cx='80' cy='70' r='2'/%3E%3Ccircle cx='84' cy='74' r='2'/%3E%3Ccircle cx='78' cy='75' r='2'/%3E%3C/g%3E%3C/svg%3E");
+    --vm-img-branch: url("/seasons/vendanges/vine-branch-d.svg");
+    --vm-img-wreath: url("/seasons/vendanges/logo-wreath-d.svg");
+    --vm-img-cluster: url("/seasons/vendanges/grape-cluster-d.svg");
+    --vm-img-title: url("/seasons/vendanges/title-ornament-d.svg");
+    --vm-img-rule: url("/seasons/vendanges/title-rule-d.svg");
+    --vm-img-card: url("/seasons/vendanges/card-ornament-d.svg");
+    --vm-img-scene-l: url("/seasons/vendanges/scene-left-d.svg");
+    --vm-img-scene-r: url("/seasons/vendanges/scene-right-d.svg");
+    --vm-img-pattern: url("/seasons/vendanges/pattern-d.svg");
 
-    --bg-primary: #140a0f;
-    --border-focus: rgba(224, 189, 104, 0.7);
+    --bg-primary: #0e0b12;
+    --border-focus: #ffc72c;
 }
 
-/* ===== Fond de page : motif de vigne très léger ===== */
+/* ===== Fond de page : simple trame de points ; scènes du 18e dans les marges uniquement ===== */
 html[data-season="vendanges-montmartre"] body {
-    background-image: var(--vm-page-pattern);
+    background-image: var(--vm-img-pattern);
+    background-size: 12px 12px;
     background-repeat: repeat;
 }
 
-/* ===== Navbar : fond bordeaux, filet or, motif de vigne ===== */
+/*
+ * Gauche : Sacré-Cœur, vigne et grappes. Droite : vigne, enceintes et casque.
+ * Fixes, derrière le contenu, strictement dans les marges : largeur = marge moins
+ * 8 px (la colonne de contenu fait 1152 px au plus), donc jamais sur le contenu.
+ * Masquées sous 1400 px, quand la marge devient trop étroite. La scène de droite
+ * est relevée de 150 px pour laisser libres les boutons flottants.
+ */
+html[data-season="vendanges-montmartre"] body::before,
+html[data-season="vendanges-montmartre"] body::after {
+    content: "";
+    display: none;
+    position: fixed;
+    width: min(220px, calc((100vw - 1152px) / 2 - 8px));
+    aspect-ratio: 220 / 480;
+    z-index: -1;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+html[data-season="vendanges-montmartre"] body::before {
+    left: 0;
+    bottom: 0;
+    background-image: var(--vm-img-scene-l);
+}
+
+html[data-season="vendanges-montmartre"] body::after {
+    right: 0;
+    bottom: 150px;
+    background-image: var(--vm-img-scene-r);
+}
+
+@media (min-width: 1400px) {
+    html[data-season="vendanges-montmartre"] body::before,
+    html[data-season="vendanges-montmartre"] body::after {
+        display: block;
+    }
+}
+
+/* ===== Navbar : fond clair (ou noir en sombre), gros filet noir, branche de vigne ===== */
 html[data-season="vendanges-montmartre"] .header {
-    background-color: var(--vm-burgundy);
-    background-image: var(--vm-header-pattern), linear-gradient(180deg, var(--vm-burgundy-2), var(--vm-burgundy-deep));
-    background-repeat: repeat, no-repeat;
-    background-size: 72px 64px, 100% 100%;
-    border-bottom-color: var(--vm-gold);
-    color: var(--vm-cream);
+    background: var(--vm-nav-bg);
+    border-bottom-color: var(--vm-ink);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
 }
 
-html[data-season="vendanges-montmartre"].dark .header {
-    background-color: var(--vm-burgundy-deep);
-    background-image: var(--vm-header-pattern), linear-gradient(180deg, var(--vm-burgundy), #330716);
-}
-
-/* Second filet or, à l'intérieur de la barre (double filet). */
+/* Gros filet de sérigraphie en bas de la barre (dans la hauteur existante). */
 html[data-season="vendanges-montmartre"] .header::after {
     content: "";
     position: absolute;
     left: 0;
     right: 0;
     bottom: 0;
-    height: 3px;
-    border-top: 1px solid rgba(236, 208, 138, 0.55);
+    height: 4px;
+    background: var(--vm-ink);
     pointer-events: none;
 }
 
-/* Logo : cadre doré et couronne de vigne tout autour (l'emblème n'est jamais recouvert). */
+html[data-season="vendanges-montmartre"].dark .header::after {
+    background: var(--vm-yellow);
+}
+
+/* Branche de vigne le long du bord bas : feuilles vertes, vrilles et grappes pendantes. */
+html[data-season="vendanges-montmartre"] .header::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% - 10px);
+    height: 46px;
+    background-image: var(--vm-img-branch);
+    background-repeat: repeat-x;
+    background-size: auto 46px;
+    pointer-events: none;
+}
+
+/* Logo : cadre noir et jaune, couronne de feuilles et grappe (l'emblème n'est jamais recouvert). */
 html[data-season="vendanges-montmartre"] .header-brand {
     position: relative;
-    color: var(--vm-cream);
 }
 
 html[data-season="vendanges-montmartre"] .header-brand::before {
@@ -108,98 +164,56 @@ html[data-season="vendanges-montmartre"] .header-brand::before {
     height: 54px;
     box-sizing: border-box;
     transform: translateY(-50%);
-    background-image: var(--vm-frame);
+    background-image: var(--vm-img-wreath);
     background-repeat: no-repeat;
     background-size: 100% 100%;
     pointer-events: none;
 }
 
-/* « Martine » dans la typo du thème, avec une grappe. */
+/* « Martine » en capitales condensées, avec décalage rose et une grappe. */
 html[data-season="vendanges-montmartre"] .header-title {
     position: relative;
     font-family: var(--vm-font);
     font-weight: 400;
-    letter-spacing: 0.4px;
-    color: var(--vm-gold-light);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--vm-ink);
+    text-shadow: 1.5px 1.5px 0 var(--vm-title-shadow);
+}
+
+html[data-season="vendanges-montmartre"].dark .header-title {
+    color: var(--vm-yellow);
+    /* Remplissage plein. À 16 px, un décalage de 2 px colle les lettres entre elles
+     * et se lit comme des rayures : 1 px suffit pour l'effet de repérage. */
+    text-shadow: 1px 1px 0 var(--vm-cyan);
 }
 
 html[data-season="vendanges-montmartre"] .header-title::after {
     content: "";
     position: absolute;
-    top: -6px;
-    right: -9px;
-    width: 12px;
-    height: 12px;
-    background-image: var(--vm-grape-gold);
+    top: -11px;
+    right: -15px;
+    width: 16px;
+    height: 23px;
+    background-image: var(--vm-img-cluster);
     background-repeat: no-repeat;
     background-size: contain;
     pointer-events: none;
     transform-origin: 50% 0;
 }
 
-html[data-season="vendanges-montmartre"] .header-subtitle {
-    color: #e9d9b8;
-}
-
-html[data-season="vendanges-montmartre"] .ul-switcher {
-    color: var(--vm-cream);
-    background-color: rgba(255, 255, 255, 0.1);
-    border-color: rgba(236, 208, 138, 0.45);
-}
-
-html[data-season="vendanges-montmartre"] .burger-btn {
-    color: var(--vm-cream);
-}
-
-/* Liens : actif en or (bureau), en bordeaux/or dans le tiroir mobile (fond clair ou sombre). */
+/* Lien actif : surligné jaune, texte noir. */
 html[data-season="vendanges-montmartre"] .nav-link.active {
-    color: var(--vm-accent);
-    background: rgba(201, 162, 74, 0.16);
+    color: #111111;
+    background: var(--vm-yellow);
 }
 
-/* Tiroir mobile : fond de page, on retrouve les couleurs d'origine du texte. */
-@media (max-width: 768px) {
-    html[data-season="vendanges-montmartre"] .header-nav {
-        color: var(--text-primary);
-    }
-
-    html[data-season="vendanges-montmartre"] .nav-header-title {
-        color: var(--text-primary);
-    }
-
-    html[data-season="vendanges-montmartre"] .nav-link {
-        color: var(--text-secondary);
-    }
-
-    html[data-season="vendanges-montmartre"] .nav-link.active {
-        color: var(--vm-accent);
-    }
+html[data-season="vendanges-montmartre"] .nav-link:hover {
+    background: rgba(244, 154, 193, 0.35);
 }
 
 @media (min-width: 769px) {
-    html[data-season="vendanges-montmartre"] .nav-link {
-        color: #e9d9b8;
-    }
-
-    html[data-season="vendanges-montmartre"] .nav-link:hover {
-        color: #fff;
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    html[data-season="vendanges-montmartre"] .nav-link.active {
-        color: var(--vm-gold-light);
-        background: rgba(236, 208, 138, 0.14);
-        box-shadow: inset 0 -2px 0 var(--vm-gold);
-    }
-
-    /* Cloche de notifications : couleur posée en ligne, d'où le !important. */
-    html[data-season="vendanges-montmartre"] .notification-bell-button {
-        color: var(--vm-cream) !important;
-    }
-
-    /* Déconnexion : le bouton danger d'origine (texte rouge, fond transparent)
-     * est illisible sur le bordeaux. Il passe en rouge plein : toujours rouge,
-     * donc toujours reconnaissable comme action de danger. */
+    /* Déconnexion : bouton danger d'origine, passé en rouge plein pour rester net sur la barre. */
     html[data-season="vendanges-montmartre"] .nav-logout-btn {
         background: var(--crf-red);
         border-color: var(--crf-red);
@@ -212,115 +226,145 @@ html[data-season="vendanges-montmartre"] .nav-link.active {
     }
 }
 
-/* ===== Titres : typo du thème, filet doré en dessous ===== */
+/* ===== Titres : capitales condensées, gros filet noir et jaune dessous ===== */
 html[data-season="vendanges-montmartre"] .page-title,
 html[data-season="vendanges-montmartre"] .section-title {
     position: relative;
     font-family: var(--vm-font);
     font-weight: 400;
-    letter-spacing: 0.2px;
-    color: var(--vm-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--vm-ink);
+    text-shadow: 2px 2px 0 var(--vm-title-shadow);
 }
 
-html[data-season="vendanges-montmartre"] .page-title::after,
-html[data-season="vendanges-montmartre"] .section-title::after {
+html[data-season="vendanges-montmartre"] .page-title::before,
+html[data-season="vendanges-montmartre"] .section-title::before {
     content: "";
     position: absolute;
     left: 0;
     top: 100%;
-    height: 4px;
-    background-image: var(--vm-filet);
+    height: 6px;
+    background-image: var(--vm-img-rule);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+html[data-season="vendanges-montmartre"] .page-title::before {
+    width: 160px;
+    max-width: 100%;
+}
+
+html[data-season="vendanges-montmartre"] .section-title::before {
+    width: 100px;
+    max-width: 100%;
+}
+
+/*
+ * Grappe et feuille juste après le texte du titre. Boîte en ligne dont le padding
+ * porte l'image et dont la marge négative annule exactement l'encombrement :
+ * elle n'occupe ni largeur ni hauteur dans la ligne, donc rien ne bouge.
+ */
+html[data-season="vendanges-montmartre"] .page-title::after,
+html[data-season="vendanges-montmartre"] .section-title::after {
+    content: "";
+    display: inline-block;
+    position: relative;
+    width: 0;
+    height: 0;
+    box-sizing: content-box;
+    background-image: var(--vm-img-title);
     background-repeat: no-repeat;
     background-size: 100% 100%;
     pointer-events: none;
 }
 
 html[data-season="vendanges-montmartre"] .page-title::after {
-    width: 180px;
-    max-width: 100%;
+    padding: 40px 0 0 42px;
+    margin: 0 -48px -40px 6px;
+    top: -34px;
 }
 
 html[data-season="vendanges-montmartre"] .section-title::after {
-    width: 110px;
-    max-width: 100%;
+    padding: 28px 0 0 30px;
+    margin: 0 -34px -28px 4px;
+    top: -24px;
 }
 
-/* ===== Cartes : bordure or et ornements de vigne aux coins ===== */
+/* ===== Cartes : trait d'encre, ombre décalée jaune / cyan / rose, feuille et grappe au coin ===== */
 html[data-season="vendanges-montmartre"] .detail-card,
 html[data-season="vendanges-montmartre"] .vehicle-card,
 html[data-season="vendanges-montmartre"] .kpi-card,
-html[data-season="vendanges-montmartre"] .chart-card {
+html[data-season="vendanges-montmartre"] .chart-card,
+html[data-season="vendanges-montmartre"] .stat-card,
+html[data-season="vendanges-montmartre"] .breakdown-card {
     position: relative;
-    border-color: var(--vm-card-border);
+    border-color: var(--vm-ink);
+    box-shadow: 3px 3px 0 var(--vm-yellow);
+}
+
+html[data-season="vendanges-montmartre"] .detail-card:nth-child(3n + 2),
+html[data-season="vendanges-montmartre"] .vehicle-card:nth-child(3n + 2),
+html[data-season="vendanges-montmartre"] .kpi-card:nth-child(3n + 2),
+html[data-season="vendanges-montmartre"] .chart-card:nth-child(3n + 2),
+html[data-season="vendanges-montmartre"] .stat-card:nth-child(3n + 2),
+html[data-season="vendanges-montmartre"] .breakdown-card:nth-child(3n + 2) {
+    box-shadow: 3px 3px 0 var(--vm-cyan);
+}
+
+html[data-season="vendanges-montmartre"] .detail-card:nth-child(3n),
+html[data-season="vendanges-montmartre"] .vehicle-card:nth-child(3n),
+html[data-season="vendanges-montmartre"] .kpi-card:nth-child(3n),
+html[data-season="vendanges-montmartre"] .chart-card:nth-child(3n),
+html[data-season="vendanges-montmartre"] .stat-card:nth-child(3n),
+html[data-season="vendanges-montmartre"] .breakdown-card:nth-child(3n) {
+    box-shadow: 3px 3px 0 var(--vm-pink);
 }
 
 html[data-season="vendanges-montmartre"] .vehicle-card:hover {
-    border-color: var(--vm-gold);
+    border-color: var(--vm-ink);
+    box-shadow: 5px 5px 0 var(--vm-cyan);
 }
 
-html[data-season="vendanges-montmartre"] .stat-card,
-html[data-season="vendanges-montmartre"] .breakdown-card {
-    border-color: var(--vm-card-border);
-}
-
-html[data-season="vendanges-montmartre"] .detail-card::before,
 html[data-season="vendanges-montmartre"] .detail-card::after,
-html[data-season="vendanges-montmartre"] .vehicle-card::before,
 html[data-season="vendanges-montmartre"] .vehicle-card::after,
-html[data-season="vendanges-montmartre"] .kpi-card::before,
 html[data-season="vendanges-montmartre"] .kpi-card::after,
-html[data-season="vendanges-montmartre"] .chart-card::before,
 html[data-season="vendanges-montmartre"] .chart-card::after {
     content: "";
     position: absolute;
-    width: 12px;
-    height: 12px;
-    background-image: var(--vm-corner);
-    background-repeat: no-repeat;
-    background-size: contain;
-    pointer-events: none;
-    opacity: 0.85;
-}
-
-html[data-season="vendanges-montmartre"] .detail-card::before,
-html[data-season="vendanges-montmartre"] .vehicle-card::before,
-html[data-season="vendanges-montmartre"] .kpi-card::before,
-html[data-season="vendanges-montmartre"] .chart-card::before {
-    top: 2px;
-    left: 2px;
-}
-
-html[data-season="vendanges-montmartre"] .detail-card::after,
-html[data-season="vendanges-montmartre"] .vehicle-card::after,
-html[data-season="vendanges-montmartre"] .kpi-card::after,
-html[data-season="vendanges-montmartre"] .chart-card::after {
     right: 2px;
     bottom: 2px;
-    transform: rotate(180deg);
+    width: 22px;
+    height: 15px;
+    background-image: var(--vm-img-card);
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: right bottom;
+    pointer-events: none;
 }
 
-/* ===== Boutons principaux : dégradé bordeaux, liseré or, grappe ===== */
+/* ===== Boutons principaux : violet raisin, trame de points, ombre décalée jaune, grappe ===== */
 html[data-season="vendanges-montmartre"] .btn-primary {
     position: relative;
-    background: linear-gradient(180deg, var(--vm-burgundy-2) 0%, var(--vm-burgundy) 55%, var(--vm-burgundy-deep) 100%);
+    background: url("/seasons/vendanges/halftone-dots.svg") 0 0 / 8px 8px, var(--vm-btn-bg);
     color: #fff;
-    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
-    box-shadow: inset 0 0 0 1px var(--vm-gold), 0 2px 8px rgba(74, 11, 32, 0.35);
+    box-shadow: 3px 3px 0 var(--vm-yellow);
 }
 
 html[data-season="vendanges-montmartre"] .btn-primary:hover:not(:disabled) {
-    background: linear-gradient(180deg, var(--vm-burgundy-3) 0%, var(--vm-burgundy-2) 60%, var(--vm-burgundy) 100%);
-    box-shadow: inset 0 0 0 1px var(--vm-gold-light), 0 0 14px rgba(201, 162, 74, 0.5);
+    background: url("/seasons/vendanges/halftone-dots.svg") 0 0 / 8px 8px, var(--vm-btn-bg);
+    box-shadow: 4px 4px 0 var(--vm-cyan);
 }
 
 html[data-season="vendanges-montmartre"] .btn-primary::after {
     content: "";
     position: absolute;
     top: 2px;
-    right: 2px;
-    width: 12px;
-    height: 12px;
-    background-image: var(--vm-grape-gold);
+    right: 5px;
+    width: 13px;
+    height: 18px;
+    background-image: url("/seasons/vendanges/grape-btn.svg");
     background-repeat: no-repeat;
     background-size: contain;
     pointer-events: none;
@@ -328,28 +372,29 @@ html[data-season="vendanges-montmartre"] .btn-primary::after {
 
 html[data-season="vendanges-montmartre"] .btn-primary.btn-sm::after {
     top: 2px;
-    right: 2px;
+    right: 4px;
     width: 10px;
-    height: 10px;
+    height: 14px;
 }
 
 /* ===== Onglets, badges, champs ===== */
 html[data-season="vendanges-montmartre"] .tab-btn.active {
-    color: var(--vm-accent);
-    border-bottom-color: var(--vm-rule);
+    color: var(--vm-ink);
+    background: rgba(255, 199, 44, 0.3);
+    border-bottom-color: var(--vm-ink);
 }
 
 html[data-season="vendanges-montmartre"] .vehicle-type-badge {
-    background: rgba(201, 162, 74, 0.2);
-    color: var(--vm-accent);
-    box-shadow: inset 0 0 0 1px rgba(201, 162, 74, 0.55);
+    background: var(--vm-yellow);
+    color: #111111;
+    box-shadow: 2px 2px 0 var(--vm-ink);
 }
 
 html[data-season="vendanges-montmartre"] .form-input:focus,
 html[data-season="vendanges-montmartre"] .form-select:focus,
 html[data-season="vendanges-montmartre"] .form-textarea:focus {
     border-color: var(--border-focus);
-    box-shadow: 0 0 0 3px var(--vm-focus-ring);
+    box-shadow: 3px 3px 0 var(--vm-cyan);
 }
 
 /* ===== Animation : la grappe de la navbar se balance doucement ===== */
@@ -362,4 +407,13 @@ html[data-season="vendanges-montmartre"] .form-textarea:focus {
 @keyframes vendanges-sway {
     from { transform: rotate(-6deg); }
     to { transform: rotate(6deg); }
+}
+
+/* Mobile : branche plus petite pour ne pas mordre sur les titres de page. */
+@media (max-width: 768px) {
+    html[data-season="vendanges-montmartre"] .header::before {
+        top: calc(100% - 7px);
+        height: 28px;
+        background-size: auto 28px;
+    }
 }

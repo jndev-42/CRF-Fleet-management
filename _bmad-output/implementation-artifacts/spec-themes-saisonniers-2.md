@@ -2,7 +2,7 @@
 title: 'Thème « Fête des vendanges de Montmartre » — refonte visuelle « affiche Montmartre »'
 type: 'feature'
 created: '2026-10-03'
-status: 'done'
+status: 'in-review'
 baseline_commit: 'ecb3c8a5fcb27faab819509a73a8c56c58042010'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -25,6 +25,8 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/spec-themes-sais
   - les titres et les textes : typo du thème, soulignement ornemental, fleuron ;
   - les cartes et le fond de page : ornements de vigne aux coins, bordure dorée, motif discret en fond ;
   - les onglets, badges et champs : onglet actif, badges et focus aux couleurs du thème.
+
+**Révision demandée par l'utilisateur (3 octobre, après revue visuelle) :** le style Belle Époque ne fait pas penser aux vendanges (« on veut du raisin ! des vignes ! »). La direction artistique devient **celle de l'affiche officielle 2026** (pop, sérigraphie / risographie) : aplats vifs jaune, cyan, rose, vert feuille et violet raisin tramé, typo condensée grasse en capitales, filets noirs épais. Motifs dominants : grappes et feuilles de vigne, plus des clins d'œil Montmartre et musique (Sacré-Cœur, enceintes, « Le 18e donne le rythme »). On s'inspire de l'affiche sans reprendre son image. Le bordeaux et l'or ne sont plus imposés. Le reste du périmètre et toutes les contraintes ci-dessous restent valables.
 
 ## Boundaries & Constraints
 
