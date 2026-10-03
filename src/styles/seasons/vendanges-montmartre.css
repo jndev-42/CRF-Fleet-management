@@ -76,17 +76,20 @@ html[data-season="vendanges-montmartre"] body {
 
 /*
  * Gauche : Sacré-Cœur, vigne et grappes. Droite : vigne, enceintes et casque.
- * Fixes, derrière le contenu, strictement dans les marges : largeur = marge moins
- * 8 px (la colonne de contenu fait 1152 px au plus), donc jamais sur le contenu.
- * Masquées sous 1400 px, quand la marge devient trop étroite. La scène de droite
- * est relevée de 150 px pour laisser libres les boutons flottants.
+ * Fixes et derrière le contenu (z-index -1) : les cartes, opaques, passent
+ * par-dessus. Largeur = marge + 64 px (la colonne de contenu fait 1152 px au
+ * plus), bornée à 120–220 px : la scène glisse d'au plus ~64 px sous le bord des
+ * cartes. Visibles dès 1280 px ; en dessous de 1400 px, là où elles débordent
+ * le plus, elles s'estompent un peu pour ne pas gêner la lecture du texte posé
+ * sur le fond. La scène de droite est relevée de 150 px pour laisser libres les
+ * boutons flottants.
  */
 html[data-season="vendanges-montmartre"] body::before,
 html[data-season="vendanges-montmartre"] body::after {
     content: "";
     display: none;
     position: fixed;
-    width: min(220px, calc((100vw - 1152px) / 2 - 8px));
+    width: clamp(120px, calc((100vw - 1152px) / 2 + 64px), 220px);
     aspect-ratio: 220 / 480;
     z-index: -1;
     background-repeat: no-repeat;
@@ -106,16 +109,23 @@ html[data-season="vendanges-montmartre"] body::after {
     background-image: var(--vm-img-scene-r);
 }
 
-@media (min-width: 1400px) {
+@media (min-width: 1280px) {
     html[data-season="vendanges-montmartre"] body::before {
         display: block;
     }
 }
 
 /* La scène de droite (relevée de 150 px) a besoin de hauteur pour ne pas être coupée. */
-@media (min-width: 1400px) and (min-height: 720px) {
+@media (min-width: 1280px) and (min-height: 680px) {
     html[data-season="vendanges-montmartre"] body::after {
         display: block;
+    }
+}
+
+@media (min-width: 1280px) and (max-width: 1399px) {
+    html[data-season="vendanges-montmartre"] body::before,
+    html[data-season="vendanges-montmartre"] body::after {
+        opacity: 0.75;
     }
 }
 
