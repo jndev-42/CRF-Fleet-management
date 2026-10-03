@@ -25,3 +25,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-audit-trail.md`
   summary: Tester le rendu de la page Administration selon le rôle (onglet « Journal d'audit » visible pour SUPER_ADMIN seulement).
   evidence: Aucun test ne rend `src/app/users/page.tsx` ; retirer `isSuperAdminUser &&` ne casserait aucun test (le 403 serveur, lui, est testé).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-themes-saisonniers.md`
+  summary: Tester côté page admin que les onglets réservés au super admin (« Thèmes », « Journal d'audit ») sont absents pour un ADMIN.
+  evidence: `src/app/users/page.tsx` n'a aucun test de rendu ; seuls les 403 des API sont couverts.

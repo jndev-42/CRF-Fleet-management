@@ -1,0 +1,124 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.help {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.error {
+    padding: 10px 12px;
+    border: 1px solid var(--error-border);
+    border-radius: var(--radius-md);
+    background: var(--error-bg);
+    color: var(--error-text);
+    font-size: 13px;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 20px 24px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+}
+
+.header {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+}
+
+.title {
+    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.description {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-primary);
+}
+
+.active {
+    background: rgba(34, 139, 34, 0.12);
+    color: #1f7a1f;
+    border-color: rgba(34, 139, 34, 0.4);
+}
+
+.scheduled {
+    background: rgba(37, 99, 235, 0.1);
+    color: #1d4ed8;
+    border-color: rgba(37, 99, 235, 0.35);
+}
+
+:global(.dark) .active {
+    color: #7bd88f;
+}
+
+:global(.dark) .scheduled {
+    color: #8fb4ff;
+}
+
+.inactive {
+    opacity: 0.85;
+}
+
+.switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.dates {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.dates > div {
+    flex: 1 1 180px;
+    max-width: 240px;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+}
+
+.messageSuccess {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.messageError {
+    font-size: 13px;
+    color: var(--error-text);
+}
