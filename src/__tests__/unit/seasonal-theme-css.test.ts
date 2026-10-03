@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const PREFIX = 'html[data-season="vendanges-montmartre"]';
@@ -61,17 +61,9 @@ describe('feuille du thème vendanges-montmartre', () => {
         expect(hits).toEqual([]);
     });
 
-    it('le bouton de déconnexion (.btn-danger) reste rouge : seulement fond/bordure rouges CRF et texte blanc', () => {
-        const logout = styleRules.filter(r => r.selectors.some(s => s.includes('nav-logout-btn')));
-        const declarations = logout.flatMap(r => r.body.split(';').map(d => d.trim()).filter(Boolean));
-        const offenders = declarations.filter(d => {
-            const [prop, ...rest] = d.split(':');
-            const value = rest.join(':').trim();
-            if (prop.trim() === 'color') return value !== '#fff';
-            if (['background', 'border-color'].includes(prop.trim())) return !/^var\(--crf-red(-dark)?\)$/.test(value);
-            return true;
-        });
-        expect(offenders).toEqual([]);
+    it('ne cible jamais .nav-logout-btn (le bouton de déconnexion garde son style danger d\'origine)', () => {
+        const hits = styleRules.flatMap(r => r.selectors).filter(s => s.includes('nav-logout-btn'));
+        expect(hits).toEqual([]);
     });
 
     it('ne redéfinit pas --crf-red*', () => {
@@ -82,5 +74,12 @@ describe('feuille du thème vendanges-montmartre', () => {
     it('coupe les animations sous prefers-reduced-motion', () => {
         const animated = css.replace(/@media \(prefers-reduced-motion: no-preference\)\s*\{[\s\S]*?\n\}\n/g, '');
         expect(animated).not.toMatch(/animation\s*:/);
+    });
+
+    it('référence uniquement des illustrations qui existent sous public/', () => {
+        const urls = [...css.matchAll(/url\(["']?(\/seasons\/vendanges\/[^"')]+)["']?\)/g)].map(m => m[1]);
+        expect(urls.length).toBeGreaterThan(0);
+        const missing = urls.filter(u => !existsSync(join(process.cwd(), 'public', u)));
+        expect(missing).toEqual([]);
     });
 });

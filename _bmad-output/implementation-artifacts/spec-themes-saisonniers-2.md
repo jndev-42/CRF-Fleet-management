@@ -2,7 +2,7 @@
 title: 'Thème « Fête des vendanges de Montmartre » — refonte visuelle « affiche Montmartre »'
 type: 'feature'
 created: '2026-10-03'
-status: 'in-review'
+status: 'done'
 baseline_commit: 'ecb3c8a5fcb27faab819509a73a8c56c58042010'
 route: 'dispatch'
 review_loop_iteration: 0
@@ -107,6 +107,21 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/spec-themes-sais
 | 13 | edge | Le test lit la CSS relativement au cwd | false | Vitest s'exécute toujours à la racine (`npm run test`) → rejeté |
 | 14 | blind | Regex reduced-motion fragile ; `translateY` du hover déjà présent dans globals | low | Le hover existait avant ce changement ; fragilité théorique → rejeté |
 | 15 | blind | Aucun test contre les décalages de mise en page | low | Contrôle visuel exigé par la spec → rejeté |
+| 16 | blind (passe 3) | Les SVG du thème passent par le proxy d'auth (seuls les `.png` sont exclus) | low | `src/auth.config.ts` `isPublicAsset` ; décoratifs, sans donnée → patch (ajouter `/seasons`) |
+| 17 | blind+edge (passe 3) | Le CHANGELOG décrit un fond « semé de grappes », le slogan « Le 18e donne le rythme » et un « filet noir » en sombre, absents du rendu | low | Le motif n'est qu'une trame de points ; aucun `<text>` dans les scènes ; filet jaune en sombre → patch du texte |
+| 18 | blind+edge (passe 3) | Le sarment pend de 36 px sous la navbar sticky : il couvre le haut du contenu au défilement | medium | `top: calc(100% - 10px); height: 46px` contre un padding de 32 px → patch (débord ≤ 20 px) ; pendu à la navbar depuis la v1 approuvée, on réduit sans supprimer |
+| 19 | blind+edge (passe 3) | La grappe du `.btn-sm` mord de 2 px sur le libellé | low | right 4 + largeur 10 contre un padding de 12 → patch |
+| 20 | edge (passe 3) | La scène de droite est rognée sous ~694 px de hauteur | low | `bottom: 150px` + ratio → patch (condition `min-height`) |
+| 21 | blind (passe 3) | Le filet du titre (6 px à `top:100%`) chevauche la ligne suivante | low | `.page-title` n'a que 4 px de marge basse → patch |
+| 22 | blind+edge (passe 3) | `card-ornament*.svg` rogné par son viewBox | low | Calcul : la feuille atteint x=-4,1 et y=26,8 hors du viewBox 0 0 38 26 → patch |
+| 23 | blind (passe 3) | Focus : `--border-focus` passe à #111 partout, l'anneau cyan n'a que ~2,6:1, rien en `:focus-visible` sur `.btn-primary` | medium | Exigence AA de la spec → patch (anneau contrasté, `:focus-visible`) |
+| 24 | edge (passe 3) | La Déconnexion repeinte en rouge plein alors que la navbar est redevenue claire ou noire | medium | Le motif de l'exception (illisible sur bordeaux) n'existe plus ; la spec garde le bouton danger d'origine → patch (retirer la règle, rétablir le test « ne cible jamais nav-logout-btn ») |
+| 25 | blind (passe 3) | Variables mortes (`--vm-green`, `--vm-grape`) | low | Suppression → patch |
+| 26 | blind (passe 3) | Aucun test ne vérifie que les `url(/seasons/…)` existent dans `public/` | low | Test simple et utile contre les fautes de frappe → patch |
+| 27 | blind+edge (passe 3) | L'ornement des titres déborde sur un voisin, ou devient un élément flex | low | Cas rares (titres `flex` de `mentions-legales`) → rejeté |
+| 28 | blind (passe 3) | Nombre magique 1152 et largeur de la barre de défilement | low | Marge de sécurité suffisante en pratique → rejeté |
+| 29 | blind (passe 3) | La rotation des couleurs par `nth-child` est imprévisible ; certaines cartes n'ont pas d'ornement | low | Cosmétique → rejeté |
+| 30 | blind (passe 3) | SVG volumineux (grappes dupliquées) | low | ~100 Ko servis seulement pendant le thème → rejeté |
 
 ## Verification
 

@@ -20,6 +20,7 @@ export const authConfig: NextAuthConfig = {
             const isPublicAsset = pathname.startsWith('/icons') ||
                                  pathname.startsWith('/manifest.json') ||
                                  pathname.startsWith('/crf-logo.svg') ||
+                                 pathname.startsWith('/seasons') ||
                                  pathname.startsWith('/_next');
             const isApiAuthRoute = pathname.startsWith('/api/auth');
 

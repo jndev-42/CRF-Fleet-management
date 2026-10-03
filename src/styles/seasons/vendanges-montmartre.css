@@ -23,8 +23,6 @@ html[data-season="vendanges-montmartre"] {
     --vm-yellow: #ffc72c;
     --vm-cyan: #2ba8e0;
     --vm-pink: #f49ac1;
-    --vm-green: #3db54a;
-    --vm-grape: #4a1e4f;
     --vm-font: var(--font-season-vendanges, Impact, 'Arial Narrow', sans-serif);
 
     /* Encre des traits : noir en clair, crème en sombre. */
@@ -43,8 +41,10 @@ html[data-season="vendanges-montmartre"] {
     --vm-img-scene-r: url("/seasons/vendanges/scene-right.svg");
     --vm-img-pattern: url("/seasons/vendanges/pattern.svg");
 
+    /* Anneau de focus : violet raisin en clair, jaune en sombre (≥ 3:1 sur le fond). */
+    --vm-focus: #4a1e4f;
+
     --bg-primary: #fffef9;
-    --border-focus: #111111;
 }
 
 html[data-season="vendanges-montmartre"].dark {
@@ -62,8 +62,9 @@ html[data-season="vendanges-montmartre"].dark {
     --vm-img-scene-r: url("/seasons/vendanges/scene-right-d.svg");
     --vm-img-pattern: url("/seasons/vendanges/pattern-d.svg");
 
+    --vm-focus: #ffc72c;
+
     --bg-primary: #0e0b12;
-    --border-focus: #ffc72c;
 }
 
 /* ===== Fond de page : simple trame de points ; scènes du 18e dans les marges uniquement ===== */
@@ -106,7 +107,13 @@ html[data-season="vendanges-montmartre"] body::after {
 }
 
 @media (min-width: 1400px) {
-    html[data-season="vendanges-montmartre"] body::before,
+    html[data-season="vendanges-montmartre"] body::before {
+        display: block;
+    }
+}
+
+/* La scène de droite (relevée de 150 px) a besoin de hauteur pour ne pas être coupée. */
+@media (min-width: 1400px) and (min-height: 720px) {
     html[data-season="vendanges-montmartre"] body::after {
         display: block;
     }
@@ -136,17 +143,18 @@ html[data-season="vendanges-montmartre"].dark .header::after {
     background: var(--vm-yellow);
 }
 
-/* Branche de vigne le long du bord bas : feuilles vertes, vrilles et grappes pendantes. */
+/* Branche de vigne le long du bord bas : feuilles vertes, vrilles et grappes pendantes
+ * (déborde de 20 px sous la barre au plus). */
 html[data-season="vendanges-montmartre"] .header::before {
     content: "";
     position: absolute;
     left: 0;
     right: 0;
     top: calc(100% - 10px);
-    height: 46px;
+    height: 30px;
     background-image: var(--vm-img-branch);
     background-repeat: repeat-x;
-    background-size: auto 46px;
+    background-size: auto 30px;
     pointer-events: none;
 }
 
@@ -212,21 +220,7 @@ html[data-season="vendanges-montmartre"] .nav-link:hover {
     background: rgba(244, 154, 193, 0.35);
 }
 
-@media (min-width: 769px) {
-    /* Déconnexion : bouton danger d'origine, passé en rouge plein pour rester net sur la barre. */
-    html[data-season="vendanges-montmartre"] .nav-logout-btn {
-        background: var(--crf-red);
-        border-color: var(--crf-red);
-        color: #fff;
-    }
-
-    html[data-season="vendanges-montmartre"] .nav-logout-btn:hover:not(:disabled) {
-        background: var(--crf-red-dark);
-        border-color: var(--crf-red-dark);
-    }
-}
-
-/* ===== Titres : capitales condensées, gros filet noir et jaune dessous ===== */
+/* ===== Titres : capitales condensées, gros filet noir et jaune en bas de leur boîte ===== */
 html[data-season="vendanges-montmartre"] .page-title,
 html[data-season="vendanges-montmartre"] .section-title {
     position: relative;
@@ -243,8 +237,8 @@ html[data-season="vendanges-montmartre"] .section-title::before {
     content: "";
     position: absolute;
     left: 0;
-    top: 100%;
-    height: 6px;
+    bottom: 0;
+    height: 4px;
     background-image: var(--vm-img-rule);
     background-repeat: no-repeat;
     background-size: 100% 100%;
@@ -372,7 +366,7 @@ html[data-season="vendanges-montmartre"] .btn-primary::after {
 
 html[data-season="vendanges-montmartre"] .btn-primary.btn-sm::after {
     top: 2px;
-    right: 4px;
+    right: 2px;
     width: 10px;
     height: 14px;
 }
@@ -393,8 +387,13 @@ html[data-season="vendanges-montmartre"] .vehicle-type-badge {
 html[data-season="vendanges-montmartre"] .form-input:focus,
 html[data-season="vendanges-montmartre"] .form-select:focus,
 html[data-season="vendanges-montmartre"] .form-textarea:focus {
-    border-color: var(--border-focus);
-    box-shadow: 3px 3px 0 var(--vm-cyan);
+    border-color: var(--vm-focus);
+    box-shadow: 0 0 0 3px var(--vm-focus);
+}
+
+html[data-season="vendanges-montmartre"] .btn-primary:focus-visible {
+    outline: 3px solid var(--vm-focus);
+    outline-offset: 3px;
 }
 
 /* ===== Animation : la grappe de la navbar se balance doucement ===== */
@@ -413,7 +412,7 @@ html[data-season="vendanges-montmartre"] .form-textarea:focus {
 @media (max-width: 768px) {
     html[data-season="vendanges-montmartre"] .header::before {
         top: calc(100% - 7px);
-        height: 28px;
-        background-size: auto 28px;
+        height: 27px;
+        background-size: auto 27px;
     }
 }
