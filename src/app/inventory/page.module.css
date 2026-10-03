@@ -116,13 +116,7 @@
 }
 
 .pagination {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
     margin-top: 24px;
-    color: var(--text-secondary);
-    font-size: 0.9rem;
 }
 
 @media (max-width: 768px) {

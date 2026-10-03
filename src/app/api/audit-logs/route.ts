@@ -4,9 +4,9 @@
  * Plus récentes d'abord, paginées par numéro de page (`page`, `limit` lignes
  * par page) avec le total pour afficher « Page X sur Y ». Rien n'est lisible
  * au-delà de la fenêtre de rétention, même si la purge quotidienne n'est pas
- * encore passée. Pagination par décalage : si de nouveaux événements arrivent
- * entre deux pages, les lignes glissent d'autant (compromis accepté pour un
- * journal consulté ponctuellement).
+ * encore passée. `asOf` fige la liste : la réponse renvoie l'instant retenu,
+ * que le client repasse pour les pages suivantes — les événements arrivés entre
+ * deux pages ne font donc pas glisser les lignes.
  *
  * Lecture seule : aucune route ne modifie ni ne supprime une entrée.
  */
@@ -30,6 +30,7 @@ const querySchema = z.object({
         .min(1, 'La page doit être au moins 1')
         .max(MAX_PAGE, `La page ne peut pas dépasser ${MAX_PAGE}`)
         .default(1),
+    asOf: z.iso.datetime({ message: 'Date « asOf » invalide (ISO 8601 attendu)' }).optional(),
     limit: z.coerce.number('Limite invalide')
         .int('La limite doit être un entier')
         .min(1, 'La limite doit être au moins 1')
@@ -47,16 +48,18 @@ export async function GET(request: Request) {
         const parsed = querySchema.safeParse({
             userEmail: searchParams.get('userEmail') || undefined,
             page: searchParams.get('page') || undefined,
+            asOf: searchParams.get('asOf') || undefined,
             limit: searchParams.get('limit') || undefined,
         });
         if (!parsed.success) {
             return NextResponse.json({ error: 'Paramètres invalides', details: parsed.error.issues }, { status: 400 });
         }
         const { userEmail, page, limit } = parsed.data;
+        const asOf = parsed.data.asOf ? new Date(parsed.data.asOf).toISOString() : new Date().toISOString();
 
         const cutoff = new Date(Date.now() - AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
-        const where = ['createdAt >= ?'];
-        const args: (string | number)[] = [cutoff];
+        const where = ['createdAt >= ?', 'createdAt <= ?'];
+        const args: (string | number)[] = [cutoff, asOf];
         if (userEmail) {
             // Ses actions, et celles faites « en tant que » cette personne.
             where.push('(actorEmail = ? OR impersonatedEmail = ?)');
@@ -102,6 +105,7 @@ export async function GET(request: Request) {
             pageSize: limit,
             total,
             totalPages: Math.max(1, Math.ceil(total / limit)),
+            asOf,
         });
     } catch (e: unknown) {
         console.error('GET /api/audit-logs error:', getErrorMessage(e));

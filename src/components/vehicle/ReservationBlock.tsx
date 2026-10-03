@@ -4,6 +4,7 @@ import UserCombobox from '@/components/ui/UserCombobox';
 import { canAccessAdminPanel } from '@/lib/roles';
 import ReservationFormModal from './modals/ReservationFormModal';
 import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
+import Pagination from '@/components/Pagination';
 
 interface Reservation {
     id: string;
@@ -412,29 +413,16 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                         })}
                     </div>
 
-                    {/* Pagination */}
                     {totalPages > 1 && (
                         <div className={styles.pagination}>
-                            <button
-                                className={styles.pageBtn}
-                                onClick={() => setPage(p => Math.max(1, p - 1))}
-                                disabled={currentPage === 1}
-                                aria-label="Page précédente"
-                            >
-                                ◀
-                            </button>
-                            <span className={styles.pageInfo}>
-                                {currentPage} / {totalPages}
-                                <span className={styles.pageCount}>({upcomingReservations.length} réservations)</span>
-                            </span>
-                            <button
-                                className={styles.pageBtn}
-                                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                disabled={currentPage === totalPages}
-                                aria-label="Page suivante"
-                            >
-                                ▶
-                            </button>
+                            <Pagination
+                                label="Pagination des réservations"
+                                page={currentPage}
+                                totalPages={totalPages}
+                                onChange={setPage}
+                                summary={`${upcomingReservations.length} réservations`}
+                                compact
+                            />
                         </div>
                     )}
                 </>

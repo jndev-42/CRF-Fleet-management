@@ -125,34 +125,9 @@
     padding: 24px 12px;
 }
 
-.pagination {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    font-size: 13px;
-    color: var(--text-secondary);
-}
-
-.paginationControls {
-    display: flex;
+.refresh {
+    display: inline-flex;
     align-items: center;
     gap: 6px;
-}
-
-.pageButton {
-    padding: 4px 8px;
-}
-
-.pageButton:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.pageCurrent {
-    padding: 0 4px;
-    font-weight: 600;
-    color: var(--text-primary);
-    white-space: nowrap;
+    margin-left: auto;
 }

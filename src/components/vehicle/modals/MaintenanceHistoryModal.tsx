@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Vehicle, MaintenanceRecord } from '@/app/vehicles/[id]/types';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import Pagination from '@/components/Pagination';
 
 interface MaintenanceHistoryModalProps {
     vehicle: Vehicle;
@@ -277,29 +278,9 @@ export default function MaintenanceHistoryModal({
                             </div>
 
                             {totalPages > 1 && (
-                                <nav aria-label="Pagination de l'historique" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16, fontSize: 14 }}>
-                                    <button
-                                        className="btn btn-secondary"
-                                        style={{ padding: '6px 14px' }}
-                                        onClick={() => fetchRecords(page - 1)}
-                                        disabled={page === 1}
-                                        aria-label="Page précédente"
-                                    >
-                                        ← Précédent
-                                    </button>
-                                    <span style={{ color: 'var(--text-secondary)' }} aria-live="polite">
-                                        {page} / {totalPages}
-                                    </span>
-                                    <button
-                                        className="btn btn-secondary"
-                                        style={{ padding: '6px 14px' }}
-                                        onClick={() => fetchRecords(page + 1)}
-                                        disabled={page === totalPages}
-                                        aria-label="Page suivante"
-                                    >
-                                        Suivant →
-                                    </button>
-                                </nav>
+                                <div style={{ marginTop: 16 }}>
+                                    <Pagination label="Pagination de l'historique" page={page} totalPages={totalPages} onChange={fetchRecords} />
+                                </div>
                             )}
                         </>
                     )}

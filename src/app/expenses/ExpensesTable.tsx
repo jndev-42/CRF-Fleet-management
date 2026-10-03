@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { FileText, Trash, Check, Eye, X, Send, Edit, DollarSign, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { FileText, Trash, Check, Eye, X, Send, Edit, DollarSign, ArrowUp, ArrowDown, ArrowUpDown, Download } from 'lucide-react';
 import { formatDate, getStatusBadge } from './utils';
 import type { ExpenseReport } from './types';
+import Pagination from '@/components/Pagination';
 
 type SortField = 'userName' | 'date' | 'imputation' | 'description' | 'total' | 'requestRefund' | 'status';
 type SortOrder = 'asc' | 'desc';
@@ -293,40 +294,24 @@ export default function ExpensesTable({
                         </table>
                     </div>
 
-                    {/* Pagination Bar */}
                     {sortedReports.length > 0 && (
-                        <div style={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '12px 16px',
-                            borderTop: '1px solid var(--border-primary)',
-                            background: 'var(--bg-secondary)',
-                            fontSize: '0.8125rem',
-                            color: 'var(--text-secondary)',
-                            gap: '12px'
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <span>
-                                    Affichage de {Math.min((page - 1) * pageSize + 1, sortedReports.length)} à {Math.min(page * pageSize, sortedReports.length)} sur {sortedReports.length} notes
-                                </span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <span>Afficher :</span>
+                        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-primary)', background: 'var(--bg-secondary)' }}>
+                            <Pagination
+                                label="Pagination des notes de frais"
+                                page={page}
+                                totalPages={totalPages}
+                                onChange={setPage}
+                                summary={`Affichage de ${Math.min((page - 1) * pageSize + 1, sortedReports.length)} à ${Math.min(page * pageSize, sortedReports.length)} sur ${sortedReports.length} notes`}
+                            >
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    Afficher :
                                     <select
+                                        className="form-select"
+                                        style={{ width: 'auto', padding: '4px 8px', fontSize: '0.8125rem' }}
                                         value={pageSize}
                                         onChange={(e) => {
                                             setPageSize(Number(e.target.value));
                                             setPage(1);
-                                        }}
-                                        style={{
-                                            padding: '4px 8px',
-                                            borderRadius: 'var(--radius-sm)',
-                                            border: '1px solid var(--border-primary)',
-                                            background: 'var(--bg-primary)',
-                                            color: 'var(--text-primary)',
-                                            fontSize: '0.8125rem',
-                                            cursor: 'pointer'
                                         }}
                                     >
                                         <option value={5}>5</option>
@@ -334,32 +319,8 @@ export default function ExpensesTable({
                                         <option value={25}>25</option>
                                         <option value={50}>50</option>
                                     </select>
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <button
-                                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                                    disabled={page === 1}
-                                    className="btn btn-secondary"
-                                    style={{ padding: '4px 8px', opacity: page === 1 ? 0.5 : 1 }}
-                                    title="Page précédente"
-                                >
-                                    <ChevronLeft size={16} />
-                                </button>
-                                <span style={{ fontWeight: 600, color: 'var(--text-primary)', padding: '0 4px' }}>
-                                    Page {page} sur {totalPages}
-                                </span>
-                                <button
-                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                                    disabled={page >= totalPages}
-                                    className="btn btn-secondary"
-                                    style={{ padding: '4px 8px', opacity: page >= totalPages ? 0.5 : 1 }}
-                                    title="Page suivante"
-                                >
-                                    <ChevronRight size={16} />
-                                </button>
-                            </div>
+                                </label>
+                            </Pagination>
                         </div>
                     )}
                 </>

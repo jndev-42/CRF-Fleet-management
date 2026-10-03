@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollText } from 'lucide-react';
-import AuditLogPagination from './AuditLogPagination';
+import { RefreshCw, ScrollText } from 'lucide-react';
+import Pagination from '@/components/Pagination';
+import { AUDIT_PAGE_SIZE, useAuditLog } from './useAuditLog';
 import styles from './AuditLogTab.module.css';
 
 export interface AuditLogEntry {
@@ -20,20 +20,10 @@ export interface AuditLogEntry {
     ip: string | null;
 }
 
-interface AuditLogResponse {
-    entries: AuditLogEntry[];
-    page: number;
-    total: number;
-    totalPages: number;
-    error?: string;
-}
-
 interface AuditLogTabProps {
     /** Liste des utilisateurs déjà chargée par la page Administration (sélecteur de personne). */
     users: { email: string; name: string | null }[];
 }
-
-const PAGE_SIZE = 10;
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleString('fr-FR', {
@@ -47,51 +37,15 @@ function resourceLabel(entry: AuditLogEntry): string {
     return entry.entityType ?? entry.path;
 }
 
+function summary(page: number, total: number): string {
+    const first = (page - 1) * AUDIT_PAGE_SIZE + 1;
+    const last = Math.min(page * AUDIT_PAGE_SIZE, total);
+    return `${first} à ${last} sur ${total} événement${total > 1 ? 's' : ''}`;
+}
+
 /** Onglet SUPER_ADMIN : derniers événements du journal d'audit, filtrables par personne. */
 export default function AuditLogTab({ users }: AuditLogTabProps) {
-    const [entries, setEntries] = useState<AuditLogEntry[]>([]);
-    const [page, setPage] = useState(1);
-    const [total, setTotal] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
-    const [userEmail, setUserEmail] = useState('');
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    // Seule la dernière requête lancée a le droit d'écrire : une réponse arrivée après
-    // un changement de personne ou de page ne doit pas remplacer la liste affichée.
-    const requestIdRef = useRef(0);
-
-    const load = useCallback(async (email: string, pageNumber: number) => {
-        const requestId = ++requestIdRef.current;
-        setLoading(true);
-        setError(null);
-        try {
-            const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(pageNumber) });
-            if (email) params.set('userEmail', email);
-            const res = await fetch(`/api/audit-logs?${params.toString()}`);
-            const data = await res.json().catch(() => ({})) as Partial<AuditLogResponse>;
-            if (requestId !== requestIdRef.current) return;
-            if (!res.ok) throw new Error(data.error || 'Erreur serveur');
-            const pages = Math.max(1, data.totalPages ?? 1);
-            // La page demandée n'existe plus (purge, filtre) : on se replie sur la dernière.
-            if (pageNumber > pages) {
-                setTotal(data.total ?? 0);
-                setTotalPages(pages);
-                setPage(pages);
-                return;
-            }
-            setEntries(data.entries ?? []);
-            setTotal(data.total ?? 0);
-            setTotalPages(pages);
-        } catch (e: unknown) {
-            if (requestId === requestIdRef.current) setError(e instanceof Error ? e.message : 'Erreur serveur');
-        } finally {
-            if (requestId === requestIdRef.current) setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        void load(userEmail, page);
-    }, [load, userEmail, page]);
+    const { entries, page, total, totalPages, userEmail, loading, error, setPage, setUserEmail, refresh } = useAuditLog();
 
     const sortedUsers = [...users].sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email, 'fr'));
 
@@ -103,10 +57,7 @@ export default function AuditLogTab({ users }: AuditLogTabProps) {
                     id="audit-user-filter"
                     className={`form-select ${styles.filterSelect}`}
                     value={userEmail}
-                    onChange={e => {
-                        setUserEmail(e.target.value);
-                        setPage(1);
-                    }}
+                    onChange={e => setUserEmail(e.target.value)}
                 >
                     <option value="">Toutes les personnes</option>
                     {sortedUsers.map(u => (
@@ -115,6 +66,16 @@ export default function AuditLogTab({ users }: AuditLogTabProps) {
                         </option>
                     ))}
                 </select>
+                <button
+                    type="button"
+                    className={`btn btn-secondary ${styles.refresh}`}
+                    onClick={refresh}
+                    disabled={loading}
+                    title="Afficher les événements arrivés depuis l'ouverture de la liste"
+                >
+                    <RefreshCw size={14} aria-hidden="true" />
+                    Actualiser
+                </button>
             </div>
 
             <p className={styles.help}>
@@ -175,12 +136,13 @@ export default function AuditLogTab({ users }: AuditLogTabProps) {
             {loading && <div className={styles.meta}>Chargement…</div>}
 
             {total > 0 && (
-                <AuditLogPagination
+                <Pagination
+                    label="Pagination du journal d'audit"
                     page={page}
                     totalPages={totalPages}
-                    total={total}
-                    pageSize={PAGE_SIZE}
                     onChange={setPage}
+                    summary={summary(page, total)}
+                    extended
                 />
             )}
         </section>

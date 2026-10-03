@@ -2,6 +2,7 @@ import { useState } from 'react';
 import PhotoViewer from '@/components/PhotoViewer';
 import TripItem from '@/components/vehicle/TripItem';
 import type { Trip, Vehicle } from './types';
+import Pagination from '@/components/Pagination';
 
 const TRIPS_PER_PAGE = 3;
 
@@ -78,36 +79,9 @@ export default function TripHistoryList({
                             ))}
                         </ul>
                         {totalPages > 1 && (
-                            <nav aria-label="Pagination de l'historique" style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: 12,
-                                marginTop: 16,
-                                fontSize: 14,
-                            }}>
-                                <button
-                                    className="btn btn-secondary"
-                                    style={{ padding: '6px 14px' }}
-                                    onClick={() => setTripsPage(p => p - 1)}
-                                    disabled={tripsPage === 1}
-                                    aria-label="Page précédente"
-                                >
-                                    ← Précédent
-                                </button>
-                                <span style={{ color: 'var(--text-secondary)' }} aria-live="polite">
-                                    {tripsPage} / {totalPages}
-                                </span>
-                                <button
-                                    className="btn btn-secondary"
-                                    style={{ padding: '6px 14px' }}
-                                    onClick={() => setTripsPage(p => p + 1)}
-                                    disabled={tripsPage === totalPages}
-                                    aria-label="Page suivante"
-                                >
-                                    Suivant →
-                                </button>
-                            </nav>
+                            <div style={{ marginTop: 16 }}>
+                                <Pagination label="Pagination de l'historique" page={tripsPage} totalPages={totalPages} onChange={setTripsPage} />
+                            </div>
                         )}
                     </>
                 );
