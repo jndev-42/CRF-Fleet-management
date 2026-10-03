@@ -126,6 +126,15 @@ describe('CheckInModal', () => {
         expect(await screen.findByDisplayValue('12000')).toBeTruthy();
     });
 
+    it('affiche le pourcentage de batterie choisi au curseur pour un véhicule électrique', async () => {
+        mockFetch();
+        render(<CheckInModal vehicle={{ ...mockVehicle, fuelType: 'Électrique' }} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        expect(await screen.findByText('Niveau de batterie * : 80%')).toBeTruthy();
+        fireEvent.change(screen.getByLabelText('Niveau de batterie'), { target: { value: '35' } });
+        expect(screen.getByText('Niveau de batterie * : 35%')).toBeTruthy();
+    });
+
     it('masque le champ kilométrage manuel pour un véhicule connecté (données Renault en autopilote)', async () => {
         mockFetch(async (input) => {
             const url = getUrl(input);

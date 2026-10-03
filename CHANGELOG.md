@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.20.1] — 3 octobre 2026
+
+### 🐛 Corrections
+
+- **Retour d'un véhicule : pourcentage du niveau de batterie ou de carburant** — au moment de rendre un véhicule, le curseur du niveau de batterie (ou de carburant) n'indiquait aucune valeur. Le pourcentage choisi s'affiche désormais à côté du libellé et suit le curseur en temps réel.
+
 ## [5.20.0] — 2 octobre 2026
 
 ### ✨ Nouveautés
