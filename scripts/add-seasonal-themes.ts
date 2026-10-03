@@ -1,8 +1,9 @@
 /**
  * Migration production — thèmes saisonniers.
  *
- * Crée la table `SeasonalTheme` (activation et plage de dates de chaque thème).
- * Idempotente (`IF NOT EXISTS`).
+ * Crée les tables `SeasonalTheme` (activation et plage de dates de chaque thème) et
+ * `SeasonalThemeUL` (UL ciblées par thème ; aucune ligne = toutes les UL).
+ * Idempotente : ne crée que les tables manquantes.
  *
  * À exécuter AVANT le déploiement de la v5.21.0 : sans la table,
  * `GET /api/themes/active` et `/api/settings/themes*` répondent 500 (l'habillage
@@ -14,7 +15,7 @@
  */
 import { createClient } from '@libsql/client';
 import "dotenv/config";
-import { SEASONAL_THEME_DDL, SEASONAL_THEME_TABLE } from '../src/lib/themes/schema';
+import { SEASONAL_THEME_DDL, SEASONAL_THEME_TABLE, SEASONAL_THEME_UL_DDL, SEASONAL_THEME_UL_TABLE } from '../src/lib/themes/schema';
 
 async function main() {
     const apply = process.argv.includes('--apply');
@@ -25,32 +26,44 @@ async function main() {
         authToken: process.env.TURSO_AUTH_TOKEN
     });
 
-    const hasTable = async () => (await db.execute({
+    const tables = [
+        { name: SEASONAL_THEME_TABLE, ddl: SEASONAL_THEME_DDL },
+        { name: SEASONAL_THEME_UL_TABLE, ddl: SEASONAL_THEME_UL_DDL },
+    ];
+
+    const hasTable = async (name: string) => (await db.execute({
         sql: `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`,
-        args: [SEASONAL_THEME_TABLE],
+        args: [name],
     })).rows.length > 0;
 
-    console.log(`  table ${SEASONAL_THEME_TABLE} : ${await hasTable() ? 'présente' : 'ABSENTE'}`);
+    const missing: typeof tables = [];
+    for (const table of tables) {
+        const present = await hasTable(table.name);
+        console.log(`  table ${table.name} : ${present ? 'présente' : 'ABSENTE'}`);
+        if (!present) missing.push(table);
+    }
 
-    if (await hasTable()) {
+    if (missing.length === 0) {
         console.log("⚠️ Rien à faire — base déjà à jour");
         return;
     }
 
     if (!apply) {
         console.log("\nPlan (aucune écriture) :");
-        console.log(`  ${SEASONAL_THEME_DDL.replace(/\s+/g, ' ')}`);
+        for (const table of missing) console.log(`  ${table.ddl.replace(/\s+/g, ' ')}`);
         console.log("\nRelancer avec --apply pour exécuter.");
         return;
     }
 
-    await db.execute(SEASONAL_THEME_DDL);
+    for (const table of missing) await db.execute(table.ddl);
 
-    if (!(await hasTable())) {
-        console.error(`❌ Table ${SEASONAL_THEME_TABLE} absente après migration — migration NON valide`);
-        process.exit(1);
+    for (const table of tables) {
+        if (!(await hasTable(table.name))) {
+            console.error(`❌ Table ${table.name} absente après migration — migration NON valide`);
+            process.exit(1);
+        }
     }
-    console.log("✅ Table des thèmes saisonniers confirmée");
+    console.log("✅ Tables des thèmes saisonniers confirmées");
 }
 
 main().catch((error: unknown) => {

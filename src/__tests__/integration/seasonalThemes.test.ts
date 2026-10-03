@@ -16,6 +16,7 @@ import { auth } from '@/auth';
 import { GET as getActive } from '@/app/api/themes/active/route';
 import { GET as getThemes } from '@/app/api/settings/themes/route';
 import { PUT } from '@/app/api/settings/themes/[key]/route';
+import { DELETE as deleteUl } from '@/app/api/ul/[id]/route';
 import { seedRoles, db } from './setup';
 
 const mockedAuth = vi.mocked(auth);
@@ -39,9 +40,22 @@ async function insertTheme(key: string, enabled: number, start: string | null, e
     });
 }
 
+async function insertScope(key: string, ...ulIds: string[]) {
+    for (const ulId of ulIds) {
+        await db.execute({ sql: `INSERT INTO "SeasonalThemeUL" (theme_key, ul_id) VALUES (?, ?)`, args: [key, ulId] });
+    }
+}
+
+const asUser = (roles: string[], ulId?: string) => mockedAuth.mockResolvedValue({ user: { email: 'u@test.com', roles, ulId } } as never);
+
 beforeEach(async () => {
     await seedRoles();
+    await db.execute(`DELETE FROM "SeasonalThemeUL"`);
     await db.execute(`DELETE FROM "SeasonalTheme"`);
+    await db.execute(`DELETE FROM "UniteLocale"`);
+    for (const [id, name] of [['ul-18', 'Paris 18'], ['ul-17', 'Paris 17']]) {
+        await db.execute({ sql: `INSERT INTO "UniteLocale" (id, name, slug) VALUES (?, ?, ?)`, args: [id, name, id] });
+    }
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-07T10:00:00Z'));
 });
@@ -92,6 +106,43 @@ describe('GET /api/themes/active', () => {
     });
 });
 
+describe('GET /api/themes/active — périmètre d\'UL', () => {
+    beforeEach(async () => {
+        await insertTheme('vendanges-montmartre', 1, '2026-10-07', '2026-10-12');
+    });
+
+    it('toutes les UL : renvoyé pour une UL quelconque', async () => {
+        asUser(['CHVL'], 'ul-17');
+        expect((await (await getActive()).json()).theme).toBe('vendanges-montmartre');
+    });
+
+    it('UL ciblée : renvoyé quand l\'UL active est dans la liste', async () => {
+        await insertScope('vendanges-montmartre', 'ul-18');
+        asUser(['CHVL'], 'ul-18');
+        expect((await (await getActive()).json()).theme).toBe('vendanges-montmartre');
+    });
+
+    it('UL non ciblée : null', async () => {
+        await insertScope('vendanges-montmartre', 'ul-18');
+        asUser(['CHVL'], 'ul-17');
+        expect(await (await getActive()).json()).toEqual({ theme: null, startDate: null });
+    });
+
+    it('sans UL active : null pour un thème ciblé', async () => {
+        await insertScope('vendanges-montmartre', 'ul-18');
+        asUser(['CHVL']);
+        expect((await (await getActive()).json()).theme).toBeNull();
+    });
+
+    it('changement d\'UL : le thème apparaît puis disparaît', async () => {
+        await insertScope('vendanges-montmartre', 'ul-18');
+        asUser(['CHVL'], 'ul-17');
+        expect((await (await getActive()).json()).theme).toBeNull();
+        asUser(['CHVL'], 'ul-18');
+        expect((await (await getActive()).json()).theme).toBe('vendanges-montmartre');
+    });
+});
+
 describe('GET /api/settings/themes', () => {
     it('401 sans session', async () => {
         mockedAuth.mockResolvedValue(null as never);
@@ -110,6 +161,25 @@ describe('GET /api/settings/themes', () => {
         const { themes } = await res.json();
         expect(themes).toHaveLength(2);
         expect(themes[0]).toMatchObject({ key: 'vendanges-montmartre', enabled: false, startDate: null, endDate: null, status: 'inactive' });
+    });
+
+    it('renvoie ulIds : vide par défaut (thème v5.21.0), liste sinon', async () => {
+        await insertTheme('vendanges-montmartre', 1, '2026-10-07', '2026-10-12');
+        asSuperAdmin();
+        expect((await (await getThemes()).json()).themes[0].ulIds).toEqual([]);
+        await insertScope('vendanges-montmartre', 'ul-18', 'ul-17');
+        expect((await (await getThemes()).json()).themes[0].ulIds).toEqual(['ul-17', 'ul-18']);
+    });
+
+    it('ignore les ids de périmètre orphelins (UL supprimée)', async () => {
+        await insertTheme('vendanges-montmartre', 1, '2026-10-07', '2026-10-12');
+        await insertScope('vendanges-montmartre', 'ul-18');
+        // En prod les clés étrangères ne sont pas appliquées : on simule l'orphelin.
+        await db.execute('PRAGMA foreign_keys = OFF');
+        await insertScope('vendanges-montmartre', 'ul-fantome');
+        await db.execute('PRAGMA foreign_keys = ON');
+        asSuperAdmin();
+        expect((await (await getThemes()).json()).themes[0].ulIds).toEqual(['ul-18']);
     });
 
     it('fusionne la ligne et calcule le statut', async () => {
@@ -156,7 +226,7 @@ describe('PUT /api/settings/themes/[key]', () => {
         asSuperAdmin();
         const res = await callPut('vendanges-montmartre', valid);
         expect(res.status).toBe(409);
-        expect((await res.json()).error).toBe('Plage en conflit avec le thème Autre thème');
+        expect((await res.json()).error).toBe('Plage en conflit avec le thème Autre thème sur les mêmes UL');
     });
 
     it('ignore une ligne dont la clé a quitté le catalogue', async () => {
@@ -169,6 +239,81 @@ describe('PUT /api/settings/themes/[key]', () => {
         await insertTheme('autre-theme', 0, '2026-10-10', '2026-10-20');
         asSuperAdmin();
         expect((await callPut('vendanges-montmartre', valid)).status).toBe(200);
+    });
+
+    it('400 pour une UL inconnue, rien n\'est écrit', async () => {
+        asSuperAdmin();
+        const res = await callPut('vendanges-montmartre', { ...valid, ulIds: ['inexistante'] });
+        expect(res.status).toBe(400);
+        expect(typeof (await res.json()).error).toBe('string');
+        expect((await db.execute(`SELECT * FROM "SeasonalTheme"`)).rows).toHaveLength(0);
+    });
+
+    it('400 si ulIds n\'est pas une liste', async () => {
+        asSuperAdmin();
+        expect((await callPut('vendanges-montmartre', { ...valid, ulIds: 'ul-18' })).status).toBe(400);
+    });
+
+    it('enregistre puis remplace le périmètre d\'UL', async () => {
+        asSuperAdmin();
+        expect((await callPut('vendanges-montmartre', { ...valid, ulIds: ['ul-18', 'ul-18'] })).status).toBe(200);
+        const scope = async () => (await db.execute(`SELECT ul_id FROM "SeasonalThemeUL" WHERE theme_key = 'vendanges-montmartre' ORDER BY ul_id`)).rows.map(r => r.ul_id);
+        expect(await scope()).toEqual(['ul-18']);
+        expect((await callPut('vendanges-montmartre', { ...valid, ulIds: ['ul-17'] })).status).toBe(200);
+        expect(await scope()).toEqual(['ul-17']);
+        expect((await callPut('vendanges-montmartre', { ...valid, ulIds: [] })).status).toBe(200);
+        expect(await scope()).toEqual([]);
+    });
+
+    it('ulIds absent : le périmètre enregistré reste inchangé', async () => {
+        await insertTheme('vendanges-montmartre', 1, '2026-10-07', '2026-10-12');
+        await insertScope('vendanges-montmartre', 'ul-18');
+        asSuperAdmin();
+        expect((await callPut('vendanges-montmartre', { enabled: true, startDate: '2026-10-08', endDate: '2026-10-09' })).status).toBe(200);
+        const rows = (await db.execute(`SELECT ul_id FROM "SeasonalThemeUL"`)).rows;
+        expect(rows.map(r => r.ul_id)).toEqual(['ul-18']);
+    });
+
+    it('ulIds absent : le conflit utilise le périmètre enregistré', async () => {
+        await insertTheme('vendanges-montmartre', 0, '2026-10-07', '2026-10-12');
+        await insertScope('vendanges-montmartre', 'ul-18');
+        await insertTheme('autre-theme', 1, '2026-10-10', '2026-10-20');
+        await insertScope('autre-theme', 'ul-17');
+        asSuperAdmin();
+        expect((await callPut('vendanges-montmartre', { enabled: true, startDate: '2026-10-07', endDate: '2026-10-12' })).status).toBe(200);
+    });
+
+    it('supprimer une UL retire son périmètre de thème', async () => {
+        await insertTheme('vendanges-montmartre', 1, '2026-10-07', '2026-10-12');
+        await insertScope('vendanges-montmartre', 'ul-18', 'ul-17');
+        mockedAuth.mockResolvedValue({ user: { email: 'sa@test.com', roles: ['SUPER_ADMIN'] } } as never);
+        const res = await deleteUl(new Request('http://localhost/api/ul/ul-18', { method: 'DELETE' }), { params: Promise.resolve({ id: 'ul-18' }) });
+        expect(res.status).toBe(200);
+        const rows = (await db.execute(`SELECT ul_id FROM "SeasonalThemeUL"`)).rows;
+        expect(rows.map(r => r.ul_id)).toEqual(['ul-17']);
+    });
+
+    it('chevauchement de dates mais UL disjointes : 200', async () => {
+        await insertTheme('autre-theme', 1, '2026-10-10', '2026-10-20');
+        await insertScope('autre-theme', 'ul-17');
+        asSuperAdmin();
+        expect((await callPut('vendanges-montmartre', { ...valid, ulIds: ['ul-18'] })).status).toBe(200);
+    });
+
+    it('chevauchement de dates et « toutes les UL » face à une liste : 409', async () => {
+        await insertTheme('autre-theme', 1, '2026-10-10', '2026-10-20');
+        await insertScope('autre-theme', 'ul-18');
+        asSuperAdmin();
+        const res = await callPut('vendanges-montmartre', valid);
+        expect(res.status).toBe(409);
+        expect((await res.json()).error).toBe('Plage en conflit avec le thème Autre thème sur les mêmes UL');
+    });
+
+    it('chevauchement de dates et UL communes : 409', async () => {
+        await insertTheme('autre-theme', 1, '2026-10-10', '2026-10-20');
+        await insertScope('autre-theme', 'ul-17', 'ul-18');
+        asSuperAdmin();
+        expect((await callPut('vendanges-montmartre', { ...valid, ulIds: ['ul-18'] })).status).toBe(409);
     });
 
     it('enregistre (upsert) puis met à jour', async () => {

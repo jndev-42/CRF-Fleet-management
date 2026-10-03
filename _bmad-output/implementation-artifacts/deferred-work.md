@@ -29,3 +29,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-themes-saisonniers.md`
   summary: Tester côté page admin que les onglets réservés au super admin (« Thèmes », « Journal d'audit ») sont absents pour un ADMIN.
   evidence: `src/app/users/page.tsx` n'a aucun test de rendu ; seuls les 403 des API sont couverts.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-themes-saisonniers-3.md`
+  summary: Tester les scripts de migration (cas de `add-seasonal-themes.ts` sur une base qui a `SeasonalTheme` mais pas `SeasonalThemeUL`).
+  evidence: Aucun script de migration n'est couvert par un test ; une régression vers un retour anticipé ferait sauter la table de liaison et les trois routes des thèmes répondraient 500.

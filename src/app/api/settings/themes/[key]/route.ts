@@ -5,7 +5,8 @@ import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
-import { DATE_RE, SEASONAL_THEMES, THEME_KEYS, rangesOverlap } from '@/lib/themes/catalog';
+import { DATE_RE, SEASONAL_THEMES, THEME_KEYS, rangesOverlap, scopesOverlap } from '@/lib/themes/catalog';
+import { loadThemeUlScopes } from '@/lib/themes/ulScope';
 
 /** Jour calendaire réel au format `YYYY-MM-DD` (refuse « 2026-02-31 »). */
 const dayString = z.string().regex(DATE_RE, 'Date invalide (format AAAA-MM-JJ attendu)').refine(value => {
@@ -17,6 +18,8 @@ const putSchema = z.object({
     enabled: z.boolean(),
     startDate: dayString.nullable().optional(),
     endDate: dayString.nullable().optional(),
+    /** UL ciblées ; liste vide = toutes les UL ; absent = périmètre inchangé. */
+    ulIds: z.array(z.string().min(1)).max(200).optional(),
 }).superRefine((data, ctx) => {
     if (data.enabled && (!data.startDate || !data.endDate)) {
         ctx.addIssue({ code: 'custom', message: 'Les dates de début et de fin sont requises pour activer un thème', path: ['startDate'] });
@@ -30,7 +33,8 @@ const putSchema = z.object({
 type RouteContext = { params: Promise<{ key: string }> };
 
 /** PUT /api/settings/themes/[key] — Active ou programme un thème saisonnier.
- *  SUPER_ADMIN uniquement. 409 si la plage recouvre celle d'un autre thème activé. */
+ *  SUPER_ADMIN uniquement. `ulIds` : liste vide = toutes les UL, absent = périmètre inchangé.
+ *  409 si la plage de dates ET le périmètre d'UL recouvrent ceux d'un autre thème activé. */
 async function putHandler(request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
@@ -65,6 +69,18 @@ async function putHandler(request: Request, { params }: RouteContext) {
         const data = parsed.data;
         const startDate = data.startDate ?? null;
         const endDate = data.endDate ?? null;
+        const scopeProvided = data.ulIds !== undefined;
+        const incomingUlIds = [...new Set(data.ulIds ?? [])];
+
+        if (incomingUlIds.length > 0) {
+            const known = await db.execute({
+                sql: `SELECT id FROM "UniteLocale" WHERE id IN (${incomingUlIds.map(() => '?').join(', ')})`,
+                args: incomingUlIds,
+            });
+            if (known.rows.length !== incomingUlIds.length) {
+                return NextResponse.json({ error: 'Unité locale inconnue' }, { status: 400 });
+            }
+        }
 
         if (data.enabled && startDate && endDate) {
             const others = await db.execute({
@@ -72,19 +88,23 @@ async function putHandler(request: Request, { params }: RouteContext) {
                       WHERE enabled = 1 AND theme_key != ? AND start_date IS NOT NULL AND end_date IS NOT NULL`,
                 args: [key],
             });
+            const scopes = await loadThemeUlScopes();
+            // Périmètre absent de la requête : on compare avec celui déjà enregistré.
+            const ulIds = scopeProvided ? incomingUlIds : (scopes.get(key) ?? []);
             const conflict = others.rows.find(row => THEME_KEYS.includes(row.theme_key as string) && rangesOverlap(
                 { start: startDate, end: endDate },
                 { start: row.start_date as string, end: row.end_date as string },
-            ));
+            ) && scopesOverlap(ulIds, scopes.get(row.theme_key as string) ?? []));
             if (conflict) {
                 const otherKey = conflict.theme_key as string;
                 const label = SEASONAL_THEMES.find(t => t.key === otherKey)?.label ?? otherKey;
-                return NextResponse.json({ error: `Plage en conflit avec le thème ${label}` }, { status: 409 });
+                return NextResponse.json({ error: `Plage en conflit avec le thème ${label} sur les mêmes UL` }, { status: 409 });
             }
         }
 
         const now = new Date().toISOString();
-        await db.execute({
+        // Thème et périmètre d'UL écrits ensemble : jamais l'un sans l'autre.
+        await db.batch([{
             sql: `INSERT INTO "SeasonalTheme" (theme_key, enabled, start_date, end_date, updatedAt, updatedBy)
                   VALUES (?, ?, ?, ?, ?, ?)
                   ON CONFLICT(theme_key) DO UPDATE SET
@@ -94,7 +114,10 @@ async function putHandler(request: Request, { params }: RouteContext) {
                       updatedAt = excluded.updatedAt,
                       updatedBy = excluded.updatedBy`,
             args: [key, data.enabled ? 1 : 0, startDate, endDate, now, session.user.email ?? null],
-        });
+        },
+        ...(scopeProvided ? [{ sql: `DELETE FROM "SeasonalThemeUL" WHERE theme_key = ?`, args: [key] }] : []),
+        ...(scopeProvided ? incomingUlIds : []).map(ulId => ({ sql: `INSERT INTO "SeasonalThemeUL" (theme_key, ul_id) VALUES (?, ?)`, args: [key, ulId] })),
+        ], 'write');
 
         return NextResponse.json({ success: true });
     } catch (error) {

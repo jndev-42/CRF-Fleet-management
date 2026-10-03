@@ -29,6 +29,8 @@ export interface ThemeRow {
     enabled: boolean;
     start_date: string | null;
     end_date: string | null;
+    /** UL ciblées ; liste vide = toutes les UL. */
+    ul_ids: string[];
 }
 
 export interface DateRange {
@@ -53,9 +55,21 @@ export function isThemeActive(row: ThemeRow, today: string): boolean {
     return row.start_date <= today && today <= row.end_date;
 }
 
-/** Premier thème actif du catalogue parmi les lignes, ou `null`. */
-export function pickActiveTheme(rows: ThemeRow[], today: string): ThemeRow | null {
-    return rows.find(r => THEME_KEYS.includes(r.theme_key) && isThemeActive(r, today)) ?? null;
+/** Le thème s'applique-t-il à l'UL active ? Liste vide = toutes ; sans UL active, seulement « toutes ». */
+export function matchesUl(row: Pick<ThemeRow, 'ul_ids'>, ulId: string | null | undefined): boolean {
+    if (row.ul_ids.length === 0) return true;
+    return !!ulId && row.ul_ids.includes(ulId);
+}
+
+/** Deux périmètres d'UL se recouvrent-ils ? « Toutes les UL » (liste vide) recouvre n'importe quelle liste. */
+export function scopesOverlap(a: string[], b: string[]): boolean {
+    if (a.length === 0 || b.length === 0) return true;
+    return a.some(id => b.includes(id));
+}
+
+/** Premier thème actif du catalogue pour l'UL active, ou `null`. */
+export function pickActiveTheme(rows: ThemeRow[], today: string, ulId?: string | null): ThemeRow | null {
+    return rows.find(r => THEME_KEYS.includes(r.theme_key) && isThemeActive(r, today) && matchesUl(r, ulId)) ?? null;
 }
 
 /** Deux plages (bornes incluses) se recouvrent-elles ? */

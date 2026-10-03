@@ -16,3 +16,15 @@ export const SEASONAL_THEME_DDL = `CREATE TABLE IF NOT EXISTS "${SEASONAL_THEME_
     "updatedAt"  TEXT NOT NULL,
     "updatedBy"  TEXT
 )`;
+
+/**
+ * Périmètre d'UL d'un thème. Aucune ligne pour un thème = toutes les UL ;
+ * sinon le thème ne s'affiche que pour les UL listées.
+ */
+export const SEASONAL_THEME_UL_TABLE = 'SeasonalThemeUL';
+
+export const SEASONAL_THEME_UL_DDL = `CREATE TABLE IF NOT EXISTS "${SEASONAL_THEME_UL_TABLE}" (
+    "theme_key" TEXT NOT NULL,
+    "ul_id"     TEXT NOT NULL REFERENCES "UniteLocale"("id"),
+    PRIMARY KEY ("theme_key", "ul_id")
+)`;

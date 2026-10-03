@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { SEASONAL_THEMES, parisToday, themeStatus } from '@/lib/themes/catalog';
+import { loadThemeUlScopes } from '@/lib/themes/ulScope';
 
 /** GET /api/settings/themes — Catalogue des thèmes fusionné avec leur configuration.
  *  SUPER_ADMIN uniquement. Un thème sans ligne est désactivé, sans dates. */
@@ -21,6 +22,7 @@ export async function GET() {
 
         const result = await db.execute(`SELECT theme_key, enabled, start_date, end_date FROM "SeasonalTheme"`);
         const byKey = new Map(result.rows.map(row => [row.theme_key as string, row]));
+        const scopes = await loadThemeUlScopes();
         const today = parisToday();
 
         const themes = SEASONAL_THEMES.map(def => {
@@ -35,6 +37,7 @@ export async function GET() {
                 enabled,
                 startDate,
                 endDate,
+                ulIds: scopes.get(def.key) ?? [],
                 status: themeStatus({ enabled, start_date: startDate, end_date: endDate }, today),
             };
         });

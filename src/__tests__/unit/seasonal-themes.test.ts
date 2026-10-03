@@ -5,6 +5,8 @@ import {
     isThemeActive,
     pickActiveTheme,
     rangesOverlap,
+    matchesUl,
+    scopesOverlap,
     themeStatus,
     type ThemeRow,
 } from '@/lib/themes/catalog';
@@ -14,6 +16,7 @@ const row = (over: Partial<ThemeRow> = {}): ThemeRow => ({
     enabled: true,
     start_date: '2026-10-07',
     end_date: '2026-10-12',
+    ul_ids: [],
     ...over,
 });
 
@@ -68,6 +71,54 @@ describe('pickActiveTheme', () => {
 
     it('ignore les clés hors catalogue', () => {
         expect(pickActiveTheme([row({ theme_key: 'inconnu' })], '2026-10-08')).toBeNull();
+    });
+});
+
+describe('matchesUl', () => {
+    it('liste vide : toutes les UL, même sans UL active', () => {
+        expect(matchesUl({ ul_ids: [] }, 'ul-a')).toBe(true);
+        expect(matchesUl({ ul_ids: [] }, null)).toBe(true);
+        expect(matchesUl({ ul_ids: [] }, undefined)).toBe(true);
+    });
+
+    it('liste ciblée : seulement les UL listées', () => {
+        expect(matchesUl({ ul_ids: ['ul-a', 'ul-b'] }, 'ul-b')).toBe(true);
+        expect(matchesUl({ ul_ids: ['ul-a'] }, 'ul-c')).toBe(false);
+    });
+
+    it('liste ciblée sans UL active : non', () => {
+        expect(matchesUl({ ul_ids: ['ul-a'] }, null)).toBe(false);
+        expect(matchesUl({ ul_ids: ['ul-a'] }, undefined)).toBe(false);
+    });
+});
+
+describe('scopesOverlap', () => {
+    it('« toutes les UL » recouvre tout, y compris « toutes »', () => {
+        expect(scopesOverlap([], [])).toBe(true);
+        expect(scopesOverlap([], ['ul-a'])).toBe(true);
+        expect(scopesOverlap(['ul-a'], [])).toBe(true);
+    });
+
+    it('listes avec une UL commune', () => {
+        expect(scopesOverlap(['ul-a', 'ul-b'], ['ul-b', 'ul-c'])).toBe(true);
+    });
+
+    it('listes disjointes', () => {
+        expect(scopesOverlap(['ul-a'], ['ul-b'])).toBe(false);
+    });
+});
+
+describe('pickActiveTheme avec UL', () => {
+    it('thème ciblé : renvoyé pour l\'UL ciblée seulement', () => {
+        const rows = [row({ ul_ids: ['ul-a'] })];
+        expect(pickActiveTheme(rows, '2026-10-08', 'ul-a')?.theme_key).toBe('vendanges-montmartre');
+        expect(pickActiveTheme(rows, '2026-10-08', 'ul-b')).toBeNull();
+        expect(pickActiveTheme(rows, '2026-10-08', null)).toBeNull();
+        expect(pickActiveTheme(rows, '2026-10-08')).toBeNull();
+    });
+
+    it('thème « toutes les UL » : renvoyé sans UL active', () => {
+        expect(pickActiveTheme([row()], '2026-10-08', null)?.theme_key).toBe('vendanges-montmartre');
     });
 });
 

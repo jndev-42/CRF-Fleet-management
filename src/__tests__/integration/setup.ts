@@ -14,7 +14,7 @@ import { tmpdir } from 'os';
 import { menuSettingTableDdl } from '@/lib/menu-settings-schema';
 import { REFERENTIEL_FTS_DDL, REFERENTIEL_TABLES } from '@/lib/referentiel/schema';
 import { AUDIT_LOG_DDL, AUDIT_LOG_INDEXES } from '@/lib/audit/schema';
-import { SEASONAL_THEME_DDL } from '@/lib/themes/schema';
+import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '@/lib/themes/schema';
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'martine-test-'));
 /** Exporté pour les tests de concurrence, qui ouvrent un second client sur le même fichier. */
@@ -395,6 +395,7 @@ async function createTables() {
   for (const index of AUDIT_LOG_INDEXES) await db.execute(index.ddl);
 
   await db.execute(SEASONAL_THEME_DDL);
+  await db.execute(SEASONAL_THEME_UL_DDL);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
     id TEXT PRIMARY KEY,
@@ -586,6 +587,7 @@ async function createTables() {
 
 async function truncateTables() {
   await db.execute(`DELETE FROM "AuditLog"`);
+  await db.execute(`DELETE FROM "SeasonalThemeUL"`);
   await db.execute(`DELETE FROM "SeasonalTheme"`);
   // Table FTS5 à contenu externe : `delete-all` vide l'index sans lire les pages.
   await db.execute(`INSERT INTO "ReferentielFts"("ReferentielFts") VALUES('delete-all')`);

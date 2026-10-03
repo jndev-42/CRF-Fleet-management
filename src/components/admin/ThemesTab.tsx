@@ -12,12 +12,21 @@ export interface ThemeConfig {
     startDate: string | null;
     endDate: string | null;
     status: ThemeStatus;
+    /** UL ciblées ; vide = toutes les UL. */
+    ulIds: string[];
+}
+
+interface ULOption {
+    id: string;
+    name: string;
 }
 
 interface Draft {
     enabled: boolean;
     startDate: string;
     endDate: string;
+    allUls: boolean;
+    ulIds: string[];
 }
 
 const STATUS_LABELS: Record<ThemeStatus, string> = {
@@ -27,10 +36,18 @@ const STATUS_LABELS: Record<ThemeStatus, string> = {
 };
 
 function toDraft(theme: ThemeConfig): Draft {
-    return { enabled: theme.enabled, startDate: theme.startDate ?? '', endDate: theme.endDate ?? '' };
+    return { enabled: theme.enabled, startDate: theme.startDate ?? '', endDate: theme.endDate ?? '', allUls: (theme.ulIds ?? []).length === 0, ulIds: theme.ulIds ?? [] };
+}
+
+/** « Toutes les UL » ou « 2 UL : Paris 18, Paris 17 ». */
+function scopeSummary(ulIds: string[], uls: ULOption[]): string {
+    if (ulIds.length === 0) return 'Toutes les UL';
+    const names = ulIds.map(id => uls.find(u => u.id === id)?.name ?? id).sort((a, b) => a.localeCompare(b, 'fr'));
+    return `${ulIds.length} UL : ${names.join(', ')}`;
 }
 
 export default function ThemesTab() {
+    const [uls, setUls] = useState<ULOption[]>([]);
     const [themes, setThemes] = useState<ThemeConfig[]>([]);
     const [drafts, setDrafts] = useState<Record<string, Draft>>({});
     const [loading, setLoading] = useState(true);
@@ -61,12 +78,28 @@ export default function ThemesTab() {
         load();
     }, [load]);
 
+    useEffect(() => {
+        fetch('/api/ul')
+            .then(res => (res.ok ? res.json() : { uls: [] }))
+            .then(data => setUls(data.uls ?? []))
+            .catch(() => setUls([]));
+    }, []);
+
+    function toggleUl(key: string, ulId: string, checked: boolean) {
+        setDrafts(prev => {
+            const current = prev[key].ulIds;
+            const ulIds = checked ? [...current, ulId] : current.filter(id => id !== ulId);
+            return { ...prev, [key]: { ...prev[key], ulIds } };
+        });
+    }
+
     function updateDraft(key: string, patch: Partial<Draft>) {
         setDrafts(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }));
     }
 
     async function save(key: string) {
         const draft = drafts[key];
+        if (!draft.allUls && draft.ulIds.length === 0) return;
         setSaving(key);
         setMessages(prev => { const next = { ...prev }; delete next[key]; return next; });
         try {
@@ -77,6 +110,7 @@ export default function ThemesTab() {
                     enabled: draft.enabled,
                     startDate: draft.startDate || null,
                     endDate: draft.endDate || null,
+                    ulIds: draft.allUls ? [] : draft.ulIds,
                 }),
             });
             if (res.ok) {
@@ -99,7 +133,7 @@ export default function ThemesTab() {
     return (
         <div className={styles.container}>
             <p className={styles.help}>
-                Activez un thème décoratif sur une plage de dates (bornes incluses, heure de Paris). Il s&apos;affiche pour tous les utilisateurs connectés, qui peuvent le masquer depuis la barre de navigation.
+                Activez un thème décoratif sur une plage de dates (bornes incluses, heure de Paris). Il s&apos;affiche pour tous les utilisateurs connectés (ou seulement pour les UL choisies, selon l&apos;UL active de chacun), qui peuvent le masquer depuis la barre de navigation.
             </p>
 
             {themes.map(theme => {
@@ -148,11 +182,52 @@ export default function ThemesTab() {
                             </div>
                         </div>
 
+                        <fieldset className={styles.scope}>
+                            <legend className={styles.scopeLegend}>Unités locales</legend>
+                            <label className={styles.scopeOption}>
+                                <input
+                                    type="radio"
+                                    name={`${theme.key}-scope`}
+                                    checked={draft.allUls}
+                                    onChange={() => updateDraft(theme.key, { allUls: true })}
+                                />
+                                <span>Toutes les UL</span>
+                            </label>
+                            <label className={styles.scopeOption}>
+                                <input
+                                    type="radio"
+                                    name={`${theme.key}-scope`}
+                                    checked={!draft.allUls}
+                                    onChange={() => updateDraft(theme.key, { allUls: false })}
+                                />
+                                <span>Certaines UL seulement</span>
+                            </label>
+                            {!draft.allUls && (
+                                <div className={styles.ulList}>
+                                    {uls.map(ul => (
+                                        <label key={ul.id} className={styles.scopeOption}>
+                                            <input
+                                                type="checkbox"
+                                                checked={draft.ulIds.includes(ul.id)}
+                                                onChange={e => toggleUl(theme.key, ul.id, e.target.checked)}
+                                            />
+                                            <span>{ul.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            )}
+                            <p className={styles.scopeSummary}>{scopeSummary(draft.allUls ? [] : draft.ulIds, uls)}</p>
+                        </fieldset>
+
+                        {!draft.allUls && draft.ulIds.length === 0 && (
+                            <p role="alert" className={styles.messageError}>Choisissez au moins une UL</p>
+                        )}
+
                         <div className={styles.actions}>
                             <button
                                 type="button"
                                 className="btn btn-primary"
-                                disabled={saving === theme.key}
+                                disabled={saving === theme.key || (!draft.allUls && draft.ulIds.length === 0)}
                                 onClick={() => save(theme.key)}
                             >
                                 {saving === theme.key ? 'Enregistrement…' : 'Enregistrer'}

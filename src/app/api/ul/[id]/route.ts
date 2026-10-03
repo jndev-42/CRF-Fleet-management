@@ -32,7 +32,11 @@ async function deleteHandler(_request: Request, { params }: { params: Promise<{ 
             return NextResponse.json({ error: 'UL introuvable' }, { status: 404 });
         }
 
-        await db.execute({ sql: `DELETE FROM "UniteLocale" WHERE id = ?`, args: [id] });
+        // Les clés étrangères ne sont pas appliquées : on retire le périmètre de thèmes avec l'UL.
+        await db.batch([
+            { sql: `DELETE FROM "SeasonalThemeUL" WHERE ul_id = ?`, args: [id] },
+            { sql: `DELETE FROM "UniteLocale" WHERE id = ?`, args: [id] },
+        ], 'write');
 
         return NextResponse.json({ success: true });
     } catch (error) {

@@ -139,4 +139,42 @@ describe('SeasonalThemeProvider + SeasonalThemeToggle', () => {
         await waitFor(() => expect(document.documentElement.getAttribute('data-season')).toBe('vendanges-montmartre'));
         expect(spy).toHaveBeenCalledTimes(2);
     });
+
+    it('refetch quand l\'UL active change', async () => {
+        const spy = vi.spyOn(global, 'fetch')
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ theme: null, startDate: null }) } as Response)
+            .mockResolvedValue({ ok: true, json: async () => ({ theme: 'vendanges-montmartre', startDate: '2026-10-07' }) } as Response);
+        mockUseSession.mockReturnValue({ data: { user: { id: 'u1', ulId: 'ul-17' } }, status: 'authenticated', update: vi.fn() } as never);
+        const { rerender } = renderTree();
+        await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
+        expect(document.documentElement.hasAttribute('data-season')).toBe(false);
+
+        mockUseSession.mockReturnValue({ data: { user: { id: 'u1', ulId: 'ul-18' } }, status: 'authenticated', update: vi.fn() } as never);
+        rerender(
+            <SeasonalThemeProvider>
+                <SeasonalThemeToggle />
+            </SeasonalThemeProvider>,
+        );
+        await waitFor(() => expect(document.documentElement.getAttribute('data-season')).toBe('vendanges-montmartre'));
+        expect(spy).toHaveBeenCalledTimes(2);
+    });
+
+    it('thème présent puis retiré après un changement d\'UL, même si le refetch échoue', async () => {
+        const spy = vi.spyOn(global, 'fetch')
+            .mockResolvedValueOnce({ ok: true, json: async () => ({ theme: 'vendanges-montmartre', startDate: '2026-10-07' }) } as Response)
+            .mockResolvedValue({ ok: false, json: async () => ({ error: 'x' }) } as Response);
+        mockUseSession.mockReturnValue({ data: { user: { id: 'u1', ulId: 'ul-18' } }, status: 'authenticated', update: vi.fn() } as never);
+        const { rerender } = renderTree();
+        await waitFor(() => expect(document.documentElement.getAttribute('data-season')).toBe('vendanges-montmartre'));
+
+        mockUseSession.mockReturnValue({ data: { user: { id: 'u1', ulId: 'ul-17' } }, status: 'authenticated', update: vi.fn() } as never);
+        rerender(
+            <SeasonalThemeProvider>
+                <SeasonalThemeToggle />
+            </SeasonalThemeProvider>,
+        );
+        await waitFor(() => expect(document.documentElement.hasAttribute('data-season')).toBe(false));
+        expect(spy).toHaveBeenCalledTimes(2);
+        expect(screen.queryByRole('button')).toBeNull();
+    });
 });

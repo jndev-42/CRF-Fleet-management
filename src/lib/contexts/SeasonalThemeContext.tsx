@@ -45,7 +45,9 @@ function writeHidden(active: ActiveTheme, hidden: boolean): void {
 }
 
 export function SeasonalThemeProvider({ children }: { children: ReactNode }) {
-    const { status } = useSession();
+    const { data: session, status } = useSession();
+    // UL active : le thème peut être réservé à certaines UL, on le réévalue à chaque changement.
+    const ulId = (session?.user?.ulId as string | undefined) ?? null;
     const [active, setActive] = useState<ActiveTheme | null>(null);
     const [hidden, setHidden] = useState(false);
 
@@ -55,7 +57,11 @@ export function SeasonalThemeProvider({ children }: { children: ReactNode }) {
         const load = async () => {
             try {
                 const res = await fetch('/api/themes/active');
-                if (!res.ok) return;
+                if (!res.ok) {
+                    // Ne pas laisser le thème de l'UL précédente après un changement d'UL.
+                    if (!cancelled) setActive(null);
+                    return;
+                }
                 const data = await res.json();
                 if (cancelled) return;
                 if (typeof data.theme !== 'string' || typeof data.startDate !== 'string') {
@@ -67,6 +73,7 @@ export function SeasonalThemeProvider({ children }: { children: ReactNode }) {
                 setHidden(readHidden(next));
             } catch {
                 // Silencieux : pas de déco si le thème est injoignable.
+                if (!cancelled) setActive(null);
             }
         };
         // Un onglet resté ouvert à travers minuit (Paris) doit voir le thème expirer ou démarrer.
@@ -81,7 +88,7 @@ export function SeasonalThemeProvider({ children }: { children: ReactNode }) {
             document.removeEventListener('visibilitychange', onVisibility);
             window.removeEventListener('focus', load);
         };
-    }, [status]);
+    }, [status, ulId]);
 
     const season = active && !hidden && status === 'authenticated' ? active.theme : null;
 
