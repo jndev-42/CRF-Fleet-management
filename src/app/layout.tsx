@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from 'next/font/google';
+import { Inter, Federo } from 'next/font/google';
 import Link from 'next/link';
 import "./globals.css";
 import "@/styles/seasons/vendanges-montmartre.css";
@@ -9,6 +9,15 @@ const inter = Inter({
   weight: ['300', '400', '500', '600', '700', '800'],
   display: 'swap',
   variable: '--font-inter',
+});
+// Typo Belle Époque du thème saisonnier « Fête des vendanges de Montmartre » :
+// exposée en variable CSS, utilisée uniquement sous `html[data-season="vendanges-montmartre"]`.
+const federo = Federo({
+  subsets: ['latin'],
+  weight: '400',
+  display: 'swap',
+  preload: false,
+  variable: '--font-season-vendanges',
 });
 import { auth } from "@/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -66,7 +75,7 @@ export default async function RootLayout({
     // `className="… dark"` : React signalait l'écart à chaque page. L'attribut
     // ne masque que cet élément-ci, pas ses descendants — un vrai décalage
     // d'hydratation dans l'arbre reste donc signalé.
-    <html lang="fr" className={inter.variable} data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="fr" className={`${inter.variable} ${federo.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <DemoProvider>
           <DemoBanner />
