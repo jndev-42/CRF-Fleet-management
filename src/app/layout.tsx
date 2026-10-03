@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from 'next/font/google';
 import Link from 'next/link';
 import "./globals.css";
+import "@/styles/seasons/vendanges-montmartre.css";
 
 const inter = Inter({
   subsets: ['latin'],
@@ -26,6 +27,7 @@ import ImpersonationBanner from "@/components/admin/ImpersonationBanner";
 import { MenuSettingsProvider } from "@/lib/contexts/MenuSettingsContext";
 import { DemoProvider } from "@/lib/contexts/DemoContext";
 import { ULProvider } from "@/lib/contexts/ULContext";
+import { SeasonalThemeProvider } from "@/lib/contexts/SeasonalThemeContext";
 
 export const metadata: Metadata = {
   title: "Martine | Croix-Rouge Paris 18",
@@ -78,6 +80,7 @@ export default async function RootLayout({
           <SessionProvider session={session}>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
               <MenuSettingsProvider>
+                <SeasonalThemeProvider>
                 <ULProvider>
                 <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                   <Navbar user={session?.user} />
@@ -110,6 +113,7 @@ export default async function RootLayout({
                   </footer>
                 </div>
                 </ULProvider>
+                </SeasonalThemeProvider>
               </MenuSettingsProvider>
             </ThemeProvider>
           </SessionProvider>

@@ -1,0 +1,19 @@
+.toggle {
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.on {
+    color: #7c3a8c;
+}
+
+:global(.dark) .on {
+    color: #c79ad6;
+}
+
+.off {
+    color: var(--text-muted);
+}

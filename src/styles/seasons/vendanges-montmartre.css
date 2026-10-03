@@ -1,0 +1,87 @@
+/*
+ * Thème saisonnier « Fête des vendanges de Montmartre ».
+ *
+ * Habillage purement superposé : pseudo-éléments `position: absolute`,
+ * `pointer-events: none`, aucun changement de dimension, de marge ni de flux
+ * (`position: relative` n'a pas d'effet sur la mise en page). Activer ou masquer
+ * le thème ne décale donc rien. Posé par `SeasonalThemeProvider` via
+ * `data-season` sur <html> ; toutes les règles sont préfixées par ce sélecteur.
+ */
+
+html[data-season="vendanges-montmartre"] {
+    --vendanges-grape: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 0v3' stroke='%234d7c2f' stroke-width='1.2' fill='none'/%3E%3Cpath d='M8 2c2-1 4 0 4.5 1.5C10.5 4 8.5 3.5 8 2z' fill='%235a9a34'/%3E%3Cg fill='%237c3a8c'%3E%3Ccircle cx='5' cy='5.5' r='2'/%3E%3Ccircle cx='9' cy='5.5' r='2'/%3E%3Ccircle cx='7' cy='8.5' r='2'/%3E%3Ccircle cx='11' cy='8.5' r='1.8'/%3E%3Ccircle cx='5' cy='11.5' r='1.8'/%3E%3Ccircle cx='9' cy='11.5' r='1.8'/%3E%3Ccircle cx='7' cy='14' r='1.7'/%3E%3C/g%3E%3Cg fill='%23fff' opacity='.35'%3E%3Ccircle cx='4.4' cy='4.9' r='.6'/%3E%3Ccircle cx='8.4' cy='4.9' r='.6'/%3E%3Ccircle cx='6.4' cy='7.9' r='.6'/%3E%3C/g%3E%3C/svg%3E");
+    --vendanges-leaf: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 15V9' stroke='%234d7c2f' stroke-width='1.2'/%3E%3Cpath d='M8 9L3 8l1-2-2-2 3-.5L6 1l2 1.5L10 1l1 2.5 3 .5-2 2 1 2z' fill='%235a9a34'/%3E%3C/svg%3E");
+    --vendanges-vine: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='10' viewBox='0 0 200 10'%3E%3Cpath d='M0 1c25 2 40-1 65 1s45 1 70 0 40 1 65 0' stroke='%234d7c2f' stroke-width='1.3' fill='none'/%3E%3Cpath d='M150 1.5v3' stroke='%234d7c2f' stroke-width='1'/%3E%3Cg fill='%237c3a8c'%3E%3Ccircle cx='149' cy='5.5' r='1.5'/%3E%3Ccircle cx='152' cy='5.5' r='1.5'/%3E%3Ccircle cx='150.5' cy='8' r='1.5'/%3E%3C/g%3E%3Cpath d='M60 2c-2 1-3.500 0-3.500-1.500 2.500 0 3.500.5 3.500 1.500z' fill='%235a9a34'/%3E%3C/svg%3E");
+}
+
+/* Titres de page : une grappe et une feuille posées sur le haut du titre. */
+html[data-season="vendanges-montmartre"] .page-title,
+html[data-season="vendanges-montmartre"] .section-title,
+html[data-season="vendanges-montmartre"] .detail-card-title {
+    position: relative;
+}
+
+html[data-season="vendanges-montmartre"] .page-title::before,
+html[data-season="vendanges-montmartre"] .page-title::after,
+html[data-season="vendanges-montmartre"] .section-title::before,
+html[data-season="vendanges-montmartre"] .detail-card-title::before {
+    content: "";
+    position: absolute;
+    top: auto;
+    bottom: calc(100% - 2px);
+    width: 16px;
+    height: 16px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    pointer-events: none;
+    transform-origin: 50% 0;
+}
+
+html[data-season="vendanges-montmartre"] .page-title::before {
+    left: -2px;
+    background-image: var(--vendanges-grape);
+}
+
+html[data-season="vendanges-montmartre"] .page-title::after {
+    left: 14px;
+    background-image: var(--vendanges-leaf);
+}
+
+html[data-season="vendanges-montmartre"] .section-title::before,
+html[data-season="vendanges-montmartre"] .detail-card-title::before {
+    left: -2px;
+    width: 14px;
+    height: 14px;
+    background-image: var(--vendanges-leaf);
+}
+
+/* Sarment qui pend du bord bas de la navbar (sans prendre de place). */
+html[data-season="vendanges-montmartre"] .header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 10px;
+    background-image: var(--vendanges-vine);
+    background-repeat: repeat-x;
+    background-size: 200px 10px;
+    pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    html[data-season="vendanges-montmartre"] .page-title::before {
+        animation: vendanges-sway 4s ease-in-out infinite alternate;
+    }
+}
+
+@keyframes vendanges-sway {
+    from { transform: rotate(-4deg); }
+    to { transform: rotate(4deg); }
+}
+
+/* Sombre : halo discret pour que le violet des grappes reste lisible. */
+html.dark[data-season="vendanges-montmartre"] .page-title::before,
+html.dark[data-season="vendanges-montmartre"] .header::after {
+    filter: brightness(1.35) saturate(1.1);
+}

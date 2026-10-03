@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.21.0] — 3 octobre 2026
+
+### ✨ Nouveautés
+
+- **Thèmes saisonniers** — le super admin peut désormais habiller l'application pour un événement, depuis le nouvel onglet **Administration → Thèmes**. Chaque thème s'active sur une plage de dates précise (début et fin incluses, heure de Paris) ; la plage d'un thème activé ne peut pas recouvrir celle d'un autre thème activé. Le premier thème est la **Fête des vendanges de Montmartre** : de petites grappes et feuilles de vigne se posent sur les titres, et un fin sarment pend de la barre de navigation. Rien ne se décale et aucun bandeau n'apparaît.
+- **Afficher ou masquer le thème** — quand un thème est actif, une petite icône de grappe apparaît dans la barre de navigation, à côté du bouton clair/sombre, pour le masquer ou le réafficher. Le choix est mémorisé sur votre appareil.
+
 ## [5.20.1] — 3 octobre 2026
 
 ### 🐛 Corrections
