@@ -27,6 +27,14 @@ const nextConfig: NextConfig = {
     '/api/referentiel/process': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
   },
 
+  // OpenCV.js (scanner de document) référence fs/path/crypto pour son mode Node : inutiles côté navigateur.
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = { ...config.resolve.fallback, fs: false, path: false, crypto: false };
+    }
+    return config;
+  },
+
   experimental: {
     serverActions: {
       bodySizeLimit: '150mb',
@@ -43,7 +51,7 @@ const nextConfig: NextConfig = {
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+          { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=()' },
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
         ],
       },

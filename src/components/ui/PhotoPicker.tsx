@@ -1,8 +1,12 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Camera, Image as ImageIcon, X, FileText, AlertTriangle } from 'lucide-react';
 import { compressImage, compressImages } from '@/lib/imageCompression';
+
+// Le scanner (et son moteur OpenCV) n'est téléchargé qu'à son ouverture
+const DocumentScanner = dynamic(() => import('./DocumentScanner'), { ssr: false });
 
 interface PhotoPickerProps {
     /** Multiple mode: for vehicle checkout/checkin and mission photos */
@@ -20,6 +24,8 @@ interface PhotoPickerProps {
     hint?: string;
     className?: string;
     onError?: (error: string | null) => void;
+    /** Le bouton « Appareil photo » ouvre le scanner de document (PDF redressé) au lieu de l'appareil photo natif */
+    scanDocument?: boolean;
 }
 
 export default function PhotoPicker({
@@ -35,10 +41,12 @@ export default function PhotoPicker({
     hint,
     className,
     onError,
+    scanDocument = false,
 }: PhotoPickerProps) {
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [scannerOpen, setScannerOpen] = useState(false);
 
     const isMultiple = !!onPhotosChange;
     const currentPhotos = photos || [];
@@ -51,7 +59,7 @@ export default function PhotoPicker({
         onError?.(msg);
     };
 
-    const handleFiles = async (newFiles: FileList | null) => {
+    const handleFiles = async (newFiles: FileList | File[] | null) => {
         if (!newFiles || newFiles.length === 0) return;
         setErr(null);
         const incoming = Array.from(newFiles);
@@ -110,6 +118,16 @@ export default function PhotoPicker({
         if (galleryInputRef.current) galleryInputRef.current.value = '';
     };
 
+    const handleScanComplete = (scanned: File) => {
+        setScannerOpen(false);
+        void handleFiles([scanned]);
+    };
+
+    const handleScanFallback = () => {
+        setScannerOpen(false);
+        cameraInputRef.current?.click();
+    };
+
     const removePhoto = (index: number) => {
         setErr(null);
         if (isMultiple) {
@@ -145,7 +163,7 @@ export default function PhotoPicker({
                     <button
                         type="button"
                         className="btn btn-primary"
-                        onClick={() => cameraInputRef.current?.click()}
+                        onClick={() => (scanDocument ? setScannerOpen(true) : cameraInputRef.current?.click())}
                         style={{ flex: 1, justifyContent: 'center', gap: '8px', padding: '10px' }}
                     >
                         <Camera size={18} />
@@ -179,6 +197,14 @@ export default function PhotoPicker({
                 onChange={(e) => handleFiles(e.target.files)}
                 style={{ display: 'none' }}
             />
+
+            {scannerOpen && (
+                <DocumentScanner
+                    onComplete={handleScanComplete}
+                    onClose={() => setScannerOpen(false)}
+                    onFallback={handleScanFallback}
+                />
+            )}
 
             {hint && <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '-4px' }}>{hint}</span>}
 
