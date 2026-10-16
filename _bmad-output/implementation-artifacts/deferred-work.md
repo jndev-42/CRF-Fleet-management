@@ -34,6 +34,12 @@
   summary: Tester les scripts de migration (cas de `add-seasonal-themes.ts` sur une base qui a `SeasonalTheme` mais pas `SeasonalThemeUL`).
   evidence: Aucun script de migration n'est couvert par un test ; une régression vers un retour anticipé ferait sauter la table de liaison et les trois routes des thèmes répondraient 500.
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-theme-halloween.md`
+  summary: Extraire un socle CSS commun aux thèmes saisonniers (scènes, navbar, titres, cartes, boutons) piloté par des variables `--season-*`, pour ne plus dupliquer chaque feuille.
+  evidence: `halloween.css` reprend règle pour règle `vendanges-montmartre.css` ; des commentaires y ont déjà divergé. Chaque correction future doit être reportée dans N feuilles.
+- source_spec: `_bmad-output/implementation-artifacts/spec-theme-halloween.md`
+  summary: Le test `licenseCheck.test.ts` n°6 (« Driver avec last_validation expirée ») échoue sur `main` (`expected 15 to be 14`).
+  evidence: Reproduit le 16/10/2026 sur le dépôt principal sans le changement Halloween ; probablement lié à la date courante.
 - source_spec: `_bmad-output/implementation-artifacts/spec-theme-noel.md`
   summary: Le test d'intégration `licenseCheck.test.ts` (cas 6, `daysLeft` attendu à 14) échoue quand le délai de grâce de 14 jours englobe un changement d'heure.
   evidence: `src/lib/licenseStatus.ts` l.80 calcule `Math.ceil(msLeft / 86 400 000)` en millisecondes : le passage à l'heure d'hiver du 25 octobre 2026 ajoute une heure et donne 15 ; constaté le 16 octobre 2026, aucun fichier de licence touché par cette branche.

@@ -1,12 +1,18 @@
 # Changelog
 
+## [5.24.0] — 16 octobre 2026
+
+### ✨ Nouveautés
+
+- **Nouveau thème saisonnier « Noël »** — le super admin peut désormais le programmer depuis **Administration → Thèmes**, à côté de la Fête des vendanges de Montmartre et d'Halloween (sur une plage de dates qui ne recouvre pas celle d'un autre thème activé). Ambiance Noël traditionnel en vert sapin, or et crème : une guirlande d'ampoules colorées s'illumine sous la barre de navigation, ses ampoules s'allumant tour à tour avec un halo lumineux, le logo est entouré d'un cadre doré et de brins de houx, « Martine » et les titres passent dans une élégante police à empattements, soulignés d'un filet doré et suivis d'un brin de houx enneigé. Les boutons principaux deviennent vert sapin avec un liseré doré et une petite étoile, les cartes prennent un liseré doré, un bandeau vert ou or et un brin de houx dans un coin, et une neige légère tombe doucement sur le fond de la page, derrière les cartes et le texte, sans jamais gêner la lecture. Sur les grands écrans, un sapin décoré entouré de cadeaux et des boules suspendues s'installent dans les marges. La croix rouge du logo, les boutons de suppression et les alertes restent inchangés, et rien ne se décale. Si vous avez demandé à votre appareil de limiter les animations, la neige n'apparaît pas et la guirlande reste allumée sans clignoter. À l'impression, la neige, la guirlande et les décors des marges disparaissent.
+- **Icône du thème selon la saison** — le bouton qui masque ou réaffiche le thème dans la barre de navigation montre désormais un sapin pendant Noël (un fantôme pendant Halloween, une grappe pendant les vendanges).
+
 ## [5.23.0] — 16 octobre 2026
 
 ### ✨ Nouveautés
 
-- **Nouveau thème saisonnier « Noël »** — le super admin peut désormais le programmer depuis **Administration → Thèmes**, à côté de la Fête des vendanges de Montmartre (sur une plage de dates qui ne recouvre pas celle d'un autre thème activé). Ambiance Noël traditionnel en vert sapin, or et crème : une guirlande d'ampoules colorées s'illumine sous la barre de navigation, ses ampoules s'allumant tour à tour avec un halo lumineux, le logo est entouré d'un cadre doré et de brins de houx, « Martine » et les titres passent dans une élégante police à empattements, soulignés d'un filet doré et suivis d'un brin de houx enneigé. Les boutons principaux deviennent vert sapin avec un liseré doré et une petite étoile, les cartes prennent un liseré doré, un bandeau vert ou or et un brin de houx dans un coin, et une neige légère tombe doucement sur le fond de la page, derrière les cartes et le texte, sans jamais gêner la lecture. Sur les grands écrans, un sapin décoré entouré de cadeaux et des boules suspendues s'installent dans les marges. La croix rouge du logo, les boutons de suppression et les alertes restent inchangés, et rien ne se décale. Si vous avez demandé à votre appareil de limiter les animations, la neige n'apparaît pas et la guirlande reste allumée sans clignoter. À l'impression, la neige, la guirlande et les décors des marges disparaissent.
-- **Icône du thème selon la saison** — le bouton qui masque ou réaffiche le thème dans la barre de navigation montre désormais un sapin pendant Noël (et toujours une grappe pendant les vendanges).
-
+- **Nouveau thème saisonnier « Halloween »** — un second habillage s'ajoute dans l'onglet « Thèmes » de l'administration, à activer comme celui des vendanges (activation, plage de dates, UL concernées). L'ambiance est ludique : citrouilles souriantes, chauves-souris, petits fantômes et toiles d'araignée, en orange citrouille, violet nuit et vert slime. Une guirlande pend de la barre de navigation, le logo et les titres sont décorés, les cartes portent un coin de toile d'araignée, et une maison hantée et un chaudron illustrent les marges des grands écrans. Le rendu existe en mode clair et en mode sombre, sans rien déplacer dans l'application, et le bouton de déconnexion et les boutons de suppression restent rouges.
+- **Bouton du thème aux couleurs de la saison** — le bouton de la barre de navigation qui masque ou réaffiche le thème saisonnier montre désormais l'icône du thème en cours : une grappe de raisin pour les vendanges, un petit fantôme pour Halloween.
 ## [5.22.2] — 16 octobre 2026
 
 ### 🐛 Corrections

@@ -6,20 +6,33 @@
     justify-content: center;
 }
 
-.on {
+/* Teinte de l'icône quand le thème est affiché, une par thème. */
+.vendanges {
     color: #7c3a8c;
 }
 
-:global(.dark) .on {
+:global(.dark) .vendanges {
     color: #c79ad6;
 }
 
-.onNoel {
+.halloween {
+    color: #c2410c;
+}
+
+:global(.dark) .halloween {
+    color: #ffa94d;
+}
+
+.noel {
     color: #1e5b3a;
 }
 
-:global(.dark) .onNoel {
+:global(.dark) .noel {
     color: #6fbf8a;
+}
+
+.fallback {
+    color: var(--text-primary);
 }
 
 .off {

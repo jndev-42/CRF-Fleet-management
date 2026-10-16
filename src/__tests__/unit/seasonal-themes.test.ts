@@ -25,6 +25,12 @@ describe('catalogue', () => {
         expect(SEASONAL_THEMES.map(t => t.key)).toContain('vendanges-montmartre');
     });
 
+    it('contient le thème Halloween, après les vendanges', () => {
+        const keys = SEASONAL_THEMES.map(t => t.key);
+        expect(keys).toContain('halloween');
+        expect(keys.indexOf('halloween')).toBeGreaterThan(keys.indexOf('vendanges-montmartre'));
+    });
+
     it('contient le thème de Noël', () => {
         expect(SEASONAL_THEMES.find(t => t.key === 'noel')?.label).toBe('Noël');
     });
@@ -66,6 +72,15 @@ describe('isThemeActive', () => {
 describe('pickActiveTheme', () => {
     it('renvoie le thème actif', () => {
         expect(pickActiveTheme([row()], '2026-10-08')?.theme_key).toBe('vendanges-montmartre');
+    });
+
+    it('renvoie halloween quand c\'est le seul thème actif', () => {
+        const rows = [
+            row({ enabled: false }),
+            row({ theme_key: 'halloween', start_date: '2026-10-25', end_date: '2026-11-01' }),
+        ];
+        expect(pickActiveTheme(rows, '2026-10-31')?.theme_key).toBe('halloween');
+        expect(pickActiveTheme(rows, '2026-10-08')).toBeNull();
     });
 
     it('renvoie null sans thème actif', () => {

@@ -38,10 +38,16 @@ describe('SeasonalThemeToggle', () => {
         expect(icon()?.getAttribute('class')).toContain('lucide-grape');
     });
 
-    it('garde la grappe par défaut pour un thème sans icône dédiée', () => {
+    it('affiche un fantôme pour le thème Halloween', () => {
+        mockSeasonal = { theme: 'halloween', hidden: false, toggleHidden: vi.fn() };
+        render(<SeasonalThemeToggle />);
+        expect(icon()?.getAttribute('class')).toContain('lucide-ghost');
+    });
+
+    it('affiche un pictogramme neutre pour un thème sans icône dédiée', () => {
         mockSeasonal = { theme: 'inconnu', hidden: false, toggleHidden: vi.fn() };
         render(<SeasonalThemeToggle />);
-        expect(icon()?.getAttribute('class')).toContain('lucide-grape');
+        expect(icon()?.getAttribute('class')).toContain('lucide-sparkles');
     });
 
     it('bascule le thème et reflète l\'état masqué', () => {
