@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
-import { canAccessDriveFolder } from '@/lib/driveAuth';
+import { canAccessDriveFolder, resolveDriveFolderOwner } from '@/lib/driveAuth';
+import { isSuperAdmin } from '@/lib/roles';
 import { getErrorMessage } from '@/lib/utils/error';
 import { Readable } from 'stream';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
@@ -123,6 +124,12 @@ async function postHandler(request: Request) {
 
         if (parentFolderId && parentFolderId !== 'null') {
             if (!(await canAccessDriveFolder(session, parentFolderId))) {
+                return forbiddenResponse();
+            }
+            // Lire un compte rendu de mission n'autorise pas à verser des fichiers
+            // dans son dossier : le parcours mission crée toujours un nouveau dossier.
+            const owner = await resolveDriveFolderOwner(parentFolderId);
+            if (owner?.kind === 'mission' && !isSuperAdmin(session.user.roles || [])) {
                 return forbiddenResponse();
             }
         }

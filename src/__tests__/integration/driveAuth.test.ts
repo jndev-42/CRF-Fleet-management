@@ -10,7 +10,7 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 
-import { resolveDriveFolderOwner, canAccessDriveFolder } from '@/lib/driveAuth';
+import { resolveDriveFolderOwner, canAccessDriveFolder, canAccessDriveFile } from '@/lib/driveAuth';
 import { db, seedVehicle, seedUser, seedTrip, seedIncident, seedExpenseReport } from './setup';
 
 function makeSession(overrides: Partial<Session['user']> = {}): Session {
@@ -112,5 +112,62 @@ describe('canAccessDriveFolder', () => {
 
         const allowed = await canAccessDriveFolder(makeSession({ id: 'user-2', roles: ['CHVL'] }), 'folder-expense');
         expect(allowed).toBe(false);
+    });
+});
+
+async function seedMissionReport(opts: { id: string; submittedBy: string; ulId: string | null; folderId?: string; signedId?: string }) {
+    await db.execute({
+        sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, ulId, drive_folder_id, signed_report_drive_id)
+              VALUES (?, ?, '2026-10-01T10:00:00Z', 'DPS', 'DPS Test', '2026-10-01', 'Paris', '[]', ?, ?, ?)`,
+        args: [opts.id, opts.submittedBy, opts.ulId, opts.folderId ?? null, opts.signedId ?? null],
+    });
+}
+
+describe('Drive — comptes rendus de mission', () => {
+    it('résout le dossier photos d\'un compte rendu', async () => {
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: 'folder-mission' });
+
+        const owner = await resolveDriveFolderOwner('folder-mission');
+        expect(owner).toEqual({ kind: 'mission', reports: [{ ulId: 'ul-paris-18', submittedBy: 'author-1' }] });
+    });
+
+    it('autorise un responsable lecture seule de la même UL (dossier et rapport signé)', async () => {
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: 'folder-mission', signedId: 'file-signed' });
+        const session = makeSession({ id: 'reader-1', email: 'reader@test.com', roles: ['CADRE'], ulId: 'ul-paris-18' });
+
+        expect(await canAccessDriveFolder(session, 'folder-mission')).toBe(true);
+        expect(await canAccessDriveFile(session, 'file-signed')).toBe(true);
+    });
+
+    it('autorise un ADMIN de la même UL', async () => {
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', signedId: 'file-signed' });
+
+        expect(await canAccessDriveFile(makeSession({ id: 'admin-1', email: 'admin@test.com', roles: ['ADMIN'] }), 'file-signed')).toBe(true);
+    });
+
+    it('autorise l\'auteur, même hors UL', async () => {
+        await seedUser({ id: 'author-1', email: 'author@test.com' });
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: null, signedId: 'file-signed' });
+
+        const session = makeSession({ id: 'author-1', email: 'author@test.com', roles: ['CI/RPAPS'], ulId: 'ul-lyon-3' });
+        expect(await canAccessDriveFile(session, 'file-signed')).toBe(true);
+    });
+
+    it('refuse un responsable d\'une autre UL', async () => {
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: 'folder-mission', signedId: 'file-signed' });
+        const session = makeSession({ id: 'reader-1', email: 'reader@test.com', roles: ['CADRE'], ulId: 'ul-lyon-3' });
+
+        expect(await canAccessDriveFolder(session, 'folder-mission')).toBe(false);
+        expect(await canAccessDriveFile(session, 'file-signed')).toBe(false);
+    });
+
+    it('refuse un simple utilisateur de la même UL qui n\'est pas l\'auteur', async () => {
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', signedId: 'file-signed' });
+
+        expect(await canAccessDriveFile(makeSession({ id: 'user-2', email: 'u2@test.com', roles: ['CHVL'] }), 'file-signed')).toBe(false);
+    });
+
+    it('refuse un fichier qui n\'est le rapport signé d\'aucun compte rendu', async () => {
+        expect(await canAccessDriveFile(makeSession({ roles: ['ADMIN'] }), 'unknown-file')).toBe(false);
     });
 });

@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.22.1] — 16 octobre 2026
+
+### 🐛 Corrections
+
+- **Comptes rendus de mission : pièces jointes accessibles** — les personnes autorisées à consulter un compte rendu (administrateurs et responsables de l'UL, auteur du rapport) voient de nouveau le rapport signé et les photos de la mission. Jusqu'ici, l'affichage était refusé (« Forbidden ») pour tous sauf les super admins.
+
 ## [5.22.0] — 3 octobre 2026
 
 ### ✨ Nouveautés
