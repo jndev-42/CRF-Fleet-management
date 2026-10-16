@@ -30,6 +30,16 @@ describe('documentScanner/output', () => {
         expect(pdf.getPageCount()).toBe(2);
     });
 
+    it("chaque page du PDF a exactement les proportions de son image (aucune marge ni bande)", async () => {
+        const sizes: Array<[number, number]> = [[100, 150], [150, 100], [210, 297], [1000, 1414], [333, 333]];
+        const bytes = await buildPdf(sizes.map(([width, height]) => ({ jpeg: TINY_JPEG, width, height })));
+        const pdf = await PDFDocument.load(bytes);
+        sizes.forEach(([width, height], i) => {
+            const page = pdf.getPage(i).getSize();
+            expect(Math.abs(page.width / page.height / (width / height) - 1)).toBeLessThan(0.005);
+        });
+    });
+
     it('produit compte-rendu-scan.pdf, même pour une seule page', async () => {
         const file = await pagesToPdfFile([page()], { encode: okEncoder });
         expect(file.name).toBe(SCAN_PDF_NAME);

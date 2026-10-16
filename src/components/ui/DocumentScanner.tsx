@@ -58,7 +58,7 @@ export default function DocumentScanner({ onComplete, onClose, onFallback }: Doc
     const [engineFailed, setEngineFailed] = useState(false);
     const [raw, setRaw] = useState<{ canvas: HTMLCanvasElement; url: string } | null>(null);
     const [quad, setQuad] = useState<Quad | null>(null);
-    const [mode, setMode] = useState<EnhanceMode>('color');
+    const [mode, setMode] = useState<EnhanceMode>('original');
     const [processed, setProcessed] = useState<ScannedPage | null>(null);
     const [pages, setPages] = useState<ScannedPage[]>([]);
     const [busy, setBusy] = useState(false);
@@ -284,7 +284,12 @@ export default function DocumentScanner({ onComplete, onClose, onFallback }: Doc
                 {phase === 'review' && processed && (
                     <div className={styles.reviewView}>
                         {/* eslint-disable-next-line @next/next/no-img-element -- aperçu local (data URL) */}
-                        <img src={processed.preview} alt="Document redressé" className={styles.preview} />
+                        <img
+                            src={processed.preview}
+                            alt="Document redressé"
+                            className={styles.preview}
+                            style={{ '--ratio': processed.canvas.width / processed.canvas.height } as CSSProperties}
+                        />
                         <div className={styles.modeToggle} role="group" aria-label="Rendu">
                             {MODES.map(({ value, label }) => (
                                 <button

@@ -135,12 +135,19 @@
     text-align: center;
 }
 
+/*
+ * Aperçu à la taille réelle de l'image : la boîte a exactement son ratio (--ratio posé en ligne), donc
+ * aucune bande, et surtout aucun fond. Avant, `flex: 1` + `object-fit: contain` + fond blanc laissaient
+ * des bandes blanches en haut et en bas dès que la hauteur disponible dépassait celle de l'image.
+ * 56 px = place de la bascule Original / Couleur / Noir & blanc sous l'image.
+ */
 .preview {
-    max-width: 100%;
-    min-height: 0;
-    flex: 1;
-    object-fit: contain;
-    background: #fff;
+    display: block;
+    flex-shrink: 0;
+    width: min(100cqw, calc((100cqh - 56px) * var(--ratio, 0.75)));
+    height: auto;
+    aspect-ratio: var(--ratio, 0.75);
+    object-fit: fill;
 }
 
 /* Trois choix : tient dans 320 px (≈ 96 px par bouton, « Noir & blanc » ≈ 80 px de texte + 12 px de marge) */
