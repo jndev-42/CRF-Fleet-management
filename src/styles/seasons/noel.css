@@ -23,7 +23,7 @@
 
 html[data-season="noel"] {
     --nl-gold: #c9a227;
-    --nl-snow-opacity: 0.65;
+    --nl-snow-opacity: 0.85;
     --nl-font: var(--font-season-noel, Georgia, 'Times New Roman', serif);
 
     /* Encre des titres : vert sapin en clair, crème en sombre. */
@@ -34,6 +34,7 @@ html[data-season="noel"] {
     --nl-card-line: rgba(201, 162, 39, 0.55);
 
     --nl-img-garland: url("/seasons/noel/garland.svg");
+    --nl-img-garland-lit: url("/seasons/noel/garland-lit.svg");
     --nl-img-rule: url("/seasons/noel/title-rule.svg");
     --nl-img-pattern: url("/seasons/noel/pattern.svg");
     --nl-img-snow: url("/seasons/noel/snow.svg");
@@ -46,7 +47,7 @@ html[data-season="noel"] {
 
 html[data-season="noel"].dark {
     --nl-gold: #e2bf5a;
-    --nl-snow-opacity: 0.4;
+    --nl-snow-opacity: 0.6;
     --nl-ink: #f3ead3;
     --nl-nav-bg: #0f2419;
     --nl-btn-bg: #23683f;
@@ -54,6 +55,7 @@ html[data-season="noel"].dark {
     --nl-card-line: rgba(226, 191, 90, 0.4);
 
     --nl-img-garland: url("/seasons/noel/garland-d.svg");
+    --nl-img-garland-lit: url("/seasons/noel/garland-lit-d.svg");
     --nl-img-rule: url("/seasons/noel/title-rule-d.svg");
     --nl-img-pattern: url("/seasons/noel/pattern-d.svg");
     --nl-img-snow: url("/seasons/noel/snow-d.svg");
@@ -383,8 +385,11 @@ html[data-season="noel"] .btn-primary:focus-visible {
 /* ===== Animations : neige qui tombe, guirlande et étoile qui scintillent ===== */
 /*
  * Neige : rendue seulement sans `prefers-reduced-motion` (sinon, pas de neige du tout).
- * Calque fixe au-dessus du contenu mais sous la navbar (z-index 100), sans effet sur
- * la mise en page ni sur les clics. Deux couches de la même tuile (320 et 480 px)
+ * Calque fixe derrière les éléments de la page (z-index -1) : `html` n'ayant pas de
+ * fond, celui de `body` est reporté sur le canevas, donc la neige tombe sur le fond de
+ * page et passe sous les cartes, les titres et le texte, sans effet sur la mise en
+ * page ni sur les clics. Elle passe aussi sous les scènes des marges (`body::before` /
+ * `::after`, peintes après elle au même niveau). Deux couches de la même tuile (320 et 480 px)
  * donnent de la profondeur ; flocons clairsemés et semi-transparents (liseré gris-bleu
  * en clair pour rester visibles). Le calque dépasse de 960 px vers le haut (multiple
  * commun des deux tuiles) et descend par `transform` : composité, sans repeindre la
@@ -398,7 +403,7 @@ html[data-season="noel"] .btn-primary:focus-visible {
         right: 0;
         bottom: 0;
         left: 0;
-        z-index: 90;
+        z-index: -1;
         background-image: var(--nl-img-snow), var(--nl-img-snow);
         background-size: 320px 320px, 480px 480px;
         background-position: 0 0, 70px 40px;
@@ -409,8 +414,11 @@ html[data-season="noel"] .btn-primary:focus-visible {
         animation: noel-snow 72s linear infinite;
     }
 
+    /* Guirlande allumée : variante animée du dessin (halo et éclat des ampoules,
+     * allumées une sur deux en alternance), chargée seulement ici. Sous
+     * `prefers-reduced-motion`, la guirlande fixe reste affichée. */
     html[data-season="noel"] .header::before {
-        animation: noel-twinkle 2.4s ease-in-out infinite alternate;
+        background-image: var(--nl-img-garland-lit);
     }
 
     html[data-season="noel"] .header-title::after {

@@ -1,0 +1,52 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 20'>
+<style>
+.h{animation:glow 1.6s ease-in-out infinite alternate}
+.d{animation:dim 1.6s ease-in-out infinite alternate}
+.b{animation-delay:-.8s}
+@keyframes glow{from{opacity:.15}to{opacity:1}}
+@keyframes dim{from{opacity:.6}to{opacity:0}}
+</style>
+<defs>
+<radialGradient id='g2A9D5C'><stop offset='0' stop-color='#2A9D5C' stop-opacity='1'/><stop offset='.45' stop-color='#2A9D5C' stop-opacity='.55'/><stop offset='1' stop-color='#2A9D5C' stop-opacity='0'/></radialGradient>
+<radialGradient id='g3A7BD5'><stop offset='0' stop-color='#3A7BD5' stop-opacity='1'/><stop offset='.45' stop-color='#3A7BD5' stop-opacity='.55'/><stop offset='1' stop-color='#3A7BD5' stop-opacity='0'/></radialGradient>
+<radialGradient id='gD62828'><stop offset='0' stop-color='#D62828' stop-opacity='1'/><stop offset='.45' stop-color='#D62828' stop-opacity='.55'/><stop offset='1' stop-color='#D62828' stop-opacity='0'/></radialGradient>
+<radialGradient id='gF2B705'><stop offset='0' stop-color='#F2B705' stop-opacity='1'/><stop offset='.45' stop-color='#F2B705' stop-opacity='.55'/><stop offset='1' stop-color='#F2B705' stop-opacity='0'/></radialGradient>
+</defs>
+<path d='M0 3Q30 12 60 3Q90 12 120 3' fill='none' stroke='#1E5B3A' stroke-width='1.2'/>
+<circle class='h a' cx='15' cy='11.4' r='9' fill='url(#gD62828)'/>
+<rect x='14' y='6.0' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='15' cy='11.4' rx='2.6' ry='3.6' fill='#D62828'/>
+<ellipse class='d a' cx='15' cy='11.4' rx='2.6' ry='3.6' fill='#1A1A1A'/>
+<ellipse class='h a' cx='15' cy='11.8' rx='1.3' ry='2' fill='#FFF6D5'/>
+<circle cx='14.1' cy='10.2' r='.8' fill='#FFFFFF' opacity='.7'/>
+<circle class='h b' cx='30' cy='12.5' r='9' fill='url(#gF2B705)'/>
+<rect x='29' y='7.1' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='30' cy='12.5' rx='2.6' ry='3.6' fill='#F2B705'/>
+<ellipse class='d b' cx='30' cy='12.5' rx='2.6' ry='3.6' fill='#1A1A1A'/>
+<ellipse class='h b' cx='30' cy='12.9' rx='1.3' ry='2' fill='#FFF6D5'/>
+<circle cx='29.1' cy='11.3' r='.8' fill='#FFFFFF' opacity='.7'/>
+<circle class='h a' cx='45' cy='11.4' r='9' fill='url(#g2A9D5C)'/>
+<rect x='44' y='6.0' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='45' cy='11.4' rx='2.6' ry='3.6' fill='#2A9D5C'/>
+<ellipse class='d a' cx='45' cy='11.4' rx='2.6' ry='3.6' fill='#1A1A1A'/>
+<ellipse class='h a' cx='45' cy='11.8' rx='1.3' ry='2' fill='#FFF6D5'/>
+<circle cx='44.1' cy='10.2' r='.8' fill='#FFFFFF' opacity='.7'/>
+<circle class='h b' cx='75' cy='11.4' r='9' fill='url(#g3A7BD5)'/>
+<rect x='74' y='6.0' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='75' cy='11.4' rx='2.6' ry='3.6' fill='#3A7BD5'/>
+<ellipse class='d b' cx='75' cy='11.4' rx='2.6' ry='3.6' fill='#1A1A1A'/>
+<ellipse class='h b' cx='75' cy='11.8' rx='1.3' ry='2' fill='#FFF6D5'/>
+<circle cx='74.1' cy='10.2' r='.8' fill='#FFFFFF' opacity='.7'/>
+<circle class='h a' cx='90' cy='12.5' r='9' fill='url(#gD62828)'/>
+<rect x='89' y='7.1' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='90' cy='12.5' rx='2.6' ry='3.6' fill='#D62828'/>
+<ellipse class='d a' cx='90' cy='12.5' rx='2.6' ry='3.6' fill='#1A1A1A'/>
+<ellipse class='h a' cx='90' cy='12.9' rx='1.3' ry='2' fill='#FFF6D5'/>
+<circle cx='89.1' cy='11.3' r='.8' fill='#FFFFFF' opacity='.7'/>
+<circle class='h b' cx='105' cy='11.4' r='9' fill='url(#gF2B705)'/>
+<rect x='104' y='6.0' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='105' cy='11.4' rx='2.6' ry='3.6' fill='#F2B705'/>
+<ellipse class='d b' cx='105' cy='11.4' rx='2.6' ry='3.6' fill='#1A1A1A'/>
+<ellipse class='h b' cx='105' cy='11.8' rx='1.3' ry='2' fill='#FFF6D5'/>
+<circle cx='104.1' cy='10.2' r='.8' fill='#FFFFFF' opacity='.7'/>
+</svg>

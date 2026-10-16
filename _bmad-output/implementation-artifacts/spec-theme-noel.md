@@ -21,6 +21,8 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/spec-themes-sais
 - Direction artistique **Noël traditionnel chaleureux** : vert sapin, or et crème, houx, guirlande lumineuse sous la navbar, neige posée sur les titres, sapin et cadeaux dans les marges.
 - **Neige animée légère** qui tombe sur la page : calque fixe en superposition, quelques flocons, `pointer-events: none`, sans aucun effet sur la mise en page, coupée sous `prefers-reduced-motion`.
 
+**Révision demandée par l'utilisateur (16 octobre, après ouverture de la PR #138) :** la guirlande doit **s'illuminer** (ampoules qui s'allument et brillent, pas seulement un léger scintillement d'ensemble), et la neige passe **derrière les éléments de la page** : elle tombe sur le fond, sous les cartes, les titres et le texte.
+
 ## Boundaries & Constraints
 
 **Always:**
@@ -66,12 +68,14 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/spec-themes-sais
 
 - Police : Playfair Display 700/800 (`next/font/google`, `preload: false`), plus étroite qu'Inter en gras : aucun titre ne passe à la ligne (boîtes mesurées identiques thème affiché / masqué).
 - Illustrations générées en SVG (`public/seasons/noel/`) ; variantes `-d` seulement là où le sombre l'exige (guirlande : fil or ; filet des titres ; trame ; neige sans liseré).
-- Neige : `html::before` fixe, rendu seulement sous `prefers-reduced-motion: no-preference`, `z-index: 90` (sous la navbar à 100 et sous les modales), deux couches de la même tuile (320 et 480 px), opacité 0,65 en clair et 0,4 en sombre ; calque dépassant de 960 px vers le haut, animé par `transform: translateY(960px)` (multiple commun des tuiles). Masquée à l'impression avec les scènes et la guirlande.
+- Neige : `html::before` fixe, rendu seulement sous `prefers-reduced-motion: no-preference`, `z-index: 90` (sous la navbar à 100 et sous les modales) — **remplacé après la révision du 16 octobre** : `z-index: -1`, derrière le contenu, deux couches de la même tuile (320 et 480 px), opacité 0,65 en clair et 0,4 en sombre ; calque dépassant de 960 px vers le haut, animé par `transform: translateY(960px)` (multiple commun des tuiles). Masquée à l'impression avec les scènes et la guirlande.
 - Guirlande : 24 px à `top: calc(100% - 4px)` → débord de 20 px sous la navbar (18 px / 15 px en mobile), comme le sarment des vendanges.
 - Bouton du thème : table `clé → { icône lucide, couleur }` ; `noel` → `TreePine` vert sapin, grappe violette par défaut.
 - Test d'intégration `seasonalThemes.test.ts` : la longueur codée en dur du catalogue (2) passe à la liste explicite des clés, plus un cas « Noël activable hors de la plage des vendanges, 409 sinon ».
 - Captures (appli réelle, dev port 3123, `data-season` posé côté client sans écriture en base) : `/vehicles`, `/users`, `/stats`, `/admin`, clair/sombre, 1440 et 375 px ; aucun débord horizontal, boîtes des boutons, onglets et cartes identiques thème affiché / masqué.
 - Échec hors périmètre : `licenseCheck.test.ts` cas 6 (attend 14 jours, obtient 15) — calcul `Math.ceil` sur une période qui traverse le passage à l'heure d'hiver du 25 octobre ; fichiers non touchés ici.
+
+- Révision du 16 octobre : guirlande allumée = variante animée `garland-lit.svg` / `garland-lit-d.svg` (halo radial, cœur lumineux et voile sombre animés en CSS dans le SVG ; ampoules allumées une sur deux en alternance, cycle de 1,6 s). Elle ne remplace la guirlande fixe que sous `prefers-reduced-motion: no-preference`. Neige en `z-index: -1` : `html` n'a pas de fond, celui de `body` est reporté sur le canevas, donc les flocons restent visibles sur le fond de page et passent sous tout le contenu (et sous les scènes des marges). Opacité relevée à 0,85 en clair et 0,6 en sombre, puisqu'elle ne gêne plus la lecture. Vérifié dans l'appli réelle (port 3123, `data-season` posé côté client) : `/vehicles` et `/stats`, clair et sombre ; captures dans `scratchpad/preview/lit/`.
 
 ## Spec Change Log
 
@@ -81,7 +85,7 @@ context: ['{project-root}/_bmad-output/implementation-artifacts/spec-themes-sais
 |---|--------|---------|---------|----------------|
 | 1 | blind | La neige anime `background-position` sur un calque plein écran : la page entière est repeinte à chaque image | medium | `@keyframes noel-snow` sur `html::before` (`inset: 0`) ; coûteux sur les téléphones du terrain → patch (calque surdimensionné animé par `transform`) |
 | 2 | blind | Sous `prefers-reduced-motion`, les flocons restent figés sur le texte | medium | La décision dit « neige coupée sous `prefers-reduced-motion` » ; aujourd'hui seule l'animation est coupée → patch (calque affiché uniquement sous `no-preference`) |
-| 3 | blind | La neige passe au-dessus du contenu (z-index 90) | false | La décision gelée demande un « calque fixe en superposition » ; les flocons sont clairsemés, sous la navbar (100) et les modales (≥ 200) → rejeté |
+| 3 | blind | La neige passe au-dessus du contenu (z-index 90) | false (puis résolu par la révision du 16 octobre) | La décision gelée demande un « calque fixe en superposition » ; les flocons sont clairsemés, sous la navbar (100) et les modales (≥ 200) → rejeté |
 | 4 | blind | Une carte sur trois a un bandeau rouge, qui se lit comme une alerte | low | `#a3161f` via `nth-child(3n)` sur les cartes de véhicule et de KPI ; correction directe → patch (vert et or seulement) |
 | 5 | blind | Le bandeau en `inset` se superpose à la barre de statut de `.stat-card` (`::before`, 3 px) | low | `globals.css` l.420 → patch (retirer `.stat-card` des règles de bandeau) |
 | 6 | edge | Au survol, les cartes de véhicule perdent leur ombre portée | low | La règle du thème (0,2,1) l'emporte sur `.vehicle-card:hover` (l.515, `--shadow-lg`) → patch |
