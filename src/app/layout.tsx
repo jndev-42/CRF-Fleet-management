@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Anton, Creepster } from 'next/font/google';
+import { Inter, Anton, Creepster, Playfair_Display } from 'next/font/google';
 import Link from 'next/link';
 import "./globals.css";
 import "@/styles/seasons/vendanges-montmartre.css";
 import "@/styles/seasons/halloween.css";
+import "@/styles/seasons/noel.css";
 
 const inter = Inter({
   subsets: ['latin'],
@@ -28,6 +29,15 @@ const creepster = Creepster({
   display: 'swap',
   preload: false,
   variable: '--font-season-halloween',
+});
+// Typo de titre à empattements du thème saisonnier « Noël » (encombrement voisin d'Inter en gras) :
+// exposée en variable CSS, utilisée uniquement sous `html[data-season="noel"]`.
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['700', '800'],
+  display: 'swap',
+  preload: false,
+  variable: '--font-season-noel',
 });
 import { auth } from "@/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -85,7 +95,7 @@ export default async function RootLayout({
     // `className="… dark"` : React signalait l'écart à chaque page. L'attribut
     // ne masque que cet élément-ci, pas ses descendants — un vrai décalage
     // d'hydratation dans l'arbre reste donc signalé.
-    <html lang="fr" className={`${inter.variable} ${anton.variable} ${creepster.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="fr" className={`${inter.variable} ${anton.variable} ${creepster.variable} ${playfair.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
         <DemoProvider>
           <DemoBanner />

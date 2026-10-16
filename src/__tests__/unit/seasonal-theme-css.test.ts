@@ -7,6 +7,7 @@ import { THEME_KEYS } from '@/lib/themes/catalog';
 const ASSET_DIRS: Record<string, string> = {
     'vendanges-montmartre': 'vendanges',
     halloween: 'halloween',
+    noel: 'noel',
 };
 
 interface Rule { selectors: string[]; body: string; keyframes: boolean }

@@ -23,6 +23,14 @@
     color: #ffa94d;
 }
 
+.noel {
+    color: #1e5b3a;
+}
+
+:global(.dark) .noel {
+    color: #6fbf8a;
+}
+
 .fallback {
     color: var(--text-primary);
 }

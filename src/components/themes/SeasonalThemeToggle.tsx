@@ -1,6 +1,6 @@
 'use client';
 
-import { Ghost, Grape, Sparkles, type LucideIcon } from 'lucide-react';
+import { Ghost, Grape, Sparkles, TreePine, type LucideIcon } from 'lucide-react';
 import { useSeasonalTheme } from '@/lib/contexts/SeasonalThemeContext';
 import styles from './SeasonalThemeToggle.module.css';
 
@@ -8,6 +8,7 @@ import styles from './SeasonalThemeToggle.module.css';
 const THEME_ICONS: Record<string, { Icon: LucideIcon; className: string }> = {
     'vendanges-montmartre': { Icon: Grape, className: styles.vendanges },
     halloween: { Icon: Ghost, className: styles.halloween },
+    noel: { Icon: TreePine, className: styles.noel },
 };
 
 /** Thème sans icône dédiée : pictogramme neutre. */

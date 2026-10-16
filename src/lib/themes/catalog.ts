@@ -23,6 +23,11 @@ export const SEASONAL_THEMES: readonly SeasonalThemeDef[] = [
         label: 'Halloween',
         description: 'Citrouilles souriantes, chauves-souris et petits fantômes, avec une guirlande qui pend de la barre de navigation.',
     },
+    {
+        key: 'noel',
+        label: 'Noël',
+        description: 'Vert sapin, or et houx : guirlande lumineuse sous la barre de navigation, sapin et cadeaux dans les marges, et une neige légère qui tombe sur la page.',
+    },
 ];
 
 export const THEME_KEYS: readonly string[] = SEASONAL_THEMES.map(t => t.key);

@@ -166,9 +166,11 @@ describe('GET /api/settings/themes', () => {
         const res = await getThemes();
         expect(res.status).toBe(200);
         const { themes } = await res.json();
-        expect(themes).toHaveLength(3);
+        // Catalogue réel (vendanges, Halloween, Noël) + le thème de test ajouté par le mock.
+        expect(themes.map((t: { key: string }) => t.key)).toEqual(['vendanges-montmartre', 'halloween', 'noel', 'autre-theme']);
         expect(themes[0]).toMatchObject({ key: 'vendanges-montmartre', enabled: false, startDate: null, endDate: null, status: 'inactive' });
         expect(themes[1]).toMatchObject({ key: 'halloween', enabled: false, startDate: null, endDate: null, status: 'inactive' });
+        expect(themes[2]).toMatchObject({ key: 'noel', label: 'Noël', enabled: false, startDate: null, endDate: null, status: 'inactive' });
     });
 
     it('renvoie ulIds : vide par défaut (thème v5.21.0), liste sinon', async () => {
@@ -346,5 +348,16 @@ describe('PUT /api/settings/themes/[key]', () => {
         await callPut('vendanges-montmartre', valid);
         asRoles(['CHVL']);
         expect((await (await getActive()).json()).theme).toBe('vendanges-montmartre');
+    });
+
+    it('Noël : s\'active sur sa propre plage, mais pas sur celle des vendanges activées', async () => {
+        asSuperAdmin();
+        expect((await callPut('vendanges-montmartre', valid)).status).toBe(200);
+        const overlap = await callPut('noel', { enabled: true, startDate: '2026-10-10', endDate: '2026-12-31' });
+        expect(overlap.status).toBe(409);
+        expect((await overlap.json()).error).toBe('Plage en conflit avec le thème Fête des vendanges de Montmartre sur les mêmes UL');
+        expect((await callPut('noel', { enabled: true, startDate: '2026-12-01', endDate: '2026-12-31' })).status).toBe(200);
+        const rows = (await db.execute(`SELECT theme_key FROM "SeasonalTheme" WHERE theme_key = 'noel'`)).rows;
+        expect(rows).toHaveLength(1);
     });
 });
