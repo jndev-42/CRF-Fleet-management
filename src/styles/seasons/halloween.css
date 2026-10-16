@@ -1,0 +1,433 @@
+/*
+ * Thème saisonnier « Halloween » — habillage ludique.
+ *
+ * Citrouilles souriantes, chauves-souris, petits fantômes et toiles d'araignée ;
+ * palette orange citrouille, violet nuit et vert slime. Rien de gore ni d'inquiétant.
+ * Titres en Creepster (variable `--font-season-halloween`, chargée dans layout.tsx).
+ * Illustrations dans `public/seasons/halloween/`.
+ *
+ * Aucun décalage de mise en page : on ne change ici ni padding, ni marges, ni
+ * dimensions, ni largeur de bordure. Seuls varient les couleurs, fonds, ombres,
+ * polices et des pseudo-éléments `position: absolute` (ou en ligne à encombrement
+ * nul), `pointer-events: none`, posés hors du texte. Masquer le thème (ou sortir de
+ * la plage) retire `data-season` de <html> : l'appli redevient strictement identique.
+ *
+ * Toutes les règles sont préfixées par `html[data-season="halloween"]`
+ * (variante sombre : `html[data-season="halloween"].dark`). On ne redéfinit pas
+ * `--crf-red*` (les erreurs restent rouges) et on ne cible pas `.btn-danger`
+ * ni `.nav-logout-btn`.
+ */
+
+html[data-season="halloween"] {
+    --hw-orange: #ff7a1a;
+    --hw-slime: #7ed321;
+    --hw-violet: #8b5cf6;
+    --hw-font: var(--font-season-halloween, 'Arial Black', Impact, sans-serif);
+
+    /* Encre des traits : violet nuit en clair, lavande claire en sombre. */
+    --hw-ink: #2a1245;
+    --hw-title-shadow: var(--hw-orange);
+    --hw-btn-bg: #4b1f7a;
+    --hw-nav-bg: #fff6ec;
+
+    --hw-img-garland: url("/seasons/halloween/garland.svg");
+    --hw-img-logo: url("/seasons/halloween/logo-frame.svg");
+    --hw-img-ghost: url("/seasons/halloween/ghost-hang.svg");
+    --hw-img-title: url("/seasons/halloween/title-ornament.svg");
+    --hw-img-rule: url("/seasons/halloween/title-rule.svg");
+    --hw-img-card: url("/seasons/halloween/card-web.svg");
+    --hw-img-scene-l: url("/seasons/halloween/scene-left.svg");
+    --hw-img-scene-r: url("/seasons/halloween/scene-right.svg");
+    --hw-img-pattern: url("/seasons/halloween/pattern.svg");
+
+    /* Anneau de focus : violet profond en clair, orange clair en sombre (≥ 3:1 sur le fond). */
+    --hw-focus: #4b1f7a;
+
+    --bg-primary: #fffaf3;
+}
+
+html[data-season="halloween"].dark {
+    --hw-ink: #f3e8ff;
+    --hw-title-shadow: #6a2fb0;
+    --hw-btn-bg: #6a2fb0;
+    --hw-nav-bg: #120a1e;
+
+    --hw-img-garland: url("/seasons/halloween/garland-d.svg");
+    --hw-img-logo: url("/seasons/halloween/logo-frame-d.svg");
+    --hw-img-ghost: url("/seasons/halloween/ghost-hang-d.svg");
+    --hw-img-title: url("/seasons/halloween/title-ornament-d.svg");
+    --hw-img-rule: url("/seasons/halloween/title-rule-d.svg");
+    --hw-img-card: url("/seasons/halloween/card-web-d.svg");
+    --hw-img-scene-l: url("/seasons/halloween/scene-left-d.svg");
+    --hw-img-scene-r: url("/seasons/halloween/scene-right-d.svg");
+    --hw-img-pattern: url("/seasons/halloween/pattern-d.svg");
+
+    --hw-focus: #ffa94d;
+
+    --bg-primary: #0f0a1a;
+}
+
+/* ===== Fond de page : simple trame de points ; scènes d'Halloween dans les marges uniquement ===== */
+html[data-season="halloween"] body {
+    background-image: var(--hw-img-pattern);
+    background-size: 12px 12px;
+    background-repeat: repeat;
+}
+
+/*
+ * Gauche : maison hantée, lune et chauves-souris. Droite : arbre mort, chaudron slime.
+ * Fixes et derrière le contenu (z-index -1) : les cartes, opaques, passent
+ * par-dessus. Largeur = marge + 64 px (la colonne de contenu fait 1152 px au
+ * plus), bornée à 120–220 px : la scène glisse d'au plus ~64 px sous le bord des
+ * cartes. Visibles dès 1280 px ; en dessous de 1400 px, là où elles débordent
+ * le plus, elles s'estompent un peu pour ne pas gêner la lecture du texte posé
+ * sur le fond. La scène de droite est relevée de 150 px pour laisser libres les
+ * boutons flottants.
+ */
+html[data-season="halloween"] body::before,
+html[data-season="halloween"] body::after {
+    content: "";
+    display: none;
+    position: fixed;
+    width: clamp(120px, calc((100vw - 1152px) / 2 + 64px), 220px);
+    aspect-ratio: 220 / 480;
+    z-index: -1;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+html[data-season="halloween"] body::before {
+    left: 0;
+    bottom: 0;
+    background-image: var(--hw-img-scene-l);
+}
+
+html[data-season="halloween"] body::after {
+    right: 0;
+    bottom: 150px;
+    background-image: var(--hw-img-scene-r);
+}
+
+@media (min-width: 1280px) {
+    html[data-season="halloween"] body::before {
+        display: block;
+    }
+}
+
+/* La scène de droite (relevée de 150 px) a besoin de hauteur pour ne pas être coupée. */
+@media (min-width: 1280px) and (min-height: 680px) {
+    html[data-season="halloween"] body::after {
+        display: block;
+    }
+}
+
+@media (min-width: 1280px) and (max-width: 1399px) {
+    html[data-season="halloween"] body::before,
+    html[data-season="halloween"] body::after {
+        opacity: 0.75;
+    }
+}
+
+/* ===== Navbar : fond crème (ou nuit en sombre), filet épais, guirlande d'Halloween ===== */
+html[data-season="halloween"] .header {
+    background: var(--hw-nav-bg);
+    border-bottom-color: var(--hw-ink);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+/* Filet épais en bas de la barre (dans la hauteur existante). */
+html[data-season="halloween"] .header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background: var(--hw-ink);
+    pointer-events: none;
+}
+
+html[data-season="halloween"].dark .header::after {
+    background: var(--hw-orange);
+}
+
+/* Guirlande le long du bord bas : citrouilles, fantômes, chauves-souris et araignées
+ * pendus à un fil (déborde de 20 px sous la barre au plus). */
+html[data-season="halloween"] .header::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% - 10px);
+    height: 30px;
+    background-image: var(--hw-img-garland);
+    background-repeat: repeat-x;
+    background-size: auto 30px;
+    pointer-events: none;
+}
+
+/* Logo : cadre orange, petite chauve-souris et citrouille (l'emblème n'est jamais recouvert). */
+html[data-season="halloween"] .header-brand {
+    position: relative;
+}
+
+html[data-season="halloween"] .header-brand::before {
+    content: "";
+    position: absolute;
+    left: -9px;
+    top: 50%;
+    width: 54px;
+    height: 54px;
+    box-sizing: border-box;
+    transform: translateY(-50%);
+    background-image: var(--hw-img-logo);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+/* « Martine » en Creepster, avec décalage orange et un petit fantôme suspendu. */
+html[data-season="halloween"] .header-title {
+    position: relative;
+    font-family: var(--hw-font);
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--hw-ink);
+    text-shadow: 1.5px 1.5px 0 var(--hw-title-shadow);
+}
+
+html[data-season="halloween"].dark .header-title {
+    color: var(--hw-orange);
+    /* Remplissage plein. À 16 px, un décalage de 2 px colle les lettres entre elles
+     * et se lit comme des rayures : 1 px suffit pour l'effet de repérage. */
+    text-shadow: 1px 1px 0 var(--hw-title-shadow);
+}
+
+html[data-season="halloween"] .header-title::after {
+    content: "";
+    position: absolute;
+    top: -11px;
+    right: -15px;
+    width: 16px;
+    height: 23px;
+    background-image: var(--hw-img-ghost);
+    background-repeat: no-repeat;
+    background-size: contain;
+    pointer-events: none;
+    transform-origin: 50% 0;
+}
+
+/* Lien actif : surligné orange, texte nuit. */
+html[data-season="halloween"] .nav-link.active {
+    color: #1a0f2a;
+    background: var(--hw-orange);
+}
+
+html[data-season="halloween"] .nav-link:hover {
+    background: rgba(255, 122, 26, 0.2);
+}
+
+/* ===== Titres : Creepster sur les titres de page seulement, filet violet et orange en bas de leur boîte ===== */
+html[data-season="halloween"] .page-title,
+html[data-season="halloween"] .section-title {
+    position: relative;
+    color: var(--hw-ink);
+    text-shadow: 1px 1px 0 var(--hw-title-shadow);
+}
+
+/* Les titres de section, plus petits, gardent la police de l'appli (lisibilité). */
+html[data-season="halloween"] .page-title {
+    font-family: var(--hw-font);
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-shadow: 2px 2px 0 var(--hw-title-shadow);
+}
+
+html[data-season="halloween"] .page-title::before,
+html[data-season="halloween"] .section-title::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 4px;
+    background-image: var(--hw-img-rule);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+html[data-season="halloween"] .page-title::before {
+    width: 160px;
+    max-width: 100%;
+}
+
+html[data-season="halloween"] .section-title::before {
+    width: 100px;
+    max-width: 100%;
+}
+
+/*
+ * Citrouille et chauve-souris juste après le texte du titre. Boîte en ligne dont le padding
+ * porte l'image et dont la marge négative annule exactement l'encombrement :
+ * elle n'occupe ni largeur ni hauteur dans la ligne, donc rien ne bouge.
+ */
+html[data-season="halloween"] .page-title::after,
+html[data-season="halloween"] .section-title::after {
+    content: "";
+    display: inline-block;
+    position: relative;
+    width: 0;
+    height: 0;
+    box-sizing: content-box;
+    background-image: var(--hw-img-title);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+html[data-season="halloween"] .page-title::after {
+    padding: 40px 0 0 42px;
+    margin: 0 -48px -40px 6px;
+    top: -34px;
+}
+
+html[data-season="halloween"] .section-title::after {
+    padding: 28px 0 0 30px;
+    margin: 0 -34px -28px 4px;
+    top: -24px;
+}
+
+/* ===== Cartes : trait d'encre, ombre décalée orange / slime / violet, toile d'araignée au coin ===== */
+html[data-season="halloween"] .detail-card,
+html[data-season="halloween"] .vehicle-card,
+html[data-season="halloween"] .kpi-card,
+html[data-season="halloween"] .chart-card,
+html[data-season="halloween"] .stat-card,
+html[data-season="halloween"] .breakdown-card {
+    position: relative;
+    border-color: var(--hw-ink);
+    box-shadow: 3px 3px 0 var(--hw-orange);
+}
+
+html[data-season="halloween"] .detail-card:nth-child(3n + 2),
+html[data-season="halloween"] .vehicle-card:nth-child(3n + 2),
+html[data-season="halloween"] .kpi-card:nth-child(3n + 2),
+html[data-season="halloween"] .chart-card:nth-child(3n + 2),
+html[data-season="halloween"] .stat-card:nth-child(3n + 2),
+html[data-season="halloween"] .breakdown-card:nth-child(3n + 2) {
+    box-shadow: 3px 3px 0 var(--hw-slime);
+}
+
+html[data-season="halloween"] .detail-card:nth-child(3n),
+html[data-season="halloween"] .vehicle-card:nth-child(3n),
+html[data-season="halloween"] .kpi-card:nth-child(3n),
+html[data-season="halloween"] .chart-card:nth-child(3n),
+html[data-season="halloween"] .stat-card:nth-child(3n),
+html[data-season="halloween"] .breakdown-card:nth-child(3n) {
+    box-shadow: 3px 3px 0 var(--hw-violet);
+}
+
+html[data-season="halloween"] .vehicle-card:hover {
+    border-color: var(--hw-ink);
+    box-shadow: 5px 5px 0 var(--hw-slime);
+}
+
+html[data-season="halloween"] .detail-card::after,
+html[data-season="halloween"] .vehicle-card::after,
+html[data-season="halloween"] .kpi-card::after,
+html[data-season="halloween"] .chart-card::after {
+    content: "";
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 22px;
+    height: 15px;
+    background-image: var(--hw-img-card);
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: right bottom;
+    pointer-events: none;
+}
+
+/* ===== Boutons principaux : violet nuit, trame de points, ombre décalée orange, petite citrouille ===== */
+html[data-season="halloween"] .btn-primary {
+    position: relative;
+    background: url("/seasons/halloween/dots.svg") 0 0 / 8px 8px, var(--hw-btn-bg);
+    color: #fff;
+    box-shadow: 3px 3px 0 var(--hw-orange);
+}
+
+html[data-season="halloween"] .btn-primary:hover:not(:disabled) {
+    background: url("/seasons/halloween/dots.svg") 0 0 / 8px 8px, var(--hw-btn-bg);
+    box-shadow: 4px 4px 0 var(--hw-slime);
+}
+
+html[data-season="halloween"] .btn-primary::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    right: 5px;
+    width: 13px;
+    height: 18px;
+    background-image: url("/seasons/halloween/pumpkin-btn.svg");
+    background-repeat: no-repeat;
+    background-size: contain;
+    pointer-events: none;
+}
+
+html[data-season="halloween"] .btn-primary.btn-sm::after {
+    top: 2px;
+    right: 2px;
+    width: 10px;
+    height: 14px;
+}
+
+/* ===== Onglets, badges, champs ===== */
+html[data-season="halloween"] .tab-btn.active {
+    color: var(--hw-ink);
+    background: rgba(255, 122, 26, 0.22);
+    border-bottom-color: var(--hw-ink);
+}
+
+html[data-season="halloween"] .vehicle-type-badge {
+    background: var(--hw-orange);
+    color: #1a0f2a;
+    box-shadow: 2px 2px 0 var(--hw-ink);
+}
+
+html[data-season="halloween"] .form-input:focus,
+html[data-season="halloween"] .form-select:focus,
+html[data-season="halloween"] .form-textarea:focus {
+    border-color: var(--hw-focus);
+    box-shadow: 0 0 0 3px var(--hw-focus);
+}
+
+html[data-season="halloween"] .btn-primary:focus-visible {
+    outline: 3px solid var(--hw-focus);
+    outline-offset: 3px;
+}
+
+/* ===== Animation : le fantôme de la navbar se balance doucement ===== */
+@media (prefers-reduced-motion: no-preference) {
+    html[data-season="halloween"] .header-title::after {
+        animation: halloween-sway 4s ease-in-out infinite alternate;
+    }
+}
+
+@keyframes halloween-sway {
+    from { transform: rotate(-6deg); }
+    to { transform: rotate(6deg); }
+}
+
+/* Mobile : guirlande plus petite pour ne pas mordre sur les titres de page. */
+@media (max-width: 768px) {
+    html[data-season="halloween"] .header::before {
+        top: calc(100% - 7px);
+        height: 27px;
+        background-size: auto 27px;
+    }
+}

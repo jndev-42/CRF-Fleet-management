@@ -93,6 +93,13 @@ describe('GET /api/themes/active', () => {
         expect((await (await getActive()).json()).theme).toBe('vendanges-montmartre');
     });
 
+    it('thème Halloween actif dans sa plage', async () => {
+        vi.setSystemTime(new Date('2026-10-31T10:00:00Z'));
+        await insertTheme('halloween', 1, '2026-10-25', '2026-11-01');
+        asRoles(['CHVL']);
+        expect(await (await getActive()).json()).toEqual({ theme: 'halloween', startDate: '2026-10-25' });
+    });
+
     it('hors plage : null', async () => {
         await insertTheme('vendanges-montmartre', 1, '2026-09-01', '2026-10-06');
         asRoles(['CHVL']);
@@ -159,8 +166,9 @@ describe('GET /api/settings/themes', () => {
         const res = await getThemes();
         expect(res.status).toBe(200);
         const { themes } = await res.json();
-        expect(themes).toHaveLength(2);
+        expect(themes).toHaveLength(3);
         expect(themes[0]).toMatchObject({ key: 'vendanges-montmartre', enabled: false, startDate: null, endDate: null, status: 'inactive' });
+        expect(themes[1]).toMatchObject({ key: 'halloween', enabled: false, startDate: null, endDate: null, status: 'inactive' });
     });
 
     it('renvoie ulIds : vide par défaut (thème v5.21.0), liste sinon', async () => {
@@ -227,6 +235,14 @@ describe('PUT /api/settings/themes/[key]', () => {
         const res = await callPut('vendanges-montmartre', valid);
         expect(res.status).toBe(409);
         expect((await res.json()).error).toBe('Plage en conflit avec le thème Autre thème sur les mêmes UL');
+    });
+
+    it('409 entre les vendanges et Halloween sur des plages qui se recouvrent', async () => {
+        await insertTheme('halloween', 1, '2026-10-10', '2026-10-31');
+        asSuperAdmin();
+        const res = await callPut('vendanges-montmartre', valid);
+        expect(res.status).toBe(409);
+        expect((await res.json()).error).toBe('Plage en conflit avec le thème Halloween sur les mêmes UL');
     });
 
     it('ignore une ligne dont la clé a quitté le catalogue', async () => {
