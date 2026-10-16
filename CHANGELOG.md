@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.23.0] — 16 octobre 2026
+
+### ✨ Nouveautés
+
+- **Nouveau thème saisonnier « Halloween »** — un second habillage s'ajoute dans l'onglet « Thèmes » de l'administration, à activer comme celui des vendanges (activation, plage de dates, UL concernées). L'ambiance est ludique : citrouilles souriantes, chauves-souris, petits fantômes et toiles d'araignée, en orange citrouille, violet nuit et vert slime. Une guirlande pend de la barre de navigation, le logo et les titres sont décorés, les cartes portent un coin de toile d'araignée, et une maison hantée et un chaudron illustrent les marges des grands écrans. Le rendu existe en mode clair et en mode sombre, sans rien déplacer dans l'application, et le bouton de déconnexion et les boutons de suppression restent rouges.
+- **Bouton du thème aux couleurs de la saison** — le bouton de la barre de navigation qui masque ou réaffiche le thème saisonnier montre désormais l'icône du thème en cours : une grappe de raisin pour les vendanges, un petit fantôme pour Halloween.
 ## [5.22.2] — 16 octobre 2026
 
 ### 🐛 Corrections

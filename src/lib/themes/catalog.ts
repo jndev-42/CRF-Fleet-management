@@ -18,6 +18,11 @@ export const SEASONAL_THEMES: readonly SeasonalThemeDef[] = [
         label: 'Fête des vendanges de Montmartre',
         description: 'Petites grappes et feuilles de vigne posées sur les titres, et un sarment qui pend de la barre de navigation.',
     },
+    {
+        key: 'halloween',
+        label: 'Halloween',
+        description: 'Citrouilles souriantes, chauves-souris et petits fantômes, avec une guirlande qui pend de la barre de navigation.',
+    },
 ];
 
 export const THEME_KEYS: readonly string[] = SEASONAL_THEMES.map(t => t.key);

@@ -43,6 +43,17 @@ describe('SeasonalThemeProvider + SeasonalThemeToggle', () => {
         expect(btn.getAttribute('aria-pressed')).toBe('true');
     });
 
+    it.each([
+        ['vendanges-montmartre', 'lucide-grape'],
+        ['halloween', 'lucide-ghost'],
+        ['theme-sans-icone', 'lucide-sparkles'],
+    ])('le bouton du thème %s porte son icône (%s)', async (theme, iconClass) => {
+        mockActive({ theme, startDate: '2026-10-07' });
+        renderTree();
+        const btn = await screen.findByRole('button', { name: 'Masquer le thème' });
+        expect(btn.querySelector(`svg.${iconClass}`)).not.toBeNull();
+    });
+
     it('sans thème actif : pas de bouton ni d\'attribut', async () => {
         mockActive({ theme: null, startDate: null });
         renderTree();
