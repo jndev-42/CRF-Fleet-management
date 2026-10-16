@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
-import { isAdminOrAbove, isSuperAdmin, isReadOnlyManager, isMissionContributor } from '@/lib/roles';
+import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { canReadMissionReport, resolveSessionUserId } from '@/lib/missions/access';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -46,34 +47,13 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
         const row = reportResult.rows[0];
 
-        // Le rapport stocke le `User.id` résolu depuis l'email (cf. POST) ; en dev
-        // `session.user.id` peut être un email de repli — sans résolution, l'auteur
-        // se verrait refuser son propre rapport.
-        let userId = (session.user.id as string | undefined) ?? null;
-        if (session.user.email) {
-            const userRes = await db.execute({
-                sql: `SELECT id FROM "User" WHERE email = ?`,
-                args: [session.user.email],
-            });
-            if (userRes.rows.length > 0) userId = userRes.rows[0].id as string;
-        }
-
-        // Access control:
-        const roles = (session.user.roles || ['INACTIF']) as string[];
-        const isSuper = isSuperAdmin(roles);
-        // Un rapport rattaché à une DT porte `ulId = NULL` : il n'est rapproché
-        // d'AUCUNE UL, donc ni l'admin ni le cadre de l'UL active ne le lisent —
-        // seul son auteur (ou un SUPER_ADMIN) y accède, comme dans la liste.
-        const reportUlId = (row.ulId as string | null) ?? null;
-        const sameUl = reportUlId !== null && reportUlId === session.user.ulId;
-        const isLocalAdmin = isAdminOrAbove(roles) && sameUl;
-        const isLocalManager = isReadOnlyManager(roles) && sameUl;
-        // L'auteur relit toujours son rapport — c'est ce que « Mes rapports »
-        // liste. `isMissionContributor`/`isAdminOrAbove` portent le blocage INACTIF.
-        const isSubmitter = (isMissionContributor(roles) || isAdminOrAbove(roles))
-            && row.submitted_by === userId;
-
-        if (!isSuper && !isLocalAdmin && !isLocalManager && !isSubmitter) {
+        const userId = await resolveSessionUserId(session);
+        const canRead = canReadMissionReport(
+            session,
+            { ulId: (row.ulId as string | null) ?? null, submittedBy: (row.submitted_by as string | null) ?? null },
+            userId,
+        );
+        if (!canRead) {
             return forbiddenResponse();
         }
 

@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { getDriveClient } from '@/lib/drive';
-import { canAccessDriveFolder } from '@/lib/driveAuth';
+import { canAccessDriveFile, canAccessDriveFolder } from '@/lib/driveAuth';
 
 export async function GET(
     request: Request,
@@ -48,10 +48,13 @@ export async function GET(
         // Vérifie que ce fichier appartient à une ressource accessible à l'utilisateur,
         // en remontant jusqu'à 2 niveaux de dossiers parents (les photos sont nichées
         // sous <driveFolderId>/emprunt|rendu/, ou directement sous <driveFolderId>).
-        const fileParentsRes = await drive.files.get({ fileId, fields: 'parents' });
-        const immediateParents = fileParentsRes.data.parents || [];
+        // Le rapport de mission signé est référencé par son seul fileId : on le
+        // vérifie directement, sans remonter les dossiers.
+        let authorized = await canAccessDriveFile(session, fileId);
+        const immediateParents = authorized
+            ? []
+            : (await drive.files.get({ fileId, fields: 'parents' })).data.parents || [];
 
-        let authorized = false;
         for (const parentId of immediateParents) {
             if (await canAccessDriveFolder(session, parentId)) {
                 authorized = true;
