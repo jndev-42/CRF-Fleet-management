@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Check, Lock } from 'lucide-react';
+import { Check, History, Lock } from 'lucide-react';
 import { SUPPLY_CATEGORIES, type SupplyCategory } from '@/lib/mission-supplies';
 import Step0ULSelection from './steps/Step0ULSelection';
 import Step1General from './steps/Step1General';
@@ -18,6 +18,14 @@ import Step9Comment from './steps/Step9Comment';
 import styles from './MissionWizard.module.css';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import {
+    clearDraft,
+    loadDraft,
+    loadDraftFiles,
+    missionDraftKey,
+    saveDraft,
+    saveDraftFiles,
+} from '@/lib/missionDraft';
 
 export interface MissionFormData {
     /** UL de rattachement du poste — exclusif avec `selected_dt_code`. */
@@ -75,6 +83,17 @@ const INITIAL_FORM: MissionFormData = {
     intervention_natures: {},
 };
 
+/** Partie « texte » du brouillon, gardée dans localStorage (les fichiers vont dans IndexedDB). */
+interface WizardDraft {
+    step: number;
+    formData: MissionFormData;
+    supplies: Record<string, number>;
+}
+
+function initialFormFor(lockedUlId?: string): MissionFormData {
+    return lockedUlId ? { ...INITIAL_FORM, selected_ul_id: lockedUlId } : INITIAL_FORM;
+}
+
 const MISSION_COMM_FOLDER_ID = '19ILEUHsq2pLZDwEeJDnhQcumFM9ztDJ3';
 const SIGNED_REPORTS_FOLDER_ID = '1UQ0TxOLUCmL09m6evy1Ofoeuo2RaD2ki';
 
@@ -104,13 +123,29 @@ export default function MissionWizard({
 }: MissionWizardProps) {
     const router = useRouter();
     const pathname = usePathname();
-    const [step, setStep] = useState(1);
-    const [formData, setFormData] = useState<MissionFormData>(
-        lockedUlId ? { ...INITIAL_FORM, selected_ul_id: lockedUlId } : INITIAL_FORM
+    // Brouillon (issue #134) : sur Android, l'appareil photo peut faire tuer
+    // l'onglet ; au rechargement on reprend la saisie là où elle en était.
+    // Le wizard n'est jamais rendu côté serveur (les deux pages attendent un
+    // état client avant de l'afficher), la lecture synchrone est donc sûre.
+    const draftKey = missionDraftKey(submitEndpoint, currentUserId);
+    const [restoredDraft] = useState<WizardDraft | null>(() =>
+        typeof window === 'undefined' ? null : loadDraft<WizardDraft>(draftKey)
     );
-    const [supplies, setSupplies] = useState<Record<string, number>>({});
+    const [step, setStep] = useState(restoredDraft?.step ?? 1);
+    const [formData, setFormData] = useState<MissionFormData>(() => {
+        if (!restoredDraft) return initialFormFor(lockedUlId);
+        const restored = { ...INITIAL_FORM, ...restoredDraft.formData };
+        // Le rattachement verrouillé par le QR prime toujours sur le brouillon.
+        return lockedUlId ? { ...restored, selected_ul_id: lockedUlId, selected_dt_code: null } : restored;
+    });
+    const [supplies, setSupplies] = useState<Record<string, number>>(restoredDraft?.supplies ?? {});
     const [signedReportFile, setSignedReportFile] = useState<File | null>(null);
     const [photos, setPhotos] = useState<File[]>([]);
+    const [draftRestored, setDraftRestored] = useState(restoredDraft !== null);
+    // Tant que les fichiers du brouillon n'ont pas été relus, ne pas les écraser
+    // avec l'état vide du montage.
+    const [draftFilesLoaded, setDraftFilesLoaded] = useState(false);
+    const submittedRef = useRef(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -139,6 +174,54 @@ export default function MissionWizard({
     // Ensure step index is not out of bounds if activeSteps length decreases
     const currentStepIndex = Math.min(step, activeSteps.length);
     const currentStepLabel = activeSteps[currentStepIndex - 1];
+
+    // Relecture des fichiers du brouillon (asynchrone : IndexedDB).
+    useEffect(() => {
+        let cancelled = false;
+        loadDraftFiles(draftKey).then(files => {
+            if (cancelled) return;
+            if (files) {
+                if (files.signedReport) setSignedReportFile(prev => prev ?? files.signedReport);
+                if (files.photos.length > 0) setPhotos(prev => (prev.length > 0 ? prev : files.photos));
+                setDraftRestored(true);
+            }
+            setDraftFilesLoaded(true);
+        });
+        return () => { cancelled = true; };
+    }, [draftKey]);
+
+    // Sauvegarde des champs à chaque modification. Un formulaire encore vierge
+    // n'est pas sauvegardé, pour ne pas annoncer un « brouillon » vide à la
+    // prochaine ouverture.
+    useEffect(() => {
+        if (submittedRef.current) return;
+        const pristine = step === 1
+            && Object.keys(supplies).length === 0
+            && JSON.stringify(formData) === JSON.stringify(initialFormFor(lockedUlId));
+        if (pristine) {
+            try { window.localStorage.removeItem(draftKey); } catch { /* ignoré */ }
+            return;
+        }
+        saveDraft<WizardDraft>(draftKey, { step, formData, supplies });
+    }, [draftKey, step, formData, supplies, lockedUlId]);
+
+    // Sauvegarde du rapport signé et des photos.
+    useEffect(() => {
+        if (!draftFilesLoaded || submittedRef.current) return;
+        void saveDraftFiles(draftKey, { signedReport: signedReportFile, photos });
+    }, [draftKey, draftFilesLoaded, signedReportFile, photos]);
+
+    function handleDiscardDraft() {
+        void clearDraft(draftKey);
+        setFormData(initialFormFor(lockedUlId));
+        setSupplies({});
+        setSignedReportFile(null);
+        setPhotos([]);
+        setStep(1);
+        setError(null);
+        setUploadError(null);
+        setDraftRestored(false);
+    }
 
     function patchFormData(patch: Partial<MissionFormData>) {
         setFormData(prev => ({ ...prev, ...patch }));
@@ -206,6 +289,17 @@ export default function MissionWizard({
     }
 
     async function handleSubmit() {
+        // Revalide tout le parcours : un brouillon restauré (ou une perte de
+        // fichier) ne doit pas laisser partir un rapport DPS/PAPS sans rapport signé.
+        for (let s = 1; s <= activeSteps.length; s++) {
+            const err = validateStep(s);
+            if (err) {
+                setStep(s);
+                setError(err);
+                return;
+            }
+        }
+
         setSubmitting(true);
         setError(null);
         setUploadError(null);
@@ -298,6 +392,8 @@ export default function MissionWizard({
             }
 
             const data = await res.json();
+            submittedRef.current = true;
+            void clearDraft(draftKey);
             setSuccessMissionId(data.id);
             // Show success animation only for Paris 18 UL — celle du POSTE choisi,
             // pas celle du soumetteur : c'est le rattachement du rapport qui compte.
@@ -348,6 +444,18 @@ export default function MissionWizard({
                     );
                 })}
             </ol>
+
+            {draftRestored && (
+                <div className={styles.draftBanner} role="status">
+                    <span>
+                        <History size={16} aria-hidden="true" style={{ verticalAlign: 'text-bottom', marginRight: '0.5rem' }} />
+                        <strong>Brouillon restauré</strong> — votre saisie précédente a été récupérée.
+                    </span>
+                    <button type="button" className="btn btn-secondary" onClick={handleDiscardDraft} disabled={submitting}>
+                        Recommencer
+                    </button>
+                </div>
+            )}
 
             {error && <div className={styles.errorBox} role="alert">{error}</div>}
 
