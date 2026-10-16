@@ -312,7 +312,8 @@ describe('DocumentScanner', () => {
         Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true });
         const { onFallback } = setup();
 
-        fireEvent.click(await screen.findByRole('button', { name: /appareil photo du téléphone/i }));
+        await screen.findByText(/scanner n’est pas disponible/i); // écran de repli (et non le bouton de la phase caméra)
+        fireEvent.click(screen.getByRole('button', { name: /appareil photo du téléphone/i }));
         expect(onFallback).toHaveBeenCalledTimes(1);
     });
 
@@ -320,7 +321,8 @@ describe('DocumentScanner', () => {
         getUserMedia.mockRejectedValue(new DOMException('busy', 'NotReadableError'));
         const { onFallback } = setup();
 
-        fireEvent.click(await screen.findByRole('button', { name: /appareil photo du téléphone/i }));
+        await screen.findByText(/scanner n’est pas disponible/i);
+        fireEvent.click(screen.getByRole('button', { name: /appareil photo du téléphone/i }));
         expect(onFallback).toHaveBeenCalledTimes(1);
     });
 
@@ -460,6 +462,43 @@ describe('DocumentScanner', () => {
 
         await act(async () => { vi.advanceTimersByTime(200); }); // le tick suivant est une vraie détection
         expect(screen.getByText(/Ajustez les coins/)).toBeTruthy();
+    });
+
+    it("propose l'appareil photo du téléphone en phase caméra ; le clic arrête les pistes puis appelle le repli", async () => {
+        const { onFallback, onComplete } = setup();
+        await waitLive();
+
+        fireEvent.click(screen.getByRole('button', { name: /Appareil photo du téléphone/ }));
+
+        expect(stop).toHaveBeenCalled();
+        expect(onFallback).toHaveBeenCalledTimes(1);
+        // Ordre : flux arrêté AVANT le repli (iOS refuse l'appareil photo natif tant que la caméra est active)
+        expect(stop.mock.invocationCallOrder[0]).toBeLessThan(onFallback.mock.invocationCallOrder[0]);
+        expect(onComplete).not.toHaveBeenCalled();
+    });
+
+    it('le bouton du téléphone disparaît dès qu\'une page est scannée (elle serait perdue) ; « Terminer » reste', async () => {
+        setup();
+        await waitLive();
+        expect(screen.getByRole('button', { name: /Appareil photo du téléphone/ })).toBeTruthy();
+
+        fireEvent.click(await shutter());
+        fireEvent.click(screen.getByRole('button', { name: /Valider/ }));
+        await screen.findByAltText('Document redressé');
+        fireEvent.click(screen.getByRole('button', { name: /Ajouter une page/ }));
+        await waitLive();
+
+        expect(screen.queryByRole('button', { name: /Appareil photo du téléphone/ })).toBeNull();
+        expect(screen.getByRole('button', { name: /Terminer/ })).toBeTruthy();
+    });
+
+    it("le bouton du téléphone n'est pas affiché pendant l'ajustement des coins", async () => {
+        setup();
+        await waitLive();
+        fireEvent.click(await shutter());
+
+        expect(screen.getByText(/Ajustez les coins/)).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /Appareil photo du téléphone/ })).toBeNull();
     });
 
     it('arrête les pistes de la caméra au démontage', async () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Camera, CameraOff, Check, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
+import { Camera, CameraOff, Check, Loader2, Plus, RotateCcw, Smartphone, Trash2, X } from 'lucide-react';
 import { CAPTURE_ANALYSIS_SIZE, detectQuad, loadOpenCv, warpAndEnhance, type EnhanceMode, type OpenCv } from '@/lib/documentScanner/opencv';
 import { MAX_SCAN_PAGES, pagesToPdfFile } from '@/lib/documentScanner/output';
 import { isConvexQuad, isStable, type Quad } from '@/lib/documentScanner/geometry';
@@ -111,6 +111,14 @@ export default function DocumentScanner({ onComplete, onClose, onFallback }: Doc
             }
         };
     }, []);
+
+    // Bascule vers l'appareil photo natif. Les pistes sont arrêtées de façon synchrone AVANT le repli (iOS peut
+    // refuser d'ouvrir l'appareil photo natif tant que le flux est actif) et sans await ni délai : l'input.click()
+    // de l'appelant doit rester dans le même geste utilisateur.
+    function handleNativeCamera() {
+        camera.stop();
+        onFallback();
+    }
 
     function handleClose() {
         if (pushedRef.current) {
@@ -332,11 +340,13 @@ export default function DocumentScanner({ onComplete, onClose, onFallback }: Doc
             <div className={styles.actions}>
                 {phase === 'camera' && (
                     <>
-                        {pages.length > 0 ? (
-                            <button type="button" className="btn btn-secondary" onClick={() => void finish(null)} disabled={busy}>
-                                <Check size={16} /> Terminer
-                            </button>
-                        ) : <span />}
+                        <div className={styles.slot}>
+                            {pages.length > 0 && (
+                                <button type="button" className="btn btn-secondary" onClick={() => void finish(null)} disabled={busy}>
+                                    <Check size={16} /> Terminer
+                                </button>
+                            )}
+                        </div>
                         <button
                             type="button"
                             className={styles.shutter}
@@ -346,7 +356,15 @@ export default function DocumentScanner({ onComplete, onClose, onFallback }: Doc
                         >
                             <Camera size={26} />
                         </button>
-                        <span />
+                        <div className={`${styles.slot} ${styles.slotEnd}`}>
+                            {/* Pas de bascule une fois des pages scannées : elles seraient perdues (« Terminer » les enregistre) */}
+                            {pages.length === 0 && (
+                                <button type="button" className={styles.nativeButton} onClick={handleNativeCamera}>
+                                    <Smartphone size={18} aria-hidden="true" />
+                                    Appareil photo du téléphone
+                                </button>
+                            )}
+                        </div>
                     </>
                 )}
                 {phase === 'adjust' && (

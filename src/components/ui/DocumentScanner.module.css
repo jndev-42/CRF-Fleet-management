@@ -241,7 +241,39 @@
     min-width: 0;
 }
 
+/* Emplacements de part et d'autre du déclencheur : même largeur, pour qu'il reste centré */
+.slot {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+}
+
+.slotEnd {
+    justify-content: flex-end;
+}
+
+.nativeButton {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 44px;
+    min-height: 44px;
+    max-width: 100%;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 8px;
+    background: transparent;
+    color: #fff;
+    font-size: 0.7rem;
+    line-height: 1.15;
+    text-align: center;
+    cursor: pointer;
+}
+
 .shutter {
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
