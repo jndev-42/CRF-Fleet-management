@@ -16,6 +16,7 @@ vi.mock('@/lib/imageCompression', () => ({
 
 import MissionWizard from '@/components/missions/MissionWizard';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { missionDraftKey } from '@/lib/missionDraft';
 
 const mockedUpload = vi.mocked(uploadFilesToDriveSafely);
 
@@ -71,6 +72,8 @@ async function goToLastStep(attachment?: string) {
 
 beforeEach(() => {
     vi.restoreAllMocks();
+    // Le brouillon (issue #134) vit dans localStorage : il ne doit pas fuir d'un test à l'autre.
+    window.localStorage.clear();
     mockPush.mockClear();
     mockedUpload.mockResolvedValue({ success: true, folderId: 'folder-1', fileIds: ['file-1'] });
     mockFetch();
@@ -408,5 +411,100 @@ describe('MissionWizard — rattachement verrouillé par QR code', () => {
         const body = JSON.parse((postCall![1] as RequestInit).body as string);
         expect(body.selected_ul_id).toBe('ul-lyon-3');
         expect(body.selected_dt_code).toBeNull();
+    });
+});
+
+describe('MissionWizard — brouillon (issue #134)', () => {
+    const DRAFT_KEY = missionDraftKey('/api/missions', 'user-1');
+
+    it('sauvegarde la saisie et la restaure après un rechargement de la page', async () => {
+        const { unmount } = render(<MissionWizard currentUserId="user-1" onSuccess={vi.fn()} />);
+        await chooseAttachment();
+        fireEvent.click(screen.getByRole('radio', { name: 'DPS' }));
+        fillStep1();
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        expect(window.localStorage.getItem(DRAFT_KEY)).toBeTruthy();
+
+        // Onglet tué par Android pendant la prise de photo → nouveau montage.
+        unmount();
+        render(<MissionWizard currentUserId="user-1" onSuccess={vi.fn()} />);
+
+        expect(screen.getByText('Brouillon restauré')).toBeTruthy();
+        expect(screen.getByRole('heading', { name: /Étape 3 \/ \d+ — Équipage/ })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Précédent' }));
+        expect(screen.getByDisplayValue('Poste Secours Test')).toBeTruthy();
+        expect((screen.getByRole('radio', { name: 'DPS' }) as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('ne crée pas de brouillon pour un formulaire vierge', () => {
+        render(<MissionWizard currentUserId="user-1" onSuccess={vi.fn()} />);
+        expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull();
+        expect(screen.queryByText('Brouillon restauré')).toBeNull();
+    });
+
+    it('« Recommencer » efface le brouillon et repart de la première étape', async () => {
+        const { unmount } = render(<MissionWizard currentUserId="user-1" onSuccess={vi.fn()} />);
+        await chooseAttachment();
+        fillStep1();
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        unmount();
+
+        render(<MissionWizard currentUserId="user-1" onSuccess={vi.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Recommencer' }));
+
+        expect(screen.queryByText('Brouillon restauré')).toBeNull();
+        expect(screen.getByRole('heading', { name: /Étape 1 \/ \d+ — UL \/ DT/ })).toBeTruthy();
+        expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull();
+    });
+
+    it('efface le brouillon une fois le compte rendu soumis', async () => {
+        mockFetch(async () => new Response(JSON.stringify({ id: 'mission-1' }), { status: 200 }));
+        const onSuccess = vi.fn();
+        render(<MissionWizard currentUserId="user-1" onSuccess={onSuccess} />);
+        await goToLastStep();
+        expect(window.localStorage.getItem(DRAFT_KEY)).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-1'));
+        expect(window.localStorage.getItem(DRAFT_KEY)).toBeNull();
+    });
+
+    it('renvoie vers « Rapport signé » si un DPS restauré est soumis sans le document', async () => {
+        const fetchMock = mockFetch();
+        const { unmount } = render(<MissionWizard currentUserId="user-1" onSuccess={vi.fn()} />);
+        await chooseAttachment();
+        fireEvent.click(screen.getByRole('radio', { name: 'DPS' }));
+        fillStep1();
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        unmount();
+
+        // Brouillon positionné directement sur la dernière étape, sans fichier (IndexedDB indisponible).
+        const draft = JSON.parse(window.localStorage.getItem(DRAFT_KEY)!);
+        draft.data.step = 10;
+        window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+        render(<MissionWizard currentUserId="user-1" onSuccess={vi.fn()} />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+        expect(screen.getByRole('alert')).toHaveProperty('textContent', 'Le rapport signé est obligatoire. Veuillez photographier ou importer le document.');
+        expect(screen.getByRole('heading', { name: /— Rapport signé/ })).toBeTruthy();
+        expect(fetchMock.mock.calls.some(c => (c[1] as RequestInit)?.method === 'POST')).toBe(false);
+    });
+
+    it('garde le rattachement verrouillé par QR même si le brouillon en porte un autre', () => {
+        const qrKey = missionDraftKey('/api/qr-ul/token-abc/mission-report', undefined);
+        window.localStorage.setItem(qrKey, JSON.stringify({
+            savedAt: Date.now(),
+            data: { step: 1, supplies: {}, formData: { selected_ul_id: null, selected_dt_code: 'DT 75', mission_name: 'Brouillon QR' } },
+        }));
+        render(
+            <MissionWizard
+                lockedUlId="ul-lyon-3"
+                lockedUlName="Lyon 3"
+                submitEndpoint="/api/qr-ul/token-abc/mission-report"
+                onSuccess={vi.fn()}
+            />
+        );
+        expect(screen.getByDisplayValue('Brouillon QR')).toBeTruthy();
+        expect(screen.getByText('Lyon 3')).toBeTruthy();
     });
 });

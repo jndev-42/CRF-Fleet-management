@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.22.2] — 16 octobre 2026
+
+### 🐛 Corrections
+
+- **Compte rendu de mission : la saisie n'est plus perdue pendant la prise de photo** — sur certains téléphones Android, ouvrir l'appareil photo pour photographier le rapport signé (DPS, PAPS) ou les photos de communication faisait recharger la page et tout le compte rendu repartait de zéro. La saisie est désormais conservée en brouillon sur l'appareil : au retour, vous reprenez à l'étape où vous étiez, avec vos réponses et les photos déjà ajoutées. Un bandeau « Brouillon restauré » le signale, avec un bouton **Recommencer** pour repartir d'un formulaire vierge. Le brouillon est effacé dès l'envoi du compte rendu (et oublié au bout de 24 h).
+- **Compte rendu DPS/PAPS : rapport signé toujours vérifié à l'envoi** — si le rapport signé manque au moment de soumettre, le formulaire revient sur l'étape « Rapport signé » au lieu d'envoyer un compte rendu incomplet.
+
 ## [5.22.1] — 16 octobre 2026
 
 ### 🐛 Corrections
