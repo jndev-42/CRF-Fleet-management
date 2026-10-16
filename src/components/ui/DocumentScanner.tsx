@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { Camera, CameraOff, Check, Loader2, Plus, RotateCcw, Trash2, X } from 'lucide-react';
-import { loadOpenCv, warpAndEnhance, type EnhanceMode, type OpenCv } from '@/lib/documentScanner/opencv';
+import { CAPTURE_ANALYSIS_SIZE, detectQuad, loadOpenCv, warpAndEnhance, type EnhanceMode, type OpenCv } from '@/lib/documentScanner/opencv';
 import { MAX_SCAN_PAGES, pagesToPdfFile } from '@/lib/documentScanner/output';
-import { isConvexQuad, type Quad } from '@/lib/documentScanner/geometry';
+import { isConvexQuad, isStable, type Quad } from '@/lib/documentScanner/geometry';
 import { useScannerCamera } from './documentScanner/useScannerCamera';
 import CornerAdjuster from './documentScanner/CornerAdjuster';
 import styles from './DocumentScanner.module.css';
@@ -26,6 +26,8 @@ interface ScannedPage {
 }
 
 const THUMB_MAX_SIDE = 120;
+/** Écart maximal (fraction de la diagonale) entre contour en direct et détection fine pour adopter cette dernière. */
+const REFINE_TOLERANCE = 0.1;
 
 const canvasUrl = (c: HTMLCanvasElement, quality = 0.85) => c.toDataURL('image/jpeg', quality);
 
@@ -116,8 +118,23 @@ export default function DocumentScanner({ onComplete, onClose, onFallback }: Doc
         const captured = camera.capture();
         if (!captured) return;
         setError(null);
+        // Nouvelle détection sur l'image figée, en meilleure définition ; sinon contour en direct, sinon cadre plein
+        let corners = captured.quad;
+        if (cv) {
+            try {
+                const { width, height } = captured.canvas;
+                const refined = detectQuad(cv, captured.canvas, CAPTURE_ANALYSIS_SIZE);
+                // Le contour en direct est stable : la détection fine ne le remplace que si elle reste proche,
+                // sans quoi elle a pu s'accrocher à un autre rectangle
+                if (refined && (!captured.detected || isStable(captured.quad, refined, width, height, REFINE_TOLERANCE))) {
+                    corners = refined;
+                }
+            } catch (e: unknown) {
+                console.error('Détection sur la capture impossible', e);
+            }
+        }
         setRaw({ canvas: captured.canvas, url: canvasUrl(captured.canvas, 0.8) });
-        setQuad(captured.quad);
+        setQuad(corners);
         setPhase('adjust');
     }
 
@@ -217,7 +234,7 @@ export default function DocumentScanner({ onComplete, onClose, onFallback }: Doc
                 <div className={phase === 'camera' ? styles.cameraView : styles.hidden}>
                     <div
                         className={styles.stage}
-                        style={{ aspectRatio: camera.videoSize ? `${camera.videoSize.width} / ${camera.videoSize.height}` : '3 / 4' }}
+                        style={{ '--ratio': camera.videoSize ? camera.videoSize.width / camera.videoSize.height : 0.75 } as CSSProperties}
                     >
                         <video
                             ref={camera.videoRef}

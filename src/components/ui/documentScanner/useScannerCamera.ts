@@ -2,17 +2,25 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { detectQuad, type OpenCv } from '@/lib/documentScanner/opencv';
-import { fullFrameQuad, isStable, type Quad } from '@/lib/documentScanner/geometry';
+import { blendQuads, fullFrameQuad, isStable, type Quad } from '@/lib/documentScanner/geometry';
 
 export type CameraStatus = 'starting' | 'live' | 'denied' | 'unavailable';
 
 export interface Capture {
     canvas: HTMLCanvasElement;
     quad: Quad;
+    /** Vrai si `quad` vient d'une détection en direct (sinon : cadre plein par défaut). */
+    detected: boolean;
 }
 
 const DETECTION_INTERVAL_MS = 125; // ~8 analyses/s
 const STABLE_DELAY_MS = 1000;
+/** Poids de la nouvelle détection dans la moyenne mobile exponentielle des coins. */
+const SMOOTHING_ALPHA = 0.5;
+/** Au-delà de ce déplacement (fraction de la diagonale), on ne lisse plus : on repart de la nouvelle détection. */
+const JUMP_TOLERANCE = 0.1;
+/** Analyses consécutives sans détection tolérées avant d'effacer le contour affiché. */
+const MAX_MISSES = 3;
 
 interface Options {
     /** Vrai tant que l'écran caméra est affiché : met la détection en route. */
@@ -112,15 +120,31 @@ export function useScannerCamera({ active, cv, onStable }: Options) {
         let busy = false;
         let previous: Quad | null = null;
         let stableSince: number | null = null;
+        let smoothed: Quad | null = null;
+        let misses = 0;
 
         const id = window.setInterval(() => {
             const video = videoRef.current;
             if (busy || !video || !video.videoWidth) return;
             busy = true;
             try {
-                const detected = detectQuad(cv, video);
+                const raw = detectQuad(cv, video);
+                if (raw) {
+                    misses = 0;
+                    // Lissage si la détection reste proche de la précédente ; sinon on repart de la nouvelle
+                    smoothed = smoothed && isStable(smoothed, raw, video.videoWidth, video.videoHeight, JUMP_TOLERANCE)
+                        ? blendQuads(smoothed, raw, SMOOTHING_ALPHA)
+                        : raw;
+                } else if (++misses >= MAX_MISSES) {
+                    smoothed = null; // le document a vraiment disparu
+                }
+                const detected = smoothed;
                 quadRef.current = detected;
                 setQuad(detected);
+
+                // Analyse ratée mais contour conservé : l'affichage tient, mais seule une vraie détection
+                // fait avancer la stabilité (et déclenche la capture)
+                if (!raw && detected) return;
 
                 if (!armedRef.current) {
                     const moved = detected && disarmedQuadRef.current
@@ -171,7 +195,11 @@ export function useScannerCamera({ active, cv, onStable }: Options) {
         canvas.getContext('2d')?.drawImage(video, 0, 0);
         armedRef.current = false;
         disarmedQuadRef.current = quadRef.current;
-        return { canvas, quad: quadRef.current ?? fullFrameQuad(canvas.width, canvas.height) };
+        return {
+            canvas,
+            quad: quadRef.current ?? fullFrameQuad(canvas.width, canvas.height),
+            detected: quadRef.current !== null,
+        };
     }, []);
 
     return { videoRef, status, videoSize, quad, capture, stop };

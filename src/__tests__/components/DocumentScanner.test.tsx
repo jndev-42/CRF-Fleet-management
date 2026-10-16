@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/lib/documentScanner/opencv', () => ({
+    CAPTURE_ANALYSIS_SIZE: 1000,
     loadOpenCv: mocks.loadOpenCv,
     detectQuad: mocks.detectQuad,
     warpAndEnhance: mocks.warpAndEnhance,
@@ -301,9 +302,94 @@ describe('DocumentScanner', () => {
 
         // Document retiré puis représenté : la capture auto est de nouveau armée
         mocks.detectQuad.mockReturnValue(null);
-        await act(async () => { vi.advanceTimersByTime(300); });
+        await act(async () => { vi.advanceTimersByTime(600); }); // ≥ 3 analyses ratées : le contour est effacé
         mocks.detectQuad.mockReturnValue(QUAD);
         await act(async () => { vi.advanceTimersByTime(2000); });
+        expect(screen.getByText(/Ajustez les coins/)).toBeTruthy();
+    });
+
+    it("relance la détection sur l'image figée en 1000 px et utilise ses coins", async () => {
+        const refined = QUAD.map((p) => ({ x: p.x + 5, y: p.y + 5 }));
+        setup();
+        await waitLive();
+        await screen.findByText(/Document détecté/);
+
+        mocks.detectQuad.mockReturnValue(refined);
+        fireEvent.click(await shutter());
+        fireEvent.click(screen.getByRole('button', { name: /Valider/ }));
+        await screen.findByAltText('Document redressé');
+
+        expect(mocks.detectQuad).toHaveBeenCalledWith(expect.anything(), expect.any(HTMLCanvasElement), 1000);
+        expect(mocks.warpAndEnhance.mock.calls[0][2]).toEqual(refined);
+    });
+
+    it('si la détection sur image figée échoue, garde le contour en direct', async () => {
+        setup();
+        await waitLive();
+        await screen.findByText(/Document détecté/);
+
+        mocks.detectQuad.mockReturnValue(null);
+        fireEvent.click(await shutter());
+        fireEvent.click(screen.getByRole('button', { name: /Valider/ }));
+        await screen.findByAltText('Document redressé');
+
+        expect(mocks.warpAndEnhance.mock.calls[0][2]).toEqual(QUAD);
+    });
+
+    it("tolère une analyse ratée sans interrompre le compte à rebours de capture auto", async () => {
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+        setup();
+        await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+
+        await act(async () => { vi.advanceTimersByTime(800); });
+        mocks.detectQuad.mockReturnValueOnce(null);
+        await act(async () => { vi.advanceTimersByTime(400); });
+
+        // Sans tolérance, la capture n'arriverait qu'~1 s après l'analyse ratée
+        expect(screen.getByText(/Ajustez les coins/)).toBeTruthy();
+    });
+
+    it("rejette la détection fine si elle s'écarte trop du contour en direct (autre rectangle)", async () => {
+        const far = QUAD.map((p) => ({ x: p.x + 200, y: p.y }));
+        mocks.detectQuad.mockImplementation((_cv: unknown, _source: unknown, size?: number) => (size === 1000 ? far : QUAD));
+        setup();
+        await waitLive();
+        await screen.findByText(/Document détecté/);
+
+        fireEvent.click(await shutter());
+        fireEvent.click(screen.getByRole('button', { name: /Valider/ }));
+        await screen.findByAltText('Document redressé');
+
+        expect(mocks.warpAndEnhance.mock.calls[0][2]).toEqual(QUAD);
+    });
+
+    it("sans contour en direct, adopte la détection fine plutôt que le cadre plein", async () => {
+        mocks.detectQuad.mockImplementation((_cv: unknown, _source: unknown, size?: number) => (size === 1000 ? QUAD : null));
+        setup();
+        await waitLive();
+
+        fireEvent.click(await shutter());
+        fireEvent.click(screen.getByRole('button', { name: /Valider/ }));
+        await screen.findByAltText('Document redressé');
+
+        expect(mocks.warpAndEnhance.mock.calls[0][2]).toEqual(QUAD);
+    });
+
+    it("une analyse ratée ne fait pas avancer la stabilité : pas de capture sur un tick sans détection", async () => {
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+        let liveCalls = 0;
+        mocks.detectQuad.mockImplementation(() => {
+            liveCalls += 1;
+            return liveCalls === 9 ? null : QUAD; // le 9e tick (t = 1125 ms) est celui qui déclencherait la capture
+        });
+        setup();
+        await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
+
+        await act(async () => { vi.advanceTimersByTime(1150); });
+        expect(liveCalls).toBe(9);
+        expect(screen.queryByText(/Ajustez les coins/)).toBeNull();
+
+        await act(async () => { vi.advanceTimersByTime(200); }); // le tick suivant est une vraie détection
         expect(screen.getByText(/Ajustez les coins/)).toBeTruthy();
     });
 

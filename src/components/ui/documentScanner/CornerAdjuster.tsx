@@ -38,7 +38,7 @@ export default function CornerAdjuster({ imageUrl, width, height, quad, onChange
         <div
             ref={stageRef}
             className={`${styles.stage} ${styles.adjustStage}`}
-            style={{ aspectRatio: `${width} / ${height}` }}
+            style={{ '--ratio': width / height } as React.CSSProperties}
             onPointerMove={move}
             onPointerUp={() => { dragging.current = null; }}
             onPointerCancel={() => { dragging.current = null; }}

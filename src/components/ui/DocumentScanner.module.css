@@ -43,6 +43,7 @@
     align-items: center;
     justify-content: center;
     padding: 0 12px;
+    container-type: size; /* unités cqw / cqh pour dimensionner .stage (voir plus bas) */
 }
 
 .cameraView,
@@ -61,20 +62,34 @@
     display: none;
 }
 
+/*
+ * Cadre à ratio fixe (--ratio = largeur / hauteur de l'image, posé en ligne) qui tient dans .body
+ * sans jamais déformer l'image : la largeur est bornée à la fois par la largeur disponible et par
+ * la hauteur disponible × ratio (unités de conteneur), la hauteur découle de aspect-ratio.
+ * --reserved-x / --reserved-y = place retirée autour du cadre.
+ */
 .stage {
+    --reserved-x: 0px;
+    --reserved-y: 0px;
     position: relative;
-    max-width: 100%;
-    max-height: 100%;
+    flex-shrink: 0;
+    width: min(100cqw - var(--reserved-x), (100cqh - var(--reserved-y)) * var(--ratio, 0.75));
+    aspect-ratio: var(--ratio, 0.75);
     touch-action: none;
     user-select: none;
     background: #000;
 }
 
+/* Vue caméra : on garde la place du texte d'aide sous la vidéo */
+.cameraView .stage {
+    --reserved-y: 56px;
+}
+
 /* Marge pour que les poignées de 44 px restent entièrement visibles, même aux bords du cadre */
 .adjustStage {
+    --reserved-x: 48px;
+    --reserved-y: 48px;
     margin: 24px;
-    max-width: calc(100% - 48px);
-    max-height: calc(100% - 48px);
 }
 
 .video,
