@@ -1,0 +1,449 @@
+/*
+ * Thème saisonnier « Noël » — Noël traditionnel chaleureux.
+ *
+ * Vert sapin, or et crème, houx et baies rouges. Une guirlande lumineuse pend sous
+ * la navbar, les titres passent en Playfair Display (variable `--font-season-noel`,
+ * chargée dans layout.tsx), soulignés d'un filet or et suivis d'un brin de houx
+ * enneigé. Sapin décoré et cadeaux dans la marge gauche, boules et étoiles
+ * suspendues dans la marge droite, et une neige légère qui tombe sur la page.
+ * Illustrations dans `public/seasons/noel/`.
+ *
+ * Aucun décalage de mise en page : on ne change ici ni padding, ni marges, ni
+ * dimensions, ni largeur de bordure. Seuls varient les couleurs, fonds, ombres,
+ * polices et des pseudo-éléments `position: absolute` / `fixed` (ou en ligne à
+ * encombrement nul), `pointer-events: none`, posés hors du texte. Masquer le thème
+ * (ou sortir de la plage) retire `data-season` de <html> : l'appli redevient
+ * strictement identique.
+ *
+ * Toutes les règles sont préfixées par `html[data-season="noel"]` (variante sombre :
+ * `html[data-season="noel"].dark`). On ne redéfinit pas `--crf-red*` (les erreurs
+ * restent rouges), on ne cible pas `.btn-danger`, et les boutons principaux passent
+ * au vert sapin (jamais au rouge, pour ne pas les confondre avec une action de danger).
+ */
+
+html[data-season="noel"] {
+    --nl-gold: #c9a227;
+    --nl-snow-opacity: 0.65;
+    --nl-font: var(--font-season-noel, Georgia, 'Times New Roman', serif);
+
+    /* Encre des titres : vert sapin en clair, crème en sombre. */
+    --nl-ink: #1e4d33;
+    --nl-nav-bg: #fbf6e9;
+    --nl-btn-bg: #1e5b3a;
+    --nl-btn-bg-hover: #236843;
+    --nl-card-line: rgba(201, 162, 39, 0.55);
+
+    --nl-img-garland: url("/seasons/noel/garland.svg");
+    --nl-img-rule: url("/seasons/noel/title-rule.svg");
+    --nl-img-pattern: url("/seasons/noel/pattern.svg");
+    --nl-img-snow: url("/seasons/noel/snow.svg");
+
+    /* Anneau de focus : vert sapin en clair, or en sombre (≥ 3:1 sur le fond). */
+    --nl-focus: #1e5b3a;
+
+    --bg-primary: #fdfaf2;
+}
+
+html[data-season="noel"].dark {
+    --nl-gold: #e2bf5a;
+    --nl-snow-opacity: 0.4;
+    --nl-ink: #f3ead3;
+    --nl-nav-bg: #0f2419;
+    --nl-btn-bg: #23683f;
+    --nl-btn-bg-hover: #2a774a;
+    --nl-card-line: rgba(226, 191, 90, 0.4);
+
+    --nl-img-garland: url("/seasons/noel/garland-d.svg");
+    --nl-img-rule: url("/seasons/noel/title-rule-d.svg");
+    --nl-img-pattern: url("/seasons/noel/pattern-d.svg");
+    --nl-img-snow: url("/seasons/noel/snow-d.svg");
+
+    --nl-focus: #e2bf5a;
+
+    --bg-primary: #0b1610;
+}
+
+/* ===== Fond de page : trame de petites croix ; sapin et décorations dans les marges ===== */
+html[data-season="noel"] body {
+    background-image: var(--nl-img-pattern);
+    background-size: 24px 24px;
+    background-repeat: repeat;
+}
+
+/*
+ * Gauche : sapin décoré et cadeaux sur la neige. Droite : branche de sapin, boules et
+ * étoiles suspendues. Mêmes règles que les scènes des vendanges : fixes et derrière
+ * le contenu (z-index -1), largeur = marge + 64 px bornée à 120–220 px, visibles dès
+ * 1280 px, estompées entre 1280 et 1399 px ; la scène de droite est relevée de 150 px
+ * pour laisser libres les boutons flottants.
+ */
+html[data-season="noel"] body::before,
+html[data-season="noel"] body::after {
+    content: "";
+    display: none;
+    position: fixed;
+    width: clamp(120px, calc((100vw - 1152px) / 2 + 64px), 220px);
+    aspect-ratio: 220 / 480;
+    z-index: -1;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+html[data-season="noel"] body::before {
+    left: 0;
+    bottom: 0;
+    background-image: url("/seasons/noel/scene-left.svg");
+}
+
+html[data-season="noel"] body::after {
+    right: 0;
+    bottom: 150px;
+    background-image: url("/seasons/noel/scene-right.svg");
+}
+
+@media (min-width: 1280px) {
+    html[data-season="noel"] body::before {
+        display: block;
+    }
+}
+
+/* La scène de droite (relevée de 150 px) a besoin de hauteur pour ne pas être coupée. */
+@media (min-width: 1280px) and (min-height: 680px) {
+    html[data-season="noel"] body::after {
+        display: block;
+    }
+}
+
+@media (min-width: 1280px) and (max-width: 1399px) {
+    html[data-season="noel"] body::before,
+    html[data-season="noel"] body::after {
+        opacity: 0.75;
+    }
+}
+
+/* ===== Navbar : fond crème (sapin profond en sombre), filet or, guirlande lumineuse ===== */
+html[data-season="noel"] .header {
+    background: var(--nl-nav-bg);
+    border-bottom-color: var(--nl-gold);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+}
+
+/* Filet or en bas de la barre (dans la hauteur existante). */
+html[data-season="noel"] .header::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: var(--nl-gold);
+    pointer-events: none;
+}
+
+/* Guirlande d'ampoules le long du bord bas (déborde de 20 px sous la barre au plus). */
+html[data-season="noel"] .header::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% - 4px);
+    height: 24px;
+    background-image: var(--nl-img-garland);
+    background-repeat: repeat-x;
+    background-size: auto 24px;
+    pointer-events: none;
+}
+
+/* Logo : cadre or et brins de houx en haut et en bas (l'emblème n'est jamais recouvert). */
+html[data-season="noel"] .header-brand {
+    position: relative;
+}
+
+html[data-season="noel"] .header-brand::before {
+    content: "";
+    position: absolute;
+    left: -9px;
+    top: 50%;
+    width: 54px;
+    height: 54px;
+    box-sizing: border-box;
+    transform: translateY(-50%);
+    background-image: url("/seasons/noel/logo-wreath.svg");
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+/* « Martine » dans la typo du thème, avec une petite étoile dorée. */
+html[data-season="noel"] .header-title {
+    position: relative;
+    font-family: var(--nl-font);
+    color: var(--nl-ink);
+}
+
+html[data-season="noel"] .header-title::after {
+    content: "";
+    position: absolute;
+    top: -7px;
+    right: -12px;
+    width: 11px;
+    height: 11px;
+    background-image: url("/seasons/noel/star.svg");
+    background-repeat: no-repeat;
+    background-size: contain;
+    pointer-events: none;
+}
+
+/* Lien actif : surligné or, texte vert sapin (crème en sombre). */
+html[data-season="noel"] .nav-link.active {
+    color: var(--nl-ink);
+    background: rgba(201, 162, 39, 0.22);
+}
+
+html[data-season="noel"] .nav-link:hover {
+    background: rgba(201, 162, 39, 0.14);
+}
+
+/* ===== Titres : typo du thème, filet or en bas de leur boîte, brin de houx enneigé ===== */
+html[data-season="noel"] .page-title,
+html[data-season="noel"] .section-title {
+    position: relative;
+    font-family: var(--nl-font);
+    color: var(--nl-ink);
+}
+
+html[data-season="noel"] .page-title::before,
+html[data-season="noel"] .section-title::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 4px;
+    background-image: var(--nl-img-rule);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+html[data-season="noel"] .page-title::before {
+    width: 160px;
+    max-width: 100%;
+}
+
+html[data-season="noel"] .section-title::before {
+    width: 100px;
+    max-width: 100%;
+}
+
+/*
+ * Brin de houx enneigé juste après le texte du titre. Boîte en ligne dont le padding
+ * porte l'image et dont la marge négative annule exactement l'encombrement :
+ * elle n'occupe ni largeur ni hauteur dans la ligne, donc rien ne bouge.
+ */
+html[data-season="noel"] .page-title::after,
+html[data-season="noel"] .section-title::after {
+    content: "";
+    display: inline-block;
+    position: relative;
+    width: 0;
+    height: 0;
+    box-sizing: content-box;
+    background-image: url("/seasons/noel/title-ornament.svg");
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    pointer-events: none;
+}
+
+html[data-season="noel"] .page-title::after {
+    padding: 40px 0 0 42px;
+    margin: 0 -48px -40px 6px;
+    top: -34px;
+}
+
+html[data-season="noel"] .section-title::after {
+    padding: 28px 0 0 30px;
+    margin: 0 -34px -28px 4px;
+    top: -24px;
+}
+
+/*
+ * ===== Cartes : liseré or, bandeau vert ou or en haut, houx au coin =====
+ * `.stat-card` est exclue : elle porte déjà sa barre de statut (`::before`).
+ */
+html[data-season="noel"] .detail-card,
+html[data-season="noel"] .vehicle-card,
+html[data-season="noel"] .kpi-card,
+html[data-season="noel"] .chart-card,
+html[data-season="noel"] .breakdown-card {
+    position: relative;
+    border-color: var(--nl-card-line);
+    box-shadow: inset 0 3px 0 #2f7a3e, var(--shadow-sm);
+}
+
+html[data-season="noel"] .detail-card:nth-child(even),
+html[data-season="noel"] .vehicle-card:nth-child(even),
+html[data-season="noel"] .kpi-card:nth-child(even),
+html[data-season="noel"] .chart-card:nth-child(even),
+html[data-season="noel"] .breakdown-card:nth-child(even) {
+    box-shadow: inset 0 3px 0 var(--nl-gold), var(--shadow-sm);
+}
+
+/* Survol : on garde le bandeau et l'ombre portée d'origine (`--shadow-lg`). */
+html[data-season="noel"] .vehicle-card:hover {
+    border-color: var(--nl-gold);
+    box-shadow: inset 0 3px 0 #2f7a3e, var(--shadow-lg);
+}
+
+html[data-season="noel"] .vehicle-card:nth-child(even):hover {
+    box-shadow: inset 0 3px 0 var(--nl-gold), var(--shadow-lg);
+}
+
+html[data-season="noel"] .detail-card::after,
+html[data-season="noel"] .vehicle-card::after,
+html[data-season="noel"] .kpi-card::after,
+html[data-season="noel"] .chart-card::after {
+    content: "";
+    position: absolute;
+    right: 2px;
+    bottom: 2px;
+    width: 22px;
+    height: 15px;
+    background-image: url("/seasons/noel/card-ornament.svg");
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: right bottom;
+    pointer-events: none;
+}
+
+/* ===== Boutons principaux : vert sapin, liseré or, petite étoile (jamais rouges) ===== */
+html[data-season="noel"] .btn-primary {
+    position: relative;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.08)), var(--nl-btn-bg);
+    color: #fff;
+    box-shadow: inset 0 0 0 1px var(--nl-gold), 0 2px 6px rgba(15, 36, 25, 0.25);
+}
+
+html[data-season="noel"] .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.08)), var(--nl-btn-bg-hover);
+    box-shadow: inset 0 0 0 1px var(--nl-gold), 0 4px 12px rgba(201, 162, 39, 0.35);
+}
+
+html[data-season="noel"] .btn-primary::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    width: 12px;
+    height: 12px;
+    background-image: url("/seasons/noel/star.svg");
+    background-repeat: no-repeat;
+    background-size: contain;
+    pointer-events: none;
+}
+
+html[data-season="noel"] .btn-primary.btn-sm::after {
+    top: 2px;
+    right: 2px;
+    width: 9px;
+    height: 9px;
+}
+
+/* ===== Onglets, badges, champs ===== */
+html[data-season="noel"] .tab-btn.active {
+    color: var(--nl-ink);
+    background: rgba(201, 162, 39, 0.16);
+    border-bottom-color: var(--nl-gold);
+}
+
+html[data-season="noel"] .vehicle-type-badge {
+    background: #1e5b3a;
+    color: #fbf6e9;
+    box-shadow: inset 0 0 0 1px var(--nl-gold);
+}
+
+html[data-season="noel"].dark .vehicle-type-badge {
+    background: #e2bf5a;
+    color: #0f2419;
+}
+
+html[data-season="noel"] .form-input:focus,
+html[data-season="noel"] .form-select:focus,
+html[data-season="noel"] .form-textarea:focus {
+    border-color: var(--nl-focus);
+    box-shadow: 0 0 0 3px var(--nl-focus);
+}
+
+html[data-season="noel"] .btn-primary:focus-visible {
+    outline: 3px solid var(--nl-focus);
+    outline-offset: 3px;
+}
+
+/* ===== Animations : neige qui tombe, guirlande et étoile qui scintillent ===== */
+/*
+ * Neige : rendue seulement sans `prefers-reduced-motion` (sinon, pas de neige du tout).
+ * Calque fixe au-dessus du contenu mais sous la navbar (z-index 100), sans effet sur
+ * la mise en page ni sur les clics. Deux couches de la même tuile (320 et 480 px)
+ * donnent de la profondeur ; flocons clairsemés et semi-transparents (liseré gris-bleu
+ * en clair pour rester visibles). Le calque dépasse de 960 px vers le haut (multiple
+ * commun des deux tuiles) et descend par `transform` : composité, sans repeindre la
+ * page à chaque image, et la boucle reste sans à-coup.
+ */
+@media (prefers-reduced-motion: no-preference) {
+    html[data-season="noel"]::before {
+        content: "";
+        position: fixed;
+        top: -960px;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 90;
+        background-image: var(--nl-img-snow), var(--nl-img-snow);
+        background-size: 320px 320px, 480px 480px;
+        background-position: 0 0, 70px 40px;
+        background-repeat: repeat;
+        opacity: var(--nl-snow-opacity);
+        pointer-events: none;
+        will-change: transform;
+        animation: noel-snow 72s linear infinite;
+    }
+
+    html[data-season="noel"] .header::before {
+        animation: noel-twinkle 2.4s ease-in-out infinite alternate;
+    }
+
+    html[data-season="noel"] .header-title::after {
+        animation: noel-twinkle 1.8s ease-in-out infinite alternate;
+    }
+}
+
+/* 960 px = 3 tuiles de 320 px = 2 tuiles de 480 px : la boucle est sans à-coup. */
+@keyframes noel-snow {
+    from { transform: translateY(0); }
+    to { transform: translateY(960px); }
+}
+
+@keyframes noel-twinkle {
+    from { opacity: 0.7; }
+    to { opacity: 1; }
+}
+
+/* Mobile : guirlande plus petite pour ne pas mordre sur les titres de page. */
+@media (max-width: 768px) {
+    html[data-season="noel"] .header::before {
+        top: calc(100% - 3px);
+        height: 18px;
+        background-size: auto 18px;
+    }
+}
+
+/* Impression : ni neige, ni scènes des marges, ni guirlande. */
+@media print {
+    html[data-season="noel"]::before,
+    html[data-season="noel"] body::before,
+    html[data-season="noel"] body::after,
+    html[data-season="noel"] .header::before {
+        display: none;
+    }
+}

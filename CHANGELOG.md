@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.23.0] — 16 octobre 2026
+
+### ✨ Nouveautés
+
+- **Nouveau thème saisonnier « Noël »** — le super admin peut désormais le programmer depuis **Administration → Thèmes**, à côté de la Fête des vendanges de Montmartre (sur une plage de dates qui ne recouvre pas celle d'un autre thème activé). Ambiance Noël traditionnel en vert sapin, or et crème : une guirlande d'ampoules colorées scintille sous la barre de navigation, le logo est entouré d'un cadre doré et de brins de houx, « Martine » et les titres passent dans une élégante police à empattements, soulignés d'un filet doré et suivis d'un brin de houx enneigé. Les boutons principaux deviennent vert sapin avec un liseré doré et une petite étoile, les cartes prennent un liseré doré, un bandeau vert ou or et un brin de houx dans un coin, et une neige légère tombe doucement sur la page. Sur les grands écrans, un sapin décoré entouré de cadeaux et des boules suspendues s'installent dans les marges. La croix rouge du logo, les boutons de suppression et les alertes restent inchangés, et rien ne se décale. Si vous avez demandé à votre appareil de limiter les animations, la neige n'apparaît pas et la guirlande reste immobile. À l'impression, la neige, la guirlande et les décors des marges disparaissent.
+- **Icône du thème selon la saison** — le bouton qui masque ou réaffiche le thème dans la barre de navigation montre désormais un sapin pendant Noël (et toujours une grappe pendant les vendanges).
+
 ## [5.22.2] — 16 octobre 2026
 
 ### 🐛 Corrections
