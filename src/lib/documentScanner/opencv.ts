@@ -6,18 +6,21 @@ export type OpenCv = typeof import('@techstark/opencv-js');
 type Mat = InstanceType<OpenCv['Mat']>;
 type MatVector = InstanceType<OpenCv['MatVector']>;
 
-export type EnhanceMode = 'color' | 'bw';
+/** `original` : redressement seul, sans normalisation ni seuillage ; `color` : contraste amélioré ; `bw` : noir & blanc. */
+export type EnhanceMode = 'original' | 'color' | 'bw';
 
 /** Taille d'analyse (plus grande dimension) : légère en direct, plus fine à la capture. */
 export const LIVE_ANALYSIS_SIZE = 480;
 export const CAPTURE_ANALYSIS_SIZE = 1000;
 
-const MIN_AREA_RATIO = 0.1;
+const MIN_AREA_RATIO = 0.15;
 const MAX_AREA_RATIO = 0.98;
 /** Le contour doit remplir au moins cette part du quadrilatère retenu (écarte les blobs déchiquetés). */
 const MIN_FILL_RATIO = 0.6;
 const APPROX_EPSILONS = [0.02, 0.03, 0.04, 0.05];
 const MAX_CANDIDATE_CONTOURS = 8;
+/** Avec un contour de référence, seuls les candidats d'au moins cette part du plus grand sont départagés par proximité. */
+const REFERENCE_SIZE_RATIO = 0.8;
 const CLOSE_KERNEL_SIZE = 9; // à LIVE_ANALYSIS_SIZE ; proportionnel ensuite
 const MAX_GRADIENT = 2040; // 255 × (1+2+1) × 2 : borne de la norme L1 de Sobel 3×3
 const CANNY_LOW_MIN = 20;
@@ -120,7 +123,7 @@ function approximateQuad(cv: OpenCv, contour: Mat, contourArea: number, frameAre
  * Le classement et le taux de remplissage reposent sur l'aire de l'enveloppe convexe : une bordure
  * ouverte (doigt, ombre) a une aire propre quasi nulle mais son enveloppe retrouve le document.
  */
-function quadFromContours(cv: OpenCv, contours: MatVector, frameArea: number): Point[] | null {
+function quadFromContours(cv: OpenCv, contours: MatVector, frameArea: number, reference: Quad | null): Point[] | null {
     const candidates: Array<{ index: number; hullArea: number }> = [];
     for (let i = 0; i < contours.size(); i++) {
         const contour = contours.get(i);
@@ -136,30 +139,47 @@ function quadFromContours(cv: OpenCv, contours: MatVector, frameArea: number): P
     }
     candidates.sort((a, b) => b.hullArea - a.hullArea);
 
+    // Sans référence : le plus grand candidat valide. Avec le contour suivi : il ne départage que des
+    // candidats de taille comparable (≥ 80 % du plus grand), pour éviter de sauter entre deux feuilles
+    // voisines ; un candidat nettement plus petit (bloc de texte, case) ne peut jamais l'emporter sur
+    // la feuille entière, sans quoi le suivi resterait verrouillé dessus.
+    let largest: { pts: Point[]; hullArea: number } | null = null;
+    let best: { pts: Point[]; distance: number } | null = null;
     for (const { index, hullArea } of candidates.slice(0, MAX_CANDIDATE_CONTOURS)) {
         const contour = contours.get(index);
         const hull = new cv.Mat();
         try {
-            const direct = approximateQuad(cv, contour, hullArea, frameArea);
-            if (direct) return direct;
-            cv.convexHull(contour, hull, false, true);
-            const viaHull = approximateQuad(cv, hull, hullArea, frameArea);
-            if (viaHull) return viaHull;
+            let pts = approximateQuad(cv, contour, hullArea, frameArea);
+            if (!pts) {
+                cv.convexHull(contour, hull, false, true);
+                pts = approximateQuad(cv, hull, hullArea, frameArea);
+            }
+            if (!pts) continue;
+            if (!reference) return pts;
+            // Les candidats sont triés par aire décroissante : le premier valide est le plus grand
+            largest ??= { pts, hullArea };
+            if (hullArea < largest.hullArea * REFERENCE_SIZE_RATIO) continue;
+            const gap = meanCornerDistance(orderCorners(pts), reference);
+            if (!best || gap < best.distance) best = { pts, distance: gap };
         } finally {
             hull.delete();
             contour.delete();
         }
     }
-    return null;
+    return best ? best.pts : null;
 }
 
-function findQuadInBinary(cv: OpenCv, binary: Mat, frameArea: number): Point[] | null {
+function meanCornerDistance(a: Quad, b: Quad): number {
+    return a.reduce((sum, p, i) => sum + Math.hypot(p.x - b[i].x, p.y - b[i].y), 0) / 4;
+}
+
+function findQuadInBinary(cv: OpenCv, binary: Mat, frameArea: number, reference: Quad | null): Point[] | null {
     const { track, release } = createTracker();
     try {
         const contours = track(new cv.MatVector());
         const hierarchy = track(new cv.Mat());
         cv.findContours(binary, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
-        return quadFromContours(cv, contours, frameArea);
+        return quadFromContours(cv, contours, frameArea, reference);
     } finally {
         release();
     }
@@ -231,8 +251,11 @@ function classSeparation(data: Uint8Array, threshold: number): number {
  *
  * gris → fermeture morphologique (efface le texte) → flou → Canny à seuils automatiques →
  * contours externes ; à défaut, seuillage Otsu (feuille claire sur fond plus sombre).
+ *
+ * `reference` (le contour déjà suivi, en coordonnées de cette image) : parmi les candidats valides,
+ * on préfère le plus proche de lui plutôt que le plus grand.
  */
-export function findDocumentQuad(cv: OpenCv, rgba: Mat): Quad | null {
+export function findDocumentQuad(cv: OpenCv, rgba: Mat, reference: Quad | null = null): Quad | null {
     const frameArea = rgba.cols * rgba.rows;
     if (!frameArea) return null;
 
@@ -254,14 +277,14 @@ export function findDocumentQuad(cv: OpenCv, rgba: Mat): Quad | null {
         cv.Canny(blurred, edges, low, high);
         const dilateKernel = track(cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(3, 3)));
         cv.dilate(edges, edges, dilateKernel);
-        let found = findQuadInBinary(cv, edges, frameArea);
+        let found = findQuadInBinary(cv, edges, frameArea, reference);
 
         // Essai 2 : seuillage d'Otsu, seulement si fond et feuille sont nettement séparés
         if (!found) {
             const binary = track(new cv.Mat());
             const threshold = cv.threshold(blurred, binary, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
             if (classSeparation(blurred.data as Uint8Array, threshold) >= MIN_OTSU_SEPARATION) {
-                found = findQuadInBinary(cv, binary, frameArea);
+                found = findQuadInBinary(cv, binary, frameArea, reference);
             }
         }
 
@@ -280,6 +303,7 @@ export function detectQuad(
     cv: OpenCv,
     source: HTMLCanvasElement | HTMLVideoElement,
     analysisSize = LIVE_ANALYSIS_SIZE,
+    reference: Quad | null = null,
 ): Quad | null {
     const srcW = source instanceof HTMLVideoElement ? source.videoWidth : source.width;
     const srcH = source instanceof HTMLVideoElement ? source.videoHeight : source.height;
@@ -298,34 +322,37 @@ export function detectQuad(
 
     const rgba = cv.matFromImageData(ctx.getImageData(0, 0, w, h));
     try {
-        const quad = findDocumentQuad(cv, rgba);
+        const quad = findDocumentQuad(cv, rgba, reference ? scaleQuad(reference, scale) : null);
         return quad ? scaleQuad(quad, 1 / scale) : null;
     } finally {
         rgba.delete();
     }
 }
 
-/** Redresse la perspective du quadrilatère puis améliore le contraste. */
-export function warpAndEnhance(
-    cv: OpenCv,
-    image: HTMLCanvasElement | HTMLImageElement,
-    quad: Quad,
-    mode: EnhanceMode,
-): HTMLCanvasElement {
-    const frameWidth = image instanceof HTMLImageElement ? image.naturalWidth : image.width;
-    const frameHeight = image instanceof HTMLImageElement ? image.naturalHeight : image.height;
-    const { width, height } = outputSize(quad, frameWidth, frameHeight);
+/**
+ * Cœur du redressement (pur OpenCV, sans DOM) : image RGBA → perspective corrigée aux proportions
+ * estimées, puis traitement selon `mode`. Retourne une nouvelle Mat que l'appelant doit libérer.
+ */
+export function warpMat(cv: OpenCv, src: Mat, quad: Quad, mode: EnhanceMode): Mat {
+    const { width, height } = outputSize(quad, src.cols, src.rows);
     const { track, release } = createTracker();
+    const out = new cv.Mat();
 
     try {
-        const src = track(cv.imread(image));
         const srcPts = track(cv.matFromArray(4, 1, cv.CV_32FC2, quad.flatMap((p) => [p.x, p.y])));
         const dstPts = track(cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, width, 0, width, height, 0, height]));
         const matrix = track(cv.getPerspectiveTransform(srcPts, dstPts));
-        const warped = track(new cv.Mat());
-        cv.warpPerspective(src, warped, matrix, new cv.Size(width, height), cv.INTER_LINEAR, cv.BORDER_REPLICATE);
+        const size = new cv.Size(width, height);
 
-        const out = track(new cv.Mat());
+        if (mode === 'original') {
+            // Redressement seul : aucune normalisation ni seuillage
+            cv.warpPerspective(src, out, matrix, size, cv.INTER_LINEAR, cv.BORDER_REPLICATE);
+            return out;
+        }
+
+        const warped = track(new cv.Mat());
+        cv.warpPerspective(src, warped, matrix, size, cv.INTER_LINEAR, cv.BORDER_REPLICATE);
+
         if (mode === 'bw') {
             const gray = track(new cv.Mat());
             cv.cvtColor(warped, gray, cv.COLOR_RGBA2GRAY);
@@ -342,11 +369,33 @@ export function warpAndEnhance(
             cv.normalize(normalized, normalized, 0, 255, cv.NORM_MINMAX);
             cv.cvtColor(normalized, out, cv.COLOR_RGB2RGBA);
         }
-
-        const canvas = document.createElement('canvas');
-        cv.imshow(canvas, out);
-        return canvas;
+        return out;
+    } catch (e: unknown) {
+        out.delete();
+        throw e;
     } finally {
         release();
+    }
+}
+
+/** Redresse la perspective du quadrilatère puis applique le traitement choisi (original, couleur, noir & blanc). */
+export function warpAndEnhance(
+    cv: OpenCv,
+    image: HTMLCanvasElement | HTMLImageElement,
+    quad: Quad,
+    mode: EnhanceMode,
+): HTMLCanvasElement {
+    const src = cv.imread(image);
+    try {
+        const out = warpMat(cv, src, quad, mode);
+        try {
+            const canvas = document.createElement('canvas');
+            cv.imshow(canvas, out);
+            return canvas;
+        } finally {
+            out.delete();
+        }
+    } finally {
+        src.delete();
     }
 }

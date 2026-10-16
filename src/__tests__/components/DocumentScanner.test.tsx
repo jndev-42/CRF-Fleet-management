@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/documentScanner/opencv', () => ({
     CAPTURE_ANALYSIS_SIZE: 1000,
+    LIVE_ANALYSIS_SIZE: 480,
     loadOpenCv: mocks.loadOpenCv,
     detectQuad: mocks.detectQuad,
     warpAndEnhance: mocks.warpAndEnhance,
@@ -130,6 +131,50 @@ describe('DocumentScanner', () => {
         expect(quad).toEqual([
             { x: 0, y: 0 }, { x: 640, y: 0 }, { x: 640, y: 480 }, { x: 0, y: 480 },
         ]);
+    });
+
+    it('propose Original / Couleur / Noir & blanc, Couleur par défaut', async () => {
+        setup();
+        await waitLive();
+        fireEvent.click(await shutter());
+        fireEvent.click(screen.getByRole('button', { name: /Valider/ }));
+        await screen.findByAltText('Document redressé');
+
+        const group = screen.getByRole('group', { name: 'Rendu' });
+        const labels = Array.from(group.querySelectorAll('button')).map((b) => b.textContent);
+        expect(labels).toEqual(['Original', 'Couleur', 'Noir & blanc']);
+        const pressed = (name: RegExp) => screen.getByRole('button', { name }).getAttribute('aria-pressed');
+        expect([pressed(/^Original$/), pressed(/^Couleur$/), pressed(/Noir/)]).toEqual(['false', 'true', 'false']);
+    });
+
+    it('« Original » redresse sans traitement de couleur (mode original)', async () => {
+        setup();
+        await waitLive();
+        fireEvent.click(await shutter());
+        fireEvent.click(screen.getByRole('button', { name: /Valider/ }));
+        await screen.findByAltText('Document redressé');
+
+        fireEvent.click(screen.getByRole('button', { name: /^Original$/ }));
+        await waitFor(() => expect(mocks.warpAndEnhance).toHaveBeenCalledTimes(2));
+        expect(mocks.warpAndEnhance.mock.calls[1][3]).toBe('original');
+        await waitFor(() => expect(screen.getByRole('button', { name: /^Original$/ }).getAttribute('aria-pressed')).toBe('true'));
+        expect(screen.getByRole('button', { name: /^Couleur$/ }).getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('si le retraitement échoue, le choix précédent reste sélectionné', async () => {
+        vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        setup();
+        await waitLive();
+        fireEvent.click(await shutter());
+        fireEvent.click(screen.getByRole('button', { name: /Valider/ }));
+        await screen.findByAltText('Document redressé');
+
+        mocks.warpAndEnhance.mockImplementationOnce(() => { throw new Error('boom'); });
+        fireEvent.click(screen.getByRole('button', { name: /Noir/ }));
+
+        expect((await screen.findByRole('alert')).textContent).toMatch(/redressement/i);
+        expect(screen.getByRole('button', { name: /^Couleur$/ }).getAttribute('aria-pressed')).toBe('true');
+        expect(screen.getByRole('button', { name: /Noir/ }).getAttribute('aria-pressed')).toBe('false');
     });
 
     it('bascule en noir & blanc et retraite la page', async () => {
@@ -302,7 +347,7 @@ describe('DocumentScanner', () => {
 
         // Document retiré puis représenté : la capture auto est de nouveau armée
         mocks.detectQuad.mockReturnValue(null);
-        await act(async () => { vi.advanceTimersByTime(600); }); // ≥ 3 analyses ratées : le contour est effacé
+        await act(async () => { vi.advanceTimersByTime(800); }); // ≥ 5 analyses ratées : le contour suivi est effacé
         mocks.detectQuad.mockReturnValue(QUAD);
         await act(async () => { vi.advanceTimersByTime(2000); });
         expect(screen.getByText(/Ajustez les coins/)).toBeTruthy();
@@ -319,7 +364,8 @@ describe('DocumentScanner', () => {
         fireEvent.click(screen.getByRole('button', { name: /Valider/ }));
         await screen.findByAltText('Document redressé');
 
-        expect(mocks.detectQuad).toHaveBeenCalledWith(expect.anything(), expect.any(HTMLCanvasElement), 1000);
+        // Le contour en direct sert de référence pour retrouver le même document
+        expect(mocks.detectQuad).toHaveBeenCalledWith(expect.anything(), expect.any(HTMLCanvasElement), 1000, expect.any(Array));
         expect(mocks.warpAndEnhance.mock.calls[0][2]).toEqual(refined);
     });
 
@@ -373,6 +419,8 @@ describe('DocumentScanner', () => {
         await screen.findByAltText('Document redressé');
 
         expect(mocks.warpAndEnhance.mock.calls[0][2]).toEqual(QUAD);
+        // Aucun contour en direct : pas de référence
+        expect(mocks.detectQuad).toHaveBeenCalledWith(expect.anything(), expect.any(HTMLCanvasElement), 1000, null);
     });
 
     it("une analyse ratée ne fait pas avancer la stabilité : pas de capture sur un tick sans détection", async () => {

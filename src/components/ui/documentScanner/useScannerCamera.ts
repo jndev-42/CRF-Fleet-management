@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { detectQuad, type OpenCv } from '@/lib/documentScanner/opencv';
-import { blendQuads, fullFrameQuad, isStable, type Quad } from '@/lib/documentScanner/geometry';
+import { LIVE_ANALYSIS_SIZE, detectQuad, type OpenCv } from '@/lib/documentScanner/opencv';
+import { fullFrameQuad, isStable, type Quad } from '@/lib/documentScanner/geometry';
+import { QuadTracker, isReadyToCapture } from '@/lib/documentScanner/quadTracker';
 
 export type CameraStatus = 'starting' | 'live' | 'denied' | 'unavailable';
 
@@ -14,13 +15,6 @@ export interface Capture {
 }
 
 const DETECTION_INTERVAL_MS = 125; // ~8 analyses/s
-const STABLE_DELAY_MS = 1000;
-/** Poids de la nouvelle détection dans la moyenne mobile exponentielle des coins. */
-const SMOOTHING_ALPHA = 0.5;
-/** Au-delà de ce déplacement (fraction de la diagonale), on ne lisse plus : on repart de la nouvelle détection. */
-const JUMP_TOLERANCE = 0.1;
-/** Analyses consécutives sans détection tolérées avant d'effacer le contour affiché. */
-const MAX_MISSES = 3;
 
 interface Options {
     /** Vrai tant que l'écran caméra est affiché : met la détection en route. */
@@ -118,59 +112,35 @@ export function useScannerCamera({ active, cv, onStable }: Options) {
     useEffect(() => {
         if (!active || status !== 'live' || !cv) return;
         let busy = false;
-        let previous: Quad | null = null;
-        let stableSince: number | null = null;
-        let smoothed: Quad | null = null;
-        let misses = 0;
+        // Suivi du contour : accrochage, zone morte, lissage et tolérance aux pertes (voir quadTracker.ts)
+        const tracker = new QuadTracker();
 
         const id = window.setInterval(() => {
             const video = videoRef.current;
             if (busy || !video || !video.videoWidth) return;
             busy = true;
             try {
-                const raw = detectQuad(cv, video);
-                if (raw) {
-                    misses = 0;
-                    // Lissage si la détection reste proche de la précédente ; sinon on repart de la nouvelle
-                    smoothed = smoothed && isStable(smoothed, raw, video.videoWidth, video.videoHeight, JUMP_TOLERANCE)
-                        ? blendQuads(smoothed, raw, SMOOTHING_ALPHA)
-                        : raw;
-                } else if (++misses >= MAX_MISSES) {
-                    smoothed = null; // le document a vraiment disparu
-                }
-                const detected = smoothed;
-                quadRef.current = detected;
-                setQuad(detected);
-
-                // Analyse ratée mais contour conservé : l'affichage tient, mais seule une vraie détection
-                // fait avancer la stabilité (et déclenche la capture)
-                if (!raw && detected) return;
+                // Le contour suivi sert de référence : parmi plusieurs candidats, on garde le plus proche
+                const raw = detectQuad(cv, video, LIVE_ANALYSIS_SIZE, tracker.quad);
+                const result = tracker.update(raw, video.videoWidth, video.videoHeight, Date.now());
+                quadRef.current = result.quad;
+                setQuad(result.quad);
 
                 if (!armedRef.current) {
-                    const moved = detected && disarmedQuadRef.current
-                        && !isStable(disarmedQuadRef.current, detected, video.videoWidth, video.videoHeight);
-                    if (!detected || moved) {
+                    const moved = result.quad && disarmedQuadRef.current
+                        && !isStable(disarmedQuadRef.current, result.quad, video.videoWidth, video.videoHeight);
+                    if (!result.quad || moved) {
                         armedRef.current = true; // document retiré ou déplacé : on réarme
-                    } else {
-                        previous = null;
-                        stableSince = null;
-                        return;
+                        tracker.resetStability();
                     }
+                    return;
                 }
 
-                const now = Date.now();
-                if (detected && isStable(previous, detected, video.videoWidth, video.videoHeight)) {
-                    stableSince ??= now;
-                    if (now - stableSince >= STABLE_DELAY_MS) {
-                        stableSince = null;
-                        previous = null;
-                        onStableRef.current();
-                        return;
-                    }
-                } else {
-                    stableSince = detected ? now : null;
+                // Seules de vraies détections stables déclenchent la capture : une image ratée n'y contribue jamais
+                if (isReadyToCapture(result)) {
+                    tracker.resetStability();
+                    onStableRef.current();
                 }
-                previous = detected;
             } catch (e: unknown) {
                 console.error('Détection du document impossible', e);
             } finally {

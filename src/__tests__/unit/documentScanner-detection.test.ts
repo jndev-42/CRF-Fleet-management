@@ -1,8 +1,9 @@
 // @vitest-environment node
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createRequire } from 'node:module';
-import { findDocumentQuad, type OpenCv } from '@/lib/documentScanner/opencv';
+import { findDocumentQuad, warpMat, type OpenCv } from '@/lib/documentScanner/opencv';
 import { distance, orderCorners, type Point, type Quad } from '@/lib/documentScanner/geometry';
+import { QuadTracker, SWITCH_COUNT } from '@/lib/documentScanner/quadTracker';
 
 // Test avec le VRAI moteur OpenCV (wasm), chargé comme le ferait Node : l'export est un « thenable »
 // qui se renvoie lui-même, on l'attend via onRuntimeInitialized puis on retire `then`.
@@ -92,14 +93,24 @@ function sheetRgba(level: number): Uint8Array {
 
 /** Pose la feuille en perspective dans le fond (warpPerspective en BORDER_TRANSPARENT). */
 function sceneWithDocument(quad: Quad, seed: number, style: SceneStyle = DARK_DESK) {
+    return sceneWithDocuments([quad], seed, style);
+}
+
+/** Plusieurs feuilles dans la même scène. */
+function sceneWithDocuments(quads: Quad[], seed: number, style: SceneStyle = DARK_DESK) {
     const background = cv.matFromArray(H, W, cv.CV_8UC4, Array.from(backgroundRgba(seed, style)));
     const sheet = cv.matFromArray(SHEET_H, SHEET_W, cv.CV_8UC4, Array.from(sheetRgba(style.sheet)));
     const srcPts = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, SHEET_W, 0, SHEET_W, SHEET_H, 0, SHEET_H]);
-    const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, quad.flatMap((p) => [p.x, p.y]));
-    const matrix = cv.getPerspectiveTransform(srcPts, dstPts);
     const BORDER_TRANSPARENT = 5;
-    cv.warpPerspective(sheet, background, matrix, new cv.Size(W, H), cv.INTER_LINEAR, BORDER_TRANSPARENT, new cv.Scalar());
-    [sheet, srcPts, dstPts, matrix].forEach((m) => m.delete());
+    for (const quad of quads) {
+        const dstPts = cv.matFromArray(4, 1, cv.CV_32FC2, quad.flatMap((p) => [p.x, p.y]));
+        const matrix = cv.getPerspectiveTransform(srcPts, dstPts);
+        cv.warpPerspective(sheet, background, matrix, new cv.Size(W, H), cv.INTER_LINEAR, BORDER_TRANSPARENT, new cv.Scalar());
+        dstPts.delete();
+        matrix.delete();
+    }
+    sheet.delete();
+    srcPts.delete();
     return background;
 }
 
@@ -141,7 +152,7 @@ function expectCornersNear(found: Quad | null, truth: Quad) {
 const QUADS: Array<[string, Quad]> = [
     ['feuille quasi frontale', [{ x: 120, y: 70 }, { x: 520, y: 85 }, { x: 545, y: 410 }, { x: 95, y: 400 }]],
     ['feuille inclinée et tournée', [{ x: 180, y: 50 }, { x: 560, y: 140 }, { x: 500, y: 440 }, { x: 80, y: 330 }]],
-    ['petite feuille (≈ 20 % du cadre)', [{ x: 220, y: 120 }, { x: 420, y: 130 }, { x: 430, y: 330 }, { x: 210, y: 320 }]],
+    ['petite feuille (≈ 20 % du cadre)', [{ x: 190, y: 100 }, { x: 440, y: 110 }, { x: 450, y: 360 }, { x: 180, y: 350 }]],
 ];
 
 describe('documentScanner/opencv — findDocumentQuad (moteur réel)', () => {
@@ -174,6 +185,138 @@ describe('documentScanner/opencv — findDocumentQuad (moteur réel)', () => {
             scene.delete();
         }
     }, 30_000);
+
+    describe('contour de référence (suivi)', () => {
+        // Deux feuilles valides : la grande (≈ 35 % du cadre) et une plus petite (≈ 17 %)
+        const BIG: Quad = [{ x: 30, y: 60 }, { x: 330, y: 70 }, { x: 320, y: 430 }, { x: 40, y: 420 }];
+        const SMALL: Quad = [{ x: 380, y: 150 }, { x: 610, y: 150 }, { x: 610, y: 380 }, { x: 380, y: 380 }];
+
+        it('sans référence : le plus grand candidat', () => {
+            const scene = sceneWithDocuments([BIG, SMALL], 5);
+            try {
+                expectCornersNear(findDocumentQuad(cv, scene), BIG);
+            } finally {
+                scene.delete();
+            }
+        }, 30_000);
+
+        it('la référence ne départage que des feuilles de taille comparable (≥ 80 % de la plus grande)', () => {
+            const a: Quad = [{ x: 30, y: 80 }, { x: 260, y: 85 }, { x: 255, y: 410 }, { x: 25, y: 405 }]; // ≈ 75 000 px²
+            const b: Quad = [{ x: 350, y: 100 }, { x: 580, y: 100 }, { x: 580, y: 380 }, { x: 350, y: 380 }]; // ≈ 64 000 px²
+            const scene = sceneWithDocuments([a, b], 5);
+            try {
+                expectCornersNear(findDocumentQuad(cv, scene, null), a);
+                expectCornersNear(findDocumentQuad(cv, scene, b), b);
+                expectCornersNear(findDocumentQuad(cv, scene, a), a);
+            } finally {
+                scene.delete();
+            }
+        }, 30_000);
+
+        it('une référence sur un candidat nettement plus petit ne l\'emporte pas sur la grande feuille', () => {
+            const scene = sceneWithDocuments([BIG, SMALL], 5);
+            try {
+                expectCornersNear(findDocumentQuad(cv, scene, SMALL), BIG);
+            } finally {
+                scene.delete();
+            }
+        }, 30_000);
+
+        it('suivi verrouillé sur un petit rectangle : adopte la feuille entière en 3 images', () => {
+            const tracker = new QuadTracker();
+            const smallOnly = sceneWithDocument(SMALL, 5);
+            const both = sceneWithDocuments([BIG, SMALL], 5);
+            try {
+                // Une image où seul le petit rectangle est visible : le suivi s'y accroche
+                tracker.update(findDocumentQuad(cv, smallOnly, tracker.quad), W, H, 0);
+                expectCornersNear(tracker.quad, SMALL);
+
+                // La feuille entière devient visible : la détection la renvoie malgré la référence,
+                // et le suivi bascule après SWITCH_COUNT images cohérentes (pas avant)
+                for (let frame = 1; frame < SWITCH_COUNT; frame++) {
+                    tracker.update(findDocumentQuad(cv, both, tracker.quad), W, H, frame * 125);
+                    expectCornersNear(tracker.quad, SMALL);
+                }
+                tracker.update(findDocumentQuad(cv, both, tracker.quad), W, H, SWITCH_COUNT * 125);
+                expectCornersNear(tracker.quad, BIG);
+            } finally {
+                smallOnly.delete();
+                both.delete();
+            }
+        }, 30_000);
+
+        it('feuille avec un rectangle plus petit à l\'intérieur : la feuille est renvoyée', () => {
+            const quad: Quad = [{ x: 120, y: 70 }, { x: 520, y: 85 }, { x: 545, y: 410 }, { x: 95, y: 400 }];
+            const scene = sceneWithDocument(quad, 11);
+            // Bloc gris foncé à l'intérieur de la feuille (≈ 20 % de sa surface)
+            const data = scene.data;
+            for (let y = 160; y < 300; y++) {
+                for (let x = 200; x < 400; x++) {
+                    const i = (y * W + x) * 4;
+                    data[i] = data[i + 1] = data[i + 2] = 60;
+                }
+            }
+            try {
+                expectCornersNear(findDocumentQuad(cv, scene, quad), quad);
+                expectCornersNear(findDocumentQuad(cv, scene, null), quad);
+            } finally {
+                scene.delete();
+            }
+        }, 30_000);
+    });
+
+    describe('warpMat — mode original', () => {
+        // Image RGBA 210 x 297 (rapport A4 exact : pas d'aimantation, la taille de sortie reste identique)
+        const SRC_W = 210;
+        const SRC_H = 297;
+        const frontal: Quad = [{ x: 0, y: 0 }, { x: SRC_W, y: 0 }, { x: SRC_W, y: SRC_H }, { x: 0, y: SRC_H }];
+
+        function colorfulSource() {
+            const data = new Uint8Array(SRC_W * SRC_H * 4);
+            for (let y = 0; y < SRC_H; y++) {
+                for (let x = 0; x < SRC_W; x++) {
+                    const i = (y * SRC_W + x) * 4;
+                    data[i] = (x * 255) / SRC_W; // dégradés de couleur, ombre diagonale
+                    data[i + 1] = (y * 255) / SRC_H;
+                    data[i + 2] = 120 + ((x + y) % 40);
+                    data[i + 3] = 255;
+                }
+            }
+            return cv.matFromArray(SRC_H, SRC_W, cv.CV_8UC4, Array.from(data));
+        }
+
+        const meanAbsDiff = (a: Uint8Array, b: Uint8Array) => {
+            let sum = 0;
+            for (let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]);
+            return sum / a.length;
+        };
+
+        it('ne modifie pas les couleurs d\'une image déjà frontale (à l\'interpolation près)', () => {
+            const src = colorfulSource();
+            const out = warpMat(cv, src, frontal, 'original');
+            try {
+                expect([out.cols, out.rows]).toEqual([SRC_W, SRC_H]);
+                expect(meanAbsDiff(src.data, out.data)).toBeLessThan(1);
+            } finally {
+                src.delete();
+                out.delete();
+            }
+        });
+
+        it('les modes couleur et noir & blanc, eux, modifient l\'image', () => {
+            const src = colorfulSource();
+            const color = warpMat(cv, src, frontal, 'color');
+            const bw = warpMat(cv, src, frontal, 'bw');
+            try {
+                expect(meanAbsDiff(src.data.slice(0, color.data.length), color.data)).toBeGreaterThan(5);
+                expect(bw.channels()).toBe(1);
+            } finally {
+                src.delete();
+                color.delete();
+                bw.delete();
+            }
+        });
+    });
 
     it('ne détecte rien sur un fond texturé sans document', () => {
         const scene = cv.matFromArray(H, W, cv.CV_8UC4, Array.from(backgroundRgba(3)));

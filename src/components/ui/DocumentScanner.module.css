@@ -143,8 +143,11 @@
     background: #fff;
 }
 
+/* Trois choix : tient dans 320 px (≈ 96 px par bouton, « Noir & blanc » ≈ 80 px de texte + 12 px de marge) */
 .modeToggle {
-    display: inline-flex;
+    display: flex;
+    width: 100%;
+    max-width: 360px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.12);
     padding: 3px;
@@ -152,10 +155,13 @@
 
 .modeButton,
 .modeActive {
+    flex: 1 1 0;
+    min-width: 0;
     border: none;
     border-radius: 999px;
-    padding: 8px 16px;
-    font-size: 0.85rem;
+    padding: 8px 6px;
+    font-size: 0.8rem;
+    white-space: nowrap;
     font-weight: 600;
     color: #fff;
     background: transparent;

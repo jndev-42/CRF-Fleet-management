@@ -25,6 +25,12 @@ interface ScannedPage {
     thumb: string;
 }
 
+const MODES: ReadonlyArray<{ value: EnhanceMode; label: string }> = [
+    { value: 'original', label: 'Original' },
+    { value: 'color', label: 'Couleur' },
+    { value: 'bw', label: 'Noir & blanc' },
+];
+
 const THUMB_MAX_SIDE = 120;
 /** Écart maximal (fraction de la diagonale) entre contour en direct et détection fine pour adopter cette dernière. */
 const REFINE_TOLERANCE = 0.1;
@@ -123,7 +129,8 @@ export default function DocumentScanner({ onComplete, onClose, onFallback }: Doc
         if (cv) {
             try {
                 const { width, height } = captured.canvas;
-                const refined = detectQuad(cv, captured.canvas, CAPTURE_ANALYSIS_SIZE);
+                // Le contour en direct sert de référence (même repère : pixels vidéo) pour retrouver le même document
+                const refined = detectQuad(cv, captured.canvas, CAPTURE_ANALYSIS_SIZE, captured.detected ? captured.quad : null);
                 // Le contour en direct est stable : la détection fine ne le remplace que si elle reste proche,
                 // sans quoi elle a pu s'accrocher à un autre rectangle
                 if (refined && (!captured.detected || isStable(captured.quad, refined, width, height, REFINE_TOLERANCE))) {
@@ -279,12 +286,18 @@ export default function DocumentScanner({ onComplete, onClose, onFallback }: Doc
                         {/* eslint-disable-next-line @next/next/no-img-element -- aperçu local (data URL) */}
                         <img src={processed.preview} alt="Document redressé" className={styles.preview} />
                         <div className={styles.modeToggle} role="group" aria-label="Rendu">
-                            <button type="button" className={mode === 'color' ? styles.modeActive : styles.modeButton} aria-pressed={mode === 'color'} onClick={() => changeMode('color')} disabled={busy}>
-                                Couleur
-                            </button>
-                            <button type="button" className={mode === 'bw' ? styles.modeActive : styles.modeButton} aria-pressed={mode === 'bw'} onClick={() => changeMode('bw')} disabled={busy}>
-                                Noir &amp; blanc
-                            </button>
+                            {MODES.map(({ value, label }) => (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    className={mode === value ? styles.modeActive : styles.modeButton}
+                                    aria-pressed={mode === value}
+                                    onClick={() => changeMode(value)}
+                                    disabled={busy}
+                                >
+                                    {label}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 )}
