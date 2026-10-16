@@ -6,6 +6,12 @@
 
 - **Nouveau thème saisonnier « Halloween »** — un second habillage s'ajoute dans l'onglet « Thèmes » de l'administration, à activer comme celui des vendanges (activation, plage de dates, UL concernées). L'ambiance est ludique : citrouilles souriantes, chauves-souris, petits fantômes et toiles d'araignée, en orange citrouille, violet nuit et vert slime. Une guirlande pend de la barre de navigation, le logo et les titres sont décorés, les cartes portent un coin de toile d'araignée, et une maison hantée et un chaudron illustrent les marges des grands écrans. Le rendu existe en mode clair et en mode sombre, sans rien déplacer dans l'application, et le bouton de déconnexion et les boutons de suppression restent rouges.
 - **Bouton du thème aux couleurs de la saison** — le bouton de la barre de navigation qui masque ou réaffiche le thème saisonnier montre désormais l'icône du thème en cours : une grappe de raisin pour les vendanges, un petit fantôme pour Halloween.
+## [5.22.2] — 16 octobre 2026
+
+### 🐛 Corrections
+
+- **Compte rendu de mission : la saisie n'est plus perdue pendant la prise de photo** — sur certains téléphones Android, ouvrir l'appareil photo pour photographier le rapport signé (DPS, PAPS) ou les photos de communication faisait recharger la page et tout le compte rendu repartait de zéro. La saisie est désormais conservée en brouillon sur l'appareil : au retour, vous reprenez à l'étape où vous étiez, avec vos réponses et les photos déjà ajoutées. Un bandeau « Brouillon restauré » le signale, avec un bouton **Recommencer** pour repartir d'un formulaire vierge. Le brouillon est effacé dès l'envoi du compte rendu (et oublié au bout de 24 h).
+- **Compte rendu DPS/PAPS : rapport signé toujours vérifié à l'envoi** — si le rapport signé manque au moment de soumettre, le formulaire revient sur l'étape « Rapport signé » au lieu d'envoyer un compte rendu incomplet.
 
 ## [5.22.1] — 16 octobre 2026
 
