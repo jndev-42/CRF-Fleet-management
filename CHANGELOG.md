@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.25.2] — 17 octobre 2026
+
+### 🐛 Corrections
+
+- **Papiers de conduite : nombre de jours restants exact autour du changement d'heure** — quand le délai de grâce de 14 jours englobait un passage à l'heure d'hiver ou d'été, le bandeau annonçait un jour de trop (« 15 jours restants »). Le décompte est désormais toujours juste.
+
 ## [5.25.1] — 17 octobre 2026
 
 ### 🔒 Sécurité

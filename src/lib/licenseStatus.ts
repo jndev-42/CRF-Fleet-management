@@ -74,8 +74,10 @@ export function getLicenseStatus(row: LicenseRow, today: string): LicenseStatus 
     let blocked = false;
 
     if (startDateInvalidation) {
+        // Les dates `YYYY-MM-DD` sont lues en UTC : on ajoute les jours en UTC
+        // pour qu'un changement d'heure local n'ajoute pas une heure (→ +1 jour arrondi).
         const blockDate = new Date(startDateInvalidation);
-        blockDate.setDate(blockDate.getDate() + INVALIDATION_GRACE_DAYS);
+        blockDate.setUTCDate(blockDate.getUTCDate() + INVALIDATION_GRACE_DAYS);
         const msLeft = blockDate.getTime() - new Date(today).getTime();
         daysLeft = Math.max(0, Math.ceil(msLeft / (24 * 60 * 60 * 1000)));
         blocked = daysLeft === 0;
