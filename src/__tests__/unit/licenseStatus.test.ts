@@ -145,6 +145,22 @@ describe('getLicenseStatus', () => {
         expect(status.blocked).toBe(false);
     });
 
+    it('délai de grâce traversant un changement d\'heure → jours restants exacts', () => {
+        const previousTz = process.env.TZ;
+        process.env.TZ = 'Europe/Paris';
+        try {
+            // Passage à l'heure d'hiver le 25 octobre 2026, dans les 14 jours.
+            const status = getLicenseStatus(
+                row({ papiers_valides: 0, start_date_invalidation_process: '2026-10-17' }),
+                '2026-10-17',
+            );
+            expect(status.daysLeft).toBe(INVALIDATION_GRACE_DAYS);
+            expect(status.blocked).toBe(false);
+        } finally {
+            process.env.TZ = previousTz;
+        }
+    });
+
     it('est pure : ne modifie pas la ligne reçue', () => {
         const input = row({ papiers_valides: 1, last_validation: null });
         const snapshot = JSON.stringify(input);
