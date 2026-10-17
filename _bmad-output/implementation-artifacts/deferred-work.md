@@ -43,3 +43,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-theme-noel.md`
   summary: Le test d'intégration `licenseCheck.test.ts` (cas 6, `daysLeft` attendu à 14) échoue quand le délai de grâce de 14 jours englobe un changement d'heure.
   evidence: `src/lib/licenseStatus.ts` l.80 calcule `Math.ceil(msLeft / 86 400 000)` en millisecondes : le passage à l'heure d'hiver du 25 octobre 2026 ajoute une heure et donne 15 ; constaté le 16 octobre 2026, aucun fichier de licence touché par cette branche.
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-report-document-scanner.md`
+  summary: L'étape « Compte rendu signé » annonce « Maximum 15 Mo par fichier » (maxSizeMB=15) alors que /api/drive/upload refuse tout fichier > 4,2 Mo.
+  evidence: src/components/missions/steps/Step7SignedReport.tsx (maxSizeMB={15}, hint) vs src/app/api/drive/upload/route.ts L45 (MAX_FILE_SIZE = 4.2 Mo) ; un PDF de galerie de 5 à 15 Mo passe le contrôle client puis échoue à l'envoi. Préexistant, non causé par le scanner.

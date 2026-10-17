@@ -1,0 +1,326 @@
+/* Scanner plein écran : interface sombre dans les deux thèmes (comme une app caméra) */
+.root {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    background: #0b0b0c;
+    color: #fff;
+}
+
+.topBar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    padding-top: max(10px, env(safe-area-inset-top));
+}
+
+.title {
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.iconButton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    cursor: pointer;
+}
+
+.body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+    container-type: size; /* unités cqw / cqh pour dimensionner .stage (voir plus bas) */
+}
+
+.cameraView,
+.reviewView {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 0;
+}
+
+.hidden {
+    display: none;
+}
+
+/*
+ * Cadre à ratio fixe (--ratio = largeur / hauteur de l'image, posé en ligne) qui tient dans .body
+ * sans jamais déformer l'image : la largeur est bornée à la fois par la largeur disponible et par
+ * la hauteur disponible × ratio (unités de conteneur), la hauteur découle de aspect-ratio.
+ * --reserved-x / --reserved-y = place retirée autour du cadre.
+ */
+.stage {
+    --reserved-x: 0px;
+    --reserved-y: 0px;
+    position: relative;
+    flex-shrink: 0;
+    width: min(100cqw - var(--reserved-x), (100cqh - var(--reserved-y)) * var(--ratio, 0.75));
+    aspect-ratio: var(--ratio, 0.75);
+    touch-action: none;
+    user-select: none;
+    background: #000;
+}
+
+/* Vue caméra : on garde la place du texte d'aide sous la vidéo */
+.cameraView .stage {
+    --reserved-y: 56px;
+}
+
+/* Marge pour que les poignées de 44 px restent entièrement visibles, même aux bords du cadre */
+.adjustStage {
+    --reserved-x: 48px;
+    --reserved-y: 48px;
+    margin: 24px;
+}
+
+.video,
+.stageImage {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+}
+
+.overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.outline {
+    fill: rgba(220, 38, 38, 0.18);
+    stroke: var(--crf-red, #c0122c);
+    stroke-width: 3;
+    stroke-linejoin: round;
+}
+
+.handle {
+    position: absolute;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+    border: 3px solid #fff;
+    border-radius: 50%;
+    background: rgba(192, 18, 44, 0.55);
+    touch-action: none;
+    cursor: grab;
+    padding: 0;
+}
+
+.hintText {
+    margin: 0;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-align: center;
+}
+
+/*
+ * Aperçu à la taille réelle de l'image : la boîte a exactement son ratio (--ratio posé en ligne), donc
+ * aucune bande, et surtout aucun fond. Avant, `flex: 1` + `object-fit: contain` + fond blanc laissaient
+ * des bandes blanches en haut et en bas dès que la hauteur disponible dépassait celle de l'image.
+ * 56 px = place de la bascule Original / Couleur / Noir & blanc sous l'image.
+ */
+.preview {
+    display: block;
+    flex-shrink: 0;
+    width: min(100cqw, calc((100cqh - 56px) * var(--ratio, 0.75)));
+    height: auto;
+    aspect-ratio: var(--ratio, 0.75);
+    object-fit: fill;
+}
+
+/* Trois choix : tient dans 320 px (≈ 96 px par bouton, « Noir & blanc » ≈ 80 px de texte + 12 px de marge) */
+.modeToggle {
+    display: flex;
+    width: 100%;
+    max-width: 360px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.12);
+    padding: 3px;
+}
+
+.modeButton,
+.modeActive {
+    flex: 1 1 0;
+    min-width: 0;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 6px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    font-weight: 600;
+    color: #fff;
+    background: transparent;
+    cursor: pointer;
+}
+
+.modeActive {
+    background: var(--crf-red, #c0122c);
+}
+
+.error {
+    margin: 8px 12px 0;
+    padding: 10px 12px;
+    border-radius: 6px;
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    font-size: 0.85rem;
+}
+
+.thumbs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 12px 0;
+}
+
+.thumb {
+    position: relative;
+    flex: 0 0 auto;
+    width: 52px;
+    height: 68px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.thumbRemove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    cursor: pointer;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.actions > * {
+    min-width: 0;
+}
+
+/* Emplacements de part et d'autre du déclencheur : même largeur, pour qu'il reste centré */
+.slot {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+}
+
+.slotEnd {
+    justify-content: flex-end;
+}
+
+.nativeButton {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    min-width: 44px;
+    min-height: 44px;
+    max-width: 100%;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 8px;
+    background: transparent;
+    color: #fff;
+    font-size: 0.7rem;
+    line-height: 1.15;
+    text-align: center;
+    cursor: pointer;
+}
+
+.shutter {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 68px;
+    height: 68px;
+    border: 4px solid #fff;
+    border-radius: 50%;
+    background: var(--crf-red, #c0122c);
+    color: #fff;
+    cursor: pointer;
+}
+
+.shutter:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.fallback {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 24px;
+    text-align: center;
+}
+
+.fallbackTitle {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.fallbackText {
+    margin: 0;
+    max-width: 320px;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.spin {
+    animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}

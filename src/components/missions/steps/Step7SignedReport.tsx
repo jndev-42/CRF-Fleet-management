@@ -27,6 +27,7 @@ export default function Step7SignedReport({ file, onChange }: Step7SignedReportP
                     maxSizeMB={15}
                     maxTotalSizeMB={150}
                     accept="image/*,application/pdf"
+                    scanDocument
                     hint="Formats acceptés : JPEG, PNG, WEBP, PDF · Maximum 15 Mo par fichier"
                 />
             )}

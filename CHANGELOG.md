@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.25.0] — 17 octobre 2026
+
+### ✨ Nouveautés
+
+- **Scanner de document pour le compte rendu de mission** — à l'étape « Compte rendu signé », le bouton « Appareil photo » ouvre désormais un vrai scanner : le contour du document est détecté en direct, la photo se déclenche toute seule quand le cadre est stable (ou à la main), et vous pouvez ajuster les quatre coins avant validation. Le document est redressé à ses vraies proportions (une feuille A4 reste une feuille A4, même photographiée de biais) et son contraste amélioré, en couleur ou en noir & blanc. La détection des bords est plus fiable et le contour affiché plus stable. Un choix « Original / Couleur / Noir & blanc » est proposé : par défaut, la page est simplement redressée, sans aucun traitement de couleur.
+- **Plusieurs pages en un seul fichier** — enchaînez les pages d'un compte rendu : elles sont réunies dans un seul PDF, avec vignettes et suppression possible d'une page (10 pages maximum par scan).
+- Vous pouvez à tout moment passer à l'appareil photo du téléphone (bouton dans le scanner, tant qu'aucune page n'a été scannée) ; c'est aussi la solution proposée automatiquement si la caméra est refusée ou indisponible.
+
 ## [5.24.0] — 16 octobre 2026
 
 ### ✨ Nouveautés

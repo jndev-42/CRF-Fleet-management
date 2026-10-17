@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 
 // jsdom ne déclenche jamais onload/onerror sur un <img> chargé depuis un blob: URL,
@@ -9,6 +9,16 @@ import PhotoPicker from '@/components/ui/PhotoPicker';
 vi.mock('@/lib/imageCompression', () => ({
     compressImage: vi.fn((f: File) => Promise.resolve(f)),
     compressImages: vi.fn((files: File[]) => Promise.resolve(files)),
+}));
+
+vi.mock('@/components/ui/DocumentScanner', () => ({
+    default: ({ onComplete, onClose, onFallback }: { onComplete: (f: File) => void; onClose: () => void; onFallback: () => void }) => (
+        <div role="dialog" aria-label="Scanner de document">
+            <button onClick={() => onComplete(new File(['pdf'], 'compte-rendu-scan.pdf', { type: 'application/pdf' }))}>mock-complete</button>
+            <button onClick={onClose}>mock-close</button>
+            <button onClick={onFallback}>mock-fallback</button>
+        </div>
+    ),
 }));
 
 describe('PhotoPicker — validation des tailles et limites', () => {
@@ -119,5 +129,71 @@ describe('PhotoPicker — validation des tailles et limites', () => {
 
         expect(await screen.findByText(/dépasse la limite de 15 Mo/i)).toBeTruthy();
         expect(onFileChange).not.toHaveBeenCalled();
+    });
+});
+
+describe('PhotoPicker — scanner de document', () => {
+    it("ouvre le scanner depuis « Appareil photo » quand scanDocument est actif", async () => {
+        render(<PhotoPicker file={null} onFileChange={vi.fn()} scanDocument />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Appareil photo/ }));
+        expect(await screen.findByRole('dialog', { name: 'Scanner de document' })).toBeTruthy();
+    });
+
+    it("garde l'appareil photo natif sans scanDocument", () => {
+        const { container } = render(<PhotoPicker file={null} onFileChange={vi.fn()} />);
+        const cameraInput = container.querySelector('input[capture]') as HTMLInputElement;
+        const click = vi.spyOn(cameraInput, 'click');
+
+        fireEvent.click(screen.getByRole('button', { name: /Appareil photo/ }));
+
+        expect(click).toHaveBeenCalled();
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('passe le PDF scanné par le circuit habituel et ferme le scanner', async () => {
+        const onFileChange = vi.fn();
+        render(<PhotoPicker file={null} onFileChange={onFileChange} scanDocument />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Appareil photo/ }));
+        fireEvent.click(await screen.findByText('mock-complete'));
+
+        await waitFor(() => expect(onFileChange).toHaveBeenCalledTimes(1));
+        expect((onFileChange.mock.calls[0][0] as File).name).toBe('compte-rendu-scan.pdf');
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it("refuse le PDF scanné s'il dépasse la limite par fichier", async () => {
+        const onFileChange = vi.fn();
+        render(<PhotoPicker file={null} onFileChange={onFileChange} scanDocument maxSizeMB={0.000001} />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Appareil photo/ }));
+        fireEvent.click(await screen.findByText('mock-complete'));
+
+        expect(await screen.findByRole('alert')).toBeTruthy();
+        expect(onFileChange).not.toHaveBeenCalled();
+    });
+
+    it("ferme le scanner sans rien ajouter", async () => {
+        const onFileChange = vi.fn();
+        render(<PhotoPicker file={null} onFileChange={onFileChange} scanDocument />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Appareil photo/ }));
+        fireEvent.click(await screen.findByText('mock-close'));
+
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(onFileChange).not.toHaveBeenCalled();
+    });
+
+    it("le repli ouvre l'input natif `capture`", async () => {
+        const { container } = render(<PhotoPicker file={null} onFileChange={vi.fn()} scanDocument />);
+        const cameraInput = container.querySelector('input[capture]') as HTMLInputElement;
+        const click = vi.spyOn(cameraInput, 'click');
+
+        fireEvent.click(screen.getByRole('button', { name: /Appareil photo/ }));
+        fireEvent.click(await screen.findByText('mock-fallback'));
+
+        expect(click).toHaveBeenCalled();
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 });
