@@ -1,14 +1,26 @@
 'use client';
 
-import { Grape } from 'lucide-react';
+import { Ghost, Grape, Sparkles, TreePine, type LucideIcon } from 'lucide-react';
 import { useSeasonalTheme } from '@/lib/contexts/SeasonalThemeContext';
 import styles from './SeasonalThemeToggle.module.css';
+
+/** Icône et teinte du bouton propres à chaque thème du catalogue. */
+const THEME_ICONS: Record<string, { Icon: LucideIcon; className: string }> = {
+    'vendanges-montmartre': { Icon: Grape, className: styles.vendanges },
+    halloween: { Icon: Ghost, className: styles.halloween },
+    noel: { Icon: TreePine, className: styles.noel },
+};
+
+/** Thème sans icône dédiée : pictogramme neutre. */
+const FALLBACK = { Icon: Sparkles, className: styles.fallback };
 
 /** Icône compacte (navbar) pour masquer/afficher le thème saisonnier. Absente sans thème actif. */
 export default function SeasonalThemeToggle() {
     const { theme, hidden, toggleHidden } = useSeasonalTheme();
 
     if (!theme) return null;
+
+    const { Icon, className } = THEME_ICONS[theme] ?? FALLBACK;
 
     return (
         <button
@@ -19,7 +31,7 @@ export default function SeasonalThemeToggle() {
             aria-label={hidden ? 'Afficher le thème' : 'Masquer le thème'}
             title={hidden ? 'Afficher le thème' : 'Masquer le thème'}
         >
-            <Grape size={20} className={hidden ? styles.off : styles.on} />
+            <Icon size={20} className={hidden ? styles.off : className} />
         </button>
     );
 }

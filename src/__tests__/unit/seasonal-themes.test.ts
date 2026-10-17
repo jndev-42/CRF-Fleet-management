@@ -24,6 +24,16 @@ describe('catalogue', () => {
     it('contient le thème des vendanges de Montmartre', () => {
         expect(SEASONAL_THEMES.map(t => t.key)).toContain('vendanges-montmartre');
     });
+
+    it('contient le thème Halloween, après les vendanges', () => {
+        const keys = SEASONAL_THEMES.map(t => t.key);
+        expect(keys).toContain('halloween');
+        expect(keys.indexOf('halloween')).toBeGreaterThan(keys.indexOf('vendanges-montmartre'));
+    });
+
+    it('contient le thème de Noël', () => {
+        expect(SEASONAL_THEMES.find(t => t.key === 'noel')?.label).toBe('Noël');
+    });
 });
 
 describe('parisToday', () => {
@@ -62,6 +72,15 @@ describe('isThemeActive', () => {
 describe('pickActiveTheme', () => {
     it('renvoie le thème actif', () => {
         expect(pickActiveTheme([row()], '2026-10-08')?.theme_key).toBe('vendanges-montmartre');
+    });
+
+    it('renvoie halloween quand c\'est le seul thème actif', () => {
+        const rows = [
+            row({ enabled: false }),
+            row({ theme_key: 'halloween', start_date: '2026-10-25', end_date: '2026-11-01' }),
+        ];
+        expect(pickActiveTheme(rows, '2026-10-31')?.theme_key).toBe('halloween');
+        expect(pickActiveTheme(rows, '2026-10-08')).toBeNull();
     });
 
     it('renvoie null sans thème actif', () => {
@@ -131,6 +150,20 @@ describe('rangesOverlap', () => {
     it('plages disjointes, y compris à un jour d\'écart', () => {
         expect(rangesOverlap({ start: '2026-10-01', end: '2026-10-09' }, { start: '2026-10-10', end: '2026-10-20' })).toBe(false);
         expect(rangesOverlap({ start: '2026-11-01', end: '2026-11-05' }, { start: '2026-10-01', end: '2026-10-05' })).toBe(false);
+    });
+});
+
+describe('plage à cheval sur le Nouvel An (Noël)', () => {
+    const noel = row({ theme_key: 'noel', start_date: '2026-12-01', end_date: '2027-01-06' });
+
+    it('active le 31 décembre et le 3 janvier, inactive le 7 janvier', () => {
+        expect(isThemeActive(noel, '2026-12-31')).toBe(true);
+        expect(isThemeActive(noel, '2027-01-03')).toBe(true);
+        expect(isThemeActive(noel, '2027-01-07')).toBe(false);
+    });
+
+    it('recouvre une plage de janvier', () => {
+        expect(rangesOverlap({ start: '2026-12-01', end: '2027-01-06' }, { start: '2027-01-01', end: '2027-01-10' })).toBe(true);
     });
 });
 

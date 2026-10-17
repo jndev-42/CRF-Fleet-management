@@ -1,0 +1,27 @@
+<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 20'>
+<path d='M0 3Q30 12 60 3Q90 12 120 3' fill='none' stroke='#1E5B3A' stroke-width='1.2'/>
+<circle cx='15' cy='11.4' r='5' fill='#D62828' opacity='.25'/>
+<circle cx='30' cy='12.5' r='5' fill='#F2B705' opacity='.25'/>
+<circle cx='45' cy='11.4' r='5' fill='#2A9D5C' opacity='.25'/>
+<circle cx='75' cy='11.4' r='5' fill='#3A7BD5' opacity='.25'/>
+<circle cx='90' cy='12.5' r='5' fill='#D62828' opacity='.25'/>
+<circle cx='105' cy='11.4' r='5' fill='#F2B705' opacity='.25'/>
+<rect x='14' y='6.0' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='15' cy='11.4' rx='2.6' ry='3.6' fill='#D62828'/>
+<circle cx='14.1' cy='10.2' r='.8' fill='#FFFFFF' opacity='.7'/>
+<rect x='29' y='7.1' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='30' cy='12.5' rx='2.6' ry='3.6' fill='#F2B705'/>
+<circle cx='29.1' cy='11.3' r='.8' fill='#FFFFFF' opacity='.7'/>
+<rect x='44' y='6.0' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='45' cy='11.4' rx='2.6' ry='3.6' fill='#2A9D5C'/>
+<circle cx='44.1' cy='10.2' r='.8' fill='#FFFFFF' opacity='.7'/>
+<rect x='74' y='6.0' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='75' cy='11.4' rx='2.6' ry='3.6' fill='#3A7BD5'/>
+<circle cx='74.1' cy='10.2' r='.8' fill='#FFFFFF' opacity='.7'/>
+<rect x='89' y='7.1' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='90' cy='12.5' rx='2.6' ry='3.6' fill='#D62828'/>
+<circle cx='89.1' cy='11.3' r='.8' fill='#FFFFFF' opacity='.7'/>
+<rect x='104' y='6.0' width='2' height='2.2' fill='#8C6A12'/>
+<ellipse cx='105' cy='11.4' rx='2.6' ry='3.6' fill='#F2B705'/>
+<circle cx='104.1' cy='10.2' r='.8' fill='#FFFFFF' opacity='.7'/>
+</svg>
