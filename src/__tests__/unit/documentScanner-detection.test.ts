@@ -604,7 +604,9 @@ describe('documentScanner/opencv — scènes difficiles (moteur réel)', () => {
             for (let i = 0; i < runs; i++) findDocumentQuad(cv, scene);
             const mean = (performance.now() - start) / runs;
             process.stderr.write(`[scanner] analyse moyenne (Node, ${W}x${H}) : ${mean.toFixed(1)} ms\n`);
-            expect(mean).toBeLessThan(60);
+            // Plafond large : ~20 ms en local, ~90 ms sur les runners CI partagés.
+            // Le test vise une régression d'un ordre de grandeur, pas un budget précis.
+            expect(mean).toBeLessThan(250);
         } finally {
             scene.delete();
         }
