@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.25.1] — 17 octobre 2026
+
+### 🔒 Sécurité
+
+- **Mise à jour de sécurité de l'application** — plusieurs failles signalées dans des composants utilisés par Martine ont été corrigées, dont une faille critique dans la génération d'images et des failles de l'envoi d'e-mails et du traitement des photos. Aucun changement visible pour vous : l'application fonctionne comme avant.
+
 ## [5.25.0] — 17 octobre 2026
 
 ### ✨ Nouveautés
