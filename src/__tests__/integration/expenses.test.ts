@@ -1106,4 +1106,78 @@ describe('Expense Report integration tests', () => {
             expect(res.status).toBe(200);
         });
     });
+
+    describe('PATCH /api/expenses/[id] — notification du demandeur', () => {
+        async function seedReport(id: string, status: string, requestRefund: number, userId = 'user-standard') {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
+                      VALUES (?, ?, '2026-07-19T10:00:00Z', ?, 50.0, '[]', 'ul-paris-18', ?)`,
+                args: [id, userId, status, requestRefund],
+            });
+        }
+        async function notifsFor(userId: string) {
+            const r = await db.execute({ sql: `SELECT title, message, url FROM "Notification" WHERE userId = ?`, args: [userId] });
+            return r.rows;
+        }
+
+        it('validation sans remboursement : le demandeur reçoit « validée », le trésorier rien', async () => {
+            await seedReport('exp-n1', 'soumis', 0);
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
+
+            const res = await updateReport(makePatchRequest({ action: 'validate', validatorSignature: SIG }), { params: Promise.resolve({ id: 'exp-n1' }) });
+            expect(res.status).toBe(200);
+
+            const mine = await notifsFor('user-standard');
+            expect(mine).toHaveLength(1);
+            expect(mine[0].message).toBe('Votre note de frais a été validée.');
+            expect(mine[0].url).toBe('/expenses');
+            expect(await notifsFor('user-tresorier')).toHaveLength(0);
+        });
+
+        it('validation avec remboursement : « validée, en attente de paiement » + notification au trésorier', async () => {
+            await seedReport('exp-n2', 'soumis', 1);
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
+
+            await updateReport(makePatchRequest({ action: 'validate', validatorSignature: SIG }), { params: Promise.resolve({ id: 'exp-n2' }) });
+
+            const mine = await notifsFor('user-standard');
+            expect(mine).toHaveLength(1);
+            expect(mine[0].message).toContain('en attente de paiement');
+            expect(await notifsFor('user-tresorier')).toHaveLength(1);
+        });
+
+        it('paiement : le demandeur est prévenu', async () => {
+            await seedReport('exp-n3', 'en_attente_paiement', 1);
+            mockedAuth.mockResolvedValue({ user: { id: 'user-tresorier', email: 'tresorier@test.com', roles: ['TRESORIER'] } } as never);
+
+            await updateReport(makePatchRequest({ action: 'pay', payerSignature: SIG }), { params: Promise.resolve({ id: 'exp-n3' }) });
+
+            const mine = await notifsFor('user-standard');
+            expect(mine).toHaveLength(1);
+            expect(mine[0].message).toBe('Votre note de frais a été payée.');
+        });
+
+        it('refus : le demandeur reçoit le motif', async () => {
+            await seedReport('exp-n4', 'soumis', 1);
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
+
+            await updateReport(
+                makePatchRequest({ action: 'reject', rejectionComment: 'Justificatif manquant', validatorSignature: SIG }),
+                { params: Promise.resolve({ id: 'exp-n4' }) },
+            );
+
+            const mine = await notifsFor('user-standard');
+            expect(mine).toHaveLength(1);
+            expect(mine[0].message).toContain('Justificatif manquant');
+        });
+
+        it('le valideur ne se notifie pas lui-même quand il valide sa propre note', async () => {
+            await seedReport('exp-n5', 'soumis', 0, 'user-president');
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
+
+            const res = await updateReport(makePatchRequest({ action: 'validate', validatorSignature: SIG }), { params: Promise.resolve({ id: 'exp-n5' }) });
+            expect(res.status).toBe(200);
+            expect(await notifsFor('user-president')).toHaveLength(0);
+        });
+    });
 });

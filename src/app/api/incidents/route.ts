@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import crypto from 'crypto';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { notifyIncidentSubmitted } from '@/lib/incidentNotifications';
 
 const incidentSchema = z.object({
     vehicleId: z.string().min(1),
@@ -72,6 +73,10 @@ async function postHandler(request: Request) {
                 now
             ],
         });
+
+        if (data.status === 'SUBMITTED') {
+            await notifyIncidentSubmitted({ vehicleId: data.vehicleId, type: data.type, authorId: session.user.id, actorId: session.user.id });
+        }
 
         return NextResponse.json({ success: true, id }, { status: 201 });
     } catch (error) {

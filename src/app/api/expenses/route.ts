@@ -332,7 +332,8 @@ async function postHandler(request: Request) {
                         en: `${requesterName} submitted an expense report (${total.toFixed(2)} €) pending approval.`
                     },
                     url: `/expenses`,
-                    ulId
+                    ulId,
+                    excludeUserId: session.user.id
                 });
             } catch (notifErr) {
                 console.error('Failed to send expense notification to president:', notifErr);

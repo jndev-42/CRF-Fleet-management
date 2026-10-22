@@ -20,6 +20,8 @@ export interface PushPayload {
  * (W3C, VAPID) vers chacun de ses appareils abonnés.
  *
  * `ADMIN` couvre aussi SUPER_ADMIN ; `RESPO` couvre PRESIDENT et CADRE.
+ * `userIds` ajoute des utilisateurs nommés aux destinataires ; `excludeUserId` écarte l'auteur de l'action.
+ * Chaque utilisateur ne reçoit qu'une notification, même s'il cumule plusieurs rôles ciblés.
  * Ne lève jamais : un échec d'envoi push ne doit pas faire échouer la route appelante.
  */
 export async function sendPushNotification({
@@ -27,13 +29,17 @@ export async function sendPushNotification({
     headings,
     contents,
     url,
-    ulId
+    ulId,
+    userIds,
+    excludeUserId
 }: {
     roles: string[];
     headings: { [key: string]: string };
     contents: { [key: string]: string };
     url?: string;
     ulId?: string;
+    userIds?: string[];
+    excludeUserId?: string | string[];
 }) {
     try {
         let expandedRoleNames: string[] = [];
@@ -92,24 +98,71 @@ export async function sendPushNotification({
             }
 
             targetedUserIds = res.rows.map(row => row.id as string);
-
-            // Insert a notification record for each targeted user
-            const insertPromises = targetedUserIds.map(userId => {
-                const notifyId = crypto.randomUUID();
-                return db.execute({
-                    sql: `INSERT INTO "Notification" (id, userId, title, message, url, ulId) VALUES (?, ?, ?, ?, ?, ?)`,
-                    args: [notifyId, userId, title, message, url || null, ulId || 'default']
-                });
-            });
-
-            await Promise.all(insertPromises);
         }
+
+        targetedUserIds = uniqueRecipients([...targetedUserIds, ...(userIds ?? [])], excludeUserId);
+        await insertNotifications(targetedUserIds, { title, message, url, ulId });
 
         return await deliverWebPush(targetedUserIds, { title, body: message, url });
     } catch (error) {
         console.error('Error sending push or in-app notification:', error);
         return false;
     }
+}
+
+/**
+ * Notifie des utilisateurs nommés (in-app + Web Push), au plus une fois chacun.
+ * `excludeUserId` écarte l'auteur de l'action : on ne notifie jamais quelqu'un de sa propre action.
+ * Ne lève jamais : un échec ne doit pas faire échouer la route appelante.
+ */
+export async function notifyUsers({
+    userIds,
+    title,
+    message,
+    url,
+    ulId,
+    excludeUserId
+}: {
+    userIds: string[];
+    title: string;
+    message: string;
+    url?: string;
+    ulId?: string;
+    excludeUserId?: string | string[];
+}) {
+    try {
+        const recipients = uniqueRecipients(userIds, excludeUserId);
+        await insertNotifications(recipients, { title, message, url, ulId });
+        return await deliverWebPush(recipients, { title, body: message, url });
+    } catch (error) {
+        console.error('Error sending push or in-app notification:', error);
+        return false;
+    }
+}
+
+/** Dédoublonne les destinataires et retire l'auteur de l'action. */
+function uniqueRecipients(userIds: string[], excludeUserId?: string | string[]): string[] {
+    const excluded = new Set([excludeUserId ?? []].flat());
+    return Array.from(new Set(userIds)).filter(id => id && !excluded.has(id));
+}
+
+/** Crée une ligne `Notification` (in-app) par destinataire. */
+async function insertNotifications(
+    userIds: string[],
+    { title, message, url, ulId }: { title: string; message: string; url?: string; ulId?: string },
+): Promise<void> {
+    await Promise.all(userIds.map(userId => db.execute({
+        sql: `INSERT INTO "Notification" (id, userId, title, message, url, ulId) VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [crypto.randomUUID(), userId, title, message, url || null, ulId || 'default']
+    })));
+}
+
+/** Taille max du corps d'un push : le service push plafonne la charge utile (~4 Ko). */
+const PUSH_BODY_MAX_CHARS = 500;
+
+/** Tronque le corps d'un push (la notification in-app, elle, garde le message entier). */
+function truncateForPush(body: string): string {
+    return body.length > PUSH_BODY_MAX_CHARS ? `${body.slice(0, PUSH_BODY_MAX_CHARS - 1)}…` : body;
 }
 
 /**
@@ -137,7 +190,7 @@ async function deliverWebPush(userIds: string[], payload: PushPayload): Promise<
         if (subs.rows.length === 0) return true;
 
         webpush.setVapidDetails(subject, publicKey, privateKey);
-        const body = JSON.stringify(payload);
+        const body = JSON.stringify({ ...payload, body: truncateForPush(payload.body) });
 
         const results = await Promise.allSettled(subs.rows.map(row =>
             webpush.sendNotification(

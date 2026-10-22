@@ -4,6 +4,7 @@ import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { isUnassignedDriverName } from '@/lib/reservationDriver';
 
 /**
  * DELETE /api/reservations/recurrence/:groupId
@@ -49,6 +50,18 @@ async function deleteHandler(
 
         const now = new Date().toISOString();
 
+        // Occurrences futures lues avant suppression : elles servent à notifier le demandeur
+        const futureResult = await db.execute({
+            sql: `
+                SELECT vehicleId, userName, startTime, endTime
+                FROM "Reservation"
+                WHERE recurrenceGroupId = ?
+                AND startTime > ?
+                ORDER BY startTime ASC
+            `,
+            args: [groupId, now],
+        });
+
         // Supprime uniquement les occurrences futures (startTime > maintenant)
         const deleteResult = await db.execute({
             sql: `
@@ -60,6 +73,41 @@ async function deleteHandler(
         });
 
         const deletedCount = deleteResult.rowsAffected ?? 0;
+
+        // Annulation par un tiers : le demandeur est prévenu (jamais pour « Chauffeur non décidé »)
+        if (deletedCount > 0 && ownerEmail !== session.user.email
+            && !isUnassignedDriverName(futureResult.rows[0]?.userName as string | undefined)) {
+            try {
+                const vehicleResult = await db.execute({
+                    sql: `SELECT name, ulId FROM "Vehicle" WHERE id = ?`,
+                    args: [futureResult.rows[0].vehicleId as string],
+                });
+                const vehicleName = vehicleResult.rows[0]?.name as string || '';
+                const vehicleUlId = vehicleResult.rows[0]?.ulId as string || 'ul-paris-18';
+                const ownerResult = await db.execute({
+                    sql: `SELECT id FROM "User" WHERE email = ?`,
+                    args: [ownerEmail],
+                });
+
+                if (ownerResult.rows.length > 0) {
+                    const first = new Date(futureResult.rows[0].startTime as string);
+                    const last = new Date(futureResult.rows[futureResult.rows.length - 1].endTime as string);
+                    const { notifyUsers } = await import('@/lib/push');
+                    await notifyUsers({
+                        userIds: [ownerResult.rows[0].id as string],
+                        title: `❌ Réservation annulée`,
+                        message: `${deletedCount} occurrence(s) de votre réservation récurrente de ${vehicleName} (du ${first.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${last.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}) ont été annulées.`,
+                        url: `/vehicles/${encodeURIComponent(vehicleName)}`,
+                        ulId: vehicleUlId,
+                        excludeUserId: session.user.id,
+                    });
+                } else {
+                    console.warn('Recurrence cancellation: requester not found for', ownerEmail);
+                }
+            } catch (notifErr) {
+                console.error('Failed to send recurrence cancellation notification:', notifErr);
+            }
+        }
 
         return NextResponse.json({
             success: true,
@@ -102,7 +150,7 @@ async function patchHandler(
         // Récupère toutes les occurrences futures en attente du groupe
         const pendingResult = await db.execute({
             sql: `
-                SELECT id, vehicleId, startTime, endTime, userEmail
+                SELECT id, vehicleId, startTime, endTime, userEmail, userName
                 FROM "Reservation"
                 WHERE recurrenceGroupId = ?
                 AND status = 'PENDING'
@@ -173,19 +221,17 @@ async function patchHandler(
         }
 
         // Notification groupée au demandeur (une seule notif pour tout le groupe)
-        if (validated > 0 && ownerId) {
+        if (validated > 0 && ownerId && ownerEmail !== session.user.email
+            && !isUnassignedDriverName(pendingResult.rows[0].userName as string)) {
             try {
-                const notifId = crypto.randomUUID();
-                await db.execute({
-                    sql: `INSERT INTO "Notification" (id, userId, title, message, url, ulId) VALUES (?, ?, ?, ?, ?, ?)`,
-                    args: [
-                        notifId,
-                        ownerId,
-                        `✅ Réservations récurrentes validées`,
-                        `${validated} occurrence(s) de votre réservation récurrente de ${vehicleName} ont été validées.${skipped > 0 ? ` (${skipped} créneau(x) en conflit ignoré(s))` : ''}`,
-                        `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(vehicleName)}`,
-                        vehicleUlId,
-                    ],
+                const { notifyUsers } = await import('@/lib/push');
+                await notifyUsers({
+                    userIds: [ownerId],
+                    title: `✅ Réservations récurrentes validées`,
+                    message: `${validated} occurrence(s) de votre réservation récurrente de ${vehicleName} ont été validées.${skipped > 0 ? ` (${skipped} créneau(x) en conflit ignoré(s))` : ''}`,
+                    url: `/vehicles/${encodeURIComponent(vehicleName)}`,
+                    ulId: vehicleUlId,
+                    excludeUserId: session.user.id,
                 });
             } catch (notifErr) {
                 console.error('Failed to send group validation notification:', notifErr);

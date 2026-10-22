@@ -62,3 +62,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-web-push-natif-vapid.md`
   summary: Détacher l'abonnement push de l'appareil sur tous les chemins de déconnexion (page /inactif, expiration de session).
   evidence: seul le bouton Déconnexion de la Navbar appelle `detachDevice`.
+- source_spec: none
+  summary: Alertes d'échéance du cron quotidien — désinfection VPSP bientôt due ou dépassée (Admins + CHVPSP) et produits du stock bientôt périmés ou en rupture (responsables du stock), une alerte par échéance et non chaque jour.
+  evidence: découpé à la demande de l'utilisateur de la PR « doublons + liens dynamiques + notifications événementielles » (livrable indépendant, nécessite une table de dédoublonnage des alertes).

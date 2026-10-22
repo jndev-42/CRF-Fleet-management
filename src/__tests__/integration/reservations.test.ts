@@ -27,7 +27,10 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/push', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/push', () => ({
+    sendPushNotification: vi.fn().mockResolvedValue(undefined),
+    notifyUsers: vi.fn().mockResolvedValue(undefined),
+}));
 
 import { POST } from '@/app/api/vehicles/[id]/reservations/route';
 import { PATCH as PATCH_RESERVATION, DELETE as DELETE_RESERVATION } from '@/app/api/reservations/[id]/route';

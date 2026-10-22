@@ -34,7 +34,7 @@ Single expense report retrieval and state management. GET fetches report with fu
 
 **DB tables:** ExpenseReport, User
 
-**Side effects:** Push notifications on submit and validate (if awaiting payment).
+**Side effects:** Push notifications on submit and validate (if awaiting payment) ; the requester is notified (in-app + push, `notifyUsers`) of every decision: validated, paid, rejected (with reason).
 
 ## Dependencies
 

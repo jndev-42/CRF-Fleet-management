@@ -47,6 +47,7 @@ import { auth } from '@/auth';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { db, seedVehicle, seedUser } from './setup';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
+import { sendPushNotification } from '@/lib/push';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -712,5 +713,27 @@ describe('POST /api/trips (checkout)', () => {
         expect(response.status).toBe(403);
       });
     });
+  });
+});
+
+describe('POST /api/trips — liens des notifications', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(isConnectedInDb).mockResolvedValue(false);
+  });
+
+  it("l'incident à la prise envoie un lien relatif encodé et exclut l'auteur", async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverWithNameSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+    await seedVehicle({ id: 'VL001', name: 'VL 186', status: 'AVAILABLE', mileage: 10000, fuelLevel: 75 });
+
+    const response = await POST(makeRequest({ ...validCheckOutBody, conditionOut: 'Problème signalé' }));
+    expect(response.status).toBe(201);
+
+    expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
+      url: '/vehicles/VL%20186',
+      excludeUserId: 'user-driver',
+    }));
   });
 });

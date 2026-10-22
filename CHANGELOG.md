@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.28.0] — 22 octobre 2026
+
+### ✨ Nouveautés
+
+- **Vous êtes prévenu des décisions qui vous concernent** — quand votre réservation est validée, vous recevez désormais aussi une notification sur votre appareil (et non plus seulement dans l'application). Si un responsable annule votre réservation (ou une série de réservations récurrentes), vous en êtes informé avec le véhicule et les dates. Pour une note de frais, vous êtes prévenu à chaque étape : validée, validée en attente de paiement, payée, ou refusée avec le motif.
+- **Les responsables sont prévenus des incidents déclarés** — dès qu'un accident ou une amende flash est soumis, le Président et les Cadres de l'unité locale reçoivent une notification indiquant le type d'incident et le véhicule, sans le nom de la personne qui l'a déclaré.
+
+### 🐛 Corrigé
+
+- **Plus de notifications en double** — une personne cumulant plusieurs rôles (par exemple Administrateur et Président) ne reçoit plus qu'une seule notification pour une même demande de réservation.
+- **Les notifications ouvrent la bonne application** — le lien d'une notification pointait toujours vers la version officielle du site ; il ouvre maintenant l'application depuis laquelle vous l'avez reçue (aperçu ou local compris).
+- Vous ne recevez jamais de notification pour une action que vous avez faite vous-même (par exemple valider votre propre réservation).
+
 ## [5.27.0] — 22 octobre 2026
 
 ### ✨ Nouveautés
