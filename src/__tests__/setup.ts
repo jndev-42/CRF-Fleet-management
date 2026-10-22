@@ -13,6 +13,25 @@ import { beforeEach } from 'vitest';
 
 export const db = createClient({ url: 'file::memory:' });
 
+// jsdom ne fournit pas `matchMedia` : par défaut, aucune media query ne correspond (affichage desktop).
+// Un test peut le remplacer (Object.defineProperty) pour simuler un petit écran.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    writable: true,
+    value: (query: string): MediaQueryList => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
 async function createTables() {
   await db.execute(`CREATE TABLE IF NOT EXISTS "User" (
     id TEXT PRIMARY KEY,

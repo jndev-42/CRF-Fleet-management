@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.29.1] — 22 octobre 2026
+
+### 🐛 Corrections
+
+- **Notifications lisibles sur mobile** — sur téléphone, la cloche ouvre désormais ses notifications dans une fenêtre qui occupe le bas de l'écran, au lieu d'un petit menu illisible coincé dans le menu latéral. On la ferme avec la croix, en touchant le fond ou avec Échap ; toucher une notification ouvre la page concernée et referme aussi le menu. Sur ordinateur, le menu reste le même et se ferme aussi avec Échap.
+
 ## [5.29.0] — 22 octobre 2026
 
 ### ✨ Nouveautés

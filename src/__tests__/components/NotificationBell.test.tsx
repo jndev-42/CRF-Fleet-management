@@ -143,3 +143,115 @@ describe('NotificationBell', () => {
         });
     });
 });
+
+function setViewport(mobile: boolean) {
+    Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        writable: true,
+        value: (query: string) => ({
+            matches: mobile,
+            media: query,
+            onchange: null,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            addListener: () => {},
+            removeListener: () => {},
+            dispatchEvent: () => false,
+        }),
+    });
+}
+
+describe('NotificationBell — mobile (modale)', () => {
+    const originalMatchMedia = window.matchMedia;
+
+    beforeEach(() => setViewport(true));
+    afterEach(() => {
+        Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: originalMatchMedia });
+        document.body.style.overflow = '';
+    });
+
+    async function openBell(props: { onNavigate?: () => void } = {}) {
+        mockFetch();
+        const view = render(<NotificationBell {...props} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+        await screen.findByText('Véhicule VL186');
+        return view;
+    }
+
+    it('ouvre le contenu dans une modale rendue hors du menu, sans menu déroulant', async () => {
+        const { container } = await openBell();
+        const dialog = screen.getByRole('dialog', { name: 'Notifications' });
+        expect(dialog.getAttribute('aria-modal')).toBe('true');
+        expect(container.contains(dialog)).toBe(false);
+        expect(document.querySelector('.notification-dropdown')).toBeNull();
+        expect(document.body.style.overflow).toBe('hidden');
+    });
+
+    it('se ferme avec le bouton de fermeture et rétablit le défilement', async () => {
+        await openBell();
+        fireEvent.click(screen.getByRole('button', { name: 'Fermer les notifications' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(document.body.style.overflow).toBe('');
+    });
+
+    it('se ferme avec Échap', async () => {
+        await openBell();
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('se ferme au clic sur le fond (pas dès le mousedown), pas au clic dans la modale', async () => {
+        await openBell();
+        const dialog = screen.getByRole('dialog');
+        const backdrop = dialog.parentElement as HTMLElement;
+        fireEvent.click(dialog);
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        // Le mousedown seul ne ferme pas : le clic qui suit ne doit pas atterrir sur le menu dessous
+        fireEvent.mouseDown(backdrop);
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        fireEvent.click(backdrop);
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('place le focus dans la modale puis le rend à la cloche ; annonce l\'état de la cloche', async () => {
+        await openBell();
+        const bell = screen.getByRole('button', { name: 'Notifications' });
+        expect(bell.getAttribute('aria-expanded')).toBe('true');
+        expect(bell.getAttribute('aria-haspopup')).toBe('dialog');
+        expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Fermer les notifications' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Fermer les notifications' }));
+        expect(document.activeElement).toBe(bell);
+        expect(bell.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('rétablit le défilement déjà bloqué par une autre fenêtre', async () => {
+        document.body.style.overflow = 'clip';
+        await openBell();
+        expect(document.body.style.overflow).toBe('hidden');
+        fireEvent.click(screen.getByRole('button', { name: 'Fermer les notifications' }));
+        expect(document.body.style.overflow).toBe('clip');
+    });
+
+    it('un clic sur une notification avec lien ferme la modale, navigue et prévient la Navbar', async () => {
+        const onNavigate = vi.fn();
+        await openBell({ onNavigate });
+        fireEvent.click(screen.getByText('Réservation validée'));
+        await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/vehicles/VL186'));
+        expect(onNavigate).toHaveBeenCalledTimes(1);
+        expect(screen.queryByRole('dialog')).toBeNull();
+    });
+});
+
+describe('NotificationBell — desktop', () => {
+    it('garde le menu déroulant (pas de modale) et se ferme avec Échap', async () => {
+        mockFetch();
+        render(<NotificationBell />);
+        fireEvent.click(screen.getByRole('button', { name: 'Notifications' }));
+        await screen.findByText('Véhicule VL186');
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(document.querySelector('.notification-dropdown')).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Fermer les notifications' })).toBeNull();
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(document.querySelector('.notification-dropdown')).toBeNull();
+    });
+});
