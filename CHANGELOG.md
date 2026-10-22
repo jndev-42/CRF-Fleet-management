@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.30.1] — 22 octobre 2026
+
+### Corrections
+
+- **Consignes en cas d'incident** — la marche à suivre invite désormais à prévenir son responsable de mission ou le cadre de permanence, au lieu d'un « RESPO de permanence » qui ne correspond plus à aucune fonction de garde.
+
 ## [5.30.0] — 22 octobre 2026
 
 ### ✨ Nouveautés

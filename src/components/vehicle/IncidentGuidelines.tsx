@@ -38,7 +38,7 @@ export default function IncidentGuidelines() {
                     <strong>Prenez en charge les victimes</strong> — Prodiguer les premiers secours dans la limite de votre formation.
                 </li>
                 <li style={{ marginBottom: 8 }}>
-                    <strong>Contactez le responsable</strong> — Avertir sans délai votre responsable de mission ou le RESPO de permanence.
+                    <strong>Contactez le responsable</strong> — Avertir sans délai votre responsable de mission ou le cadre de permanence.
                 </li>
                 <li style={{ marginBottom: 8 }}>
                     <strong>Documentez</strong> — Photos, croquis, relevé des témoins avant déplacement des véhicules.
