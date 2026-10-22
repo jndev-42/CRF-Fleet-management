@@ -33,3 +33,10 @@
   display: flex;
   gap: 8px;
 }
+
+.error {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 13px;
+  color: var(--crf-red);
+}

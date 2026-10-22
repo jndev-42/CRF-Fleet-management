@@ -12,6 +12,7 @@ import {
     unregisterLegacyWorkers,
     unsubscribeFromPush,
 } from '@/lib/push/client';
+import { getErrorMessage } from '@/lib/utils/error';
 import styles from './PushProvider.module.css';
 
 /**
@@ -31,6 +32,10 @@ export interface PushContextValue {
     unsubscribe: () => Promise<void>;
     /** Retire l'abonnement de l'appareil sans mémoriser de refus (déconnexion). */
     detachDevice: () => Promise<void>;
+    /** Raison du dernier échec d'activation, à afficher à l'utilisateur (null si aucun). */
+    error: string | null;
+    /** Activation en cours (autorisation, enregistrement du worker, abonnement). */
+    busy: boolean;
 }
 
 const noop = async () => {};
@@ -39,7 +44,18 @@ const PushContext = createContext<PushContextValue>({
     subscribe: async () => false,
     unsubscribe: noop,
     detachDevice: noop,
+    error: null,
+    busy: false,
 });
+
+/** Message affiché quand l'activation n'aboutit pas, selon l'état de l'autorisation. */
+function failureMessage(error?: unknown): string {
+    if (error !== undefined) return `Activation impossible : ${getErrorMessage(error)}`;
+    if (Notification.permission === 'denied') {
+        return 'Notifications bloquées pour ce site : autorisez-les dans les réglages du navigateur (icône à gauche de l\'adresse).';
+    }
+    return 'Autorisation non accordée. Si aucune demande ne s\'est affichée, cliquez sur l\'icône de notification dans la barre d\'adresse.';
+}
 
 export function usePush(): PushContextValue {
     return useContext(PushContext);
@@ -69,6 +85,8 @@ export function PushProvider({ vapidPublicKey, children }: { vapidPublicKey: str
     const { data: session, status: sessionStatus } = useSession();
     const [status, setStatus] = useState<PushStatus>('loading');
     const [bannerDismissed, setBannerDismissed] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [busy, setBusy] = useState(false);
 
     const active = sessionStatus === 'authenticated' && !isInactive((session?.user?.roles || []) as string[]);
     const userId = session?.user?.id;
@@ -81,7 +99,6 @@ export function PushProvider({ vapidPublicKey, children }: { vapidPublicKey: str
         // quel que soit l'état d'autorisation ou d'abonnement.
         const legacyCleanup = isPushSupported() ? unregisterLegacyWorkers() : Promise.resolve();
         if (!vapidPublicKey || !isPushSupported()) {
-            // eslint-disable-next-line react-hooks/set-state-in-effect -- état dérivé de l'environnement navigateur, lu après hydratation (SSR)
             setStatus('unsupported');
             return;
         }
@@ -112,15 +129,21 @@ export function PushProvider({ vapidPublicKey, children }: { vapidPublicKey: str
     }, [active, userId, impersonating, vapidPublicKey]);
 
     const subscribe = useCallback(async () => {
+        setBusy(true);
+        setError(null);
         try {
             const ok = await subscribeToPush(vapidPublicKey);
             if (ok) writeStorage(optOutKey(userId), null);
             setStatus(ok ? 'enabled' : (Notification.permission === 'denied' ? 'denied' : 'disabled'));
+            setError(ok ? null : failureMessage());
             return ok;
         } catch (error) {
             console.error('Push subscribe error:', error);
             setStatus('disabled');
+            setError(failureMessage(error));
             return false;
+        } finally {
+            setBusy(false);
         }
     }, [vapidPublicKey, userId]);
 
@@ -140,8 +163,8 @@ export function PushProvider({ vapidPublicKey, children }: { vapidPublicKey: str
     }, []);
 
     const value = useMemo<PushContextValue>(
-        () => ({ status, subscribe, unsubscribe, detachDevice }),
-        [status, subscribe, unsubscribe, detachDevice],
+        () => ({ status, subscribe, unsubscribe, detachDevice, error, busy }),
+        [status, subscribe, unsubscribe, detachDevice, error, busy],
     );
 
     // Jamais d'invite sans geste : le bandeau n'apparaît que si l'autorisation n'a pas encore été demandée.
@@ -150,7 +173,8 @@ export function PushProvider({ vapidPublicKey, children }: { vapidPublicKey: str
         && status === 'disabled'
         && !bannerDismissed
         && typeof Notification !== 'undefined'
-        && Notification.permission === 'default'
+        // Un échec reste affiché même si l'autorisation a été accordée entre-temps.
+        && (Notification.permission === 'default' || error !== null)
         && !isSnoozed();
 
     return (
@@ -161,13 +185,14 @@ export function PushProvider({ vapidPublicKey, children }: { vapidPublicKey: str
                     <Bell size={20} className={styles.icon} aria-hidden="true" />
                     <span className={styles.text}>Activer les notifications : recevez les alertes importantes sur cet appareil.</span>
                     <div className={styles.actions}>
-                        <button type="button" className="btn btn-primary" onClick={() => { void subscribe(); }}>
-                            Activer
+                        <button type="button" className="btn btn-primary" disabled={busy} onClick={() => { void subscribe(); }}>
+                            {busy ? 'Activation…' : 'Activer'}
                         </button>
                         <button type="button" className="btn btn-secondary" onClick={snooze}>
                             Plus tard
                         </button>
                     </div>
+                    {error && <p className={styles.error} role="alert">{error}</p>}
                 </div>
             )}
         </PushContext.Provider>

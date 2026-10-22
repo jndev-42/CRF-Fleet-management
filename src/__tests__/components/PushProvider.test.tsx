@@ -93,6 +93,37 @@ describe('PushProvider', () => {
         expect(screen.queryByRole('region', { name: 'Notifications push' })).toBeNull();
     });
 
+    it('« Activer » sans autorisation accordée affiche la raison dans le bandeau', async () => {
+        client.subscribeToPush.mockResolvedValue(false);
+        renderProvider();
+        fireEvent.click(await screen.findByRole('button', { name: 'Activer' }));
+        expect((await screen.findByRole('alert')).textContent).toMatch(/Autorisation non accordée/);
+        expect(screen.getByRole('region', { name: 'Notifications push' })).toBeTruthy();
+    });
+
+    it('« Activer » en échec technique affiche le message, même si l\'autorisation a été accordée', async () => {
+        client.subscribeToPush.mockImplementation(async () => {
+            setPermission('granted');
+            throw new Error('Registration failed - push service error');
+        });
+        renderProvider();
+        fireEvent.click(await screen.findByRole('button', { name: 'Activer' }));
+        expect((await screen.findByRole('alert')).textContent)
+            .toBe('Activation impossible : Registration failed - push service error');
+        expect(screen.getByTestId('status').textContent).toBe('disabled');
+    });
+
+    it('désactive le bouton « Activer » pendant l\'activation', async () => {
+        let finish: (ok: boolean) => void = () => {};
+        client.subscribeToPush.mockReturnValue(new Promise<boolean>(resolve => { finish = resolve; }));
+        renderProvider();
+        fireEvent.click(await screen.findByRole('button', { name: 'Activer' }));
+        const busyButton = await screen.findByRole('button', { name: 'Activation…' });
+        expect((busyButton as HTMLButtonElement).disabled).toBe(true);
+        finish(true);
+        await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('enabled'));
+    });
+
     it('« Plus tard » masque le bandeau pendant 30 jours', async () => {
         const { unmount } = renderProvider();
         fireEvent.click(await screen.findByRole('button', { name: 'Plus tard' }));

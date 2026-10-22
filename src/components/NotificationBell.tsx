@@ -28,7 +28,7 @@ function NotificationBellContent() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const { status: pushStatus, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePush();
+    const { status: pushStatus, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe, error: pushError, busy: pushBusy } = usePush();
     const [pushBlocked, setPushBlocked] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
@@ -308,6 +308,7 @@ function NotificationBellContent() {
                                 <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Notifications push</span>
                                 <button
                                     onClick={handlePushToggle}
+                                    disabled={pushBusy}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
@@ -331,9 +332,14 @@ function NotificationBellContent() {
                                     {pushEnabled ? 'Activées' : 'Désactivées'}
                                 </button>
                             </div>
-                            {pushBlocked && (
+                            {pushBlocked && !pushError && (
                                 <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                                     Autorisez les notifications dans les paramètres de votre navigateur pour les réactiver.
+                                </div>
+                            )}
+                            {pushError && (
+                                <div role="alert" style={{ fontSize: 11, color: 'var(--crf-red)', lineHeight: 1.4 }}>
+                                    {pushError}
                                 </div>
                             )}
                         </div>
