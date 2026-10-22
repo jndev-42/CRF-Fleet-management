@@ -15,20 +15,24 @@ sources: []
 ## Capabilities
 
 - **CAP-1**
-  - **intent:** Pour une réservation sur plusieurs jours, chaque case affiche la portion horaire de ce jour-là : le premier jour « HH:MM → » (heure de début), les jours intermédiaires « Journée », le dernier jour « → HH:MM » (heure de fin).
-  - **success:** Une réservation du 30/10 à 07:00 au 31/10 à 07:00 affiche « 07:00 → » dans la case du 30 et « → 07:00 » dans celle du 31. Aucune case du 31 n'affiche « 07:00 » seul. Une réservation du 29/10 à 07:00 au 31/10 à 07:00 affiche « Journée » dans la case du 30.
+  - **intent:** Pour une réservation, chaque case affiche la portion horaire de ce jour-là : sur un seul jour « HH:MM → HH:MM » (début → fin) ; sur plusieurs jours, le premier jour « HH:MM → », les jours intermédiaires « Journée », le dernier jour « → HH:MM » (heure de fin).
+  - **success:** Une réservation du 30/10 à 07:00 au 31/10 à 07:00 affiche « 07:00 → » dans la case du 30 et « → 07:00 » dans celle du 31. Aucune case du 31 n'affiche « 07:00 » seul. Une réservation du 29/10 à 07:00 au 31/10 à 07:00 affiche « Journée » dans la case du 30. Une réservation du 30 de 07:00 à 18:00 affiche « 07:00 → 18:00 ».
 - **CAP-2**
-  - **intent:** Même règle pour les emprunts terminés sur plusieurs jours (début = sortie `checkOutAt`, fin = retour `checkInAt`).
+  - **intent:** Même règle pour les emprunts terminés (début = sortie `checkOutAt`, fin = retour `checkInAt`).
   - **success:** Un emprunt sorti le 30 à 18:00 et rendu le 31 à 09:30 affiche « 18:00 → » le 30 et « → 09:30 » le 31. Sur un emprunt de 3 jours, la case du milieu affiche « Journée ».
 - **CAP-3**
-  - **intent:** Un événement (réservation ou emprunt) qui finit pile à 00:00 n'apparaît pas dans la case du jour qui commence à cette minute.
-  - **success:** Une réservation du 30 à 07:00 au 31 à 00:00 n'apparaît que dans la case du 30, avec « 07:00 → ».
+  - **intent:** Un événement (réservation ou emprunt) qui finit pile à 00:00 a la veille pour dernier jour : il n'apparaît pas dans la case du jour qui commence à cette minute, et son heure de fin s'affiche « 00:00 ».
+  - **success:** Une réservation du 30 à 07:00 au 31 à 00:00 n'apparaît que dans la case du 30, avec « 07:00 → 00:00 ».
+- **CAP-4**
+  - **intent:** Après une réservation, un emprunt ou un retour fait depuis les actions rapides de `/vehicles` (ou l'ajout d'un véhicule), le calendrier se met à jour sans recharger la page et sans repasser par l'écran de chargement.
+  - **success:** Une réservation créée via « Réservation rapide » apparaît dans le calendrier dès la confirmation, sans rechargement de la page.
 
 ## Constraints
 
 - Le découpage par jour se calcule dans le fuseau local du navigateur (Europe/Paris) et reste juste les jours de changement d'heure (le 25/10/2026 tombe dans le mois de l'issue).
-- Correctif uniquement côté affichage : `/api/vehicles/calendar` renvoie déjà les horodatages complets ; aucun changement d'API ni de schéma.
+- Correctif uniquement côté client : `/api/vehicles/calendar` renvoie déjà les horodatages complets ; aucun changement d'API ni de schéma.
 - La fenêtre de détail (modale) reste inchangée : elle affiche déjà le début et la fin complets.
+- Le libellé « début → fin » ne tronque pas le nom du véhicule dans la case : l'heure passe sous le nom si la place manque.
 - Livré avec des tests de composant dans `src/__tests__/components/VehicleCalendar.test.tsx` (règle projet : chaque changement avec logique a ses tests) ; `npm run lint` donne 0 erreur et 0 warning.
 
 ## Non-goals
@@ -44,5 +48,4 @@ sources: []
 
 ## Assumptions
 
-- Un événement sur un seul jour garde son affichage actuel (heure de début seule).
 - Les maintenances et les emprunts en cours sont hors périmètre (voir Non-goals).

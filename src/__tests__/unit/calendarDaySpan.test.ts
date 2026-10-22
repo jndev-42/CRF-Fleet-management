@@ -31,8 +31,21 @@ function dayBounds(day: number, month = 10): [Date, Date] {
 }
 
 describe('getDaySpanLabel', () => {
-  it('affiche l’heure de début seule pour un événement sur un seul jour', () => {
-    expect(getDaySpanLabel(at(30, 7), at(30, 18), at(30))).toBe('07:00');
+  it('affiche « début → fin » pour un événement sur un seul jour', () => {
+    expect(getDaySpanLabel(at(30, 7), at(30, 18), at(30))).toBe('07:00 → 18:00');
+  });
+
+  it('affiche l’heure seule pour un événement de durée nulle', () => {
+    expect(getDaySpanLabel(at(30, 7), at(30, 7), at(30))).toBe('07:00');
+  });
+
+  it('une fin pile à 00:00 termine la veille : « 07:00 → 00:00 »', () => {
+    expect(getDaySpanLabel(at(30, 7), at(31, 0), at(30))).toBe('07:00 → 00:00');
+  });
+
+  it('une fin à 00:00 après plusieurs jours affiche « → 00:00 » la veille', () => {
+    expect(getDaySpanLabel(at(29, 7), at(31, 0), at(29))).toBe('07:00 →');
+    expect(getDaySpanLabel(at(29, 7), at(31, 0), at(30))).toBe('→ 00:00');
   });
 
   it('cas de l’issue #141 : 30 à 07:00 → 31 à 07:00', () => {
@@ -52,6 +65,7 @@ describe('getDaySpanLabel', () => {
     expect(getDaySpanLabel(at(24, 22), at(26, 7), at(25))).toBe('Journée');
     expect(getDaySpanLabel(at(25, 1, 30), at(26, 7), at(25))).toBe('01:30 →');
     expect(getDaySpanLabel(at(24, 22), at(25, 23, 30), at(25))).toBe('→ 23:30');
+    expect(getDaySpanLabel(at(25, 1, 30), at(26, 0), at(25))).toBe('01:30 → 00:00');
   });
 
   it('ne dépend pas de l’heure de la date du jour passée', () => {

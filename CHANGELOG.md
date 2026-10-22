@@ -4,7 +4,8 @@
 
 ### 🐛 Corrections
 
-- **Planning des véhicules : horaires justes pour les réservations sur plusieurs jours** — une réservation du 30 à 7h au 31 à 7h affichait « 07:00 » les deux jours, laissant croire que le véhicule était pris le 31 à 7h alors qu'il y redevient libre. Chaque case indique désormais la portion du jour : « 07:00 → » le premier jour, « Journée » les jours intermédiaires et « → 07:00 » (heure de rendu) le dernier jour. Même chose pour les emprunts terminés. Une réservation qui se termine à minuit pile n'apparaît plus sur le lendemain.
+- **Planning des véhicules : horaires justes pour les réservations sur plusieurs jours** — une réservation du 30 à 7h au 31 à 7h affichait « 07:00 » les deux jours, laissant croire que le véhicule était pris le 31 à 7h alors qu'il y redevient libre. Chaque case indique désormais la portion du jour : « 07:00 → » le premier jour, « Journée » les jours intermédiaires et « → 07:00 » (heure de rendu) le dernier jour. Sur une seule journée, l'heure de début et l'heure de fin s'affichent (« 07:00 → 18:00 »). Même chose pour les emprunts terminés. Une réservation qui se termine à minuit pile n'apparaît plus sur le lendemain et s'affiche « 07:00 → 00:00 ».
+- **Planning des véhicules à jour sans recharger la page** — après une réservation, un emprunt ou un retour fait depuis la page Véhicules, le calendrier se met à jour tout seul.
 
 ## [5.26.0] — 22 octobre 2026
 

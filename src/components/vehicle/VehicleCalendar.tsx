@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import styles from './VehicleCalendar.module.css';
 import { useUL } from '@/lib/contexts/ULContext';
@@ -79,9 +79,11 @@ const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
 interface VehicleCalendarProps {
   dtView?: boolean;
+  /** À incrémenter par le parent après une action qui modifie le planning : recharge sans écran de chargement. */
+  refreshKey?: number;
 }
 
-export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps) {
+export default function VehicleCalendar({ dtView = false, refreshKey = 0 }: VehicleCalendarProps) {
   const { activeUL } = useUL();
   const { data: session } = useSession();
   const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
@@ -127,8 +129,8 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
     return `${year}-${String(month + 1).padStart(2, '0')}`;
   }, [year, month]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       let url = `/api/vehicles/calendar?month=${monthParam}`;
       if (dtView) {
@@ -151,11 +153,15 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
     }
   }, [monthParam, selectedVehicleId, dtView]);
 
+  // Un changement de `refreshKey` seul recharge en silence : la grille reste affichée.
+  const lastRefreshKeyRef = useRef(refreshKey);
   useEffect(() => {
+    const silent = refreshKey !== lastRefreshKeyRef.current;
+    lastRefreshKeyRef.current = refreshKey;
     if (showCalendar) {
-      fetchData();
+      fetchData(silent);
     }
-  }, [fetchData, showCalendar, activeUL?.id]);
+  }, [fetchData, showCalendar, activeUL?.id, refreshKey]);
 
   // Handlers for month navigation
   const handlePrevMonth = () => {
@@ -452,7 +458,7 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
                         >
                           <div className={styles.eventHeader}>
                             <span className={styles.eventVehicle}>{res.vehicleName}</span>
-                            <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                            <span className={styles.eventTime}>
                               {getDaySpanLabel(event.startTime, event.endTime, day.date)}
                             </span>
                           </div>
@@ -479,7 +485,7 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
                             {isOngoing ? (
                               <span className={styles.ongoingBadge}>⏳ En cours</span>
                             ) : (
-                              <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                              <span className={styles.eventTime}>
                                 {getDaySpanLabel(event.startTime, event.endTime!, day.date)}
                               </span>
                             )}

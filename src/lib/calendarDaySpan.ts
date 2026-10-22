@@ -27,15 +27,19 @@ export function overlapsDay(start: Date, end: Date, dayStart: Date, dayEnd: Date
 
 /**
  * Libellé horaire d'un événement dans la case du jour `day` :
- * - même jour de début et de fin : heure de début (« 07:00 ») ;
+ * - même jour de début et de fin : « 07:00 → 18:00 » ;
  * - premier jour : « 07:00 → » ;
  * - dernier jour : « → 07:00 » (heure de fin) ;
  * - jour intermédiaire : « Journée ».
+ * Une fin pile à 00:00 appartient à la veille (cf. `overlapsDay`) : « 07:00 → 00:00 ».
  */
 export function getDaySpanLabel(start: Date, end: Date, day: Date): string {
+  const lastInstant = end > start ? new Date(end.getTime() - 1) : end;
   const startsToday = isSameLocalDay(start, day);
-  const endsToday = isSameLocalDay(end, day);
-  if (startsToday && endsToday) return formatHour(start);
+  const endsToday = isSameLocalDay(lastInstant, day);
+  if (startsToday && endsToday) {
+    return end > start ? `${formatHour(start)} → ${formatHour(end)}` : formatHour(start);
+  }
   if (startsToday) return `${formatHour(start)} →`;
   if (endsToday) return `→ ${formatHour(end)}`;
   return 'Journée';

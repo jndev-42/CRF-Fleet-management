@@ -274,14 +274,41 @@ describe('VehicleCalendar — événements sur plusieurs jours', () => {
     expect(screen.getByText('→ 09:30')).toBeTruthy();
   });
 
-  it('n’affiche pas une réservation qui finit à 00:00 sur le jour qui commence', async () => {
+  it('affiche « début → fin » pour une réservation sur un seul jour', async () => {
+    mockPayload(payload([reservation('res-day', new Date(y, m, 10, 7), new Date(y, m, 10, 18))]));
+
+    render(<VehicleCalendar />);
+
+    expect(await screen.findByText('07:00 → 18:00')).toBeTruthy();
+  });
+
+  it('affiche une réservation qui finit à 00:00 sur la veille seulement, en « 07:00 → 00:00 »', async () => {
     mockPayload(payload([reservation('res-midnight', new Date(y, m, 10, 7), new Date(y, m, 11, 0))]));
 
     render(<VehicleCalendar />);
 
-    expect(await screen.findByText('07:00 →')).toBeTruthy();
+    expect(await screen.findByText('07:00 → 00:00')).toBeTruthy();
     expect(screen.getAllByText(/Jean Dupont/)).toHaveLength(1);
-    expect(screen.queryByText('→ 00:00')).toBeNull();
+  });
+
+  it('se recharge sans écran de chargement quand `refreshKey` change', async () => {
+    const first = payload([]);
+    const second = payload([reservation('res-new', new Date(y, m, 10, 7), new Date(y, m, 10, 18))]);
+    const fetchSpy = vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => first } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => second } as Response);
+
+    const { rerender } = render(<VehicleCalendar refreshKey={0} />);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByText('Chargement du calendrier...')).toBeNull());
+
+    rerender(<VehicleCalendar refreshKey={1} />);
+
+    // La grille reste affichée pendant le rechargement…
+    expect(screen.queryByText('Chargement du calendrier...')).toBeNull();
+    // …et la nouvelle réservation apparaît sans recharger la page.
+    expect(await screen.findByText('07:00 → 18:00')).toBeTruthy();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });
 
