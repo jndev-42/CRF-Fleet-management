@@ -16,6 +16,7 @@ import { REFERENTIEL_FTS_DDL, REFERENTIEL_TABLES } from '@/lib/referentiel/schem
 import { AUDIT_LOG_DDL, AUDIT_LOG_INDEXES } from '@/lib/audit/schema';
 import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '@/lib/themes/schema';
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '@/lib/push/schema';
+import { SCHEDULED_ALERT_DDL } from '@/lib/alerts/schema';
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'martine-test-'));
 /** Exporté pour les tests de concurrence, qui ouvrent un second client sur le même fichier. */
@@ -401,6 +402,7 @@ async function createTables() {
 
   await db.execute(PUSH_SUBSCRIPTION_DDL);
   await db.execute(PUSH_SUBSCRIPTION_USER_INDEX_DDL);
+  await db.execute(SCHEDULED_ALERT_DDL);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
     id TEXT PRIMARY KEY,
@@ -591,6 +593,7 @@ async function createTables() {
 }
 
 async function truncateTables() {
+  await db.execute(`DELETE FROM "ScheduledAlert"`);
   await db.execute(`DELETE FROM "PushSubscription"`);
   await db.execute(`DELETE FROM "AuditLog"`);
   await db.execute(`DELETE FROM "SeasonalThemeUL"`);

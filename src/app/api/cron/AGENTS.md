@@ -8,6 +8,7 @@ Container for cron jobs. Scheduled tasks run via Vercel's cron service (configur
 
 ## Subdirectories
 - `daily-mileage-check` — GET endpoint (runs daily) to check Renault mileage and alert admins of unauthorized usage
+- `daily-alerts` — GET endpoint (06:00 UTC) alerting on desinfection deadlines (ADMIN + CHVPSP) and stock (one digest per UL to ADMIN); sent keys remembered in `ScheduledAlert` (`src/lib/alerts/`). Requires `scripts/add-scheduled-alerts.ts` migration
 
 ## For AI Agents
 

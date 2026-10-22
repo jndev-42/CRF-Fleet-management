@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.29.0] — 22 octobre 2026
+
+### ✨ Nouveautés
+
+- **Alertes automatiques de désinfection** — chaque matin, les administrateurs et les chauffeurs VPSP de l'unité locale reçoivent une notification quand la prochaine désinfection d'un véhicule suivi est à 14 jours ou moins, puis une seconde quand l'échéance est dépassée. Chaque étape n'est signalée qu'une seule fois ; une nouvelle échéance après une désinfection relance le cycle.
+- **Alertes automatiques d'inventaire** — chaque matin, les administrateurs de l'unité locale reçoivent un résumé unique des nouveautés : lots qui arrivent à un mois de leur péremption, lots périmés et produits passés sous leur stock minimum, avec les premiers noms concernés. Rien n'est envoyé s'il n'y a rien de nouveau.
+
 ## [5.28.0] — 22 octobre 2026
 
 ### ✨ Nouveautés
