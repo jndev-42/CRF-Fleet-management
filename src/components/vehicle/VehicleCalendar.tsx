@@ -7,6 +7,7 @@ import { useUL } from '@/lib/contexts/ULContext';
 import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
 import { isAdminOrAbove } from '@/lib/roles';
 import { isMaintenanceEditable } from '@/lib/maintenanceStatus';
+import { getDaySpanLabel, overlapsDay } from '@/lib/calendarDaySpan';
 import EditMaintenanceEventModal from './modals/EditMaintenanceEventModal';
 import DeleteMaintenanceEventModal from './modals/DeleteMaintenanceEventModal';
 
@@ -260,12 +261,12 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
 
       day.events = allEvents.filter(event => {
         if (event.type === 'RESERVATION') {
-          return event.startTime <= dayEnd && event.endTime >= dayStart;
+          return overlapsDay(event.startTime, event.endTime, dayStart, dayEnd);
         } else if (event.type === 'TRIP') {
           if (event.isOngoing) {
             return event.startTime <= dayEnd && dayStart <= todayEnd;
           } else {
-            return event.startTime <= dayEnd && event.endTime! >= dayStart;
+            return overlapsDay(event.startTime, event.endTime!, dayStart, dayEnd);
           }
         } else {
           // MAINTENANCE
@@ -280,12 +281,6 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
 
     return days;
   }, [year, month, reservations, trips, maintenances]);
-
-  const formatTime = (dateStr: string | null) => {
-    if (!dateStr) return 'En cours';
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  };
 
   const formatDateFull = (dateStr: string | null) => {
     if (!dateStr) return 'Non restitué (En cours)';
@@ -458,7 +453,7 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
                           <div className={styles.eventHeader}>
                             <span className={styles.eventVehicle}>{res.vehicleName}</span>
                             <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
-                              {formatTime(res.startTime)}
+                              {getDaySpanLabel(event.startTime, event.endTime, day.date)}
                             </span>
                           </div>
                           <div className={styles.eventSubtext}>
@@ -485,7 +480,7 @@ export default function VehicleCalendar({ dtView = false }: VehicleCalendarProps
                               <span className={styles.ongoingBadge}>⏳ En cours</span>
                             ) : (
                               <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
-                                {formatTime(trip.checkOutAt)}
+                                {getDaySpanLabel(event.startTime, event.endTime!, day.date)}
                               </span>
                             )}
                           </div>
