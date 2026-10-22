@@ -118,9 +118,9 @@ describe('ReservationFormModal — rendu', () => {
         expect(mockFetch.mock.calls.filter(c => String(c[0]).startsWith('/api/users'))).toHaveLength(0);
     });
 
-    it('🔴 RESPO : le fetch de la liste des chauffeurs est émis PAR LE MODAL, avec son vehicleType', async () => {
+    it('🔴 CADRE : le fetch de la liste des chauffeurs est émis PAR LE MODAL, avec son vehicleType', async () => {
         routeFetch({ users: [{ id: 'u-1', name: 'Alice', email: 'alice@dev.local' }] });
-        renderModal({ userRoles: ['RESPO'], vehicleType: 'VPSP 12' });
+        renderModal({ userRoles: ['CADRE'], vehicleType: 'VPSP 12' });
 
         expect(screen.getByText('Chauffeur (Pour)')).toBeTruthy();
         await waitFor(() => {
@@ -186,9 +186,9 @@ describe('ReservationFormModal — soumission simple', () => {
         expect(onClose).not.toHaveBeenCalled();
     });
 
-    it('RESPO + « Chauffeur non décidé » : isUnassignedDriver transmis', async () => {
+    it('CADRE + « Chauffeur non décidé » : isUnassignedDriver transmis', async () => {
         routeFetch();
-        renderModal({ userRoles: ['RESPO'] });
+        renderModal({ userRoles: ['CADRE'] });
 
         fireEvent.click(screen.getByRole('button', { name: 'Chauffeur non décidé' }));
         expect(screen.getByText('Cette réservation sera enregistrée sans chauffeur attribué.')).toBeTruthy();

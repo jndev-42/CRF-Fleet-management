@@ -22,6 +22,8 @@ export interface GenerateOptions {
      * le visuel étant fourni par les widgets PDF. Voir `ExpensePdfDocument`.
      */
     forSealing?: boolean;
+    /** Disposition v1 (tampon imprimé en contenu) — voir `ExpensePdfDocument`. */
+    legacyLayout?: boolean;
 }
 
 /** Logo CRF encodé en data URI, mis en cache pour la durée du lambda. */
@@ -109,6 +111,7 @@ export async function generateExpensePdf(
         report,
         logoSrc: await loadLogo(),
         forSealing: options.forSealing ?? false,
+        legacyLayout: options.legacyLayout ?? false,
     }) as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>;
 
     return Buffer.from(await renderToBuffer(element));

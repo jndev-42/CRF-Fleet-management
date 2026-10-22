@@ -245,6 +245,7 @@ export async function fetchExpenseStatsData(
   const statusMap: Record<string, { amount: number; count: number }> = {
     brouillon: { amount: 0, count: 0 },
     soumis: { amount: 0, count: 0 },
+    valide_respo: { amount: 0, count: 0 },
     en_attente_paiement: { amount: 0, count: 0 },
     traité: { amount: 0, count: 0 },
     refusé: { amount: 0, count: 0 },
@@ -263,7 +264,7 @@ export async function fetchExpenseStatsData(
     totalExpensesAmount += total;
     if (status === 'traité') {
       totalRefundedAmount += total;
-    } else if (status === 'soumis' || status === 'en_attente_paiement') {
+    } else if (status === 'soumis' || status === 'valide_respo' || status === 'en_attente_paiement') {
       totalPendingAmount += total;
     }
 
@@ -346,6 +347,7 @@ export async function fetchExpenseStatsData(
   const statusLabels: Record<string, string> = {
     brouillon: 'Brouillon',
     soumis: 'Soumis',
+    valide_respo: 'Validée par le responsable',
     en_attente_paiement: 'En attente de paiement',
     traité: 'Traitée / Payée',
     refusé: 'Refusée',

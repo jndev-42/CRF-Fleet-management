@@ -118,7 +118,7 @@ const TOUR_STEPS: TourStep[] = [
         icon: '✅',
     },
 
-    // ── PART 4: Statistiques (ADMIN, RESPO, CHVL, CHVPSP — pas INACTIF) ──
+    // ── PART 4: Statistiques (ADMIN, CHVL, CHVPSP — pas INACTIF) ──
     {
         target: '[data-tour="nav-stats"]',
         title: 'Page Statistiques',
@@ -152,7 +152,7 @@ const TOUR_STEPS: TourStep[] = [
         position: 'bottom',
     },
 
-    // ── PART 7: Administration (ADMIN, RESPO) ──
+    // ── PART 7: Administration (ADMIN) ──
     {
         target: '[data-tour="nav-admin"]',
         title: 'Page Administration',
@@ -258,20 +258,19 @@ function closeBurgerMenu() {
  * Returns the subset of TOUR_STEPS visible for a given set of user roles.
  *
  * Filtering rules (applied to each step's `target` selector):
- *  - nav-stats      → requires one of: ADMIN, RESPO, CHVL, CHVPSP (and NOT INACTIF)
+ *  - nav-stats      → requires one of: ADMIN, CHVL, CHVPSP (and NOT INACTIF)
  *  - nav-missions   → requires one of: ADMIN, CI/RPAPS
  *  - nav-inventory  → requires: ADMIN
- *  - nav-admin      → requires one of: ADMIN, RESPO
- *  - notifications  → requires one of: ADMIN, RESPO
+ *  - nav-admin      → requires: ADMIN
+ *  - notifications  → requires: ADMIN
  *  - Check-out/in cards (identified by title) → excluded for INACTIF
- *  - "Gérer les utilisateurs" info card → requires one of: ADMIN, RESPO
+ *  - "Gérer les utilisateurs" info card → requires: ADMIN
  */
 function buildActiveSteps(roles: string[]): TourStep[] {
     const isAdmin   = roles.includes('ADMIN');
-    const isRespo   = roles.includes('RESPO');
     const isCiRpaps = roles.includes('CI/RPAPS');
     const isInactif = roles.includes('INACTIF');
-    const hasStats  = isAdmin || isRespo || roles.includes('CHVL') || roles.includes('CHVPSP');
+    const hasStats  = isAdmin || roles.includes('CHVL') || roles.includes('CHVPSP');
 
     const checkoutTitles = new Set([
         'Emprunter & Rendre un véhicule',
@@ -286,10 +285,10 @@ function buildActiveSteps(roles: string[]): TourStep[] {
         if (t === '[data-tour="nav-stats"]')     return hasStats && !isInactif;
         if (t === '[data-tour="nav-missions"]')  return isAdmin || isCiRpaps;
         if (t === '[data-tour="nav-inventory"]') return isAdmin;
-        if (t === '[data-tour="nav-admin"]')     return isAdmin || isRespo;
-        if (t === '[data-tour="notifications"]') return isAdmin || isRespo;
+        if (t === '[data-tour="nav-admin"]')     return isAdmin;
+        if (t === '[data-tour="notifications"]') return isAdmin;
 
-        if (!t && step.title === 'Gérer les utilisateurs') return isAdmin || isRespo;
+        if (!t && step.title === 'Gérer les utilisateurs') return isAdmin;
         if (!t && checkoutTitles.has(step.title))          return !isInactif;
 
         return true;

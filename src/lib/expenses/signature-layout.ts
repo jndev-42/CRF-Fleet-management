@@ -59,6 +59,11 @@ export const SIGNATURE_WIDGET_RECTS = {
      * mais son rectangle est nul, donc rien n'est rendu sur la page.
      */
     payeur: null,
+    /**
+     * Colonne « Tampon de la structure : » — signature #4, celle du président.
+     * Son apparence compose le tampon de l'UL (s'il existe) et la signature.
+     */
+    president: [386.8, 183.5, 523.2, 249.5] as const,
 } as const;
 
 /**
@@ -71,21 +76,31 @@ export const SIGNATURE_WIDGET_RECTS = {
 export const MEASURE_ZONE_COLORS = {
     demandeur: '1 0 0',
     valideur: '0 1 0',
+    president: '0 0 1',
 } as const;
 
 /**
- * Les trois champs de signature, posés d'un coup AVANT le premier scellement.
+ * Les quatre champs de signature, posés d'un coup AVANT le premier scellement.
  *
- * ⚠️ L'ORDRE ET LES NOMS SONT CONTRACTUELS : `sealStep1/2/3` remplissent
- * respectivement `Signature1`, `Signature2` et `Signature3`. Un champ ne peut
- * pas être ajouté après la certification sans invalider les signatures déjà
- * posées aux yeux d'Acrobat.
+ * ⚠️ L'ORDRE ET LES NOMS SONT CONTRACTUELS : `sealStep1`, `sealStep2` (RESPO),
+ * `sealStep3` (payeur) et `sealPresident` remplissent respectivement
+ * `Signature1`, `Signature2`, `Signature3` et `Signature4`. Un champ ne peut pas
+ * être ajouté après la certification sans invalider les signatures déjà posées
+ * aux yeux d'Acrobat.
+ *
+ * `Signature4` est ajouté EN DERNIER : les trois premiers gardent leur nom et
+ * leur rang, si bien qu'une note scellée avant son introduction (trois champs,
+ * `workflowVersion` 1) reste exploitable par l'ancien circuit.
  */
 export const SIGNATURE_FIELDS = [
     { name: 'Signature1', rect: SIGNATURE_WIDGET_RECTS.demandeur },
     { name: 'Signature2', rect: SIGNATURE_WIDGET_RECTS.valideur },
     { name: 'Signature3', rect: SIGNATURE_WIDGET_RECTS.payeur },
+    { name: 'Signature4', rect: SIGNATURE_WIDGET_RECTS.president },
 ] as const;
+
+/** Index de chaque champ dans `SIGNATURE_FIELDS`, pour ne pas manier d'indices nus. */
+export const SIGNATURE_FIELD_INDEX = { demandeur: 0, respo: 1, payeur: 2, president: 3 } as const;
 
 /** Convertit une ordonnée « depuis le haut de page » en ordonnée PDF. */
 export function toPdfY(yFromTop: number, height: number): number {

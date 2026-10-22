@@ -16,7 +16,7 @@ Bulk operations on a recurrence group: DELETE cancels all future occurrences; PA
 ### Working In This Directory
 
 **Auth & Access:**
-- DELETE: owner (any member's userEmail) OR manager (`canAccessAdminPanel()` OR `RESPO`), else 403.
+- DELETE: owner (any member's userEmail) OR manager (`canAccessAdminPanel()`), else 403.
 - PATCH: manager only, else 403.
 - 404 if groupId has no reservations.
 

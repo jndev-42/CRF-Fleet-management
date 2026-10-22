@@ -65,17 +65,18 @@ describe('sendPushNotification', () => {
         expect(notifs.rows.map(r => r.userId)).toEqual(['admin-1']);
     });
 
-    it('étend ADMIN vers SUPER_ADMIN et RESPO vers PRESIDENT et CADRE', async () => {
+    it('étend ADMIN vers SUPER_ADMIN ; RESPO ne vise que les responsables d\'activité', async () => {
         await seedRoles();
-        for (const [id, role] of [['super-1', 'SUPER_ADMIN'], ['pres-1', 'PRESIDENT'], ['cadre-1', 'CADRE'], ['chvl-1', 'CHVL']]) {
+        for (const [id, role] of [['super-1', 'SUPER_ADMIN'], ['pres-1', 'PRESIDENT'], ['cadre-1', 'CADRE'], ['respo-1', 'RESPO'], ['chvl-1', 'CHVL']]) {
             await seedUser({ id, email: `${id}@test.com` });
             await seedUserRole(id, role);
         }
 
         await sendPushNotification({ ...baseArgs, roles: ['ADMIN', 'RESPO'] });
 
+        // RESPO n'est plus un alias de PRESIDENT + CADRE : c'est le rôle des notes de frais.
         const notifs = await db.execute(`SELECT userId FROM "Notification" ORDER BY userId`);
-        expect(notifs.rows.map(r => r.userId)).toEqual(['cadre-1', 'pres-1', 'super-1']);
+        expect(notifs.rows.map(r => r.userId)).toEqual(['respo-1', 'super-1']);
     });
 
     it('filtre par UL quand ulId est fourni', async () => {
@@ -212,7 +213,7 @@ describe('dédoublonnage et utilisateurs nommés', () => {
         await seedUserRole('multi-1', 'PRESIDENT');
         await seedSubscription('s1', 'multi-1', 'https://push.example/1');
 
-        await sendPushNotification({ ...baseArgs, roles: ['ADMIN', 'RESPO'] });
+        await sendPushNotification({ ...baseArgs, roles: ['ADMIN', 'PRESIDENT', 'CADRE'] });
 
         const notifs = await db.execute(`SELECT userId FROM "Notification"`);
         expect(notifs.rows).toHaveLength(1);

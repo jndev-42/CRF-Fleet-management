@@ -42,7 +42,7 @@ async function deleteHandler(
 
         const ownerEmail = checkResult.rows[0].userEmail as string;
         const userRoles: string[] = session.user.roles || [];
-        const canManage = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
+        const canManage = canAccessAdminPanel(userRoles);
 
         if (ownerEmail !== session.user.email && !canManage) {
             return forbiddenResponse();
@@ -123,7 +123,7 @@ async function deleteHandler(
 /**
  * PATCH /api/reservations/recurrence/:groupId
  * Valide toutes les occurrences FUTURES en attente d'un groupe de réservations récurrentes.
- * Seuls les rôles pouvant valider (ADMIN, RESPO, CADRE, PRESIDENT) sont autorisés.
+ * Seuls les rôles pouvant valider (ADMIN, CADRE, PRESIDENT) sont autorisés.
  * Les occurrences en conflit avec une réservation déjà validée sont ignorées (skip).
  */
 async function patchHandler(
@@ -137,7 +137,7 @@ async function patchHandler(
         }
 
         const userRoles: string[] = session.user.roles || [];
-        const canValidate = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
+        const canValidate = canAccessAdminPanel(userRoles);
         if (!canValidate) {
             return forbiddenResponse('Seul un responsable peut valider des réservations.');
         }

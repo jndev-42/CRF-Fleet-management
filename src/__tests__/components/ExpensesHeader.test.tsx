@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 
 import ExpensesHeader from '@/app/expenses/ExpensesHeader';
+import { canCreateExpense } from '@/app/expenses/utils';
 
 function renderHeader(props: Partial<React.ComponentProps<typeof ExpensesHeader>> = {}) {
     const onCreate = vi.fn();
@@ -63,5 +64,17 @@ describe('ExpensesHeader', () => {
         renderHeader({ showCreateButton: false });
         expect(screen.queryByRole('button', { name: /Nouvelle note de frais/ })).toBeNull();
         expect(screen.getByRole('button', { name: /Gérer les budgets/ })).toBeTruthy();
+    });
+
+    // La page passe `showCreateButton={!isCreating && canCreateExpense(userRoles)}`.
+    it('ne propose pas la création de note à un président, mais au super admin et aux autres', () => {
+        expect(canCreateExpense(['PRESIDENT'])).toBe(false);
+        expect(canCreateExpense(['PRESIDENT', 'CHVL'])).toBe(false);
+        expect(canCreateExpense(['SUPER_ADMIN', 'PRESIDENT'])).toBe(true);
+        expect(canCreateExpense(['RESPO'])).toBe(true);
+        expect(canCreateExpense(['CHVL'])).toBe(true);
+
+        renderHeader({ userRoles: ['PRESIDENT'], isManager: true, showCreateButton: canCreateExpense(['PRESIDENT']) });
+        expect(screen.queryByRole('button', { name: /Nouvelle note de frais/ })).toBeNull();
     });
 });

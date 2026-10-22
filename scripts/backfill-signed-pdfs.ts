@@ -138,6 +138,15 @@ async function main(): Promise<void> {
         const itemCount = countItems(row.items as string);
         const tooLong = itemCount > MAX_ITEMS_SINGLE_PAGE;
 
+        // Une note du nouveau circuit (v2) a été scellée à la soumission avec quatre
+        // champs : la re-sceller selon l'ancienne disposition détruirait l'étape
+        // RESPO et la signature du président. Refusée, même avec --reseal.
+        if (Number(row.workflowVersion) === 2) {
+            stats.skipped++;
+            console.log(`  = ${id} ignorée : circuit RESPO puis président (workflowVersion 2), jamais re-scellée par ce script`);
+            continue;
+        }
+
         // Une note déjà scellée est ignorée : c'est ce qui rend le script rejouable.
         // `--reseal` lève cette garde pour réparer un corpus scellé par un code fautif.
         if (row.r2Key && !RESEAL) { stats.skipped++; console.log(`  = ${id} déjà scellée`); continue; }
@@ -164,9 +173,12 @@ async function main(): Promise<void> {
 
         try {
             const now = new Date();
+            // Disposition de l'ancien circuit (v1) : trois champs seulement, tampon
+            // imprimé en contenu. `Signature4` (président) n'existe que pour les
+            // notes scellées à la soumission par le nouveau circuit.
             let buf = await addSignatureFields(
-                await generateExpensePdf(id, { forSealing: true }),
-                [...SIGNATURE_FIELDS]
+                await generateExpensePdf(id, { forSealing: true, legacyLayout: true }),
+                SIGNATURE_FIELDS.slice(0, 3)
             );
             const revisions: unknown[] = [];
             let key = '';

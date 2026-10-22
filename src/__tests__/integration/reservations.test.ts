@@ -8,7 +8,7 @@
  * Cas couverts :
  *  1. 401 sans session
  *  2. 403 — CHVL utilise onBehalfOfUserId
- *  3. 403 — RESPO utilise onBehalfOfUserId
+ *  3. 201 — CADRE utilise onBehalfOfUserId
  *  4. 400 — endTime avant startTime
  *  5. 404 — ADMIN fournit un userId inconnu
  *  6. 201 — CHVL réserve pour lui-même → status PENDING, userEmail = CHVL
@@ -34,7 +34,7 @@ vi.mock('@/lib/push', () => ({
 
 import { POST } from '@/app/api/vehicles/[id]/reservations/route';
 import { PATCH as PATCH_RESERVATION, DELETE as DELETE_RESERVATION } from '@/app/api/reservations/[id]/route';
-import { DELETE as DELETE_RECURRENCE } from '@/app/api/reservations/recurrence/[groupId]/route';
+import { DELETE as DELETE_RECURRENCE, PATCH as PATCH_RECURRENCE } from '@/app/api/reservations/recurrence/[groupId]/route';
 import { auth } from '@/auth';
 import { db, seedVehicle, seedUser } from './setup';
 
@@ -86,8 +86,8 @@ describe('POST /api/vehicles/[id]/reservations — autorisation onBehalfOf', () 
         expect(body.error).toContain('responsable');
     });
 
-    it('3. autorise un RESPO ou CADRE à utiliser onBehalfOfUserId (201)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'respo@dev.local', name: 'Respo Test', roles: ['RESPO'] } } as never);
+    it('3. autorise un CADRE à utiliser onBehalfOfUserId (201)', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
         const { startTime, endTime } = futureWindow();
         const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
@@ -523,4 +523,51 @@ describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
     });
 });
 
+// D1 : RESPO est désormais le responsable d'activité des notes de frais. Il n'hérite
+// plus d'aucun droit de gestionnaire de réservations.
+describe('RESPO n\'a aucun droit de gestion des réservations', () => {
+    const respoSession = { user: { email: 'respo@dev.local', name: 'Respo Test', roles: ['RESPO'] } };
 
+    it('25. 403 pour réserver au nom d\'un autre (onBehalfOfUserId)', async () => {
+        mockedAuth.mockResolvedValue(respoSession as never);
+        const { startTime, endTime } = futureWindow(105, 2);
+        const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        expect(res.status).toBe(403);
+    });
+
+    it('26. 403 pour supprimer la réservation d\'un autre chauffeur', async () => {
+        const { startTime, endTime } = futureWindow(110, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status)
+                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-respo-delete', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'VALIDATED']
+        });
+
+        mockedAuth.mockResolvedValue(respoSession as never);
+        const res = await DELETE_RESERVATION(new Request('http://localhost/api/reservations/res-respo-delete', { method: 'DELETE' }),
+            { params: Promise.resolve({ id: 'res-respo-delete' }) });
+        expect(res.status).toBe(403);
+        const check = await db.execute({ sql: `SELECT id FROM "Reservation" WHERE id = 'res-respo-delete'`, args: [] });
+        expect(check.rows.length).toBe(1);
+    });
+
+    it('27. 403 pour valider un groupe de récurrence', async () => {
+        const { startTime, endTime } = futureWindow(115, 2);
+        const groupId = 'group-respo-validate';
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status, recurrenceGroupId)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: ['res-rec-respo', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'PENDING', groupId]
+        });
+
+        mockedAuth.mockResolvedValue(respoSession as never);
+        const res = await PATCH_RECURRENCE(new Request(`http://localhost/api/reservations/recurrence/${groupId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+        }), { params: Promise.resolve({ groupId }) });
+        expect(res.status).toBe(403);
+        const check = await db.execute({ sql: `SELECT status FROM "Reservation" WHERE id = 'res-rec-respo'`, args: [] });
+        expect(check.rows[0].status).toBe('PENDING');
+    });
+});

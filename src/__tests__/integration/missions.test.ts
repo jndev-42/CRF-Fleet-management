@@ -8,7 +8,7 @@
  *   - POST rattachement UL/DT → 400 si aucun ou les deux, persistance exclusive
  *   - GET  /api/missions → 401, 403 (CHVL), scope=mine (cross-UL/DT), scope=all (UL active, 403 non-manager)
  *   - GET  /api/missions/[id] → 200 avec supplies groupés
- *   - DELETE /api/missions/[id] → 403 (RESPO), 200 (ADMIN) + CASCADE
+ *   - DELETE /api/missions/[id] → 403 (CADRE), 200 (ADMIN) + CASCADE
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -38,8 +38,8 @@ const ciRpapsSession = {
     user: { id: 'user-ci', email: 'ci@test.com', roles: ['CI/RPAPS'], ulId: 'ul-paris-18' },
 };
 
-const respoSession = {
-    user: { id: 'user-respo', email: 'respo@test.com', roles: ['RESPO'], ulId: 'ul-paris-18' },
+const cadreSession = {
+    user: { id: 'user-cadre', email: 'cadre@test.com', roles: ['CADRE'], ulId: 'ul-paris-18' },
 };
 
 const chvlSession = {
@@ -1136,9 +1136,9 @@ describe('DELETE /api/missions/[id]', () => {
         });
     });
 
-    it('returns 403 when role is RESPO', async () => {
+    it('returns 403 when role is CADRE', async () => {
         // @ts-expect-error — partial session for test
-        mockedAuth.mockResolvedValue(respoSession);
+        mockedAuth.mockResolvedValue(cadreSession);
 
         const res = await deleteReport(makeDeleteRequest('report-to-delete'), { params: Promise.resolve({ id: 'report-to-delete' }) });
         expect(res.status).toBe(403);

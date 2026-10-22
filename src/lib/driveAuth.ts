@@ -1,6 +1,7 @@
 import type { Session } from 'next-auth';
 import { db } from '@/lib/db';
-import { isSuperAdmin, isExpenseManager, isTresorier } from '@/lib/roles';
+import { isSuperAdmin } from '@/lib/roles';
+import { canViewExpense } from '@/lib/expenses/workflow';
 import { canReadMissionReport, resolveSessionUserId, type MissionReportAccessInfo } from '@/lib/missions/access';
 
 type DriveFolderOwner =
@@ -88,11 +89,11 @@ export async function canAccessDriveFolder(session: Session, folderId: string): 
     }
 
     if (owner.kind === 'expense') {
-        // Note de frais : même règle que expenses/[id]/route.ts (propriétaire, manager, ou trésorier en attente de paiement)
-        const isManager = isExpenseManager(roles);
-        const isOwner = session.user.id === owner.userId;
-        const isTresorierPending = isTresorier(roles) && owner.status === 'en_attente_paiement';
-        return isManager || isOwner || isTresorierPending;
+        // Note de frais : même règle que expenses/[id]/route.ts — qui lit la note voit ses justificatifs.
+        return canViewExpense(
+            { id: session.user.id, roles, ulId: session.user.ulId },
+            { userId: owner.userId, status: owner.status, ulId: owner.ulId },
+        );
     }
 
     return session.user.ulId === owner.ulId;

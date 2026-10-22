@@ -112,11 +112,11 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
         const vehicleId = params.id;
         const body = await request.json();
 
-        // ADMIN, CADRE, PRESIDENT, RESPO voient leurs réservations auto-validées
+        // ADMIN, CADRE, PRESIDENT voient leurs réservations auto-validées
         const userRoles: string[] = session.user.roles || [];
         const isValidator = canAccessAdminPanel(userRoles);
         const status = isValidator ? 'VALIDATED' : 'PENDING';
-        const canManageDriver = isValidator || userRoles.includes('RESPO');
+        const canManageDriver = isValidator;
 
         // ── Récurrence ────────────────────────────────────────────────────────────
         if (body.recurrence) {
@@ -258,7 +258,7 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
                     };
 
                     await sendPushNotification({
-                        roles: ['ADMIN', 'RESPO'],
+                        roles: ['ADMIN', 'PRESIDENT', 'CADRE'],
                         headings: { fr: `📋 Nouvelle réservation récurrente`, en: `📋 New recurring reservation` },
                         contents: notifMsg,
                         url: `/vehicles/${encodeURIComponent(vehicleName)}`,
@@ -357,7 +357,7 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
             ]
         });
 
-        // Si la réservation est en attente, notifier les ADMIN et RESPO
+        // Si la réservation est en attente, notifier les ADMIN, présidents et cadres
         if (status === 'PENDING') {
             try {
                 const vehicleResult = await db.execute({
@@ -370,9 +370,9 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
 
                 const { sendPushNotification } = await import('@/lib/push');
 
-                // Un seul envoi pour ADMIN et RESPO : qui cumule les deux rôles ne reçoit qu'une notification
+                // Un seul envoi pour ADMIN, présidents et cadres : qui cumule plusieurs rôles ne reçoit qu'une notification
                 await sendPushNotification({
-                    roles: ['ADMIN', 'RESPO'],
+                    roles: ['ADMIN', 'PRESIDENT', 'CADRE'],
                     headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
                     contents: {
                         fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,

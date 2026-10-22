@@ -31,7 +31,7 @@ async function deleteHandler(request: Request, props: { params: Promise<{ id: st
 
         const ownerEmail = checkResult.rows[0].userEmail as string;
         const userRoles: string[] = session.user.roles || [];
-        const canManage = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
+        const canManage = canAccessAdminPanel(userRoles);
 
         if (ownerEmail !== session.user.email && !canManage) {
             return forbiddenResponse();
@@ -129,7 +129,7 @@ async function patchHandler(request: Request, props: { params: Promise<{ id: str
         const reservation = checkResult.rows[0];
         const userRoles: string[] = session.user.roles || [];
         const isOwner = session.user.email === reservation.userEmail;
-        const canManageDriver = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
+        const canManageDriver = canAccessAdminPanel(userRoles);
 
         let body: Record<string, unknown> = {};
         try {

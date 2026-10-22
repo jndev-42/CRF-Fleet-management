@@ -12,10 +12,10 @@
  *
  *  PATCH /api/users/[id]/validate-papers
  *   7. 401 sans session
- *   8. 403 pour rôle CHVL (non-ADMIN/RESPO)
+ *   8. 403 pour rôle CHVL (non-ADMIN/CADRE)
  *   9. 404 si user inconnu
  *  10. Happy path ADMIN → papiers_valides=1
- *  11. Happy path RESPO → papiers_valides=1
+ *  11. Happy path CADRE → papiers_valides=1
  */
 import { describe, it, expect, vi } from 'vitest';
 
@@ -218,7 +218,7 @@ describe('PATCH /api/users/[id]/validate-papers', () => {
         expect(dbRow.rows[0].validated_by).toBe('Admin Test');
     });
 
-    it('11. Happy path RESPO → papiers_valides=1 et validated_by = email (pas de name)', async () => {
+    it('11. Happy path CADRE → papiers_valides=1 et validated_by = email (pas de name)', async () => {
         const user = await seedUser({
             id: 'validate-target-respo',
             email: 'target-respo@test.com',

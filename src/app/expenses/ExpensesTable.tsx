@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { FileText, Trash, Check, Eye, X, Send, Edit, DollarSign, ArrowUp, ArrowDown, ArrowUpDown, Download } from 'lucide-react';
-import { formatDate, getStatusBadge } from './utils';
+import { formatDate, getStatusBadge, signingActionFor, validateLabel } from './utils';
 import type { ExpenseReport } from './types';
 import Pagination from '@/components/Pagination';
 
@@ -13,6 +13,7 @@ interface ExpensesTableProps {
     isManager: boolean;
     isTresorier: boolean;
     canPay: boolean;
+    userRoles: string[];
     actionLoading: string | null;
     currentUserId: string | undefined;
     selectedReportId: string | undefined;
@@ -31,6 +32,7 @@ export default function ExpensesTable({
     isManager,
     isTresorier,
     canPay,
+    userRoles,
     actionLoading,
     currentUserId,
     selectedReportId,
@@ -165,7 +167,9 @@ export default function ExpensesTable({
                                 </tr>
                             </thead>
                             <tbody>
-                                {paginatedReports.map((report) => (
+                                {paginatedReports.map((report) => {
+                                    const signing = signingActionFor(report, userRoles, currentUserId);
+                                    return (
                                     <tr
                                         key={report.id}
                                         style={{
@@ -253,14 +257,14 @@ export default function ExpensesTable({
                                                         </button>
                                                     </>
                                                 )}
-                                                {report.status === 'soumis' && isManager && (
+                                                {signing && (
                                                     <>
                                                         <button
                                                             onClick={() => onOpenValidate(report)}
                                                             className="btn btn-primary"
                                                             style={{ padding: '6px 10px', background: 'var(--status-available)', borderColor: 'var(--status-available)' }}
                                                             disabled={actionLoading === report.id}
-                                                            title="Valider"
+                                                            title={validateLabel(signing)}
                                                         >
                                                             <Check size={14} />
                                                         </button>
@@ -289,7 +293,8 @@ export default function ExpensesTable({
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>

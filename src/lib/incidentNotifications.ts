@@ -41,7 +41,7 @@ export async function notifyIncidentSubmitted({
 
         const { sendPushNotification } = await import('@/lib/push');
         await sendPushNotification({
-            roles: ['RESPO'],
+            roles: ['PRESIDENT', 'CADRE'],
             headings: { fr: `🚨 ${label} déclaré`, en: `🚨 Incident reported` },
             contents: {
                 fr: `${label} déclaré sur ${vehicleName}.`,

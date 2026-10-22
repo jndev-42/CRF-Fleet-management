@@ -13,7 +13,9 @@ import ExpenseDetailSidebar from './ExpenseDetailSidebar';
 import JustificatifsModal from './JustificatifsModal';
 import PhotoLightbox from './PhotoLightbox';
 import { useExpenseReports } from './useExpenseReports';
+import { signingActionFor, canCreateExpense } from './utils';
 import type { ExpenseReport } from './types';
+import { isExpenseManager, canValidateExpenseAsRespo, canPayExpense, isTresorier as isTresorierRole } from '@/lib/roles';
 
 export default function ExpensesPage() {
     const { data: session, status } = useSession();
@@ -38,12 +40,18 @@ export default function ExpensesPage() {
         report: ExpenseReport;
         kind: 'validate' | 'reject' | 'pay';
         rejectionComment?: string;
+        /** Signature à l'étape « responsable d'activité » par un RESPO (pas le président). */
+        asRespo?: boolean;
     } | null>(null);
 
     const userRoles = session?.user?.roles || [];
-    const isManager = userRoles.includes('SUPER_ADMIN') || userRoles.includes('PRESIDENT');
-    const isTresorier = userRoles.includes('TRESORIER');
-    const canPay = userRoles.includes('TRESORIER') || userRoles.includes('SUPER_ADMIN');
+    const isManager = isExpenseManager(userRoles);
+    // Responsable d'activité sans rôle de président : voit les notes de l'UL à valider.
+    const isRespo = !isManager && canValidateExpenseAsRespo(userRoles);
+    const seesUlReports = isManager || isRespo;
+    const isTresorier = isTresorierRole(userRoles);
+    const canPay = canPayExpense(userRoles);
+    const canCreate = canCreateExpense(userRoles);
 
     const {
         reports,
@@ -54,7 +62,7 @@ export default function ExpensesPage() {
         includeProcessed,
         setIncludeProcessed,
         fetchReports,
-    } = useExpenseReports(status, isManager, isTresorier);
+    } = useExpenseReports(status, seesUlReports, isTresorier);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -84,8 +92,14 @@ export default function ExpensesPage() {
         }
     }, [selectedReport]);
 
+    /** Signature à l'étape RESPO par un RESPO — le libellé de la modale en dépend. */
+    const signsAsRespo = (report: ExpenseReport) => {
+        const action = signingActionFor(report, userRoles, session?.user?.id);
+        return action?.stage === 'respo' && !action.combined;
+    };
+
     const openValidateModal = (report: ExpenseReport) => {
-        setSigningContext({ report, kind: 'validate' });
+        setSigningContext({ report, kind: 'validate', asRespo: signsAsRespo(report) });
     };
 
     /** Envoie l'action signée correspondant au contexte courant. */
@@ -114,7 +128,18 @@ export default function ExpensesPage() {
                 if (selectedReport?.id === id) {
                     setSelectedReport(prev => {
                         if (!prev) return null;
-                        if (kind === 'validate') return { ...prev, status: data.status || 'traité', validatorName: session?.user?.name || '' };
+                        if (kind === 'validate' && data.status === 'valide_respo') {
+                            return { ...prev, status: 'valide_respo', respoValidatedAt: new Date().toISOString(), respoValidatorName: session?.user?.name || '' };
+                        }
+                        if (kind === 'validate') {
+                            const signedName = session?.user?.name || '';
+                            // Signature combinée : le président a aussi signé l'étape RESPO.
+                            const combined = prev.workflowVersion === 2 && prev.status === 'soumis';
+                            return {
+                                ...prev, status: data.status || 'traité', validatorName: signedName,
+                                ...(combined ? { respoValidatedAt: new Date().toISOString(), respoValidatorName: signedName } : {}),
+                            };
+                        }
                         if (kind === 'reject') return { ...prev, status: 'refusé', rejectionComment: rejectionComment?.trim() || '', rejectorName: session?.user?.name || '' };
                         return { ...prev, status: 'traité', payerName: session?.user?.name || '' };
                     });
@@ -143,7 +168,7 @@ export default function ExpensesPage() {
         if (!report) return;
         // Le refus est un événement SIGNÉ qui clôt définitivement le document :
         // on demande la signature après le motif.
-        setSigningContext({ report, kind: 'reject', rejectionComment: comment });
+        setSigningContext({ report, kind: 'reject', rejectionComment: comment, asRespo: signsAsRespo(report) });
     };
 
     const handlePay = (id: string) => {
@@ -214,17 +239,17 @@ export default function ExpensesPage() {
             {/* Header */}
             <ExpensesHeader
                 userRoles={userRoles}
-                isManager={isManager}
+                isManager={seesUlReports}
                 isTresorier={isTresorier}
-                showCreateButton={!isCreating}
+                showCreateButton={!isCreating && canCreate}
                 onCreate={() => setIsCreating(true)}
                 onManageBudgets={() => setIsBudgetsModalOpen(true)}
             />
 
             {/* Scope & Filter Toggles for Managers & Tresorier */}
-            {(isManager || isTresorier) && !isCreating && (
+            {(seesUlReports || isTresorier) && !isCreating && (
                 <ExpensesFilters
-                    isManager={isManager}
+                    isManager={seesUlReports}
                     viewScope={viewScope}
                     setViewScope={setViewScope}
                     includeProcessed={includeProcessed}
@@ -253,9 +278,10 @@ export default function ExpensesPage() {
                     <ExpensesTable
                         reports={reports}
                         tableLoading={tableLoading}
-                        isManager={isManager}
+                        isManager={seesUlReports}
                         isTresorier={isTresorier}
                         canPay={canPay}
+                        userRoles={userRoles}
                         actionLoading={actionLoading}
                         currentUserId={session?.user?.id}
                         selectedReportId={selectedReport?.id}
@@ -274,7 +300,7 @@ export default function ExpensesPage() {
                     {selectedReport && (
                         <ExpenseDetailSidebar
                             report={selectedReport}
-                            isManager={isManager}
+                            userRoles={userRoles}
                             canPay={canPay}
                             currentUserId={session?.user?.id}
                             actionLoading={actionLoading}
@@ -304,8 +330,16 @@ export default function ExpensesPage() {
                     onSign={confirmSigned}
                     signerName={session?.user?.name || 'Responsable'}
                     signerEmail={session?.user?.email || ''}
-                    roleTitle={signingContext.kind === 'pay' ? 'Trésorier / Payeur' : 'Responsable / Valideur'}
-                    initialFunction={signingContext.kind === 'pay' ? 'Trésorier' : 'Président local'}
+                    roleTitle={
+                        signingContext.kind === 'pay' ? 'Trésorier / Payeur'
+                        : signingContext.asRespo ? 'Responsable d\'activité'
+                        : 'Président / Valideur'
+                    }
+                    initialFunction={
+                        signingContext.kind === 'pay' ? 'Trésorier'
+                        : signingContext.asRespo ? 'Responsable d\'activité'
+                        : 'Président local'
+                    }
                     actionVerb={
                         signingContext.kind === 'pay' ? 'marquer comme payée'
                         : signingContext.kind === 'reject' ? 'refuser'

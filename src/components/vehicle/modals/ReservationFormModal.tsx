@@ -88,8 +88,8 @@ export default function ReservationFormModal({
 
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
-    const canValidate = canAccessAdminPanel(userRoles) || userRoles.includes('ADMIN') || userRoles.includes('RESPO');
-    const canManageDriver = canAccessAdminPanel(userRoles) || userRoles.includes('RESPO');
+    const canValidate = canAccessAdminPanel(userRoles) || userRoles.includes('ADMIN');
+    const canManageDriver = canAccessAdminPanel(userRoles);
 
     useEffect(() => {
         if (!canManageDriver) return;

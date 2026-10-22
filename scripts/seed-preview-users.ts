@@ -22,7 +22,9 @@ async function seed() {
     console.log('    UL Paris 18 ensured');
 
     // Clean up legacy preview users
-    const legacyUserIds = ['preview-user-respo', 'preview-user-secouriste'];
+    // `preview-user-respo` n'y figure plus : le compte sert de nouveau, pour le rôle
+    // RESPO (responsable d'activité, validation des notes de frais).
+    const legacyUserIds = ['preview-user-secouriste'];
     for (const legacyId of legacyUserIds) {
         await db.execute({ sql: `DELETE FROM "UserRole" WHERE userId = ?`, args: [legacyId] });
         await db.execute({ sql: `DELETE FROM "UserUL" WHERE userId = ?`, args: [legacyId] });
@@ -37,6 +39,7 @@ async function seed() {
             ('preview-user-admin',       'preview-admin@preview.local',       'Admin Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-president',   'preview-president@preview.local',   'Président Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-tresorier',   'preview-tresorier@preview.local',   'Trésorier Preview', 1, '2026-07-10', 'System Preview'),
+            ('preview-user-respo',       'preview-respo@preview.local',       'Responsable Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-cadre',       'preview-cadre@preview.local',       'Cadre Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview', 1, '2026-07-10', 'System Preview'),
             ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, '2026-07-10', 'System Preview'),
@@ -49,12 +52,20 @@ async function seed() {
     const ulId = 'ul-paris-18';
     console.log(`🏠 Using UL: ${ulId}`);
 
+    // Le rôle RESPO est récent : la base preview peut ne pas encore le porter, et
+    // sans ligne `Role` le repli global `UserRole` ci-dessous l'ignorerait.
+    await db.execute({
+        sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
+        args: ['role-respo', 'RESPO'],
+    });
+
     // Insert UserUL relationships
     const userULs = [
         { userId: 'preview-user-superadmin', roles: 'SUPER_ADMIN,CHVL' },
         { userId: 'preview-user-admin',      roles: 'ADMIN,CHVL' },
         { userId: 'preview-user-president',  roles: 'PRESIDENT,CHVL' },
         { userId: 'preview-user-tresorier',  roles: 'TRESORIER' },
+        { userId: 'preview-user-respo',      roles: 'RESPO' },
         { userId: 'preview-user-cadre',      roles: 'CADRE,CHVL' },
         { userId: 'preview-user-chvl',       roles: 'CHVL' },
         { userId: 'preview-user-ci',         roles: 'CI/RPAPS' },

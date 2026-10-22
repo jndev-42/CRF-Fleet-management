@@ -58,6 +58,7 @@ describe('géométrie des zones de signature', () => {
         const pdf = await render(3);
         attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.demandeur), SIGNATURE_WIDGET_RECTS.demandeur);
         attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.valideur), SIGNATURE_WIDGET_RECTS.valideur);
+        attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.president), SIGNATURE_WIDGET_RECTS.president);
     }, 30_000);
 
     // L'espaceur `flexGrow` doit absorber toute la hauteur variable : sans lui,
@@ -67,8 +68,30 @@ describe('géométrie des zones de signature', () => {
             const pdf = await render(n);
             attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.demandeur), SIGNATURE_WIDGET_RECTS.demandeur);
             attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.valideur), SIGNATURE_WIDGET_RECTS.valideur);
+            attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.president), SIGNATURE_WIDGET_RECTS.president);
         }
     }, 60_000);
+
+    // La zone président remplace le tampon statique : sa place ne doit pas
+    // dépendre de la présence d'un tampon d'UL, que le scellement n'imprime plus.
+    it('place la zone président au même endroit avec ou sans tampon d\'UL', async () => {
+        const stamp = 'data:image/png;base64,' +
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+        const items = [{ label: 'Frais 1', amount: 10 }];
+        const el = createElement(ExpensePdfDocument, {
+            report: {
+                id: 'geo', userName: 'Jean Dupont', userEmail: 'jean@dev.local',
+                submittedAt: '2026-08-28T09:00:00.000Z', missionName: 'M', missionDate: '2026-08-20',
+                status: 'soumis', imputation: 'DLUS', customImputation: null, requestRefund: true,
+                noReceiptDeclaration: false, total: 10, items, ulId: 'ul-paris-18', ulName: 'Paris 18',
+                ulStampImage: stamp, userFunction: 'Bénévole local', validatorName: null, validatedAt: null,
+            },
+            logoSrc: '', forSealing: true, measureZones: true,
+        }) as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>;
+        const pdf = Buffer.from(await renderToBuffer(el));
+        attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.president), SIGNATURE_WIDGET_RECTS.president);
+        attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.demandeur), SIGNATURE_WIDGET_RECTS.demandeur);
+    }, 30_000);
 
     // Le pied de page est rendu même sans logo — `loadLogo()` peut ne rien
     // fournir — précisément pour que sa hauteur ne change pas la mise en page.

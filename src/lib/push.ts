@@ -19,7 +19,8 @@ export interface PushPayload {
  * une notification in-app (table `Notification`) par utilisateur, puis un envoi Web Push
  * (W3C, VAPID) vers chacun de ses appareils abonnés.
  *
- * `ADMIN` couvre aussi SUPER_ADMIN ; `RESPO` couvre PRESIDENT et CADRE.
+ * `ADMIN` couvre aussi SUPER_ADMIN. `RESPO` désigne le responsable d'activité (notes de frais) :
+ * pour joindre présidents et cadres, les nommer explicitement.
  * `userIds` ajoute des utilisateurs nommés aux destinataires ; `excludeUserId` écarte l'auteur de l'action.
  * Chaque utilisateur ne reçoit qu'une notification, même s'il cumule plusieurs rôles ciblés.
  * Ne lève jamais : un échec d'envoi push ne doit pas faire échouer la route appelante.
@@ -46,8 +47,6 @@ export async function sendPushNotification({
         for (const roleName of roles) {
             if (roleName === 'ADMIN') {
                 expandedRoleNames.push('ADMIN', 'SUPER_ADMIN');
-            } else if (roleName === 'RESPO') {
-                expandedRoleNames.push('PRESIDENT', 'CADRE');
             } else {
                 expandedRoleNames.push(roleName);
             }

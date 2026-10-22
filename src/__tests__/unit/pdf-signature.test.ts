@@ -74,9 +74,10 @@ async function signaturePng(): Promise<Buffer> {
 }
 
 describe('signature-layout', () => {
-    it('expose trois zones : demandeur et valideur visibles, payeur invisible', () => {
+    it('expose quatre zones : demandeur, responsable et président visibles, payeur invisible', () => {
         expect(SIGNATURE_WIDGET_RECTS.demandeur).toHaveLength(4);
         expect(SIGNATURE_WIDGET_RECTS.valideur).toHaveLength(4);
+        expect(SIGNATURE_WIDGET_RECTS.president).toHaveLength(4);
         // Le payeur n'a AUCUN widget — l'invisibilité est native côté placeholder.
         expect(SIGNATURE_WIDGET_RECTS.payeur).toBeNull();
     });
@@ -96,6 +97,15 @@ describe('signature-layout', () => {
 
         // Les deux colonnes sont côte à côte, jamais superposées.
         expect(dx2).toBeLessThanOrEqual(vx1);
+
+        // Le président occupe la colonne tampon, à droite du responsable, alignée
+        // en haut sur les deux autres zones.
+        const [, , vx2] = SIGNATURE_WIDGET_RECTS.valideur;
+        const [px1, py1, px2, py2] = SIGNATURE_WIDGET_RECTS.president;
+        expect(vx2).toBeLessThanOrEqual(px1);
+        expect(px2).toBeLessThanOrEqual(PAGE_WIDTH);
+        expect(py1).toBeGreaterThanOrEqual(0);
+        expect(py2).toBe(vy2);
 
         // Même bande verticale : la hauteur du bloc de métadonnées étant figée en
         // mode scellement, les deux zones image sont alignées. Une divergence
@@ -223,13 +233,14 @@ describe('sealPdf', () => {
         // /Version au catalogue réconcilie les deux.
         expect(report.catalogVersion).toBe('1.7');
 
-        // TROIS champs en tout, ni plus ni moins : deux visibles, un invisible.
-        // Chacun est ré-émis quand il est rempli, d'où les doublons — ce qui
-        // compte est qu'aucun QUATRIÈME rectangle n'apparaisse, signe d'un champ
-        // ajouté après la certification.
+        // QUATRE champs en tout, ni plus ni moins : trois visibles (demandeur,
+        // responsable, président), un invisible (payeur). Chacun est ré-émis quand
+        // il est rempli, d'où les doublons — ce qui compte est qu'aucun CINQUIÈME
+        // rectangle n'apparaisse, signe d'un champ ajouté après la certification.
         const rectsDistincts = [...new Set(report.rects)];
-        expect(rectsDistincts).toHaveLength(3);
+        expect(rectsDistincts).toHaveLength(4);
         expect(rectsDistincts).toContain('[0 0 0 0]');
+        expect(rectsDistincts).toContain(`[${SIGNATURE_WIDGET_RECTS.president.join(' ')}]`);
 
         // Les DEUX dates sont réglées ensemble : /M porte bien l'heure demandée.
         expect(report.signatures[0].signingTime).toContain('20260826090000');
@@ -419,13 +430,15 @@ describe('encodage du texte des signatures', () => {
 });
 
 describe('addSignatureFields', () => {
-    it('pose les trois champs sur le document non signé', async () => {
+    it('pose les quatre champs sur le document non signé, Signature4 en dernier', async () => {
         const prepared = await buildSignable(2);
         const texte = prepared.toString('latin1');
         for (const { name } of SIGNATURE_FIELDS) expect(texte).toContain(`/T (${name})`);
         expect(texte).toContain('/SigFlags 3');
         // Le champ du payeur existe mais n'a aucune surface.
         expect(texte).toContain('/Rect [ 0 0 0 0 ]');
+        // Ajouté EN DERNIER : les trois premiers gardent leur nom et leur rang.
+        expect(SIGNATURE_FIELDS.map(f => f.name)).toEqual(['Signature1', 'Signature2', 'Signature3', 'Signature4']);
     }, 20_000);
 
     it('refuse un document portant déjà un formulaire', async () => {

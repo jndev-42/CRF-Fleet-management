@@ -18,14 +18,20 @@ const ROLE_DESCRIPTIONS = [
     {
         key: 'PRESIDENT', label: 'Président', color: '#f97316',
         bgColor: 'rgba(249, 115, 22, 0.08)', borderColor: 'rgba(249, 115, 22, 0.25)',
-        description: 'Lecture seule de son UL. Peut valider les papiers et les notes de frais.',
-        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Validation et refus des notes de frais', 'Consulter les véhicules & missions', 'Consulter l\'inventaire'],
+        description: 'Lecture seule de son UL. Peut valider les papiers et les notes de frais. Ne peut pas créer de note de frais à son nom.',
+        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Validation finale et refus des notes de frais (signature et tampon de l\'UL)', 'Peut signer à la place du responsable d\'activité', 'Consulter les véhicules & missions', 'Consulter l\'inventaire'],
     },
     {
         key: 'TRESORIER', label: 'Trésorier', color: '#10b981',
         bgColor: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)',
         description: 'Gestion de la trésorerie et paiement des notes de frais.',
         permissions: ['Consultation des notes de frais en attente de paiement', 'Indiquer les notes de frais comme payées'],
+    },
+    {
+        key: 'RESPO', label: 'Responsable d\'activité', color: '#0ea5e9',
+        bgColor: 'rgba(14, 165, 233, 0.08)', borderColor: 'rgba(14, 165, 233, 0.25)',
+        description: 'Première validation des notes de frais de son UL, avant le président.',
+        permissions: ['Consultation des notes de frais soumises de son UL', 'Validation et refus des notes de frais (signature « Le responsable »)', 'Aucune validation de ses propres notes de frais'],
     },
     {
         key: 'CADRE', label: 'Cadre', color: '#eab308',

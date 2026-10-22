@@ -25,7 +25,13 @@ export class ConcurrentTransitionError extends PersistSealError {}
 
 export interface PersistOptions {
     reportId: string;
-    seal: SealResult;
+    /**
+     * Un scellement, ou une SUITE de scellements enchaînés en mémoire — chacun
+     * posé sur le buffer du précédent (signature combinée du président). Seul le
+     * dernier buffer, qui contient tous les autres, est écrit sur R2 ; toutes les
+     * révisions entrent au journal dans la même transaction.
+     */
+    seal: SealResult | SealResult[];
     /** Statut attendu AVANT la transition — garde contre la concurrence. */
     expectedStatus: string;
     /** Statut après la transition. */
@@ -40,10 +46,30 @@ export interface PersistOptions {
  * @throws {ConcurrentTransitionError} si le statut a changé entre-temps.
  */
 export async function persistSealed(opts: PersistOptions): Promise<void> {
-    const { reportId, seal, expectedStatus, nextStatus, extraColumns = {} } = opts;
+    const { reportId, expectedStatus, nextStatus } = opts;
+    const seals = Array.isArray(opts.seal) ? opts.seal : [opts.seal];
+    if (seals.length === 0) throw new PersistSealError('Aucun scellement à persister.');
+    const last = seals[seals.length - 1];
 
-    // 1. R2 d'abord : clé neuve, écriture non destructive.
-    await putObject(seal.key, seal.buffer);
+    // Une suite n'a de sens que si chaque buffer prolonge le précédent : sinon le
+    // document final ne contiendrait pas toutes les signatures journalisées.
+    for (let i = 1; i < seals.length; i++) {
+        const prev = seals[i - 1].buffer;
+        if (!seals[i].buffer.subarray(0, prev.length).equals(prev)) {
+            throw new PersistSealError('Suite de scellements incohérente : un buffer ne prolonge pas le précédent.');
+        }
+    }
+
+    // Colonnes portées par les scellements (ex. `workflowVersion`), puis celles de
+    // l'appelant, qui priment.
+    const extraColumns: Record<string, string | number | null> = {
+        ...Object.assign({}, ...seals.map(s => s.columns ?? {})),
+        ...(opts.extraColumns ?? {}),
+    };
+
+    // 1. R2 d'abord : clé neuve, écriture non destructive. Le dernier buffer
+    // contient tous les précédents.
+    await putObject(last.key, last.buffer);
 
     // 2. Base ensuite, dans une transaction.
     const tx = await db.transaction('write');
@@ -52,7 +78,12 @@ export async function persistSealed(opts: PersistOptions): Promise<void> {
             sql: `SELECT signatureRevisions FROM "ExpenseReport" WHERE id = ?`,
             args: [reportId],
         });
-        const revisions = appendRevision(current.rows[0]?.signatureRevisions, seal.revision);
+        // Seul le dernier buffer est écrit : chaque révision de la suite pointe
+        // donc vers sa clé, la seule qui existe sur R2.
+        const revisions = appendRevision(
+            current.rows[0]?.signatureRevisions,
+            ...seals.map(s => ({ ...s.revision, r2Key: last.key })),
+        );
 
         const extraKeys = Object.keys(extraColumns);
         const setClause = [
@@ -65,7 +96,7 @@ export async function persistSealed(opts: PersistOptions): Promise<void> {
             // ne modifie aucune ligne et sera rejeté ci-dessous.
             sql: `UPDATE "ExpenseReport" SET ${setClause} WHERE id = ? AND status = ?`,
             args: [
-                nextStatus, seal.key, revisions, new Date().toISOString(),
+                nextStatus, last.key, revisions, new Date().toISOString(),
                 ...extraKeys.map(k => extraColumns[k]),
                 reportId, expectedStatus,
             ],

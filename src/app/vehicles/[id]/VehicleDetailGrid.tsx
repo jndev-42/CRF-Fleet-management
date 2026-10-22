@@ -41,7 +41,7 @@ export default function VehicleDetailGrid({
                             ? `${renaultData.totalMileage.toLocaleString('fr-FR')} km`
                             : `${vehicle.mileage.toLocaleString('fr-FR')} km`
                 }
-                onEdit={(vehicle.connection == null && (userRoles.includes('ADMIN') || userRoles.includes('RESPO'))) ? onEditMetrics : undefined}
+                onEdit={(vehicle.connection == null && userRoles.includes('ADMIN')) ? onEditMetrics : undefined}
             />
             <DetailCard
                 title={vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}
@@ -57,7 +57,7 @@ export default function VehicleDetailGrid({
                     }
                     return `${vehicle.fuelLevel}%`;
                 })()}
-                onEdit={(vehicle.connection == null && (userRoles.includes('ADMIN') || userRoles.includes('RESPO'))) ? onEditMetrics : undefined}
+                onEdit={(vehicle.connection == null && userRoles.includes('ADMIN')) ? onEditMetrics : undefined}
             >
                 <FuelBar
                     level={(() => {

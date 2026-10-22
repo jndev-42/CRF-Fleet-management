@@ -253,7 +253,7 @@ async function postHandler(request: Request) {
                     const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
 
                     await sendPushNotification({
-                        roles: ['RESPO', 'ADMIN'],
+                        roles: ['PRESIDENT', 'CADRE', 'ADMIN'],
                         headings: { fr: `⚠️ Données incorrectes — ${vName}`, en: `⚠️ Incorrect data — ${vName}` },
                         contents: {
                             fr: `${driverDisplayName} a signalé des données incorrectes sur ${vName}. Km : ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel} : ${originalFuel}% → ${fuelOut}%.`,
@@ -276,7 +276,7 @@ async function postHandler(request: Request) {
                     const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
 
                     await sendPushNotification({
-                        roles: ['RESPO'],
+                        roles: ['PRESIDENT', 'CADRE'],
                         headings: { en: `🚨 Incident signalé à la prise de ${vName}`, fr: `🚨 Incident signalé à la prise de ${vName}` },
                         contents: {
                             en: `${driverDisplayName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,

@@ -293,9 +293,11 @@ export interface ExpensePdfReportProps {
     /**
      * Rendu destiné au SCELLEMENT cryptographique.
      *
-     * Dans ce mode, les zones d'image de signature des colonnes « Le demandeur »
-     * et « Le responsable » sont laissées VIDES : le visuel est fourni par les
-     * widgets de signature PDF (`/AP`), posés après coup par `sealing.ts`.
+     * Dans ce mode, les zones d'image de signature des colonnes « Le demandeur »,
+     * « Le responsable » et « Tampon de la structure » sont laissées VIDES : le
+     * visuel est fourni par les widgets de signature PDF (`/AP`), posés après
+     * coup par `sealing.ts`. Le tampon de l'UL n'est donc pas imprimé : il
+     * accompagne la signature du président, dans l'apparence de son widget.
      *
      * Sans ce drapeau, l'image serait rendue DEUX FOIS — une fois dans le contenu
      * par ce composant, une fois par le widget — et le décalage de mise en page
@@ -316,10 +318,17 @@ export interface ExpensePdfReportProps {
      * travers, et DocMDP le fige définitivement.
      */
     measureZones?: boolean;
+    /**
+     * Disposition de l'ancien circuit (v1) : la colonne « Tampon de la
+     * structure » imprime le tampon en contenu au lieu de réserver la zone du
+     * widget président. Réservé au scellement rétroactif
+     * (`scripts/backfill-signed-pdfs.ts`), qui ne pose que trois champs.
+     */
+    legacyLayout?: boolean;
 }
 
 export default function ExpensePdfDocument({
-    report, logoSrc, forSealing = false, measureZones = false,
+    report, logoSrc, forSealing = false, measureZones = false, legacyLayout = false,
 }: ExpensePdfReportProps) {
     /**
      * Aplat de repérage, à partir des composantes `scn` attendues par le script
@@ -561,7 +570,15 @@ export default function ExpensePdfDocument({
 
                     <View style={styles.colonneSignature}>
                         <Text style={styles.titreSignature}>Tampon de la structure :</Text>
-                        {report.ulStampImage ? (
+                        {forSealing && !legacyLayout ? (
+                            // Zone réservée au widget du président (rect
+                            // `president`, champ `Signature4`). Le tampon n'est
+                            // JAMAIS imprimé ici : il est apposé avec la signature
+                            // du président, dans l'apparence du widget. Imprimé dès
+                            // la soumission, il figurerait sur une note non validée,
+                            // figé par DocMDP.
+                            <View style={[styles.zoneTampon, reperage(MEASURE_ZONE_COLORS.president)]} />
+                        ) : report.ulStampImage ? (
                             <View style={styles.zoneTampon}>
                                 {/* eslint-disable-next-line jsx-a11y/alt-text */}
                                 <Image src={report.ulStampImage} style={styles.tamponImage} />
