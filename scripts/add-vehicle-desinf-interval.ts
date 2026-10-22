@@ -12,13 +12,21 @@
  * Idempotent. Usage :
  *   npx tsx scripts/add-vehicle-desinf-interval.ts            # dry-run, n'écrit rien
  *   npx tsx scripts/add-vehicle-desinf-interval.ts --apply    # applique, puis vérifie
+ *   npx tsx scripts/add-vehicle-desinf-interval.ts --env .env.preview --apply
  */
 import { createClient } from '@libsql/client';
-import "dotenv/config";
+import dotenv from 'dotenv';
+
+// Cible l'environnement passé en `--env` (défaut : .env).
+const envFile = (() => {
+    const i = process.argv.indexOf('--env');
+    return i !== -1 && process.argv[i + 1] ? process.argv[i + 1] : '.env';
+})();
+dotenv.config({ path: envFile });
 
 async function main() {
     const apply = process.argv.includes('--apply');
-    console.log(`Migration : Vehicle.desinfIntervalMonths ${apply ? '(--apply)' : '(dry-run)'}`);
+    console.log(`Migration (${envFile}) : Vehicle.desinfIntervalMonths ${apply ? '(--apply)' : '(dry-run)'}`);
 
     const db = createClient({
         url: process.env.TURSO_DATABASE_URL!,
