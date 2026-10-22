@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { DashboardSkeletons } from '@/components/ui/Skeleton';
@@ -49,6 +49,15 @@ function VehiclesPageContent() {
     ulKey: activeUL?.id,
   });
   const { vehicles, loading } = fleet;
+
+  // Le calendrier charge ses propres données : une réservation, un emprunt ou un retour
+  // fait depuis cette page doit aussi le rafraîchir, sinon il faut recharger la page.
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
+  const { refetch: refetchFleet } = fleet;
+  const refreshFleetAndCalendar = useCallback(() => {
+    refetchFleet();
+    setCalendarRefreshKey(k => k + 1);
+  }, [refetchFleet]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -128,7 +137,7 @@ function VehiclesPageContent() {
         currentUserEmail={session?.user?.email}
         isDtView={isDtView}
         vehiclesLoading={loading}
-        onCheckOutSuccess={fleet.refetch}
+        onCheckOutSuccess={refreshFleetAndCalendar}
       />
 
       <QuickReservationSection
@@ -137,7 +146,7 @@ function VehiclesPageContent() {
         currentUserEmail={session?.user?.email}
         isDtView={isDtView}
         vehiclesLoading={loading}
-        onReservationSuccess={fleet.refetch}
+        onReservationSuccess={refreshFleetAndCalendar}
       />
 
       <QuickReturnSection
@@ -145,12 +154,12 @@ function VehiclesPageContent() {
         currentUserEmail={session?.user?.email}
         currentUserUlId={activeUL?.id}
         isDtView={isDtView}
-        onCheckInSuccess={fleet.refetch}
+        onCheckInSuccess={refreshFleetAndCalendar}
       />
 
       <FleetStatsRow stats={stats} />
 
-      <VehicleCalendar dtView={isDtView} />
+      <VehicleCalendar dtView={isDtView} refreshKey={calendarRefreshKey} />
 
       <div className="section-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 className="section-title" style={{ margin: 0 }}>
@@ -280,7 +289,7 @@ function VehiclesPageContent() {
         onClose={() => setShowAddModal(false)}
         onSuccess={() => {
           setShowAddModal(false);
-          fleet.refetch();
+          refreshFleetAndCalendar();
         }}
       />
     </>

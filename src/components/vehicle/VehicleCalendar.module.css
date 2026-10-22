@@ -395,9 +395,17 @@
 
 .eventHeader {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.25rem;
+}
+
+/* « 07:00 → 18:00 » passe sous le nom du véhicule plutôt que de le tronquer. */
+.eventTime {
+  font-size: 0.65rem;
+  opacity: 0.8;
+  white-space: nowrap;
 }
 
 .eventVehicle {

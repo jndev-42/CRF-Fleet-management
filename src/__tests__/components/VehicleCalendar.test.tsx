@@ -220,6 +220,99 @@ describe('VehicleCalendar Component', () => {
 });
 
 
+// ── Horaires des événements sur plusieurs jours (issue #141) ──────────────────
+// Chaque case n'affiche que la portion du jour : « 07:00 → », « Journée », « → 07:00 ».
+describe('VehicleCalendar — événements sur plusieurs jours', () => {
+  const y = now.getFullYear();
+  const m = now.getMonth();
+
+  function payload(reservations: unknown[], trips: unknown[] = []) {
+    return { month: currentMonthStr, vehicles: mockCalendarData.vehicles, reservations, trips, maintenances: [] };
+  }
+
+  function reservation(id: string, start: Date, end: Date) {
+    return {
+      id, vehicleId: 'v-1', vehicleName: 'VSAV 01', vehiclePlate: 'AB-123-CD',
+      userEmail: 'jean@crf.fr', userName: 'Jean Dupont',
+      startTime: start.toISOString(), endTime: end.toISOString(),
+      reason: null, status: 'VALIDATED', createdAt: start.toISOString(),
+    };
+  }
+
+  function mockPayload(data: unknown) {
+    vi.spyOn(global, 'fetch').mockResolvedValue({ ok: true, json: async () => data } as Response);
+  }
+
+  beforeEach(() => {
+    localStorage.setItem('show_vehicle_calendar', 'true');
+  });
+
+  it('affiche l’heure de début le 1er jour, « Journée » ensuite, l’heure de fin le dernier jour', async () => {
+    mockPayload(payload([reservation('res-multi', new Date(y, m, 10, 7), new Date(y, m, 12, 7))]));
+
+    render(<VehicleCalendar />);
+
+    expect(await screen.findByText('07:00 →')).toBeTruthy();
+    expect(screen.getByText('Journée')).toBeTruthy();
+    expect(screen.getByText('→ 07:00')).toBeTruthy();
+    // L'heure de début ne se répète plus sur les jours suivants.
+    expect(screen.queryByText('07:00')).toBeNull();
+  });
+
+  it('applique la même règle aux emprunts terminés', async () => {
+    const out = new Date(y, m, 10, 18);
+    const back = new Date(y, m, 11, 9, 30);
+    mockPayload(payload([], [{
+      id: 'trip-done', vehicleId: 'v-1', vehicleName: 'VSAV 01', vehiclePlate: 'AB-123-CD',
+      driverName: 'Marie Curie', secondDriverName: null, missionType: 'Poste de secours', missionName: null,
+      checkOutAt: out.toISOString(), checkInAt: back.toISOString(), isOngoing: false, createdAt: out.toISOString(),
+    }]));
+
+    render(<VehicleCalendar />);
+
+    expect(await screen.findByText('18:00 →')).toBeTruthy();
+    expect(screen.getByText('→ 09:30')).toBeTruthy();
+  });
+
+  it('affiche « début → fin » pour une réservation sur un seul jour', async () => {
+    mockPayload(payload([reservation('res-day', new Date(y, m, 10, 7), new Date(y, m, 10, 18))]));
+
+    render(<VehicleCalendar />);
+
+    expect(await screen.findByText('07:00 → 18:00')).toBeTruthy();
+  });
+
+  it('affiche une réservation qui finit à 00:00 sur la veille seulement, en « 07:00 → 00:00 »', async () => {
+    mockPayload(payload([reservation('res-midnight', new Date(y, m, 10, 7), new Date(y, m, 11, 0))]));
+
+    render(<VehicleCalendar />);
+
+    expect(await screen.findByText('07:00 → 00:00')).toBeTruthy();
+    expect(screen.getAllByText(/Jean Dupont/)).toHaveLength(1);
+  });
+
+  it('se recharge sans écran de chargement quand `refreshKey` change', async () => {
+    const first = payload([]);
+    const second = payload([reservation('res-new', new Date(y, m, 10, 7), new Date(y, m, 10, 18))]);
+    const fetchSpy = vi.spyOn(global, 'fetch')
+      .mockResolvedValueOnce({ ok: true, json: async () => first } as Response)
+      .mockResolvedValueOnce({ ok: true, json: async () => second } as Response);
+
+    const { rerender } = render(<VehicleCalendar refreshKey={0} />);
+    await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.queryByText('Chargement du calendrier...')).toBeNull());
+
+    rerender(<VehicleCalendar refreshKey={1} />);
+
+    // La grille reste affichée pendant le rechargement…
+    expect(screen.queryByText('Chargement du calendrier...')).toBeNull();
+    // …et la nouvelle réservation apparaît sans recharger la page.
+    expect(await screen.findByText('07:00 → 18:00')).toBeTruthy();
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+
 // ── Actions de maintenance depuis le calendrier (étape 10) ────────────────────
 // Réservées à l'ADMIN, masquées en vue DT (lecture seule, véhicules d'autres ULs :
 // le serveur répondrait 403) et masquées sur une maintenance déjà terminée.
