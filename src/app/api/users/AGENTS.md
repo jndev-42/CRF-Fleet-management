@@ -4,12 +4,12 @@
 # users
 
 ## Purpose
-Manages user accounts, roles, and local unit (UL) assignments. Provides endpoints to list all users with optional role/vehicle-type filtering, create new users with initial roles, and bulk manage role assignments. All operations require ADMIN or RESPO authorization. Touches `User`, `UserRole`, `Role`, and `UserUL` tables.
+Manages user accounts, roles, and local unit (UL) assignments. Provides endpoints to list all users with optional role/vehicle-type filtering, create new users with initial roles, and bulk manage role assignments. GET requires `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE); POST requires `isAdminOrAbove`. Touches `User`, `UserRole`, `Role`, and `UserUL` tables.
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `route.ts` | GET (ADMIN/RESPO) list users with optional filters; POST (ADMIN) create user with roles |
+| `route.ts` | GET (`canAccessAdminPanel`) list users with optional filters; POST (ADMIN) create user with roles |
 
 ## Subdirectories
 - `[email]` — User-specific operations (role updates, deletion)
@@ -19,12 +19,12 @@ Manages user accounts, roles, and local unit (UL) assignments. Provides endpoint
 ## For AI Agents
 
 ### Working In This Directory
-**GET /api/users** — ADMIN or RESPO required. Returns all users with combined global + UL-home roles, optional filtering by `drivers=true` or `vehicleType=VPSP|VL`. Auto-seeds system roles into `Role` table. Response includes `availableRoles` list.
+**GET /api/users** — `canAccessAdminPanel` required (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE). Returns all users with combined global + UL-home roles, optional filtering by `drivers=true` or `vehicleType=VPSP|VL`. Auto-seeds system roles into `Role` table. Response includes `availableRoles` list.
 
 **POST /api/users** — ADMIN only. Creates new user with email, name, optional initial roles and UL assignment. Automatically sets `papiers_valides=0` and `start_date_invalidation_process` for new driver-role users. Returns `{ success: true, id, ulName }`.
 
 **Key business rules:**
-- Local admins (RESPO without SUPER_ADMIN) can only create/manage users in their own UL
+- Local admins (ADMIN without SUPER_ADMIN) can only create/manage users in their own UL
 - Driver role assignment (`CHVL`, `CHVPSP`) triggers paper invalidation if papers were never validated
 - `POST` always inserts the `UserUL` row with `is_home = 1`, so it can never produce a non-conforming row (INACTIF outside the home UL). Conformance by construction, pinned by a test rather than left accidental
 - All role assignments are normalised through `resolveRoles()`, which **preserves** INACTIF alongside active roles (it only maps the legacy `GUEST` to `INACTIF` and de-duplicates). Storage records what the administrator ticked; the runtime predicates (`isInactive`, `isQrBlocked`) derive the block from it, so unticking INACTIF restores the active roles without re-entering them.

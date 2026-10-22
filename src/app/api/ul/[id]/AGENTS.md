@@ -4,7 +4,7 @@
 # [id]
 
 ## Purpose
-Update or delete individual ULs. PATCH modifies UL metadata (name, slug, contacts, parking, stamp image, DT code); DELETE removes the UL. Permissions: SuperAdmin can edit/delete any UL; local admins (ADMIN/RESPO in their own UL) can only PATCH their own UL. Touches `UniteLocale` table.
+Update or delete individual ULs. PATCH modifies UL metadata (name, slug, contacts, parking, stamp image, DT code); DELETE removes the UL. Permissions: SuperAdmin can edit/delete any UL; local admins (`isAdminOrAbove`, i.e. ADMIN, whose active UL is the target) can only PATCH their own UL; DELETE is SUPER_ADMIN only. Touches `UniteLocale` table.
 
 ## Key Files
 | File | Description |

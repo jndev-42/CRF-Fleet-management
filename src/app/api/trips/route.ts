@@ -97,7 +97,7 @@ async function postHandler(request: Request) {
         // active maintenant n'est empruntable que par son détenteur — ou par un admin.
         //
         // Exception : une réservation « Chauffeur non décidé » n'a pas de détenteur
-        // opposable (son `userEmail` n'est que celui du RESPO qui l'a posée). Elle est
+        // opposable (son `userEmail` n'est que celui du gestionnaire (canAccessAdminPanel) qui l'a posée). Elle est
         // donc exclue de la recherche du `holder` : tout chauffeur éligible peut prendre
         // le véhicule sur le créneau. Le `!=` écarte aussi le créateur d'un privilège
         // qu'il n'a pas — il emprunte au même titre que les autres.

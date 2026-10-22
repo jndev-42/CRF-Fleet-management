@@ -4,7 +4,7 @@
 # [id]
 
 ## Purpose
-Update or delete individual banners. PATCH edits banner metadata (title, message, type, page target, visibility, links); DELETE removes a banner. Admin panel access required (RESPO and above). Non-SuperAdmin admins can only modify banners belonging to their UL or created by them. Touches `CommunicationBanner` table.
+Update or delete individual banners. PATCH edits banner metadata (title, message, type, page target, visibility, links); DELETE removes a banner. Admin panel access required (`canAccessAdminPanel`: SUPER_ADMIN, ADMIN, PRESIDENT, CADRE). Non-SuperAdmin admins can only modify banners belonging to their UL or created by them. Touches `CommunicationBanner` table.
 
 ## Key Files
 | File | Description |

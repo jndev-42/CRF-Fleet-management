@@ -34,7 +34,7 @@ Manages the fleet: list all vehicles for a user's UL (or DT if DT-role user), an
 **Key business rules:**
 - Vehicle status synced with active maintenance: if maintenance active and status ≠ IN_USE, sets to MAINTENANCE
 - Trips grouped by vehicle; returns current (unchecked-in) trip if exists
-- Local admins (RESPO) assigned to vehicle's UL
+- Non-SUPER_ADMIN admins (ADMIN) can only act on vehicles of their own UL
 - UL scope: users see only their UL's vehicles; DT users see all ULs under their DT code
 - DSA tracking initializes checklist for checkout flow
 - Desinfection tracking activates lot-number recording in trips

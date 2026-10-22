@@ -154,7 +154,7 @@ export async function GET(request: Request) {
 }
 
 /** POST /api/missions — Créer un compte rendu de mission.
- *  Accessible aux rôles CHVL, CHVPSP, RESPO, ADMIN. */
+ *  Accessible aux rôles ADMIN (et SUPER_ADMIN) et CI/RPAPS (`ALLOWED_ROLES`). */
 async function postHandler(request: Request) {
     try {
         const session = await auth();

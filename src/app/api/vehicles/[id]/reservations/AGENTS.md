@@ -4,7 +4,7 @@
 # vehicles/[id]/reservations
 
 ## Purpose
-Manages vehicle reservations: single-slot and recurring. Supports conflict detection (no overlapping VALIDATED or PENDING), automatic status based on role (ADMIN/RESPO auto-validates), and on-behalf-of/unassigned-driver options. Sends push notifications to admins/RESPO on pending reservations. Touches `Reservation` table.
+Manages vehicle reservations: single-slot and recurring. Supports conflict detection (no overlapping VALIDATED or PENDING), automatic status based on role (`canAccessAdminPanel` users auto-validate), and on-behalf-of/unassigned-driver options. Sends push notifications to ADMIN, PRESIDENT and CADRE on pending reservations. Touches `Reservation` table.
 
 ## Key Files
 | File | Description |
@@ -20,9 +20,9 @@ Manages vehicle reservations: single-slot and recurring. Supports conflict detec
 
 1. **Simple single reservation**: `{ startTime, endTime, reason?, onBehalfOfUserId?, isUnassignedDriver? }`
    - Validates: startTime < endTime, startTime in future
-   - Status: VALIDATED if user is ADMIN/RESPO/CADRE/PRESIDENT, else PENDING
+   - Status: VALIDATED if `canAccessAdminPanel` (SUPER_ADMIN/ADMIN/CADRE/PRESIDENT), else PENDING
    - Conflict check: blocks on any VALIDATED or PENDING overlap
-   - Non-ADMIN users cannot use `onBehalfOfUserId` or `isUnassignedDriver`
+   - Users failing `canAccessAdminPanel` cannot use `onBehalfOfUserId` or `isUnassignedDriver`
    - Returns `{ success: true, id, status }` 201
 
 2. **Recurring reservation**: `{ recurrence: { daysOfWeek: [0-6], startHour: "HH:mm", endHour: "HH:mm", firstOccurrenceDate: "YYYY-MM-DD", recurrenceEndDate: "YYYY-MM-DD", reason?, onBehalfOfUserId?, isUnassignedDriver? } }`
@@ -33,11 +33,11 @@ Manages vehicle reservations: single-slot and recurring. Supports conflict detec
    - Returns `{ success: true, groupId, status, created: N, skipped: [...dates] }` 201 or 409 if none created
 
 **Key business rules:**
-- Status auto-set: VALIDATED if canAccessAdminPanel OR (RESPO and not onBehalfOf), else PENDING
+- Status auto-set: VALIDATED if `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE), else PENDING
 - Conflict detection includes both VALIDATED and PENDING (blocks both)
 - `isUnassignedDriver` or `onBehalfOfUserId === 'UNASSIGNED'` → userName = "Chauffeur non décidé"
-- Only RESPO/ADMIN can reserve on behalf or mark unassigned
-- Push notifications sent to ADMIN and RESPO roles in a single `sendPushNotification` call (Web Push) — no duplicate for users holding both
+- Only `canAccessAdminPanel` users can reserve on behalf or mark unassigned
+- Push notifications sent to the ADMIN, PRESIDENT and CADRE roles of the vehicle's UL in a single `sendPushNotification` call (Web Push) — no duplicate for users holding several of them
 - Recurring: limit 6 months from today; first date must be future; at least one DOW required
 - Occurrence dates auto-skipped if already conflicted
 

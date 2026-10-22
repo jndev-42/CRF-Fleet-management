@@ -4,17 +4,17 @@
 # users/[email]/validate-papers
 
 ## Purpose
-Marks a driver's papers as validated, setting `papiers_valides=1`, recording validation date and validator name, and clearing any invalidation-process date. Used when admins approve driver compliance documentation. ADMIN/RESPO access only. Touches `User` table.
+Marks a driver's papers as validated, setting `papiers_valides=1`, recording validation date and validator name, and clearing any invalidation-process date. Used when admins approve driver compliance documentation. Requires `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE). Touches `User` table.
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `route.ts` | PATCH (ADMIN/RESPO) validate driver papers |
+| `route.ts` | PATCH (`canAccessAdminPanel`) validate driver papers |
 
 ## For AI Agents
 
 ### Working In This Directory
-**PATCH /api/users/[email]/validate-papers** — ADMIN/RESPO only. Marks papers valid for the user. Sets `papiers_valides=1`, `last_validation` to today (YYYY-MM-DD), `start_date_invalidation_process` to NULL, `validated_by` to session user's name or email. Returns `{ success: true, last_validation, validated_by }`. User must exist (404 if not found).
+**PATCH /api/users/[email]/validate-papers** — `canAccessAdminPanel` only (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE). Marks papers valid for the user. Sets `papiers_valides=1`, `last_validation` to today (YYYY-MM-DD), `start_date_invalidation_process` to NULL, `validated_by` to session user's name or email. Returns `{ success: true, last_validation, validated_by }`. User must exist (404 if not found).
 
 **Key business rules:**
 - Email parameter is from `[email]` route segment (not a URL query)

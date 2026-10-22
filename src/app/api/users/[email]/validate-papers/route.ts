@@ -8,7 +8,7 @@ import { withAudit } from '@/lib/audit/log';
 /** PATCH /api/users/[email]/validate-papers
  *
  * Marque les papiers d'un conducteur comme validés.
- * Accessible aux rôles ADMIN et RESPO uniquement.
+ * Accessible via `canAccessAdminPanel` uniquement (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE).
  *
  * Effets :
  * - papiers_valides = 1

@@ -4,7 +4,7 @@
 # expenses
 
 ## Purpose
-Expense report management (`/expenses`) — the *notes de frais* workflow. Volunteers create drafts, attach receipts, and submit them; Président/Super-Admin validate (with an electronic signature) or reject with a mandatory reason; Trésorier/Super-Admin mark validated reports as paid. Presents a sortable, paginated table with a detail sidebar, a receipt gallery (images + PDFs) with lightbox, and a per-report official PDF download.
+Expense report management (`/expenses`) — the *notes de frais* workflow. Volunteers create drafts, attach receipts, and submit them; a *responsable d'activité* (`RESPO`) signs the first validation step, then Président/Super-Admin finalise (electronic signature + UL stamp) or reject with a mandatory reason at either step; Trésorier/Super-Admin mark validated reports as paid. Presents a sortable, paginated table with a detail sidebar, a receipt gallery (images + PDFs) with lightbox, and a per-report official PDF download.
 
 ## Key Files
 | File | Description |
@@ -15,17 +15,18 @@ Expense report management (`/expenses`) — the *notes de frais* workflow. Volun
 
 ### Working In This Directory
 **Minimum role: any authenticated user** (unauthenticated → `/login`) — everyone can file their own reports. Three capability flags drive everything else:
-- `isManager` = `SUPER_ADMIN | PRESIDENT` → validate and reject.
+- `isManager` = `isExpenseManager` (`SUPER_ADMIN | PRESIDENT`) → acts at every validation stage.
+- `isRespo` = `canValidateExpenseAsRespo` and not `isManager` (`RESPO`) → sees the non-draft reports of the active UL and signs only the RESPO stage (new `workflowVersion` 2 reports: `soumis` → RESPO → `valide_respo` → président). A RESPO has no right to the président stage, and nobody signs their own report. When a président/super admin validates a `soumis` v2 report, both steps are signed at once.
 - `isTresorier` = `TRESORIER` → sees the UL payment queue.
 - `canPay` = `TRESORIER | SUPER_ADMIN` → the "Indiquer comme payée" action.
 
-Note these are inline `roles.includes(...)` checks; this page does **not** use the `@/lib/roles` helpers.
+The flags come from the `@/lib/roles` helpers (`isExpenseManager`, `canValidateExpenseAsRespo`, `canPayExpense`, `isTresorier`); the stage rules are in `@/lib/expenses/workflow.ts` (`validationStage`, `canSignStage`, `signsBothSteps`).
 
-**Status machine** — `brouillon → soumis → en_attente_paiement → traité`, with `refusé` as a terminal branch. Every action is gated on both status and role, and the same gate is duplicated in the table row and the sidebar; change both together:
+**Status machine** — `brouillon → soumis → (valide_respo, v2 only) → en_attente_paiement → traité`, with `refusé` as a terminal branch. Every action is gated on both status and role, and the same gate is duplicated in the table row and the sidebar; change both together:
 | Action | Requires |
 |--------|----------|
 | Edit / Submit / Delete | `brouillon` **and** `report.userId === session.user.id` (authors only — managers cannot edit someone's draft) |
-| Validate / Reject | `soumis` and `isManager` |
+| Validate / Reject | `soumis` + `canSignStage(roles, 'respo' or 'legacy')` (RESPO or manager for v2; manager only for v1), `valide_respo` + `isManager`; never on one's own report |
 | Mark paid | `en_attente_paiement` and `canPay` |
 | PDF download | any status except `brouillon` |
 
