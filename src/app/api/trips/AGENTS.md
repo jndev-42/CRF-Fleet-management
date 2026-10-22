@@ -23,7 +23,7 @@ Container directory for trip (vehicle checkout/checkin) lifecycle management. Pr
   - Validates role+vehicle type permissions: ADMIN can borrow any, CHVPSP only VPSP vehicles, CHVL only non-VPSP
   - Désinfection mission only allowed on VPSP vehicles
   - Fetches live Renault data if the vehicle is connected (`isConnectedInDb(vehicle.id)`); auto-detects mileage and fuel level
-  - Allows driver to override with `correctedMileage`/`correctedFuel` for non-connected vehicles (sends push notification to RESPO)
+  - Allows driver to override with `correctedMileage`/`correctedFuel` for non-connected vehicles (sends push notification to PRESIDENT, CADRE and ADMIN)
   - Creates Trip record, updates Vehicle status to IN_USE, auto-deletes active reservation if user is taking reserved vehicle
   - Sends push notifications for incident conditions or data discrepancies
   - Returns 201 with Trip object including updated Vehicle details

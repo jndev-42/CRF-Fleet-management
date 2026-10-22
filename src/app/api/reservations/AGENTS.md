@@ -4,7 +4,7 @@
 # Reservations
 
 ## Purpose
-Container for vehicle reservation endpoints. Manages vehicle booking lifecycle: creating, updating, validating, and deleting individual or recurring reservations. Enforcement: owner can edit/delete own; RESPO/ADMIN can manage all. Recurrence logic deferred to `recurrence/[groupId]` for bulk validation/cancellation.
+Container for vehicle reservation endpoints. Manages vehicle booking lifecycle: creating, updating, validating, and deleting individual or recurring reservations. Enforcement: owner can edit/delete own; anyone passing `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE) can manage all. Recurrence logic deferred to `recurrence/[groupId]` for bulk validation/cancellation.
 
 ## Subdirectories
 - `[id]/` — manage individual reservation (GET → [not implemented], DELETE, PATCH/PUT)

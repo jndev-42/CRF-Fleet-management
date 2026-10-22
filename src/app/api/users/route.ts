@@ -14,7 +14,7 @@ const createUserSchema = z.object({
     ulId: z.string().optional().nullable(),
 });
 
-/** GET /api/users — ADMIN ou RESPO : liste tous les utilisateurs avec leurs rôles.
+/** GET /api/users — `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE) : liste tous les utilisateurs avec leurs rôles.
  *  ?drivers=true  → retourne uniquement les utilisateurs ayant le rôle CHVL ou CHVPSP */
 export async function GET(request: Request) {
     try {

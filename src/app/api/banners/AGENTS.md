@@ -4,7 +4,7 @@
 # banners
 
 ## Purpose
-Manages communication banners (site-wide announcements). Supports display across pages (ALL, VEHICLES, MISSIONS, INVENTORY), types (info, warning, danger, success), and scoping to specific UL or global. Admins (RESPO, CHVL, CHVPSP) can create/edit banners for their UL; SuperAdmin can create global banners. Standard users fetch active banners for their UL only. Touches `CommunicationBanner` table. Lazy-initializes `link_url` and `link_label` columns on first use.
+Manages communication banners (site-wide announcements). Supports display across pages (ALL, VEHICLES, MISSIONS, INVENTORY), types (info, warning, danger, success), and scoping to specific UL or global. Users passing `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE) can create/edit banners for their UL; only SUPER_ADMIN can create global banners. Standard users fetch active banners for their UL only. Touches `CommunicationBanner` table. Lazy-initializes `link_url` and `link_label` columns on first use.
 
 ## Key Files
 | File | Description |

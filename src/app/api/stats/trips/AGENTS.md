@@ -4,33 +4,32 @@
 # stats/trips
 
 ## Purpose
-Dedicated trip statistics query endpoint. Returns raw trip records with related vehicle and user data for a given date range. Requires admin/respo roles to view all trips.
+Dedicated trip statistics query endpoint. Returns raw trip records with related vehicle and user data for a given date range. Any authenticated non-INACTIF user can call it; results are scoped to the session's active UL.
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `route.ts` | GET: fetch all trips in date range; roles: ADMIN, RESPO |
+| `route.ts` | GET: fetch all trips in date range; any non-INACTIF role (`isInactive` check only) |
 
 ## For AI Agents
 
 ### Working In This Directory
 - GET accepts query params: `dateFrom`, `dateTo` (required, no filtering beyond these)
-- Access restricted to: ADMIN or RESPO roles (checked via `canAccessAdminPanel()`)
+- Access restricted to non-inactive users (checked via `isInactive()`); no admin-panel role is required
 - Date range validation: max 62 days, dateFrom must be before dateTo (consistent with /api/stats)
 - Returns empty array if user's ulId is null or 'default'
 - Queries Trip + Vehicle + User tables filtered by ulId and date range
 - Response shape: `{ trips: [...] }` with full trip + driver/vehicle details
 
 ### Non-obvious Details
-- Uses `canAccessAdminPanel()` role check instead of simple role inclusion check
-- Uses `isInactive()` in addition to the role check (must pass both). `isInactive()` is **dominant**: `['INACTIF','CHVL']` is denied
+- The only role gate is `isInactive()`. It is **dominant**: `['INACTIF','CHVL']` is denied
 - Filters by vehicle's ulId (not explicit trip field)
 - Returns raw DB rows, not a deduplicated or aggregated dataset
 
 ## Dependencies
 
 ### Internal
-- `@/lib/roles` — `isInactive()`, `canAccessAdminPanel()` functions
+- `@/lib/roles` — `isInactive()` function
 - `@/lib/db` — Trip, Vehicle, User queries
 - Trip columns: id, checkOutAt, checkInAt, driverId, secondDriverId, vehicleId, missionType, missionName, mileageOut/In, fuelOut/In, conditionOut/In, cleanlinessOut/In, parkingOut/In, dsaChecked, incident, commentsOut/In
 

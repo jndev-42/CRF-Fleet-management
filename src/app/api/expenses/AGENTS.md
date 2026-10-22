@@ -23,19 +23,19 @@ Expense report CRUD operations. Lists expense reports (filtered by user, unit le
 **GET:** Lists expense reports with role-based scope.
 - `scope` query param: `'my'` (default if not manager/treasurer) or `'ul'` (unit-level)
 - `includeProcessed` query param: `'true'` to include paid/rejected reports (managers only)
-- Roles: `SUPER_ADMIN`, `PRESIDENT` (managers), `TRESORIER` (treasurer), or owner (their own)
+- Roles: `SUPER_ADMIN`, `PRESIDENT` (managers, `isExpenseManager`), `RESPO` (`canValidateExpenseAsRespo` without manager role: sees the `soumis`/`valide_respo` reports of its UL, plus `en_attente_paiement` if also TRESORIER), `TRESORIER` (treasurer), or owner (their own)
 - Returns: array of reports with user, validator, rejector, payer metadata
 
 **POST:** Create new expense report (draft or immediate submit).
 - Requires Zod schema: status (`'brouillon'` or `'soumis'`), imputation enum, items array (label + amount), optional signatures/driveFolderId
 - Min 1 item required, amounts must be positive
 - Calculates total from items
-- If status = `'soumis'`: sends push notification to PRESIDENT role
+- If status = `'soumis'`: sends push notification to the RESPO and PRESIDENT roles of the UL
 - Returns: `{ success: true, id }`
 
 **DB tables:** ExpenseReport, User
 
-**Side effects:** Push notifications (Web Push) to PRESIDENT on submit.
+**Side effects:** Push notifications (Web Push) to RESPO and PRESIDENT on submit (after the RESPO signs, only the président is notified).
 
 ## Dependencies
 

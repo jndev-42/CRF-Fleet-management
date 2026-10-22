@@ -32,7 +32,7 @@ export default function LicenseBanner() {
         // Immediately mark as validated when papers are validated in the same tab
         const onValidated = () => setLicenseStatus({ validated: true, daysLeft: null, blocked: false });
 
-        // Re-fetch when tab becomes visible (handles cross-session validation by RESPO/ADMIN)
+        // Re-fetch when tab becomes visible (handles cross-session validation by an admin-panel role (canAccessAdminPanel))
         const onVisibility = () => { if (!document.hidden) fetchStatus(); };
 
         fetchStatus();

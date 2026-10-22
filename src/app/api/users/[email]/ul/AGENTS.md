@@ -9,16 +9,16 @@ Manages a user's local unit (UL) assignments and UL-scoped roles. Supports singl
 ## Key Files
 | File | Description |
 |------|-------------|
-| `route.ts` | GET (ADMIN/RESPO) fetch user's ULs; PATCH (ADMIN) add/remove single UL; PUT (ADMIN) bulk sync all ULs |
+| `route.ts` | GET (`canAccessAdminPanel`) fetch user's ULs; PATCH (`isAdminOrAbove`) add/remove single UL; PUT (`isAdminOrAbove`) bulk sync all ULs |
 
 ## For AI Agents
 
 ### Working In This Directory
-**GET /api/users/[email]/ul** — ADMIN/RESPO only. Returns user's UL memberships with roles per UL. Response maps `is_home: 1|0` to `isHome` boolean; roles are split from comma-separated string.
+**GET /api/users/[email]/ul** — `canAccessAdminPanel` only (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE). Returns user's UL memberships with roles per UL. Response maps `is_home: 1|0` to `isHome` boolean; roles are split from comma-separated string.
 
-**PATCH /api/users/[email]/ul** — ADMIN/RESPO only. Single UL operation: `action: 'add'|'remove'`, `ulId`, `isHome` boolean. If adding with `isHome=true`, removes prior home UL. If removing home UL, just deletes the link. Local admins restricted to their own UL. Returns `{ success: true }`.
+**PATCH /api/users/[email]/ul** — `isAdminOrAbove` only (SUPER_ADMIN, ADMIN). Single UL operation: `action: 'add'|'remove'`, `ulId`, `isHome` boolean. If adding with `isHome=true`, removes prior home UL. If removing home UL, just deletes the link. Local admins restricted to their own UL. Returns `{ success: true }`.
 
-**PUT /api/users/[email]/ul** — ADMIN/RESPO only. Bulk synchronize all UL assignments in one request. Payload: `{ uls: [ { ulId, isHome, roles: [...] }, ... ] }`. Local admins cannot modify other ULs (merges keep other UL entries intact, only modifies their own). Syncs global `UserRole` table if updating home UL. Returns `{ success: true }`.
+**PUT /api/users/[email]/ul** — `isAdminOrAbove` only (SUPER_ADMIN, ADMIN). Bulk synchronize all UL assignments in one request. Payload: `{ uls: [ { ulId, isHome, roles: [...] }, ... ] }`. Local admins cannot modify other ULs (merges keep other UL entries intact, only modifies their own). Syncs global `UserRole` table if updating home UL. Returns `{ success: true }`.
 
 **INACTIF is restricted to the home UL.** A `PUT` carrying `INACTIF` (or the legacy `GUEST`) on an entry with `isHome: false` is rejected with **400** before the transaction opens. Reason: the session reads the INACTIF flag from the home row ∪ global roles, and `UserRole` is only fed from the home entry — posted anywhere else, the block would be intermittent and would never reach the global roles.
 

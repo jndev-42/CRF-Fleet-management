@@ -38,7 +38,7 @@ Data flow — several interlocking effects:
 - Renault telemetry: `GET /api/renault/{vin}` once per VIN, guarded by `!renaultData`.
 - **Self-healing effect:** if any completed trip has `renaultDataValidated === 0`, the page `PATCH`es `/api/trips/{id}/refresh-renault` and refetches when the response reports `validated`. This runs on every `vehicle` change — keep the `validated` guard or it will loop.
 
-Fuel display: electric vehicles show `batteryLevel` directly; combustion vehicles convert `fuelQuantity` to a percentage against `vehicle.maxFuelCapacity ?? 50` litres, clamped to 100. Both fall back to the stored `fuelLevel`. Manual metric editing (`EditMetricsModal`) is offered **only when the vehicle has no VIN** — telemetry-backed vehicles must not be hand-edited — and only to ADMIN or RESPO.
+Fuel display: electric vehicles show `batteryLevel` directly; combustion vehicles convert `fuelQuantity` to a percentage against `vehicle.maxFuelCapacity ?? 50` litres, clamped to 100. Both fall back to the stored `fuelLevel`. Manual metric editing (`EditMetricsModal`) is offered **only when the vehicle has no VIN** — telemetry-backed vehicles must not be hand-edited — and only to ADMIN (the UI checks `userRoles.includes('ADMIN')` in `VehicleDetailGrid`; the `PATCH /metrics` API itself accepts `canAccessAdminPanel`).
 
 VPSP disinfection card colour-codes `nextDesinfMaxDate`: red when overdue (with day count), orange within 14 days, green beyond. Non-VPSP vehicles show a simpler card when `desinfTracking` is on. The two are mutually exclusive by construction.
 

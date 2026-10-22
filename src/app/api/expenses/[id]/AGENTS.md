@@ -4,7 +4,7 @@
 # [id]
 
 ## Purpose
-Single expense report retrieval and state management. GET fetches report with full metadata (submitter, validator, rejector, payer names). PATCH handles state transitions and role-gated actions: owner edits drafts, manager validates/rejects, treasurer marks paid. DELETE removes draft reports (owner or super admin only).
+Single expense report retrieval and state management. GET fetches report with full metadata (submitter, validator, rejector, payer names). PATCH handles state transitions and role-gated actions: owner edits drafts, RESPO signs the first validation step (v2 reports), manager (président/super admin) finalises or rejects at any stage, treasurer marks paid. DELETE removes draft reports (owner or super admin only).
 
 ## Key Files
 | File | Description |
@@ -17,14 +17,14 @@ Single expense report retrieval and state management. GET fetches report with fu
 
 **GET:**
 - Returns full report with all metadata and joined user names (submitter, validator, rejector, payer)
-- Access: owner, manager (SUPER_ADMIN/PRESIDENT), or treasurer viewing 'en_attente_paiement' status
+- Access (`canViewExpense`): owner, manager (SUPER_ADMIN/PRESIDENT), RESPO for non-draft reports of its active UL, or treasurer viewing 'en_attente_paiement' status
 - Returns 403 if insufficient access
 
 **PATCH:** State machine with action-driven transitions.
 - Action enum: `'update'`, `'submit'`, `'validate'`, `'reject'`, `'pay'`
-- `'update'` / `'submit'`: owner-only, draft-only. Can modify items, imputation, signatures. Submit triggers notification to PRESIDENT.
-- `'validate'`: manager-only, submitted-only. Moves to 'en_attente_paiement' (if refund requested) or 'traité'. Sends notification to TRESORIER if awaiting payment.
-- `'reject'`: manager-only, submitted-only. Requires `rejectionComment` (mandatory). Moves to 'refusé'.
+- `'update'` / `'submit'`: owner-only, draft-only. Can modify items, imputation, signatures. Submit triggers notification to the RESPO and PRESIDENT roles of the UL.
+- `'validate'`: `soumis` v2 report → a RESPO moves it to `valide_respo`, whereas a manager signs both steps at once (`signsBothSteps`); `valide_respo` → manager only (`canSignStage`); a v1 report is manager-only. Nobody validates their own report (403). The final step moves to 'en_attente_paiement' (if refund requested) or 'traité'. Sends notification to TRESORIER if awaiting payment.
+- `'reject'`: allowed to whoever can sign the current stage (RESPO at the RESPO stage, manager at any), never on one's own report. Requires `rejectionComment` (mandatory). Moves to 'refusé'.
 - `'pay'`: treasurer or super admin only, awaiting-payment-only. Moves to 'traité'.
 - Returns: `{ success: true, status }`
 
