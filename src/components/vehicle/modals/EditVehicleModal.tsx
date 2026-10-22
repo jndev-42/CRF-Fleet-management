@@ -26,6 +26,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
         transmission: vehicle.transmission || 'Manuelle',
         hasDSA: !!vehicle.hasDSA,
         desinfTracking: !!vehicle.desinfTracking,
+        desinfIntervalMonths: vehicle.desinfIntervalMonths ?? 3,
         notes: vehicle.notes || '',
         maxFuelCapacity: vehicle.maxFuelCapacity ? String(vehicle.maxFuelCapacity) : '',
         maxBatteryCapacityKwh: vehicle.maxBatteryCapacityKwh ? String(vehicle.maxBatteryCapacityKwh) : '',
@@ -76,6 +77,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
             transmission: vehicle.transmission || 'Manuelle',
             hasDSA: !!vehicle.hasDSA,
             desinfTracking: !!vehicle.desinfTracking,
+            desinfIntervalMonths: vehicle.desinfIntervalMonths ?? 3,
             notes: vehicle.notes || '',
             maxFuelCapacity: vehicle.maxFuelCapacity ? String(vehicle.maxFuelCapacity) : '',
             maxBatteryCapacityKwh: vehicle.maxBatteryCapacityKwh ? String(vehicle.maxBatteryCapacityKwh) : '',
@@ -107,6 +109,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
             transmission: form.transmission,
             hasDSA: form.hasDSA,
             desinfTracking: form.desinfTracking,
+            desinfIntervalMonths: form.type.toUpperCase().includes('VPSP') ? form.desinfIntervalMonths : undefined,
             notes: form.notes.trim() || null,
             maxFuelCapacity: form.maxFuelCapacity ? parseInt(form.maxFuelCapacity) || null : null,
             maxBatteryCapacityKwh: form.maxBatteryCapacityKwh ? parseInt(form.maxBatteryCapacityKwh) || null : null,
@@ -306,6 +309,21 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
                                 <span style={{ fontSize: 14, fontWeight: 500 }}>🫀 Le véhicule est équipé d&apos;un DSA</span>
                             </label>
                         </div>
+                        {form.type.toUpperCase().includes('VPSP') && (
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="desinfIntervalMonths">Désinfection tous les…</label>
+                                <select
+                                    id="desinfIntervalMonths"
+                                    className="form-select"
+                                    value={form.desinfIntervalMonths}
+                                    onChange={(e) => setForm({ ...form, desinfIntervalMonths: Number(e.target.value) })}
+                                >
+                                    <option value={1}>1 mois</option>
+                                    <option value={2}>2 mois</option>
+                                    <option value={3}>3 mois</option>
+                                </select>
+                            </div>
+                        )}
                         {!form.type.toUpperCase().includes('VPSP') && (
                             <div className="form-group">
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: `1px solid ${form.desinfTracking ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-primary)'}` }}>

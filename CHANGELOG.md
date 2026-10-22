@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.26.0] — 22 octobre 2026
+
+### ✨ Nouveautés
+
+- **Périodicité de désinfection des VPSP réglable** — la prochaine désinfection d'un VPSP est désormais prévue 3 mois après la dernière (au lieu de 42 jours). Le choix « Désinfection tous les… 1, 2 ou 3 mois » est disponible pour chaque VPSP dans les fenêtres de création et d'édition du véhicule ; modifier la périodicité met aussitôt à jour la date de prochaine désinfection. Les échéances existantes sont recalculées à 3 mois après la dernière désinfection : un VPSP affiché « En retard » peut donc redevenir à jour.
+
 ## [5.25.2] — 17 octobre 2026
 
 ### 🐛 Corrections

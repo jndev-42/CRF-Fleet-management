@@ -65,6 +65,8 @@ export interface Vehicle {
     hasDSA: boolean;
     /** Suivi de désinfection activé (uniquement pour les véhicules non-VPSP) */
     desinfTracking: boolean;
+    /** Périodicité de désinfection en mois (1, 2 ou 3 — défaut 3), utilisée pour les VPSP */
+    desinfIntervalMonths: number;
     notes: string | null;
     vin: string | null;
     /**
@@ -79,7 +81,7 @@ export interface Vehicle {
     maxBatteryCapacityKwh: number | null;
     /** Date (YYYY-MM-DD) de la dernière désinfection — uniquement pour les VPSP */
     lastDesinfDate: string | null;
-    /** Date (YYYY-MM-DD) max avant la prochaine désinfection = lastDesinfDate + 42 jours */
+    /** Date (YYYY-MM-DD) max avant la prochaine désinfection = lastDesinfDate + desinfIntervalMonths mois */
     nextDesinfMaxDate: string | null;
     /** Date (YYYY-MM-DD) de la première immatriculation */
     firstRegistrationDate: string | null;

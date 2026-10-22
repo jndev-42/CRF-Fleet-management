@@ -17,6 +17,7 @@ const createVehicleSchema = z.object({
     mileage: z.number().min(0),
     hasDSA: z.boolean().default(false),
     desinfTracking: z.boolean().default(false),
+    desinfIntervalMonths: z.union([z.literal(1), z.literal(2), z.literal(3)]).default(3),
     notes: z.string().optional().nullable(),
     fuelType: z.string().optional().nullable(),
     transmission: z.enum(['Manuelle', 'Automatique']).optional().nullable(),
@@ -330,8 +331,8 @@ async function postHandler(request: Request) {
         const ulId = userUlId && userUlId !== 'default' ? userUlId : null;
 
         await db.execute({
-            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, desinfTracking, notes, vin, fuelType, transmission, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId, createdAt, updatedAt)
-                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO Vehicle (id, name, type, plate, status, parkingSpot, fuelLevel, mileage, hasDSA, desinfTracking, desinfIntervalMonths, notes, vin, fuelType, transmission, maxFuelCapacity, maxBatteryCapacityKwh, firstRegistrationDate, revisionKmInterval, revisionYearInterval, ulId, createdAt, updatedAt)
+                  VALUES (?, ?, ?, ?, 'AVAILABLE', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 id,
                 data.name,
@@ -342,6 +343,7 @@ async function postHandler(request: Request) {
                 data.mileage,
                 data.hasDSA ? 1 : 0,
                 data.desinfTracking ? 1 : 0,
+                data.desinfIntervalMonths,
                 data.notes ?? null,
                 null, // vin : écrit uniquement par le flux de connexion du véhicule
                 data.fuelType ?? null,
@@ -369,6 +371,7 @@ async function postHandler(request: Request) {
             mileage: data.mileage,
             hasDSA: data.hasDSA,
             desinfTracking: data.desinfTracking,
+            desinfIntervalMonths: data.desinfIntervalMonths,
             notes: data.notes || null,
             fuelType: data.fuelType ?? null,
             transmission: data.transmission ?? null,

@@ -238,7 +238,7 @@ describe('QR Code API Flow', () => {
   });
 
   it('POST /api/qr/[token]/checkin saves checklistIn and desinf fields', async () => {
-    await seedVehicle({ id: 'VPSP02', name: 'VPSP 02', type: 'VPSP', status: 'AVAILABLE', qrToken: 'token-vpsp-02' });
+    await seedVehicle({ id: 'VPSP02', name: 'VPSP 02', type: 'VPSP', status: 'AVAILABLE', qrToken: 'token-vpsp-02', desinfIntervalMonths: 1 });
 
     // Checkout first as Désinfection mission
     const checkoutReq = new Request('http://localhost/api/qr/token-vpsp-02/checkout', {
@@ -281,11 +281,13 @@ describe('QR Code API Flow', () => {
 
     // Verify Vehicle updated lastDesinfDate
     const vRes = await db.execute({
-      sql: `SELECT status, lastDesinfDate FROM Vehicle WHERE id = 'VPSP02'`,
+      sql: `SELECT status, lastDesinfDate, nextDesinfMaxDate, date(lastDesinfDate, '+1 months') AS expected FROM Vehicle WHERE id = 'VPSP02'`,
       args: [],
     });
     expect(vRes.rows[0].status).toBe('AVAILABLE');
     expect(vRes.rows[0].lastDesinfDate).not.toBeNull();
+    // Périodicité du véhicule : 1 mois
+    expect(vRes.rows[0].nextDesinfMaxDate).toBe(vRes.rows[0].expected);
   });
 
   /** Ouvre un emprunt via le parcours QR et renvoie le trajet créé. */

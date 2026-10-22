@@ -34,7 +34,7 @@ vi.mock('@/auth', () => ({ auth: vi.fn() }));
 vi.mock('@/lib/drive', () => ({ deleteDriveFolder: vi.fn() }));
 
 import { POST } from '@/app/api/vehicles/route';
-import { PATCH } from '@/app/api/vehicles/[id]/route';
+import { GET, PATCH } from '@/app/api/vehicles/[id]/route';
 import { auth } from '@/auth';
 import { db } from './setup';
 import { seedVehicle } from './setup';
@@ -449,5 +449,69 @@ describe('PATCH /api/vehicles/[id] — mise à jour transmission', () => {
       { params: Promise.resolve({ id: 'VL186' }) }
     );
     expect(res.status).toBe(400);
+  });
+});
+
+describe('desinfIntervalMonths — périodicité de désinfection VPSP', () => {
+  const asAdmin = () => mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
+
+  it('POST : vaut 3 par défaut', async () => {
+    asAdmin();
+    const res = await POST(makePostRequest({ ...validVehicleBody, name: 'VPSP 1', type: 'VPSP (Ambulance)' }));
+    expect(res.status).toBe(201);
+    const body = await res.json() as { desinfIntervalMonths: number };
+    expect(body.desinfIntervalMonths).toBe(3);
+    const row = await db.execute({ sql: `SELECT desinfIntervalMonths FROM "Vehicle" WHERE name = ?`, args: ['VPSP 1'] });
+    expect(row.rows[0].desinfIntervalMonths).toBe(3);
+  });
+
+  it('POST : enregistre la valeur fournie (2)', async () => {
+    asAdmin();
+    const res = await POST(makePostRequest({ ...validVehicleBody, name: 'VPSP 2', type: 'VPSP (Ambulance)', desinfIntervalMonths: 2 }));
+    expect(res.status).toBe(201);
+    const row = await db.execute({ sql: `SELECT desinfIntervalMonths FROM "Vehicle" WHERE name = ?`, args: ['VPSP 2'] });
+    expect(row.rows[0].desinfIntervalMonths).toBe(2);
+  });
+
+  it.each([0, 4])('POST : 400 si desinfIntervalMonths vaut %i', async (value) => {
+    asAdmin();
+    const res = await POST(makePostRequest({ ...validVehicleBody, desinfIntervalMonths: value }));
+    expect(res.status).toBe(400);
+  });
+
+  it.each([0, 4])('PATCH : 400 si desinfIntervalMonths vaut %i', async (value) => {
+    asAdmin();
+    await seedVehicle({ id: 'VPSP001', name: 'VL186', type: 'VPSP' });
+    const res = await PATCH(makePatchRequest({ desinfIntervalMonths: value }), { params: Promise.resolve({ id: 'VL186' }) });
+    expect(res.status).toBe(400);
+  });
+
+  it('PATCH : recalcule l\'échéance depuis lastDesinfDate', async () => {
+    asAdmin();
+    await seedVehicle({ id: 'VPSP001', name: 'VL186', type: 'VPSP', lastDesinfDate: '2026-09-01', nextDesinfMaxDate: '2026-12-01' });
+    const res = await PATCH(makePatchRequest({ desinfIntervalMonths: 1 }), { params: Promise.resolve({ id: 'VL186' }) });
+    expect(res.status).toBe(200);
+    const row = await db.execute({ sql: `SELECT desinfIntervalMonths, nextDesinfMaxDate FROM "Vehicle" WHERE name = ?`, args: ['VL186'] });
+    expect(row.rows[0].desinfIntervalMonths).toBe(1);
+    expect(row.rows[0].nextDesinfMaxDate).toBe('2026-10-01');
+  });
+
+  it('GET : expose desinfIntervalMonths', async () => {
+    asAdmin();
+    await seedVehicle({ id: 'VPSP001', name: 'VL186', type: 'VPSP', desinfIntervalMonths: 1 });
+    const res = await GET(new Request('http://localhost/api/vehicles/VL186'), { params: Promise.resolve({ id: 'VL186' }) });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { desinfIntervalMonths: number };
+    expect(body.desinfIntervalMonths).toBe(1);
+  });
+
+  it('PATCH : laisse l\'échéance à NULL sans désinfection enregistrée', async () => {
+    asAdmin();
+    await seedVehicle({ id: 'VPSP001', name: 'VL186', type: 'VPSP' });
+    const res = await PATCH(makePatchRequest({ desinfIntervalMonths: 2 }), { params: Promise.resolve({ id: 'VL186' }) });
+    expect(res.status).toBe(200);
+    const row = await db.execute({ sql: `SELECT desinfIntervalMonths, nextDesinfMaxDate FROM "Vehicle" WHERE name = ?`, args: ['VL186'] });
+    expect(row.rows[0].desinfIntervalMonths).toBe(2);
+    expect(row.rows[0].nextDesinfMaxDate).toBeNull();
   });
 });

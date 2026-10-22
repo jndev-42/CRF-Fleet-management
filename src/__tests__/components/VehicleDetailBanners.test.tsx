@@ -39,6 +39,7 @@ const baseVehicle: Vehicle = {
     mileage: 12000,
     hasDSA: false,
     desinfTracking: false,
+    desinfIntervalMonths: 3,
     notes: null,
     vin: null,
     connection: null,

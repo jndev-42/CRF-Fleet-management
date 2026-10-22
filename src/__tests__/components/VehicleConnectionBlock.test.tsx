@@ -5,7 +5,7 @@ import type { Vehicle } from '@/app/vehicles/[id]/types';
 
 const baseVehicle: Vehicle = {
     id: 'uuid-1', name: 'VL186', type: 'VL', plate: 'HJ-269-FE', status: 'AVAILABLE',
-    parkingSpot: null, fuelLevel: 60, mileage: 12000, hasDSA: false, desinfTracking: false,
+    parkingSpot: null, fuelLevel: 60, mileage: 12000, hasDSA: false, desinfTracking: false, desinfIntervalMonths: 3,
     notes: '', vin: null, connection: null, fuelType: 'Essence', transmission: null,
     maxFuelCapacity: 50, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null,
     firstRegistrationDate: '2022-01-15', revisionKmInterval: 15000, revisionYearInterval: 1,

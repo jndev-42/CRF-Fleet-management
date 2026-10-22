@@ -34,6 +34,7 @@ async function createTables() {
     mileage INTEGER DEFAULT 0,
     hasDSA INTEGER DEFAULT 0,
     desinfTracking INTEGER DEFAULT 0,
+    desinfIntervalMonths INTEGER NOT NULL DEFAULT 3,
     qrToken TEXT,
     notes TEXT,
     vin TEXT,
@@ -677,6 +678,7 @@ export async function seedVehicle(overrides: Partial<{
   revisionKmInterval: number | null;
   revisionYearInterval: number | null;
   desinfTracking: boolean | number;
+  desinfIntervalMonths: number;
   qrToken: string | null;
   ulId: string | null;
 }> = {}) {
@@ -698,14 +700,15 @@ export async function seedVehicle(overrides: Partial<{
     revisionKmInterval: null,
     revisionYearInterval: null,
     desinfTracking: 0,
+    desinfIntervalMonths: 3,
     qrToken: null,
     ulId: 'ul-paris-18',
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT INTO "Vehicle" (id, name, type, plate, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval, desinfTracking, qrToken, ulId)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-    args: [v.id, v.name, v.type, v.plate, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval, v.desinfTracking ? 1 : 0, v.qrToken, v.ulId],
+    sql: `INSERT INTO "Vehicle" (id, name, type, plate, status, mileage, fuelLevel, vin, parkingSpot, maxFuelCapacity, maxBatteryCapacityKwh, lastDesinfDate, nextDesinfMaxDate, firstRegistrationDate, revisionKmInterval, revisionYearInterval, desinfTracking, desinfIntervalMonths, qrToken, ulId)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+    args: [v.id, v.name, v.type, v.plate, v.status, v.mileage, v.fuelLevel, v.vin, v.parkingSpot, v.maxFuelCapacity, v.maxBatteryCapacityKwh, v.lastDesinfDate, v.nextDesinfMaxDate, v.firstRegistrationDate, v.revisionKmInterval, v.revisionYearInterval, v.desinfTracking ? 1 : 0, v.desinfIntervalMonths, v.qrToken, v.ulId],
   });
   return v;
 }

@@ -189,6 +189,7 @@ async function main() {
             "maxBatteryCapacityKwh" INTEGER,
             "lastDesinfDate"        TEXT,
             "nextDesinfMaxDate"     TEXT,
+            "desinfIntervalMonths"  INTEGER NOT NULL DEFAULT 3,
             "createdAt"             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt"   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
@@ -250,6 +251,10 @@ async function main() {
     if (!vehicleCols.rows.some(r => r.name === 'nextDesinfMaxDate')) {
         await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "nextDesinfMaxDate" TEXT`);
         console.log('  ↳ Migration : colonne Vehicle.nextDesinfMaxDate ajoutée');
+    }
+    if (!vehicleCols.rows.some(r => r.name === 'desinfIntervalMonths')) {
+        await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "desinfIntervalMonths" INTEGER NOT NULL DEFAULT 3`);
+        console.log('  ↳ Migration : colonne Vehicle.desinfIntervalMonths ajoutée');
     }
     if (!vehicleCols.rows.some(r => r.name === 'firstRegistrationDate')) {
         await db.execute(`ALTER TABLE "Vehicle" ADD COLUMN "firstRegistrationDate" TEXT`);
@@ -1004,7 +1009,7 @@ async function main() {
             { name: 'VL186 — Renault Zoé', type: 'VL', plate: 'EZ-123-RF', fuelType: 'Électrique', transmission: 'Automatique', fuelLevel: 80, mileage: 12450, parkingSpot: 'Baigneur', maxFuelCapacity: null, maxBatteryCapacityKwh: 52, lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2018-03-20', revisionKmInterval: 40000, revisionYearInterval: 2 },
             { name: 'VL188 — Renault Kangoo', type: 'VL', plate: 'FZ-456-RF', fuelType: 'Diesel', transmission: 'Manuelle', fuelLevel: 60, mileage: 34200, parkingSpot: 'Baigneur', maxFuelCapacity: 60, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2020-06-15', revisionKmInterval: 15000, revisionYearInterval: 1 },
             { name: 'VL182 — Peugeot 208', type: 'VL', plate: 'GZ-789-RF', fuelType: 'Essence', transmission: 'Manuelle', fuelLevel: 45, mileage: 8900, parkingSpot: 'Baigneur', maxFuelCapacity: 50, maxBatteryCapacityKwh: null, lastDesinfDate: null, nextDesinfMaxDate: null, firstRegistrationDate: '2019-11-08', revisionKmInterval: 40000, revisionYearInterval: 2 },
-            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', transmission: 'Manuelle', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur', maxFuelCapacity: 80, maxBatteryCapacityKwh: null, lastDesinfDate: '2026-02-04', nextDesinfMaxDate: '2026-03-18', firstRegistrationDate: '2021-09-01', revisionKmInterval: null, revisionYearInterval: null },
+            { name: 'VPSP01 — Peugeot Boxer', type: 'VPSP', plate: 'HZ-001-RF', fuelType: 'Diesel', transmission: 'Manuelle', fuelLevel: 70, mileage: 52100, parkingSpot: 'Baigneur', maxFuelCapacity: 80, maxBatteryCapacityKwh: null, lastDesinfDate: '2026-02-04', nextDesinfMaxDate: '2026-05-04', firstRegistrationDate: '2021-09-01', revisionKmInterval: null, revisionYearInterval: null },
         ];
         for (const v of vehicles) {
             await db.execute({

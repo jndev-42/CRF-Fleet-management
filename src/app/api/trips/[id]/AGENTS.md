@@ -30,7 +30,7 @@ Container for individual trip operations by trip ID. Supports deletion, checkin/
   - No response body validation error cases — all errors return 500
 
 ### Desinfection Special Handling
-- If deleted trip was Désinfection mission (checkInAt IS NOT NULL): queries last Désinfection trip for that vehicle, sets Vehicle.lastDesinfDate and nextDesinfMaxDate (now + 42 days); if no other Désinfection trips exist, clears both dates
+- If deleted trip was Désinfection mission (checkInAt IS NOT NULL): queries last Désinfection trip for that vehicle, sets Vehicle.lastDesinfDate and nextDesinfMaxDate (last desinf + vehicle.desinfIntervalMonths months, default 3); if no other Désinfection trips exist, clears both dates
 
 ## Dependencies
 
