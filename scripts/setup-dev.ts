@@ -12,6 +12,7 @@ import { REFERENTIEL_FTS_DDL, REFERENTIEL_TABLES } from '../src/lib/referentiel/
 import { AUDIT_LOG_DDL, AUDIT_LOG_INDEXES } from '../src/lib/audit/schema';
 import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '../src/lib/themes/schema';
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '../src/lib/push/schema';
+import { SCHEDULED_ALERT_DDL } from '../src/lib/alerts/schema';
 import { menuSettingNeedsRebuild, menuSettingTableDdl, rebuildMenuSettingTable } from '../src/lib/menu-settings-schema';
 
 // DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
@@ -734,6 +735,10 @@ async function main() {
 
     await db.execute(PUSH_SUBSCRIPTION_DDL);
     await db.execute(PUSH_SUBSCRIPTION_USER_INDEX_DDL);
+
+    // ── Alertes d'échéance quotidiennes ───────────────────────────
+
+    await db.execute(SCHEDULED_ALERT_DDL);
 
     // ── MenuSetting ───────────────────────────────────────────────
 
