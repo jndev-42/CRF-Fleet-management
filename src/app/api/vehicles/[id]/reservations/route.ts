@@ -250,7 +250,7 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
                     const vehicleUlId = vehicleResult.rows[0]?.ulId as string || 'ul-paris-18';
                     const requesterName = session.user.name || session.user.email;
 
-                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    const { sendPushNotification } = await import('@/lib/push');
 
                     const notifMsg = {
                         fr: `${requesterName} demande ${vehicleName} en récurrence (${created.length} créneaux). En attente de validation.`,
@@ -258,7 +258,7 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
                     };
 
                     await sendPushNotification({
-                        tags: [{ field: 'tag', key: 'role_ADMIN', relation: '=', value: 'true' }],
+                        roles: ['ADMIN'],
                         headings: { fr: `📋 Nouvelle réservation récurrente`, en: `📋 New recurring reservation` },
                         contents: notifMsg,
                         url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`,
@@ -266,7 +266,7 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
                     });
 
                     await sendPushNotification({
-                        tags: [{ field: 'tag', key: 'role_RESPO', relation: '=', value: 'true' }],
+                        roles: ['RESPO'],
                         headings: { fr: `📋 Nouvelle réservation récurrente`, en: `📋 New recurring reservation` },
                         contents: notifMsg,
                         url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`,
@@ -376,11 +376,11 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
                 const vehicleUlId = vehicleResult.rows[0]?.ulId as string || 'ul-paris-18';
                 const requesterName = session.user.name || session.user.email;
 
-                const { sendPushNotification } = await import('@/lib/onesignal');
+                const { sendPushNotification } = await import('@/lib/push');
 
                 // Notifier les ADMIN
                 await sendPushNotification({
-                    tags: [{ field: "tag", key: "role_ADMIN", relation: "=", value: "true" }],
+                    roles: ['ADMIN'],
                     headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
                     contents: {
                         fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,
@@ -392,7 +392,7 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
 
                 // Notifier les RESPO
                 await sendPushNotification({
-                    tags: [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }],
+                    roles: ['RESPO'],
                     headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
                     contents: {
                         fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,

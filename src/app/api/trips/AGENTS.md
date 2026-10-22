@@ -40,7 +40,7 @@ Container directory for trip (vehicle checkout/checkin) lifecycle management. Pr
 ### Internal
 - `@/lib/db` — Vehicle, Trip, Reservation tables
 - `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)` for connected vehicles
-- `@/lib/onesignal` — push notifications (lazy imported)
+- `@/lib/push` — push notifications (lazy imported)
 - `@/lib/roles` — `isAdminOrAbove()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

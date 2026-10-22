@@ -19,6 +19,7 @@ export const authConfig: NextAuthConfig = {
             // Public assets and auth APIs are always allowed
             const isPublicAsset = pathname.startsWith('/icons') ||
                                  pathname.startsWith('/manifest.json') ||
+                                 pathname === '/sw.js' ||
                                  pathname.startsWith('/crf-logo.svg') ||
                                  pathname.startsWith('/seasons') ||
                                  pathname.startsWith('/_next');

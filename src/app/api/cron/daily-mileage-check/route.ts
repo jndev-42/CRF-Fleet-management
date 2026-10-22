@@ -105,9 +105,9 @@ export async function GET(request: Request) {
                     if (todayTrips.rows.length === 0) {
                         // Aucune déclaration d'emprunt aujourd'hui, mais la voiture a été roulée d'au moins X km. ALERTE ADMIN.
                         // Envoi Notification Push aux admins
-                        const { sendPushNotification } = await import('@/lib/onesignal');
+                        const { sendPushNotification } = await import('@/lib/push');
                         await sendPushNotification({
-                            tags: [{ field: "tag", key: "role_ADMIN", relation: "=", value: "true" }],
+                            roles: ['ADMIN'],
                             headings: { en: `🚨 Utilisation suspecte : ${name}`, fr: `🚨 Utilisation suspecte : ${name}` },
                             contents: {
                                 en: `${name} a été déplacé sans emprunt. Mouvement inexpliqué de +${gap} km.`,

@@ -75,7 +75,7 @@ After **every successful coding task** (feature, fix, or refactor), you MUST com
 - Mocks must be hoisted: `vi.mock(...)` at top of file
 - Always mock `@/auth` for integration tests: `vi.mock('@/auth', () => ({ auth: vi.fn() }))`
 - Never mock the DB — use the real SQLite from `./setup.ts`
-- Mock external services (`@/lib/renault`, `@/lib/onesignal`, `@/lib/drive`)
+- Mock external services (`@/lib/renault`, `@/lib/push`, `@/lib/drive`)
 - Use `vi.spyOn(global, 'fetch')` to mock third-party HTTP calls (GitHub, etc.)
 
 Run `npm run test` and confirm all tests pass before moving to Step 1.

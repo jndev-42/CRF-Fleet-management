@@ -51,11 +51,12 @@ in `vehicle-connection.ts`, which only touches credentials that happen to be rea
 Supported-brand registry (`BRANDS`, `Brand`, `BRAND_LABELS`, `isBrand`). **Import-free on purpose** —
 it is read by both server routes (Zod enums) and Client Components (brand `<select>`).
 
-## onesignal.ts
-Targets users by email tag set at device registration.
+## push.ts
+Web Push natif (W3C, VAPID) : cible les utilisateurs par rôle (et UL), envoie aux appareils de la table `PushSubscription`.
+Sans `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT`, aucun push n'est envoyé (l'in-app fonctionne).
 **Lazy-import** in API routes to avoid penalizing cold starts when push isn't needed:
 ```ts
-const { sendPushNotification } = await import('@/lib/onesignal');
+const { sendPushNotification } = await import('@/lib/push');
 ```
 Also create a `Notification` DB row alongside every push so the in-app bell shows it.
 

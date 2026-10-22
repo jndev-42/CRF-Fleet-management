@@ -39,7 +39,7 @@ Vehicle check-in (return) endpoint. Completes an active trip by recording mileag
 ### Internal
 - `@/lib/db` — Trip, Vehicle queries and transactions
 - `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)`, `isConnectedInDb(vehicleId)`
-- `@/lib/onesignal` — push notifications (lazy imported)
+- `@/lib/push` — push notifications (lazy imported)
 - `@/lib/roles` — `isAdminOrAbove()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

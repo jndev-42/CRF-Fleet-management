@@ -35,7 +35,7 @@ Tests that require a real SQLite database (from `src/__tests__/setup.ts`), datab
 
 **Critical Rules:**
 - **Never mock the database.** Always use the real SQLite from `./setup.ts`. Mock/prod divergence has masked bugs before.
-- **Always mock auth and external services:** `@/auth`, `@/lib/renault`, `@/lib/onesignal`, `@/lib/drive`
+- **Always mock auth and external services:** `@/auth`, `@/lib/renault`, `@/lib/push`, `@/lib/drive`
 - **Hoisted mocks:** All `vi.mock()` calls must come at the top of the file before any imports
 
 **Mock Pattern (Auth):**
@@ -80,7 +80,7 @@ function makeRequest(body: Record<string, unknown>): Request {
 ### Internal
 - Real DB from `./setup.ts` — creates schema, provides test client
 - Mocked auth from `@/auth`
-- Mocked external services: `@/lib/renault`, `@/lib/onesignal`, `@/lib/drive`
+- Mocked external services: `@/lib/renault`, `@/lib/push`, `@/lib/drive`
 - API route handlers from `src/app/api/`
 - Database schema files from `src/db/`
 

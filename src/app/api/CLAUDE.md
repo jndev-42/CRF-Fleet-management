@@ -27,5 +27,5 @@ if (!roles.includes('ADMIN')) return NextResponse.json({ error: 'Interdit' }, { 
 
 ## Optional integrations — lazy import to avoid cold-start cost
 ```ts
-const { sendPushNotification } = await import('@/lib/onesignal');
+const { sendPushNotification } = await import('@/lib/push');
 ```

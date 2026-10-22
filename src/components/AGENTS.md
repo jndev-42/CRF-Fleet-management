@@ -13,7 +13,7 @@ Shared React UI components used across pages, plus feature-specific component su
 | `NotificationBell.tsx` | In-app notification dropdown |
 | `PhotoViewer.tsx` | Lightbox for Drive-hosted photos |
 | `ThemeProvider.tsx` / `ThemeToggle.tsx` | Dark/light theme (next-themes) |
-| `OneSignalProvider.tsx` | Push notification bootstrap |
+| `PushProvider.tsx` | Web Push bootstrap (service worker `/sw.js`, subscription, opt-in banner) and `usePush()` |
 | `BugReportButton.tsx` / `BugReportModal.tsx` | In-app bug reporting |
 | `CommunicationBanner.tsx` / `DemoBanner.tsx` / `LicenseBanner.tsx` | Top-of-app banners |
 | `GuidedTour.tsx` | Onboarding tour |

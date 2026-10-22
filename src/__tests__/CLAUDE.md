@@ -11,7 +11,7 @@ integration/ — real SQLite DB (from ./setup.ts), mocked auth + external servic
 
 ## Integration tests — critical rules
 - **Never mock the DB.** Use the real SQLite file from `./setup.ts`. Past incidents: mock/prod divergence masked real bugs.
-- **Always mock auth** (`@/auth`) and external services (`@/lib/renault`, `@/lib/onesignal`, `@/lib/drive`).
+- **Always mock auth** (`@/auth`) and external services (`@/lib/renault`, `@/lib/push`, `@/lib/drive`).
 - Mocks must be **hoisted** — `vi.mock(...)` calls go at the top before any imports:
   ```ts
   vi.mock('@/lib/db', async () => {

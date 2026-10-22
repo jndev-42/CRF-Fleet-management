@@ -1,6 +1,6 @@
 {
   "name": "martine",
-  "version": "5.26.1",
+  "version": "5.27.0",
   "private": true,
   "scripts": {
     "predev": "tsx scripts/dev-db.ts",
@@ -47,10 +47,10 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-markdown": "^10.1.0",
-    "react-onesignal": "^3.5.1",
     "recharts": "^3.8.0",
     "remark-gfm": "^4.0.1",
     "sharp": "^0.35.5",
+    "web-push": "^3.6.7",
     "zod": "^4.3.6"
   },
   "lint-staged": {
@@ -70,6 +70,7 @@
     "@types/papaparse": "^5.5.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^5.1.4",
     "@vitest/coverage-v8": "^4.1.11",
     "dotenv": "^17.3.1",

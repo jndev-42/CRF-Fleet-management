@@ -247,17 +247,13 @@ async function postHandler(request: Request) {
             // Incorrect data push notification (non-connected vehicle)
             if (data.dataIncorrect) {
                 try {
-                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    const { sendPushNotification } = await import('@/lib/push');
                     const vName = vehicle.name || 'Véhicule inconnu';
                     const fuelLabel = vehicle.fuelType === 'Électrique' ? 'Batterie' : 'Carburant';
                     const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
 
                     await sendPushNotification({
-                        tags: [
-                            { field: 'tag', key: 'role_RESPO', relation: '=', value: 'true' },
-                            { operator: 'OR' },
-                            { field: 'tag', key: 'role_ADMIN', relation: '=', value: 'true' },
-                        ],
+                        roles: ['RESPO', 'ADMIN'],
                         headings: { fr: `⚠️ Données incorrectes — ${vName}`, en: `⚠️ Incorrect data — ${vName}` },
                         contents: {
                             fr: `${driverDisplayName} a signalé des données incorrectes sur ${vName}. Km : ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel} : ${originalFuel}% → ${fuelOut}%.`,
@@ -274,12 +270,12 @@ async function postHandler(request: Request) {
             // Incident push notification
             if (data.conditionOut === "Problème signalé" || data.conditionOut === "Dégradé") {
                 try {
-                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    const { sendPushNotification } = await import('@/lib/push');
                     const vName = vehicle.name || 'Véhicule inconnu';
                     const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
 
                     await sendPushNotification({
-                        tags: [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }],
+                        roles: ['RESPO'],
                         headings: { en: `🚨 Incident signalé à la prise de ${vName}`, fr: `🚨 Incident signalé à la prise de ${vName}` },
                         contents: {
                             en: `${driverDisplayName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,

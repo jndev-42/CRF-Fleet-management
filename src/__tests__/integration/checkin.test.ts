@@ -2,7 +2,7 @@
  * Tests d'intégration du endpoint PATCH /api/trips/[id]/checkin (retour de véhicule).
  *
  * Même stratégie que checkout.test.ts : appel direct du handler avec Request mocké,
- * dépendances externes substituées (DB temporaire, auth mockée, Renault/OneSignal désactivés).
+ * dépendances externes substituées (DB temporaire, auth mockée, Renault/Web Push désactivés).
  *
  * Cas critiques couverts :
  *  - Autorisation : seuls le conducteur principal, le 2e conducteur et les ADMIN peuvent retourner
@@ -33,8 +33,8 @@ vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
   isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
 
-// Désactive les notifications push pour éviter les appels OneSignal en test
-vi.mock('@/lib/onesignal', () => ({
+// Désactive les notifications push pour éviter les envois Web Push en test
+vi.mock('@/lib/push', () => ({
   sendPushNotification: vi.fn().mockResolvedValue(undefined),
   notifyRoles: vi.fn().mockResolvedValue(undefined),
 }));

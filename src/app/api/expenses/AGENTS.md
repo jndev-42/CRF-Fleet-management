@@ -35,13 +35,13 @@ Expense report CRUD operations. Lists expense reports (filtered by user, unit le
 
 **DB tables:** ExpenseReport, User
 
-**Side effects:** Push notifications (OneSignal) to PRESIDENT on submit.
+**Side effects:** Push notifications (Web Push) to PRESIDENT on submit.
 
 ## Dependencies
 
 ### Internal
 - `@/lib/db` — Turso SQL queries
-- `@/lib/onesignal` — Push notifications (lazy imported)
+- `@/lib/push` — Push notifications (lazy imported)
 - `@/auth` — Authentication & role extraction from JWT
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

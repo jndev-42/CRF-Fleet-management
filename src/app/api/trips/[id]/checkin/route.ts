@@ -231,11 +231,11 @@ async function patchHandler(
             // Incident push notification (non-blocking, after commit)
             if (data.conditionIn === "Problème signalé" || data.incident) {
                 try {
-                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    const { sendPushNotification } = await import('@/lib/push');
                     const vName = vehicle.name || 'Véhicule inconnu';
 
                     await sendPushNotification({
-                        tags: [{ field: "tag", key: "role_RESPO", relation: "=", value: "true" }],
+                        roles: ['RESPO'],
                         headings: { en: `🚨 Incident signalé au retour de ${vName}`, fr: `🚨 Incident signalé au retour de ${vName}` },
                         contents: {
                             en: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`,

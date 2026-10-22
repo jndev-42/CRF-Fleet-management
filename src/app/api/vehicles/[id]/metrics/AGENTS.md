@@ -14,7 +14,7 @@ Updates mileage and fuel level for manual (non-connected) vehicles. Blocked for 
 ## For AI Agents
 
 ### Working In This Directory
-**PATCH /api/vehicles/[id]/metrics** — ADMIN/RESPO only. Updates `mileage` (number ≥ 0) and/or `fuelLevel` (0–100). Validates payload (both optional, but at least one required). Rejects if vehicle has VIN (Renault Connect vehicles auto-sync). Sends OneSignal push notification to ADMIN role with change summary (emoji formatting). Returns updated vehicle object or message if no changes detected.
+**PATCH /api/vehicles/[id]/metrics** — ADMIN/RESPO only. Updates `mileage` (number ≥ 0) and/or `fuelLevel` (0–100). Validates payload (both optional, but at least one required). Rejects if vehicle has VIN (Renault Connect vehicles auto-sync). Sends Web Push notification to ADMIN role with change summary (emoji formatting). Returns updated vehicle object or message if no changes detected.
 
 **Key business rules:**
 - Both fields optional; request fails if neither provided
@@ -29,7 +29,7 @@ Updates mileage and fuel level for manual (non-connected) vehicles. Blocked for 
 
 ### Internal
 - `@/lib/db` — `Vehicle` table
-- `@/lib/onesignal` — `sendPushNotification()` for admin notifications
+- `@/lib/push` — `sendPushNotification()` for admin notifications
 - `@/lib/roles` — `canAccessAdminPanel`
 - `@/auth` — NextAuth v5 session
 

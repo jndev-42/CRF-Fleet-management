@@ -46,3 +46,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-mission-report-document-scanner.md`
   summary: L'étape « Compte rendu signé » annonce « Maximum 15 Mo par fichier » (maxSizeMB=15) alors que /api/drive/upload refuse tout fichier > 4,2 Mo.
   evidence: src/components/missions/steps/Step7SignedReport.tsx (maxSizeMB={15}, hint) vs src/app/api/drive/upload/route.ts L45 (MAX_FILE_SIZE = 4.2 Mo) ; un PDF de galerie de 5 à 15 Mo passe le contrôle client puis échoue à l'envoi. Préexistant, non causé par le scanner.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-web-push-natif-vapid.md`
+  summary: Exclure les comptes INACTIF du ciblage de `sendPushNotification` (in-app et push) et supprimer leurs abonnements push à la désactivation.
+  evidence: la requête de ciblage de `src/lib/push.ts` (héritée de `onesignal.ts`) ne filtre pas INACTIF ; un compte désactivé garde ses appareils abonnés.
+- source_spec: `_bmad-output/implementation-artifacts/spec-web-push-natif-vapid.md`
+  summary: Fusionner les deux appels `sendPushNotification` (ADMIN puis RESPO) de `vehicles/[id]/reservations/route.ts` en un seul `roles: ['ADMIN','RESPO']`.
+  evidence: un utilisateur à la fois SUPER_ADMIN et PRESIDENT reçoit deux notifications in-app et deux push par demande de réservation.
+- source_spec: `_bmad-output/implementation-artifacts/spec-web-push-natif-vapid.md`
+  summary: Passer des URL relatives (et non `https://cr-chauffeur.vercel.app/...`) aux notifications des routes metrics et reservations.
+  evidence: la notification in-app pointe vers la prod depuis preview et local.
+- source_spec: `_bmad-output/implementation-artifacts/spec-web-push-natif-vapid.md`
+  summary: Vérifier dans les tests des routes appelantes (trips, checkin, reservations, metrics, cron) les rôles passés à `sendPushNotification`.
+  evidence: tous les mocks `@/lib/push` sont des `vi.fn()` sans assertion d'arguments ; une erreur de rôle passerait inaperçue.
+- source_spec: `_bmad-output/implementation-artifacts/spec-web-push-natif-vapid.md`
+  summary: Détacher l'abonnement push de l'appareil sur tous les chemins de déconnexion (page /inactif, expiration de session).
+  evidence: seul le bouton Déconnexion de la Navbar appelle `detachDevice`.

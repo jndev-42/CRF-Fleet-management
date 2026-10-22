@@ -43,7 +43,7 @@ import { auth } from "@/auth";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { SessionProvider } from "next-auth/react";
 import FooterChangelog from "@/components/FooterChangelog";
-import { OneSignalProvider } from "@/components/OneSignalProvider";
+import { PushProvider } from "@/components/PushProvider";
 import Navbar from "@/components/Navbar";
 import DemoBanner from "@/components/DemoBanner";
 import GuidedTour from "@/components/GuidedTour";
@@ -84,7 +84,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const session = await auth();
-  const onesignalId = process.env.ONESIGNAL_ID || '';
+  const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
   const roles = session?.user?.roles || [];
 
   return (
@@ -99,18 +99,12 @@ export default async function RootLayout({
       <body suppressHydrationWarning>
         <DemoProvider>
           <DemoBanner />
-          {/*
-            NOTE: We do NOT register a custom sw.js here because OneSignal already
-            registers its own Service Worker (OneSignalSDKWorker.js) at the root scope.
-            Two SWs at the same scope conflict — OneSignal's SW is sufficient for
-            PWA install criteria (it has a fetch handler) + push notifications.
-          */}
-          <OneSignalProvider appId={onesignalId} availableULs={session?.user?.availableULs || []} globalRoles={roles} />
           <SessionProvider session={session}>
             <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
               <MenuSettingsProvider>
                 <SeasonalThemeProvider>
                 <ULProvider>
+                <PushProvider vapidPublicKey={vapidPublicKey}>
                 <div className="app-container" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                   <Navbar user={session?.user} />
                   {session?.user && <ImpersonationBanner />}
@@ -141,6 +135,7 @@ export default async function RootLayout({
                     <FooterChangelog />
                   </footer>
                 </div>
+                </PushProvider>
                 </ULProvider>
                 </SeasonalThemeProvider>
               </MenuSettingsProvider>

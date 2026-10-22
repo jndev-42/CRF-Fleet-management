@@ -3,7 +3,7 @@
  *
  * Stratégie : appel direct du handler Next.js avec un vrai SQLite.
  * - Auth mockée (pas de vraie session)
- * - OneSignal mocké (notifications push)
+ * - Web Push mocké (notifications push)
  *
  * Cas couverts :
  *  1. 401 sans session
@@ -27,7 +27,7 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/onesignal', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/push', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
 
 import { POST } from '@/app/api/vehicles/[id]/reservations/route';
 import { PATCH as PATCH_RESERVATION, DELETE as DELETE_RESERVATION } from '@/app/api/reservations/[id]/route';

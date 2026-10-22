@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.27.0] — 22 octobre 2026
+
+### ✨ Nouveautés
+
+- **Notifications push natives, sans service tiers** — les alertes (réservations, incidents, notes de frais, utilisation suspecte…) arrivent désormais directement sur votre appareil via le standard du navigateur, sans passer par un prestataire externe. Si vous aviez déjà autorisé les notifications, votre appareil se réabonne tout seul au prochain chargement de l'application ; sinon, un bandeau discret « Activer les notifications » vous le propose (« Plus tard » le masque pendant 30 jours). L'interrupteur de la cloche reste disponible.
+
+### 🔧 Modifié
+
+- **Déconnexion** — l'appareil est désabonné des notifications push au moment de la déconnexion : vous ne recevez plus les alertes d'un compte sur un appareil partagé après vous être déconnecté.
+- **Un clic sur une notification** ouvre ou met au premier plan l'onglet de l'application sur la bonne page.
+
 ## [5.26.1] — 22 octobre 2026
 
 ### 🐛 Corrections

@@ -8,7 +8,7 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/onesignal', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/push', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
 
 import { PATCH } from '@/app/api/vehicles/[id]/metrics/route';
 import { auth } from '@/auth';
