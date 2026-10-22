@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Bell, Trash2 } from 'lucide-react';
 import { useUL } from '@/lib/contexts/ULContext';
+import { usePush } from '@/components/PushProvider';
 
 type Notification = {
     id: string;
@@ -12,19 +13,6 @@ type Notification = {
     url?: string;
     isRead: boolean;
     createdAt: string;
-};
-
-// OneSignal SDK is injected as a runtime global — no official @types covers this browser API
-type OneSignalWindow = Window & {
-    OneSignal?: {
-        User?: {
-            PushSubscription?: {
-                optedIn?: boolean;
-                optOut: () => Promise<void>;
-                optIn: () => Promise<void>;
-            };
-        };
-    };
 };
 
 export function NotificationBell() {
@@ -40,7 +28,7 @@ function NotificationBellContent() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
-    const [pushEnabled, setPushEnabled] = useState<boolean | null>(null);
+    const { status: pushStatus, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe } = usePush();
     const [pushBlocked, setPushBlocked] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
@@ -122,31 +110,22 @@ function NotificationBellContent() {
         }
     }, [searchParams]);
 
-    // Sync push opt-in state when dropdown opens
-    useEffect(() => {
-        if (!isOpen) return;
-        const sub = (window as OneSignalWindow).OneSignal?.User?.PushSubscription;
-        if (sub) {
-            setPushEnabled(!!sub.optedIn);
-        }
-    }, [isOpen]);
+    // Interrupteur visible seulement si le navigateur gère le push et que l'état est connu
+    const pushEnabled = pushStatus === 'enabled';
+    const showPushToggle = pushStatus === 'enabled' || pushStatus === 'disabled' || pushStatus === 'denied';
 
     const handlePushToggle = async () => {
-        const sub = (window as OneSignalWindow).OneSignal?.User?.PushSubscription;
-        if (!sub) return;
-
         if (pushEnabled) {
-            await sub.optOut();
-            setPushEnabled(false);
-        } else {
-            if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
-                setPushBlocked(true);
-                return;
-            }
-            await sub.optIn();
-            setPushEnabled(true);
+            await pushUnsubscribe();
+            setPushBlocked(false);
+            return;
         }
-        setPushBlocked(false);
+        if (pushStatus === 'denied') {
+            setPushBlocked(true);
+            return;
+        }
+        const ok = await pushSubscribe();
+        setPushBlocked(!ok && typeof Notification !== 'undefined' && Notification.permission === 'denied');
     };
 
     // Handle closing dropdown when clicking outside
@@ -313,7 +292,7 @@ function NotificationBellContent() {
                     </div>
 
                     {/* Push notification toggle */}
-                    {pushEnabled !== null && (
+                    {showPushToggle && (
                         <div style={{
                             borderTop: '1px solid var(--border-primary)',
                             padding: '10px 16px',

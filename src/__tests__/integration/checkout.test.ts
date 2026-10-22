@@ -6,7 +6,7 @@
  *  - `@/lib/db`       → remplacé par la DB SQLite fichier temporaire de ./setup.ts
  *  - `@/auth`         → session mockée pour simuler différents rôles
  *  - `@/lib/vehicle-connection` → aucun appel réseau réel (véhicule non connecté)
- *  - `@/lib/onesignal`→ notifications désactivées en test
+ *  - `@/lib/push`→ notifications désactivées en test
  *
  * Tous les tests vérifient le code HTTP de la réponse ET, pour les cas critiques,
  * l'état de la base de données après l'appel (effet de bord sur Vehicle.status).
@@ -36,8 +36,8 @@ vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
   isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
 
-// Désactive les notifications push pour éviter les appels OneSignal en test
-vi.mock('@/lib/onesignal', () => ({
+// Désactive les notifications push pour éviter les envois Web Push en test
+vi.mock('@/lib/push', () => ({
   sendPushNotification: vi.fn().mockResolvedValue(undefined),
   notifyRoles: vi.fn().mockResolvedValue(undefined),
 }));

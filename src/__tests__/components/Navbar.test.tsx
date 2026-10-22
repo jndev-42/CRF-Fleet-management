@@ -1,8 +1,9 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 let mockPathname = '/vehicles';
 const mockSignOut = vi.fn();
+const mockDetachDevice = vi.fn();
 const mockSwitchUL = vi.fn();
 type Visibility = 'available' | 'admin_only' | 'super_admin_only' | 'disabled';
 let mockGetVisibility = vi.fn<(key: string) => Visibility>(() => 'available');
@@ -24,6 +25,15 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('next-auth/react', () => ({
     signOut: (...args: unknown[]) => mockSignOut(...args),
+}));
+
+vi.mock('@/components/PushProvider', () => ({
+    usePush: () => ({
+        status: 'unsupported',
+        subscribe: async () => false,
+        unsubscribe: async () => undefined,
+        detachDevice: (...args: unknown[]) => mockDetachDevice(...args),
+    }),
 }));
 
 vi.mock('@/lib/contexts/MenuSettingsContext', () => ({
@@ -148,10 +158,29 @@ describe('Navbar', () => {
         expect(burger.getAttribute('aria-expanded')).toBe('true');
     });
 
-    it('appelle signOut lors du clic sur Déconnexion', () => {
+    it('désabonne l\'appareil du push puis appelle signOut lors du clic sur Déconnexion', async () => {
+        const order: string[] = [];
+        mockDetachDevice.mockImplementation(async () => { order.push('detach'); });
+        mockSignOut.mockImplementation(() => { order.push('signOut'); });
         render(<Navbar user={{ email: 'user@test.com', roles: ['CHVL'] }} />);
         fireEvent.click(screen.getByLabelText('Se déconnecter'));
-        expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: '/login' });
+        await waitFor(() => expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: '/login' }));
+        expect(order).toEqual(['detach', 'signOut']);
+    });
+
+    it('se déconnecte après 3 s même si le désabonnement push ne se termine jamais', async () => {
+        vi.useFakeTimers();
+        try {
+            mockDetachDevice.mockImplementation(() => new Promise<void>(() => {}));
+            render(<Navbar user={{ email: 'user@test.com', roles: ['CHVL'] }} />);
+            fireEvent.click(screen.getByLabelText('Se déconnecter'));
+            await vi.advanceTimersByTimeAsync(2999);
+            expect(mockSignOut).not.toHaveBeenCalled();
+            await vi.advanceTimersByTimeAsync(1);
+            expect(mockSignOut).toHaveBeenCalledWith({ callbackUrl: '/login' });
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it('affiche un sélecteur d\'UL en mode multi-UL', () => {

@@ -37,7 +37,7 @@ Manages vehicle reservations: single-slot and recurring. Supports conflict detec
 - Conflict detection includes both VALIDATED and PENDING (blocks both)
 - `isUnassignedDriver` or `onBehalfOfUserId === 'UNASSIGNED'` → userName = "Chauffeur non décidé"
 - Only RESPO/ADMIN can reserve on behalf or mark unassigned
-- Push notifications sent to ADMIN and RESPO tags (OneSignal)
+- Push notifications sent to ADMIN and RESPO roles (Web Push)
 - Recurring: limit 6 months from today; first date must be future; at least one DOW required
 - Occurrence dates auto-skipped if already conflicted
 
@@ -45,7 +45,7 @@ Manages vehicle reservations: single-slot and recurring. Supports conflict detec
 
 ### Internal
 - `@/lib/db` — `Reservation`, `Vehicle`, `User` tables
-- `@/lib/onesignal` — `sendPushNotification()` (lazy import)
+- `@/lib/push` — `sendPushNotification()` (lazy import)
 - `@/lib/roles` — `canAccessAdminPanel`
 - `@/auth` — NextAuth v5 session
 

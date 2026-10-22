@@ -31,7 +31,7 @@ Application web de gestion de la flotte de véhicules de l'Unité Locale de la C
 
 ### Notifications
 - **In-app** (cloche) : notifications persistées en base, visibles uniquement par les RESPO et ADMIN
-- **Push** (OneSignal) : notifications push natives (bureau / mobile) pour les événements critiques
+- **Push** (Web Push natif, VAPID) : notifications push (bureau / mobile) pour les événements critiques, sans service tiers
 - Toggle activation/désactivation des notifications push directement depuis la cloche
 
 ### Authentification & rôles
@@ -55,7 +55,7 @@ Application web de gestion de la flotte de véhicules de l'Unité Locale de la C
 | Frontend + Backend | [Next.js 16](https://nextjs.org/) — App Router, Server & Client Components |
 | Base de données | [Turso](https://turso.tech/) — SQLite cloud via libSQL (`@libsql/client`) |
 | Authentification | [NextAuth v5](https://authjs.dev/) — OAuth2 Google |
-| Notifications push | [OneSignal](https://onesignal.com/) — SDK Web v16 |
+| Notifications push | Web Push W3C (Push API, VAPID) — bibliothèque [`web-push`](https://github.com/web-push-libs/web-push) |
 | Hébergement | [Vercel](https://vercel.com/) |
 | Icônes | [Lucide React](https://lucide.dev/) |
 
@@ -77,10 +77,10 @@ src/
 │   ├── Navbar.tsx
 │   ├── NotificationBell.tsx
 │   ├── GuidedTour.tsx
-│   └── OneSignalProvider.tsx
+│   └── PushProvider.tsx
 ├── lib/
 │   ├── db.ts               # Client Turso/libSQL
-│   ├── onesignal.ts        # Envoi de notifications (serveur)
+│   ├── push.ts             # Envoi de notifications (serveur, Web Push)
 │   └── renault.ts          # Intégration API Renault Connect
 └── auth.ts                 # Configuration NextAuth
 ```
@@ -103,8 +103,9 @@ src/
 
 | Variable | Description |
 |---|---|
-| `ONESIGNAL_ID` | App ID OneSignal (notifications push) |
-| `ONESIGNAL_API_KEY` | REST API Key OneSignal |
+| `VAPID_PUBLIC_KEY` | Clé publique VAPID (notifications push) — `npx web-push generate-vapid-keys` |
+| `VAPID_PRIVATE_KEY` | Clé privée VAPID (à ne jamais exposer) |
+| `VAPID_SUBJECT` | Contact VAPID, ex. `mailto:contact@croix-rouge.fr` |
 | `RENAULT_MAIL` | Email du compte Renault Connect (véhicules connectés) |
 | `RENAULT_PASS` | Mot de passe du compte Renault Connect |
 

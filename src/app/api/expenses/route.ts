@@ -323,9 +323,9 @@ async function postHandler(request: Request) {
 
             try {
                 const requesterName = session.user.name || session.user.email || 'Un membre';
-                const { sendPushNotification } = await import('@/lib/onesignal');
+                const { sendPushNotification } = await import('@/lib/push');
                 await sendPushNotification({
-                    tags: [{ field: "tag", key: "role_PRESIDENT", relation: "=", value: "true" }],
+                    roles: ['PRESIDENT'],
                     headings: { fr: `📋 Note de frais à valider`, en: `📋 Expense report pending approval` },
                     contents: {
                         fr: `${requesterName} a soumis une note de frais (${total.toFixed(2)} €) à valider.`,

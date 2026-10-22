@@ -34,6 +34,8 @@ npx tsx scripts/add-referentiel.ts             # Migration prod : tables Referen
 npx tsx scripts/add-audit-log.ts               # Migration prod : table AuditLog + index (journal d'audit, rétention 30 jours purgée par le cron quotidien ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.20.0 : sans la table, l'onglet « Journal d'audit » (/api/audit-logs) répond 500 et aucune action n'est tracée (les routes, elles, répondent normalement)
 npx tsx scripts/add-seasonal-themes.ts       # Migration prod : tables SeasonalTheme et SeasonalThemeUL (thèmes saisonniers : activation, plage de dates et UL ciblées ; idempotente, ne crée que les tables manquantes ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.21.0 : sans les tables, /api/themes/active et /api/settings/themes* répondent 500 (onglet « Thèmes » inutilisable, aucun habillage)
 npx tsx scripts/add-vehicle-desinf-interval.ts # Migration prod : colonne Vehicle.desinfIntervalMonths (périodicité de désinfection VPSP, 1/2/3 mois, défaut 3) + recalcul de nextDesinfMaxDate en lastDesinfDate + 3 mois (dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.26.0 : sans la colonne, les check-in de désinfection et la modale d'édition véhicule répondent 500
+npx tsx scripts/add-push-subscriptions.ts      # Migration prod : table PushSubscription + index userId (abonnements Web Push ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.27.0 : sans la table, POST /api/push/subscriptions répond 500 et aucun push n'est envoyé (l'in-app continue de fonctionner)
+npx web-push generate-vapid-keys                # Génère la paire de clés VAPID → VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY (+ VAPID_SUBJECT=mailto:…) dans les variables d'environnement Vercel
 npx tsx scripts/verify-signed-pdf.ts <fichier>  # Vérifie les signatures d'un PDF scellé
 npx tsx scripts/backfill-signed-pdfs.ts         # Scelle rétroactivement les notes existantes (dry-run par défaut, --apply pour écrire)
 npx tsx scripts/add-vehicle-connections.ts      # Migration prod : tables BrandCredential / VehicleConnection + reprise du compte MyRenault global (dry-run ; --apply --ul=<id> pour écrire)
@@ -47,7 +49,7 @@ npx tsx scripts/rewrap-credentials.ts           # Rotation de CREDENTIALS_ENCRYP
 
 - `src/app/` — pages and API routes; `src/app/api/` — REST endpoints
 - `src/components/` — shared UI; `src/components/vehicle/` — vehicle-specific
-- `src/lib/` — singletons (db, renault, onesignal, drive, email)
+- `src/lib/` — singletons (db, renault, push, drive, email)
 - `src/auth.ts` — full auth config; `src/proxy.ts` — route protection
 
 **Database:** Direct SQL via `@libsql/client` — no ORM. Always parameterized: `{ sql: "... WHERE id = ?", args: [id] }`.
@@ -59,6 +61,10 @@ npx tsx scripts/rewrap-credentials.ts           # Rotation de CREDENTIALS_ENCRYP
 **Styling:** CSS Modules per component + global CSS variables in `app/globals.css`. `next-themes` for dark/light.
 
 **Deployment:** Vercel (auto-deploy on `main`). DB: Turso cloud. Uses `--webpack` (not Turbopack).
+
+## Notifications push (Web Push natif)
+
+Standard W3C (Push API + Notifications API), authentification VAPID (RFC 8292), chiffrement RFC 8291 via la bibliothèque `web-push` — aucun service ni SDK tiers. Service worker : `public/sw.js` (push uniquement, pas de cache). Abonnements : table `PushSubscription` (un par appareil, `endpoint` unique). Envoi : `sendPushNotification({ roles, headings, contents, url, ulId })` dans `src/lib/push.ts` (crée aussi la notification in-app). Variables d'environnement : `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (`mailto:…`) ; sans elles, l'in-app fonctionne mais aucun push n'est envoyé. iOS : push uniquement en PWA installée (iOS ≥ 16.4). Les abonnés de l'ancien fournisseur ne sont pas migrés : leur navigateur se réabonne automatiquement au prochain chargement si l'autorisation est déjà accordée.
 
 ## Référentiel secourisme (chatbot)
 

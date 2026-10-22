@@ -276,9 +276,9 @@ async function patchHandler(
                     const requesterName = (report.userName as string) || (report.userEmail as string) || 'Un membre';
                     const expenseTotal = Number(report.total);
                     const reportUlId = (report.ulId as string) || 'ul-paris-18';
-                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    const { sendPushNotification } = await import('@/lib/push');
                     await sendPushNotification({
-                        tags: [{ field: "tag", key: "role_TRESORIER", relation: "=", value: "true" }],
+                        roles: ['TRESORIER'],
                         headings: { fr: `💶 Note de frais à payer`, en: `💶 Expense report pending payment` },
                         contents: {
                             fr: `La note de frais de ${requesterName} (${expenseTotal.toFixed(2)} €) a été validée et est en attente de paiement.`,
@@ -511,9 +511,9 @@ async function patchHandler(
                 try {
                     const requesterName = (report.userName as string) || (report.userEmail as string) || session.user.name || session.user.email || 'Un membre';
                     const reportUlId = (report.ulId as string) || 'ul-paris-18';
-                    const { sendPushNotification } = await import('@/lib/onesignal');
+                    const { sendPushNotification } = await import('@/lib/push');
                     await sendPushNotification({
-                        tags: [{ field: "tag", key: "role_PRESIDENT", relation: "=", value: "true" }],
+                        roles: ['PRESIDENT'],
                         headings: { fr: `📋 Note de frais à valider`, en: `📋 Expense report pending approval` },
                         contents: {
                             fr: `${requesterName} a soumis une note de frais (${finalTotal.toFixed(2)} €) à valider.`,

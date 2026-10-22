@@ -64,7 +64,7 @@ if (!roles.includes('ADMIN')) return NextResponse.json({ error: 'Interdit' }, { 
 
 ### Optional integrations — lazy import to avoid cold-start cost
 ```ts
-const { sendPushNotification } = await import('@/lib/onesignal');
+const { sendPushNotification } = await import('@/lib/push');
 ```
 
 ### Testing Requirements
@@ -75,6 +75,6 @@ Every new route needs an integration test covering 401, 403, 400 (Zod), and the 
 ### Internal
 - `src/auth.ts` — session/auth
 - `src/lib/db.ts` — DB client
-- `src/lib/*` — onesignal, drive, email, renault integrations
+- `src/lib/*` — push, drive, email, renault integrations
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

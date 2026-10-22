@@ -8,6 +8,7 @@ import { signOut } from 'next-auth/react';
 import { ThemeToggle } from "@/components/ThemeToggle";
 import SeasonalThemeToggle from "@/components/themes/SeasonalThemeToggle";
 import { NotificationBell } from "@/components/NotificationBell";
+import { usePush } from '@/components/PushProvider';
 import { User } from 'next-auth';
 import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
 import { canSeeMenu } from '@/lib/menuVisibility';
@@ -23,12 +24,20 @@ type NavbarProps = {
 export default function Navbar({ user }: NavbarProps) {
     const [isOpen, setIsOpen] = useState(false);
     const pathname = usePathname();
+    const { detachDevice } = usePush();
     const { getVisibility } = useMenuSettings();
     const { activeUL, availableULs, switchUL, isMultiUL } = useUL();
 
     const userRoles = user?.roles ?? [];
 
     const ulLabel = activeUL ? `Unité Locale ${activeUL.name}` : 'Unité Locale';
+
+    // L'abonnement push de l'appareil est retiré avant la déconnexion (le compte suivant se réabonnera).
+    const handleSignOut = async () => {
+        // Plafonné : un service push injoignable ne doit jamais empêcher la déconnexion.
+        await Promise.race([detachDevice(), new Promise<void>(resolve => setTimeout(resolve, 3000))]);
+        await signOut({ callbackUrl: '/login' });
+    };
 
     return (
         <header className="header" role="banner">
@@ -149,7 +158,7 @@ export default function Navbar({ user }: NavbarProps) {
                                 className="btn btn-danger nav-logout-btn"
                                 title={user.email || ''}
                                 aria-label="Se déconnecter"
-                                onClick={() => signOut({ callbackUrl: '/login' })}
+                                onClick={handleSignOut}
                             >
                                 Déconnexion
                             </button>

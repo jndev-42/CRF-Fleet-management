@@ -40,7 +40,7 @@ Single expense report retrieval and state management. GET fetches report with fu
 
 ### Internal
 - `@/lib/db` — Turso SQL queries
-- `@/lib/onesignal` — Push notifications
+- `@/lib/push` — Push notifications
 - `@/auth` — Session & roles
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

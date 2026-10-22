@@ -24,7 +24,7 @@ vi.mock('@/lib/renault', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@/lib/renault')>()),
     fetchRenaultVehicleData: vi.fn(),
 }));
-vi.mock('@/lib/onesignal', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('@/lib/push', () => ({ sendPushNotification: vi.fn().mockResolvedValue(undefined) }));
 
 // Clé de test : lue à chaque appel par `@/lib/crypto`, jamais au chargement du
 // module — la poser ici suffit pour `encryptSecret` comme pour `decryptSecret`.

@@ -18,7 +18,7 @@ vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
     getRenaultVehicleData: vi.fn().mockResolvedValue(null),
     isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
-vi.mock('@/lib/onesignal', () => ({
+vi.mock('@/lib/push', () => ({
     sendPushNotification: vi.fn().mockResolvedValue(undefined),
     notifyRoles: vi.fn().mockResolvedValue(undefined),
 }));

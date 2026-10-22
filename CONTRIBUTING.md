@@ -7,7 +7,7 @@ Ce document explique comment lancer le projet en local, le tester et le déploye
 ## Prérequis
 
 - [Node.js](https://nodejs.org/) 18 ou supérieur
-- Optionnel : un compte [OneSignal](https://onesignal.com/) (pour les notifications push)
+- Optionnel : des clés VAPID (`npx web-push generate-vapid-keys`) pour les notifications push
 - Optionnel : un compte [Turso](https://turso.tech/) et un projet [Google Cloud](https://console.cloud.google.com/) (uniquement pour tester la prod en local)
 
 ---
@@ -51,7 +51,7 @@ TURSO_DATABASE_URL=http://localhost:8080
 TURSO_AUTH_TOKEN=                         # laisser vide pour sqld local
 ```
 
-Les variables Google OAuth, OneSignal et Renault Connect sont **optionnelles en développement** — l'app fonctionne sans elles.
+Les variables Google OAuth, VAPID (notifications push) et Renault Connect sont **optionnelles en développement** — l'app fonctionne sans elles.
 
 ### 5. Lancer le serveur de développement
 

@@ -57,6 +57,6 @@ it('should render and handle user interaction', async () => {
 ### Internal
 - React components from `src/components/` (tested component itself)
 - Mocked auth via `@/auth` (setup by test framework)
-- Mocked external services: `@/lib/renault`, `@/lib/onesignal`, `@/lib/drive` (setup by test framework)
+- Mocked external services: `@/lib/renault`, `@/lib/push`, `@/lib/drive` (setup by test framework)
 - React Testing Library utilities and user event helpers
 

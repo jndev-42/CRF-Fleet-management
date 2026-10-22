@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_VERSION: version,
   },
   // Force transpilation of packages that use modern JS syntax (?.  ??) — needed for iOS 12
-  transpilePackages: ['react-onesignal', 'next-themes', 'next-auth', '@auth/core'],
+  transpilePackages: ['next-themes', 'next-auth', '@auth/core'],
 
   // Packages using Node.js internals or native bindings — prevent Next.js from bundling them.
   // sharp: binaire natif, désormais importé depuis src/lib (extraction de generateExpensePdf).
@@ -45,7 +45,7 @@ const nextConfig: NextConfig = {
     return [
       {
         // Apply security headers only to HTML pages — exclude service workers,
-        // static assets, API routes, and manifest to avoid breaking OneSignal/PWA.
+        // static assets, API routes, and manifest to avoid breaking the push service worker/PWA.
         source: '/((?!_next|api|.*\\.js|.*\\.json|.*\\.css|.*\\.png|.*\\.jpg|.*\\.jpeg|.*\\.svg|.*\\.ico|.*\\.webp|.*\\.woff2?|.*\\.ttf|.*\\.vcf).*)',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },

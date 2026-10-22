@@ -7,7 +7,9 @@
  * un `export const POST = handler` non enveloppé — fait échouer la suite.
  *
  * Seules exemptions : `auth/[...nextauth]` (la connexion est tracée par
- * `events.signIn` de `src/auth.ts`) et `cron/*` (appels machine, sans utilisateur).
+ * `events.signIn` de `src/auth.ts`) et `cron/*` (appels machine, sans utilisateur),
+ * plus `push/subscriptions` dont le POST est un réabonnement silencieux rejoué à chaque
+ * chargement de page (son DELETE, lui, reste enveloppé).
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'fs';
@@ -15,7 +17,7 @@ import { join, relative, sep } from 'path';
 
 const API_DIR = join(process.cwd(), 'src', 'app', 'api');
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
-const EXEMPT = [/^auth\/\[\.\.\.nextauth\]\//, /^cron\//];
+const EXEMPT = [/^auth\/\[\.\.\.nextauth\]\//, /^cron\//, /^push\/subscriptions\//];
 
 function routeFiles(dir: string): string[] {
     return readdirSync(dir).flatMap(name => {

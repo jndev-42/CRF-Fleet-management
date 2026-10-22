@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { sendPushNotification } from '@/lib/onesignal';
+import { sendPushNotification } from '@/lib/push';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
@@ -104,9 +104,9 @@ async function patchHandler(
         const notificationUrl = `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(vName)}`;
 
         try {
-            // Send Push Notification via OneSignal (it also creates in-app notifications automatically)
+            // Send Push Notification (it also creates in-app notifications automatically)
             await sendPushNotification({
-                tags: [{ field: "tag", key: "role_ADMIN", relation: "=", value: "true" }],
+                roles: ['ADMIN'],
                 headings: { en: notificationTitle, fr: notificationTitle },
                 contents: { en: notificationMessage, fr: notificationMessage },
                 url: notificationUrl,
