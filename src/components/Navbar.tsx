@@ -150,7 +150,7 @@ export default function Navbar({ user }: NavbarProps) {
 
                         <div className="nav-actions">
                             {!isInactive(userRoles) && (
-                                <span data-tour="notifications"><NotificationBell /></span>
+                                <span data-tour="notifications"><NotificationBell onNavigate={() => setIsOpen(false)} /></span>
                             )}
                             <SeasonalThemeToggle />
                             <ThemeToggle />

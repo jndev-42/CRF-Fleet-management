@@ -65,3 +65,6 @@
 - source_spec: none
   summary: Alertes d'échéance du cron quotidien — désinfection VPSP bientôt due ou dépassée (Admins + CHVPSP) et produits du stock bientôt périmés ou en rupture (responsables du stock), une alerte par échéance et non chaque jour.
   evidence: découpé à la demande de l'utilisateur de la PR « doublons + liens dynamiques + notifications événementielles » (livrable indépendant, nécessite une table de dédoublonnage des alertes).
+- source_spec: `_bmad-output/implementation-artifacts/spec-cloche-mobile.md`
+  summary: Rendre les notifications de la cloche atteignables au clavier (boutons ou liens au lieu de `div` cliquables) et ajouter un piège de focus dans la modale mobile.
+  evidence: les éléments de liste sont des `div onClick` sans `tabIndex` ni gestion d'Entrée/Espace (préexistant) ; la modale mobile place et rend le focus mais ne le retient pas.

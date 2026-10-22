@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, useSyncExternalStore, useId, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Bell, Trash2 } from 'lucide-react';
+import { Bell, Trash2, X } from 'lucide-react';
 import { useUL } from '@/lib/contexts/ULContext';
 import { usePush } from '@/components/PushProvider';
 
@@ -15,22 +16,49 @@ type Notification = {
     createdAt: string;
 };
 
-export function NotificationBell() {
+// Même point de rupture que le reste de l'appli : en dessous, la cloche est dans le menu hamburger.
+const MOBILE_QUERY = '(max-width: 768px)';
+
+function subscribeToViewport(onChange: () => void) {
+    const media = window.matchMedia(MOBILE_QUERY);
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+}
+
+/** `true` sur petit écran ; `false` au rendu serveur. */
+function useIsMobile(): boolean {
+    return useSyncExternalStore(
+        subscribeToViewport,
+        () => window.matchMedia(MOBILE_QUERY).matches,
+        () => false,
+    );
+}
+
+/**
+ * @param onNavigate appelé quand un clic sur une notification ouvre une page
+ *   (la Navbar s'en sert pour refermer le menu hamburger).
+ */
+export function NotificationBell({ onNavigate }: { onNavigate?: () => void } = {}) {
     return (
         <Suspense fallback={null}>
-            <NotificationBellContent />
+            <NotificationBellContent onNavigate={onNavigate} />
         </Suspense>
     );
 }
 
 // useSearchParams() below requires a Suspense boundary (Next.js App Router) — the wrapper above provides it.
-function NotificationBellContent() {
+function NotificationBellContent({ onNavigate }: { onNavigate?: () => void }) {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const { status: pushStatus, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe, error: pushError, busy: pushBusy } = usePush();
     const [pushBlocked, setPushBlocked] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const modalRef = useRef<HTMLDivElement>(null);
+    const isMobile = useIsMobile();
+    const titleId = useId();
+    const bellButtonRef = useRef<HTMLButtonElement>(null);
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
     const router = useRouter();
     const searchParams = useSearchParams();
     const { activeUL } = useUL();
@@ -131,13 +159,43 @@ function NotificationBellContent() {
     // Handle closing dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            // Sur mobile, seul le fond de la modale ferme, au « click » : fermer dès le « mousedown »
+            // laisserait le clic qui suit atterrir sur le menu hamburger situé dessous.
+            if (isMobile) return;
+            const target = event.target as Node;
+            // La modale mobile est rendue hors du conteneur (portail) : un clic dedans n'est pas « dehors ».
+            if (dropdownRef.current && !dropdownRef.current.contains(target)
+                && !modalRef.current?.contains(target)) {
                 setIsOpen(false);
             }
         }
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, [dropdownRef]);
+    }, [dropdownRef, isMobile]);
+
+    // Échap ferme la cloche ; en modale (mobile), la page derrière ne défile plus.
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') setIsOpen(false);
+        };
+        document.addEventListener('keydown', handleKeyDown);
+        let previousOverflow: string | undefined;
+        const bellButton = bellButtonRef.current;
+        if (isMobile) {
+            previousOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            // Le focus entre dans la modale, et revient sur la cloche à la fermeture.
+            closeButtonRef.current?.focus();
+        }
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            if (previousOverflow !== undefined) {
+                document.body.style.overflow = previousOverflow;
+                bellButton?.focus();
+            }
+        };
+    }, [isOpen, isMobile]);
 
     const handleNotificationClick = async (notification: Notification) => {
         // Delete it from DB
@@ -151,6 +209,7 @@ function NotificationBellContent() {
         // Close dropdown & Navigate
         setIsOpen(false);
         if (notification.url) {
+            onNavigate?.();
             try {
                 const urlObj = new URL(notification.url, window.location.origin);
                 router.push(urlObj.pathname);
@@ -172,12 +231,159 @@ function NotificationBellContent() {
 
     const hasUnread = notifications.length > 0;
 
+    // Contenu commun au menu déroulant (desktop) et à la modale (mobile)
+    const panel = (
+        <>
+            <div
+                className="notification-header"
+                style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '12px 16px',
+                    borderBottom: '1px solid var(--border-primary)',
+                    position: 'sticky',
+                    top: 0,
+                    backgroundColor: 'var(--bg-card)',
+                    zIndex: 10,
+                    borderRadius: 'var(--radius-md) var(--radius-md) 0 0'
+                }}
+            >
+                <h3 id={titleId} style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Notifications</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {notifications.length > 0 && (
+                        <button
+                            onClick={handleClearAll}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-secondary)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '12px'
+                            }}
+                            title="Tout effacer"
+                        >
+                            <Trash2 size={14} /> Effacer
+                        </button>
+                    )}
+                    {isMobile && (
+                        <button
+                            ref={closeButtonRef}
+                            onClick={() => setIsOpen(false)}
+                            aria-label="Fermer les notifications"
+                            style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', padding: 8, display: 'flex' }}
+                        >
+                            <X size={20} />
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            <div className="notification-list">
+                {isLoading ? (
+                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        Chargement...
+                    </div>
+                ) : notifications.length === 0 ? (
+                    <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                        Aucune notification
+                    </div>
+                ) : (
+                    notifications.map(notification => (
+                        <div
+                            key={notification.id}
+                            className="notification-item"
+                            onClick={() => handleNotificationClick(notification)}
+                            style={{
+                                padding: '12px 16px',
+                                borderBottom: '1px solid var(--border-primary)',
+                                cursor: 'pointer',
+                                transition: 'background-color 0.2s',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '4px'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
+                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >
+                            <div style={{ fontWeight: 600, fontSize: '14px' }}>{notification.title}</div>
+                            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{notification.message}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                {new Date(notification.createdAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {/* Push notification toggle */}
+            {showPushToggle && (
+                <div style={{
+                    borderTop: '1px solid var(--border-primary)',
+                    padding: '10px 16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                    position: 'sticky',
+                    bottom: 0,
+                    backgroundColor: 'var(--bg-card)',
+                    borderRadius: '0 0 var(--radius-md) var(--radius-md)',
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Notifications push</span>
+                        <button
+                            onClick={handlePushToggle}
+                            disabled={pushBusy}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                background: pushEnabled ? 'var(--crf-red)' : 'var(--bg-secondary)',
+                                border: 'none',
+                                borderRadius: 20,
+                                padding: '4px 12px',
+                                cursor: 'pointer',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: pushEnabled ? '#fff' : 'var(--text-secondary)',
+                                transition: 'background 0.2s',
+                            }}
+                        >
+                            <span style={{
+                                width: 8, height: 8, borderRadius: '50%',
+                                background: pushEnabled ? '#fff' : 'var(--text-muted)',
+                                display: 'inline-block',
+                            }} />
+                            {pushEnabled ? 'Activées' : 'Désactivées'}
+                        </button>
+                    </div>
+                    {pushBlocked && !pushError && (
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                            Autorisez les notifications dans les paramètres de votre navigateur pour les réactiver.
+                        </div>
+                    )}
+                    {pushError && (
+                        <div role="alert" style={{ fontSize: 11, color: 'var(--crf-red)', lineHeight: 1.4 }}>
+                            {pushError}
+                        </div>
+                    )}
+                </div>
+            )}
+        </>
+    );
+
     return (
         <div className="notification-bell-container" ref={dropdownRef} style={{ position: 'relative' }}>
             <button
+                ref={bellButtonRef}
                 className="btn btn-icon notification-bell-button"
                 onClick={() => setIsOpen(!isOpen)}
                 aria-label="Notifications"
+                aria-expanded={isOpen}
+                aria-haspopup={isMobile ? 'dialog' : 'true'}
                 style={{ position: 'relative', background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px', color: 'var(--text-primary)' }}
             >
                 <Bell size={24} />
@@ -198,7 +404,7 @@ function NotificationBellContent() {
                 )}
             </button>
 
-            {isOpen && (
+            {isOpen && !isMobile && (
                 <div
                     className="notification-dropdown"
                     style={{
@@ -218,133 +424,36 @@ function NotificationBellContent() {
                         flexDirection: 'column'
                     }}
                 >
+                    {panel}
+                </div>
+            )}
+
+            {/* Sur mobile, la cloche est dans le menu hamburger : le contenu s'ouvre en modale, hors du menu. */}
+            {isOpen && isMobile && createPortal(
+                <div
+                    className="modal-overlay"
+                    style={{ zIndex: 1100 }}
+                    onClick={(e) => { if (e.target === e.currentTarget) setIsOpen(false); }}
+                >
                     <div
-                        className="notification-header"
+                        ref={modalRef}
+                        className="modal notification-modal"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby={titleId}
                         style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            padding: '12px 16px',
-                            borderBottom: '1px solid var(--border-primary)',
-                            position: 'sticky',
-                            top: 0,
+                            overflowY: 'auto',
+                            // Même fond que l'en-tête et le pied collants du contenu
                             backgroundColor: 'var(--bg-card)',
-                            zIndex: 10,
-                            borderRadius: 'var(--radius-md) var(--radius-md) 0 0'
+                            // Hauteur réelle visible (barres du navigateur mobile) et zone de l'indicateur d'accueil iOS
+                            maxHeight: '85dvh',
+                            paddingBottom: 'env(safe-area-inset-bottom)',
                         }}
                     >
-                        <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600 }}>Notifications</h3>
-                        {notifications.length > 0 && (
-                            <button
-                                onClick={handleClearAll}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    color: 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    fontSize: '12px'
-                                }}
-                                title="Tout effacer"
-                            >
-                                <Trash2 size={14} /> Effacer
-                            </button>
-                        )}
+                        {panel}
                     </div>
-
-                    <div className="notification-list">
-                        {isLoading ? (
-                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                Chargement...
-                            </div>
-                        ) : notifications.length === 0 ? (
-                            <div style={{ padding: '30px 20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                Aucune notification
-                            </div>
-                        ) : (
-                            notifications.map(notification => (
-                                <div
-                                    key={notification.id}
-                                    className="notification-item"
-                                    onClick={() => handleNotificationClick(notification)}
-                                    style={{
-                                        padding: '12px 16px',
-                                        borderBottom: '1px solid var(--border-primary)',
-                                        cursor: 'pointer',
-                                        transition: 'background-color 0.2s',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '4px'
-                                    }}
-                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
-                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                >
-                                    <div style={{ fontWeight: 600, fontSize: '14px' }}>{notification.title}</div>
-                                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{notification.message}</div>
-                                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                        {new Date(notification.createdAt).toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })}
-                                    </div>
-                                </div>
-                            ))
-                        )}
-                    </div>
-
-                    {/* Push notification toggle */}
-                    {showPushToggle && (
-                        <div style={{
-                            borderTop: '1px solid var(--border-primary)',
-                            padding: '10px 16px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: 6,
-                            position: 'sticky',
-                            bottom: 0,
-                            backgroundColor: 'var(--bg-card)',
-                            borderRadius: '0 0 var(--radius-md) var(--radius-md)',
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Notifications push</span>
-                                <button
-                                    onClick={handlePushToggle}
-                                    disabled={pushBusy}
-                                    style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 6,
-                                        background: pushEnabled ? 'var(--crf-red)' : 'var(--bg-secondary)',
-                                        border: 'none',
-                                        borderRadius: 20,
-                                        padding: '4px 12px',
-                                        cursor: 'pointer',
-                                        fontSize: 12,
-                                        fontWeight: 600,
-                                        color: pushEnabled ? '#fff' : 'var(--text-secondary)',
-                                        transition: 'background 0.2s',
-                                    }}
-                                >
-                                    <span style={{
-                                        width: 8, height: 8, borderRadius: '50%',
-                                        background: pushEnabled ? '#fff' : 'var(--text-muted)',
-                                        display: 'inline-block',
-                                    }} />
-                                    {pushEnabled ? 'Activées' : 'Désactivées'}
-                                </button>
-                            </div>
-                            {pushBlocked && !pushError && (
-                                <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                                    Autorisez les notifications dans les paramètres de votre navigateur pour les réactiver.
-                                </div>
-                            )}
-                            {pushError && (
-                                <div role="alert" style={{ fontSize: 11, color: 'var(--crf-red)', lineHeight: 1.4 }}>
-                                    {pushError}
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
