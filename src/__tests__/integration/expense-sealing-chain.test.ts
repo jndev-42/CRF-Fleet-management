@@ -41,7 +41,7 @@ import { verifySignatures } from '@/lib/pdf/verify';
 import { sealPdf } from '@/lib/pdf/signature';
 import { addSignatureFields } from '@/lib/pdf/fields';
 import { generateExpensePdf } from '@/lib/expenses/pdf';
-import { SIGNATURE_FIELDS, SIGNATURE_WIDGET_RECTS } from '@/lib/expenses/signature-layout';
+import { SIGNATURE_FIELDS, SIGNATURE_WIDGET_RECTS, LEGACY_SIGNATURE_FIELDS } from '@/lib/expenses/signature-layout';
 
 installTestCert();
 
@@ -246,8 +246,8 @@ describe('note héritée (v1, trois champs)', () => {
     it('le président valide en une étape dans Signature2, sans erreur de scellement', async () => {
         await seedDraft('n-v1');
         // Reproduit un PDF scellé AVANT l'introduction de Signature4.
-        const form = await generateExpensePdf('n-v1', { forSealing: true });
-        const prepared = await addSignatureFields(form, SIGNATURE_FIELDS.slice(0, 3));
+        const form = await generateExpensePdf('n-v1', { forSealing: true, legacyLayout: true });
+        const prepared = await addSignatureFields(form, [...LEGACY_SIGNATURE_FIELDS]);
         const sealed = await sealPdf(prepared, {
             reason: 'Soumission', name: 'Jean Demandeur', signingTime: new Date(),
             fieldName: 'Signature1', appearancePng: Buffer.from(signaturePng.split(',')[1], 'base64'), docMdpLevel: 2,
@@ -270,11 +270,44 @@ describe('note héritée (v1, trois champs)', () => {
 
 describe('composePresidentAppearance', () => {
     const [x1, y1, x2, y2] = SIGNATURE_WIDGET_RECTS.president;
+    /** Pixels de l'apparence par point PDF (`PRESIDENT_APPEARANCE_SCALE`). */
+    const SCALE = 4;
 
-    async function pixel(png: Buffer, x: number, y: number) {
+    /** Boîte englobante des pixels opaques qui satisfont `match`, ou null. */
+    async function bbox(png: Buffer, match: (r: number, g: number, b: number) => boolean) {
         const { data, info } = await sharp(png).raw().toBuffer({ resolveWithObject: true });
-        const i = (y * info.width + x) * info.channels;
-        return { r: data[i], a: data[i + 3], width: info.width, height: info.height };
+        let minX = Infinity, minY = Infinity, maxX = -1, maxY = -1;
+        for (let y = 0; y < info.height; y++) {
+            for (let x = 0; x < info.width; x++) {
+                const i = (y * info.width + x) * info.channels;
+                if (data[i + 3] > 128 && match(data[i], data[i + 1], data[i + 2])) {
+                    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+                    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+                }
+            }
+        }
+        return maxX < 0 ? null : { minX, minY, maxX, maxY };
+    }
+    const isRed = (r: number, g: number, b: number) => r > 180 && g < 80 && b < 80;
+    const isBlue = (r: number, g: number, b: number) => b > 120 && r < 80;
+    const disjoint = (a: { minX: number; minY: number; maxX: number; maxY: number }, b: typeof a) =>
+        a.maxX < b.minX || b.maxX < a.minX || a.maxY < b.minY || b.maxY < a.minY;
+
+    /** Tampon rond rouge, tel que `compressStampImage` le stocke : cadre 400×200 à marges transparentes. */
+    async function roundStamp(): Promise<Buffer> {
+        const disc = await sharp(Buffer.from(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><circle cx="100" cy="100" r="96" fill="#dc0000"/></svg>`
+        )).png().toBuffer();
+        return sharp({ create: { width: 400, height: 200, channels: 4, background: { r: 255, g: 255, b: 255, alpha: 0 } } })
+            .composite([{ input: disc, left: 100, top: 0 }]).png().toBuffer();
+    }
+
+    /** Signature bleue pleine largeur, avec marges transparentes. */
+    async function blueSignature(): Promise<Buffer> {
+        return sharp(Buffer.from(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="200">
+               <rect x="40" y="70" width="420" height="60" fill="#1020c0"/></svg>`
+        )).png().toBuffer();
     }
 
     it('produit une image aux proportions du widget', async () => {
@@ -283,16 +316,32 @@ describe('composePresidentAppearance', () => {
         expect(width! / height!).toBeCloseTo((x2 - x1) / (y2 - y1), 1);
     });
 
-    it('place le tampon en fond quand l\'UL en a un, et rien sans tampon', async () => {
-        const sig = Buffer.from(signaturePng.split(',')[1], 'base64');
-        const stamp = Buffer.from(stampPng.split(',')[1], 'base64');
+    it('le tampon et la signature ne se chevauchent jamais', async () => {
+        const png = await composePresidentAppearance(await blueSignature(), await roundStamp());
+        const stamp = await bbox(png, isRed);
+        const sig = await bbox(png, isBlue);
+        expect(stamp).not.toBeNull();
+        expect(sig).not.toBeNull();
+        expect(disjoint(stamp!, sig!)).toBe(true);
+    });
 
-        // Bord gauche, mi-hauteur : couvert par le tampon, jamais par la signature.
-        const withStamp = await pixel(await composePresidentAppearance(sig, stamp), 20, 132);
-        expect(withStamp.a).toBe(255);
-        expect(withStamp.r).toBeGreaterThan(200);
+    it('agrandit le tampon d\'au moins 30 % par rapport à l\'ancienne colonne', async () => {
+        // Ancien rendu : cadre 400×200 contenu dans 136,4 × 66 pt → disque de 66 pt.
+        const ancien = 66;
+        const png = await composePresidentAppearance(await blueSignature(), await roundStamp());
+        const stamp = (await bbox(png, isRed))!;
+        const diametre = (stamp.maxY - stamp.minY + 1) / SCALE;
+        expect(diametre).toBeGreaterThanOrEqual(ancien * 1.28);
+    });
 
-        const withoutStamp = await pixel(await composePresidentAppearance(sig, null), 20, 132);
-        expect(withoutStamp.a).toBe(0);
+    it('sans tampon, la signature seule est centrée', async () => {
+        const png = await composePresidentAppearance(await blueSignature(), null);
+        const { width, height } = (await sharp(png).metadata()) as { width: number; height: number };
+        const sig = (await bbox(png, isBlue))!;
+        expect(await bbox(png, isRed)).toBeNull();
+        expect(Math.abs((sig.minX + sig.maxX) / 2 - width / 2)).toBeLessThan(width * 0.02);
+        expect(Math.abs((sig.minY + sig.maxY) / 2 - height / 2)).toBeLessThan(height * 0.02);
+        // Lisible : elle occupe l'essentiel de la largeur.
+        expect(sig.maxX - sig.minX).toBeGreaterThan(width * 0.8);
     });
 });

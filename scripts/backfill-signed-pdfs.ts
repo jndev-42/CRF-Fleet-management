@@ -63,7 +63,11 @@ async function main(): Promise<void> {
     const { generateExpensePdf, countItems } = await import('../src/lib/expenses/pdf');
     const { sealPdf, decodeSignatureImage, assertSigningCertConfigured } = await import('../src/lib/pdf/signature');
     const { putObject, buildExpenseKey, newAttemptId, assertR2Configured } = await import('../src/lib/r2');
-    const { SIGNATURE_FIELDS, SIGNATURE_WIDGET_RECTS, MAX_ITEMS_SINGLE_PAGE } = await import('../src/lib/expenses/signature-layout');
+    // Disposition de l'ANCIEN circuit (v1) : rectangles et champs dédiés, figés,
+    // indépendants des retouches de la disposition v2.
+    const {
+        LEGACY_SIGNATURE_FIELDS: SIGNATURE_FIELDS, LEGACY_SIGNATURE_WIDGET_RECTS: SIGNATURE_WIDGET_RECTS, MAX_ITEMS_SINGLE_PAGE,
+    } = await import('../src/lib/expenses/signature-layout');
     const { addSignatureFields } = await import('../src/lib/pdf/fields');
     const sharp = (await import('sharp')).default;
 
@@ -178,7 +182,7 @@ async function main(): Promise<void> {
             // notes scellées à la soumission par le nouveau circuit.
             let buf = await addSignatureFields(
                 await generateExpensePdf(id, { forSealing: true, legacyLayout: true }),
-                SIGNATURE_FIELDS.slice(0, 3)
+                [...SIGNATURE_FIELDS]
             );
             const revisions: unknown[] = [];
             let key = '';

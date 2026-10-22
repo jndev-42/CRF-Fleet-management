@@ -5,6 +5,7 @@
 ### ✨ Nouveautés
 
 - **Notes de frais : validation par le responsable d'activité, puis par le président** — un nouveau rôle « Responsable d'activité » (RESPO) valide en premier les notes de frais de son unité locale : il signe dans la colonne « Le responsable » du PDF officiel, et la note passe au statut « Validée par le responsable ». Le président signe ensuite : sa signature et le tampon de l'unité locale (s'il est configuré) sont apposés ensemble dans la colonne « Tampon de la structure ». Le paiement par le trésorier ne change pas.
+- **Tampon de l'unité locale plus grand et lisible** — sur le PDF validé, le tampon est environ 30 % plus grand qu'avant et placé à côté de la signature du président, sans plus jamais la chevaucher.
 - **Le président peut signer à la place du responsable** — sur une note soumise, le bouton « Signer pour le responsable et valider » pose les deux signatures d'un coup et valide les deux étapes.
 - **Refus à chaque étape** — le responsable d'activité comme le président peuvent refuser une note, avec un commentaire et une signature ; le refus reste définitif.
 - **Notifications** — à la soumission, les responsables d'activité et le président de l'unité locale sont prévenus ; après la validation du responsable, seul le président l'est, et le demandeur reçoit « Note de frais validée par le responsable ».

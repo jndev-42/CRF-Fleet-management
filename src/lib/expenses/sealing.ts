@@ -26,6 +26,7 @@ import { generateExpensePdf, countItems } from './pdf';
 import { appendJustificatifs, type JustificatifFile } from './attachments';
 import {
     SIGNATURE_FIELDS, SIGNATURE_FIELD_INDEX, SIGNATURE_WIDGET_RECTS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE,
+    presidentAppearanceLayout, type Box,
 } from './signature-layout';
 import { addSignatureFields } from '@/lib/pdf/fields';
 
@@ -315,9 +316,23 @@ export async function sealStep2(
 /** Taille, en pixels, de l'apparence composée du président : 4 px par point PDF. */
 const PRESIDENT_APPEARANCE_SCALE = 4;
 
+/** Rogne la marge transparente (ou blanche) d'une image ; la rend telle quelle si rien n'est à rogner. */
+async function trimmed(image: Buffer): Promise<Buffer> {
+    try {
+        return await sharp(image).trim().png().toBuffer();
+    } catch {
+        // Image uniforme : rien à rogner.
+        return sharp(image).png().toBuffer();
+    }
+}
+
 /**
- * Compose l'apparence du widget président : le tampon de l'UL en fond (s'il
- * existe), la signature au premier plan, sur une seule image PNG.
+ * Compose l'apparence du widget président sur une seule image PNG : le tampon de
+ * l'UL (s'il existe) et la signature, CÔTE À CÔTE ou empilés, jamais superposés
+ * (`presidentAppearanceLayout`). Sans tampon, la signature est centrée seule.
+ *
+ * Le tampon est d'abord ROGNÉ : `compressStampImage` le stocke dans un cadre
+ * 400×200 à marges transparentes, qui sinon lui volerait une partie de la place.
  *
  * L'image est produite AUX PROPORTIONS DU WIDGET : `buildAppearance` l'étire sur
  * tout le rectangle, et une image d'un autre ratio y serait déformée.
@@ -327,23 +342,35 @@ export async function composePresidentAppearance(signature: Buffer, stamp: Buffe
     const width = Math.round((x2 - x1) * PRESIDENT_APPEARANCE_SCALE);
     const height = Math.round((y2 - y1) * PRESIDENT_APPEARANCE_SCALE);
     const transparent = { r: 255, g: 255, b: 255, alpha: 0 };
+    const sig = await trimmed(signature);
+
+    const fit = async (image: Buffer, box: Box): Promise<OverlayOptions> => {
+        const resized = await sharp(image)
+            .resize(box.width, box.height, { fit: 'inside' })
+            .png()
+            .toBuffer({ resolveWithObject: true });
+        return {
+            input: resized.data,
+            // Centré dans sa boîte : `inside` peut rendre une image plus petite qu'elle.
+            left: box.left + Math.floor((box.width - resized.info.width) / 2),
+            top: box.top + Math.floor((box.height - resized.info.height) / 2),
+        };
+    };
 
     const layers: OverlayOptions[] = [];
     if (stamp) {
-        layers.push({
-            input: await sharp(stamp).resize(width, height, { fit: 'contain', background: transparent }).png().toBuffer(),
-            left: 0, top: 0,
-        });
+        const stampImg = await trimmed(stamp);
+        const meta = await sharp(stampImg).metadata();
+        const layout = presidentAppearanceLayout(width, height, { width: meta.width ?? 1, height: meta.height ?? 1 });
+        layers.push(await fit(stampImg, layout.stamp), await fit(sig, layout.signature));
+    } else {
+        // Sans tampon : la signature seule, centrée, avec une marge.
+        const box = {
+            left: Math.round(width * 0.05), top: Math.round(height * 0.125),
+            width: Math.round(width * 0.9), height: Math.round(height * 0.75),
+        };
+        layers.push(await fit(sig, box));
     }
-    // La signature occupe un peu moins que le cadre : elle reste lisible sur le
-    // tampon sans en masquer les bords.
-    const sigWidth = Math.round(width * 0.9);
-    const sigHeight = Math.round(height * 0.75);
-    layers.push({
-        input: await sharp(signature).resize(sigWidth, sigHeight, { fit: 'contain', background: transparent }).png().toBuffer(),
-        left: Math.round((width - sigWidth) / 2),
-        top: Math.round((height - sigHeight) / 2),
-    });
 
     return sharp({ create: { width, height, channels: 4, background: transparent } })
         .composite(layers)

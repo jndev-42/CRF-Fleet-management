@@ -22,10 +22,10 @@ import ExpensePdfDocument from '@/components/expenses/ExpensePdfDocument';
 import { filledRect } from '@/lib/pdf/content-stream';
 import { countPages } from '@/lib/pdf/verify';
 import {
-    SIGNATURE_WIDGET_RECTS, MEASURE_ZONE_COLORS, MAX_ITEMS_SINGLE_PAGE,
+    SIGNATURE_WIDGET_RECTS, LEGACY_SIGNATURE_WIDGET_RECTS, MEASURE_ZONE_COLORS, MAX_ITEMS_SINGLE_PAGE,
 } from '@/lib/expenses/signature-layout';
 
-async function render(itemCount: number, measureZones = true): Promise<Buffer> {
+async function render(itemCount: number, measureZones = true, legacyLayout = false): Promise<Buffer> {
     const items = Array.from({ length: itemCount }, (_, i) => ({ label: `Frais ${i + 1}`, amount: 10 }));
     const report = {
         id: 'geo', userName: 'Jean Dupont', userEmail: 'jean@dev.local',
@@ -37,7 +37,7 @@ async function render(itemCount: number, measureZones = true): Promise<Buffer> {
         validatorName: null, validatedAt: null,
     };
     const el = createElement(ExpensePdfDocument, {
-        report, logoSrc: '', forSealing: true, measureZones,
+        report, logoSrc: '', forSealing: true, measureZones, legacyLayout,
     }) as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>;
     return Buffer.from(await renderToBuffer(el));
 }
@@ -124,4 +124,26 @@ describe('géométrie des zones de signature', () => {
         expect(countPages(await render(MAX_ITEMS_SINGLE_PAGE, false))).toBe(1);
         expect(countPages(await render(MAX_ITEMS_SINGLE_PAGE + 1, false))).toBe(2);
     }, 40_000);
+
+    // Le scellement rétroactif (v1) garde l'ANCIENNE géométrie, quelles que
+    // soient les retouches de la disposition v2.
+    it('disposition v1 : zones aux rectangles historiques, même seuil de pagination', async () => {
+        for (const n of [1, MAX_ITEMS_SINGLE_PAGE]) {
+            const pdf = await render(n, true, true);
+            attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.demandeur), LEGACY_SIGNATURE_WIDGET_RECTS.demandeur);
+            attendRect(filledRect(pdf, MEASURE_ZONE_COLORS.valideur), LEGACY_SIGNATURE_WIDGET_RECTS.valideur);
+            // Aucune zone président : le tampon y est imprimé en contenu.
+            expect(filledRect(pdf, MEASURE_ZONE_COLORS.president)).toBeNull();
+        }
+        expect(countPages(await render(MAX_ITEMS_SINGLE_PAGE, false, true))).toBe(1);
+        expect(LEGACY_SIGNATURE_WIDGET_RECTS.demandeur).toEqual([86, 205.5, 222.4, 249.5]);
+        expect(LEGACY_SIGNATURE_WIDGET_RECTS.valideur).toEqual([236.4, 205.5, 372.8, 249.5]);
+    }, 60_000);
+
+    it('le widget président est assez grand pour un tampon ~30 % plus grand, à côté de la signature', () => {
+        const [x1, y1, x2, y2] = SIGNATURE_WIDGET_RECTS.president;
+        // Ancienne colonne : 136,4 × 66 pt, tampon et signature superposés.
+        expect(y2 - y1).toBeGreaterThanOrEqual(66 * 1.3);
+        expect(x2 - x1).toBeGreaterThan(136.4);
+    });
 });
