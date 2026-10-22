@@ -236,11 +236,41 @@ describe('Désinfection — checkin (PATCH /api/trips/[id]/checkin)', () => {
     const v = vehicleRes.rows[0];
     expect(v.lastDesinfDate).toBeTruthy();
     expect(v.nextDesinfMaxDate).toBeTruthy();
-    const diffDays = Math.round(
-      (new Date(v.nextDesinfMaxDate as string).getTime() - new Date(v.lastDesinfDate as string).getTime())
-      / (1000 * 60 * 60 * 24)
+    // Périodicité par défaut du véhicule : 3 mois
+    const expected = await db.execute({
+      sql: `SELECT date(?, '+3 months') AS d`,
+      args: [v.lastDesinfDate as string],
+    });
+    expect(v.nextDesinfMaxDate).toBe(expected.rows[0].d);
+  });
+
+  it.each([1, 2])('pose l\'échéance à lastDesinfDate + %i mois selon la périodicité du véhicule', async (months) => {
+    await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Driver' });
+    await seedVehicle({ id: 'VPSP001', name: 'VPSP01', type: 'VPSP', status: 'IN_USE', desinfIntervalMonths: months });
+    await seedTrip({
+      id: 'trip-1',
+      vehicleId: 'VPSP001',
+      driverId: 'user-driver',
+      missionType: 'Désinfection',
+      mileageOut: 10000,
+      fuelOut: 70,
+    });
+    mockedAuth.mockResolvedValue({
+      // @ts-expect-error — partial session for test
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'] },
+    });
+
+    const res = await PATCH(
+      makeCheckInRequest({ ...validCheckInBody, desinfResponsable: 'Jean Dupont', desinfLotNumber: 'LOT-1' }),
+      { params: Promise.resolve({ id: 'trip-1' }) }
     );
-    expect(diffDays).toBe(42);
+    expect(res.status).toBe(200);
+
+    const v = (await db.execute({
+      sql: `SELECT lastDesinfDate, nextDesinfMaxDate, date(lastDesinfDate, '+' || ? || ' months') AS expected FROM "Vehicle" WHERE id = 'VPSP001'`,
+      args: [months],
+    })).rows[0];
+    expect(v.nextDesinfMaxDate).toBe(v.expected);
   });
 
   it('does NOT require desinf fields for non-Désinfection missions', async () => {
@@ -349,12 +379,36 @@ describe('Désinfection — suppression trip (DELETE /api/trips/[id])', () => {
     });
     // Should roll back to the older trip's checkin date
     expect(vehicleRes.rows[0].lastDesinfDate).toBe('2026-02-01');
-    const diffDays = Math.round(
-      (new Date(vehicleRes.rows[0].nextDesinfMaxDate as string).getTime() -
-        new Date(vehicleRes.rows[0].lastDesinfDate as string).getTime()) /
-      (1000 * 60 * 60 * 24)
-    );
-    expect(diffDays).toBe(42);
+    // Périodicité par défaut : 3 mois
+    expect(vehicleRes.rows[0].nextDesinfMaxDate).toBe('2026-05-01');
+  });
+
+  it('recalcule avec la périodicité du véhicule quand une désinfection est supprimée', async () => {
+    await seedUser({ id: 'user-admin', email: 'admin@test.com', name: 'Admin' });
+    await seedVehicle({ id: 'VPSP001', name: 'VPSP01', type: 'VPSP', status: 'AVAILABLE', desinfIntervalMonths: 1 });
+    for (const [id, day] of [['trip-old', '2026-02-01'], ['trip-1', '2026-03-01']]) {
+      await db.execute({
+        sql: `INSERT INTO "Trip" (id, vehicleId, driverId, missionType, checkOutAt, checkInAt, mileageOut, mileageIn, fuelOut, fuelIn, conditionOut, conditionIn)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        args: [id, 'VPSP001', 'user-admin', 'Désinfection',
+          `${day}T10:00:00.000Z`, `${day}T11:00:00.000Z`,
+          10000, 10050, 70, 68, 'Bon état', 'Bon état'],
+      });
+    }
+    mockedAuth.mockResolvedValue({
+      // @ts-expect-error — partial session for test
+      user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'] },
+    });
+
+    const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ id: 'trip-1' }) });
+    expect(res.status).toBe(200);
+
+    const v = (await db.execute({
+      sql: `SELECT lastDesinfDate, nextDesinfMaxDate FROM "Vehicle" WHERE id = 'VPSP001'`,
+      args: [],
+    })).rows[0];
+    expect(v.lastDesinfDate).toBe('2026-02-01');
+    expect(v.nextDesinfMaxDate).toBe('2026-03-01');
   });
 });
 

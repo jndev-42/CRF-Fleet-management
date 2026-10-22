@@ -24,6 +24,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
         transmission: 'Manuelle',
         hasDSA: false,
         desinfTracking: false,
+        desinfIntervalMonths: 3,
         notes: '',
         maxFuelCapacity: '',
         maxBatteryCapacityKwh: '',
@@ -88,6 +89,7 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                     transmission: form.transmission,
                     hasDSA: form.hasDSA,
                     desinfTracking: form.desinfTracking,
+                    desinfIntervalMonths: form.type.toUpperCase().includes('VPSP') ? form.desinfIntervalMonths : undefined,
                     notes: form.notes || undefined,
                     maxFuelCapacity: form.maxFuelCapacity ? parseInt(form.maxFuelCapacity) || undefined : undefined,
                     maxBatteryCapacityKwh: form.maxBatteryCapacityKwh ? parseInt(form.maxBatteryCapacityKwh) || undefined : undefined,
@@ -280,6 +282,21 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                 <span style={{ fontSize: 14, fontWeight: 500 }}>🫀 Le véhicule est équipé d&apos;un DSA</span>
                             </label>
                         </div>
+                        {form.type.toUpperCase().includes('VPSP') && (
+                            <div className="form-group">
+                                <label className="form-label" htmlFor="desinfIntervalMonths">Désinfection tous les…</label>
+                                <select
+                                    id="desinfIntervalMonths"
+                                    className="form-select"
+                                    value={form.desinfIntervalMonths}
+                                    onChange={(e) => setForm({ ...form, desinfIntervalMonths: Number(e.target.value) })}
+                                >
+                                    <option value={1}>1 mois</option>
+                                    <option value={2}>2 mois</option>
+                                    <option value={3}>3 mois</option>
+                                </select>
+                            </div>
+                        )}
                         {!form.type.toUpperCase().includes('VPSP') && (
                             <div className="form-group">
                                 <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-sm)', border: `1px solid ${form.desinfTracking ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-primary)'}` }}>

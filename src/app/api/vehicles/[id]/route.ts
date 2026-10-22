@@ -18,6 +18,7 @@ const updateVehicleSchema = z.object({
     mileage: z.number().min(0).optional(),
     hasDSA: z.boolean().optional(),
     desinfTracking: z.boolean().optional(),
+    desinfIntervalMonths: z.union([z.literal(1), z.literal(2), z.literal(3)]).optional(),
     notes: z.string().optional().nullable(),
     fuelType: z.string().optional().nullable(),
     transmission: z.enum(['Manuelle', 'Automatique']).optional().nullable(),
@@ -123,6 +124,7 @@ export async function GET(
             mileage: row.mileage,
             hasDSA: !!row.hasDSA,
             desinfTracking: !!row.desinfTracking,
+            desinfIntervalMonths: (row.desinfIntervalMonths as number | null) ?? 3,
             notes: row.notes,
             vin: row.vin,
             connection: connectionRow ? {
@@ -275,6 +277,12 @@ async function patchHandler(
                 setClauses.push(`${key} = ?`);
                 args.push(typeof value === 'boolean' ? (value ? 1 : 0) : value);
             }
+        }
+        // Périodicité modifiée : l'échéance suit dans le même UPDATE (reste inchangée, donc NULL,
+        // tant qu'aucune désinfection n'est enregistrée)
+        if (data.desinfIntervalMonths !== undefined) {
+            setClauses.push(`nextDesinfMaxDate = CASE WHEN lastDesinfDate IS NOT NULL THEN date(lastDesinfDate, '+' || ? || ' months') ELSE nextDesinfMaxDate END`);
+            args.push(data.desinfIntervalMonths);
         }
 
         let vehicle = null;

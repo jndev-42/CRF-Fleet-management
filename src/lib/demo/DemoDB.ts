@@ -14,6 +14,7 @@ const INITIAL_VEHICLES: Vehicle[] = [
         mileage: 45200,
         hasDSA: true,
         desinfTracking: false,
+        desinfIntervalMonths: 3,
         notes: 'Véhicule de démo',
         vin: 'DEMOVIN123456789',
         connection: null,
@@ -22,7 +23,7 @@ const INITIAL_VEHICLES: Vehicle[] = [
         maxFuelCapacity: 70,
         maxBatteryCapacityKwh: null,
         lastDesinfDate: '2026-03-10',
-        nextDesinfMaxDate: '2026-04-21',
+        nextDesinfMaxDate: '2026-06-10',
         firstRegistrationDate: '2020-05-15',
         revisionKmInterval: 20000,
         revisionYearInterval: 2,
@@ -39,6 +40,7 @@ const INITIAL_VEHICLES: Vehicle[] = [
         mileage: 12500,
         hasDSA: false,
         desinfTracking: false,
+        desinfIntervalMonths: 3,
         notes: 'Véhicule de démo électrique',
         vin: null,
         connection: null,
@@ -330,7 +332,7 @@ export class DemoDB {
         if (trip.missionType === 'Désinfection' && trip.checkInAt) {
             vehicle.lastDesinfDate = trip.checkInAt.split('T')[0];
             const nextDate = new Date(trip.checkInAt);
-            nextDate.setDate(nextDate.getDate() + 42);
+            nextDate.setMonth(nextDate.getMonth() + (vehicle.desinfIntervalMonths ?? 3));
             vehicle.nextDesinfMaxDate = nextDate.toISOString().split('T')[0];
         }
 

@@ -72,7 +72,7 @@ async function deleteHandler(
                 if (lastDesinfRes.rows.length > 0) {
                     const lastDate = lastDesinfRes.rows[0].checkInAt as string;
                     await tx.execute({
-                        sql: `UPDATE Vehicle SET lastDesinfDate = date(?), nextDesinfMaxDate = date(?, '+42 days') WHERE id = ?`,
+                        sql: `UPDATE Vehicle SET lastDesinfDate = date(?), nextDesinfMaxDate = date(?, '+' || COALESCE(desinfIntervalMonths, 3) || ' months') WHERE id = ?`,
                         args: [lastDate, lastDate, trip.vehicleId as string],
                     });
                 } else {

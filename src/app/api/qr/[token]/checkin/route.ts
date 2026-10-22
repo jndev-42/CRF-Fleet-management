@@ -209,7 +209,7 @@ async function postHandler(
 
             if (trip.missionType === 'Désinfection') {
                 await tx.execute({
-                    sql: `UPDATE Vehicle SET lastDesinfDate = date('now'), nextDesinfMaxDate = date('now', '+42 days') WHERE id = ?`,
+                    sql: `UPDATE Vehicle SET lastDesinfDate = date('now'), nextDesinfMaxDate = date('now', '+' || COALESCE(desinfIntervalMonths, 3) || ' months') WHERE id = ?`,
                     args: [vehicle.id],
                 });
             }

@@ -86,6 +86,26 @@ describe('AddVehicleModal', () => {
         expect(body.parkingSpot).toBe('Place A-1');
     });
 
+    it('propose la périodicité de désinfection uniquement pour un VPSP et l\'envoie à la création', async () => {
+        const fetchMock = mockFetch();
+        render(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        await waitFor(() => expect(fieldSelect('Lieu de stationnement habituel *').value).toBe('Place A-1'));
+        expect(screen.queryByText('Désinfection tous les…')).toBeNull();
+
+        fireEvent.change(fieldSelect('Type *'), { target: { value: 'VPSP' } });
+        fireEvent.change(fieldSelect('Désinfection tous les…'), { target: { value: '1' } });
+        fillRequiredFields();
+        fireEvent.click(screen.getByRole('button', { name: 'Créer le véhicule' }));
+
+        await waitFor(() => {
+            const postCall = fetchMock.mock.calls.find(c => (c[1] as RequestInit)?.method === 'POST');
+            expect(postCall).toBeTruthy();
+            const body = JSON.parse((postCall![1] as RequestInit).body as string);
+            expect(body.desinfIntervalMonths).toBe(1);
+        });
+    });
+
     it('utilise l\'emplacement personnalisé quand "Autre" est sélectionné', async () => {
         const fetchMock = mockFetch();
         render(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={vi.fn()} />);

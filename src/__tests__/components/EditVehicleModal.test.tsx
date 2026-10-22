@@ -14,6 +14,7 @@ const mockVehicle: Vehicle = {
     mileage: 12000,
     hasDSA: true,
     desinfTracking: true,
+    desinfIntervalMonths: 3,
     notes: 'Note initiale',
     vin: 'VF11234567890',
     connection: null,
@@ -174,6 +175,48 @@ describe('EditVehicleModal Component', () => {
 
         await waitFor(() => {
             expect(patchBody.transmission).toBe('Automatique');
+        });
+    });
+
+    it('affiche le sélecteur de périodicité de désinfection pour un VPSP uniquement et envoie la valeur', async () => {
+        let patchBody: Record<string, unknown> = {};
+        mockFetch(async (input: string | URL | Request, init?: RequestInit) => {
+            const urlStr = getUrl(input);
+            const method = String(init?.method || 'GET').toUpperCase();
+            if (urlStr.includes('/api/ul')) {
+                return { ok: true, json: async () => ({ uls: [] }) } as Response;
+            }
+            if (urlStr.includes('/api/vehicles/') && method === 'PATCH') {
+                patchBody = JSON.parse(String(init?.body ?? '{}'));
+                return { ok: true, json: async () => ({ name: 'VPSP01' }) } as Response;
+            }
+            return { ok: true, json: async () => ({}) } as Response;
+        });
+
+        // VL : pas de sélecteur
+        const { unmount } = render(
+            <EditVehicleModal isOpen={true} onClose={vi.fn()} onSuccess={vi.fn()} vehicle={mockVehicle} />
+        );
+        await screen.findByText('✏️ Éditer le véhicule');
+        expect(screen.queryByLabelText('Désinfection tous les…')).toBeNull();
+        unmount();
+
+        // VPSP : sélecteur présélectionné sur la valeur enregistrée
+        render(
+            <EditVehicleModal
+                isOpen={true}
+                onClose={vi.fn()}
+                onSuccess={vi.fn()}
+                vehicle={{ ...mockVehicle, type: 'VPSP', desinfIntervalMonths: 2 }}
+            />
+        );
+        const select = await screen.findByLabelText('Désinfection tous les…') as HTMLSelectElement;
+        expect(select.value).toBe('2');
+        fireEvent.change(select, { target: { value: '1' } });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
+        await waitFor(() => {
+            expect(patchBody.desinfIntervalMonths).toBe(1);
         });
     });
 

@@ -3,7 +3,7 @@
  *
  * Ajoute 4 nouvelles colonnes :
  *   - Vehicle.lastDesinfDate      (TEXT, NULL) — date de la dernière désinf. YYYY-MM-DD
- *   - Vehicle.nextDesinfMaxDate   (TEXT, NULL) — lastDesinfDate + 42 jours
+ *   - Vehicle.nextDesinfMaxDate   (TEXT, NULL) — lastDesinfDate + périodicité du véhicule (voir add-vehicle-desinf-interval.ts)
  *   - Trip.desinfResponsable      (TEXT, NULL) — nom du responsable de la désinf.
  *   - Trip.desinfLotNumber        (TEXT, NULL) — numéro de lot du produit désinfectant
  *

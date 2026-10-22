@@ -221,7 +221,7 @@ async function patchHandler(
             // Pour les missions Désinfection : mise à jour des dates de désinf. du véhicule au retour
             if (trip.missionType === 'Désinfection') {
                 await tx.execute({
-                    sql: `UPDATE Vehicle SET lastDesinfDate = date('now'), nextDesinfMaxDate = date('now', '+42 days') WHERE id = ?`,
+                    sql: `UPDATE Vehicle SET lastDesinfDate = date('now'), nextDesinfMaxDate = date('now', '+' || COALESCE(desinfIntervalMonths, 3) || ' months') WHERE id = ?`,
                     args: [trip.vehicleId]
                 });
             }

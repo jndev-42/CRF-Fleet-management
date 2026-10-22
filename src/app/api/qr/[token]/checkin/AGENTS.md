@@ -31,7 +31,7 @@ Finalizes an active trip for a vehicle. Resolves QR token to vehicle, finds the 
 2. If Renault data fetch fails, logs error but continues if data supplied.
 3. If mileageIn or fuelIn still undefined after Renault attempt → 400 "Données manquantes".
 4. Renault validation window: cockpit timestamp must be ≥ (checkInTime - 5 min). If within window → `renaultDataValidated = 1`, else `0`.
-5. If trip.missionType === 'Désinfection' → update vehicle.lastDesinfDate = today, nextDesinfMaxDate = today + 42 days.
+5. If trip.missionType === 'Désinfection' → update vehicle.lastDesinfDate = today, nextDesinfMaxDate = today + vehicle.desinfIntervalMonths months (default 3).
 
 **DB Details:**
 - Transactional (write): atomically update Trip + Vehicle.
