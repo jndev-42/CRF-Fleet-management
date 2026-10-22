@@ -63,7 +63,11 @@ async function main(): Promise<void> {
     const { generateExpensePdf, countItems } = await import('../src/lib/expenses/pdf');
     const { sealPdf, decodeSignatureImage, assertSigningCertConfigured } = await import('../src/lib/pdf/signature');
     const { putObject, buildExpenseKey, newAttemptId, assertR2Configured } = await import('../src/lib/r2');
-    const { SIGNATURE_FIELDS, SIGNATURE_WIDGET_RECTS, MAX_ITEMS_SINGLE_PAGE } = await import('../src/lib/expenses/signature-layout');
+    // Disposition de l'ANCIEN circuit (v1) : rectangles et champs dédiés, figés,
+    // indépendants des retouches de la disposition v2.
+    const {
+        LEGACY_SIGNATURE_FIELDS: SIGNATURE_FIELDS, LEGACY_SIGNATURE_WIDGET_RECTS: SIGNATURE_WIDGET_RECTS, MAX_ITEMS_SINGLE_PAGE,
+    } = await import('../src/lib/expenses/signature-layout');
     const { addSignatureFields } = await import('../src/lib/pdf/fields');
     const sharp = (await import('sharp')).default;
 
@@ -138,6 +142,15 @@ async function main(): Promise<void> {
         const itemCount = countItems(row.items as string);
         const tooLong = itemCount > MAX_ITEMS_SINGLE_PAGE;
 
+        // Une note du nouveau circuit (v2) a été scellée à la soumission avec quatre
+        // champs : la re-sceller selon l'ancienne disposition détruirait l'étape
+        // RESPO et la signature du président. Refusée, même avec --reseal.
+        if (Number(row.workflowVersion) === 2) {
+            stats.skipped++;
+            console.log(`  = ${id} ignorée : circuit RESPO puis président (workflowVersion 2), jamais re-scellée par ce script`);
+            continue;
+        }
+
         // Une note déjà scellée est ignorée : c'est ce qui rend le script rejouable.
         // `--reseal` lève cette garde pour réparer un corpus scellé par un code fautif.
         if (row.r2Key && !RESEAL) { stats.skipped++; console.log(`  = ${id} déjà scellée`); continue; }
@@ -164,8 +177,11 @@ async function main(): Promise<void> {
 
         try {
             const now = new Date();
+            // Disposition de l'ancien circuit (v1) : trois champs seulement, tampon
+            // imprimé en contenu. `Signature4` (président) n'existe que pour les
+            // notes scellées à la soumission par le nouveau circuit.
             let buf = await addSignatureFields(
-                await generateExpensePdf(id, { forSealing: true }),
+                await generateExpensePdf(id, { forSealing: true, legacyLayout: true }),
                 [...SIGNATURE_FIELDS]
             );
             const revisions: unknown[] = [];

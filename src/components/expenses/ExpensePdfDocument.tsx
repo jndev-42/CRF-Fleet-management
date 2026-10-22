@@ -198,6 +198,23 @@ const styles = StyleSheet.create({
     tamponImage: { maxHeight: 62, maxWidth: 130, objectFit: 'contain' },
     zoneTampon: { height: 66, justifyContent: 'center' },
     /**
+     * Circuit v2, mode scellement : la colonne « Tampon de la structure » reçoit le
+     * widget du président, qui porte le tampon de l'UL ET la signature côte à
+     * côte. Elle est élargie (40 % au lieu d'un tiers) et rehaussée pour que le
+     * tampon y soit ~30 % plus grand qu'avant, sans chevaucher la signature.
+     *
+     * ⚠️ Ces dimensions déterminent `SIGNATURE_WIDGET_RECTS` : toute retouche
+     * impose de REJOUER `scripts/measure-signature-rects.ts`.
+     */
+    colonneSignatureV2: { width: '30%', paddingLeft: 14 },
+    colonneTamponV2: { width: '40%', paddingLeft: 14 },
+    zoneTamponV2: { height: 88 },
+    /**
+     * La marge sous le bloc signature est rendue à la zone tampon : sans elle, la
+     * note ne tiendrait plus que 8 postes sur une page au lieu de 9 (D6).
+     */
+    signaturesV2: { flexDirection: 'row', marginBottom: 0 },
+    /**
      * Hauteur FIXE du bloc de métadonnées en mode scellement — même raison :
      * la zone de tracé ne doit pas se déplacer selon la présence du hash ou de
      * la date de validation.
@@ -293,9 +310,11 @@ export interface ExpensePdfReportProps {
     /**
      * Rendu destiné au SCELLEMENT cryptographique.
      *
-     * Dans ce mode, les zones d'image de signature des colonnes « Le demandeur »
-     * et « Le responsable » sont laissées VIDES : le visuel est fourni par les
-     * widgets de signature PDF (`/AP`), posés après coup par `sealing.ts`.
+     * Dans ce mode, les zones d'image de signature des colonnes « Le demandeur »,
+     * « Le responsable » et « Tampon de la structure » sont laissées VIDES : le
+     * visuel est fourni par les widgets de signature PDF (`/AP`), posés après
+     * coup par `sealing.ts`. Le tampon de l'UL n'est donc pas imprimé : il
+     * accompagne la signature du président, dans l'apparence de son widget.
      *
      * Sans ce drapeau, l'image serait rendue DEUX FOIS — une fois dans le contenu
      * par ce composant, une fois par le widget — et le décalage de mise en page
@@ -316,11 +335,22 @@ export interface ExpensePdfReportProps {
      * travers, et DocMDP le fige définitivement.
      */
     measureZones?: boolean;
+    /**
+     * Disposition de l'ancien circuit (v1) : la colonne « Tampon de la
+     * structure » imprime le tampon en contenu au lieu de réserver la zone du
+     * widget président. Réservé au scellement rétroactif
+     * (`scripts/backfill-signed-pdfs.ts`), qui ne pose que trois champs.
+     */
+    legacyLayout?: boolean;
 }
 
 export default function ExpensePdfDocument({
-    report, logoSrc, forSealing = false, measureZones = false,
+    report, logoSrc, forSealing = false, measureZones = false, legacyLayout = false,
 }: ExpensePdfReportProps) {
+    // Disposition du circuit v2 (widget président élargi) : seulement au
+    // scellement, et jamais pour le scellement rétroactif des notes v1.
+    const v2Layout = forSealing && !legacyLayout;
+    const colonne = v2Layout ? styles.colonneSignatureV2 : styles.colonneSignature;
     /**
      * Aplat de repérage, à partir des composantes `scn` attendues par le script
      * de mesure — même source de vérité des deux côtés.
@@ -476,8 +506,8 @@ export default function ExpensePdfDocument({
                 <View style={{ flexGrow: 1 }} />
 
                 {/* Signatures — sans encadré, conformément au modèle officiel */}
-                <View style={styles.signatures}>
-                    <View style={styles.colonneSignature}>
+                <View style={v2Layout ? styles.signaturesV2 : styles.signatures}>
+                    <View style={colonne}>
                         <Text style={styles.titreSignature}>Le demandeur :</Text>
                         {forSealing ? (
                             // Zone réservée au widget de signature PDF (rect
@@ -515,7 +545,7 @@ export default function ExpensePdfDocument({
                         )}
                     </View>
 
-                    <View style={styles.colonneSignature}>
+                    <View style={colonne}>
                         <Text style={styles.titreSignature}>Le responsable :</Text>
                         {forSealing ? (
                             // Vide dès le scellement #1 : le valideur n'a pas encore
@@ -559,9 +589,17 @@ export default function ExpensePdfDocument({
                         )}
                     </View>
 
-                    <View style={styles.colonneSignature}>
+                    <View style={v2Layout ? styles.colonneTamponV2 : styles.colonneSignature}>
                         <Text style={styles.titreSignature}>Tampon de la structure :</Text>
-                        {report.ulStampImage ? (
+                        {v2Layout ? (
+                            // Zone réservée au widget du président (rect
+                            // `president`, champ `Signature4`). Le tampon n'est
+                            // JAMAIS imprimé ici : il est apposé avec la signature
+                            // du président, dans l'apparence du widget. Imprimé dès
+                            // la soumission, il figurerait sur une note non validée,
+                            // figé par DocMDP.
+                            <View style={[styles.zoneTamponV2, reperage(MEASURE_ZONE_COLORS.president)]} />
+                        ) : report.ulStampImage ? (
                             <View style={styles.zoneTampon}>
                                 {/* eslint-disable-next-line jsx-a11y/alt-text */}
                                 <Image src={report.ulStampImage} style={styles.tamponImage} />

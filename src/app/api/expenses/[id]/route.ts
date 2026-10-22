@@ -5,7 +5,11 @@ import { auth } from '@/auth';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
 import { validateItemBudgets } from '@/lib/expenses/budgets';
-import { isExpenseManager, canPayExpense, isTresorier as isTresorierRole, isSuperAdmin as isSuperAdminRole } from '@/lib/roles';
+import { canPayExpense, canValidateExpenseAsRespo, isPresident, isSuperAdmin as isSuperAdminRole } from '@/lib/roles';
+import {
+    validationStage, canSignStage, signsBothSteps, canViewExpense, activeUlId, workflowVersionOf,
+    type ValidationStage,
+} from '@/lib/expenses/workflow';
 import { withAudit } from '@/lib/audit/log';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
@@ -15,7 +19,7 @@ export const maxDuration = 30;
 
 const updateExpenseReportSchema = z.object({
     action: z.enum(['update', 'submit', 'validate', 'reject', 'pay']),
-    status: z.enum(['brouillon', 'soumis', 'en_attente_paiement', 'traité', 'refusé']).optional(),
+    status: z.enum(['brouillon', 'soumis', 'valide_respo', 'en_attente_paiement', 'traité', 'refusé']).optional(),
     missionName: z.string().optional().nullable(),
     missionDate: z.string().optional().nullable(),
     imputation: z.enum(['DLUS', 'DLAS', 'UL', 'Autre']).optional(),
@@ -96,6 +100,68 @@ function sealFailure(e: unknown, step: string): NextResponse {
     }, { status: 500 });
 }
 
+/** Sérialise une signature reçue du front (objet ou chaîne JSON), `null` si absente. */
+function signatureString(raw: unknown): string | null {
+    if (typeof raw === 'object' && raw !== null) return JSON.stringify(raw);
+    return typeof raw === 'string' && raw ? raw : null;
+}
+
+/** Image de signature contenue dans la chaîne JSON reçue du front. */
+function signatureImage(sigStr: string): string | null {
+    try {
+        const parsed = JSON.parse(sigStr);
+        return parsed?.image ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Contrôles communs à la validation et au refus : étape en attente, rôle à cette
+ * étape, UL active et auto-validation (décision D2).
+ *
+ * Renvoie l'étape à signer, ou la réponse d'erreur à retourner telle quelle.
+ */
+function checkSigningRights(
+    report: Record<string, unknown>,
+    session: { user: { id: string; roles?: string[]; ulId?: string | null } },
+    verb: 'valider' | 'refuser',
+): { stage: ValidationStage } | { error: NextResponse } {
+    const roles = session.user.roles || [];
+
+    if (!canValidateExpenseAsRespo(roles)) {
+        return { error: forbiddenResponse(
+            `Seuls le responsable d'activité, le Président et les Super Administrateurs peuvent ${verb} des notes de frais.`) };
+    }
+
+    const stage = validationStage(report.status, report.workflowVersion);
+    if (!stage) {
+        return { error: NextResponse.json({
+            error: verb === 'valider'
+                ? 'Cette note de frais n\'est pas en attente de validation.'
+                : 'Seules les notes de frais en attente de validation peuvent être refusées.',
+        }, { status: 400 }) };
+    }
+
+    if (!canSignStage(roles, stage)) {
+        return { error: forbiddenResponse(stage === 'respo'
+            ? `Seuls le responsable d'activité et le Président peuvent ${verb} cette note de frais.`
+            : `Seuls le Président et les Super Administrateurs peuvent ${verb} cette note de frais à cette étape.`) };
+    }
+
+    // Les rôles sont ceux de l'UL active : ils ne valent pas pour une autre UL.
+    if (!isSuperAdminRole(roles) && activeUlId(report.ulId as string | null) !== activeUlId(session.user.ulId)) {
+        return { error: forbiddenResponse('Cette note de frais relève d\'une autre unité locale.') };
+    }
+
+    // D2 : personne ne signe une étape de validation de sa propre note.
+    if (report.userId === session.user.id) {
+        return { error: forbiddenResponse(`Vous ne pouvez pas ${verb} votre propre note de frais.`) };
+    }
+
+    return { stage };
+}
+
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -112,10 +178,12 @@ export async function GET(
         const result = await db.execute({
             sql: `
                 SELECT er.*, u.name as userName, u.email as userEmail,
-                       val.name as validatorName, rej.name as rejectorName, pay.name as payerName
+                       val.name as validatorName, rej.name as rejectorName, pay.name as payerName,
+                       respo.name as respoValidatorName
                 FROM "ExpenseReport" er
                 JOIN "User" u ON u.id = er.userId
                 LEFT JOIN "User" val ON val.id = er.validatedBy
+                LEFT JOIN "User" respo ON respo.id = er.respoValidatedBy
                 LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                 LEFT JOIN "User" pay ON pay.id = er.paidBy
                 WHERE er.id = ?
@@ -128,12 +196,8 @@ export async function GET(
             return NextResponse.json({ error: 'Note de frais non trouvée' }, { status: 404 });
         }
 
-        const roles = session.user.roles || [];
-        const isManager = isExpenseManager(roles);
-        const isTresorier = isTresorierRole(roles);
-        const isOwner = row.userId === session.user.id;
-
-        if (!isManager && !isOwner && !(isTresorier && row.status === 'en_attente_paiement')) {
+        const viewer = { id: session.user.id, roles: session.user.roles || [], ulId: session.user.ulId };
+        if (!canViewExpense(viewer, { userId: row.userId, status: row.status, ulId: row.ulId })) {
             return forbiddenResponse();
         }
 
@@ -181,6 +245,11 @@ export async function GET(
             userSignature: (row.userSignature as string) || null,
             userFunction: (row.userFunction as string) || null,
             validatorSignature: (row.validatorSignature as string) || null,
+            workflowVersion: workflowVersionOf(row.workflowVersion),
+            respoValidatedAt: (row.respoValidatedAt as string) || null,
+            respoValidatedBy: (row.respoValidatedBy as string) || null,
+            respoValidatorName: (row.respoValidatorName as string) || null,
+            respoSignature: (row.respoSignature as string) || null,
             createdAt: row.createdAt,
             updatedAt: row.updatedAt,
         };
@@ -254,53 +323,86 @@ async function patchHandler(
 
         const { action, missionName, missionDate, imputation, customImputation, rejectionComment, requestRefund, noReceiptDeclaration, userSignature, userFunction, validatorSignature, payerSignature, receiptKeys, items } = parsed.data;
         const roles = session.user.roles || [];
-        const isManager = isExpenseManager(roles);
         const isOwner = report.userId === session.user.id;
         const now = new Date().toISOString();
 
         if (action === 'validate') {
-            // Check roles
-            if (!isManager) {
-                return forbiddenResponse('Seuls le Président et les Super Administrateurs peuvent valider des notes de frais.');
-            }
+            const rights = checkSigningRights(report, session, 'valider');
+            if ('error' in rights) return rights.error;
+            const { stage } = rights;
 
-            if (report.status !== 'soumis') {
-                return NextResponse.json({ error: 'Seules les notes de frais soumises peuvent être validées.' }, { status: 400 });
-            }
-
-            // Si demande de remboursement -> 'en_attente_paiement', sinon 'traité'
-            const nextStatus = report.requestRefund === 1 ? 'en_attente_paiement' : 'traité';
-            const valSigStr = typeof validatorSignature === 'object' && validatorSignature !== null
-                ? JSON.stringify(validatorSignature)
-                : (validatorSignature || null);
-
+            const valSigStr = signatureString(validatorSignature);
             if (!valSigStr) {
                 return NextResponse.json({ error: 'Votre signature est requise pour valider la note de frais.' }, { status: 400 });
             }
 
+            const signer = {
+                id: session.user.id,
+                name: session.user.name || session.user.email || 'Valideur',
+                signatureImage: signatureImage(valSigStr),
+            };
+            // Statut atteint quand la validation est FINALE (président, ou note v1).
+            const finalStatus = report.requestRefund === 1 ? 'en_attente_paiement' : 'traité';
+            const respoOnly = stage === 'respo' && !signsBothSteps(roles, stage);
+            const nextStatus = respoOnly ? 'valide_respo' : finalStatus;
+            const expectedStatus = report.status as string;
+
             try {
-                const { sealStep2 } = await import('@/lib/expenses/sealing');
+                const { sealStep2, sealPresident } = await import('@/lib/expenses/sealing');
                 const { persistSealed } = await import('@/lib/expenses/persist-seal');
-                const parsedSig = JSON.parse(valSigStr);
-                const seal = await sealStep2(id, {
-                    id: session.user.id,
-                    name: session.user.name || session.user.email || 'Valideur',
-                    signatureImage: parsedSig?.image ?? null,
-                });
-                await persistSealed({
-                    reportId: id, seal,
-                    expectedStatus: 'soumis', nextStatus,
-                    extraColumns: { validatedAt: now, validatedBy: session.user.id, validatorSignature: valSigStr },
-                });
+                const respoColumns = { respoValidatedAt: now, respoValidatedBy: session.user.id, respoSignature: valSigStr };
+                const presidentColumns = { validatedAt: now, validatedBy: session.user.id, validatorSignature: valSigStr };
+
+                if (stage === 'legacy') {
+                    // Note v1 : son PDF n'a que trois champs, le président valide
+                    // dans `Signature2`, comme avant.
+                    const seal = await sealStep2(id, signer, { stage: 'legacy' });
+                    await persistSealed({ reportId: id, seal, expectedStatus, nextStatus, extraColumns: presidentColumns });
+                } else if (stage === 'president') {
+                    const seal = await sealPresident(id, signer);
+                    await persistSealed({ reportId: id, seal, expectedStatus, nextStatus, extraColumns: presidentColumns });
+                } else if (respoOnly) {
+                    const seal = await sealStep2(id, signer);
+                    await persistSealed({ reportId: id, seal, expectedStatus, nextStatus, extraColumns: respoColumns });
+                } else {
+                    // Le président signe à la place du RESPO : deux révisions, la
+                    // RESPO puis la sienne (tampon compris), enchaînées en mémoire
+                    // et persistées d'un seul tenant.
+                    const respoSeal = await sealStep2(id, signer);
+                    const presidentSeal = await sealPresident(id, signer, { after: respoSeal });
+                    await persistSealed({
+                        reportId: id, seal: [respoSeal, presidentSeal], expectedStatus, nextStatus,
+                        extraColumns: { ...respoColumns, ...presidentColumns },
+                    });
+                }
             } catch (e: unknown) {
                 return sealFailure(e, 'validation');
             }
 
-            if (nextStatus === 'en_attente_paiement') {
+            const requesterName = (report.userName as string) || (report.userEmail as string) || 'Un membre';
+            const expenseTotal = Number(report.total);
+            const reportUlId = (report.ulId as string) || 'ul-paris-18';
+
+            if (nextStatus === 'valide_respo') {
+                // D3 : après la validation RESPO, seul le président est notifié.
                 try {
-                    const requesterName = (report.userName as string) || (report.userEmail as string) || 'Un membre';
-                    const expenseTotal = Number(report.total);
-                    const reportUlId = (report.ulId as string) || 'ul-paris-18';
+                    const { sendPushNotification } = await import('@/lib/push');
+                    await sendPushNotification({
+                        roles: ['PRESIDENT'],
+                        headings: { fr: `📋 Note de frais à valider`, en: `📋 Expense report pending approval` },
+                        contents: {
+                            fr: `La note de frais de ${requesterName} (${expenseTotal.toFixed(2)} €) a été validée par le responsable d'activité et attend votre validation.`,
+                            en: `Expense report from ${requesterName} (${expenseTotal.toFixed(2)} €) was approved by the activity manager and awaits your approval.`
+                        },
+                        url: `/expenses`,
+                        ulId: reportUlId,
+                        excludeUserId: session.user.id
+                    });
+                } catch (notifErr) {
+                    console.error('Failed to send expense notification to president:', notifErr);
+                }
+            } else if (nextStatus === 'en_attente_paiement') {
+                try {
                     const { sendPushNotification } = await import('@/lib/push');
                     await sendPushNotification({
                         roles: ['TRESORIER'],
@@ -320,21 +422,19 @@ async function patchHandler(
 
             await notifyRequester(
                 report, session.user.id,
-                `✅ Note de frais validée`,
-                nextStatus === 'en_attente_paiement'
+                nextStatus === 'valide_respo' ? `✅ Note de frais validée par le responsable` : `✅ Note de frais validée`,
+                nextStatus === 'valide_respo'
+                    ? `Votre note de frais a été validée par le responsable d'activité, en attente de la validation du président.`
+                    : nextStatus === 'en_attente_paiement'
                     ? `Votre note de frais a été validée, en attente de paiement.`
                     : `Votre note de frais a été validée.`,
             );
 
             return NextResponse.json({ success: true, status: nextStatus });
         } else if (action === 'reject') {
-            if (!isManager) {
-                return forbiddenResponse('Seuls le Président et les Super Administrateurs peuvent refuser des notes de frais.');
-            }
-
-            if (report.status !== 'soumis') {
-                return NextResponse.json({ error: 'Seules les notes de frais soumises peuvent être refusées.' }, { status: 400 });
-            }
+            const rights = checkSigningRights(report, session, 'refuser');
+            if ('error' in rights) return rights.error;
+            const { stage } = rights;
 
             if (!rejectionComment || !rejectionComment.trim()) {
                 return NextResponse.json({ error: 'Un commentaire est obligatoire pour refuser une note de frais.' }, { status: 400 });
@@ -342,31 +442,33 @@ async function patchHandler(
 
             // Décision D5 : le refus est lui aussi un événement SIGNÉ, et il clôt
             // définitivement le document. Une correction passe par une note neuve.
-            const rejSigStr = typeof validatorSignature === 'object' && validatorSignature !== null
-                ? JSON.stringify(validatorSignature)
-                : (validatorSignature || null);
-
+            const rejSigStr = signatureString(validatorSignature);
             if (!rejSigStr) {
                 return NextResponse.json({ error: 'Votre signature est requise pour refuser la note de frais.' }, { status: 400 });
             }
 
+            const signer = {
+                id: session.user.id,
+                name: session.user.name || session.user.email || 'Valideur',
+                signatureImage: signatureImage(rejSigStr),
+            };
+            const rejectionColumns = { rejectionComment: rejectionComment.trim(), rejectedAt: now, rejectedBy: session.user.id };
+
             try {
-                const { sealStep2 } = await import('@/lib/expenses/sealing');
+                const { sealStep2, sealPresident } = await import('@/lib/expenses/sealing');
                 const { persistSealed } = await import('@/lib/expenses/persist-seal');
-                const parsedSig = JSON.parse(rejSigStr);
-                const seal = await sealStep2(id, {
-                    id: session.user.id,
-                    name: session.user.name || session.user.email || 'Valideur',
-                    signatureImage: parsedSig?.image ?? null,
-                }, { rejected: true });
+                // Un refus à l'étape RESPO se signe dans le champ RESPO, même posé
+                // par le président ; à l'étape président, dans le sien — sans tampon.
+                const seal = stage === 'president'
+                    ? await sealPresident(id, signer, { rejected: true })
+                    : await sealStep2(id, signer, { rejected: true, stage: stage === 'legacy' ? 'legacy' : 'respo' });
+                const signatureColumn: Record<string, string> = stage === 'respo'
+                    ? { respoSignature: rejSigStr }
+                    : { validatorSignature: rejSigStr };
                 await persistSealed({
                     reportId: id, seal,
-                    expectedStatus: 'soumis', nextStatus: 'refusé',
-                    extraColumns: {
-                        rejectionComment: rejectionComment.trim(),
-                        rejectedAt: now, rejectedBy: session.user.id,
-                        validatorSignature: rejSigStr,
-                    },
+                    expectedStatus: report.status as string, nextStatus: 'refusé',
+                    extraColumns: { ...rejectionColumns, ...signatureColumn },
                 });
             } catch (e: unknown) {
                 return sealFailure(e, 'refus');
@@ -485,6 +587,11 @@ async function patchHandler(
             // Une note soumise est scellée immédiatement et le document devient
             // immuable : mieux vaut refuser en amont que produire un PDF invalide.
             if (action === 'submit') {
+                // Même règle qu'à la création : un président ne soumet pas de note
+                // à son nom (un brouillon antérieur reste supprimable).
+                if (isPresident(roles) && !isSuperAdminRole(roles)) {
+                    return forbiddenResponse('Un président ne peut pas soumettre de note de frais à son nom.');
+                }
                 if (items && items.length > MAX_ITEMS_SINGLE_PAGE) {
                     return NextResponse.json({
                         error: `Cette note comporte ${items.length} postes de dépense ; le maximum est ` +
@@ -558,8 +665,9 @@ async function patchHandler(
                     const requesterName = (report.userName as string) || (report.userEmail as string) || session.user.name || session.user.email || 'Un membre';
                     const reportUlId = (report.ulId as string) || 'ul-paris-18';
                     const { sendPushNotification } = await import('@/lib/push');
+                    // D3 : à la soumission, les RESPO et le président de l'UL.
                     await sendPushNotification({
-                        roles: ['PRESIDENT'],
+                        roles: ['RESPO', 'PRESIDENT'],
                         headings: { fr: `📋 Note de frais à valider`, en: `📋 Expense report pending approval` },
                         contents: {
                             fr: `${requesterName} a soumis une note de frais (${finalTotal.toFixed(2)} €) à valider.`,

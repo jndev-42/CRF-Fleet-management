@@ -21,7 +21,7 @@ Container for vehicle reservation endpoints. Manages vehicle booking lifecycle: 
 
 **Ownership & Roles:**
 - Owner = creator's email (userEmail column)
-- Manager roles = `canAccessAdminPanel(roles)` (ADMIN, CADRE, PRESIDENT) OR `roles.includes('RESPO')`
+- Manager roles = `canAccessAdminPanel(roles)` (ADMIN, CADRE, PRESIDENT)
 - Editing: owner OR manager
 - Deletion: owner OR manager
 - Validation: manager only

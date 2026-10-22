@@ -50,14 +50,35 @@ export const PAGE_HEIGHT = 841.890015;
  */
 export const SIGNATURE_WIDGET_RECTS = {
     /** Colonne « Le demandeur : » — signature #1 (D10 : widget, pas contenu). */
-    demandeur: [86, 205.5, 222.4, 249.5] as const,
+    demandeur: [86, 215.5, 207.4, 259.5] as const,
     /** Colonne « Le responsable : » — signature #2. */
-    valideur: [236.4, 205.5, 372.8, 249.5] as const,
+    valideur: [221.4, 215.5, 342.8, 259.5] as const,
     /**
      * Signature #3 (payeur) : AUCUN widget visible.
      * Le champ existe — il doit être créé comme les autres avant le scellement —
      * mais son rectangle est nul, donc rien n'est rendu sur la page.
      */
+    payeur: null,
+    /**
+     * Colonne « Tampon de la structure : » — signature #4, celle du président.
+     * Son apparence place le tampon de l'UL (s'il existe) et la signature CÔTE À
+     * CÔTE. Colonne élargie et rehaussée (`colonneTamponV2`, `zoneTamponV2`).
+     */
+    president: [356.8, 171.5, 523.3, 259.5] as const,
+} as const;
+
+/**
+ * Rectangles de la disposition de l'ANCIEN circuit (v1) : trois colonnes égales,
+ * tampon imprimé en contenu, aucun widget président.
+ *
+ * Servent uniquement au scellement rétroactif (`scripts/backfill-signed-pdfs.ts`,
+ * `legacyLayout`). Mesurés par le même script ; ils ne doivent JAMAIS suivre les
+ * retouches de la disposition v2. Les PDF déjà scellés portent leurs propres
+ * rectangles et ne dépendent d'aucune de ces constantes.
+ */
+export const LEGACY_SIGNATURE_WIDGET_RECTS = {
+    demandeur: [86, 205.5, 222.4, 249.5] as const,
+    valideur: [236.4, 205.5, 372.8, 249.5] as const,
     payeur: null,
 } as const;
 
@@ -71,21 +92,88 @@ export const SIGNATURE_WIDGET_RECTS = {
 export const MEASURE_ZONE_COLORS = {
     demandeur: '1 0 0',
     valideur: '0 1 0',
+    president: '0 0 1',
 } as const;
 
 /**
- * Les trois champs de signature, posés d'un coup AVANT le premier scellement.
+ * Les quatre champs de signature, posés d'un coup AVANT le premier scellement.
  *
- * ⚠️ L'ORDRE ET LES NOMS SONT CONTRACTUELS : `sealStep1/2/3` remplissent
- * respectivement `Signature1`, `Signature2` et `Signature3`. Un champ ne peut
- * pas être ajouté après la certification sans invalider les signatures déjà
- * posées aux yeux d'Acrobat.
+ * ⚠️ L'ORDRE ET LES NOMS SONT CONTRACTUELS : `sealStep1`, `sealStep2` (RESPO),
+ * `sealStep3` (payeur) et `sealPresident` remplissent respectivement
+ * `Signature1`, `Signature2`, `Signature3` et `Signature4`. Un champ ne peut pas
+ * être ajouté après la certification sans invalider les signatures déjà posées
+ * aux yeux d'Acrobat.
+ *
+ * `Signature4` est ajouté EN DERNIER : les trois premiers gardent leur nom et
+ * leur rang, si bien qu'une note scellée avant son introduction (trois champs,
+ * `workflowVersion` 1) reste exploitable par l'ancien circuit.
  */
 export const SIGNATURE_FIELDS = [
     { name: 'Signature1', rect: SIGNATURE_WIDGET_RECTS.demandeur },
     { name: 'Signature2', rect: SIGNATURE_WIDGET_RECTS.valideur },
     { name: 'Signature3', rect: SIGNATURE_WIDGET_RECTS.payeur },
+    { name: 'Signature4', rect: SIGNATURE_WIDGET_RECTS.president },
 ] as const;
+
+/** Les trois champs de l'ancien circuit (v1), pour le scellement rétroactif. */
+export const LEGACY_SIGNATURE_FIELDS = [
+    { name: 'Signature1', rect: LEGACY_SIGNATURE_WIDGET_RECTS.demandeur },
+    { name: 'Signature2', rect: LEGACY_SIGNATURE_WIDGET_RECTS.valideur },
+    { name: 'Signature3', rect: LEGACY_SIGNATURE_WIDGET_RECTS.payeur },
+] as const;
+
+/** Index de chaque champ dans `SIGNATURE_FIELDS`, pour ne pas manier d'indices nus. */
+export const SIGNATURE_FIELD_INDEX = { demandeur: 0, respo: 1, payeur: 2, president: 3 } as const;
+
+/** Rectangle en pixels dans l'apparence composée. */
+export interface Box { left: number; top: number; width: number; height: number }
+
+/**
+ * Place, sans chevauchement, le tampon et la signature dans le widget président.
+ *
+ * Deux dispositions sont envisagées — côte à côte (tampon à gauche) ou empilées
+ * (tampon en haut) — et celle qui donne le PLUS GRAND tampon est retenue : un
+ * tampon rond se met à côté de la signature, un tampon très large au-dessus.
+ * La signature garde dans les deux cas une place minimale lisible.
+ *
+ * Fonction pure, exportée pour que les tests vérifient que les deux boîtes sont
+ * disjointes quelles que soient les proportions du tampon.
+ */
+export function presidentAppearanceLayout(
+    width: number,
+    height: number,
+    stamp: { width: number; height: number },
+): { stamp: Box; signature: Box } {
+    const gap = Math.round(width * 0.03);
+    // Liseré haut et bas : le tampon ne touche ni le libellé de la colonne ni la
+    // mention d'archivage imprimée juste sous le bloc signature.
+    const inset = Math.round(height * 0.015);
+    const usable = height - 2 * inset;
+    // Place réservée à la signature : ~45 % de la largeur côte à côte, ~35 % de
+    // la hauteur empilée — un tracé plus petit ne serait plus lisible.
+    const sigMinWidth = Math.round(width * 0.45);
+    const sigMinHeight = Math.round(height * 0.35);
+
+    const sideScale = Math.min((width - sigMinWidth - gap) / stamp.width, usable / stamp.height);
+    const stackScale = Math.min(width / stamp.width, (usable - sigMinHeight - gap) / stamp.height);
+    const sideBySide = sideScale >= stackScale;
+    const scale = sideBySide ? sideScale : stackScale;
+    const sw = Math.max(1, Math.floor(stamp.width * scale));
+    const sh = Math.max(1, Math.floor(stamp.height * scale));
+
+    if (sideBySide) {
+        const sigLeft = sw + gap;
+        return {
+            stamp: { left: 0, top: inset + Math.floor((usable - sh) / 2), width: sw, height: sh },
+            signature: { left: sigLeft, top: Math.round(height * 0.1), width: width - sigLeft, height: Math.round(height * 0.8) },
+        };
+    }
+    const sigTop = inset + sh + gap;
+    return {
+        stamp: { left: Math.floor((width - sw) / 2), top: inset, width: sw, height: sh },
+        signature: { left: Math.round(width * 0.1), top: sigTop, width: Math.round(width * 0.8), height: height - inset - sigTop },
+    };
+}
 
 /** Convertit une ordonnée « depuis le haut de page » en ordonnée PDF. */
 export function toPdfY(yFromTop: number, height: number): number {

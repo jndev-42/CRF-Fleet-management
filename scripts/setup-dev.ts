@@ -158,11 +158,12 @@ async function main() {
     });
 
     // Seed des rôles
-    const roles = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'CADRE', 'CHVPSP', 'CHVL', 'CI/RPAPS', 'INACTIF'];
+    const roles = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'CHVPSP', 'CHVL', 'CI/RPAPS', 'INACTIF'];
     for (const role of roles) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
-            args: [crypto.randomUUID(), role],
+            // RESPO : même identifiant que le seed preview et l'auto-seed de GET /api/users.
+            args: [role === 'RESPO' ? 'role-respo' : crypto.randomUUID(), role],
         });
     }
 
@@ -807,6 +808,10 @@ async function main() {
             "r2Key"                  TEXT, -- Clé Cloudflare R2 du PDF scellé courant
             "signatureRevisions"     TEXT, -- JSON: Array<{ step, signerId, signerName, role, signedAt, businessDate, r2Key }>
             "pendingReceiptKeys"     TEXT, -- JSON: clés R2 des justificatifs déposés (brouillon, avant premier scellement)
+            "workflowVersion"        INTEGER DEFAULT 1, -- 1 : circuit à une validation (président) ; 2 : RESPO puis président
+            "respoValidatedAt"       TEXT,
+            "respoValidatedBy"       TEXT REFERENCES "User"("id") ON DELETE SET NULL,
+            "respoSignature"         TEXT, -- JSON { type, data, date, hash, name } — étape responsable d'activité
             "createdAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
@@ -835,6 +840,18 @@ async function main() {
         if (!expColNames.includes(col)) {
             await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "${col}" TEXT`);
         }
+    }
+    // Étape « responsable d'activité » (miroir de scripts/add-expense-respo-step.ts)
+    if (!expColNames.includes('workflowVersion')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "workflowVersion" INTEGER DEFAULT 1`);
+    }
+    for (const col of ['respoValidatedAt', 'respoSignature']) {
+        if (!expColNames.includes(col)) {
+            await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "${col}" TEXT`);
+        }
+    }
+    if (!expColNames.includes('respoValidatedBy')) {
+        await db.execute(`ALTER TABLE "ExpenseReport" ADD COLUMN "respoValidatedBy" TEXT REFERENCES "User"("id") ON DELETE SET NULL`);
     }
 
     await db.execute(`

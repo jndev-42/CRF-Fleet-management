@@ -79,6 +79,19 @@ describe('GET /api/expenses/[id]/pdf', () => {
         expect(res.status).toBe(200);
     });
 
+    it('autorise le RESPO de l\'UL à lire le document qu\'il doit signer, pas celui d\'une autre UL', async () => {
+        await seedUser({ id: 'user-1', email: 'owner@test.com' });
+        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', status: 'soumis', r2Key: 'expense-1/v1-abc.pdf' });
+
+        mockedAuth.mockResolvedValue({ user: { id: 'user-3', email: 'respo@test.com', roles: ['RESPO'], ulId: 'ul-paris-18' } } as never);
+        const ok = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
+        expect(ok.status).toBe(200);
+
+        mockedAuth.mockResolvedValue({ user: { id: 'user-3', email: 'respo@test.com', roles: ['RESPO'], ulId: 'ul-paris-17' } } as never);
+        const ko = await GET(new Request('http://localhost/api/expenses/expense-1/pdf'), { params: Promise.resolve({ id: 'expense-1' }) });
+        expect(ko.status).toBe(403);
+    });
+
 });
 
 describe('GET /api/expenses/[id]/pdf — proxy R2', () => {

@@ -30,17 +30,22 @@ async function main(): Promise<void> {
         validatorName: null, validatedAt: null,
     };
 
-    const el = createElement(ExpensePdfDocument, {
-        report, logoSrc: '', forSealing: true, measureZones: true,
-    }) as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>;
-    const pdf = Buffer.from(await renderToBuffer(el));
+    for (const legacyLayout of [false, true]) {
+        const el = createElement(ExpensePdfDocument, {
+            report, logoSrc: '', forSealing: true, measureZones: true, legacyLayout,
+        }) as unknown as ReactElement<DocumentProps, JSXElementConstructor<DocumentProps>>;
+        const pdf = Buffer.from(await renderToBuffer(el));
 
-    console.log('Rectangles mesurés (points PDF, origine en bas à gauche) :\n');
-    for (const [nom, couleur] of Object.entries(MEASURE_ZONE_COLORS)) {
-        const rect = filledRect(pdf, couleur);
-        console.log(`  ${nom.padEnd(10)} ${rect ? `[${rect.join(', ')}]` : 'INTROUVABLE'}`);
+        console.log(legacyLayout
+            ? '\nDisposition v1 (scellement rétroactif) → LEGACY_SIGNATURE_WIDGET_RECTS :\n'
+            : 'Disposition v2 (circuit RESPO puis président) → SIGNATURE_WIDGET_RECTS :\n');
+        for (const [nom, couleur] of Object.entries(MEASURE_ZONE_COLORS)) {
+            const rect = filledRect(pdf, couleur);
+            if (legacyLayout && nom === 'president') continue; // pas de widget président en v1
+            console.log(`  ${nom.padEnd(10)} ${rect ? `[${rect.join(', ')}]` : 'INTROUVABLE'}`);
+        }
     }
-    console.log('\nÀ reporter dans SIGNATURE_WIDGET_RECTS (src/lib/expenses/signature-layout.ts).');
+    console.log('\nÀ reporter dans src/lib/expenses/signature-layout.ts (points PDF, origine en bas à gauche).');
 }
 
 main().catch((e: unknown) => {

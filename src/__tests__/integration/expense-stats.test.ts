@@ -114,6 +114,30 @@ describe('GET /api/stats/expenses', () => {
     expect(json.data.global.totalExpensesAmount).toBe(200.0);
   });
 
+  it('compte une note validée par le responsable comme en attente, avec son libellé', async () => {
+    await db.execute({
+      sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, imputation, requestRefund)
+            VALUES ('exp-respo', 'user-standard', '2026-07-20T10:00:00Z', 'valide_respo', 30.0, '[]', 'ul-paris-18', 'DLUS', 1)`,
+      args: [],
+    });
+    mockedAuth.mockResolvedValue({
+      user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'], ulId: 'ul-paris-18' }
+    } as never);
+
+    const json = await (await getExpenseStats(new Request('http://localhost/api/stats/expenses?dateFrom=2026-07-01&dateTo=2026-07-31'))).json();
+    expect(json.data.global.totalPendingAmount).toBe(80.0);
+    expect(json.data.byStatus).toEqual(expect.arrayContaining([
+      expect.objectContaining({ status: 'valide_respo', label: 'Validée par le responsable', amount: 30, count: 1 }),
+    ]));
+
+    const csv = await (await postExpenseCsv(new Request('http://localhost/api/stats/expenses/csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dateFrom: '2026-07-01', dateTo: '2026-07-31' }),
+    }))).text();
+    expect(csv).toContain('Validée par le responsable');
+  });
+
   it('isolates stats strictly by UL (UL 17 sees only UL 17 stats)', async () => {
     mockedAuth.mockResolvedValue({
       user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'], ulId: 'ul-paris-17' }

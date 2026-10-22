@@ -15,6 +15,7 @@ const MANAGEABLE_ROLES = [
     'ADMIN',
     'PRESIDENT',
     'TRESORIER',
+    'RESPO',
     'CADRE',
     'CHVPSP',
     'CHVL',

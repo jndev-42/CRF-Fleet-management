@@ -86,7 +86,7 @@ describe('POST /api/bugs/report — auth & authorization', () => {
 
 describe('POST /api/bugs/report — validation Zod', () => {
   beforeEach(() => {
-    mockedAuth.mockResolvedValue({ user: { name: 'Jean', email: 'jean@dev.local', roles: ['RESPO'] } } as never);
+    mockedAuth.mockResolvedValue({ user: { name: 'Jean', email: 'jean@dev.local', roles: ['CADRE'] } } as never);
   });
 
   it('retourne 400 si le titre est absent', async () => {

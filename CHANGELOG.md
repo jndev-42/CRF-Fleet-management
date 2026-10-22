@@ -1,5 +1,26 @@
 # Changelog
 
+## [5.30.0] — 22 octobre 2026
+
+### ✨ Nouveautés
+
+- **Notes de frais : validation par le responsable d'activité, puis par le président** — un nouveau rôle « Responsable d'activité » (RESPO) valide en premier les notes de frais de son unité locale : il signe dans la colonne « Le responsable » du PDF officiel, et la note passe au statut « Validée par le responsable ». Le président signe ensuite : sa signature et le tampon de l'unité locale (s'il est configuré) sont apposés ensemble dans la colonne « Tampon de la structure ». Le paiement par le trésorier ne change pas.
+- **Tampon de l'unité locale plus grand et lisible** — sur le PDF validé, le tampon est environ 30 % plus grand qu'avant et placé à côté de la signature du président, sans plus jamais la chevaucher.
+- **Le président peut signer à la place du responsable** — sur une note soumise, le bouton « Signer pour le responsable et valider » pose les deux signatures d'un coup et valide les deux étapes.
+- **Refus à chaque étape** — le responsable d'activité comme le président peuvent refuser une note, avec un commentaire et une signature ; le refus reste définitif.
+- **Notifications** — à la soumission, les responsables d'activité et le président de l'unité locale sont prévenus ; après la validation du responsable, seul le président l'est, et le demandeur reçoit « Note de frais validée par le responsable ».
+
+### 🔒 Sécurité
+
+- **Personne ne valide sa propre note de frais** — une note créée par un responsable d'activité est validée par un autre responsable de l'unité locale ou par le président.
+- **Un président ne crée plus de note de frais à son nom** — le bouton « Nouvelle note de frais » ne lui est plus proposé.
+- **Le tampon de l'unité locale n'apparaît plus qu'une fois la note validée par le président** — il n'est plus imprimé dès la soumission.
+
+### 🔧 Changements
+
+- Les notes déjà soumises avant cette version suivent l'ancien circuit : le président les valide en une seule étape, comme avant.
+- Le responsable d'activité n'a de droits que sur les notes de frais : les anciens accès « responsable » aux réservations, aux statistiques et à l'édition manuelle du kilométrage sont retirés.
+
 ## [5.29.1] — 22 octobre 2026
 
 ### 🐛 Corrections

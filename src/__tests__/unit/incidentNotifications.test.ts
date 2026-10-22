@@ -25,7 +25,7 @@ describe('notifyIncidentSubmitted', () => {
         await notifyIncidentSubmitted({ vehicleId: 'VL001', type: 'ACCIDENT', authorId: 'u1' });
 
         expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
-            roles: ['RESPO'],
+            roles: ['PRESIDENT', 'CADRE'],
             ulId: 'ul-paris-18',
             url: '/vehicles/VL%20186',
             excludeUserId: 'u1',

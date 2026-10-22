@@ -24,25 +24,32 @@ vi.mock('@/lib/r2', () => ({
 // chaîne cryptographique réelle est couverte par `unit/pdf-signature.test.ts`,
 // qui enchaîne trois scellements via le sealPdf de production.
 vi.mock('@/lib/expenses/sealing', () => {
-    const fakeSeal = (step: 1 | 2 | 3, role: string) => async (reportId: string, signer: { id: string; name: string }) => ({
-        buffer: Buffer.from(`%PDF-1.3 scelle-${step}`),
-        key: `${reportId}/v${step}-testatt.pdf`,
-        revision: {
-            step, signerId: signer.id, signerName: signer.name, role,
-            signedAt: new Date().toISOString(), businessDate: null,
-            r2Key: `${reportId}/v${step}-testatt.pdf`,
-        },
-    });
+    const fakeSeal = (step: 1 | 2 | 3 | 4, role: string, columns?: Record<string, number>) =>
+        async (reportId: string, signer: { id: string; name: string }) => ({
+            // Chaque buffer prolonge le précédent, comme un vrai incremental update :
+            // `persistSealed` le vérifie pour une suite de scellements.
+            buffer: Buffer.from(`%PDF-1.3 scelle${'-x'.repeat(step)}`),
+            key: `${reportId}/v${step}-testatt.pdf`,
+            revision: {
+                step, signerId: signer.id, signerName: signer.name, role,
+                signedAt: new Date().toISOString(), businessDate: null,
+                r2Key: `${reportId}/v${step}-testatt.pdf`,
+            },
+            ...(columns ? { columns } : {}),
+        });
     return {
-        sealStep1: vi.fn(fakeSeal(1, 'Demandeur')),
-        sealStep2: vi.fn(fakeSeal(2, 'Valideur')),
+        // Le vrai sealStep1 pose les quatre champs et bascule la note sur le circuit v2.
+        sealStep1: vi.fn(fakeSeal(1, 'Demandeur', { workflowVersion: 2 })),
+        sealStep2: vi.fn(async (reportId: string, signer: { id: string; name: string }, opts: { stage?: string } = {}) =>
+            fakeSeal(2, opts.stage === 'legacy' ? 'Valideur' : 'Responsable d\'activité')(reportId, signer)),
         sealStep3: vi.fn(fakeSeal(3, 'Payeur')),
+        sealPresident: vi.fn(fakeSeal(4, 'Président')),
         // Le vrai résolveur lit R2 ; en test, un justificatif est un simple passe-plat.
         resolvePendingReceipts: vi.fn(async (keys: string[]) =>
             keys.map(key => ({ buffer: Buffer.from('%PDF-1.3 justificatif'), mime: key.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg' }))),
-        appendRevision: (existing: unknown, rev: unknown) => {
+        appendRevision: (existing: unknown, ...revs: unknown[]) => {
             const arr = typeof existing === 'string' && existing ? JSON.parse(existing) : [];
-            return JSON.stringify([...arr, rev]);
+            return JSON.stringify([...arr, ...revs]);
         },
         SealingError: class SealingError extends Error {},
         RevisionMismatchError: class RevisionMismatchError extends Error {},
@@ -823,21 +830,21 @@ describe('Expense Report integration tests', () => {
 
         it('refuse la validation sans signature du valideur (400)', async () => {
             await db.execute({ sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key, signatureRevisions) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                args: ['exp-v', 'user-president', new Date().toISOString(), 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-v/v1-a.pdf', '[{}]'] });
+                args: ['exp-v', 'user-standard', new Date().toISOString(), 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-v/v1-a.pdf', '[{}]'] });
             const res = await updateReport(makePatchRequest({ action: 'validate' }), { params: Promise.resolve({ id: 'exp-v' }) });
             expect(res.status).toBe(400);
         });
 
         it('refuse le paiement sans signature du payeur (400)', async () => {
             await db.execute({ sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key, signatureRevisions) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                args: ['exp-p', 'user-president', new Date().toISOString(), 'en_attente_paiement', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-p/v2-a.pdf', '[{},{}]'] });
+                args: ['exp-p', 'user-standard', new Date().toISOString(), 'en_attente_paiement', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-p/v2-a.pdf', '[{},{}]'] });
             const res = await updateReport(makePatchRequest({ action: 'pay' }), { params: Promise.resolve({ id: 'exp-p' }) });
             expect(res.status).toBe(400);
         });
 
         it('persiste la signature du valideur lors d\'un REFUS (décision D5)', async () => {
             await db.execute({ sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key, signatureRevisions) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                args: ['exp-r', 'user-president', new Date().toISOString(), 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-r/v1-a.pdf', '[{}]'] });
+                args: ['exp-r', 'user-standard', new Date().toISOString(), 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-r/v1-a.pdf', '[{}]'] });
             const res = await updateReport(
                 makePatchRequest({ action: 'reject', rejectionComment: 'Justificatif manquant', validatorSignature: SIG }),
                 { params: Promise.resolve({ id: 'exp-r' }) });
@@ -852,7 +859,7 @@ describe('Expense Report integration tests', () => {
 
         it('interdit toute transition depuis « refusé » — le document est clos', async () => {
             await db.execute({ sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key) VALUES (?,?,?,?,?,?,?,?,?)`,
-                args: ['exp-c', 'user-president', new Date().toISOString(), 'refusé', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-c/v2-a.pdf'] });
+                args: ['exp-c', 'user-standard', new Date().toISOString(), 'refusé', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-c/v2-a.pdf'] });
 
             for (const body of [{ action: 'validate', validatorSignature: SIG }, { action: 'pay', payerSignature: SIG }]) {
                 const res = await updateReport(makePatchRequest(body), { params: Promise.resolve({ id: 'exp-c' }) });
@@ -866,7 +873,7 @@ describe('Expense Report integration tests', () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', name: 'President User', roles: ['SUPER_ADMIN', 'TRESORIER'], ulId: 'ul-paris-18' } } as never);
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, r2Key, signatureRevisions) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-                args: ['exp-err', 'user-president', new Date().toISOString(), 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-err/v1-a.pdf', '[{}]'],
+                args: ['exp-err', 'user-standard', new Date().toISOString(), 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 'exp-err/v1-a.pdf', '[{}]'],
             });
         });
 
@@ -1171,13 +1178,334 @@ describe('Expense Report integration tests', () => {
             expect(mine[0].message).toContain('Justificatif manquant');
         });
 
-        it('le valideur ne se notifie pas lui-même quand il valide sa propre note', async () => {
+        // D2 : on ne valide plus sa propre note — ni validation, ni notification.
+        it('le valideur ne peut pas valider sa propre note, et n\'est donc pas notifié', async () => {
             await seedReport('exp-n5', 'soumis', 0, 'user-president');
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'] } } as never);
 
             const res = await updateReport(makePatchRequest({ action: 'validate', validatorSignature: SIG }), { params: Promise.resolve({ id: 'exp-n5' }) });
-            expect(res.status).toBe(200);
+            expect(res.status).toBe(403);
             expect(await notifsFor('user-president')).toHaveLength(0);
+        });
+    });
+
+    // ── Circuit v2 : responsable d'activité puis président ──────────────────
+    describe('Circuit RESPO puis président (workflowVersion 2)', () => {
+        const respoSession = { user: { id: 'user-respo', email: 'respo@test.com', name: 'Respo User', roles: ['RESPO'], ulId: 'ul-paris-18' } };
+        const presidentSession = { user: { id: 'user-president', email: 'president@test.com', name: 'President User', roles: ['PRESIDENT'], ulId: 'ul-paris-18' } };
+
+        beforeEach(async () => {
+            await db.execute('DELETE FROM "Notification"');
+            for (const id of ['user-respo', 'user-respo2']) {
+                await seedUser({ id, email: `${id}@test.com`, name: id });
+                await seedUserRole(id, 'RESPO');
+                await db.execute({ sql: `INSERT INTO "UserUL" (userId, ulId, is_home) VALUES (?, 'ul-paris-18', 1)`, args: [id] });
+            }
+        });
+
+        /** Note v2 déjà scellée (#1), au statut voulu. */
+        async function seedV2(id: string, status: string, opts: { userId?: string; requestRefund?: 0 | 1; revisions?: number; ulId?: string } = {}) {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund, r2Key, signatureRevisions, workflowVersion)
+                      VALUES (?, ?, ?, ?, 'DLUS', 42, '[]', ?, ?, ?, ?, 2)`,
+                args: [id, opts.userId ?? 'user-standard', '2026-10-20T10:00:00Z', status, opts.ulId ?? 'ul-paris-18', opts.requestRefund ?? 1,
+                       `${id}/v1-a.pdf`, JSON.stringify(Array.from({ length: opts.revisions ?? 1 }, (_, i) => ({ step: i + 1 })))],
+            });
+        }
+
+        const validate = (id: string, body: Record<string, unknown> = { action: 'validate', validatorSignature: SIG }) =>
+            updateReport(makePatchRequest(body), { params: Promise.resolve({ id }) });
+
+        const row = async (id: string) =>
+            (await db.execute({ sql: 'SELECT * FROM "ExpenseReport" WHERE id = ?', args: [id] })).rows[0];
+
+        const notifiedUsers = async () =>
+            (await db.execute('SELECT userId, title FROM "Notification"')).rows.map(r => r.userId as string);
+
+        it('RESPO valide : signature dans le champ RESPO, statut valide_respo, push au président seul (D3)', async () => {
+            await seedV2('exp-a', 'soumis');
+            mockedAuth.mockResolvedValue(respoSession as never);
+
+            const res = await validate('exp-a');
+            expect(res.status).toBe(200);
+            expect((await res.json()).status).toBe('valide_respo');
+
+            const r = await row('exp-a');
+            expect(r.status).toBe('valide_respo');
+            expect(r.respoValidatedBy).toBe('user-respo');
+            expect(r.respoValidatedAt).toBeTruthy();
+            expect(r.respoSignature).toContain('abc123');
+            expect(r.validatedBy).toBeNull();
+            const revisions = JSON.parse(r.signatureRevisions as string);
+            expect(revisions.at(-1)).toMatchObject({ step: 2, role: 'Responsable d\'activité', signerId: 'user-respo' });
+
+            const notified = await notifiedUsers();
+            expect(notified).toContain('user-president');
+            expect(notified).not.toContain('user-respo2');
+            expect(notified).not.toContain('user-tresorier');
+        });
+
+        it('président finalise une note validée par le RESPO : révision président, push au trésorier', async () => {
+            await seedV2('exp-b', 'valide_respo', { revisions: 2 });
+            mockedAuth.mockResolvedValue(presidentSession as never);
+
+            const res = await validate('exp-b');
+            expect(res.status).toBe(200);
+
+            const r = await row('exp-b');
+            expect(r.status).toBe('en_attente_paiement');
+            expect(r.validatedBy).toBe('user-president');
+            const revisions = JSON.parse(r.signatureRevisions as string);
+            expect(revisions).toHaveLength(3);
+            expect(revisions.at(-1)).toMatchObject({ step: 4, role: 'Président', signerId: 'user-president' });
+
+            const { sealPresident } = await import('@/lib/expenses/sealing');
+            expect(vi.mocked(sealPresident)).toHaveBeenLastCalledWith('exp-b', expect.objectContaining({ id: 'user-president' }));
+            expect(await notifiedUsers()).toContain('user-tresorier');
+        });
+
+        it('président finalise sans remboursement : statut traité, aucun push au trésorier', async () => {
+            await seedV2('exp-b2', 'valide_respo', { revisions: 2, requestRefund: 0 });
+            mockedAuth.mockResolvedValue(presidentSession as never);
+
+            expect((await validate('exp-b2')).status).toBe(200);
+            expect((await row('exp-b2')).status).toBe('traité');
+            expect(await notifiedUsers()).not.toContain('user-tresorier');
+        });
+
+        it('président à la place du RESPO : deux révisions du même signataire, deux étapes horodatées', async () => {
+            await seedV2('exp-c', 'soumis');
+            mockedAuth.mockResolvedValue(presidentSession as never);
+
+            const res = await validate('exp-c');
+            expect(res.status).toBe(200);
+
+            const r = await row('exp-c');
+            expect(r.status).toBe('en_attente_paiement');
+            expect(r.respoValidatedBy).toBe('user-president');
+            expect(r.respoValidatedAt).toBeTruthy();
+            expect(r.validatedBy).toBe('user-president');
+            expect(r.validatedAt).toBeTruthy();
+
+            const revisions = JSON.parse(r.signatureRevisions as string);
+            expect(revisions.slice(1).map((v: { step: number }) => v.step)).toEqual([2, 4]);
+            expect(revisions.slice(1).every((v: { signerId: string }) => v.signerId === 'user-president')).toBe(true);
+            // Une seule écriture R2 : le dernier buffer, qui contient le précédent.
+            expect(r.r2Key).toBe('exp-c/v4-testatt.pdf');
+
+            // La révision président est posée sur le buffer RESPO, en mémoire.
+            const { sealPresident } = await import('@/lib/expenses/sealing');
+            expect(vi.mocked(sealPresident)).toHaveBeenLastCalledWith(
+                'exp-c', expect.anything(), expect.objectContaining({ after: expect.objectContaining({ key: 'exp-c/v2-testatt.pdf' }) }));
+        });
+
+        it('le SUPER_ADMIN valide les deux étapes d\'un coup, quelle que soit son UL active', async () => {
+            await seedUser({ id: 'user-sa', email: 'sa@test.com', name: 'Super Admin' });
+            await seedV2('exp-sa', 'soumis');
+            mockedAuth.mockResolvedValue({ user: { id: 'user-sa', email: 'sa@test.com', roles: ['SUPER_ADMIN', 'RESPO'], ulId: 'ul-paris-17' } } as never);
+
+            expect((await validate('exp-sa')).status).toBe(200);
+            expect((await row('exp-sa')).status).toBe('en_attente_paiement');
+        });
+
+        it('403 quand un RESPO agit à l\'étape président', async () => {
+            await seedV2('exp-d', 'valide_respo', { revisions: 2 });
+            mockedAuth.mockResolvedValue(respoSession as never);
+
+            expect((await validate('exp-d')).status).toBe(403);
+            expect((await validate('exp-d', { action: 'reject', rejectionComment: 'Non', validatorSignature: SIG })).status).toBe(403);
+            expect((await row('exp-d')).status).toBe('valide_respo');
+        });
+
+        it('RESPO refuse : refus signé dans le champ RESPO, statut refusé', async () => {
+            await seedV2('exp-e', 'soumis');
+            mockedAuth.mockResolvedValue(respoSession as never);
+
+            const res = await validate('exp-e', { action: 'reject', rejectionComment: 'Justificatif manquant', validatorSignature: SIG });
+            expect(res.status).toBe(200);
+
+            const r = await row('exp-e');
+            expect(r.status).toBe('refusé');
+            expect(r.rejectedBy).toBe('user-respo');
+            expect(r.respoSignature).toBeTruthy();
+            expect(JSON.parse(r.signatureRevisions as string).at(-1)).toMatchObject({ step: 2 });
+            const { sealStep2 } = await import('@/lib/expenses/sealing');
+            expect(vi.mocked(sealStep2)).toHaveBeenLastCalledWith('exp-e', expect.anything(), { rejected: true, stage: 'respo' });
+        });
+
+        it('RESPO refuse : 400 sans commentaire ou sans signature', async () => {
+            await seedV2('exp-f', 'soumis');
+            mockedAuth.mockResolvedValue(respoSession as never);
+
+            expect((await validate('exp-f', { action: 'reject', rejectionComment: '  ', validatorSignature: SIG })).status).toBe(400);
+            expect((await validate('exp-f', { action: 'reject', rejectionComment: 'Non conforme' })).status).toBe(400);
+            expect((await row('exp-f')).status).toBe('soumis');
+        });
+
+        it('le refus du président à son étape se signe dans son champ, SANS tampon', async () => {
+            await seedV2('exp-g', 'valide_respo', { revisions: 2 });
+            mockedAuth.mockResolvedValue(presidentSession as never);
+
+            const res = await validate('exp-g', { action: 'reject', rejectionComment: 'Hors budget', validatorSignature: SIG });
+            expect(res.status).toBe(200);
+            expect((await row('exp-g')).status).toBe('refusé');
+
+            const { sealPresident } = await import('@/lib/expenses/sealing');
+            expect(vi.mocked(sealPresident)).toHaveBeenLastCalledWith('exp-g', expect.anything(), { rejected: true });
+        });
+
+        it('NDF héritée (v1) : le président valide en une étape, le RESPO n\'a aucune action', async () => {
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund, r2Key, signatureRevisions)
+                      VALUES ('exp-v1', 'user-standard', '2026-10-01T10:00:00Z', 'soumis', 'DLUS', 10, '[]', 'ul-paris-18', 1, 'exp-v1/v1-a.pdf', '[{}]')`,
+                args: [],
+            });
+
+            mockedAuth.mockResolvedValue(respoSession as never);
+            expect((await validate('exp-v1')).status).toBe(403);
+            expect((await validate('exp-v1', { action: 'reject', rejectionComment: 'Non', validatorSignature: SIG })).status).toBe(403);
+
+            mockedAuth.mockResolvedValue(presidentSession as never);
+            const res = await validate('exp-v1');
+            expect(res.status).toBe(200);
+            expect((await row('exp-v1')).status).toBe('en_attente_paiement');
+
+            const { sealStep2, sealPresident } = await import('@/lib/expenses/sealing');
+            expect(vi.mocked(sealStep2)).toHaveBeenLastCalledWith('exp-v1', expect.anything(), { stage: 'legacy' });
+            expect(vi.mocked(sealPresident)).not.toHaveBeenCalledWith('exp-v1', expect.anything(), expect.anything());
+        });
+
+        it('409 quand une validation concurrente a fait avancer la note entre-temps', async () => {
+            await seedV2('exp-h', 'soumis');
+            mockedAuth.mockResolvedValue(respoSession as never);
+
+            // Simule l'autre appel : il valide la note pendant que celui-ci scelle.
+            const { sealStep2 } = await import('@/lib/expenses/sealing');
+            const realImpl = vi.mocked(sealStep2).getMockImplementation()!;
+            vi.mocked(sealStep2).mockImplementationOnce(async (...args) => {
+                await db.execute(`UPDATE "ExpenseReport" SET status = 'valide_respo' WHERE id = 'exp-h'`);
+                return realImpl(...args);
+            });
+
+            const res = await validate('exp-h');
+            expect(res.status).toBe(409);
+            expect((await res.json()).error).toContain('changé d\'état');
+        });
+
+        it('auto-validation interdite (D2) : un RESPO ne valide pas sa propre note, un autre RESPO ou le président si', async () => {
+            await seedV2('exp-i', 'soumis', { userId: 'user-respo' });
+            await seedV2('exp-j', 'soumis', { userId: 'user-respo' });
+
+            mockedAuth.mockResolvedValue(respoSession as never);
+            expect((await validate('exp-i')).status).toBe(403);
+            expect((await validate('exp-i', { action: 'reject', rejectionComment: 'Non', validatorSignature: SIG })).status).toBe(403);
+
+            mockedAuth.mockResolvedValue({ user: { id: 'user-respo2', email: 'r2@test.com', roles: ['RESPO'], ulId: 'ul-paris-18' } } as never);
+            expect((await validate('exp-i')).status).toBe(200);
+
+            mockedAuth.mockResolvedValue(presidentSession as never);
+            expect((await validate('exp-j')).status).toBe(200);
+        });
+
+        it('une note sans UL relève de l\'UL par défaut : le RESPO de cette UL la valide', async () => {
+            await seedV2('exp-noul', 'soumis');
+            // ulId est NOT NULL dans le schéma : on simule une valeur vide héritée.
+            await db.execute(`UPDATE "ExpenseReport" SET ulId = '' WHERE id = 'exp-noul'`);
+            mockedAuth.mockResolvedValue(respoSession as never);
+            expect((await validate('exp-noul')).status).toBe(200);
+        });
+
+        it('liste : un RESPO aussi trésorier garde la file des notes à payer', async () => {
+            await seedV2('exp-t1', 'soumis');
+            await seedV2('exp-t2', 'en_attente_paiement', { revisions: 3 });
+            await seedV2('exp-t3', 'traité', { revisions: 4 });
+            mockedAuth.mockResolvedValue({ user: { ...respoSession.user, roles: ['RESPO', 'TRESORIER'] } } as never);
+            const ids = (await (await getList(new Request('http://localhost/api/expenses?scope=ul'))).json()).map((r: { id: string }) => r.id);
+            expect(ids.sort()).toEqual(['exp-t1', 'exp-t2']);
+        });
+
+        it('403 pour un RESPO d\'une autre UL — les rôles valent pour l\'UL active', async () => {
+            await seedV2('exp-k', 'soumis');
+            mockedAuth.mockResolvedValue({ user: { ...respoSession.user, ulId: 'ul-paris-17' } } as never);
+            expect((await validate('exp-k')).status).toBe(403);
+        });
+
+        it('liste : le RESPO voit les notes soumises et validées par le responsable de son UL', async () => {
+            await seedV2('exp-l1', 'soumis');
+            await seedV2('exp-l2', 'valide_respo', { revisions: 2 });
+            await seedV2('exp-l3', 'en_attente_paiement', { revisions: 3 });
+            await seedV2('exp-l4', 'soumis', { ulId: 'ul-paris-17' });
+            await db.execute(`INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId) VALUES ('exp-l5', 'user-standard', '2026-10-20T10:00:00Z', 'brouillon', 1, '[]', 'ul-paris-18')`);
+
+            mockedAuth.mockResolvedValue(respoSession as never);
+            const ids = (await (await getList(new Request('http://localhost/api/expenses?scope=ul'))).json()).map((r: { id: string }) => r.id);
+            expect(ids.sort()).toEqual(['exp-l1', 'exp-l2']);
+
+            const all = (await (await getList(new Request('http://localhost/api/expenses?scope=ul&includeProcessed=true'))).json()).map((r: { id: string }) => r.id);
+            expect(all.sort()).toEqual(['exp-l1', 'exp-l2', 'exp-l3']);
+
+            mockedAuth.mockResolvedValue(presidentSession as never);
+            const pres = await (await getList(new Request('http://localhost/api/expenses?scope=ul'))).json();
+            const l2 = pres.find((r: { id: string }) => r.id === 'exp-l2');
+            expect(l2).toMatchObject({ status: 'valide_respo', workflowVersion: 2 });
+        });
+
+        it('détail : le RESPO lit une note soumise de son UL, pas celle d\'une autre UL', async () => {
+            await seedV2('exp-m1', 'soumis');
+            await seedV2('exp-m2', 'soumis', { ulId: 'ul-paris-17' });
+            mockedAuth.mockResolvedValue(respoSession as never);
+
+            const ok = await getReport(new Request('http://localhost/api/expenses/exp-m1'), { params: Promise.resolve({ id: 'exp-m1' }) });
+            expect(ok.status).toBe(200);
+            expect((await ok.json()).workflowVersion).toBe(2);
+
+            const ko = await getReport(new Request('http://localhost/api/expenses/exp-m2'), { params: Promise.resolve({ id: 'exp-m2' }) });
+            expect(ko.status).toBe(403);
+        });
+
+        it('la soumission écrit workflowVersion 2 et notifie les RESPO et le président (D3)', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', email: 'secouriste@test.com', name: 'Standard User', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
+            const res = await createReport(makePostRequest({
+                status: 'soumis', userSignature: SIG, imputation: 'DLUS', requestRefund: true, noReceiptDeclaration: false,
+                items: [{ label: 'Fournitures', amount: 12, budgetId: BUDGET_18 }],
+            }));
+            expect(res.status).toBe(201);
+            const { id } = await res.json();
+            expect(Number((await row(id)).workflowVersion)).toBe(2);
+
+            const notified = await notifiedUsers();
+            expect(notified).toEqual(expect.arrayContaining(['user-respo', 'user-respo2', 'user-president']));
+        });
+    });
+
+    describe('Création interdite au président', () => {
+        const body = {
+            status: 'soumis', userSignature: SIG, imputation: 'DLUS', requestRefund: true, noReceiptDeclaration: false,
+            items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }],
+        };
+
+        it('403 quand un PRESIDENT de l\'UL active crée une note', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT', 'CHVL'], ulId: 'ul-paris-18' } } as never);
+            const res = await createReport(makePostRequest(body));
+            expect(res.status).toBe(403);
+            const count = await db.execute(`SELECT COUNT(*) AS n FROM "ExpenseReport" WHERE userId = 'user-president'`);
+            expect(Number(count.rows[0].n)).toBe(0);
+        });
+
+        it('403 quand un PRESIDENT soumet un ancien brouillon', async () => {
+            await db.execute(`INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId) VALUES ('exp-pres-draft', 'user-president', '2026-10-20T10:00:00Z', 'brouillon', 10, '[]', 'ul-paris-18')`);
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['PRESIDENT'], ulId: 'ul-paris-18' } } as never);
+            const res = await updateReport(
+                makePatchRequest({ action: 'submit', missionName: 'M', missionDate: '2026-10-01', userSignature: SIG, items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }] }),
+                { params: Promise.resolve({ id: 'exp-pres-draft' }) },
+            );
+            expect(res.status).toBe(403);
+        });
+
+        it('le SUPER_ADMIN, même président, n\'est jamais bloqué', async () => {
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['SUPER_ADMIN', 'PRESIDENT'], ulId: 'ul-paris-18' } } as never);
+            const res = await createReport(makePostRequest(body));
+            expect(res.status).toBe(201);
         });
     });
 });

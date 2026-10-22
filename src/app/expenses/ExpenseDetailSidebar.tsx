@@ -1,12 +1,14 @@
-import { X, XCircle, AlertCircle, Check, DollarSign, Send, Trash, Edit, Download } from 'lucide-react';
+import { X, XCircle, AlertCircle, Check, DollarSign, Send, Trash, Edit, Download, Info } from 'lucide-react';
 import ExpensePhotosPanel from './ExpensePhotosPanel';
-import { formatDate, getStatusBadge } from './utils';
+import { formatDate, getStatusBadge, signingActionFor, validateLabel } from './utils';
+import { workflowVersionOf } from '@/lib/expenses/workflow';
 import { formatIsoDayFr } from '@/lib/utils/date';
 import type { ExpenseReport } from './types';
 
 interface ExpenseDetailSidebarProps {
     report: ExpenseReport;
-    isManager: boolean;
+    /** Rôles de l'UL active : déterminent l'étape de validation que l'utilisateur peut signer. */
+    userRoles: string[];
     canPay: boolean;
     currentUserId: string | undefined;
     actionLoading: string | null;
@@ -24,7 +26,7 @@ interface ExpenseDetailSidebarProps {
 
 export default function ExpenseDetailSidebar({
     report,
-    isManager,
+    userRoles,
     canPay,
     currentUserId,
     actionLoading,
@@ -39,6 +41,14 @@ export default function ExpenseDetailSidebar({
     onEditDraft,
     onViewAllPhotos,
 }: ExpenseDetailSidebarProps) {
+    const signing = signingActionFor(report, userRoles, currentUserId);
+    const isV2 = workflowVersionOf(report.workflowVersion) === 2;
+    // Étape en attente, pour le bloc d'information du circuit à deux signatures.
+    const pendingStep = !isV2 ? null
+        : report.status === 'soumis' ? 'En attente de la validation du responsable d\'activité.'
+        : report.status === 'valide_respo' ? 'Validée par le responsable d\'activité, en attente de la validation du président.'
+        : null;
+
     return (
         <div style={{
             background: 'var(--bg-primary)',
@@ -142,11 +152,46 @@ export default function ExpenseDetailSidebar({
                 </div>
             )}
 
+            {/* Circuit à deux signatures : étape en attente */}
+            {pendingStep && (
+                <div
+                    data-testid="respo-info"
+                    style={{
+                        display: 'flex',
+                        gap: '6px',
+                        padding: '8px',
+                        background: 'rgba(14, 165, 233, 0.08)',
+                        border: '1px solid rgba(14, 165, 233, 0.25)',
+                        borderRadius: 'var(--radius-sm)',
+                        color: '#0284c7',
+                        fontSize: '0.75rem'
+                    }}
+                >
+                    <Info size={14} style={{ flexShrink: 0, marginTop: '1px' }} />
+                    <span>{pendingStep}</span>
+                </div>
+            )}
+
+            {/* Responsable d'activité (circuit à deux signatures) */}
+            {report.respoValidatedAt && (
+                <div style={{ borderBottom: '1px solid var(--border-primary)', paddingBottom: '12px' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase' }}>
+                        Validée par le responsable
+                    </span>
+                    <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600, marginTop: '2px' }}>
+                        {report.respoValidatorName || 'Responsable d\'activité'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        le {formatDate(report.respoValidatedAt)}
+                    </div>
+                </div>
+            )}
+
             {/* Validator (if validated or paid) */}
             {(report.validatedBy || report.validatorName) && (
                 <div style={{ borderBottom: '1px solid var(--border-primary)', paddingBottom: '12px' }}>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase' }}>
-                        Validée par
+                        {isV2 ? 'Validée par le président' : 'Validée par'}
                     </span>
                     <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', fontWeight: 600, marginTop: '2px' }}>
                         {report.validatorName || 'Administrateur'}
@@ -243,7 +288,7 @@ export default function ExpenseDetailSidebar({
             )}
 
             {/* Sidebar Action buttons */}
-            {report.status === 'soumis' && isManager && (
+            {signing && (
                 <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '8px' }}>
                     <button
                         onClick={() => onOpenValidate(report)}
@@ -251,7 +296,7 @@ export default function ExpenseDetailSidebar({
                         style={{ flex: 1, background: 'var(--status-available)', borderColor: 'var(--status-available)', gap: '6px' }}
                         disabled={actionLoading === report.id}
                     >
-                        <Check size={16} /> Valider
+                        <Check size={16} /> {validateLabel(signing)}
                     </button>
                     <button
                         onClick={() => onReject(report.id)}

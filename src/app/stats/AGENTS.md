@@ -14,7 +14,7 @@ Statistics dashboard (`/stats`) with two tabs. **Véhicules** shows KPI cards, c
 ## For AI Agents
 
 ### Working In This Directory
-**Access gate:** the allow-list `['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'PRESIDENT', 'TRESORIER', 'SUPER_ADMIN']` is checked inline with `roles.some(...)` — this page does **not** use the `@/lib/roles` helpers. Unauthenticated → `/login`; authenticated but not allow-listed → `/`.
+**Access gate:** the allow-list `['ADMIN', 'CHVL', 'CHVPSP', 'PRESIDENT', 'TRESORIER', 'SUPER_ADMIN']` is checked inline with `roles.some(...)` — this page does **not** use the `@/lib/roles` helpers. Unauthenticated → `/login`; authenticated but not allow-listed → `/`.
 
 The **Frais tab** is separately gated by `canViewExpensesStats` = `SUPER_ADMIN | PRESIDENT | TRESORIER`. Chauffeurs and ADMIN see only the Véhicules tab. The render condition is `activeTab === 'expenses' && canViewExpensesStats`, so the gate holds even if `activeTab` is forced.
 

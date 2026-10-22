@@ -41,6 +41,14 @@ export const PREVIEW_ACCOUNTS = [
         label: 'Trésorier',
     },
     {
+        key: 'preview-respo',
+        email: 'preview-respo@preview.local',
+        name: 'Responsable Preview',
+        badge: 'RESPO',
+        color: '#0ea5e9',
+        label: 'Responsable',
+    },
+    {
         key: 'preview-cadre',
         email: 'preview-cadre@preview.local',
         name: 'Cadre Preview',

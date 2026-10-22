@@ -38,6 +38,7 @@ const DEV_USERS: Record<string, { email: string; name: string; roles: string[] }
     admin:      { email: 'admin@dev.local',      name: 'Admin Dev',       roles: ['ADMIN'] },
     president:  { email: 'president@dev.local',  name: 'Président Dev',   roles: ['PRESIDENT'] },
     tresorier:  { email: 'tresorier@dev.local',   name: 'Trésorier Dev',   roles: ['TRESORIER'] },
+    respo:      { email: 'respo@dev.local',       name: 'Respo Dev',       roles: ['RESPO'] },
     cadre:      { email: 'cadre@dev.local',       name: 'Cadre Dev',       roles: ['CADRE'] },
     chvl:       { email: 'chvl@dev.local',        name: 'Chauffeur Dev',   roles: ['CHVL'] },
     guest:      { email: 'guest@dev.local',       name: 'Inactif Dev',     roles: ['INACTIF'] },

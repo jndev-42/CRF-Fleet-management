@@ -105,6 +105,15 @@ describe('canAccessDriveFolder', () => {
         expect(allowed).toBe(true);
     });
 
+    it('autorise le RESPO de l\'UL de la note, refuse celui d\'une autre UL', async () => {
+        await seedUser({ id: 'user-1', email: 'owner@test.com' });
+        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', ulId: 'ul-paris-18', status: 'soumis' });
+        await db.execute({ sql: `UPDATE "ExpenseReport" SET driveFolderId = ? WHERE id = ?`, args: ['folder-expense', 'expense-1'] });
+
+        expect(await canAccessDriveFolder(makeSession({ id: 'user-2', roles: ['RESPO'], ulId: 'ul-paris-18' }), 'folder-expense')).toBe(true);
+        expect(await canAccessDriveFolder(makeSession({ id: 'user-2', roles: ['RESPO'], ulId: 'ul-lyon-3' }), 'folder-expense')).toBe(false);
+    });
+
     it('refuse un autre utilisateur non-manager/trésorier pour une note de frais', async () => {
         await seedUser({ id: 'user-1', email: 'owner@test.com' });
         await seedExpenseReport({ id: 'expense-1', userId: 'user-1', ulId: 'ul-paris-18', status: 'soumis' });

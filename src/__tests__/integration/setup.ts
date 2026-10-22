@@ -495,6 +495,10 @@ async function createTables() {
     r2Key                  TEXT,
     signatureRevisions     TEXT,
     pendingReceiptKeys     TEXT,
+    workflowVersion        INTEGER DEFAULT 1,
+    respoValidatedAt       TEXT,
+    respoValidatedBy       TEXT REFERENCES "User"(id) ON DELETE SET NULL,
+    respoSignature         TEXT,
     createdAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -755,7 +759,7 @@ export async function seedUser(overrides: Partial<{
   return u;
 }
 
-export async function seedRoles(names: string[] = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'CADRE', 'CHVL', 'CHVPSP', 'INACTIF', 'CI/RPAPS']) {
+export async function seedRoles(names: string[] = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'CHVL', 'CHVPSP', 'INACTIF', 'CI/RPAPS']) {
   for (const name of names) {
     await db.execute({
       sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,

@@ -12,6 +12,7 @@ export const ROLES = {
     ADMIN:       'ADMIN',
     PRESIDENT:   'PRESIDENT',
     TRESORIER:   'TRESORIER',
+    RESPO:       'RESPO',
     CADRE:       'CADRE',
     DT:          'DT',
     CHVPSP:      'CHVPSP',
@@ -28,6 +29,7 @@ export const MANAGEABLE_ROLES: Role[] = [
     ROLES.ADMIN,
     ROLES.PRESIDENT,
     ROLES.TRESORIER,
+    ROLES.RESPO,
     ROLES.CADRE,
     ROLES.DT,
     ROLES.CHVPSP,
@@ -41,6 +43,7 @@ export const ROLE_LABELS: Record<Role, string> = {
     [ROLES.ADMIN]:       'Administrateur',
     [ROLES.PRESIDENT]:   'Président',
     [ROLES.TRESORIER]:   'Trésorier',
+    [ROLES.RESPO]:       'Responsable d\'activité',
     [ROLES.CADRE]:       'Cadre',
     [ROLES.DT]:          'Direction Territoriale (DT)',
     [ROLES.CHVPSP]:      'Chauffeur VPSP',
@@ -145,6 +148,17 @@ export function canAccessAdminPanel(roles: string[]): boolean {
 /** Président ou Super Admin : gestionnaire des notes de frais (voit et arbitre celles d'autrui). */
 export const isExpenseManager = denyWhenInactive(roles =>
     roles.includes(ROLES.SUPER_ADMIN) || roles.includes(ROLES.PRESIDENT));
+
+/** Président : sert notamment à lui interdire de créer une note de frais à son propre nom. */
+export const isPresident = denyWhenInactive(roles => roles.includes(ROLES.PRESIDENT));
+
+/**
+ * Peut signer l'étape « responsable d'activité » d'une note de frais : RESPO,
+ * Président ou Super Admin. Le président peut agir à cette étape comme à la
+ * sienne ; le RESPO, lui, n'a AUCUN droit à l'étape président (`isExpenseManager`).
+ */
+export const canValidateExpenseAsRespo = denyWhenInactive(roles =>
+    roles.includes(ROLES.RESPO) || roles.includes(ROLES.PRESIDENT) || roles.includes(ROLES.SUPER_ADMIN));
 
 /** Trésorier ou Super Admin : peut marquer une note de frais comme payée (acte comptable). */
 export const canPayExpense = denyWhenInactive(roles =>

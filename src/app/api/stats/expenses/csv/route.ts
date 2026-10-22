@@ -80,6 +80,7 @@ async function postHandler(request: Request) {
     const statusLabels: Record<string, string> = {
       brouillon: 'Brouillon',
       soumis: 'Soumis',
+      valide_respo: 'Validée par le responsable',
       en_attente_paiement: 'En attente de paiement',
       traité: 'Traitée / Payée',
       refusé: 'Refusée',

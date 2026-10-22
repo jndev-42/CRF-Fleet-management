@@ -83,7 +83,7 @@ export default function StatsPage() {
       router.push('/login');
     } else if (status === 'authenticated') {
       const roles = (session?.user?.roles || ['GUEST']) as string[];
-      const allowed = ['ADMIN', 'RESPO', 'CHVL', 'CHVPSP', 'PRESIDENT', 'TRESORIER', 'SUPER_ADMIN'];
+      const allowed = ['ADMIN', 'CHVL', 'CHVPSP', 'PRESIDENT', 'TRESORIER', 'SUPER_ADMIN'];
       if (!roles.some((r) => allowed.includes(r))) {
         router.push('/');
       }

@@ -21,10 +21,24 @@ import { getObject, buildExpenseKey, newAttemptId } from '@/lib/r2';
 import { sealPdf, decodeSignatureImage } from '@/lib/pdf/signature';
 import { countRevisions } from '@/lib/pdf/incremental';
 import { countPages } from '@/lib/pdf/verify';
+import sharp, { type OverlayOptions } from 'sharp';
 import { generateExpensePdf, countItems } from './pdf';
 import { appendJustificatifs, type JustificatifFile } from './attachments';
-import { SIGNATURE_FIELDS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE } from './signature-layout';
+import {
+    SIGNATURE_FIELDS, SIGNATURE_FIELD_INDEX, SIGNATURE_WIDGET_RECTS, assertPageGeometry, MAX_ITEMS_SINGLE_PAGE,
+    presidentAppearanceLayout, type Box,
+} from './signature-layout';
 import { addSignatureFields } from '@/lib/pdf/fields';
+
+/**
+ * Version du circuit de validation écrite au scellement #1.
+ *
+ * 1 : ancien circuit — le président valide en une étape, dans `Signature2`. Le PDF
+ *     ne porte que trois champs : c'est le cas de toute note soumise avant
+ *     l'introduction de l'étape « responsable d'activité ».
+ * 2 : le RESPO signe `Signature2`, puis le président `Signature4` (avec le tampon).
+ */
+export const CURRENT_WORKFLOW_VERSION = 2;
 
 export class SealingError extends Error {}
 /** Incohérence entre le journal en base et le PDF réellement stocké. */
@@ -38,13 +52,25 @@ export interface SealResult {
     key: string;
     /** Entrée à ajouter au journal `signatureRevisions`. */
     revision: SignatureRevision;
+    /**
+     * Colonnes que la persistance doit écrire avec ce scellement — par exemple
+     * `workflowVersion`, qui dépend de la disposition des champs posée ici.
+     */
+    columns?: Record<string, string | number | null>;
 }
 
+/**
+ * Entrée du journal `signatureRevisions`.
+ *
+ * Steps : 1 demandeur, 2 responsable d'activité (ou valideur unique de l'ancien
+ * circuit), 3 payeur, 4 président. Le rôle `'Valideur'` est conservé pour les
+ * notes v1 : le journal reste lisible tel qu'il a été écrit.
+ */
 export interface SignatureRevision {
-    step: 1 | 2 | 3;
+    step: 1 | 2 | 3 | 4;
     signerId: string;
     signerName: string;
-    role: 'Demandeur' | 'Valideur' | 'Payeur';
+    role: 'Demandeur' | 'Valideur' | 'Responsable d\'activité' | 'Président' | 'Payeur';
     /** Instant réel du scellement — jamais antidaté (décision D7). */
     signedAt: string;
     /** Date métier de l'événement, distincte quand la note est scellée a posteriori. */
@@ -98,12 +124,39 @@ function assertRevisionCount(pdf: Buffer, expected: number): void {
 
 async function loadReport(reportId: string) {
     const res = await db.execute({
-        sql: `SELECT id, items, r2Key, signatureRevisions, status, submittedAt, validatedAt, paidAt
+        sql: `SELECT id, ulId, items, r2Key, signatureRevisions, status, submittedAt, validatedAt,
+                     respoValidatedAt, paidAt
               FROM "ExpenseReport" WHERE id = ?`,
         args: [reportId],
     });
     if (!res.rows[0]) throw new SealingError('Note de frais non trouvée');
     return res.rows[0];
+}
+
+/**
+ * Document sur lequel poser la prochaine signature.
+ *
+ * Sans `after` : le PDF stocké sur R2, dont le nombre de signatures doit égaler
+ * celui du journal en base. Avec `after` : le résultat d'un scellement ENCHAÎNÉ EN
+ * MÉMOIRE, pas encore persisté — il porte une signature de plus que le journal.
+ * C'est ce qui permet au président de signer deux étapes d'un coup avec une
+ * seule écriture R2 (`persistSealed` reçoit alors la suite des scellements).
+ */
+async function loadSealedBase(row: Record<string, unknown>, after?: SealResult): Promise<Buffer> {
+    const logged = parseRevisions(row.signatureRevisions).length;
+    if (after) {
+        assertRevisionCount(after.buffer, logged + 1);
+        return after.buffer;
+    }
+
+    const currentKey = row.r2Key as string | null;
+    if (!currentKey) throw new SealingError('Aucun PDF scellé n\'est associé à cette note.');
+
+    const stored = await getObject(currentKey);
+    if (!stored) throw new SealingError(`Objet R2 introuvable : ${currentKey}`);
+
+    assertRevisionCount(stored, logged);
+    return stored;
 }
 
 function parseRevisions(raw: unknown): SignatureRevision[] {
@@ -165,7 +218,7 @@ export async function sealStep1(
     // scellement : c'est ce document, pages comprises, que DocMDP verrouille.
     const pdf = await appendJustificatifs(form, attachments);
 
-    // ⚠️ LES TROIS CHAMPS SONT POSÉS MAINTENANT, sur le document encore non signé.
+    // ⚠️ LES QUATRE CHAMPS SONT POSÉS MAINTENANT, sur le document encore non signé.
     // La certification qui suit n'autorisera plus que le remplissage de champs
     // existants : un champ ajouté plus tard invaliderait, aux yeux d'Acrobat,
     // toutes les signatures déjà en place.
@@ -175,7 +228,7 @@ export async function sealStep1(
         reason: 'Soumission de la note de frais par le demandeur',
         name: signer.name,
         signingTime: now,
-        fieldName: SIGNATURE_FIELDS[0].name,
+        fieldName: SIGNATURE_FIELDS[SIGNATURE_FIELD_INDEX.demandeur].name,
         appearancePng: image,
         docMdpLevel: 2,
     });
@@ -193,41 +246,54 @@ export async function sealStep1(
             businessDate: (row.submittedAt as string) || null,
             r2Key: key,
         },
+        // Le document porte désormais `Signature4` : la note suit le nouveau circuit.
+        columns: { workflowVersion: CURRENT_WORKFLOW_VERSION },
     };
 }
 
+export interface Step2Options {
+    rejected?: boolean;
+    /**
+     * `'respo'` (défaut) : étape « responsable d'activité » du circuit v2.
+     * `'legacy'` : validation unique par le président d'une note v1 — même
+     * champ `Signature2`, mais journalisée sous le rôle historique `Valideur`.
+     */
+    stage?: 'respo' | 'legacy';
+}
+
 /**
- * Scellement #2 — validation ou refus par le valideur.
+ * Scellement #2 — validation ou refus à l'étape « responsable d'activité »
+ * (champ `Signature2`, colonne « Le responsable »). Sert aussi la validation
+ * unique de l'ancien circuit (`stage: 'legacy'`).
  *
  * Le refus est lui aussi signé (décision D5) : il clôt définitivement le document.
  */
 export async function sealStep2(
     reportId: string,
     signer: Signer,
-    opts: { rejected?: boolean } = {},
+    opts: Step2Options = {},
     now: Date = new Date()
 ): Promise<SealResult> {
     const row = await loadReport(reportId);
-    const currentKey = row.r2Key as string | null;
-    if (!currentKey) throw new SealingError('Aucun PDF scellé n\'est associé à cette note.');
-
-    const stored = await getObject(currentKey);
-    if (!stored) throw new SealingError(`Objet R2 introuvable : ${currentKey}`);
-
-    assertRevisionCount(stored, parseRevisions(row.signatureRevisions).length);
+    const stored = await loadSealedBase(row);
 
     const image = decodeSignatureImage(signer.signatureImage);
     if (!image) {
         throw new SealingError('La signature du valideur est requise.');
     }
 
+    const legacy = opts.stage === 'legacy';
+    const reason = legacy
+        ? (opts.rejected ? 'Refus de la note de frais par le valideur' : 'Validation de la note de frais')
+        : (opts.rejected
+            ? 'Refus de la note de frais par le responsable d\'activité'
+            : 'Validation de la note de frais par le responsable d\'activité');
+
     const sealed = await sealPdf(stored, {
-        reason: opts.rejected
-            ? 'Refus de la note de frais par le valideur'
-            : 'Validation de la note de frais',
+        reason,
         name: signer.name,
         signingTime: now,
-        fieldName: SIGNATURE_FIELDS[1].name,
+        fieldName: SIGNATURE_FIELDS[SIGNATURE_FIELD_INDEX.respo].name,
         appearancePng: image,
     });
 
@@ -239,7 +305,151 @@ export async function sealStep2(
             step: 2,
             signerId: signer.id,
             signerName: signer.name,
-            role: 'Valideur',
+            role: legacy ? 'Valideur' : 'Responsable d\'activité',
+            signedAt: now.toISOString(),
+            businessDate: ((legacy ? row.validatedAt : row.respoValidatedAt) as string) || null,
+            r2Key: key,
+        },
+    };
+}
+
+/** Taille, en pixels, de l'apparence composée du président : 4 px par point PDF. */
+const PRESIDENT_APPEARANCE_SCALE = 4;
+
+/** Rogne la marge transparente (ou blanche) d'une image ; la rend telle quelle si rien n'est à rogner. */
+async function trimmed(image: Buffer): Promise<Buffer> {
+    try {
+        return await sharp(image).trim().png().toBuffer();
+    } catch {
+        // Image uniforme : rien à rogner.
+        return sharp(image).png().toBuffer();
+    }
+}
+
+/**
+ * Compose l'apparence du widget président sur une seule image PNG : le tampon de
+ * l'UL (s'il existe) et la signature, CÔTE À CÔTE ou empilés, jamais superposés
+ * (`presidentAppearanceLayout`). Sans tampon, la signature est centrée seule.
+ *
+ * Le tampon est d'abord ROGNÉ : `compressStampImage` le stocke dans un cadre
+ * 400×200 à marges transparentes, qui sinon lui volerait une partie de la place.
+ *
+ * L'image est produite AUX PROPORTIONS DU WIDGET : `buildAppearance` l'étire sur
+ * tout le rectangle, et une image d'un autre ratio y serait déformée.
+ */
+export async function composePresidentAppearance(signature: Buffer, stamp: Buffer | null): Promise<Buffer> {
+    const [x1, y1, x2, y2] = SIGNATURE_WIDGET_RECTS.president;
+    const width = Math.round((x2 - x1) * PRESIDENT_APPEARANCE_SCALE);
+    const height = Math.round((y2 - y1) * PRESIDENT_APPEARANCE_SCALE);
+    const transparent = { r: 255, g: 255, b: 255, alpha: 0 };
+    const sig = await trimmed(signature);
+
+    const fit = async (image: Buffer, box: Box): Promise<OverlayOptions> => {
+        const resized = await sharp(image)
+            .resize(box.width, box.height, { fit: 'inside' })
+            .png()
+            .toBuffer({ resolveWithObject: true });
+        return {
+            input: resized.data,
+            // Centré dans sa boîte : `inside` peut rendre une image plus petite qu'elle.
+            left: box.left + Math.floor((box.width - resized.info.width) / 2),
+            top: box.top + Math.floor((box.height - resized.info.height) / 2),
+        };
+    };
+
+    const layers: OverlayOptions[] = [];
+    if (stamp) {
+        const stampImg = await trimmed(stamp);
+        const meta = await sharp(stampImg).metadata();
+        const layout = presidentAppearanceLayout(width, height, { width: meta.width ?? 1, height: meta.height ?? 1 });
+        layers.push(await fit(stampImg, layout.stamp), await fit(sig, layout.signature));
+    } else {
+        // Sans tampon : la signature seule, centrée, avec une marge.
+        const box = {
+            left: Math.round(width * 0.05), top: Math.round(height * 0.125),
+            width: Math.round(width * 0.9), height: Math.round(height * 0.75),
+        };
+        layers.push(await fit(sig, box));
+    }
+
+    return sharp({ create: { width, height, channels: 4, background: transparent } })
+        .composite(layers)
+        .png()
+        .toBuffer();
+}
+
+/** Tampon de l'UL de la note, décodé — `null` si l'UL n'en a pas configuré. */
+async function loadStamp(ulId: unknown): Promise<Buffer | null> {
+    if (typeof ulId !== 'string' || !ulId) return null;
+    const res = await db.execute({
+        sql: `SELECT stampImage FROM "UniteLocale" WHERE id = ?`,
+        args: [ulId],
+    });
+    return decodeSignatureImage((res.rows[0]?.stampImage as string | null) ?? null);
+}
+
+export interface PresidentOptions {
+    /** Refus : signé, définitif, et SANS tampon. */
+    rejected?: boolean;
+    /**
+     * Scellement précédent, enchaîné en mémoire et pas encore persisté : c'est
+     * la signature combinée, où le président signe d'abord l'étape RESPO.
+     */
+    after?: SealResult;
+}
+
+/**
+ * Scellement #4 — validation ou refus par le président (champ `Signature4`,
+ * colonne « Tampon de la structure »).
+ *
+ * À la validation, l'apparence porte le tampon de l'UL et la signature ensemble.
+ * Le tampon n'apparaît donc que sur une note effectivement validée.
+ */
+export async function sealPresident(
+    reportId: string,
+    signer: Signer,
+    opts: PresidentOptions = {},
+    now: Date = new Date()
+): Promise<SealResult> {
+    const row = await loadReport(reportId);
+    const stored = await loadSealedBase(row, opts.after);
+
+    const image = decodeSignatureImage(signer.signatureImage);
+    if (!image) {
+        throw new SealingError('La signature du président est requise.');
+    }
+
+    const stamp = opts.rejected ? null : await loadStamp(row.ulId);
+    let appearance: Buffer;
+    try {
+        appearance = await composePresidentAppearance(image, stamp);
+    } catch (e: unknown) {
+        if (!stamp) throw e;
+        // Un tampon illisible ne doit pas bloquer la validation : la signature
+        // seule reste apposée, et l'anomalie est journalisée pour correction.
+        console.error(`[expenses] tampon de l'UL ${String(row.ulId)} illisible — signature seule`, e);
+        appearance = await composePresidentAppearance(image, null);
+    }
+
+    const sealed = await sealPdf(stored, {
+        reason: opts.rejected
+            ? 'Refus de la note de frais par le président'
+            : 'Validation de la note de frais par le président',
+        name: signer.name,
+        signingTime: now,
+        fieldName: SIGNATURE_FIELDS[SIGNATURE_FIELD_INDEX.president].name,
+        appearancePng: appearance,
+    });
+
+    const key = buildExpenseKey(reportId, 4, newAttemptId());
+    return {
+        buffer: sealed,
+        key,
+        revision: {
+            step: 4,
+            signerId: signer.id,
+            signerName: signer.name,
+            role: 'Président',
             signedAt: now.toISOString(),
             businessDate: (row.validatedAt as string) || null,
             r2Key: key,
@@ -259,19 +469,13 @@ export async function sealStep3(
     now: Date = new Date()
 ): Promise<SealResult> {
     const row = await loadReport(reportId);
-    const currentKey = row.r2Key as string | null;
-    if (!currentKey) throw new SealingError('Aucun PDF scellé n\'est associé à cette note.');
-
-    const stored = await getObject(currentKey);
-    if (!stored) throw new SealingError(`Objet R2 introuvable : ${currentKey}`);
-
-    assertRevisionCount(stored, parseRevisions(row.signatureRevisions).length);
+    const stored = await loadSealedBase(row);
 
     const sealed = await sealPdf(stored, {
         reason: 'Paiement de la note de frais',
         name: signer.name,
         signingTime: now,
-        fieldName: SIGNATURE_FIELDS[2].name,
+        fieldName: SIGNATURE_FIELDS[SIGNATURE_FIELD_INDEX.payeur].name,
         // Pas d'appearancePng : le champ est de surface nulle, rien n'est rendu.
     });
 
@@ -292,6 +496,6 @@ export async function sealStep3(
 }
 
 /** Sérialise le journal de révisions pour la colonne `signatureRevisions`. */
-export function appendRevision(existing: unknown, revision: SignatureRevision): string {
-    return JSON.stringify([...parseRevisions(existing), revision]);
+export function appendRevision(existing: unknown, ...revisions: SignatureRevision[]): string {
+    return JSON.stringify([...parseRevisions(existing), ...revisions]);
 }

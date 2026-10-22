@@ -9,6 +9,9 @@ import {
     isDriverRole,
     hasDTRole,
     isTresorier,
+    isPresident,
+    isExpenseManager,
+    canValidateExpenseAsRespo,
     canAssignRole,
     MANAGEABLE_ROLES,
     isInactive,
@@ -38,11 +41,15 @@ describe('Roles helper functions', () => {
     });
 
     describe('canManageExpenseBudgets', () => {
-        // Matrice complète des 10 rôles gérables (MANAGEABLE_ROLES).
+        // Matrice complète des 11 rôles gérables (MANAGEABLE_ROLES).
         const AUTHORIZED = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRESIDENT, ROLES.TRESORIER, ROLES.CADRE];
-        const DENIED = [ROLES.DT, ROLES.CHVPSP, ROLES.CHVL, ROLES.CI_RPAPS, ROLES.INACTIF];
+        const DENIED = [ROLES.RESPO, ROLES.DT, ROLES.CHVPSP, ROLES.CHVL, ROLES.CI_RPAPS, ROLES.INACTIF];
 
-        it('canManageExpenseBudgets autorise CADRE, PRESIDENT, TRESORIER, ADMIN, SUPER_ADMIN et refuse CHVL, CHVPSP, DT, CI/RPAPS, INACTIF', () => {
+        it('couvre tous les rôles gérables', () => {
+            expect([...AUTHORIZED, ...DENIED].sort()).toEqual([...MANAGEABLE_ROLES].sort());
+        });
+
+        it('canManageExpenseBudgets autorise CADRE, PRESIDENT, TRESORIER, ADMIN, SUPER_ADMIN et refuse RESPO, CHVL, CHVPSP, DT, CI/RPAPS, INACTIF', () => {
             for (const role of AUTHORIZED) {
                 expect(canManageExpenseBudgets([role]), `${role} devrait être autorisé`).toBe(true);
             }
@@ -79,6 +86,39 @@ describe('Roles helper functions', () => {
             // gère bien les budgets analytiques.
             expect(canAccessAdminPanel(['TRESORIER'])).toBe(false);
             expect(canManageExpenseBudgets(['TRESORIER'])).toBe(true);
+        });
+    });
+
+    describe('Rôle RESPO — responsable d\'activité (notes de frais uniquement)', () => {
+        it('est déclaré, gérable et libellé', () => {
+            expect(ROLES.RESPO).toBe('RESPO');
+            expect(MANAGEABLE_ROLES).toContain(ROLES.RESPO);
+            expect(rolesModule.ROLE_LABELS[ROLES.RESPO]).toMatch(/Responsable/);
+        });
+
+        it('canValidateExpenseAsRespo : RESPO, PRESIDENT et SUPER_ADMIN, personne d\'autre', () => {
+            const autorises: string[] = [ROLES.RESPO, ROLES.PRESIDENT, ROLES.SUPER_ADMIN];
+            for (const role of MANAGEABLE_ROLES) {
+                expect(canValidateExpenseAsRespo([role]), role).toBe(autorises.includes(role));
+            }
+        });
+
+        it('le RESPO n\'agit pas à l\'étape président', () => {
+            expect(isExpenseManager(['RESPO'])).toBe(false);
+            expect(isExpenseManager(['RESPO', 'PRESIDENT'])).toBe(true);
+        });
+
+        it('n\'ouvre ni le panneau d\'administration ni la gestion des budgets (D1)', () => {
+            expect(canAccessAdminPanel(['RESPO'])).toBe(false);
+            expect(canManageExpenseBudgets(['RESPO'])).toBe(false);
+            expect(isReadOnlyManager(['RESPO'])).toBe(false);
+        });
+
+        it('isPresident ne reconnaît que PRESIDENT', () => {
+            expect(isPresident(['PRESIDENT'])).toBe(true);
+            expect(isPresident(['SUPER_ADMIN'])).toBe(false);
+            expect(isPresident(['RESPO'])).toBe(false);
+            expect(isPresident(['PRESIDENT', 'INACTIF'])).toBe(false);
         });
     });
 
@@ -294,6 +334,7 @@ describe('Roles helper functions', () => {
                 'canAccessAdminPanel',
                 'canManageExpenseBudgets',
                 'canPayExpense',
+                'canValidateExpenseAsRespo',
                 'hasDTRole',
                 'isAdmin',
                 'isAdminOrAbove',
@@ -302,6 +343,7 @@ describe('Roles helper functions', () => {
                 'isDriverRole',
                 'isExpenseManager',
                 'isMissionContributor',
+                'isPresident',
                 'isReadOnlyManager',
                 'isSuperAdmin',
                 'isTresorier',

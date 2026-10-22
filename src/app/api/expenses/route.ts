@@ -3,10 +3,13 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import crypto from 'crypto';
-import { unauthorizedResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { MAX_ITEMS_SINGLE_PAGE } from '@/lib/expenses/signature-layout';
 import { validateItemBudgets } from '@/lib/expenses/budgets';
-import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
+import {
+    isExpenseManager, isTresorier as isTresorierRole, canValidateExpenseAsRespo, isPresident, isSuperAdmin,
+} from '@/lib/roles';
+import { workflowVersionOf } from '@/lib/expenses/workflow';
 import { withAudit } from '@/lib/audit/log';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
@@ -46,10 +49,12 @@ export async function GET(request: Request) {
         const roles = session.user.roles || [];
         const isManager = isExpenseManager(roles);
         const isTresorier = isTresorierRole(roles);
+        // RESPO sans rôle de président : voit les notes de son UL à valider.
+        const isRespo = !isManager && canValidateExpenseAsRespo(roles);
         const ulId = session.user.ulId || 'ul-paris-18';
         const userId = session.user.id;
 
-        const scope = (scopeParam === 'my' || (!isManager && !isTresorier)) ? 'my' : 'ul';
+        const scope = (scopeParam === 'my' || (!isManager && !isTresorier && !isRespo)) ? 'my' : 'ul';
 
         const selectColumns = `
             er.id, er.userId, er.submittedAt, er.status, er.imputation, er.customImputation,
@@ -57,8 +62,10 @@ export async function GET(request: Request) {
             er.ulId, er.missionName, er.missionDate, er.validatedAt, er.validatedBy,
             er.rejectionComment, er.rejectedAt,
             er.rejectedBy, er.paidAt, er.paidBy, er.userFunction, er.createdAt, er.updatedAt,
+            er.workflowVersion, er.respoValidatedAt, er.respoValidatedBy,
             u.name as userName, u.email as userEmail,
             val.name as validatorName,
+            respo.name as respoValidatorName,
             rej.name as rejectorName,
             pay.name as payerName
         `;
@@ -71,6 +78,7 @@ export async function GET(request: Request) {
                     FROM "ExpenseReport" er
                     LEFT JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
+                    LEFT JOIN "User" respo ON respo.id = er.respoValidatedBy
                     LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                     LEFT JOIN "User" pay ON pay.id = er.paidBy
                     WHERE er.userId = ?
@@ -86,6 +94,7 @@ export async function GET(request: Request) {
                         FROM "ExpenseReport" er
                         LEFT JOIN "User" u ON u.id = er.userId
                         LEFT JOIN "User" val ON val.id = er.validatedBy
+                        LEFT JOIN "User" respo ON respo.id = er.respoValidatedBy
                         LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                         LEFT JOIN "User" pay ON pay.id = er.paidBy
                         WHERE er.ulId = ?
@@ -100,6 +109,7 @@ export async function GET(request: Request) {
                         FROM "ExpenseReport" er
                         LEFT JOIN "User" u ON u.id = er.userId
                         LEFT JOIN "User" val ON val.id = er.validatedBy
+                        LEFT JOIN "User" respo ON respo.id = er.respoValidatedBy
                         LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                         LEFT JOIN "User" pay ON pay.id = er.paidBy
                         WHERE er.ulId = ? AND er.status != 'traité'
@@ -108,6 +118,28 @@ export async function GET(request: Request) {
                     args: [ulId],
                 });
             }
+        } else if (isRespo) {
+            // Les notes qui attendent une validation (la sienne ou celle du
+            // président) — et, s'il est aussi trésorier, celles à payer ; avec
+            // `includeProcessed`, tout l'historique hors brouillons.
+            const pendingStatuses = isTresorier
+                ? `'soumis', 'valide_respo', 'en_attente_paiement'`
+                : `'soumis', 'valide_respo'`;
+            result = await db.execute({
+                sql: `
+                    SELECT ${selectColumns}
+                    FROM "ExpenseReport" er
+                    LEFT JOIN "User" u ON u.id = er.userId
+                    LEFT JOIN "User" val ON val.id = er.validatedBy
+                    LEFT JOIN "User" respo ON respo.id = er.respoValidatedBy
+                    LEFT JOIN "User" rej ON rej.id = er.rejectedBy
+                    LEFT JOIN "User" pay ON pay.id = er.paidBy
+                    WHERE er.ulId = ? AND er.status != 'brouillon'
+                      ${includeProcessed ? '' : `AND er.status IN (${pendingStatuses})`}
+                    ORDER BY er.submittedAt DESC, er.createdAt DESC
+                `,
+                args: [ulId],
+            });
         } else if (isTresorier) {
             result = await db.execute({
                 sql: `
@@ -115,6 +147,7 @@ export async function GET(request: Request) {
                     FROM "ExpenseReport" er
                     LEFT JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
+                    LEFT JOIN "User" respo ON respo.id = er.respoValidatedBy
                     LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                     LEFT JOIN "User" pay ON pay.id = er.paidBy
                     WHERE er.ulId = ? AND er.status = 'en_attente_paiement'
@@ -129,6 +162,7 @@ export async function GET(request: Request) {
                     FROM "ExpenseReport" er
                     LEFT JOIN "User" u ON u.id = er.userId
                     LEFT JOIN "User" val ON val.id = er.validatedBy
+                    LEFT JOIN "User" respo ON respo.id = er.respoValidatedBy
                     LEFT JOIN "User" rej ON rej.id = er.rejectedBy
                     LEFT JOIN "User" pay ON pay.id = er.paidBy
                     WHERE er.userId = ?
@@ -190,6 +224,10 @@ export async function GET(request: Request) {
                 userSignature: (row.userSignature as string) || null,
                 userFunction: (row.userFunction as string) || null,
                 validatorSignature: (row.validatorSignature as string) || null,
+                workflowVersion: workflowVersionOf(row.workflowVersion),
+                respoValidatedAt: row.respoValidatedAt ? String(row.respoValidatedAt) : null,
+                respoValidatedBy: row.respoValidatedBy ? String(row.respoValidatedBy) : null,
+                respoValidatorName: row.respoValidatorName ? String(row.respoValidatorName) : null,
                 createdAt: row.createdAt ? String(row.createdAt) : '',
                 updatedAt: row.updatedAt ? String(row.updatedAt) : '',
             };
@@ -207,6 +245,13 @@ async function postHandler(request: Request) {
         const session = await auth();
         if (!session?.user?.id) {
             return unauthorizedResponse();
+        }
+
+        // Le président valide les notes de son UL : il n'en crée pas à son nom
+        // (évalué sur l'UL active). Le super admin n'est jamais bloqué.
+        const roles = session.user.roles || [];
+        if (isPresident(roles) && !isSuperAdmin(roles)) {
+            return forbiddenResponse('Un président ne peut pas créer de note de frais à son nom.');
         }
 
         const body = await request.json();
@@ -324,8 +369,9 @@ async function postHandler(request: Request) {
             try {
                 const requesterName = session.user.name || session.user.email || 'Un membre';
                 const { sendPushNotification } = await import('@/lib/push');
+                // D3 : à la soumission, les RESPO et le président de l'UL.
                 await sendPushNotification({
-                    roles: ['PRESIDENT'],
+                    roles: ['RESPO', 'PRESIDENT'],
                     headings: { fr: `📋 Note de frais à valider`, en: `📋 Expense report pending approval` },
                     contents: {
                         fr: `${requesterName} a soumis une note de frais (${total.toFixed(2)} €) à valider.`,

@@ -6,7 +6,7 @@ export interface ExpenseReport {
     submittedAt: string;
     missionName: string | null;
     missionDate: string | null;
-    status: 'brouillon' | 'soumis' | 'en_attente_paiement' | 'traité' | 'refusé';
+    status: 'brouillon' | 'soumis' | 'valide_respo' | 'en_attente_paiement' | 'traité' | 'refusé';
     imputation: 'DLUS' | 'DLAS' | 'UL' | 'Autre';
     customImputation: string | null;
     requestRefund: boolean;
@@ -29,5 +29,10 @@ export interface ExpenseReport {
     paidAt: string | null;
     paidBy: string | null;
     payerName: string | null;
+    /** 1 : ancien circuit (président seul) ; 2 : responsable d'activité puis président. */
+    workflowVersion?: 1 | 2;
+    respoValidatedAt?: string | null;
+    respoValidatedBy?: string | null;
+    respoValidatorName?: string | null;
     createdAt: string;
 }

@@ -68,3 +68,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-cloche-mobile.md`
   summary: Rendre les notifications de la cloche atteignables au clavier (boutons ou liens au lieu de `div` cliquables) et ajouter un piège de focus dans la modale mobile.
   evidence: les éléments de liste sont des `div onClick` sans `tabIndex` ni gestion d'Entrée/Espace (préexistant) ; la modale mobile place et rend le focus mais ne le retient pas.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-expense-respo-validation.md`
+  summary: Mettre à jour les AGENTS.md et commentaires qui décrivent encore l'ancien rôle RESPO comme manager (src/AGENTS.md:33, api/reservations, vehicles/[id]/reservations, metrics, banners, ul/[id], users ; commentaires users/route.ts:17, validate-papers:11, missions/route.ts:157).
+  evidence: RESPO désigne désormais le responsable d'activité (notes de frais seulement) ; ces documents induisent les agents en erreur.
+- source_spec: `_bmad-output/implementation-artifacts/spec-expense-respo-validation.md`
+  summary: Préciser dans CLAUDE.md que sans la migration add-expense-respo-step, toute la page Notes de frais (liste et détail) répond 500, pas seulement la soumission.
+  evidence: GET /api/expenses et /api/expenses/[id] sélectionnent workflowVersion et respo* dans toutes les branches.

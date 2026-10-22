@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
-import { isExpenseManager, isTresorier as isTresorierRole } from '@/lib/roles';
+import { canViewExpense } from '@/lib/expenses/workflow';
 
 // Lecture R2 et manipulation de Buffer : runtime Node requis.
 export const runtime = 'nodejs';
@@ -20,7 +20,7 @@ export async function GET(
         }
 
         const ownershipRes = await db.execute({
-            sql: `SELECT userId, status, r2Key FROM "ExpenseReport" WHERE id = ?`,
+            sql: `SELECT userId, status, ulId, r2Key FROM "ExpenseReport" WHERE id = ?`,
             args: [id],
         });
         const row = ownershipRes.rows[0];
@@ -28,11 +28,8 @@ export async function GET(
             return NextResponse.json({ error: 'Note de frais non trouvée' }, { status: 404 });
         }
 
-        const roles = session.user.roles || [];
-        const isManager = isExpenseManager(roles);
-        const isTresorier = isTresorierRole(roles);
-        const isOwner = row.userId === session.user.id;
-        if (!isManager && !isOwner && !(isTresorier && row.status === 'en_attente_paiement')) {
+        const viewer = { id: session.user.id, roles: session.user.roles || [], ulId: session.user.ulId };
+        if (!canViewExpense(viewer, { userId: row.userId, status: row.status, ulId: row.ulId })) {
             return forbiddenResponse();
         }
 

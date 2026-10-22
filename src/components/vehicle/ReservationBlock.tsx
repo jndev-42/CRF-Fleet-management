@@ -59,9 +59,8 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
     const isAdmin = userRoles.includes('ADMIN');
-    const isRespo = userRoles.includes('RESPO');
-    const canValidate = isAdmin || isRespo || canAccessAdminPanel(userRoles);
-    const canManageDriver = canAccessAdminPanel(userRoles) || isRespo;
+    const canValidate = isAdmin || canAccessAdminPanel(userRoles);
+    const canManageDriver = canAccessAdminPanel(userRoles);
 
     const fetchReservations = useCallback(async () => {
         try {
