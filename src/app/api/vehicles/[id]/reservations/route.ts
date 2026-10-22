@@ -258,18 +258,10 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
                     };
 
                     await sendPushNotification({
-                        roles: ['ADMIN'],
+                        roles: ['ADMIN', 'RESPO'],
                         headings: { fr: `📋 Nouvelle réservation récurrente`, en: `📋 New recurring reservation` },
                         contents: notifMsg,
-                        url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`,
-                        ulId: vehicleUlId,
-                    });
-
-                    await sendPushNotification({
-                        roles: ['RESPO'],
-                        headings: { fr: `📋 Nouvelle réservation récurrente`, en: `📋 New recurring reservation` },
-                        contents: notifMsg,
-                        url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`,
+                        url: `/vehicles/${encodeURIComponent(vehicleName)}`,
                         ulId: vehicleUlId,
                     });
                 } catch (notifErr) {
@@ -378,27 +370,15 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
 
                 const { sendPushNotification } = await import('@/lib/push');
 
-                // Notifier les ADMIN
+                // Un seul envoi pour ADMIN et RESPO : qui cumule les deux rôles ne reçoit qu'une notification
                 await sendPushNotification({
-                    roles: ['ADMIN'],
+                    roles: ['ADMIN', 'RESPO'],
                     headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
                     contents: {
                         fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,
                         en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} to ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. Pending validation.`
                     },
-                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`,
-                    ulId: vehicleUlId
-                });
-
-                // Notifier les RESPO
-                await sendPushNotification({
-                    roles: ['RESPO'],
-                    headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
-                    contents: {
-                        fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,
-                        en: `${requesterName} requests ${vehicleName} from ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} to ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. Pending validation.`
-                    },
-                    url: `https://cr-chauffeur.vercel.app/vehicles/${vehicleName}`,
+                    url: `/vehicles/${encodeURIComponent(vehicleName)}`,
                     ulId: vehicleUlId
                 });
             } catch (notifErr) {

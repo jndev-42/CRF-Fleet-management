@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canAccessAdminPanel } from '@/lib/roles';
 import { withAudit } from '@/lib/audit/log';
+import { isUnassignedDriverName } from '@/lib/reservationDriver';
 
 async function deleteHandler(request: Request, props: { params: Promise<{ id: string }> }) {
     try {
@@ -17,7 +18,7 @@ async function deleteHandler(request: Request, props: { params: Promise<{ id: st
         // Verify that the user owns the reservation or has manager rights
         const checkResult = await db.execute({
             sql: `
-                SELECT r.userEmail 
+                SELECT r.userEmail, r.userName, r.vehicleId, r.startTime, r.endTime 
                 FROM "Reservation" r
                 WHERE r.id = ?
             `,
@@ -43,6 +44,44 @@ async function deleteHandler(request: Request, props: { params: Promise<{ id: st
             `,
             args: [reservationId]
         });
+
+        // Suppression par un tiers (refus ou annulation) : le demandeur est prévenu, sauf si la
+        // réservation est terminée ou n'a pas de chauffeur désigné.
+        const reservation = checkResult.rows[0];
+        const endTime = new Date(reservation.endTime as string);
+        if (ownerEmail !== session.user.email
+            && !isUnassignedDriverName(reservation.userName as string)
+            && endTime.getTime() > Date.now()) {
+            try {
+                const vehicleResult = await db.execute({
+                    sql: `SELECT name, ulId FROM "Vehicle" WHERE id = ?`,
+                    args: [reservation.vehicleId as string]
+                });
+                const vehicleName = vehicleResult.rows[0]?.name as string || '';
+                const vehicleUlId = vehicleResult.rows[0]?.ulId as string || 'ul-paris-18';
+                const ownerResult = await db.execute({
+                    sql: `SELECT id FROM "User" WHERE email = ?`,
+                    args: [ownerEmail]
+                });
+
+                if (ownerResult.rows.length > 0) {
+                    const start = new Date(reservation.startTime as string);
+                    const { notifyUsers } = await import('@/lib/push');
+                    await notifyUsers({
+                        userIds: [ownerResult.rows[0].id as string],
+                        title: `❌ Réservation annulée`,
+                        message: `Votre réservation de ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${endTime.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} a été annulée.`,
+                        url: `/vehicles/${encodeURIComponent(vehicleName)}`,
+                        ulId: vehicleUlId,
+                        excludeUserId: session.user.id,
+                    });
+                } else {
+                    console.warn('Reservation cancellation: requester not found for', ownerEmail);
+                }
+            } catch (notifErr) {
+                console.error('Failed to send cancellation notification:', notifErr);
+            }
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -229,7 +268,7 @@ async function patchHandler(request: Request, props: { params: Promise<{ id: str
                 args: [reservationId]
             });
 
-            // Notifier le demandeur via la table Notification
+            // Notifier le demandeur (in-app + push), sauf s'il valide lui-même sa réservation
             try {
                 const vehicleResult = await db.execute({
                     sql: `SELECT name, ulId FROM "Vehicle" WHERE id = ?`,
@@ -243,23 +282,21 @@ async function patchHandler(request: Request, props: { params: Promise<{ id: str
                     args: [reservation.userEmail as string]
                 });
 
-                if (userResult.rows.length > 0) {
-                    const userId = userResult.rows[0].id as string;
-                    const notifId = crypto.randomUUID();
+                if (userResult.rows.length > 0 && reservation.userEmail !== session.user.email
+                    && !isUnassignedDriverName(reservation.userName as string)) {
                     const start = new Date(reservation.startTime as string);
                     const end = new Date(reservation.endTime as string);
-
-                    await db.execute({
-                        sql: `INSERT INTO "Notification" (id, userId, title, message, url, ulId) VALUES (?, ?, ?, ?, ?, ?)`,
-                        args: [
-                            notifId,
-                            userId,
-                            `✅ Réservation validée`,
-                            `Votre réservation de ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} a été validée.`,
-                            `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(vehicleName)}`,
-                            vehicleUlId
-                        ]
+                    const { notifyUsers } = await import('@/lib/push');
+                    await notifyUsers({
+                        userIds: [userResult.rows[0].id as string],
+                        title: `✅ Réservation validée`,
+                        message: `Votre réservation de ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} a été validée.`,
+                        url: `/vehicles/${encodeURIComponent(vehicleName)}`,
+                        ulId: vehicleUlId,
+                        excludeUserId: session.user.id,
                     });
+                } else if (userResult.rows.length === 0 && !isUnassignedDriverName(reservation.userName as string)) {
+                    console.warn('Reservation validation: requester not found for', reservation.userEmail);
                 }
             } catch (notifErr) {
                 console.error('Failed to send validation notification:', notifErr);

@@ -33,6 +33,7 @@ process.env.CREDENTIALS_ENCRYPTION_KEY = 'a'.repeat(64);
 import { GET } from '@/app/api/cron/daily-mileage-check/route';
 import { BrandAuthError, BrandTransientError, fetchRenaultVehicleData, type RenaultVehicleData } from '@/lib/renault';
 import { encryptSecret } from '@/lib/crypto';
+import { sendPushNotification } from '@/lib/push';
 import { db, seedVehicle, seedUser, seedRoles, seedUserRole } from './setup';
 
 const mockedFetch = vi.mocked(fetchRenaultVehicleData);
@@ -266,5 +267,25 @@ describe('GET /api/cron/daily-mileage-check', () => {
         const after = await connectionStatus('VL-NET');
         expect(after?.status).toBe('CONNECTED');
         expect(after?.lastError).toBeNull();
+    });
+
+    it("l'alerte d'utilisation suspecte envoie un lien relatif encodé", async () => {
+        delete process.env.CRON_SECRET;
+        vi.mocked(sendPushNotification).mockClear();
+        await seedRoles();
+        await seedUser({ id: 'admin-1', email: 'admin@test.com' });
+        await seedUserRole('admin-1', 'ADMIN');
+        await seedVehicle({ id: 'VL-SP', name: 'VL 186', status: 'AVAILABLE', mileage: 1000 });
+        await seedCredential('cred-sp');
+        await seedConnection('vc-sp', 'VL-SP', 'cred-sp');
+        mockedFetch.mockResolvedValue(telemetry(1500));
+
+        const res = await GET(makeRequest());
+        expect(res.status).toBe(200);
+
+        expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
+            roles: ['ADMIN'],
+            url: '/vehicles/VL%20186',
+        }));
     });
 });

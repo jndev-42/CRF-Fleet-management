@@ -192,6 +192,31 @@ export async function GET(
     }
 }
 
+/**
+ * Prévient le demandeur d'une décision sur sa note de frais (in-app + push).
+ * Jamais bloquant pour la route ; l'auteur de la décision n'est pas notifié de sa propre action.
+ */
+async function notifyRequester(
+    report: Record<string, unknown>,
+    actorId: string,
+    title: string,
+    message: string,
+): Promise<void> {
+    try {
+        const { notifyUsers } = await import('@/lib/push');
+        await notifyUsers({
+            userIds: [report.userId as string],
+            title,
+            message,
+            url: `/expenses`,
+            ulId: (report.ulId as string) || 'ul-paris-18',
+            excludeUserId: actorId,
+        });
+    } catch (notifErr) {
+        console.error('Failed to send expense decision notification to requester:', notifErr);
+    }
+}
+
 async function patchHandler(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -285,12 +310,21 @@ async function patchHandler(
                             en: `Expense report from ${requesterName} (${expenseTotal.toFixed(2)} €) was approved and is pending payment.`
                         },
                         url: `/expenses`,
-                        ulId: reportUlId
+                        ulId: reportUlId,
+                        excludeUserId: session.user.id
                     });
                 } catch (notifErr) {
                     console.error('Failed to send expense payment notification to tresorier:', notifErr);
                 }
             }
+
+            await notifyRequester(
+                report, session.user.id,
+                `✅ Note de frais validée`,
+                nextStatus === 'en_attente_paiement'
+                    ? `Votre note de frais a été validée, en attente de paiement.`
+                    : `Votre note de frais a été validée.`,
+            );
 
             return NextResponse.json({ success: true, status: nextStatus });
         } else if (action === 'reject') {
@@ -338,6 +372,12 @@ async function patchHandler(
                 return sealFailure(e, 'refus');
             }
 
+            await notifyRequester(
+                report, session.user.id,
+                `❌ Note de frais refusée`,
+                `Votre note de frais a été refusée : ${rejectionComment.trim()}`,
+            );
+
             return NextResponse.json({ success: true, status: 'refusé' });
         } else if (action === 'pay') {
             const canPay = canPayExpense(roles);
@@ -373,6 +413,12 @@ async function patchHandler(
             } catch (e: unknown) {
                 return sealFailure(e, 'paiement');
             }
+
+            await notifyRequester(
+                report, session.user.id,
+                `💶 Note de frais payée`,
+                `Votre note de frais a été payée.`,
+            );
 
             return NextResponse.json({ success: true, status: 'traité' });
         } else {
@@ -520,7 +566,8 @@ async function patchHandler(
                             en: `${requesterName} submitted an expense report (${finalTotal.toFixed(2)} €) pending approval.`
                         },
                         url: `/expenses`,
-                        ulId: reportUlId
+                        ulId: reportUlId,
+                        excludeUserId: session.user.id
                     });
                 } catch (notifErr) {
                     console.error('Failed to send expense notification to president:', notifErr);

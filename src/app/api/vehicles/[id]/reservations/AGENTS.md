@@ -37,7 +37,7 @@ Manages vehicle reservations: single-slot and recurring. Supports conflict detec
 - Conflict detection includes both VALIDATED and PENDING (blocks both)
 - `isUnassignedDriver` or `onBehalfOfUserId === 'UNASSIGNED'` → userName = "Chauffeur non décidé"
 - Only RESPO/ADMIN can reserve on behalf or mark unassigned
-- Push notifications sent to ADMIN and RESPO roles (Web Push)
+- Push notifications sent to ADMIN and RESPO roles in a single `sendPushNotification` call (Web Push) — no duplicate for users holding both
 - Recurring: limit 6 months from today; first date must be future; at least one DOW required
 - Occurrence dates auto-skipped if already conflicted
 

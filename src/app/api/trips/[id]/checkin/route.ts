@@ -241,8 +241,9 @@ async function patchHandler(
                             en: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`,
                             fr: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`
                         },
-                        url: `https://cr-chauffeur.vercel.app/vehicles/${encodeURIComponent(String(vName))}`,
-                        ulId: vehicle.ulId as string || 'ul-paris-18'
+                        url: `/vehicles/${encodeURIComponent(String(vName))}`,
+                        ulId: vehicle.ulId as string || 'ul-paris-18',
+                        excludeUserId: userId
                     });
                 } catch (pushError) {
                     console.error('Erreur lors de l\'envoi de la notification Push Incident (Retour):', pushError);

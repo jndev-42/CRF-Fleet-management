@@ -44,6 +44,7 @@ import { auth } from '@/auth';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { db, seedVehicle, seedTrip, seedUser } from './setup';
 import { GET as GETVehicle } from '@/app/api/vehicles/[id]/route';
+import { sendPushNotification } from '@/lib/push';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -367,5 +368,27 @@ describe('PATCH /api/trips/[id]/checkin — véhicule en maintenance', () => {
 
     // …et il la PERSISTE, il ne la projette pas seulement.
     expect(await readStatus('VL001')).toBe('MAINTENANCE');
+  });
+});
+
+describe('PATCH /api/trips/[id]/checkin — lien de la notification d\'incident', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('envoie un lien relatif encodé et exclut l\'auteur', async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedVehicle({ id: 'VL001', name: 'VL 186', status: 'IN_USE', mileage: 10000 });
+    await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', mileageOut: 10000 });
+
+    const [req, ctx] = makeRequest('trip-1', { ...validCheckInBody, conditionIn: 'Problème signalé' });
+    expect((await PATCH(req, ctx)).status).toBe(200);
+
+    expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
+      url: '/vehicles/VL%20186',
+      excludeUserId: 'user-driver',
+    }));
   });
 });

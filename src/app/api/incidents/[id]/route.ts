@@ -10,6 +10,7 @@ import {
 } from '@/lib/incidentAccess';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { notifyIncidentSubmitted } from '@/lib/incidentNotifications';
 
 const updateIncidentSchema = z.object({
     type: z.enum(['ACCIDENT', 'FLASH']).optional().nullable(),
@@ -120,7 +121,7 @@ async function patchHandler(
 
         // Check ownership or admin
         const check = await db.execute({
-            sql: `SELECT userId FROM IncidentReport WHERE id = ?`,
+            sql: `SELECT userId, status FROM IncidentReport WHERE id = ?`,
             args: [id],
         });
 
@@ -131,6 +132,11 @@ async function patchHandler(
         const isAdmin = isAdminOrAbove(session.user.roles);
         if (check.rows[0].userId !== session.user.id && !isAdmin) {
             return forbiddenResponse();
+        }
+
+        // Un incident soumis ne repasse pas en brouillon (sinon une nouvelle soumission re-notifierait les Responsables)
+        if (data.status === 'DRAFT' && check.rows[0].status === 'SUBMITTED') {
+            return NextResponse.json({ error: 'Un incident déjà soumis ne peut pas repasser en brouillon.' }, { status: 409 });
         }
 
         // Build dynamic update
@@ -159,6 +165,22 @@ async function patchHandler(
             sql: `UPDATE "IncidentReport" SET ${updates.join(', ')} WHERE id = ?`,
             args,
         });
+
+        // Passage DRAFT -> SUBMITTED : les Responsables sont prévenus, une seule fois
+        if (data.status === 'SUBMITTED' && check.rows[0].status !== 'SUBMITTED') {
+            const updated = await db.execute({
+                sql: `SELECT vehicleId, type FROM "IncidentReport" WHERE id = ?`,
+                args: [id],
+            });
+            if (updated.rows.length > 0) {
+                await notifyIncidentSubmitted({
+                    vehicleId: updated.rows[0].vehicleId as string,
+                    type: updated.rows[0].type as string | null,
+                    authorId: check.rows[0].userId as string,
+                    actorId: session.user.id,
+                });
+            }
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

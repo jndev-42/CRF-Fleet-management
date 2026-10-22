@@ -16,7 +16,7 @@ vi.mock('web-push', () => ({
 }));
 
 import webpush from 'web-push';
-import { sendPushNotification } from '@/lib/push';
+import { sendPushNotification, notifyUsers } from '@/lib/push';
 import { db, seedRoles, seedUniteLocale, seedUser, seedUserRole, seedUserUL } from './setup';
 
 const mockedSend = vi.mocked(webpush.sendNotification);
@@ -186,5 +186,155 @@ describe('sendPushNotification', () => {
         expect(mockedSend).not.toHaveBeenCalled();
         const notifs = await db.execute(`SELECT id FROM "Notification"`);
         expect(notifs.rows).toHaveLength(1);
+    });
+});
+
+describe('dédoublonnage et utilisateurs nommés', () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(() => {
+        mockedSend.mockReset();
+        mockedSend.mockResolvedValue({ statusCode: 201, body: '', headers: {} });
+        process.env.VAPID_PUBLIC_KEY = 'public-key';
+        process.env.VAPID_PRIVATE_KEY = 'private-key';
+        process.env.VAPID_SUBJECT = 'mailto:test@croix-rouge.fr';
+    });
+
+    afterEach(() => {
+        process.env = { ...originalEnv };
+        vi.restoreAllMocks();
+    });
+
+    it('un utilisateur cumulant ADMIN et PRESIDENT reçoit une seule notification et un seul push par appareil', async () => {
+        await seedRoles();
+        await seedUser({ id: 'multi-1', email: 'multi@test.com' });
+        await seedUserRole('multi-1', 'SUPER_ADMIN');
+        await seedUserRole('multi-1', 'PRESIDENT');
+        await seedSubscription('s1', 'multi-1', 'https://push.example/1');
+
+        await sendPushNotification({ ...baseArgs, roles: ['ADMIN', 'RESPO'] });
+
+        const notifs = await db.execute(`SELECT userId FROM "Notification"`);
+        expect(notifs.rows).toHaveLength(1);
+        expect(mockedSend).toHaveBeenCalledTimes(1);
+    });
+
+    it('sendPushNotification : userIds nommés + rôles sont fusionnés sans doublon, excludeUserId écarte l\'auteur', async () => {
+        await seedRoles();
+        await seedUser({ id: 'admin-1', email: 'a1@test.com' });
+        await seedUserRole('admin-1', 'ADMIN');
+        await seedUser({ id: 'named-1', email: 'n1@test.com' });
+        await seedUser({ id: 'author-1', email: 'au@test.com' });
+        await seedUserRole('author-1', 'ADMIN');
+
+        await sendPushNotification({
+            ...baseArgs, roles: ['ADMIN'], userIds: ['admin-1', 'named-1', 'author-1'], excludeUserId: 'author-1',
+        });
+
+        const notifs = await db.execute(`SELECT userId FROM "Notification" ORDER BY userId`);
+        expect(notifs.rows.map(r => r.userId)).toEqual(['admin-1', 'named-1']);
+    });
+});
+
+describe('notifyUsers', () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(() => {
+        mockedSend.mockReset();
+        mockedSend.mockResolvedValue({ statusCode: 201, body: '', headers: {} });
+        process.env.VAPID_PUBLIC_KEY = 'public-key';
+        process.env.VAPID_PRIVATE_KEY = 'private-key';
+        process.env.VAPID_SUBJECT = 'mailto:test@croix-rouge.fr';
+    });
+
+    afterEach(() => {
+        process.env = { ...originalEnv };
+        vi.restoreAllMocks();
+    });
+
+    it('crée une notification in-app et un Web Push pour chaque utilisateur nommé', async () => {
+        await seedUser({ id: 'u1', email: 'u1@test.com' });
+        await seedUser({ id: 'u2', email: 'u2@test.com' });
+        await seedSubscription('s1', 'u1', 'https://push.example/1');
+
+        const result = await notifyUsers({ userIds: ['u1', 'u2'], title: 'Titre', message: 'Message', url: '/expenses', ulId: 'ul-paris-18' });
+
+        expect(result).toBe(true);
+        const notifs = await db.execute(`SELECT userId, title, message, url, ulId FROM "Notification" ORDER BY userId`);
+        expect(notifs.rows.map(r => r.userId)).toEqual(['u1', 'u2']);
+        expect(notifs.rows[0]).toMatchObject({ title: 'Titre', message: 'Message', url: '/expenses', ulId: 'ul-paris-18' });
+        expect(mockedSend).toHaveBeenCalledTimes(1);
+        expect(JSON.parse(mockedSend.mock.calls[0][1] as string)).toEqual({ title: 'Titre', body: 'Message', url: '/expenses' });
+    });
+
+    it('dédoublonne les identifiants', async () => {
+        await seedUser({ id: 'u1', email: 'u1@test.com' });
+
+        await notifyUsers({ userIds: ['u1', 'u1'], title: 'T', message: 'M' });
+
+        const notifs = await db.execute(`SELECT id FROM "Notification"`);
+        expect(notifs.rows).toHaveLength(1);
+    });
+
+    it("n'envoie rien à l'auteur de l'action (excludeUserId)", async () => {
+        await seedUser({ id: 'u1', email: 'u1@test.com' });
+        await seedUser({ id: 'u2', email: 'u2@test.com' });
+        await seedSubscription('s1', 'u1', 'https://push.example/1');
+
+        await notifyUsers({ userIds: ['u1', 'u2'], title: 'T', message: 'M', excludeUserId: 'u1' });
+
+        const notifs = await db.execute(`SELECT userId FROM "Notification"`);
+        expect(notifs.rows.map(r => r.userId)).toEqual(['u2']);
+        expect(mockedSend).not.toHaveBeenCalled();
+    });
+
+    it('ne lève jamais : retourne false si la base échoue', async () => {
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        const spy = vi.spyOn(db, 'execute').mockRejectedValueOnce(new Error('boom'));
+
+        const result = await notifyUsers({ userIds: ['u1'], title: 'T', message: 'M' });
+
+        expect(result).toBe(false);
+        spy.mockRestore();
+    });
+});
+
+describe('taille du corps du push', () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(() => {
+        mockedSend.mockReset();
+        mockedSend.mockResolvedValue({ statusCode: 201, body: '', headers: {} });
+        process.env.VAPID_PUBLIC_KEY = 'public-key';
+        process.env.VAPID_PRIVATE_KEY = 'private-key';
+        process.env.VAPID_SUBJECT = 'mailto:test@croix-rouge.fr';
+    });
+
+    afterEach(() => {
+        process.env = { ...originalEnv };
+        vi.restoreAllMocks();
+    });
+
+    it('tronque le corps du push mais garde le message in-app entier', async () => {
+        await seedUser({ id: 'u1', email: 'u1@test.com' });
+        await seedSubscription('s1', 'u1', 'https://push.example/1');
+        const long = 'x'.repeat(5000);
+
+        await notifyUsers({ userIds: ['u1'], title: 'T', message: long });
+
+        const sent = JSON.parse(mockedSend.mock.calls[0][1] as string) as { body: string };
+        expect(sent.body).toHaveLength(500);
+        expect(sent.body.endsWith('…')).toBe(true);
+        const notif = await db.execute(`SELECT message FROM "Notification"`);
+        expect(notif.rows[0].message).toBe(long);
+    });
+
+    it('laisse intact un corps court', async () => {
+        await seedUser({ id: 'u1', email: 'u1@test.com' });
+        await seedSubscription('s1', 'u1', 'https://push.example/1');
+
+        await notifyUsers({ userIds: ['u1'], title: 'T', message: 'court' });
+
+        expect((JSON.parse(mockedSend.mock.calls[0][1] as string) as { body: string }).body).toBe('court');
     });
 });
