@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { getRenaultVehicleData, VehicleNotConnectedError } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { isSuperAdmin } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, isOutsideUl } from '@/lib/apiAuth';
 
 export async function GET(
     request: Request,
@@ -24,8 +23,8 @@ export async function GET(
         if (vehicleResult.rows.length === 0) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
-        if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== vehicleResult.rows[0].ulId) {
-            return forbiddenResponse();
+        if (isOutsideUl(session.user.roles || [], session.user.ulId, vehicleResult.rows[0].ulId)) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
         // getRenaultVehicleData prend l'UUID du véhicule, jamais son VIN :

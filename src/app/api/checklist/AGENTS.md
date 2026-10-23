@@ -18,6 +18,6 @@ This is a container directory with dynamic `[itemId]` segment for PATCH/DELETE o
 
 ### Internal
 - `VehicleChecklistItem` table
-- `@/lib/roles` — `isAdminOrAbove()`
+- `@/lib/roles` — `canManageVehicles()`
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

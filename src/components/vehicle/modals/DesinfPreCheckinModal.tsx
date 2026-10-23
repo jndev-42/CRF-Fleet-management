@@ -4,6 +4,8 @@ import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface DesinfPreCheckinModalProps {
     tripId: string;
+    /** UUID du véhicule : la liste des responsables vient de sa route dédiée. */
+    vehicleId: string;
     onClose: () => void;
     onConfirm: () => void;
 }
@@ -12,7 +14,7 @@ interface DesinfPreCheckinModalProps {
  * Modal allowing an ADMIN to pre-fill disinfection info (responsable + lot number)
  * before the actual vehicle check-in. Persists data to DB via API.
  */
-export default function DesinfPreCheckinModal({ tripId, onClose, onConfirm }: DesinfPreCheckinModalProps) {
+export default function DesinfPreCheckinModal({ tripId, vehicleId, onClose, onConfirm }: DesinfPreCheckinModalProps) {
     useEscapeKey(onClose);
     const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
     const [responsableId, setResponsableId] = useState('');
@@ -21,11 +23,12 @@ export default function DesinfPreCheckinModal({ tripId, onClose, onConfirm }: De
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetch('/api/users')
+        // Route dédiée (membres actifs de l'UL du véhicule), comme `CheckInModal`.
+        fetch(`/api/vehicles/${encodeURIComponent(vehicleId)}/desinf-responsables`)
             .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
-    }, []);
+    }, [vehicleId]);
 
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();

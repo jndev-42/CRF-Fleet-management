@@ -31,13 +31,13 @@ describe('GET /api/vehicles/[id]/qr-token', () => {
     });
 
     it('retourne 404 pour un véhicule inconnu', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const res = await GET(makeRequest('GET'), { params: Promise.resolve({ id: 'unknown' }) });
         expect(res.status).toBe(404);
     });
 
     it('crée paresseusement un token si absent (happy path)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186' });
 
         const res = await GET(makeRequest('GET'), { params: Promise.resolve({ id: 'VL001' }) });
@@ -47,7 +47,7 @@ describe('GET /api/vehicles/[id]/qr-token', () => {
     });
 
     it('retourne le même token à chaque appel', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186' });
 
         const res1 = await GET(makeRequest('GET'), { params: Promise.resolve({ id: 'VL001' }) });
@@ -60,7 +60,7 @@ describe('GET /api/vehicles/[id]/qr-token', () => {
 
 describe('POST /api/vehicles/[id]/qr-token', () => {
     it('se comporte comme GET (happy path)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186' });
 
         const res = await POST(makeRequest('POST'), { params: Promise.resolve({ id: 'VL001' }) });
@@ -76,13 +76,29 @@ describe('DELETE /api/vehicles/[id]/qr-token', () => {
     });
 
     it('retourne 403 pour un rôle insuffisant', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const res = await DELETE(makeRequest('DELETE'), { params: Promise.resolve({ id: 'VL001' }) });
         expect(res.status).toBe(403);
     });
 
+    it('retourne 403 pour un CADRE seul : il ne gère plus le QR véhicule', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@test.com', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186' });
+        const res = await DELETE(makeRequest('DELETE'), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it.each([['PRESIDENT'], ['RESP_VEHICULE']])('régénère le token pour un %s', async (role) => {
+        mockedAuth.mockResolvedValue({ user: { email: 'mgr@test.com', roles: [role], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186' });
+        await db.execute({ sql: `UPDATE Vehicle SET qrToken = 'old-token' WHERE id = ?`, args: ['VL001'] });
+        const res = await DELETE(makeRequest('DELETE'), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(200);
+        expect((await res.json()).token).not.toBe('old-token');
+    });
+
     it('régénère le token pour un admin (happy path)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186' });
         await db.execute({ sql: `UPDATE Vehicle SET qrToken = 'old-token' WHERE id = ?`, args: ['VL001'] });
 

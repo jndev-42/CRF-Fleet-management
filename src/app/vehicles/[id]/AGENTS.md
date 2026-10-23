@@ -24,7 +24,7 @@ This directory also owns the **shared vehicle type and helper modules** imported
 
 **Borrow permission is a layered computation** (in the `AVAILABLE` branch of the actions bar) — reproduce all of it if you touch it:
 - Centralised in `src/lib/vehicleBorrowEligibility.ts`, aligned with the server rule in `src/app/api/trips/route.ts`: `isAdminOrAbove` → always allowed. CHVPSP → VPSP vehicles only. CHVL → non-VPSP only (VPSP detected by `vehicle.type.toUpperCase().includes('VPSP')`). Holding both roles allows both types.
-- Then two overrides, both bypassed by ADMIN: an active reservation held by someone else (`isReservedByOther`, reported upward by `ReservationBlock`), and `licenseBlocked` from `GET /api/me/license-check` (driving papers not validated within the grace period).
+- Then two overrides: an active reservation held by someone else (`isReservedByOther`, reported upward by `ReservationBlock`) — bypassed by managers —, and `licenseBlocked` from `GET /api/me/license-check` (driving papers not validated within the grace period) — **never bypassed**, whatever the role.
 - Each denial has its own French `title` message.
 
 **Check-in permission** is narrower: `ADMIN`, the trip's `driverEmail`, or its `secondDriverEmail`.
@@ -38,7 +38,7 @@ Data flow — several interlocking effects:
 - Renault telemetry: `GET /api/renault/{vin}` once per VIN, guarded by `!renaultData`.
 - **Self-healing effect:** if any completed trip has `renaultDataValidated === 0`, the page `PATCH`es `/api/trips/{id}/refresh-renault` and refetches when the response reports `validated`. This runs on every `vehicle` change — keep the `validated` guard or it will loop.
 
-Fuel display: electric vehicles show `batteryLevel` directly; combustion vehicles convert `fuelQuantity` to a percentage against `vehicle.maxFuelCapacity ?? 50` litres, clamped to 100. Both fall back to the stored `fuelLevel`. Manual metric editing (`EditMetricsModal`) is offered **only when the vehicle has no VIN** — telemetry-backed vehicles must not be hand-edited — and only to ADMIN (the UI checks `userRoles.includes('ADMIN')` in `VehicleDetailGrid`; the `PATCH /metrics` API itself accepts `canAccessAdminPanel`).
+Fuel display: electric vehicles show `batteryLevel` directly; combustion vehicles convert `fuelQuantity` to a percentage against `vehicle.maxFuelCapacity ?? 50` litres, clamped to 100. Both fall back to the stored `fuelLevel`. Manual metric editing (`EditMetricsModal`) is offered **only when the vehicle has no VIN** — telemetry-backed vehicles must not be hand-edited — and only to fleet managers (the UI checks `canManageVehicles(userRoles)` — SUPER_ADMIN, ADMIN, RESP_VEHICULE — in `VehicleDetailGrid`; the `PATCH /metrics` API itself accepts `canSuperviseVehicles`, which adds PRESIDENT).
 
 VPSP disinfection card colour-codes `nextDesinfMaxDate`: red when overdue (with day count), orange within 14 days, green beyond. Non-VPSP vehicles show a simpler card when `desinfTracking` is on. The two are mutually exclusive by construction.
 

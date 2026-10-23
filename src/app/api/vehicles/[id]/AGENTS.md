@@ -20,7 +20,7 @@ Vehicle-specific endpoints: fetch full details (including trip history, active m
 - `maintenance` — Maintenance records (historical log with pagination)
 - `maintenance/[recordId]` — Delete individual maintenance record
 - `maintenance-events` — Create/end active maintenance windows
-- `metrics` — Update mileage/fuel (`canAccessAdminPanel`: SUPER_ADMIN/ADMIN/PRESIDENT/CADRE, blocked for VIN vehicles)
+- `metrics` — Update mileage/fuel (`canSuperviseVehicles`: SUPER_ADMIN/ADMIN/RESP_VEHICULE/PRESIDENT, blocked for VIN vehicles)
 - `qr-token` — Lazy-create or regenerate QR bypass token
 - `reservations` — List/create reservations (single or recurrence)
 - `trips` — Clear all trips for this vehicle
@@ -48,7 +48,7 @@ Vehicle-specific endpoints: fetch full details (including trip history, active m
 ### Internal
 - `@/lib/db` — parameterized SQL, transaction support
 - `@/lib/drive` — `deleteDriveFolder()` for Drive cleanup
-- `@/lib/roles` — `isAdminOrAbove`
+- `@/lib/roles` — `canManageVehicles`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

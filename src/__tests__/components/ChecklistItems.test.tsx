@@ -66,4 +66,20 @@ describe('ChecklistItems', () => {
         const { container } = render(<ChecklistItems vehicleId="VL001" type="checkout" responses={{}} onChange={vi.fn()} />);
         await waitFor(() => expect(container.firstChild).toBeNull());
     });
+
+    it('lit la checklist par la route QR quand un qrToken est fourni', async () => {
+        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify(items), { status: 200 }));
+        render(<ChecklistItems vehicleId="VL001" qrToken="tok-1" type="checkin" responses={{}} onChange={vi.fn()} />);
+
+        await screen.findByText('Vérifier les pneus');
+        expect(fetchSpy).toHaveBeenCalledWith('/api/qr/tok-1/checklist?type=checkin');
+    });
+
+    it('lit la checklist par la route véhicule sans qrToken', async () => {
+        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify(items), { status: 200 }));
+        render(<ChecklistItems vehicleId="VL001" type="checkout" responses={{}} onChange={vi.fn()} />);
+
+        await screen.findByText('Vérifier les pneus');
+        expect(fetchSpy).toHaveBeenCalledWith('/api/vehicles/VL001/checklist?type=checkout');
+    });
 });

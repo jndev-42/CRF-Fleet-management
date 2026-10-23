@@ -1,5 +1,6 @@
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { MILEAGE_DECREASE_CONFIRM_REQUIRED, isMileageDecrease, mileageDecreaseMessage } from '@/lib/utils/mileageAnomaly';
+import { ROLES } from '@/lib/roles';
 
 /**
  * Règles communes aux deux parcours d'emprunt — `POST /api/trips` (fiche véhicule) et
@@ -97,8 +98,8 @@ export interface CheckoutAlertsInput {
 
 /**
  * Alertes envoyées après l'emprunt (transaction validée), non bloquantes :
- *  - « Données incorrectes » (PRESIDENT, CADRE, ADMIN) si la correction change une valeur ;
- *  - « Incident signalé à la prise » (PRESIDENT, CADRE) si l'état est dégradé.
+ *  - « Données incorrectes » (PRESIDENT, RESP_VEHICULE, ADMIN) si la correction change une valeur ;
+ *  - « Incident signalé à la prise » (PRESIDENT, RESP_VEHICULE) si l'état est dégradé.
  * Toujours ciblées sur l'UL du véhicule, l'auteur exclu.
  */
 export async function sendCheckoutAlerts({ vehicle, user, conditionOut, baseline, levels }: CheckoutAlertsInput): Promise<void> {
@@ -126,7 +127,7 @@ export async function sendCheckoutAlerts({ vehicle, user, conditionOut, baseline
             const fuelLabel = vehicle.fuelType === 'Électrique' ? 'Batterie' : 'Carburant';
             const km = (n: number) => n.toLocaleString('fr-FR');
             await sendPushNotification({
-                roles: ['PRESIDENT', 'CADRE', 'ADMIN'],
+                roles: ['PRESIDENT', ROLES.RESP_VEHICULE, 'ADMIN'],
                 headings: { fr: `⚠️ Données incorrectes — ${vName}`, en: `⚠️ Incorrect data — ${vName}` },
                 contents: {
                     fr: `${driverDisplayName} a signalé des données incorrectes sur ${vName}. Km : ${km(baseline.mileage)} → ${km(levels.mileage)} km. ${fuelLabel} : ${baseline.fuel}% → ${levels.fuel}%.`,
@@ -143,7 +144,7 @@ export async function sendCheckoutAlerts({ vehicle, user, conditionOut, baseline
         try {
             const message = `${driverDisplayName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${conditionOut}`;
             await sendPushNotification({
-                roles: ['PRESIDENT', 'CADRE'],
+                roles: ['PRESIDENT', ROLES.RESP_VEHICULE],
                 headings: { en: `🚨 Incident signalé à la prise de ${vName}`, fr: `🚨 Incident signalé à la prise de ${vName}` },
                 contents: { en: message, fr: message },
                 ...target,

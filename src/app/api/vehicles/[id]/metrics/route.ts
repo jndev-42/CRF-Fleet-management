@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { sendPushNotification } from '@/lib/push';
-import { canAccessAdminPanel } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { canSuperviseVehicles, ROLES } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
 const updateMetricsSchema = z.object({
@@ -23,7 +23,7 @@ async function patchHandler(
         }
 
         const roles = session.user.roles || [];
-        if (!canAccessAdminPanel(roles)) {
+        if (!canSuperviseVehicles(roles)) {
             return forbiddenResponse();
         }
 
@@ -43,7 +43,8 @@ async function patchHandler(
             args: [vehicleId]
         });
 
-        if (vehicleRes.rows.length === 0) {
+        // Cloisonnement UL : un véhicule d'une autre UL est indiscernable d'un véhicule inconnu.
+        if (vehicleRes.rows.length === 0 || isOutsideUl(roles, session.user.ulId, vehicleRes.rows[0].ulId)) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
@@ -106,7 +107,7 @@ async function patchHandler(
         try {
             // Send Push Notification (it also creates in-app notifications automatically)
             await sendPushNotification({
-                roles: ['ADMIN'],
+                roles: ['ADMIN', ROLES.RESP_VEHICULE],
                 headings: { en: notificationTitle, fr: notificationTitle },
                 contents: { en: notificationMessage, fr: notificationMessage },
                 url: notificationUrl,

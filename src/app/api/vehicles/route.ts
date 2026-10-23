@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 import { computeEffectiveStatus } from '@/lib/vehicleStatusRecalc';
 import { withAudit } from '@/lib/audit/log';
 
@@ -294,7 +294,7 @@ async function postHandler(request: Request) {
         if (!session?.user) {
             return unauthorizedResponse();
         }
-        if (!isAdminOrAbove(session.user.roles || [])) {
+        if (!canManageVehicles(session.user.roles || [])) {
             return forbiddenResponse();
         }
 

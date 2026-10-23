@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { ROLES } from '@/lib/roles';
 
 const INCIDENT_LABELS: Record<string, string> = {
     ACCIDENT: 'Accident',
@@ -6,7 +7,7 @@ const INCIDENT_LABELS: Record<string, string> = {
 };
 
 /**
- * Prévient les Responsables (PRESIDENT + CADRE) de l'UL du véhicule qu'un incident vient d'être soumis.
+ * Prévient les Responsables (PRESIDENT + RESP_VEHICULE) de l'UL du véhicule qu'un incident vient d'être soumis.
  * Le message ne mentionne volontairement pas l'auteur : les déclarations sont anonymes.
  * Ni le déclarant (`authorId`) ni l'auteur de l'action (`actorId`, p. ex. un admin qui soumet le brouillon d'autrui)
  * ne sont notifiés de leur propre action.
@@ -41,7 +42,7 @@ export async function notifyIncidentSubmitted({
 
         const { sendPushNotification } = await import('@/lib/push');
         await sendPushNotification({
-            roles: ['PRESIDENT', 'CADRE'],
+            roles: ['PRESIDENT', ROLES.RESP_VEHICULE],
             headings: { fr: `🚨 ${label} déclaré`, en: `🚨 Incident reported` },
             contents: {
                 fr: `${label} déclaré sur ${vehicleName}.`,

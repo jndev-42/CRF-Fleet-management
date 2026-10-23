@@ -43,12 +43,12 @@ describe('DELETE /api/vehicles/[id]/trips', () => {
         expect(res.status).toBe(404);
     });
 
-    it('retourne 403 pour un admin hors UL du véhicule', async () => {
+    it('retourne 404 pour un admin hors UL du véhicule', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-lyon-3' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
 
         const res = await DELETE(makeRequest(), { params: Promise.resolve({ id: 'VL001' }) });
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(404);
     });
 
     it('supprime tout l\'historique de trajets et repasse le véhicule à AVAILABLE (happy path)', async () => {

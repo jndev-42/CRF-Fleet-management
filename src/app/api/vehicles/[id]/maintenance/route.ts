@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { canManageVehicles } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
 const PAGE_SIZE = 5;
@@ -86,7 +86,7 @@ async function postHandler(
         }
 
         const roles = session.user.roles || ['INACTIF'];
-        if (!isAdminOrAbove(roles)) {
+        if (!canManageVehicles(roles)) {
             return forbiddenResponse();
         }
 
@@ -103,8 +103,8 @@ async function postHandler(
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
-        if (!isSuperAdmin(roles) && session.user.ulId !== vehicleResult.rows[0].ulId) {
-            return forbiddenResponse();
+        if (isOutsideUl(roles, session.user.ulId, vehicleResult.rows[0].ulId)) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
         const vehicleId = vehicleResult.rows[0].id as string;

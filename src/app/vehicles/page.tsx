@@ -7,7 +7,7 @@ import { DashboardSkeletons } from '@/components/ui/Skeleton';
 import AddVehicleModal from '@/components/vehicle/modals/AddVehicleModal';
 import VehicleCalendar from '@/components/vehicle/VehicleCalendar';
 import { useUL } from '@/lib/contexts/ULContext';
-import { isAdminOrAbove, hasDTRole } from '@/lib/roles';
+import { canManageVehicles, hasDTRole } from '@/lib/roles';
 import FleetStatsRow from './FleetStatsRow';
 import { computeFleetStats, countsAsMaintenance } from '@/lib/fleetStats';
 import QuickBorrowSection from './QuickBorrowSection';
@@ -37,7 +37,7 @@ function VehiclesPageContent() {
   const { activeUL } = useUL();
 
   const userRoles = session?.user?.roles || [];
-  const isAdmin = isAdminOrAbove(userRoles);
+  const isAdmin = canManageVehicles(userRoles);
   const canAccessDtView = hasDTRole(userRoles) && Boolean(activeUL?.dtCode);
   const dt = useDtFilters(canAccessDtView);
   const { isDtView } = dt;

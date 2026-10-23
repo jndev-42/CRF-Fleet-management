@@ -23,6 +23,8 @@ Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass nor
 - All routes require `session?.user` (401 if missing) and pass `isQrBlocked()` (403 if the account carries INACTIF or the legacy GUEST value).
 - An account with NO role at all is allowed here — this is the single, deliberate divergence from `isInactive()`, which denies the empty list.
 - **No UL or role-based access control** — the QR token itself grants access. Any authenticated user can scan.
+- **Papers are still checked** on checkout (`@/lib/licenseGuard`, no role exemption): the QR opens UL and role, never the papers.
+- `checklist` — `GET /api/qr/[token]/checklist?type=`: the vehicle's checklist for the QR forms (the `/api/vehicles/[id]/checklist` route is UL-scoped).
 
 **Trip Lifecycle:**
 1. **Checkout (POST `/api/qr/[token]/checkout`):** Creates Trip record, marks vehicle IN_USE, captures initial mileage/fuel from Renault or user input.
@@ -38,7 +40,7 @@ Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass nor
 ### Internal
 - `db` (libSQL)
 - `auth` from `@/auth`
-- `@/lib/roles` — `isQrBlocked()`, `isAdminOrAbove()`
+- `@/lib/roles` — `isQrBlocked()`, `canManageVehicles()`
 - `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)` for live vehicle telemetry
 
 ### Tables Touched

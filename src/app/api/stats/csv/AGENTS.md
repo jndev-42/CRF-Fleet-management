@@ -14,6 +14,7 @@ Trip data CSV export endpoint using two-step job pattern. POST generates a CSV b
 ## For AI Agents
 
 ### Working In This Directory
+- **UL scope:** the export only covers trips of vehicles of the session UL (`v.ulId = session.user.ulId`), like `GET /api/stats`; 400 when the session UL is missing or `'default'`.
 - **POST:** Accepts `{ dateFrom, dateTo }` query params, validates date range (max 62 days), queries Trip + Vehicle + User tables, generates CSV buffer, stores in global `__csvJobs` Map with UUID jobId, returns `{ jobId, status: 'ready' }`
 - **GET:** Accepts `jobId` query param, validates UUID format, retrieves buffer from global job map, streams as `text/csv` attachment with BOM, cleans up jobs older than 10 minutes
 - Roles: the route calls `isInactive()` from `@/lib/roles`, like `/api/stats` and `/api/stats/trips`. INACTIF is **dominant**: an account carrying `['INACTIF','CHVL']` is denied here too. Until 5.7.0 this route recoded the check inline (`roles.length === 1 && roles[0] === 'INACTIF'`) and let such an account export nominative trip data — do not reintroduce an inline variant, an ESLint rule now forbids it

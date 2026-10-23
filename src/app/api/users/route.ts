@@ -2,9 +2,10 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, canAccessAdminPanel, resolveRoles, isSuperAdmin, MANAGEABLE_ROLES } from '@/lib/roles';
+import { isAdminOrAbove, canAccessAdminPanel, canManageVehicles, canManageReservations, resolveRoles, isSuperAdmin, MANAGEABLE_ROLES } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { isVpspVehicle } from '@/lib/vehicleBorrowEligibility';
 
 /** Zod schema for creating a new user */
 const createUserSchema = z.object({
@@ -15,7 +16,13 @@ const createUserSchema = z.object({
 });
 
 /** GET /api/users — `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE) : liste tous les utilisateurs avec leurs rôles.
- *  ?drivers=true  → retourne uniquement les utilisateurs ayant le rôle CHVL ou CHVPSP */
+ *  ?drivers=true  → retourne uniquement les utilisateurs ayant le rôle CHVL ou CHVPSP
+ *  ?vehicleType=VL|VPSP → uniquement les chauffeurs CHVL / CHVPSP
+ *
+ *  Gestionnaires de flotte sans accès au panneau (RESP_VEHICULE) : seules les listes
+ *  de chauffeurs filtrées (`drivers`/`vehicleType`) des sélecteurs leur sont ouvertes,
+ *  limitées à l'UL de session et réduites à `{ id, name, email }`. Sans filtre, 403.
+ *  Les responsables de désinfection ont leurs propres routes (`…/desinf-responsables`). */
 export async function GET(request: Request) {
     try {
         const session = await auth();
@@ -24,9 +31,26 @@ export async function GET(request: Request) {
         }
 
         const roles = session.user.roles || [];
-        const canView = canAccessAdminPanel(roles);
-        if (!canView) {
-            return forbiddenResponse();
+        const { searchParams } = new URL(request.url);
+        const driversOnly = searchParams.get('drivers') === 'true';
+        const vehicleType = searchParams.get('vehicleType')?.toUpperCase();
+
+        let roleFilter: string[] | null = null;
+        if (vehicleType === 'VPSP') roleFilter = ['CHVPSP'];
+        else if (vehicleType === 'VL') roleFilter = ['CHVL'];
+        else if (driversOnly) roleFilter = ['CHVL', 'CHVPSP'];
+
+        if (!canAccessAdminPanel(roles)) {
+            const isFleetManager = canManageVehicles(roles) || canManageReservations(roles);
+            // `Vehicle.type` est libre (« VPSP 4x4 », « Utilitaire »…) : on applique ici la
+            // règle d'éligibilité (`isVpspVehicle`) plutôt que l'égalité stricte VL/VPSP.
+            const managerFilter = vehicleType
+                ? (isVpspVehicle(vehicleType) ? ['CHVPSP'] : ['CHVL'])
+                : roleFilter;
+            if (!isFleetManager || !managerFilter) {
+                return forbiddenResponse();
+            }
+            return NextResponse.json({ users: await listMembersOfUl(managerFilter, session.user.ulId) });
         }
 
         // Auto-seed missing system roles (such as TRESORIER) into the "Role" table
@@ -36,15 +60,6 @@ export async function GET(request: Request) {
                 args: [`role-${roleName.toLowerCase().replace('/', '-')}`, roleName],
             });
         }
-
-        const { searchParams } = new URL(request.url);
-        const driversOnly = searchParams.get('drivers') === 'true';
-        const vehicleType = searchParams.get('vehicleType')?.toUpperCase();
-
-        let roleFilter: string[] | null = null;
-        if (vehicleType === 'VPSP') roleFilter = ['CHVPSP'];
-        else if (vehicleType === 'VL') roleFilter = ['CHVL'];
-        else if (driversOnly) roleFilter = ['CHVL', 'CHVPSP'];
 
         const usersRes = await db.execute(
             roleFilter
@@ -138,6 +153,33 @@ export async function GET(request: Request) {
             { status: 500 }
         );
     }
+}
+
+/**
+ * Membres de l'UL `ulId` — restreints aux chauffeurs `roleFilter` s'il est fourni —,
+ * réduits aux champs que consomment les sélecteurs. Sans UL de session (absente ou
+ * sentinelle `default`), liste vide : on n'expose pas les membres d'une UL par défaut.
+ */
+async function listMembersOfUl(roleFilter: string[] | null, ulId: string | undefined) {
+    if (!ulId || ulId === 'default') return [];
+    const roleClause = roleFilter
+        ? `AND u.id IN (
+                SELECT ur.userId FROM "UserRole" ur
+                JOIN "Role" r ON ur.roleId = r.id
+                WHERE r.name IN (${roleFilter.map(() => '?').join(', ')})
+            )`
+        : '';
+    const res = await db.execute({
+        sql: `
+            SELECT u.id, u.name, u.email
+            FROM "User" u
+            WHERE EXISTS (SELECT 1 FROM "UserUL" uu WHERE uu.userId = u.id AND uu.ulId = ?)
+            ${roleClause}
+            ORDER BY u.email ASC
+        `,
+        args: [ulId, ...(roleFilter ?? [])],
+    });
+    return res.rows.map(row => ({ id: row.id, name: row.name, email: row.email }));
 }
 
 /** POST /api/users — Admin: create a new user with optional initial roles */

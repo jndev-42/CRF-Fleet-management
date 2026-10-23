@@ -37,19 +37,19 @@ describe('PATCH /api/vehicles/[id]/metrics', () => {
     });
 
     it('retourne 403 pour un rôle insuffisant', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const res = await PATCH(makeRequest({ mileage: 1000 }), { params: Promise.resolve({ id: 'VL001' }) });
         expect(res.status).toBe(403);
     });
 
     it('retourne 400 pour un corps invalide (Zod)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         const res = await PATCH(makeRequest({ mileage: -5 }), { params: Promise.resolve({ id: 'VL001' }) });
         expect(res.status).toBe(400);
     });
 
     it('retourne 403 pour un véhicule ayant une connexion constructeur', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012' });
         await seedBrandCredential({ id: 'cred-1' });
         await seedVehicleConnection({ id: 'vc-1', vehicleId: 'VL001', credentialId: 'cred-1', vin: 'VF1AB123456789012' });
@@ -59,7 +59,7 @@ describe('PATCH /api/vehicles/[id]/metrics', () => {
     });
 
     it('retourne 403 même quand la connexion est en ERROR (une connexion en erreur reste une connexion)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012' });
         await seedBrandCredential({ id: 'cred-1' });
         await seedVehicleConnection({ id: 'vc-1', vehicleId: 'VL001', credentialId: 'cred-1', vin: 'VF1AB123456789012', status: 'ERROR' });
@@ -69,7 +69,7 @@ describe('PATCH /api/vehicles/[id]/metrics', () => {
     });
 
     it('retourne 200 pour un véhicule à VIN SANS connexion — le kilométrage reste éditable (P4)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         // VIN hérité de l'ancien système, aucune VehicleConnection : sans ce cas,
         // le kilométrage de ce véhicule n'aurait plus AUCUN chemin de mise à jour.
         await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012', mileage: 500 });
@@ -81,7 +81,7 @@ describe('PATCH /api/vehicles/[id]/metrics', () => {
     });
 
     it('met à jour le kilométrage (happy path)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186', vin: null, mileage: 500 });
 
         const res = await PATCH(makeRequest({ mileage: 1500 }), { params: Promise.resolve({ id: 'VL001' }) });
@@ -90,14 +90,37 @@ describe('PATCH /api/vehicles/[id]/metrics', () => {
         expect(body.mileage).toBe(1500);
     });
 
+    it('retourne 403 pour un CADRE seul : il ne gère plus les véhicules', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@test.com', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', vin: null, mileage: 500 });
+        const res = await PATCH(makeRequest({ mileage: 1500 }), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it('retourne 403 pour un RESP_VEHICULE inactif', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'rv@test.com', roles: ['RESP_VEHICULE', 'INACTIF'], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', vin: null, mileage: 500 });
+        const res = await PATCH(makeRequest({ mileage: 1500 }), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it.each([['PRESIDENT'], ['RESP_VEHICULE']])('met à jour le kilométrage pour un %s', async (role) => {
+        mockedAuth.mockResolvedValue({ user: { email: 'mgr@test.com', roles: [role], ulId: 'ul-paris-18' } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', vin: null, mileage: 500 });
+        const res = await PATCH(makeRequest({ mileage: 1500 }), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(200);
+        expect((await res.json()).mileage).toBe(1500);
+    });
+
     it('notifie les ADMIN avec un lien relatif encodé, sans notifier l\'auteur', async () => {
-        mockedAuth.mockResolvedValue({ user: { id: 'admin-1', email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { id: 'admin-1', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL 186', vin: null, mileage: 500 });
 
         const res = await PATCH(makeRequest({ mileage: 1500 }), { params: Promise.resolve({ id: 'VL001' }) });
         expect(res.status).toBe(200);
 
         expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
+            roles: ['ADMIN', 'RESP_VEHICULE'],
             url: '/vehicles/VL%20186',
             excludeUserId: 'admin-1',
         }));

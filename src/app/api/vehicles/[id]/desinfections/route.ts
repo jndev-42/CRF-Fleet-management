@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isSuperAdmin } from '@/lib/roles';
 import type { DesinfectionRecord } from '@/app/vehicles/[id]/types';
-import { unauthorizedResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, isOutsideUl } from '@/lib/apiAuth';
 
 /**
  * GET /api/vehicles/[id]/desinfections
@@ -35,7 +34,7 @@ export async function GET(
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
-        if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== vehicleResult.rows[0].ulId) {
+        if (isOutsideUl(session.user.roles || [], session.user.ulId, vehicleResult.rows[0].ulId)) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 

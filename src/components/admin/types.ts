@@ -17,5 +17,3 @@ export interface ULEntry {
     name: string;
     slug: string;
 }
-
-export const DRIVER_ROLES = ['CHVL', 'CHVPSP'];

@@ -108,3 +108,27 @@ describe('getReservationCtaState', () => {
         expect(res.message).toBe('Les seuls véhicules de votre UL sont des véhicules légers, réservés aux chauffeurs VL.');
     });
 });
+
+describe('CADRE et RESP_VEHICULE — réservation', () => {
+    const reserve = (userRoles: string[], vehicleType: string) => getReservationEligibility({ vehicleType, userRoles });
+    const cta = (userRoles: string[]) => getReservationCtaState({
+        loading: false, eligibleCount: 1, licenseBlocked: true, userRoles, denialReasons: [],
+    });
+
+    it('CADRE seul : refusé sur VL et VPSP', () => {
+        expect(reserve(['CADRE'], 'VL')).toEqual({ canReserve: false, blockingReason: 'ROLE_NOT_ALLOWED' });
+        expect(reserve(['CADRE'], 'VPSP')).toEqual({ canReserve: false, blockingReason: 'ROLE_NOT_ALLOWED' });
+    });
+
+    it('CADRE + CHVL : VL autorisé, VPSP refusé, papiers bloqués non contournés', () => {
+        expect(reserve(['CADRE', 'CHVL'], 'VL').canReserve).toBe(true);
+        expect(reserve(['CADRE', 'CHVL'], 'VPSP')).toEqual({ canReserve: false, blockingReason: 'VPSP_REQUIRES_CHVPSP' });
+        expect(cta(['CADRE', 'CHVL']).state).toBe('LICENSE_BLOCKED');
+    });
+
+    it('RESP_VEHICULE : bypass comme un ADMIN (VL, VPSP, papiers bloqués)', () => {
+        expect(reserve(['RESP_VEHICULE'], 'VL').canReserve).toBe(true);
+        expect(reserve(['RESP_VEHICULE'], 'VPSP').canReserve).toBe(true);
+        expect(cta(['RESP_VEHICULE']).state).toBe('NOMINAL');
+    });
+});

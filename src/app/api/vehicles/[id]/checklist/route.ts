@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { canManageVehicles } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
 const createItemSchema = z.object({
@@ -15,8 +15,17 @@ const createItemSchema = z.object({
 /**
  * GET /api/vehicles/[id]/checklist?type=checkout|checkin
  * Returns the ordered list of checklist items for this vehicle.
- * Accessible to any authenticated user (needed by CheckOutModal & CheckInModal).
+ * Accessible to any authenticated user of the vehicle's UL (needed by CheckOutModal &
+ * CheckInModal). Les formulaires QR, ouverts entre ULs, passent par
+ * `GET /api/qr/[token]/checklist`.
  */
+
+/** Cloisonnement UL : véhicule inconnu ou d'une autre UL → même 404. */
+async function isVehicleHidden(roles: string[], sessionUlId: string | undefined, vehicleId: string): Promise<boolean> {
+    const res = await db.execute({ sql: `SELECT ulId FROM Vehicle WHERE id = ?`, args: [vehicleId] });
+    return res.rows.length === 0 || isOutsideUl(roles, sessionUlId, res.rows[0].ulId);
+}
+
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -28,6 +37,9 @@ export async function GET(
         }
 
         const { id: vehicleId } = await params;
+        if (await isVehicleHidden(session.user.roles || [], session.user.ulId, vehicleId)) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
+        }
         const { searchParams } = new URL(request.url);
         const type = searchParams.get('type'); // 'checkout' | 'checkin' | null (all)
 
@@ -69,11 +81,15 @@ async function postHandler(
 ) {
     try {
         const session = await auth();
-        if (!isAdminOrAbove(session?.user?.roles || [])) {
+        const roles = session?.user?.roles || [];
+        if (!canManageVehicles(roles)) {
             return forbiddenResponse();
         }
 
         const { id: vehicleId } = await params;
+        if (await isVehicleHidden(roles, session?.user?.ulId, vehicleId)) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
+        }
         const body = await request.json();
 
         let data: z.infer<typeof createItemSchema>;

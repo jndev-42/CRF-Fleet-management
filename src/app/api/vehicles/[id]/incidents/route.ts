@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 import {
     canRevealIncidentAuthor,
     isIncidentAuthor,
@@ -53,7 +53,7 @@ export async function GET(
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
-        const isAdmin = isAdminOrAbove(roles);
+        const isAdmin = canManageVehicles(roles);
 
         let sqlQuery = `SELECT ir.id, ir.vehicleId, ir.userId, u.name as userName, u.email as userEmail,
                          ir.tripId, ir.reservationId, ir.type, ir.status, ir.occurredAt,

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import styles from '../Reservation.module.css';
 import UserCombobox from '@/components/ui/UserCombobox';
-import { canAccessAdminPanel } from '@/lib/roles';
+import { canManageReservations } from '@/lib/roles';
 import RecurrencePanel, { RecurrenceFormState } from '../RecurrencePanel';
 import ReservationSlotPicker from '../ReservationSlotPicker';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
@@ -88,8 +88,8 @@ export default function ReservationFormModal({
 
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
-    const canValidate = canAccessAdminPanel(userRoles) || userRoles.includes('ADMIN');
-    const canManageDriver = canAccessAdminPanel(userRoles);
+    const canValidate = canManageReservations(userRoles);
+    const canManageDriver = canManageReservations(userRoles);
 
     useEffect(() => {
         if (!canManageDriver) return;

@@ -12,6 +12,10 @@ import {
     isPresident,
     isExpenseManager,
     canValidateExpenseAsRespo,
+    canManageVehicles,
+    canSuperviseVehicles,
+    canManageReservations,
+    canViewStatsPage,
     canAssignRole,
     MANAGEABLE_ROLES,
     isInactive,
@@ -41,15 +45,15 @@ describe('Roles helper functions', () => {
     });
 
     describe('canManageExpenseBudgets', () => {
-        // Matrice complète des 11 rôles gérables (MANAGEABLE_ROLES).
+        // Matrice complète des 12 rôles gérables (MANAGEABLE_ROLES).
         const AUTHORIZED = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRESIDENT, ROLES.TRESORIER, ROLES.CADRE];
-        const DENIED = [ROLES.RESPO, ROLES.DT, ROLES.CHVPSP, ROLES.CHVL, ROLES.CI_RPAPS, ROLES.INACTIF];
+        const DENIED = [ROLES.RESPO, ROLES.RESP_VEHICULE, ROLES.DT, ROLES.CHVPSP, ROLES.CHVL, ROLES.CI_RPAPS, ROLES.INACTIF];
 
         it('couvre tous les rôles gérables', () => {
             expect([...AUTHORIZED, ...DENIED].sort()).toEqual([...MANAGEABLE_ROLES].sort());
         });
 
-        it('canManageExpenseBudgets autorise CADRE, PRESIDENT, TRESORIER, ADMIN, SUPER_ADMIN et refuse RESPO, CHVL, CHVPSP, DT, CI/RPAPS, INACTIF', () => {
+        it('canManageExpenseBudgets autorise CADRE, PRESIDENT, TRESORIER, ADMIN, SUPER_ADMIN et refuse RESPO, RESP_VEHICULE, CHVL, CHVPSP, DT, CI/RPAPS, INACTIF', () => {
             for (const role of AUTHORIZED) {
                 expect(canManageExpenseBudgets([role]), `${role} devrait être autorisé`).toBe(true);
             }
@@ -119,6 +123,81 @@ describe('Roles helper functions', () => {
             expect(isPresident(['SUPER_ADMIN'])).toBe(false);
             expect(isPresident(['RESPO'])).toBe(false);
             expect(isPresident(['PRESIDENT', 'INACTIF'])).toBe(false);
+        });
+    });
+
+    describe('Rôle RESP_VEHICULE — responsable véhicule (véhicules uniquement)', () => {
+        it('est déclaré, gérable (après CADRE) et libellé', () => {
+            expect(ROLES.RESP_VEHICULE).toBe('RESP_VEHICULE');
+            expect(MANAGEABLE_ROLES.indexOf(ROLES.RESP_VEHICULE)).toBe(MANAGEABLE_ROLES.indexOf(ROLES.CADRE) + 1);
+            expect(rolesModule.ROLE_LABELS[ROLES.RESP_VEHICULE]).toBe('Responsable véhicule');
+        });
+
+        it('canManageVehicles : SUPER_ADMIN, ADMIN et RESP_VEHICULE, personne d\'autre', () => {
+            const autorises: string[] = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RESP_VEHICULE];
+            for (const role of MANAGEABLE_ROLES) {
+                expect(canManageVehicles([role]), role).toBe(autorises.includes(role));
+            }
+        });
+
+        it('canSuperviseVehicles : canManageVehicles + PRESIDENT, sans CADRE', () => {
+            const autorises: string[] = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RESP_VEHICULE, ROLES.PRESIDENT];
+            for (const role of MANAGEABLE_ROLES) {
+                expect(canSuperviseVehicles([role]), role).toBe(autorises.includes(role));
+            }
+        });
+
+        it('canManageReservations : canSuperviseVehicles + CADRE', () => {
+            const autorises: string[] = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RESP_VEHICULE, ROLES.PRESIDENT, ROLES.CADRE];
+            for (const role of MANAGEABLE_ROLES) {
+                expect(canManageReservations([role]), role).toBe(autorises.includes(role));
+            }
+        });
+
+        it('CADRE seul : ni gestion ni supervision des véhicules, mais gestion des réservations', () => {
+            expect(canManageVehicles(['CADRE'])).toBe(false);
+            expect(canSuperviseVehicles(['CADRE'])).toBe(false);
+            expect(canManageReservations(['CADRE'])).toBe(true);
+        });
+
+        it('n\'ouvre aucun autre droit d\'administration', () => {
+            const r = ['RESP_VEHICULE'];
+            expect(isAdminOrAbove(r)).toBe(false);
+            expect(canAccessAdminPanel(r)).toBe(false);
+            expect(isReadOnlyManager(r)).toBe(false);
+            expect(canManageExpenseBudgets(r)).toBe(false);
+            expect(isExpenseManager(r)).toBe(false);
+            expect(canAssignRole(r, 'CHVL')).toBe(false);
+        });
+
+        it('est refusé une fois INACTIF', () => {
+            expect(canManageVehicles(['RESP_VEHICULE', 'INACTIF'])).toBe(false);
+            expect(canSuperviseVehicles(['RESP_VEHICULE', 'INACTIF'])).toBe(false);
+            expect(canManageReservations(['RESP_VEHICULE', 'INACTIF'])).toBe(false);
+        });
+    });
+
+    describe('canViewStatsPage — page /stats (onglet véhicules)', () => {
+        it('conserve les rôles déjà autorisés et ouvre CADRE et RESP_VEHICULE (D2)', () => {
+            const autorises: string[] = [
+                ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRESIDENT, ROLES.TRESORIER,
+                ROLES.CHVL, ROLES.CHVPSP, ROLES.CADRE, ROLES.RESP_VEHICULE,
+            ];
+            for (const role of MANAGEABLE_ROLES) {
+                expect(canViewStatsPage([role]), role).toBe(autorises.includes(role));
+            }
+        });
+
+        it('refuse RESPO, DT et CI/RPAPS seuls', () => {
+            expect(canViewStatsPage(['RESPO'])).toBe(false);
+            expect(canViewStatsPage(['DT'])).toBe(false);
+            expect(canViewStatsPage(['CI/RPAPS'])).toBe(false);
+        });
+
+        it('refuse un compte INACTIF, même cumulé à un rôle autorisé', () => {
+            expect(canViewStatsPage(['INACTIF'])).toBe(false);
+            expect(canViewStatsPage(['CADRE', 'INACTIF'])).toBe(false);
+            expect(canViewStatsPage(['RESP_VEHICULE', 'INACTIF'])).toBe(false);
         });
     });
 
@@ -333,8 +412,12 @@ describe('Roles helper functions', () => {
             expect(predicatsAutorisation.map(([n]) => n).sort()).toEqual([
                 'canAccessAdminPanel',
                 'canManageExpenseBudgets',
+                'canManageReservations',
+                'canManageVehicles',
                 'canPayExpense',
+                'canSuperviseVehicles',
                 'canValidateExpenseAsRespo',
+                'canViewStatsPage',
                 'hasDTRole',
                 'isAdmin',
                 'isAdminOrAbove',

@@ -4,7 +4,7 @@
 # vehicles/[id]/reservations
 
 ## Purpose
-Manages vehicle reservations: single-slot and recurring. Supports conflict detection (no overlapping VALIDATED or PENDING), automatic status based on role (`canAccessAdminPanel` users auto-validate), and on-behalf-of/unassigned-driver options. Sends push notifications to ADMIN, PRESIDENT and CADRE on pending reservations. Touches `Reservation` table.
+Manages vehicle reservations: single-slot and recurring. Supports conflict detection (no overlapping VALIDATED or PENDING), automatic status based on role (`canManageReservations` users auto-validate), and on-behalf-of/unassigned-driver options. Sends push notifications to ADMIN, PRESIDENT, CADRE and RESP_VEHICULE on pending reservations. Touches `Reservation` table.
 
 ## Key Files
 | File | Description |
@@ -14,15 +14,17 @@ Manages vehicle reservations: single-slot and recurring. Supports conflict detec
 ## For AI Agents
 
 ### Working In This Directory
-**GET /api/vehicles/[id]/reservations** — Any authenticated user. Lists all reservations for this vehicle ordered by `startTime ASC`. Fields: `id`, `vehicleId`, `userEmail`, `userName`, `startTime`, `endTime`, `reason`, `status`, `createdAt`, `recurrenceGroupId`.
+**UL scope (GET and POST):** Cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too. SUPER_ADMIN only escapes it.
 
-**POST /api/vehicles/[id]/reservations** — Any authenticated user. Creates reservation(s) with two flows:
+**GET /api/vehicles/[id]/reservations** — Any authenticated user of the vehicle's UL. Lists all reservations for this vehicle ordered by `startTime ASC`. Fields: `id`, `vehicleId`, `userEmail`, `userName`, `startTime`, `endTime`, `reason`, `status`, `createdAt`, `recurrenceGroupId`.
+
+**POST /api/vehicles/[id]/reservations** — Any authenticated user of the vehicle's UL. Creates reservation(s) with two flows:
 
 1. **Simple single reservation**: `{ startTime, endTime, reason?, onBehalfOfUserId?, isUnassignedDriver? }`
    - Validates: startTime < endTime, startTime in future
-   - Status: VALIDATED if `canAccessAdminPanel` (SUPER_ADMIN/ADMIN/CADRE/PRESIDENT), else PENDING
+   - Status: VALIDATED if `canManageReservations` (SUPER_ADMIN/ADMIN/RESP_VEHICULE/PRESIDENT/CADRE), else PENDING
    - Conflict check: blocks on any VALIDATED or PENDING overlap
-   - Users failing `canAccessAdminPanel` cannot use `onBehalfOfUserId` or `isUnassignedDriver`
+   - Users failing `canManageReservations` cannot use `onBehalfOfUserId` or `isUnassignedDriver`
    - Returns `{ success: true, id, status }` 201
 
 2. **Recurring reservation**: `{ recurrence: { daysOfWeek: [0-6], startHour: "HH:mm", endHour: "HH:mm", firstOccurrenceDate: "YYYY-MM-DD", recurrenceEndDate: "YYYY-MM-DD", reason?, onBehalfOfUserId?, isUnassignedDriver? } }`
@@ -33,11 +35,11 @@ Manages vehicle reservations: single-slot and recurring. Supports conflict detec
    - Returns `{ success: true, groupId, status, created: N, skipped: [...dates] }` 201 or 409 if none created
 
 **Key business rules:**
-- Status auto-set: VALIDATED if `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE), else PENDING
+- Status auto-set: VALIDATED if `canManageReservations` (SUPER_ADMIN, ADMIN, RESP_VEHICULE, PRESIDENT, CADRE), else PENDING
 - Conflict detection includes both VALIDATED and PENDING (blocks both)
 - `isUnassignedDriver` or `onBehalfOfUserId === 'UNASSIGNED'` → userName = "Chauffeur non décidé"
-- Only `canAccessAdminPanel` users can reserve on behalf or mark unassigned
-- Push notifications sent to the ADMIN, PRESIDENT and CADRE roles of the vehicle's UL in a single `sendPushNotification` call (Web Push) — no duplicate for users holding several of them
+- Only `canManageReservations` users can reserve on behalf or mark unassigned
+- Push notifications sent to the ADMIN, PRESIDENT, CADRE and RESP_VEHICULE roles of the vehicle's UL in a single `sendPushNotification` call (Web Push) — no duplicate for users holding several of them
 - Recurring: limit 6 months from today; first date must be future; at least one DOW required
 - Occurrence dates auto-skipped if already conflicted
 
@@ -46,7 +48,7 @@ Manages vehicle reservations: single-slot and recurring. Supports conflict detec
 ### Internal
 - `@/lib/db` — `Reservation`, `Vehicle`, `User` tables
 - `@/lib/push` — `sendPushNotification()` (lazy import)
-- `@/lib/roles` — `canAccessAdminPanel`
+- `@/lib/roles` — `canManageReservations`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

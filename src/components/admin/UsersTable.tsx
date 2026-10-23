@@ -2,7 +2,7 @@
 
 import { User as UserIcon } from 'lucide-react';
 import type { User, ULEntry } from './types';
-import { DRIVER_ROLES } from './types';
+import { canBorrowVehicles } from '@/lib/licenseStatus';
 
 interface UsersTableProps {
     users: User[];
@@ -65,7 +65,7 @@ export default function UsersTable({
                             </tr>
                         ) : (
                             users.map(user => {
-                                const isDriver = user.roles.some(r => DRIVER_ROLES.includes(r));
+                                const isDriver = canBorrowVehicles(user.roles);
                                 const papersValid = user.papiers_valides === 1;
 
                                 return (

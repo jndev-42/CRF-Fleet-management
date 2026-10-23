@@ -18,9 +18,9 @@ QR-code landing page (`/qr/{token}`) — the mobile-first flow a volunteer gets 
 
 **Check-in is restricted to the trip's own drivers**: `activeTrip.driverId === currentUserId || activeTrip.secondDriverId === currentUserId` — note there is **no ADMIN override here**, unlike `/vehicles/[id]`. Non-drivers see an explanatory card instead of the button. `currentUserId` comes from a manual `GET /api/auth/session` fetch (this page does not use `useSession()`), so it is briefly `null` on first paint.
 
-Status drives the actions: `AVAILABLE` → borrow button; `IN_USE` → return button or the "seul l'emprunteur" notice; `MAINTENANCE` → unavailable notice. "Déclarer un incident" is always available.
+Status drives the actions: `AVAILABLE` → borrow button (disabled, with an alert, when `useLicenseBlocked()` — `GET /api/me/license-check` — reports blocked papers; no role is exempt, and `POST /api/qr/{token}/checkout` re-checks server-side); `IN_USE` → return button or the "seul l'emprunteur" notice; `MAINTENANCE` → unavailable notice. "Déclarer un incident" is always available.
 
-Both forms post to token-scoped endpoints (`POST /api/qr/{token}/checkout`, `POST /api/qr/{token}/checkin`) — never to `/api/trips`. Errors render inline in a red box rather than via `alert()`.
+Both forms post to token-scoped endpoints (`POST /api/qr/{token}/checkout`, `POST /api/qr/{token}/checkin`) — never to `/api/trips`. Their `ChecklistItems` receive `qrToken` so the checklist is read from `GET /api/qr/{token}/checklist`: `/api/vehicles/[id]/checklist` is UL-scoped and would hide it from a volunteer of another UL. Errors render inline in a red box rather than via `alert()`.
 
 Conditional form logic worth preserving:
 - **Connected vehicles** (`!!vehicle.vin`) omit the mileage/fuel inputs entirely on check-in and show a green "récupérés automatiquement" notice — telemetry supplies those values server-side. Non-connected vehicles require both, pre-filled with the last known values.

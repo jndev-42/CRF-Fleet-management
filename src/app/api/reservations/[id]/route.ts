@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { canAccessAdminPanel } from '@/lib/roles';
+import { canManageReservations } from '@/lib/roles';
 import { withAudit } from '@/lib/audit/log';
 import { isUnassignedDriverName } from '@/lib/reservationDriver';
 
@@ -18,20 +18,24 @@ async function deleteHandler(request: Request, props: { params: Promise<{ id: st
         // Verify that the user owns the reservation or has manager rights
         const checkResult = await db.execute({
             sql: `
-                SELECT r.userEmail, r.userName, r.vehicleId, r.startTime, r.endTime 
+                SELECT r.userEmail, r.userName, r.vehicleId, r.startTime, r.endTime, v.ulId AS vehicleUlId
                 FROM "Reservation" r
+                LEFT JOIN "Vehicle" v ON v.id = r.vehicleId
                 WHERE r.id = ?
             `,
             args: [reservationId]
         });
 
-        if (checkResult.rows.length === 0) {
+        // Cloisonnement UL : une réservation d'un véhicule d'une autre UL est
+        // indiscernable d'une réservation inconnue (SUPER_ADMIN excepté).
+        if (checkResult.rows.length === 0
+            || isOutsideUl(session.user.roles || [], session.user.ulId, checkResult.rows[0].vehicleUlId)) {
             return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
         }
 
         const ownerEmail = checkResult.rows[0].userEmail as string;
         const userRoles: string[] = session.user.roles || [];
-        const canManage = canAccessAdminPanel(userRoles);
+        const canManage = canManageReservations(userRoles);
 
         if (ownerEmail !== session.user.email && !canManage) {
             return forbiddenResponse();
@@ -91,7 +95,7 @@ async function deleteHandler(request: Request, props: { params: Promise<{ id: st
 }
 
 import { z } from 'zod';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 
 const updateReservationSchema = z.strictObject({
@@ -115,21 +119,25 @@ async function patchHandler(request: Request, props: { params: Promise<{ id: str
 
         const checkResult = await db.execute({
             sql: `
-                SELECT r.id, r.userEmail, r.userName, r.vehicleId, r.startTime, r.endTime, r.reason, r.status
+                SELECT r.id, r.userEmail, r.userName, r.vehicleId, r.startTime, r.endTime, r.reason, r.status,
+                       v.ulId AS vehicleUlId
                 FROM "Reservation" r
+                LEFT JOIN "Vehicle" v ON v.id = r.vehicleId
                 WHERE r.id = ?
             `,
             args: [reservationId]
         });
 
-        if (checkResult.rows.length === 0) {
+        // Cloisonnement UL : cf. deleteHandler.
+        if (checkResult.rows.length === 0
+            || isOutsideUl(session.user.roles || [], session.user.ulId, checkResult.rows[0].vehicleUlId)) {
             return NextResponse.json({ error: 'Reservation not found' }, { status: 404 });
         }
 
         const reservation = checkResult.rows[0];
         const userRoles: string[] = session.user.roles || [];
         const isOwner = session.user.email === reservation.userEmail;
-        const canManageDriver = canAccessAdminPanel(userRoles);
+        const canManageDriver = canManageReservations(userRoles);
 
         let body: Record<string, unknown> = {};
         try {

@@ -1,5 +1,26 @@
 # Changelog
 
+## [5.33.0] — 23 octobre 2026
+
+### ✨ Nouveautés
+
+- **Nouveau rôle « Responsable véhicule »** — dans son unité locale, il gère les véhicules comme un administrateur : édition et suppression, maintenance, checklist, guide de vérification, QR code, connexion constructeur, validation des réservations, clôture des trajets et suivi des incidents. Il n'a aucun autre droit d'administration (utilisateurs, notes de frais, inventaire, uniformes, missions, réglages).
+- **Notifications véhicule au responsable véhicule** — les incidents déclarés, les problèmes signalés au départ ou au retour, les données incorrectes, les mises à jour manuelles du kilométrage, les alertes de désinfection et les alertes d'utilisation suspecte lui sont envoyés. Il reçoit aussi les nouvelles demandes de réservation.
+- **Statistiques véhicules** — le responsable véhicule et le cadre ouvrent désormais la page Statistiques, onglet véhicules ; l'onglet notes de frais leur reste fermé.
+
+### 🔒 Sécurité
+
+- **Papiers de conduite contrôlés pour tous** — quiconque prend le volant doit avoir des papiers validés, administrateur et responsable véhicule compris. Le contrôle s'applique aussi à l'emprunt par QR code, au second conducteur et au conducteur désigné à la place d'un autre sur un trajet en cours. Si les papiers sont bloqués, le bouton d'emprunt l'est aussi et la prise est refusée. Un administrateur peut toujours prendre un VPSP sans être chauffeur VPSP, à condition que ses papiers soient valides. **À faire dès la mise à jour :** faites valider les papiers des administrateurs et des responsables véhicule qui conduisent ; sans cela, ils ne pourront plus emprunter une fois le délai de grâce de 14 jours écoulé. Leur ligne dans la liste des utilisateurs affiche désormais l'état de leurs papiers et le bouton « Valider les papiers ». Personne ne peut valider ses propres papiers.
+- **Gestion limitée à son unité locale** — réservations et récurrences, trajets (suppression, modification de la prise, désinfection, retour, second conducteur), incidents, checklist, kilométrage, QR code et exports de statistiques (CSV et PDF) ne portent plus que sur les véhicules de l'unité locale active. Un véhicule d'une autre unité locale y apparaît comme introuvable. Seul le super administrateur garde la main sur toutes les unités locales.
+- **Validation des papiers limitée à son unité locale** — un administrateur, un président ou un cadre ne valide plus que les papiers des membres de son unité locale active, qu'ils y soient rattachés ou simplement inscrits, ainsi que ceux des comptes qui n'appartiennent encore à aucune unité locale. Pour un membre d'une autre unité locale seulement, la validation est refusée avec un message explicite : « Ce membre n'appartient pas à votre unité locale ». La page Utilisateurs liste toujours tous les comptes.
+- **Le parcours QR reste ouvert** — un bénévole qui scanne le QR code d'un véhicule d'une autre unité locale peut toujours l'emprunter, le rendre et déclarer un incident ; le conducteur d'un trajet et l'auteur d'un incident gardent la main sur ce qu'ils ont créé.
+
+### 🔧 Changements
+
+- **Le cadre gère les réservations, plus les véhicules** — il valide, annule, supprime et réassigne toujours les réservations, et reçoit toujours les nouvelles demandes. En revanche, il ne modifie plus le kilométrage ni le QR code d'un véhicule et ne reçoit plus les notifications d'incident ni de problème au départ ou au retour : ces actions passent au responsable véhicule. Pour emprunter un véhicule, il lui faut toujours le rôle Chauffeur VL ou Chauffeur VPSP. Les cadres actuels reçoivent aussi le rôle « Responsable véhicule » lors de la mise à jour : ils gardent donc ces accès et ces notifications tant qu'un administrateur ne leur retire pas ce rôle.
+- **Reprise des cadres existants** — chaque cadre reçoit aussi le rôle « Responsable véhicule » dans les unités locales où il est cadre : personne ne perd l'accès qu'il avait aux véhicules.
+- **Légende des rôles** — elle décrit le nouveau rôle et le périmètre révisé du cadre.
+
 ## [5.32.5] — 23 octobre 2026
 
 ### Corrections

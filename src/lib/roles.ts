@@ -14,6 +14,7 @@ export const ROLES = {
     TRESORIER:   'TRESORIER',
     RESPO:       'RESPO',
     CADRE:       'CADRE',
+    RESP_VEHICULE: 'RESP_VEHICULE',
     DT:          'DT',
     CHVPSP:      'CHVPSP',
     CHVL:        'CHVL',
@@ -31,6 +32,7 @@ export const MANAGEABLE_ROLES: Role[] = [
     ROLES.TRESORIER,
     ROLES.RESPO,
     ROLES.CADRE,
+    ROLES.RESP_VEHICULE,
     ROLES.DT,
     ROLES.CHVPSP,
     ROLES.CHVL,
@@ -45,6 +47,7 @@ export const ROLE_LABELS: Record<Role, string> = {
     [ROLES.TRESORIER]:   'Trésorier',
     [ROLES.RESPO]:       'Responsable d\'activité',
     [ROLES.CADRE]:       'Cadre',
+    [ROLES.RESP_VEHICULE]: 'Responsable véhicule',
     [ROLES.DT]:          'Direction Territoriale (DT)',
     [ROLES.CHVPSP]:      'Chauffeur VPSP',
     [ROLES.CHVL]:        'Chauffeur VL',
@@ -144,6 +147,43 @@ export const isReadOnlyManager = denyWhenInactive(roles =>
 export function canAccessAdminPanel(roles: string[]): boolean {
     return isAdminOrAbove(roles) || isReadOnlyManager(roles);
 }
+
+/**
+ * Gestion complète des véhicules de l'UL : édition, suppression, maintenance,
+ * checklist, guide, connexion constructeur, clôture des trajets. Admin (ou plus)
+ * ou Responsable véhicule.
+ *
+ * RESP_VEHICULE n'est PAS ajouté à `isAdminOrAbove` ni à `canAccessAdminPanel` :
+ * il n'a aucun autre droit d'administration (utilisateurs, frais, stock, missions…).
+ * Le cloisonnement par UL reste à la charge de l'appelant, comme pour l'ADMIN.
+ */
+export const canManageVehicles = denyWhenInactive(roles =>
+    isAdminOrAbove(roles) || roles.includes(ROLES.RESP_VEHICULE));
+
+/**
+ * Supervision de la flotte : métriques (km, carburant) et QR véhicule.
+ * `canManageVehicles` ou Président. Le CADRE en est exclu.
+ */
+export const canSuperviseVehicles = denyWhenInactive(roles =>
+    canManageVehicles(roles) || roles.includes(ROLES.PRESIDENT));
+
+/**
+ * Gestion des réservations : validation, annulation, suppression, réassignation
+ * du conducteur, récurrences. `canSuperviseVehicles` ou Cadre — le cadre garde
+ * ses droits sur les réservations sans en avoir sur les véhicules.
+ */
+export const canManageReservations = denyWhenInactive(roles =>
+    canSuperviseVehicles(roles) || roles.includes(ROLES.CADRE));
+
+/**
+ * Accès à la page /stats (onglet véhicules) : chauffeurs, gestionnaires de la flotte
+ * et des réservations, président, trésorier. L'onglet et les API des notes de frais
+ * ont leurs propres gardes (`isExpenseManager`, `isTresorier`).
+ */
+export const canViewStatsPage = denyWhenInactive(roles =>
+    canManageReservations(roles)
+    || isDriverRole(roles)
+    || roles.includes(ROLES.TRESORIER));
 
 /** Président ou Super Admin : gestionnaire des notes de frais (voit et arbitre celles d'autrui). */
 export const isExpenseManager = denyWhenInactive(roles =>

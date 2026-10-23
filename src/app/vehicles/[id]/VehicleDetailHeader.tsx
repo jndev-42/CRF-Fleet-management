@@ -1,6 +1,6 @@
 import { QrCode } from 'lucide-react';
 import VehicleBadges from '@/components/vehicle/VehicleBadges';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 import { getBorrowEligibility, getBorrowDenialTitle } from '@/lib/vehicleBorrowEligibility';
 import type { Trip, Vehicle } from './types';
 
@@ -149,7 +149,7 @@ export default function VehicleDetailHeader({
                   * bandeau porte alors l'information, et rouvrir la modale ne ferait qu'empiler
                   * une seconde ligne de maintenance sur la même période.
                   */}
-                {!isDtView && userRoles.includes('ADMIN')
+                {!isDtView && canManageVehicles(userRoles)
                     && !(vehicle.status === 'IN_USE' && vehicle.activeMaintenance) && (
                     <button
                         className="btn btn-secondary"
@@ -158,7 +158,7 @@ export default function VehicleDetailHeader({
                         {vehicle.status === 'MAINTENANCE' ? '✅ Remettre en service' : '🔧 Maintenance'}
                     </button>
                 )}
-                {!isDtView && isAdminOrAbove(userRoles) && (
+                {!isDtView && canManageVehicles(userRoles) && (
                     <button
                         className="btn btn-secondary"
                         onClick={onEditVehicle}
@@ -166,7 +166,7 @@ export default function VehicleDetailHeader({
                         ✏️ Éditer le véhicule
                     </button>
                 )}
-                {!isDtView && isAdminOrAbove(userRoles) && (
+                {!isDtView && canManageVehicles(userRoles) && (
                     <button
                         className="btn btn-secondary"
                         onClick={onManageChecklist}

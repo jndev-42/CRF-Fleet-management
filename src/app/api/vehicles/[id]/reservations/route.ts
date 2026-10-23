@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { canAccessAdminPanel } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { canManageReservations, ROLES } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { withAudit } from '@/lib/audit/log';
 
@@ -33,6 +33,19 @@ const recurrenceSchema = z.object({
     onBehalfOfUserId: z.string().min(1).optional(),
     isUnassignedDriver: z.boolean().optional(),
 });
+
+/**
+ * Cloisonnement UL : `true` si le véhicule est inconnu ou rattaché à une autre UL que
+ * celle de la session (SUPER_ADMIN excepté). Les deux cas répondent le même 404.
+ */
+async function isVehicleHidden(
+    roles: string[],
+    sessionUlId: string | undefined,
+    vehicleId: string,
+): Promise<boolean> {
+    const res = await db.execute({ sql: `SELECT ulId FROM "Vehicle" WHERE id = ?`, args: [vehicleId] });
+    return res.rows.length === 0 || isOutsideUl(roles, sessionUlId, res.rows[0].ulId);
+}
 
 /** Generates all occurrence dates for a recurrence rule */
 function generateOccurrenceDates(
@@ -70,6 +83,10 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 
         const params = await props.params;
         const vehicleId = params.id;
+
+        if (await isVehicleHidden(session.user.roles || [], session.user.ulId, vehicleId)) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
+        }
 
         const result = await db.execute({
             sql: `
@@ -110,11 +127,16 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
 
         const params = await props.params;
         const vehicleId = params.id;
+
+        if (await isVehicleHidden(session.user.roles || [], session.user.ulId, vehicleId)) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
+        }
+
         const body = await request.json();
 
-        // ADMIN, CADRE, PRESIDENT voient leurs réservations auto-validées
+        // ADMIN, RESP_VEHICULE, CADRE, PRESIDENT voient leurs réservations auto-validées
         const userRoles: string[] = session.user.roles || [];
-        const isValidator = canAccessAdminPanel(userRoles);
+        const isValidator = canManageReservations(userRoles);
         const status = isValidator ? 'VALIDATED' : 'PENDING';
         const canManageDriver = isValidator;
 
@@ -258,7 +280,7 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
                     };
 
                     await sendPushNotification({
-                        roles: ['ADMIN', 'PRESIDENT', 'CADRE'],
+                        roles: ['ADMIN', 'PRESIDENT', 'CADRE', ROLES.RESP_VEHICULE],
                         headings: { fr: `📋 Nouvelle réservation récurrente`, en: `📋 New recurring reservation` },
                         contents: notifMsg,
                         url: `/vehicles/${encodeURIComponent(vehicleName)}`,
@@ -370,9 +392,9 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
 
                 const { sendPushNotification } = await import('@/lib/push');
 
-                // Un seul envoi pour ADMIN, présidents et cadres : qui cumule plusieurs rôles ne reçoit qu'une notification
+                // Un seul envoi pour ADMIN, présidents, cadres et responsables véhicule : qui cumule plusieurs rôles ne reçoit qu'une notification
                 await sendPushNotification({
-                    roles: ['ADMIN', 'PRESIDENT', 'CADRE'],
+                    roles: ['ADMIN', 'PRESIDENT', 'CADRE', ROLES.RESP_VEHICULE],
                     headings: { fr: `📋 Nouvelle demande de réservation`, en: `📋 New reservation request` },
                     contents: {
                         fr: `${requesterName} demande ${vehicleName} du ${start.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })} au ${end.toLocaleDateString('fr-FR', { timeZone: 'Europe/Paris' })}. En attente de validation.`,

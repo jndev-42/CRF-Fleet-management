@@ -382,23 +382,44 @@ describe('POST /api/trips (checkout)', () => {
       expect(response.status).toBe(201);
     });
 
-    it('allows an ADMIN to bypass an expired license', async () => {
+    // Aucune dispense de papiers par rôle : gestionnaires et non-chauffeurs compris.
+    it.each([['ADMIN'], ['RESP_VEHICULE'], ['SUPER_ADMIN']])(
+      'returns 403 for %s with blocked papers (no role exemption)',
+      async (role) => {
+        mockedAuth.mockResolvedValue({ user: { id: 'manager-id', email: 'manager@test.com', roles: [role], ulId: SESSION_UL } } as never);
+        await seedUser({
+          id: 'manager-id',
+          email: 'manager@test.com',
+          papiers_valides: 0,
+          last_validation: null,
+          start_date_invalidation_process: isoDay(-GRACE_DAYS),
+        });
+        await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+        const response = await POST(makeRequest(validCheckOutBody));
+        expect(response.status).toBe(403);
+        expect((await response.json()).error).toMatch(/papiers n'ont pas été validés dans les délais/i);
+        const trips = await db.execute(`SELECT id FROM "Trip"`);
+        expect(trips.rows).toHaveLength(0);
+      },
+    );
+
+    it('returns 403 for an ADMIN without CHVL whose papers were never validated', async () => {
       mockedAuth.mockResolvedValue(adminSession as never);
       await seedUser({
         id: 'admin-id',
         email: 'admin@test.com',
-        name: 'Admin User',
         papiers_valides: 0,
         last_validation: null,
-        start_date_invalidation_process: isoDay(-GRACE_DAYS),
+        start_date_invalidation_process: isoDay(-(GRACE_DAYS + 5)),
       });
       await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
 
       const response = await POST(makeRequest(validCheckOutBody));
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(403);
     });
 
-    it('does not apply the license guard to a non-driver role', async () => {
+    it('applies the license guard to a non-driver role', async () => {
       mockedAuth.mockResolvedValue(guestSession as never);
       await seedUser({
         id: 'guest-id',
@@ -411,8 +432,66 @@ describe('POST /api/trips (checkout)', () => {
       await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
 
       const response = await POST(makeRequest(validCheckOutBody));
-      const body = await response.json();
-      expect(body.error).not.toMatch(/papiers/i);
+      expect(response.status).toBe(403);
+      expect((await response.json()).error).toMatch(/papiers/i);
+    });
+
+    it('keeps the role exemption: an ADMIN with valid papers takes a VPSP without CHVPSP', async () => {
+      mockedAuth.mockResolvedValue(adminSession as never);
+      await seedUser({ id: 'admin-id', email: 'admin@test.com', papiers_valides: 1, last_validation: isoDay(-10) });
+      await seedVehicle({ id: 'VL001', type: 'VPSP', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(201);
+    });
+
+    it('returns 403 when the session account has no User row (fail-closed)', async () => {
+      mockedAuth.mockResolvedValue(driverSession as never);
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(403);
+    });
+
+    it('returns 403 when the session has no user id (fail-closed)', async () => {
+      mockedAuth.mockResolvedValue({ user: { email: 'driver@test.com', roles: ['CHVL'], ulId: SESSION_UL } } as never);
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(403);
+    });
+
+    it('returns 403 when the second driver has blocked papers', async () => {
+      mockedAuth.mockResolvedValue(driverWithNameSession as never);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', papiers_valides: 1, last_validation: isoDay(-10) });
+      await seedUser({
+        id: 'user-second',
+        email: 'second@test.com',
+        papiers_valides: 0,
+        last_validation: null,
+        start_date_invalidation_process: isoDay(-GRACE_DAYS),
+      });
+      await seedRoles(['CHVL']);
+      await seedUserRole('user-second', 'CHVL');
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest({ ...validCheckOutBody, secondDriverId: 'user-second' }));
+      expect(response.status).toBe(403);
+      expect((await response.json()).error).toMatch(/papiers de ce conducteur/i);
+      const trips = await db.execute(`SELECT id FROM "Trip"`);
+      expect(trips.rows).toHaveLength(0);
+    });
+
+    it('accepts a second driver with valid papers', async () => {
+      mockedAuth.mockResolvedValue(driverWithNameSession as never);
+      await seedUser({ id: 'user-driver', email: 'driver@test.com', papiers_valides: 1, last_validation: isoDay(-10) });
+      await seedUser({ id: 'user-second', email: 'second@test.com', papiers_valides: 1, last_validation: isoDay(-10) });
+      await seedRoles(['CHVL']);
+      await seedUserRole('user-second', 'CHVL');
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest({ ...validCheckOutBody, secondDriverId: 'user-second' }));
+      expect(response.status).toBe(201);
     });
   });
 
@@ -732,14 +811,14 @@ describe('POST /api/trips — liens des notifications', () => {
     expect(response.status).toBe(201);
 
     expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
-      // Présidents et cadres nommés : RESPO désigne désormais le responsable des notes de frais.
-      roles: ['PRESIDENT', 'CADRE'],
+      // Présidents et responsables véhicule : le cadre ne reçoit plus les incidents.
+      roles: ['PRESIDENT', 'RESP_VEHICULE'],
       url: '/vehicles/VL%20186',
       excludeUserId: 'user-driver',
     }));
   });
 
-  it('les données incorrectes notifient présidents, cadres et administrateurs', async () => {
+  it('les données incorrectes notifient présidents, responsables véhicule et administrateurs', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue(driverWithNameSession);
     await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
@@ -749,7 +828,7 @@ describe('POST /api/trips — liens des notifications', () => {
     expect(response.status).toBe(201);
 
     expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
-      roles: ['PRESIDENT', 'CADRE', 'ADMIN'],
+      roles: ['PRESIDENT', 'RESP_VEHICULE', 'ADMIN'],
       excludeUserId: 'user-driver',
     }));
   });

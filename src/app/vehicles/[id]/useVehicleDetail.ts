@@ -26,7 +26,7 @@ export function useVehicleDetail(id: string) {
     const currentUserUlId = session?.user?.ulId ?? null;
 
     useEffect(() => {
-        // Check license validity for drivers
+        // Papiers du compte connecté, quel que soit son rôle (aucune dispense)
         fetch('/api/me/license-check')
             .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.blocked) setLicenseBlocked(true); })

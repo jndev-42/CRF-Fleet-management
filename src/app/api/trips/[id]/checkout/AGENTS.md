@@ -14,6 +14,8 @@ Edit checkout details endpoint. Allows admin to modify checkout data (drivers, m
 ## For AI Agents
 
 ### Working In This Directory
+- **UL scope:** cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too; SUPER_ADMIN only escapes it.
+- **Papers guard:** a newly designated `driverId` or `secondDriverId` (different from the current one) must have valid papers (`isLicenseBlocked`, `@/lib/licenseGuard`) → 403 otherwise. The driver already in place is not re-checked.
 - **PATCH /api/trips/[id]/checkout:** Edit checkout data
   - Accepts editCheckOutSchema: driverId (required), secondDriverId, missionType, missionName, mileageOut, fuelOut, parkingOut, conditionOut, cleanlinessOut, commentsOut, dsaChecked
   - Auth required; authorization: ADMIN only
@@ -31,6 +33,6 @@ Edit checkout details endpoint. Allows admin to modify checkout data (drivers, m
 
 ### Internal
 - `@/lib/db` — Trip, Vehicle, User queries and transactions
-- `@/lib/roles` — `isAdminOrAbove()` check
+- `@/lib/roles` — `canManageVehicles()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

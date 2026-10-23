@@ -58,14 +58,14 @@ describe('GET /api/cron/daily-alerts', () => {
         expect(mockedPush).not.toHaveBeenCalled();
     });
 
-    it('désinfection J-10 : une notification ADMIN + CHVPSP de l\'UL, puis rien le lendemain', async () => {
+    it('désinfection J-10 : une notification ADMIN + RESP_VEHICULE + CHVPSP de l\'UL, puis rien le lendemain', async () => {
         await seedVehicle({ id: 'v1', name: 'VPSP 182', type: 'VPSP', desinfTracking: 1, nextDesinfMaxDate: addDays(today(), 10) });
 
         const res = await GET(makeRequest());
         expect(await res.json()).toEqual({ success: true, desinfAlerts: 1, stockDigests: 0 });
         expect(mockedPush).toHaveBeenCalledTimes(1);
         expect(mockedPush.mock.calls[0][0]).toMatchObject({
-            roles: ['ADMIN', 'CHVPSP'],
+            roles: ['ADMIN', 'RESP_VEHICULE', 'CHVPSP'],
             ulId: 'ul-paris-18',
             url: `/vehicles/${encodeURIComponent('VPSP 182')}`,
         });

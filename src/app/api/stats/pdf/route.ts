@@ -16,8 +16,8 @@ const postSchema = z.object({
   dateTo: z.string().min(1),
 });
 
-async function generatePdf(dateFrom: string, dateTo: string): Promise<Buffer> {
-  const data = await fetchStatsData(dateFrom, dateTo);
+async function generatePdf(dateFrom: string, dateTo: string, ulId: string): Promise<Buffer> {
+  const data = await fetchStatsData(dateFrom, dateTo, { ulId });
 
   const incidentRows = await db.execute({
     sql: `SELECT t.checkOutAt, u.name AS driverName, v.name as vehicleName, t.incident
@@ -25,9 +25,10 @@ async function generatePdf(dateFrom: string, dateTo: string): Promise<Buffer> {
       JOIN Vehicle v ON v.id = t.vehicleId
       JOIN "User" u ON u.id = t.driverId
       WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?
+        AND v.ulId = ?
         AND t.incident IS NOT NULL AND t.incident != ''
       ORDER BY t.checkOutAt ASC`,
-    args: [dateFrom, dateTo],
+    args: [dateFrom, dateTo, ulId],
   });
 
   const generatedAt = new Date().toLocaleDateString('fr-FR', {
@@ -75,6 +76,12 @@ async function postHandler(request: Request) {
       return NextResponse.json({ success: false, error: 'Accès non autorisé' }, { status: 403 });
     }
 
+    // Cloisonnement UL, comme `GET /api/stats` : le rapport ne porte que sur l'UL de session.
+    const ulId = session.user.ulId as string | undefined;
+    if (!ulId || ulId === 'default') {
+      return NextResponse.json({ success: false, error: 'Aucune unité locale active' }, { status: 400 });
+    }
+
     const body = await request.json();
     const parsed = postSchema.safeParse(body);
     if (!parsed.success) {
@@ -83,7 +90,7 @@ async function postHandler(request: Request) {
 
     const { dateFrom, dateTo } = parsed.data;
 
-    const buffer = await generatePdf(dateFrom, dateTo);
+    const buffer = await generatePdf(dateFrom, dateTo, ulId);
 
     // NextResponse body must be BodyInit-compatible — convert Buffer to Uint8Array
     return new NextResponse(new Uint8Array(buffer), {

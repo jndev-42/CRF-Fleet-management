@@ -17,7 +17,7 @@ Connecte, met à jour et déconnecte un véhicule d'un compte constructeur (`Bra
 
 **`[id]` est l'UUID du véhicule, pas son nom** — contrairement à la route parente `src/app/api/vehicles/[id]/route.ts:44` qui résout par `name`. La résolution est `SELECT id, ulId, vin FROM Vehicle WHERE id = ?` sur les trois verbes. Le patron `WHERE name = ? OR id = ?` de `maintenance-events/route.ts:37,115` est **explicitement rejeté** : `Vehicle.name` n'a aucune contrainte UNIQUE (son unicité n'est qu'applicative et globale, `src/app/api/vehicles/route.ts:173`), un `OR` peut donc matcher plusieurs lignes et rattacher un credential — donc un secret — au véhicule d'une autre UL. Les sous-routes voisines `metrics`, `trips` et `qr-token` résolvent déjà par UUID.
 
-**Contrôle d'accès** — `!isSuperAdmin(roles) && !(isAdmin(roles) && session.user.ulId === vehicle.ulId)` ⇒ `403`. Plus strict que `src/app/api/renault/[vin]/route.ts:27`, qui autorise tout membre de l'UL sans contrôle de rôle : lire un kilométrage et écrire un credential n'appellent pas le même seuil. `isAdminOrAbove` (`src/lib/roles.ts:65`) **ne convient pas** — il ignore la portée UL et donnerait à un ADMIN accès aux credentials de toutes les ULs.
+**Contrôle d'accès** — `!isSuperAdmin(roles) && !(canManageVehicles(roles) && session.user.ulId === vehicle.ulId)` (ADMIN ou RESP_VEHICULE de l'UL du véhicule) ⇒ `403`. Plus strict que `src/app/api/renault/[vin]/route.ts:27`, qui autorise tout membre de l'UL sans contrôle de rôle : lire un kilométrage et écrire un credential n'appellent pas le même seuil. `canManageVehicles` **seul** ne convient pas — il ignore la portée UL et donnerait à un ADMIN ou un RESP_VEHICULE accès aux credentials de toutes les ULs : la comparaison d'UL est obligatoire.
 
 **`POST` — ordre impératif, à ne pas réordonner :**
 1. Résolution du credential — couple `login`/`password` fourni ⇒ utilisé, et il **écrase** celui de l'UL ; sinon `SELECT ... FROM BrandCredential WHERE ulId = ? AND brand = ?`, absent ⇒ `400 'Aucun compte MyRenault enregistré pour cette UL'`.
@@ -46,7 +46,7 @@ Connecte, met à jour et déconnecte un véhicule d'un compte constructeur (`Bra
 - `@/lib/crypto` — `encryptSecret` / `decryptSecret` (AES-256-GCM, `iv:authTag:ciphertext`)
 - `@/lib/renault` — `fetchRenaultVehicleData`, `BrandAuthError`, `BrandTransientError`, `VinNotOnAccountError`, `ConnectionContext`
 - `@/lib/brands` — `BRAND_ACCOUNT_LABELS` (« MyRenault »), type `Brand`
-- `@/lib/roles` — `isAdmin`, `isSuperAdmin`
+- `@/lib/roles` — `canManageVehicles`, `isSuperAdmin`
 - `@/lib/apiAuth` — `unauthorizedResponse`, `forbiddenResponse`
 - `@/auth` — session NextAuth v5
 

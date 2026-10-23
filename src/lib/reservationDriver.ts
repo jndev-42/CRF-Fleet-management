@@ -3,7 +3,7 @@
  *
  * Il n'existe pas de colonne dédiée en base : une réservation « sans chauffeur »
  * se reconnaît à son `userName` sentinelle, tandis que son `userEmail` porte
- * l'email du gestionnaire (canAccessAdminPanel) qui l'a créée (voir
+ * l'email du gestionnaire (canManageReservations) qui l'a créée (voir
  * `src/app/api/vehicles/[id]/reservations/route.ts`).
  *
  * Conséquence métier : une telle réservation n'a PAS de détenteur opposable.

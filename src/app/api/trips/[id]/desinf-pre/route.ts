@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
-import { isAdminOrAbove } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { canManageVehicles } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
 const desinfPreSchema = z.object({
@@ -23,7 +23,7 @@ async function patchHandler(
         }
 
         const roles = session.user.roles || ['GUEST'];
-        if (!isAdminOrAbove(roles)) {
+        if (!canManageVehicles(roles)) {
             return forbiddenResponse();
         }
 
@@ -33,11 +33,14 @@ async function patchHandler(
 
         // Fetch the trip
         const tripRes = await db.execute({
-            sql: `SELECT id, checkInAt, missionType FROM Trip WHERE id = ?`,
+            sql: `SELECT t.id, t.checkInAt, t.missionType, v.ulId AS vehicleUlId
+                  FROM Trip t LEFT JOIN Vehicle v ON v.id = t.vehicleId
+                  WHERE t.id = ?`,
             args: [id],
         });
 
-        if (tripRes.rows.length === 0) {
+        // Cloisonnement UL : un trajet d'une autre UL est indiscernable d'un trajet inconnu.
+        if (tripRes.rows.length === 0 || isOutsideUl(roles, session.user.ulId, tripRes.rows[0].vehicleUlId)) {
             return NextResponse.json({ error: 'Trajet non trouvé' }, { status: 404 });
         }
 

@@ -107,7 +107,7 @@ describe('PATCH /api/checklist/[itemId]', () => {
         expect(res.status).toBe(403);
     });
 
-    it('retourne 403 pour un admin local hors UL du véhicule', async () => {
+    it('retourne 404 pour un admin local hors UL du véhicule', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'admin2@test.com', roles: ['ADMIN'], ulId: 'ul-lyon-3' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
         await seedChecklistItem({ id: 'item-1', vehicleId: 'VL001' });
@@ -115,7 +115,7 @@ describe('PATCH /api/checklist/[itemId]', () => {
             new Request('http://localhost/api/checklist/item-1', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label: 'Modifié' }) }),
             { params: Promise.resolve({ itemId: 'item-1' }) }
         );
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(404);
     });
 
     it('retourne 400 si aucun champ à mettre à jour', async () => {

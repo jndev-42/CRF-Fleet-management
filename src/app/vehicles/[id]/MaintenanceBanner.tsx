@@ -1,4 +1,5 @@
 import { formatDate } from './utils';
+import { canManageVehicles } from '@/lib/roles';
 import type { Vehicle } from './types';
 
 interface MaintenanceBannerProps {
@@ -50,7 +51,7 @@ export default function MaintenanceBanner({ vehicle, userRoles, canEndMaintenanc
                     </div>
                 )}
             </div>
-            {canEndMaintenance && userRoles.includes('ADMIN') && (
+            {canEndMaintenance && canManageVehicles(userRoles) && (
                 <button
                     className="btn btn-primary"
                     style={{ backgroundColor: 'var(--status-available)', borderColor: 'var(--status-available)' }}

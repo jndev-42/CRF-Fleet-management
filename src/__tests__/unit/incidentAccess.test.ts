@@ -62,6 +62,11 @@ describe('isWithinUlScope', () => {
         expect(isWithinUlScope(viewer({ ulId: null }), UL)).toBe(false);
     });
 
+    it('refuse une session sans UL active (`default`), même face à un véhicule `default`', () => {
+        expect(isWithinUlScope(viewer({ ulId: 'default' }), UL)).toBe(false);
+        expect(isWithinUlScope(viewer({ ulId: 'default' }), 'default')).toBe(false);
+    });
+
     it('laisse passer SUPER_ADMIN sur toute UL', () => {
         expect(isWithinUlScope(viewer({ roles: ['SUPER_ADMIN'], ulId: OTHER_UL }), UL)).toBe(true);
     });

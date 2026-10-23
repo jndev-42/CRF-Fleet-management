@@ -59,10 +59,13 @@ beforeEach(async () => {
     await seedUserUL({ userId: 'user-pres', ulId: 'ul-paris-18', roles: ['PRESIDENT'] });
     await seedUserRole('user-cadre', 'CADRE');
     await seedUserUL({ userId: 'user-cadre', ulId: 'ul-paris-18', roles: ['CADRE'] });
+    await seedUser({ id: 'user-respveh', email: 'respveh@dev.local', name: 'Resp Véhicule Test' });
+    await seedUserRole('user-respveh', 'RESP_VEHICULE');
+    await seedUserUL({ userId: 'user-respveh', ulId: 'ul-paris-18', roles: ['RESP_VEHICULE'] });
 });
 
 function asUser(email: string, id: string, roles: string[], name = 'Test') {
-    mockedAuth.mockResolvedValue({ user: { id, email, name, roles } } as never);
+    mockedAuth.mockResolvedValue({ user: { id, email, name, roles, ulId: 'ul-paris-18' } } as never);
 }
 
 describe('POST /api/vehicles/[id]/reservations — demande en attente', () => {
@@ -85,7 +88,9 @@ describe('POST /api/vehicles/[id]/reservations — demande en attente', () => {
         expect(adminNotifs).toHaveLength(1);
         expect(adminNotifs[0].url).toBe('/vehicles/VL%20186');
         expect(await notifsFor('user-pres')).toHaveLength(1);
+        // D5 : le cadre garde la notification de demande de réservation ; le responsable véhicule y est ajouté.
         expect(await notifsFor('user-cadre')).toHaveLength(1);
+        expect(await notifsFor('user-respveh')).toHaveLength(1);
     });
 
     it('récurrence en attente : une seule notification par responsable', async () => {
@@ -115,6 +120,8 @@ describe('POST /api/vehicles/[id]/reservations — demande en attente', () => {
         const notifs = await notifsFor('user-admin');
         expect(notifs).toHaveLength(1);
         expect(notifs[0].url).toBe('/vehicles/VL%20186');
+        expect(await notifsFor('user-cadre')).toHaveLength(1);
+        expect(await notifsFor('user-respveh')).toHaveLength(1);
     });
 });
 
@@ -240,19 +247,20 @@ describe('incidents — notification des Responsables', () => {
         body: JSON.stringify({ vehicleId: 'VL001', type: 'ACCIDENT', status: 'SUBMITTED', ...extra }),
     });
 
-    it('POST direct en SUBMITTED : PRESIDENT et CADRE notifiés, sans nom d\'auteur', async () => {
+    it('POST direct en SUBMITTED : PRESIDENT et RESP_VEHICULE notifiés, pas le CADRE, sans nom d\'auteur', async () => {
         asUser('chvl@dev.local', 'user-chvl', ['CHVL'], 'Chauffeur Test');
 
         const res = await postIncident(incidentBody());
         expect(res.status).toBe(201);
 
-        for (const id of ['user-pres', 'user-cadre']) {
+        for (const id of ['user-pres', 'user-respveh']) {
             const notifs = await notifsFor(id);
             expect(notifs).toHaveLength(1);
             expect(notifs[0].message).toContain('Accident');
             expect(notifs[0].message).toContain('VL 186');
             expect(`${notifs[0].title} ${notifs[0].message}`).not.toContain('Chauffeur Test');
         }
+        expect(await notifsFor('user-cadre')).toHaveLength(0);
         expect(await notifsFor('user-admin')).toHaveLength(0);
         expect(await notifsFor('user-chvl')).toHaveLength(0);
     });
@@ -336,14 +344,15 @@ describe('incidents — cas limites', () => {
         expect(row.rows[0].status).toBe('SUBMITTED');
     });
 
-    it('un admin qui soumet le brouillon d\'un PRESIDENT : le déclarant n\'est pas notifié, le CADRE oui', async () => {
+    it('un admin qui soumet le brouillon d\'un PRESIDENT : le déclarant n\'est pas notifié, le RESP_VEHICULE oui, le CADRE non', async () => {
         await seedIncident({ id: 'inc-1', vehicleId: 'VL001', userId: 'user-pres', status: 'DRAFT' });
         asUser('admin@dev.local', 'user-admin', ['ADMIN']);
 
         const res = await patchStatus('SUBMITTED');
         expect(res.status).toBe(200);
         expect(await notifsFor('user-pres')).toHaveLength(0);
-        expect(await notifsFor('user-cadre')).toHaveLength(1);
+        expect(await notifsFor('user-respveh')).toHaveLength(1);
+        expect(await notifsFor('user-cadre')).toHaveLength(0);
     });
 
     it('un véhicule sans UL ne notifie personne', async () => {

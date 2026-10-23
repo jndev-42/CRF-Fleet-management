@@ -4,17 +4,18 @@
 # vehicles/[id]/metrics
 
 ## Purpose
-Updates mileage and fuel level for manual (non-connected) vehicles. Blocked for vehicles with VIN (Renault Connect-integrated). Requires `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE). Tracks changes and sends push notifications to admins. Touches `Vehicle` table.
+Updates mileage and fuel level for manual (non-connected) vehicles. Blocked for vehicles with VIN (Renault Connect-integrated). Requires `canSuperviseVehicles` (SUPER_ADMIN, ADMIN, RESP_VEHICULE, PRESIDENT — not CADRE). Tracks changes and sends push notifications to admins. Touches `Vehicle` table.
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `route.ts` | PATCH (`canAccessAdminPanel`) update mileage and/or fuel level |
+| `route.ts` | PATCH (`canSuperviseVehicles`) update mileage and/or fuel level |
 
 ## For AI Agents
 
 ### Working In This Directory
-**PATCH /api/vehicles/[id]/metrics** — `canAccessAdminPanel` only (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE). Updates `mileage` (number ≥ 0) and/or `fuelLevel` (0–100). Validates payload (both optional, but at least one required). Rejects if vehicle has VIN (Renault Connect vehicles auto-sync). Sends Web Push notification to ADMIN role with change summary (emoji formatting). Returns updated vehicle object or message if no changes detected.
+- **UL scope:** cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too; SUPER_ADMIN only escapes it.
+**PATCH /api/vehicles/[id]/metrics** — `canSuperviseVehicles` only (SUPER_ADMIN, ADMIN, RESP_VEHICULE, PRESIDENT — not CADRE). Updates `mileage` (number ≥ 0) and/or `fuelLevel` (0–100). Validates payload (both optional, but at least one required). Rejects if vehicle has VIN (Renault Connect vehicles auto-sync). Sends Web Push notification to ADMIN and RESP_VEHICULE roles with change summary (emoji formatting). Returns updated vehicle object or message if no changes detected.
 
 **Key business rules:**
 - Both fields optional; request fails if neither provided
@@ -30,7 +31,7 @@ Updates mileage and fuel level for manual (non-connected) vehicles. Blocked for 
 ### Internal
 - `@/lib/db` — `Vehicle` table
 - `@/lib/push` — `sendPushNotification()` for admin notifications
-- `@/lib/roles` — `canAccessAdminPanel`
+- `@/lib/roles` — `canSuperviseVehicles`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

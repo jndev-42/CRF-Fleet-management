@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { deleteDriveFolder } from '@/lib/drive';
-import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { canManageVehicles } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
 async function deleteHandler(
@@ -15,7 +15,7 @@ async function deleteHandler(
         if (!session?.user) {
             return unauthorizedResponse();
         }
-        if (!isAdminOrAbove(session.user.roles || [])) {
+        if (!canManageVehicles(session.user.roles || [])) {
             return forbiddenResponse();
         }
 
@@ -28,8 +28,8 @@ async function deleteHandler(
         if (vehicleResult.rows.length === 0) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
-        if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== vehicleResult.rows[0].ulId) {
-            return forbiddenResponse();
+        if (isOutsideUl(session.user.roles || [], session.user.ulId, vehicleResult.rows[0].ulId)) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
         // Fetch all trips for this vehicle to delete their Drive folders

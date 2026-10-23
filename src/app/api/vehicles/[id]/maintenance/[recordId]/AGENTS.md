@@ -25,7 +25,7 @@ Delete individual maintenance records. ADMIN only. Verifies record belongs to th
 
 ### Internal
 - `@/lib/db` — `VehicleMaintenanceRecord` table
-- `@/lib/roles` — `isAdminOrAbove`
+- `@/lib/roles` — `canManageVehicles`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

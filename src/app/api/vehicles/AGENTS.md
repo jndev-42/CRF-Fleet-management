@@ -43,7 +43,7 @@ Manages the fleet: list all vehicles for a user's UL (or DT if DT-role user), an
 
 ### Internal
 - `@/lib/db` — parameterized SQL via `@libsql/client`
-- `@/lib/roles` — `isAdminOrAbove`, `hasDTRole`
+- `@/lib/roles` — `canManageVehicles`, `hasDTRole`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

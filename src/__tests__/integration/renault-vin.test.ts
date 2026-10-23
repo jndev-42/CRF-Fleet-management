@@ -40,12 +40,12 @@ describe('GET /api/renault/[vin]', () => {
         expect(res.status).toBe(404);
     });
 
-    it('retourne 403 pour un utilisateur hors UL du véhicule', async () => {
+    it('retourne 404 pour un utilisateur hors UL du véhicule', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-lyon-3' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012', ulId: 'ul-paris-18' });
 
         const res = await GET(new Request('http://localhost/api/renault/VF1AB123456789012'), { params: Promise.resolve({ vin: 'VF1AB123456789012' }) });
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(404);
     });
 
     it('retourne les données pour un utilisateur de la même UL (happy path)', async () => {

@@ -27,7 +27,7 @@ afterEach(() => {
 describe('DesinfPreCheckinModal', () => {
     it('charge la liste des utilisateurs au montage', async () => {
         mockFetch(() => new Response(JSON.stringify(usersResponse), { status: 200 }));
-        render(<DesinfPreCheckinModal tripId="trip-1" onClose={vi.fn()} onConfirm={vi.fn()} />);
+        render(<DesinfPreCheckinModal tripId="trip-1" vehicleId="veh-1" onClose={vi.fn()} onConfirm={vi.fn()} />);
 
         fireEvent.click(screen.getByRole('button', { name: /Sélectionner un responsable/ }));
         expect(await screen.findByText('Jean Dupont')).toBeTruthy();
@@ -35,18 +35,18 @@ describe('DesinfPreCheckinModal', () => {
 
     it('désactive le bouton Valider tant que le formulaire est incomplet', async () => {
         mockFetch(() => new Response(JSON.stringify(usersResponse), { status: 200 }));
-        render(<DesinfPreCheckinModal tripId="trip-1" onClose={vi.fn()} onConfirm={vi.fn()} />);
+        render(<DesinfPreCheckinModal tripId="trip-1" vehicleId="veh-1" onClose={vi.fn()} onConfirm={vi.fn()} />);
 
         expect((screen.getByRole('button', { name: '✅ Valider' }) as HTMLButtonElement).disabled).toBe(true);
     });
 
     it('soumet les informations de désinfection (happy path)', async () => {
         const fetchMock = mockFetch((url) => {
-            if (url === '/api/users') return new Response(JSON.stringify(usersResponse), { status: 200 });
+            if (url === '/api/vehicles/veh-1/desinf-responsables') return new Response(JSON.stringify(usersResponse), { status: 200 });
             return new Response(JSON.stringify({ success: true }), { status: 200 });
         });
         const onConfirm = vi.fn();
-        render(<DesinfPreCheckinModal tripId="trip-1" onClose={vi.fn()} onConfirm={onConfirm} />);
+        render(<DesinfPreCheckinModal tripId="trip-1" vehicleId="veh-1" onClose={vi.fn()} onConfirm={onConfirm} />);
 
         fireEvent.click(screen.getByRole('button', { name: /Sélectionner un responsable/ }));
         fireEvent.click(await screen.findByText('Jean Dupont'));
@@ -64,10 +64,10 @@ describe('DesinfPreCheckinModal', () => {
 
     it('affiche une erreur si la sauvegarde échoue', async () => {
         const fetchMock = mockFetch((url) => {
-            if (url === '/api/users') return new Response(JSON.stringify(usersResponse), { status: 200 });
+            if (url === '/api/vehicles/veh-1/desinf-responsables') return new Response(JSON.stringify(usersResponse), { status: 200 });
             return new Response(JSON.stringify({ error: 'Trajet non trouvé' }), { status: 404 });
         });
-        render(<DesinfPreCheckinModal tripId="trip-1" onClose={vi.fn()} onConfirm={vi.fn()} />);
+        render(<DesinfPreCheckinModal tripId="trip-1" vehicleId="veh-1" onClose={vi.fn()} onConfirm={vi.fn()} />);
 
         fireEvent.click(screen.getByRole('button', { name: /Sélectionner un responsable/ }));
         fireEvent.click(await screen.findByText('Jean Dupont'));
@@ -80,7 +80,7 @@ describe('DesinfPreCheckinModal', () => {
 
     it('n\'est pas masquée aux technologies d\'assistance (pas d\'aria-hidden sur l\'overlay)', () => {
         mockFetch(() => new Response(JSON.stringify(usersResponse), { status: 200 }));
-        const { container } = render(<DesinfPreCheckinModal tripId="trip-1" onClose={vi.fn()} onConfirm={vi.fn()} />);
+        const { container } = render(<DesinfPreCheckinModal tripId="trip-1" vehicleId="veh-1" onClose={vi.fn()} onConfirm={vi.fn()} />);
         expect(screen.getByRole('dialog')).toBeTruthy();
         expect(container.querySelector('.modal-overlay')?.getAttribute('aria-hidden')).toBeNull();
     });

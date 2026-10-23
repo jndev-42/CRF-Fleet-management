@@ -190,6 +190,7 @@ export default function CheckOutForm({
 
             <ChecklistItems
                 vehicleId={vehicle.id}
+                qrToken={token}
                 type="checkout"
                 responses={checklistOut}
                 onChange={setChecklistOut}

@@ -29,9 +29,10 @@ export interface CalendarReservation {
  *  - `GET /api/vehicles/calendar` (sans `month`) → réservations de la fenêtre courante.
  *
  * Fail-open assumé : un échec de l'un ou l'autre fetch laisse `licenseBlocked = false`
- * et l'ensemble des réservations vide. `POST /api/trips` ne contrôle ni les papiers ni
- * les réservations : il n'y a donc aucun rattrapage serveur. Durcir en fail-closed
- * viderait la CTA au premier hoquet réseau.
+ * et l'ensemble des réservations vide. `POST /api/trips` rejoue les deux gardes côté
+ * serveur (papiers de tout conducteur, réservation d'un tiers) et répond 403 : l'échec
+ * d'affichage se rattrape donc à la soumission. Durcir en fail-closed viderait la CTA
+ * au premier hoquet réseau.
  */
 export function useBorrowEligibility(args: {
     vehicles: DashboardVehicle[];

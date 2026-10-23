@@ -34,7 +34,7 @@ import { GET } from '@/app/api/cron/daily-mileage-check/route';
 import { BrandAuthError, BrandTransientError, fetchRenaultVehicleData, type RenaultVehicleData } from '@/lib/renault';
 import { encryptSecret } from '@/lib/crypto';
 import { sendPushNotification } from '@/lib/push';
-import { db, seedVehicle, seedUser, seedRoles, seedUserRole } from './setup';
+import { db, seedVehicle, seedUser, seedRoles, seedUserRole, seedUserUL, seedUniteLocale } from './setup';
 
 const mockedFetch = vi.mocked(fetchRenaultVehicleData);
 
@@ -284,8 +284,44 @@ describe('GET /api/cron/daily-mileage-check', () => {
         expect(res.status).toBe(200);
 
         expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
-            roles: ['ADMIN'],
+            roles: ['ADMIN', 'RESP_VEHICULE'],
             url: '/vehicles/VL%20186',
+        }));
+    });
+
+    it("un responsable véhicule posé seulement dans la CSV d'UL suffit à lancer l'alerte", async () => {
+        delete process.env.CRON_SECRET;
+        vi.mocked(sendPushNotification).mockClear();
+        await seedRoles();
+        await seedUniteLocale({ id: 'ul-paris-18', name: 'Paris 18', slug: 'paris-18' });
+        await seedUser({ id: 'rv-ul', email: 'rv-ul@test.com' });
+        await seedUserUL({ userId: 'rv-ul', ulId: 'ul-paris-18', roles: ['CHVL', 'RESP_VEHICULE'] });
+        await seedVehicle({ id: 'VL-SP', name: 'VL 186', status: 'AVAILABLE', mileage: 1000 });
+        await seedCredential('cred-sp');
+        await seedConnection('vc-sp', 'VL-SP', 'cred-sp');
+        mockedFetch.mockResolvedValue(telemetry(1500));
+
+        const res = await GET(makeRequest());
+        expect(res.status).toBe(200);
+        expect((await res.json()).alertsSent).toEqual(['VL 186']);
+    });
+
+    it("un responsable véhicule seul (aucun ADMIN) suffit à lancer l'alerte d'utilisation suspecte", async () => {
+        delete process.env.CRON_SECRET;
+        vi.mocked(sendPushNotification).mockClear();
+        await seedRoles();
+        await seedUser({ id: 'rv-1', email: 'respveh@test.com' });
+        await seedUserRole('rv-1', 'RESP_VEHICULE');
+        await seedVehicle({ id: 'VL-SP', name: 'VL 186', status: 'AVAILABLE', mileage: 1000 });
+        await seedCredential('cred-sp');
+        await seedConnection('vc-sp', 'VL-SP', 'cred-sp');
+        mockedFetch.mockResolvedValue(telemetry(1500));
+
+        const res = await GET(makeRequest());
+        expect(res.status).toBe(200);
+        expect((await res.json()).alertsSent).toEqual(['VL 186']);
+        expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
+            roles: ['ADMIN', 'RESP_VEHICULE'],
         }));
     });
 });

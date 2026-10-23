@@ -21,13 +21,13 @@ Update or delete individual vehicle checklist items. PATCH modifies label, requi
 
 **DELETE** removes the item. DSA items cannot be deleted; returns 400 with message to disable it in vehicle settings instead. Non-DSA items are deleted unconditionally if user is admin.
 
-Both methods auth-check: only `isAdminOrAbove()` allowed; 403 if not admin. 404 returns if item not found (for PATCH/DELETE).
+Both methods auth-check: only `canManageVehicles()` allowed; 403 if not admin. 404 returns if item not found (for PATCH/DELETE).
 
 ## Dependencies
 
 ### Internal
 - `VehicleChecklistItem` table (select, update, delete)
-- `@/lib/roles` — `isAdminOrAbove()`
+- `@/lib/roles` — `canManageVehicles()`
 - `@/auth` — session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

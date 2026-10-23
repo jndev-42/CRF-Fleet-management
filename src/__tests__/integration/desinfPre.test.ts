@@ -39,13 +39,13 @@ describe('PATCH /api/trips/[id]/desinf-pre', () => {
     });
 
     it('403 — authentifié mais pas ADMIN', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'driver@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'driver@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const res = await PATCH(makeRequest(validBody), makeParams());
         expect(res.status).toBe(403);
     });
 
     it('400 — Zod invalide (champ manquant)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         const res = await PATCH(makeRequest({ desinfResponsableId: 'user-driver' }), makeParams());
         expect(res.status).toBe(400);
         const body = await res.json();
@@ -53,13 +53,13 @@ describe('PATCH /api/trips/[id]/desinf-pre', () => {
     });
 
     it('404 — trip inexistant', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         const res = await PATCH(makeRequest(validBody), makeParams('nonexistent-trip'));
         expect(res.status).toBe(404);
     });
 
     it('400 — trip déjà rendu (checkInAt non null)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         await seedRoles();
         await seedVehicle();
         await seedUser();
@@ -72,7 +72,7 @@ describe('PATCH /api/trips/[id]/desinf-pre', () => {
     });
 
     it('400 — mission type !== Désinfection', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         await seedRoles();
         await seedVehicle();
         await seedUser();
@@ -85,7 +85,7 @@ describe('PATCH /api/trips/[id]/desinf-pre', () => {
     });
 
     it('200 — happy path : écrit desinfResponsableId, desinfResponsable, desinfLotNumber en BDD', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         await seedRoles();
         await seedVehicle();
         await seedUser();

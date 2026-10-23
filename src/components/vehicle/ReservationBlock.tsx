@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from './Reservation.module.css';
 import UserCombobox from '@/components/ui/UserCombobox';
-import { canAccessAdminPanel } from '@/lib/roles';
+import { canManageReservations } from '@/lib/roles';
 import ReservationFormModal from './modals/ReservationFormModal';
 import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
 import Pagination from '@/components/Pagination';
@@ -58,9 +58,8 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
 
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
 
-    const isAdmin = userRoles.includes('ADMIN');
-    const canValidate = isAdmin || canAccessAdminPanel(userRoles);
-    const canManageDriver = canAccessAdminPanel(userRoles);
+    const canValidate = canManageReservations(userRoles);
+    const canManageDriver = canManageReservations(userRoles);
 
     const fetchReservations = useCallback(async () => {
         try {

@@ -72,6 +72,22 @@ describe('QRCodeModal', () => {
         expect(screen.queryByRole('button', { name: /Régénérer le QR Code/ })).toBeNull();
     });
 
+    it('affiche le bouton de régénération pour un RESP_VEHICULE', async () => {
+        mockFetch();
+        render(<QRCodeModal onClose={vi.fn()} vehicleName="VL186" vehicleId="VL001" userRoles={['RESP_VEHICULE']} />);
+
+        await screen.findByText(/\/qr\/tok-abc123/);
+        expect(screen.getByRole('button', { name: /Régénérer le QR Code/ })).toBeTruthy();
+    });
+
+    it('masque le bouton de régénération pour un CADRE seul', async () => {
+        mockFetch();
+        render(<QRCodeModal onClose={vi.fn()} vehicleName="VL186" vehicleId="VL001" userRoles={['CADRE']} />);
+
+        await screen.findByText(/\/qr\/tok-abc123/);
+        expect(screen.queryByRole('button', { name: /Régénérer le QR Code/ })).toBeNull();
+    });
+
     it('régénère le QR code après confirmation (admin)', async () => {
         const fetchMock = mockFetch();
         render(<QRCodeModal onClose={vi.fn()} vehicleName="VL186" vehicleId="VL001" userRoles={['ADMIN']} />);

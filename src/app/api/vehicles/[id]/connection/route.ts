@@ -11,7 +11,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { canManageVehicles, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { decryptSecret, encryptSecret } from '@/lib/crypto';
 import { BRAND_ACCOUNT_LABELS, type Brand } from '@/lib/brands';
@@ -119,10 +119,11 @@ async function authorize(id: string): Promise<Guard> {
 
     // Plus strict que /api/renault/[vin], qui autorise tout membre de l'UL sans
     // contrôle de rôle : lire un kilométrage et écrire un credential n'appellent
-    // pas le même seuil. `isAdminOrAbove` ne convient pas — il ignore la portée
-    // UL et donnerait à un ADMIN accès aux credentials de toutes les ULs.
+    // pas le même seuil. `canManageVehicles` seul ne suffit pas — il ignore la portée
+    // UL : hors SUPER_ADMIN, l'appelant (ADMIN ou Responsable véhicule) doit être
+    // dans l'UL du véhicule.
     const roles = session.user.roles || [];
-    if (!isSuperAdmin(roles) && !(isAdmin(roles) && session.user.ulId === vehicle.ulId)) {
+    if (!isSuperAdmin(roles) && !(canManageVehicles(roles) && session.user.ulId === vehicle.ulId)) {
         return { ok: false, response: forbiddenResponse() };
     }
 

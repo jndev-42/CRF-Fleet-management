@@ -69,3 +69,34 @@ describe('QRVehiclePage — guide de vérification', () => {
         expect(screen.queryByText('Guide de vérification')).toBeNull();
     });
 });
+
+describe('QRVehiclePage — papiers de conduite', () => {
+    function mockFetch(licenseBlocked: boolean) {
+        vi.spyOn(global, 'fetch').mockImplementation(async (input) => {
+            const url = String(input);
+            if (url === '/api/me/license-check') {
+                return new Response(JSON.stringify({ validated: !licenseBlocked, daysLeft: 0, blocked: licenseBlocked }), { status: 200 });
+            }
+            return new Response(JSON.stringify(VEHICLE), { status: 200 });
+        });
+    }
+
+    it("bloque le bouton d'emprunt quand les papiers sont bloqués", async () => {
+        mockFetch(true);
+        render(<QRVehiclePage />);
+
+        const button = await screen.findByRole('button', { name: /Emprunter ce véhicule/ });
+        await screen.findByRole('alert');
+        expect((button as HTMLButtonElement).disabled).toBe(true);
+        expect(screen.getByRole('alert').textContent).toMatch(/papiers n.ont pas été validés dans les délais/);
+    });
+
+    it("laisse le bouton d'emprunt actif quand les papiers sont valides", async () => {
+        mockFetch(false);
+        render(<QRVehiclePage />);
+
+        const button = await screen.findByRole('button', { name: /Emprunter ce véhicule/ });
+        expect((button as HTMLButtonElement).disabled).toBe(false);
+        expect(screen.queryByRole('alert')).toBeNull();
+    });
+});

@@ -5,10 +5,21 @@
  * garde serveur de `POST /api/trips`. La route conserve ses effets de bord (elle
  * matérialise l'invalidation en base) ; cette fonction est **pure** et ne décide
  * que de l'état, afin qu'une prise de véhicule ne déclenche jamais d'écriture.
+ *
+ * Aucune dispense par rôle : la décision vaut pour tout compte qui prend le volant,
+ * gestionnaire compris (cf. `@/lib/licenseGuard`).
  */
+import { canManageVehicles, isDriverRole } from '@/lib/roles';
 
-/** Rôles soumis à la validation des papiers. Les autres ne sont jamais bloqués. */
-export const DRIVER_ROLES = ['CHVL', 'CHVPSP'];
+/**
+ * Compte qui peut prendre le volant : chauffeur, ou gestionnaire de flotte (dispensé du
+ * rôle chauffeur, jamais des papiers). Sert à l'affichage — bandeau, colonne Papiers —
+ * pour ne pas relancer des comptes qui n'empruntent jamais (trésorier, président…).
+ * La garde serveur, elle, contrôle quiconque emprunte, sans condition de rôle.
+ */
+export function canBorrowVehicles(roles: string[]): boolean {
+    return isDriverRole(roles) || canManageVehicles(roles);
+}
 
 /** Délai de grâce entre l'invalidation et le blocage effectif. */
 export const INVALIDATION_GRACE_DAYS = 14;
@@ -30,10 +41,6 @@ export interface LicenseStatus {
     startDateToPersist: string | null;
     /** `true` si la transition « valide → invalidé » vient d'être constatée. */
     justInvalidated: boolean;
-}
-
-export function isDriverRole(roles: string[]): boolean {
-    return roles.some(r => DRIVER_ROLES.includes(r));
 }
 
 /**

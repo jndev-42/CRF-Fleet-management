@@ -99,7 +99,7 @@ beforeEach(() => {
 });
 
 // ── Table de non-régression : rôle × VPSP × réservation × permis ──────────────
-// Les 10 cas de la §2 de la revue de code, sur un véhicule AVAILABLE en vue UL.
+// Les cas de la §2 de la revue de code, sur un véhicule AVAILABLE en vue UL.
 const CASES: {
     name: string;
     roles: string[];
@@ -109,7 +109,10 @@ const CASES: {
     disabled: boolean;
     title: string;
 }[] = [
-    { name: 'ADMIN, VPSP réservé et permis bloqué : bypass complet', roles: ['ADMIN'], type: 'VPSP', reserved: true, license: true, disabled: false, title: ALLOWED },
+    { name: 'ADMIN, VPSP réservé : dispense de rôle et de réservation', roles: ['ADMIN'], type: 'VPSP', reserved: true, disabled: false, title: ALLOWED },
+    { name: 'ADMIN, VPSP réservé et permis bloqué : bloqué (aucune dispense de papiers)', roles: ['ADMIN'], type: 'VPSP', reserved: true, license: true, disabled: true, title: TITLE_LICENSE },
+    { name: 'ADMIN, VL libre, permis bloqué : bouton bloqué', roles: ['ADMIN'], license: true, disabled: true, title: TITLE_LICENSE },
+    { name: 'RESP_VEHICULE, permis bloqué : bloqué', roles: ['RESP_VEHICULE'], license: true, disabled: true, title: TITLE_LICENSE },
     { name: 'CHVPSP pur, VL : refusé (aligné sur POST /api/trips)', roles: ['CHVPSP'], disabled: true, title: TITLE_ROLE },
     { name: 'CHVPSP, VPSP, rien', roles: ['CHVPSP'], type: 'VPSP', disabled: false, title: ALLOWED },
     { name: 'CHVPSP, réservé par un tiers', roles: ['CHVPSP'], reserved: true, disabled: true, title: TITLE_RESERVED },
@@ -268,5 +271,27 @@ describe('bouton Maintenance', () => {
         });
 
         expect(screen.queryByRole('button', { name: MAINT_LABEL })).toBeNull();
+    });
+});
+
+describe('VehicleDetailHeader — actions de gestion selon le rôle', () => {
+    const MAINT_LABEL = '🔧 Maintenance';
+    const EDIT_LABEL = /Éditer le véhicule/;
+    const CHECKLIST_LABEL = /Gérer la checklist/;
+
+    it('RESP_VEHICULE : édition, maintenance et checklist visibles', () => {
+        renderHeader({ userRoles: ['RESP_VEHICULE'] });
+
+        expect(screen.getByRole('button', { name: EDIT_LABEL })).toBeTruthy();
+        expect(screen.getByRole('button', { name: MAINT_LABEL })).toBeTruthy();
+        expect(screen.getByRole('button', { name: CHECKLIST_LABEL })).toBeTruthy();
+    });
+
+    it('CADRE seul : édition, maintenance et checklist masquées', () => {
+        renderHeader({ userRoles: ['CADRE'] });
+
+        expect(screen.queryByRole('button', { name: EDIT_LABEL })).toBeNull();
+        expect(screen.queryByRole('button', { name: MAINT_LABEL })).toBeNull();
+        expect(screen.queryByRole('button', { name: CHECKLIST_LABEL })).toBeNull();
     });
 });

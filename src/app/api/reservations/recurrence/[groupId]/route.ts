@@ -1,10 +1,30 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { canAccessAdminPanel } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { canManageReservations } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 import { isUnassignedDriverName } from '@/lib/reservationDriver';
+
+/**
+ * Cloisonnement UL : `true` si au moins un véhicule du groupe est rattaché à une autre
+ * UL que celle de la session (SUPER_ADMIN excepté). Chaque véhicule est vérifié : un
+ * groupe n'en porte qu'un en pratique, mais rien ne l'impose en base.
+ */
+async function isGroupOutsideUl(
+    roles: string[],
+    sessionUlId: string | undefined,
+    groupId: string,
+): Promise<boolean> {
+    const res = await db.execute({
+        sql: `SELECT DISTINCT v.ulId AS vehicleUlId
+              FROM "Reservation" r
+              LEFT JOIN "Vehicle" v ON v.id = r.vehicleId
+              WHERE r.recurrenceGroupId = ?`,
+        args: [groupId],
+    });
+    return res.rows.some(row => isOutsideUl(roles, sessionUlId, row.vehicleUlId));
+}
 
 /**
  * DELETE /api/reservations/recurrence/:groupId
@@ -36,13 +56,14 @@ async function deleteHandler(
             args: [groupId],
         });
 
-        if (checkResult.rows.length === 0) {
+        if (checkResult.rows.length === 0
+            || await isGroupOutsideUl(session.user.roles || [], session.user.ulId, groupId)) {
             return NextResponse.json({ error: 'Groupe de récurrence introuvable' }, { status: 404 });
         }
 
         const ownerEmail = checkResult.rows[0].userEmail as string;
         const userRoles: string[] = session.user.roles || [];
-        const canManage = canAccessAdminPanel(userRoles);
+        const canManage = canManageReservations(userRoles);
 
         if (ownerEmail !== session.user.email && !canManage) {
             return forbiddenResponse();
@@ -137,13 +158,17 @@ async function patchHandler(
         }
 
         const userRoles: string[] = session.user.roles || [];
-        const canValidate = canAccessAdminPanel(userRoles);
+        const canValidate = canManageReservations(userRoles);
         if (!canValidate) {
             return forbiddenResponse('Seul un responsable peut valider des réservations.');
         }
 
         const params = await props.params;
         const { groupId } = params;
+
+        if (await isGroupOutsideUl(userRoles, session.user.ulId, groupId)) {
+            return NextResponse.json({ error: 'Groupe de récurrence introuvable' }, { status: 404 });
+        }
 
         const now = new Date().toISOString();
 

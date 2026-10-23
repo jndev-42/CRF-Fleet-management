@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { getRenaultVehicleData } from '@/lib/vehicle-connection';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
+import { ROLES } from '@/lib/roles';
 import { purgeAuditLogs } from '@/lib/audit/log';
 
 // Route sécurisée par Vercel Cron. On n'associe pas d'auth NextAuth ici.
@@ -31,13 +32,24 @@ export async function GET(request: Request) {
         });
         console.log(`Cron: ${deleted.rowsAffected} réservation(s) expirée(s) supprimée(s)`);
 
-        const adminUsersObj = await db.execute(`
-            SELECT u.email 
-            FROM User u 
-            JOIN UserRole ur ON u.id = ur.userId 
-            JOIN Role r ON ur.roleId = r.id 
-            WHERE r.name = 'ADMIN'
-        `);
+        // Destinataires possibles des alertes : rôle global (`UserRole`) OU rôle d'UL
+        // (CSV `UserUL.roles`, comparaison délimitée par des virgules comme dans push.ts).
+        const alertRoles = [ROLES.ADMIN, ROLES.RESP_VEHICULE];
+        const adminUsersObj = await db.execute({
+            sql: `
+                SELECT u.email
+                FROM User u
+                JOIN UserRole ur ON u.id = ur.userId
+                JOIN Role r ON ur.roleId = r.id
+                WHERE r.name IN (${alertRoles.map(() => '?').join(', ')})
+                UNION
+                SELECT u.email
+                FROM User u
+                JOIN UserUL uu ON u.id = uu.userId
+                WHERE ${alertRoles.map(() => `',' || REPLACE(COALESCE(uu.roles, ''), ' ', '') || ',' LIKE ?`).join(' OR ')}
+            `,
+            args: [...alertRoles, ...alertRoles.map(role => `%,${role},%`)],
+        });
         const adminEmails = adminUsersObj.rows.map(r => r.email as string).filter(Boolean);
 
         if (adminEmails.length === 0) {
@@ -103,11 +115,11 @@ export async function GET(request: Request) {
                     });
 
                     if (todayTrips.rows.length === 0) {
-                        // Aucune déclaration d'emprunt aujourd'hui, mais la voiture a été roulée d'au moins X km. ALERTE ADMIN.
+                        // Aucune déclaration d'emprunt aujourd'hui, mais la voiture a été roulée d'au moins X km. ALERTE ADMIN / RESP_VEHICULE.
                         // Envoi Notification Push aux admins
                         const { sendPushNotification } = await import('@/lib/push');
                         await sendPushNotification({
-                            roles: ['ADMIN'],
+                            roles: ['ADMIN', ROLES.RESP_VEHICULE],
                             headings: { en: `🚨 Utilisation suspecte : ${name}`, fr: `🚨 Utilisation suspecte : ${name}` },
                             contents: {
                                 en: `${name} a été déplacé sans emprunt. Mouvement inexpliqué de +${gap} km.`,

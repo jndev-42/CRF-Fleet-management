@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { isMaintenanceClosed } from '@/lib/maintenanceStatus';
 import { recalcVehicleStatus } from '@/lib/vehicleStatusRecalc';
@@ -44,7 +44,7 @@ async function resolveMaintenanceEvent(id: string, eventId: string): Promise<Res
   }
 
   const roles = session.user.roles || ['INACTIF'];
-  if (!isAdminOrAbove(roles)) {
+  if (!canManageVehicles(roles)) {
     return { error: forbiddenResponse() };
   }
 

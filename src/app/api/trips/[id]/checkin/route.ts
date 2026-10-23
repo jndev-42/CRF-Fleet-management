@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { canManageVehicles, ROLES } from '@/lib/roles';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { checkInSchema } from './schema';
 import {
     MAX_KM_PER_DAY,
@@ -31,7 +31,7 @@ async function patchHandler(
         }
 
         const userRoles = session.user.roles || [];
-        const isAdmin = isAdminOrAbove(userRoles);
+        const isAdmin = canManageVehicles(userRoles);
 
         // 2. Parse & validate body
         const { id } = await params;
@@ -40,12 +40,18 @@ async function patchHandler(
 
         // 3. Fetch trip
         const tripResult = await db.execute({
-            sql: `SELECT * FROM Trip WHERE id = ?`,
+            sql: `SELECT t.*, v.ulId AS vehicleUlId
+                  FROM Trip t LEFT JOIN Vehicle v ON v.id = t.vehicleId
+                  WHERE t.id = ?`,
             args: [id]
         });
         const trip = tripResult.rows.length > 0 ? tripResult.rows[0] : null;
 
-        if (!trip) {
+        // Cloisonnement UL des gestionnaires : le conducteur et le second conducteur
+        // rendent leur propre trajet quelle que soit l'UL (emprunt QR inter-UL) ; un
+        // gestionnaire d'une autre UL ne voit qu'un trajet inconnu.
+        const isTripDriver = !!trip && (userId === trip.driverId || userId === trip.secondDriverId);
+        if (!trip || (!isTripDriver && isOutsideUl(userRoles, session.user.ulId, trip.vehicleUlId))) {
             return NextResponse.json(
                 { error: 'Sortie non trouvée' },
                 { status: 404 }
@@ -235,7 +241,7 @@ async function patchHandler(
                     const vName = vehicle.name || 'Véhicule inconnu';
 
                     await sendPushNotification({
-                        roles: ['PRESIDENT', 'CADRE'],
+                        roles: ['PRESIDENT', ROLES.RESP_VEHICULE],
                         headings: { en: `🚨 Incident signalé au retour de ${vName}`, fr: `🚨 Incident signalé au retour de ${vName}` },
                         contents: {
                             en: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`,

@@ -10,7 +10,7 @@
  * Les autorisations d'ÉCRITURE (PATCH / DELETE) ne passent pas par ici : elles
  * restent réservées à l'auteur et aux administrateurs, et n'ont pas été élargies.
  */
-import { isAdminOrAbove, isSuperAdmin, isQrBlocked } from './roles';
+import { canManageVehicles, isSuperAdmin, isQrBlocked } from './roles';
 
 export interface IncidentViewer {
     /** Identifiant de l'appelant ; absent sur certaines sessions historiques. */
@@ -46,11 +46,13 @@ export function isIncidentViewerBlocked(roles: string[]): boolean {
  *
  * SUPER_ADMIN passe outre (accès inter-UL). Une UL absente des deux côtés ne vaut
  * pas correspondance : `null === null` serait vrai en JS, or deux véhicules non
- * rattachés ne constituent pas une UL commune.
+ * rattachés ne constituent pas une UL commune. La sentinelle de session `'default'`
+ * (aucune UL active) est refusée, comme dans `isOutsideUl` (`@/lib/apiAuth`).
  */
 export function isWithinUlScope(viewer: IncidentViewer, vehicleUlId: string | null): boolean {
     if (isSuperAdmin(viewer.roles)) return true;
-    return Boolean(viewer.ulId) && Boolean(vehicleUlId) && viewer.ulId === vehicleUlId;
+    if (!viewer.ulId || viewer.ulId === 'default') return false;
+    return Boolean(vehicleUlId) && viewer.ulId === vehicleUlId;
 }
 
 /** L'appelant est-il le déclarant du rapport ? */
@@ -73,7 +75,7 @@ export function canViewIncident(viewer: IncidentViewer, subject: IncidentSubject
     // historique en basculant d'UL.
     if (isIncidentAuthor(viewer, subject)) return true;
     if (!isWithinUlScope(viewer, subject.vehicleUlId)) return false;
-    if (isAdminOrAbove(viewer.roles)) return true;
+    if (canManageVehicles(viewer.roles)) return true;
     return subject.status === 'SUBMITTED';
 }
 
@@ -87,5 +89,5 @@ export function canViewIncident(viewer: IncidentViewer, subject: IncidentSubject
  */
 export function canRevealIncidentAuthor(viewer: IncidentViewer, subject: IncidentSubject): boolean {
     if (isIncidentViewerBlocked(viewer.roles)) return false;
-    return isIncidentAuthor(viewer, subject) || isAdminOrAbove(viewer.roles);
+    return isIncidentAuthor(viewer, subject) || canManageVehicles(viewer.roles);
 }

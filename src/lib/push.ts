@@ -20,7 +20,9 @@ export interface PushPayload {
  * (W3C, VAPID) vers chacun de ses appareils abonnés.
  *
  * `ADMIN` couvre aussi SUPER_ADMIN. `RESPO` désigne le responsable d'activité (notes de frais) :
- * pour joindre présidents et cadres, les nommer explicitement.
+ * pour joindre présidents et cadres, les nommer explicitement. `RESP_VEHICULE` (responsable véhicule)
+ * reçoit les notifications véhicule (incidents, problèmes au départ ou au retour, alertes flotte) ; CADRE
+ * n'est plus visé que par les nouvelles demandes de réservation.
  * `userIds` ajoute des utilisateurs nommés aux destinataires ; `excludeUserId` écarte l'auteur de l'action.
  * Chaque utilisateur ne reçoit qu'une notification, même s'il cumule plusieurs rôles ciblés.
  * Ne lève jamais : un échec d'envoi push ne doit pas faire échouer la route appelante.

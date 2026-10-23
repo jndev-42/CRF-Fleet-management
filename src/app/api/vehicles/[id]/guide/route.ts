@@ -15,7 +15,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { isAdminOrAbove, isQrBlocked } from '@/lib/roles';
+import { canManageVehicles, isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import {
@@ -83,7 +83,7 @@ async function postHandler(
         if (!session?.user) {
             return unauthorizedResponse();
         }
-        if (!isAdminOrAbove(session.user.roles || [])) {
+        if (!canManageVehicles(session.user.roles || [])) {
             return forbiddenResponse();
         }
 
@@ -168,7 +168,7 @@ async function deleteHandler(
         if (!session?.user) {
             return unauthorizedResponse();
         }
-        if (!isAdminOrAbove(session.user.roles || [])) {
+        if (!canManageVehicles(session.user.roles || [])) {
             return forbiddenResponse();
         }
 

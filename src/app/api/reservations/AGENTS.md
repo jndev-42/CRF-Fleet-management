@@ -4,7 +4,7 @@
 # Reservations
 
 ## Purpose
-Container for vehicle reservation endpoints. Manages vehicle booking lifecycle: creating, updating, validating, and deleting individual or recurring reservations. Enforcement: owner can edit/delete own; anyone passing `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE) can manage all. Recurrence logic deferred to `recurrence/[groupId]` for bulk validation/cancellation.
+Container for vehicle reservation endpoints. Manages vehicle booking lifecycle: creating, updating, validating, and deleting individual or recurring reservations. Enforcement: owner can edit/delete own; anyone passing `canManageReservations` (SUPER_ADMIN, ADMIN, RESP_VEHICULE, PRESIDENT, CADRE) can manage all. Recurrence logic deferred to `recurrence/[groupId]` for bulk validation/cancellation.
 
 ## Subdirectories
 - `[id]/` — manage individual reservation (GET → [not implemented], DELETE, PATCH/PUT)
@@ -21,7 +21,7 @@ Container for vehicle reservation endpoints. Manages vehicle booking lifecycle: 
 
 **Ownership & Roles:**
 - Owner = creator's email (userEmail column)
-- Manager roles = `canAccessAdminPanel(roles)` (ADMIN, CADRE, PRESIDENT)
+- Manager roles = `canManageReservations(roles)` (ADMIN, RESP_VEHICULE, PRESIDENT, CADRE)
 - Editing: owner OR manager
 - Deletion: owner OR manager
 - Validation: manager only
@@ -41,7 +41,7 @@ Container for vehicle reservation endpoints. Manages vehicle booking lifecycle: 
 ### Internal
 - `db` (libSQL)
 - `auth` from `@/auth`
-- `@/lib/roles` — `canAccessAdminPanel(roles)`
+- `@/lib/roles` — `canManageReservations(roles)`
 
 ### Tables Touched
 - `Reservation` (main table: id, userEmail, userName, vehicleId, startTime, endTime, reason, status, recurrenceGroupId)

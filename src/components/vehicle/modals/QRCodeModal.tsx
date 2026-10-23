@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { canAccessAdminPanel } from '@/lib/roles';
+import { canSuperviseVehicles } from '@/lib/roles';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface QRCodeModalProps {
@@ -229,7 +229,7 @@ export default function QRCodeModal({ onClose, vehicleName, vehicleId, userRoles
                         </button>
                     </div>
 
-                    {canAccessAdminPanel(userRoles) && (
+                    {canSuperviseVehicles(userRoles) && (
                         <button
                             className="btn btn-secondary"
                             onClick={handleRegenerate}

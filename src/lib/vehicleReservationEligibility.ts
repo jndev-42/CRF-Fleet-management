@@ -16,7 +16,7 @@
  * réciproquement : la seule chose partagée est `isVpspVehicle`, un prédicat de
  * nommage sans règle métier.
  */
-import { isAdminOrAbove, isChvlDriver, isChvpspDriver } from '@/lib/roles';
+import { canManageVehicles, isChvlDriver, isChvpspDriver } from '@/lib/roles';
 import { isVpspVehicle } from '@/lib/vehicleBorrowEligibility';
 
 /** Raison typée d'un refus de réservation. */
@@ -49,9 +49,11 @@ export function getReservationEligibility(input: ReservationEligibilityInput): {
 
     if (isDtView) return { canReserve: false, blockingReason: 'DT_VIEW' };
 
-    // ADMIN : bypass du permis, parité avec `getBorrowEligibility` et avec la garde
-    // serveur `canAccessAdminPanel` de la route de réservation.
-    if (isAdminOrAbove(userRoles)) return { canReserve: true, blockingReason: null };
+    // Gestionnaires de véhicules (`canManageVehicles` : ADMIN, RESP_VEHICULE) : bypass
+    // du rôle chauffeur et du permis, parité avec `getBorrowEligibility`. Ce n'est PAS
+    // `canManageReservations` : CADRE et PRESIDENT gèrent les réservations d'autrui
+    // mais restent soumis aux rôles chauffeur et aux papiers pour réserver eux-mêmes.
+    if (canManageVehicles(userRoles)) return { canReserve: true, blockingReason: null };
 
     const isCHVL = isChvlDriver(userRoles);
     const isCHVPSP = isChvpspDriver(userRoles);
@@ -106,9 +108,9 @@ export function getReservationCtaState(args: {
 }): { state: ReservationCtaState; reason: ReservationDenialReason | null; message: string } {
     if (args.loading) return { state: 'LOADING', reason: null, message: '' };
 
-    // Parité avec `ReservationBlock` : un gestionnaire (ADMIN et au-dessus) réserve
+    // Parité avec `ReservationBlock` : un gestionnaire de véhicules (`canManageVehicles`) réserve
     // malgré ses propres papiers, puisqu'il réserve au nom d'autrui.
-    if (args.licenseBlocked && !isAdminOrAbove(args.userRoles)) {
+    if (args.licenseBlocked && !canManageVehicles(args.userRoles)) {
         return {
             state: 'LICENSE_BLOCKED',
             reason: null,

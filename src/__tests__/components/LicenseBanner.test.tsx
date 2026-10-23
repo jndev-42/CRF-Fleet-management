@@ -15,10 +15,32 @@ afterEach(() => {
 });
 
 describe('LicenseBanner', () => {
-    it('ne rend rien pour un rôle non-conducteur', () => {
-        mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: ['ADMIN'] } } });
+    it.each([['TRESORIER'], ['PRESIDENT'], ['DT']])('ne rend rien et n\'interroge pas l\'API pour un %s (n\'emprunte jamais)', async (role) => {
+        mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: [role] } } });
+        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ validated: false, daysLeft: 0, blocked: true }), { status: 200 }));
+
         const { container } = render(<LicenseBanner />);
+        await act(async () => { await Promise.resolve(); });
         expect(container.firstChild).toBeNull();
+        expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('affiche le blocage à un ADMIN sans rôle chauffeur (aucune dispense de papiers)', async () => {
+        mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: ['ADMIN'] } } });
+        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ validated: false, daysLeft: 0, blocked: true }), { status: 200 }));
+
+        render(<LicenseBanner />);
+        expect(await screen.findByText(/Accès bloqué/)).toBeTruthy();
+        expect(fetchSpy).toHaveBeenCalledWith('/api/me/license-check');
+    });
+
+    it('affiche le délai restant à un rôle non-conducteur dont les papiers sont invalidés', async () => {
+        mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: ['RESP_VEHICULE'] } } });
+        vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ validated: false, daysLeft: 4, blocked: false }), { status: 200 }));
+
+        render(<LicenseBanner />);
+        expect(await screen.findByText(/Validation des papiers requise/)).toBeTruthy();
+        expect(screen.getByText(/4 jours/)).toBeTruthy();
     });
 
     it('ne rend rien tant que non authentifié', () => {

@@ -14,6 +14,7 @@ Pre-checkin desinfection data endpoint. Allows admin to record desinfection pre-
 ## For AI Agents
 
 ### Working In This Directory
+- **UL scope:** cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too; SUPER_ADMIN only escapes it.
 - **PATCH /api/trips/[id]/desinf-pre:** Store desinfection pre-checkin data
   - Accepts desinfPreSchema: desinfResponsableId (required), desinfResponsable (required), desinfLotNumber (required)
   - Auth required; authorization: ADMIN only
@@ -30,6 +31,6 @@ Pre-checkin desinfection data endpoint. Allows admin to record desinfection pre-
 
 ### Internal
 - `@/lib/db` — Trip queries
-- `@/lib/roles` — `isAdminOrAbove()` check
+- `@/lib/roles` — `canManageVehicles()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { canManageVehicles } from '@/lib/roles';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 
 interface VehicleNotesProps {
@@ -23,7 +24,7 @@ export default function VehicleNotes({ vehicle, userRoles, onSaveNotes }: Vehicl
         <div className="detail-card" style={{ marginBottom: 24, padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div className="detail-card-title" style={{ margin: 0 }}>Notes</div>
-                {userRoles.includes('ADMIN') && !isEditingNotes && (
+                {canManageVehicles(userRoles) && !isEditingNotes && (
                     <button
                         onClick={() => {
                             setEditNotesValue(vehicle.notes || '');

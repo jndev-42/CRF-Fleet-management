@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { unauthorizedResponse } from '@/lib/apiAuth';
-import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
+import { getLicenseStatus, type LicenseRow } from '@/lib/licenseStatus';
 
 /** GET /api/me/license-check
  *
- * Vérifie la validité des papiers du conducteur connecté.
- * Applicable uniquement aux rôles CHVL et CHVPSP.
+ * Vérifie la validité des papiers du compte connecté, quel que soit son rôle :
+ * toute personne qui prend le volant est soumise au contrôle, gestionnaire compris.
  *
  * Logique :
  * 1. Si last_validation est NULL ou date d'il y a plus de 6 mois :
@@ -23,13 +23,6 @@ export async function GET() {
         const session = await auth();
         if (!session?.user) {
             return unauthorizedResponse();
-        }
-
-        const roles = session.user.roles || [];
-
-        if (!isDriverRole(roles)) {
-            // Non-drivers are always considered valid
-            return NextResponse.json({ validated: true, daysLeft: null, blocked: false });
         }
 
         const userId = session.user.id;

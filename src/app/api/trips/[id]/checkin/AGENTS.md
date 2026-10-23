@@ -14,6 +14,7 @@ Vehicle check-in (return) endpoint. Completes an active trip by recording mileag
 ## For AI Agents
 
 ### Working In This Directory
+- **UL scope:** the trip's driver and second driver always return their own trip (QR borrow across ULs); for anyone else, cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too; SUPER_ADMIN only escapes it.
 - **PATCH /api/trips/[id]/checkin:** Check-in vehicle
   - Accepts checkInSchema: mileageIn, fuelIn, parkingIn, conditionIn, cleanlinessIn, incident, commentsIn, parkingPhoto, driveFolderId, checklistIn, desinfResponsable, desinfLotNumber, desinfType
   - Auth required; authorization: only first driver, second driver, or ADMIN can check in
@@ -40,6 +41,6 @@ Vehicle check-in (return) endpoint. Completes an active trip by recording mileag
 - `@/lib/db` — Trip, Vehicle queries and transactions
 - `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)`, `isConnectedInDb(vehicleId)`
 - `@/lib/push` — push notifications (lazy imported)
-- `@/lib/roles` — `isAdminOrAbove()` check
+- `@/lib/roles` — `canManageVehicles()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->
