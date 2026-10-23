@@ -14,6 +14,7 @@ const DEV_ROLES = [
     { key: 'respo',      label: 'Responsable',  badge: 'RESPO',     color: '#0ea5e9' },
     { key: 'cadre',      label: 'Cadre',         badge: 'CADRE',     color: '#eab308' },
     { key: 'respvehicule', label: 'Resp. véhicule', badge: 'RESP_VEH', color: '#14b8a6' },
+    { key: 'respuniforme', label: 'Resp. uniforme', badge: 'RESP_UNI', color: '#d946ef' },
     { key: 'chvl',       label: 'Chauffeur',     badge: 'CHVL',      color: '#3b82f6' },
     { key: 'ci',         label: 'CI/RPAPS',      badge: 'CI/RPAPS',  color: '#8b5cf6' },
     { key: 'guest',      label: 'Inactif',       badge: 'INACTIF',   color: '#6b7280' },

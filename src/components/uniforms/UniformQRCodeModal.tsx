@@ -14,7 +14,7 @@ interface UniformQRCodeModalProps {
      * l'utilisateur change d'UL dans la Navbar.
      */
     ulId: string;
-    /** Droit de régénérer le token, calculé par l'appelant (typiquement `canAccessAdminPanel`). */
+    /** Droit de régénérer le token, calculé par l'appelant (typiquement `canAccessAdminPanel` ou `canManageUniforms`). */
     canRegenerate: boolean;
 }
 

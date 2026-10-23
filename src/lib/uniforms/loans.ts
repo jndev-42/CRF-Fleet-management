@@ -265,7 +265,7 @@ export interface UlLoanRow {
  * Plafonné à `UL_LOANS_LIMIT` lignes, les plus récentes : une ligne de plus est
  * lue pour signaler la troncature (`truncated`) au lieu de la taire.
  */
-export async function listUlLoans(ulId: string, status: 'open' | 'all'): Promise<{ loans: UlLoanRow[]; truncated: boolean }> {
+export async function listUlLoans(ulId: string): Promise<{ loans: UlLoanRow[]; truncated: boolean }> {
     const res = await db.execute({
         sql: `SELECT l.id AS loanId, l.batchId, b.borrowerName, b.borrowerEmail,
                      i.name AS itemName, s.label AS sizeLabel,
@@ -275,7 +275,7 @@ export async function listUlLoans(ulId: string, status: 'open' | 'all'): Promise
                 JOIN "UniformLoanBatch" b ON b.id = l.batchId
                 JOIN "UniformSize" s ON s.id = l.sizeId
                 JOIN "UniformItem" i ON i.id = s.itemId
-               WHERE i.ulId = ? ${status === 'open' ? 'AND l.returnedAt IS NULL' : ''}
+               WHERE i.ulId = ? AND l.returnedAt IS NULL
                ORDER BY l.borrowedAt DESC, b.id, i.name COLLATE NOCASE, s.label, l.id
                LIMIT ${UL_LOANS_LIMIT + 1}`,
         args: [ulId],

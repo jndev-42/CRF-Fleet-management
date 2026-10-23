@@ -11,7 +11,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { usePush } from '@/components/PushProvider';
 import { User } from 'next-auth';
 import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
-import { canSeeMenu } from '@/lib/menuVisibility';
+import { canSeeMenu, canSeeUniformsMenu } from '@/lib/menuVisibility';
 import { useUL } from '@/lib/contexts/ULContext';
 import { isAdminOrAbove, canAccessAdminPanel, isInactive } from '@/lib/roles';
 
@@ -140,7 +140,7 @@ export default function Navbar({ user }: NavbarProps) {
                         {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles) || userRoles.includes('CI/RPAPS')) && canSeeMenu(getVisibility('missions'), userRoles) && (
                             <Link href="/missions" className={`nav-link${pathname.startsWith('/missions') ? ' active' : ''}`} data-tour="nav-missions" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/missions') ? 'page' : undefined}>Missions</Link>
                         )}
-                        {!isInactive(userRoles) && canSeeMenu(getVisibility('uniforms'), userRoles) && (
+                        {!isInactive(userRoles) && canSeeUniformsMenu(getVisibility('uniforms'), userRoles) && (
                             <Link href="/uniforms" className={`nav-link${pathname.startsWith('/uniforms') ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/uniforms') ? 'page' : undefined}>Uniformes</Link>
                         )}
                         {canAccessAdminPanel(userRoles) && (

@@ -18,6 +18,7 @@ const MANAGEABLE_ROLES = [
     'RESPO',
     'CADRE',
     'RESP_VEHICULE',
+    'RESP_UNIFORME',
     'CHVPSP',
     'CHVL',
     'CI/RPAPS',

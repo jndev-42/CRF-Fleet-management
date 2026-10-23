@@ -1,5 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { canSeeMenu, MENU_KEYS, MENU_VISIBILITIES } from '@/lib/menuVisibility';
+import { canSeeMenu, canSeeUniformsMenu, MENU_KEYS, MENU_VISIBILITIES } from '@/lib/menuVisibility';
+
+describe('canSeeUniformsMenu', () => {
+    it('admin_only : admins et responsable uniforme, ni cadre ni président ni chauffeur', () => {
+        for (const role of ['SUPER_ADMIN', 'ADMIN', 'RESP_UNIFORME']) {
+            expect(canSeeUniformsMenu('admin_only', [role]), role).toBe(true);
+        }
+        for (const role of ['CADRE', 'PRESIDENT', 'CHVL', 'RESP_VEHICULE']) {
+            expect(canSeeUniformsMenu('admin_only', [role]), role).toBe(false);
+        }
+        expect(canSeeUniformsMenu('admin_only', ['RESP_UNIFORME', 'INACTIF'])).toBe(false);
+    });
+
+    it('les autres réglages se comportent comme canSeeMenu', () => {
+        expect(canSeeUniformsMenu('available', ['CHVL'])).toBe(true);
+        expect(canSeeUniformsMenu('disabled', ['RESP_UNIFORME'])).toBe(false);
+        expect(canSeeUniformsMenu('super_admin_only', ['RESP_UNIFORME'])).toBe(false);
+        expect(canSeeUniformsMenu('super_admin_only', ['SUPER_ADMIN'])).toBe(true);
+    });
+
+    it('canSeeMenu générique reste inchangé : RESP_UNIFORME n\'est pas admin ailleurs', () => {
+        expect(canSeeMenu('admin_only', ['RESP_UNIFORME'])).toBe(false);
+    });
+});
 
 describe('canSeeMenu', () => {
     it('available : visible pour tous', () => {

@@ -44,10 +44,11 @@ async function seed() {
             ('preview-user-respo',       'preview-respo@preview.local',       'Responsable Preview', 1, ?, 'System Preview'),
             ('preview-user-cadre',       'preview-cadre@preview.local',       'Cadre Preview', 1, ?, 'System Preview'),
             ('preview-user-resp-vehicule', 'preview-resp-vehicule@preview.local', 'Resp. Véhicule Preview', 1, ?, 'System Preview'),
-            ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview', 1, ?, 'System Preview'),
+            ('preview-user-resp-uniforme', 'preview-resp-uniforme@preview.local', 'Resp. Uniforme Preview', 1, ?, 'System Preview'),
+            ('preview-user-chvl',       'preview-chvl@preview.local',        'Chauffeur Preview', 1, ?, 'System Preview'),
             ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, ?, 'System Preview'),
             ('preview-user-inactif',     'preview-inactif@preview.local',     'Inactif Preview', 1, ?, 'System Preview')`,
-        args: Array(10).fill(today),
+        args: Array(11).fill(today),
     });
     console.log('    Users inserted/updated with validated papers');
 
@@ -55,10 +56,10 @@ async function seed() {
     const ulId = 'ul-paris-18';
     console.log(`🏠 Using UL: ${ulId}`);
 
-    // Les rôles RESPO et RESP_VEHICULE sont récents : la base preview peut ne pas
+    // Les rôles RESPO, RESP_VEHICULE et RESP_UNIFORME sont récents : la base preview peut ne pas
     // encore les porter, et sans ligne `Role` le repli global `UserRole` ci-dessous
     // les ignorerait.
-    for (const [roleId, roleName] of [['role-respo', 'RESPO'], ['role-resp_vehicule', 'RESP_VEHICULE']]) {
+    for (const [roleId, roleName] of [['role-respo', 'RESPO'], ['role-resp_vehicule', 'RESP_VEHICULE'], ['role-resp_uniforme', 'RESP_UNIFORME']]) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
             args: [roleId, roleName],
@@ -74,6 +75,7 @@ async function seed() {
         { userId: 'preview-user-respo',      roles: 'RESPO' },
         { userId: 'preview-user-cadre',      roles: 'CADRE,CHVL' },
         { userId: 'preview-user-resp-vehicule', roles: 'RESP_VEHICULE' },
+        { userId: 'preview-user-resp-uniforme', roles: 'RESP_UNIFORME' },
         { userId: 'preview-user-chvl',       roles: 'CHVL' },
         { userId: 'preview-user-ci',         roles: 'CI/RPAPS' },
         { userId: 'preview-user-inactif',    roles: 'INACTIF' },

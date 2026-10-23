@@ -4,7 +4,7 @@
  *   GET  /api/uniforms/loans/mine                (bandeau)
  *   POST /api/uniforms/loans/[id]/return         (une pièce)
  *   POST /api/uniforms/loan-batches/[id]/return  (« Tout rendre »)
- *   GET  /api/uniforms/loans/ul                  (vue cadre/admin)
+ *   GET  /api/uniforms/loans/ul                  (vue cadre/admin/responsable uniforme, emprunts en cours)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
@@ -370,8 +370,6 @@ describe('POST /api/uniforms/loan-batches/[id]/return', () => {
 });
 
 describe('GET /api/uniforms/loans/ul', () => {
-    const req = (status?: string) => new Request(`http://localhost/api/uniforms/loans/ul${status ? `?status=${status}` : ''}`);
-
     beforeEach(async () => {
         // Le secouriste de l'UL 4 emprunte des pièces de l'UL 18 (via le QR de l'UL 18)…
         await createLoanBatch({ ulId: 'ul-paris-18', borrower: { id: 'u-secouriste4', name: 'Sam UL4', email: null }, lines: [{ sizeId: 'polo-m', quantity: 1 }], source: 'qr' });
@@ -381,21 +379,21 @@ describe('GET /api/uniforms/loans/ul', () => {
 
     it('401 / 403 pour un CHVL', async () => {
         mockedAuth.mockResolvedValue(null as never);
-        expect((await getUlLoans(req())).status).toBe(401);
+        expect((await getUlLoans()).status).toBe(401);
         mockedAuth.mockResolvedValue(CHVL_18);
-        expect((await getUlLoans(req())).status).toBe(403);
+        expect((await getUlLoans()).status).toBe(403);
         mockedAuth.mockResolvedValue(SECOURISTE_4);
-        expect((await getUlLoans(req())).status).toBe(403);
+        expect((await getUlLoans()).status).toBe(403);
     });
 
     it('matrice — CADRE UL 18 : pièces UL 18 dont emprunteur UL 4, rien des articles UL 4', async () => {
         mockedAuth.mockResolvedValue(CADRE_18);
-        const { loans } = await (await getUlLoans(req())).json();
+        const { loans } = await (await getUlLoans()).json();
         expect(loans).toHaveLength(1);
         expect(loans[0]).toMatchObject({ borrowerName: 'Sam UL4', itemName: 'Polo', sizeLabel: 'M', returnedAt: null });
 
         mockedAuth.mockResolvedValue(CADRE_4);
-        const ul4 = await (await getUlLoans(req())).json();
+        const ul4 = await (await getUlLoans()).json();
         expect(ul4.loans.map((l: { itemName: string }) => l.itemName)).toEqual(['Veste']);
     });
 
@@ -409,24 +407,32 @@ describe('GET /api/uniforms/loans/ul', () => {
         }
 
         mockedAuth.mockResolvedValue(CADRE_18);
-        const body = await (await getUlLoans(req())).json();
+        const body = await (await getUlLoans()).json();
         expect(body.truncated).toBe(true);
         expect(body.loans).toHaveLength(UL_LOANS_LIMIT);
     });
 
     it('truncated = false sous le plafond', async () => {
         mockedAuth.mockResolvedValue(CADRE_18);
-        expect((await (await getUlLoans(req())).json()).truncated).toBe(false);
+        expect((await (await getUlLoans()).json()).truncated).toBe(false);
     });
 
-    it('AC4 — une taille archivée reste dans l\'historique des emprunts', async () => {
+    it('ne renvoie que les emprunts en cours : une pièce rendue disparaît, même sur une taille archivée', async () => {
         await db.execute(`UPDATE "UniformLoan" SET returnedAt = '2026-09-02', returnedClean = 1 WHERE sizeId = 'polo-m'`);
         await db.execute(`UPDATE "UniformSize" SET archivedAt = '2026-09-03' WHERE id = 'polo-m'`);
 
         mockedAuth.mockResolvedValue(CADRE_18);
-        expect((await (await getUlLoans(req('open'))).json()).loans).toEqual([]);
-        const all = await (await getUlLoans(req('all'))).json();
-        expect(all.loans).toHaveLength(1);
-        expect(all.loans[0]).toMatchObject({ sizeLabel: 'M', returnedClean: true });
+        expect((await (await getUlLoans()).json()).loans).toEqual([]);
+    });
+
+    it('PRESIDENT et RESP_UNIFORME de l\'UL 18 y accèdent ; RESP_UNIFORME + INACTIF est refusé', async () => {
+        mockedAuth.mockResolvedValue(session(['PRESIDENT'], 'u-pres'));
+        expect((await getUlLoans()).status).toBe(200);
+        mockedAuth.mockResolvedValue(session(['RESP_UNIFORME'], 'u-ru'));
+        const res = await getUlLoans();
+        expect(res.status).toBe(200);
+        expect((await res.json()).loans).toHaveLength(1);
+        mockedAuth.mockResolvedValue(session(['RESP_UNIFORME', 'INACTIF'], 'u-ru'));
+        expect((await getUlLoans()).status).toBe(403);
     });
 });

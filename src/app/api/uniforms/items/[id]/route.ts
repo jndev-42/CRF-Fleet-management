@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageUniforms } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { archiveItem, getItemRef, renameItem } from '@/lib/uniforms/catalog';
@@ -13,7 +13,7 @@ import { withAudit } from '@/lib/audit/log';
  * DELETE /api/uniforms/items/[id] — archive l'article (409 s'il reste des pièces
  *                                   empruntées) ; l'historique reste intact.
  *
- * `isAdminOrAbove`, cloisonné à l'UL de session (`isOutsideUl` → 403 : l'admin
+ * `canManageUniforms`, cloisonné à l'UL de session (`isOutsideUl` → 403 : l'admin
  * connaît déjà l'existence de l'article, comme sur les routes de maintenance).
  */
 type RouteContext = { params: Promise<{ id: string }> };
@@ -23,7 +23,7 @@ async function patchHandler(request: Request, { params }: RouteContext) {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
         const roles = session.user.roles || [];
-        if (!isAdminOrAbove(roles)) return forbiddenResponse();
+        if (!canManageUniforms(roles)) return forbiddenResponse();
 
         const parsed = await parseBody(request, renameItemSchema);
         if ('response' in parsed) return parsed.response;
@@ -50,7 +50,7 @@ async function deleteHandler(_request: Request, { params }: RouteContext) {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
         const roles = session.user.roles || [];
-        if (!isAdminOrAbove(roles)) return forbiddenResponse();
+        if (!canManageUniforms(roles)) return forbiddenResponse();
 
         const { id } = await params;
         const item = await getItemRef(id);

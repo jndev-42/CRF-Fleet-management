@@ -1,12 +1,13 @@
 'use client';
 
-export type UniformTab = 'borrow' | 'laundry' | 'loans' | 'manage';
+export type UniformTab = 'borrow' | 'laundry' | 'loans' | 'manage' | 'history';
 
 const LABELS: Record<UniformTab, string> = {
     borrow: 'Emprunter',
     laundry: 'À laver',
     loans: 'Emprunts',
     manage: 'Gestion',
+    history: 'Historique',
 };
 
 interface Props {

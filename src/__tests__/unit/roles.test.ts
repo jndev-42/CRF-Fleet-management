@@ -13,6 +13,7 @@ import {
     isExpenseManager,
     canValidateExpenseAsRespo,
     canManageVehicles,
+    canManageUniforms,
     canSuperviseVehicles,
     canManageReservations,
     canViewStatsPage,
@@ -45,15 +46,15 @@ describe('Roles helper functions', () => {
     });
 
     describe('canManageExpenseBudgets', () => {
-        // Matrice complète des 12 rôles gérables (MANAGEABLE_ROLES).
+        // Matrice complète des 13 rôles gérables (MANAGEABLE_ROLES).
         const AUTHORIZED = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRESIDENT, ROLES.TRESORIER, ROLES.CADRE];
-        const DENIED = [ROLES.RESPO, ROLES.RESP_VEHICULE, ROLES.DT, ROLES.CHVPSP, ROLES.CHVL, ROLES.CI_RPAPS, ROLES.INACTIF];
+        const DENIED = [ROLES.RESPO, ROLES.RESP_VEHICULE, ROLES.RESP_UNIFORME, ROLES.DT, ROLES.CHVPSP, ROLES.CHVL, ROLES.CI_RPAPS, ROLES.INACTIF];
 
         it('couvre tous les rôles gérables', () => {
             expect([...AUTHORIZED, ...DENIED].sort()).toEqual([...MANAGEABLE_ROLES].sort());
         });
 
-        it('canManageExpenseBudgets autorise CADRE, PRESIDENT, TRESORIER, ADMIN, SUPER_ADMIN et refuse RESPO, RESP_VEHICULE, CHVL, CHVPSP, DT, CI/RPAPS, INACTIF', () => {
+        it('canManageExpenseBudgets autorise CADRE, PRESIDENT, TRESORIER, ADMIN, SUPER_ADMIN et refuse RESPO, RESP_VEHICULE, RESP_UNIFORME, CHVL, CHVPSP, DT, CI/RPAPS, INACTIF', () => {
             for (const role of AUTHORIZED) {
                 expect(canManageExpenseBudgets([role]), `${role} devrait être autorisé`).toBe(true);
             }
@@ -123,6 +124,38 @@ describe('Roles helper functions', () => {
             expect(isPresident(['SUPER_ADMIN'])).toBe(false);
             expect(isPresident(['RESPO'])).toBe(false);
             expect(isPresident(['PRESIDENT', 'INACTIF'])).toBe(false);
+        });
+    });
+
+    describe('Rôle RESP_UNIFORME — responsable uniforme (uniformes uniquement)', () => {
+        it('est déclaré, gérable (après RESP_VEHICULE) et libellé', () => {
+            expect(ROLES.RESP_UNIFORME).toBe('RESP_UNIFORME');
+            expect(MANAGEABLE_ROLES.indexOf(ROLES.RESP_UNIFORME)).toBe(MANAGEABLE_ROLES.indexOf(ROLES.RESP_VEHICULE) + 1);
+            expect(rolesModule.ROLE_LABELS[ROLES.RESP_UNIFORME]).toBe('Responsable uniforme');
+        });
+
+        it('canManageUniforms : SUPER_ADMIN, ADMIN et RESP_UNIFORME, personne d\'autre', () => {
+            const autorises: string[] = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RESP_UNIFORME];
+            for (const role of MANAGEABLE_ROLES) {
+                expect(canManageUniforms([role]), role).toBe(autorises.includes(role));
+            }
+        });
+
+        it('n\'ouvre aucun autre droit', () => {
+            const r = ['RESP_UNIFORME'];
+            expect(isAdminOrAbove(r)).toBe(false);
+            expect(canAccessAdminPanel(r)).toBe(false);
+            expect(isReadOnlyManager(r)).toBe(false);
+            expect(canManageVehicles(r)).toBe(false);
+            expect(canManageExpenseBudgets(r)).toBe(false);
+            expect(canAssignRole(r, 'CHVL')).toBe(false);
+        });
+
+        it('est refusé une fois INACTIF (ou GUEST), même cumulé à ADMIN', () => {
+            expect(canManageUniforms(['RESP_UNIFORME', 'INACTIF'])).toBe(false);
+            expect(canManageUniforms(['ADMIN', 'INACTIF'])).toBe(false);
+            expect(canManageUniforms(['RESP_UNIFORME', 'GUEST'])).toBe(false);
+            expect(canManageUniforms([])).toBe(false);
         });
     });
 
@@ -413,6 +446,7 @@ describe('Roles helper functions', () => {
                 'canAccessAdminPanel',
                 'canManageExpenseBudgets',
                 'canManageReservations',
+                'canManageUniforms',
                 'canManageVehicles',
                 'canPayExpense',
                 'canSuperviseVehicles',

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageUniforms } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { addSize, getItemRef } from '@/lib/uniforms/catalog';
@@ -10,14 +10,14 @@ import { withAudit } from '@/lib/audit/log';
 
 /**
  * POST /api/uniforms/items/[id]/sizes — ajoute une taille (libellé + quantité
- * possédée) à un article. `isAdminOrAbove`, cloisonné à l'UL de session.
+ * possédée) à un article. `canManageUniforms`, cloisonné à l'UL de session.
  */
 async function postHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
         const roles = session.user.roles || [];
-        if (!isAdminOrAbove(roles)) return forbiddenResponse();
+        if (!canManageUniforms(roles)) return forbiddenResponse();
 
         const parsed = await parseBody(request, sizeInputSchema);
         if ('response' in parsed) return parsed.response;

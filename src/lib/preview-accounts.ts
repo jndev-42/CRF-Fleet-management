@@ -65,6 +65,14 @@ export const PREVIEW_ACCOUNTS = [
         label: 'Resp. véhicule',
     },
     {
+        key: 'preview-resp-uniforme',
+        email: 'preview-resp-uniforme@preview.local',
+        name: 'Resp. Uniforme Preview',
+        badge: 'RESP_UNI',
+        color: '#d946ef',
+        label: 'Resp. uniforme',
+    },
+    {
         key: 'preview-chvl',
         email: 'preview-chvl@preview.local',
         name: 'Chauffeur Preview',

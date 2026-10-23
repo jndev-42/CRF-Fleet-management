@@ -16,7 +16,7 @@ User-administration UI extracted from the users page. Currently a single compone
 ### Working In This Directory
 `RoleLegend` takes **no props** and fetches nothing — it is a static reference rendered by `admin/UsersTab.tsx:695`.
 
-**`ROLE_DESCRIPTIONS` is documentation, not enforcement.** The eleven entries (`SUPER_ADMIN`, `ADMIN`, `PRESIDENT`, `TRESORIER`, `RESPO`, `CADRE`, `RESP_VEHICULE`, `CI/RPAPS`, `CHVPSP`, `CHVL`, `INACTIF`) describe what each role may do; the actual checks live in `@/lib/roles` and the API routes. When a role's permissions change in code, update the matching `permissions` array here or the legend silently lies to users. Note `INACTIF` is documented as incompatible with every other role.
+**`ROLE_DESCRIPTIONS` is documentation, not enforcement.** The twelve entries (`SUPER_ADMIN`, `ADMIN`, `PRESIDENT`, `TRESORIER`, `RESPO`, `CADRE`, `RESP_VEHICULE`, `RESP_UNIFORME`, `CI/RPAPS`, `CHVPSP`, `CHVL`, `INACTIF`) describe what each role may do; the actual checks live in `@/lib/roles` and the API routes. When a role's permissions change in code, update the matching `permissions` array here or the legend silently lies to users. Note `INACTIF` is documented as incompatible with every other role.
 
 **This file is the canonical role colour palette.** Each entry carries `color`, `bgColor` (8% alpha), and `borderColor` (25–35% alpha) — the same triplet used for role badges in `UsersTab`. Reuse these values rather than picking new ones for role-coloured UI elsewhere.
 

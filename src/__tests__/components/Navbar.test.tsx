@@ -133,6 +133,15 @@ describe('Navbar', () => {
         expect(screen.getByText('Statistiques')).toBeTruthy();
     });
 
+    it('menu Uniformes admin_only : visible pour RESP_UNIFORME, masqué pour un CADRE', () => {
+        mockGetVisibility = vi.fn((key: string) => (key === 'uniforms' ? 'admin_only' : 'available'));
+        const { unmount } = render(<Navbar user={{ email: 'ru@test.com', roles: ['RESP_UNIFORME'] }} />);
+        expect(screen.getByText('Uniformes')).toBeTruthy();
+        unmount();
+        render(<Navbar user={{ email: 'cadre@test.com', roles: ['CADRE'] }} />);
+        expect(screen.queryByText('Uniformes')).toBeNull();
+    });
+
     it('super_admin_only : masqué pour un ADMIN, visible pour un SUPER_ADMIN', () => {
         mockGetVisibility = vi.fn((key: string) => (key === 'stats' ? 'super_admin_only' : 'available'));
         const { unmount } = render(<Navbar user={{ email: 'admin@test.com', roles: ['ADMIN'] }} />);

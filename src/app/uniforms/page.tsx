@@ -3,14 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { canAccessAdminPanel, isAdminOrAbove, isInactive } from '@/lib/roles';
-import { canSeeMenu } from '@/lib/menuVisibility';
+import { canAccessAdminPanel, canManageUniforms, isInactive } from '@/lib/roles';
+import { canSeeUniformsMenu } from '@/lib/menuVisibility';
 import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
 import UniformTabs, { type UniformTab } from '@/components/uniforms/UniformTabs';
 import UniformCatalog from '@/components/uniforms/UniformCatalog';
 import UniformMyLoansCard from '@/components/uniforms/UniformMyLoansCard';
 import LaundryList from '@/components/uniforms/LaundryList';
 import UniformLoansTable from '@/components/uniforms/UniformLoansTable';
+import UniformHistory from '@/components/uniforms/UniformHistory';
 import UniformManagement from '@/components/uniforms/UniformManagement';
 import { useUniformCatalog } from '@/components/uniforms/useUniformCatalog';
 
@@ -19,7 +20,8 @@ const laundryMarkUrl = (loanId: string) => `/api/uniforms/laundry/${encodeURICom
 /**
  * Uniformes — emprunt et rendu des pièces d'uniforme de l'UL active.
  * « Emprunter » et « À laver » : tout compte actif ; « Emprunts » :
- * `canAccessAdminPanel` ; « Gestion » : `isAdminOrAbove`. Le rendu se fait
+ * `canAccessAdminPanel` ou `canManageUniforms` ; « Gestion » et « Historique » :
+ * `canManageUniforms` (admin ou responsable uniforme). Le rendu se fait
  * depuis la card « Mes pièces empruntées », au-dessus des onglets.
  */
 export default function UniformsPage() {
@@ -29,15 +31,15 @@ export default function UniformsPage() {
     const [tab, setTab] = useState<UniformTab>('borrow');
 
     const roles = (session?.user?.roles || []) as string[];
-    const canAccess = !isInactive(roles) && canSeeMenu(getVisibility('uniforms'), roles);
+    const canAccess = !isInactive(roles) && canSeeUniformsMenu(getVisibility('uniforms'), roles);
 
     const ulId = session?.user?.ulId;
     const hasActiveUl = Boolean(ulId && ulId !== 'default');
     const ulName = session?.user?.availableULs?.find(ul => ul.id === ulId)?.name ?? '';
 
     const tabs: UniformTab[] = ['borrow', 'laundry'];
-    if (canAccessAdminPanel(roles)) tabs.push('loans');
-    if (isAdminOrAbove(roles)) tabs.push('manage');
+    if (canAccessAdminPanel(roles) || canManageUniforms(roles)) tabs.push('loans');
+    if (canManageUniforms(roles)) tabs.push('manage', 'history');
     // Après un changement d'UL où le rôle est moindre, l'onglet choisi peut ne
     // plus être autorisé : on retombe sur « Emprunter » sans toucher à l'état.
     const activeTab: UniformTab = tabs.includes(tab) ? tab : 'borrow';
@@ -83,7 +85,7 @@ export default function UniformsPage() {
                                     items={catalog.data?.items ?? []}
                                     ulId={ulId}
                                     ulName={ulName}
-                                    canRegenerateQr={canAccessAdminPanel(roles)}
+                                    canRegenerateQr={canAccessAdminPanel(roles) || canManageUniforms(roles)}
                                     onChanged={catalog.refresh}
                                 />
                             )}
@@ -91,6 +93,7 @@ export default function UniformsPage() {
                     )}
                     {activeTab === 'laundry' && <LaundryList key={ulId} listUrl="/api/uniforms/laundry" markUrl={laundryMarkUrl} />}
                     {activeTab === 'loans' && <UniformLoansTable key={ulId} />}
+                    {activeTab === 'history' && <UniformHistory key={ulId} />}
                 </>
             )}
         </div>

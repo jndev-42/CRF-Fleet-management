@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.34.0] — 23 octobre 2026
+
+### ✨ Nouveautés
+
+- **Onglet « Historique » dans Uniformes** — un journal des emprunts, des rendus et des lavages de l'unité locale, du plus récent au plus ancien. Un emprunt regroupe les pièces d'un même panier, un « Tout rendre » reste un seul rendu (état propre ou sale et commentaire), un lavage indique qui a lavé la pièce. On filtre par type, on cherche par emprunteur ou par pièce, et « Charger plus » affiche les 50 événements suivants. Les articles et tailles archivés y figurent toujours.
+- **Nouveau rôle « Responsable uniforme »** — dans son unité locale, il a sur les uniformes les mêmes droits qu'un administrateur : Historique, Emprunts, Gestion (articles, tailles, quantités, archivage) et QR code. Il n'a aucun autre droit d'administration. Le rôle s'attribue à la main depuis la liste des utilisateurs. Il accède aussi au menu Uniformes quand celui-ci est réglé sur « Admin uniquement ».
+
+### 🔧 Changements
+
+- **Onglet « Emprunts »** — il ne montre plus que les emprunts en cours ; le filtre « Tout l'historique » est remplacé par le nouvel onglet Historique, réservé aux administrateurs et aux responsables uniforme. Les cadres et les présidents gardent l'onglet Emprunts et le QR code Uniformes.
+- **Légende des rôles** — elle décrit le nouveau rôle.
+
 ## [5.33.0] — 23 octobre 2026
 
 ### ✨ Nouveautés

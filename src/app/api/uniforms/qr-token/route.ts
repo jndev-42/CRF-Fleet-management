@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { canAccessAdminPanel, isQrBlocked } from '@/lib/roles';
+import { canAccessAdminPanel, canManageUniforms, isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { getOrCreateUniformQrToken, regenerateUniformQrToken } from '@/lib/uniforms/qr-token';
@@ -10,10 +10,10 @@ import { withAudit } from '@/lib/audit/log';
 /**
  * GET|POST /api/uniforms/qr-token
  * Token QR « Uniformes » de l'UL de SESSION, créé à la première demande.
- * `canAccessAdminPanel` (modèle `/api/ul/[id]/qr-token`).
+ * `canAccessAdminPanel` ou `canManageUniforms` (modèle `/api/ul/[id]/qr-token`).
  *
  * DELETE /api/uniforms/qr-token
- * Régénère le token (invalide les QR déjà imprimés). `canAccessAdminPanel`.
+ * Régénère le token (invalide les QR déjà imprimés). `canAccessAdminPanel` ou `canManageUniforms`.
  *
  * Modèle `/api/inventory/stocks/[id]/qr-token` :
  *  - l'UL n'est jamais passée par le client — on ne fabrique que le token de
@@ -21,8 +21,8 @@ import { withAudit } from '@/lib/audit/log';
  *    fabrique ne les contourne pas ;
  *  - `isQrBlocked` AVANT toute lecture : `getOrCreateUniformQrToken` écrit le
  *    token s'il manque, et un token est un secret transmissible — un compte
- *    INACTIF ne doit ni le lire, ni le régénérer (`canAccessAdminPanel` seul
- *    est satisfait par `['ADMIN','INACTIF']`).
+ *    INACTIF ne doit ni le lire, ni le régénérer (`canAccessAdminPanel` ou
+ *    `canManageUniforms` seul est satisfait par `['ADMIN','INACTIF']`).
  */
 export async function GET() {
     try {
@@ -31,8 +31,9 @@ export async function GET() {
         const roles = session.user.roles || [];
         if (isQrBlocked(roles)) return forbiddenResponse('Compte inactif');
         // Le token est un secret transmissible et sa lecture le crée : réservé,
-        // comme la régénération, aux profils du panneau d'administration.
-        if (!canAccessAdminPanel(roles)) return forbiddenResponse();
+        // comme la régénération, aux profils du panneau d'administration et au
+        // responsable uniforme.
+        if (!(canAccessAdminPanel(roles) || canManageUniforms(roles))) return forbiddenResponse();
 
         const ulId = activeUlId(session.user.ulId);
         if (!ulId) return NextResponse.json({ error: 'UL introuvable' }, { status: 404 });
@@ -57,7 +58,7 @@ async function deleteHandler() {
         if (!session?.user) return unauthorizedResponse();
         const roles = session.user.roles || [];
         if (isQrBlocked(roles)) return forbiddenResponse('Compte inactif');
-        if (!canAccessAdminPanel(roles)) return forbiddenResponse();
+        if (!(canAccessAdminPanel(roles) || canManageUniforms(roles))) return forbiddenResponse();
 
         const ulId = activeUlId(session.user.ulId);
         if (!ulId) return NextResponse.json({ error: 'UL introuvable' }, { status: 404 });
