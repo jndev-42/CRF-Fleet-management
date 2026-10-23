@@ -32,6 +32,29 @@ it in: at module level it would survive on a warm lambda and keep a credential b
 password was fixed.
 `VehicleNotConnectedError` is a normal business state — a 400, never a 500.
 
+## checkout.ts
+Règles communes aux **deux** parcours d'emprunt (`POST /api/trips` et `POST /api/qr/[token]/checkout`) :
+`readCheckoutBaseline` (km/carburant stockés, remplacés par la télémétrie si connecté),
+`applyCheckoutCorrection` (correction déclarée ; une baisse du km exige `confirmMileageDecrease`,
+sinon corps du 400 `MILEAGE_DECREASE_CONFIRM_REQUIRED`) et `sendCheckoutAlerts` (« Données
+incorrectes » si une valeur change, « Incident signalé à la prise » si l'état est dégradé ; non
+bloquant, ciblé sur l'UL du véhicule). Toute évolution de ces règles se fait ici, jamais dans une
+seule des deux routes. Côté interface, le pendant est `src/components/vehicle/DataCorrectionFields.tsx`
++ `submitWithMileageDecreaseConfirm.ts`.
+
+## eligibleDrivers.ts
+Candidats « 2ème conducteur » (`listEligibleDrivers`) et contrôle serveur du choix
+(`secondDriverError`) — même prédicat SQL pour les deux : rôle de conduite du type de véhicule,
+ni INACTIF ni GUEST. Utilisé par les deux routes `drivers` et les deux routes d'emprunt.
+`listMissionDrivers` : chauffeurs (CHVL/CHVPSP, toutes UL, avec leurs rôles de conduite) de
+l'étape « Équipage » des rapports de mission — routes `/api/missions/drivers` et `/api/qr-ul/[token]/drivers`.
+
+## ulMembers.ts
+`listActiveUlMembers(ulId)` : comptes actifs rattachés à une UL (`UserUL`), hors INACTIF/GUEST
+globaux ou propres à l'UL — candidats « Responsable de la désinfection » des deux routes
+`desinf-responsables`. Ne jamais faire appeler `GET /api/users` (réservé aux gestionnaires) par un
+écran ouvert aux chauffeurs : la liste y serait vide.
+
 ## crypto.ts
 AES-256-GCM for `BrandCredential.passwordEncrypted`. Format frozen by the spec: exactly
 `iv:authTag:ciphertext`, three non-empty base64 segments, no key-id and no version — a corrupted

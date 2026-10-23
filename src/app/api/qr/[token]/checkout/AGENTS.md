@@ -35,11 +35,13 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 3. For fuel: electric vehicles use batteryLevel; fuel vehicles use fuelQuantity / maxFuelCapacity * 100 (capped at 100).
 4. If `dataIncorrect = true` and correctedMileage/correctedFuel provided: override fetched/existing values.
 5. Fallback parking spot: user-supplied or vehicle.parkingSpot or null.
-6. Trip is created with driverId = session.user.id, secondDriverId = null (no second driver on QR checkout).
+5b. A `correctedMileage` below the known mileage (stored or telemetry) requires `confirmMileageDecrease: true`, else 400 with `code: 'MILEAGE_DECREASE_CONFIRM_REQUIRED'` (`applyCheckoutCorrection` in `@/lib/checkout`, shared with `POST /api/trips`). The "Données incorrectes" push is sent only when a value actually changes.
+5c. After commit, `conditionOut` « Dégradé » or « Problème signalé » sends the « Incident signalé à la prise » push to PRESIDENT/CADRE of the vehicle's UL (`sendCheckoutAlerts` in `@/lib/checkout`, shared with `POST /api/trips`, non-fatal).
+6. Trip is created with driverId = session.user.id and the optional `secondDriverId` (checked by `secondDriverError()` from `@/lib/eligibleDrivers`: distinct from the borrower, active, holding the driving role for the vehicle type — else 400). The second driver can then check the vehicle in. Candidates come from `GET /api/qr/[token]/drivers`.
 
 **DB Details:**
 - Transactional (write): atomically insert Trip + update Vehicle.
-- Trip insert: 16 fields (id, vehicleId, driverId, secondDriverId=null, missionType, missionName, checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut, checklistOut, createdAt).
+- Trip insert: 16 fields (id, vehicleId, driverId, secondDriverId (nullable), missionType, missionName, checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut, checklistOut, createdAt).
 - Vehicle update: status = 'IN_USE', mileage, fuelLevel, updatedAt.
 
 **Response Shape:**

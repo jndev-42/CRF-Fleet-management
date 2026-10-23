@@ -1,5 +1,67 @@
 # Changelog
 
+## [5.32.5] — 23 octobre 2026
+
+### Corrections
+
+- **Rapport de mission : liste des chauffeurs vide** — à l'étape « Équipage », la liste « Chauffeur » ne proposait personne aux CI / RPAPS, ni à quiconque déposant un rapport via le QR code d'une unité locale. Elle propose désormais les chauffeurs actifs.
+- **Rapport de mission par QR code d'unité locale : bons véhicules** — la liste « Véhicule utilisé » affiche maintenant les véhicules de l'unité locale du QR code, et non ceux de l'unité locale de la personne connectée.
+
+## [5.32.4] — 23 octobre 2026
+
+### Corrections
+
+- **Retour d'un véhicule après une désinfection : liste des responsables vide** — pour les chauffeurs, la liste « Responsable de la désinfection » ne proposait personne, alors que ce champ est obligatoire : le véhicule ne pouvait pas être rendu. Elle propose désormais les membres actifs de l'unité locale du véhicule, depuis la fiche véhicule comme depuis le QR code.
+
+## [5.32.3] — 23 octobre 2026
+
+### Améliorations
+
+- **Correction du kilométrage et du carburant identique partout** — le bloc « Le kilométrage et/ou le niveau d'essence est erroné » est désormais le même dans la fiche véhicule et après le scan du QR code (même présentation, mêmes contrôles, mêmes alertes).
+- **Moins de notifications inutiles** — signaler des données incorrectes sans rien changer aux valeurs n'envoie plus de notification « Données incorrectes » aux responsables, y compris depuis la fiche véhicule.
+
+## [5.32.2] — 23 octobre 2026
+
+### Corrections
+
+- **Prise d'un véhicule depuis sa fiche : kilométrage réel effacé** — effacer le champ « Kilométrage réel » le laisse désormais vide (et la validation est bloquée tant qu'il n'est pas rempli), au lieu d'y inscrire 0 et de risquer d'enregistrer un compteur à 0 km.
+
+## [5.32.1] — 23 octobre 2026
+
+### Corrections
+
+- **Emprunt par QR code : alerte d'incident** — prendre un véhicule via son QR code en indiquant l'état « Dégradé » ou « Problème signalé » prévient désormais le président et les cadres de l'unité locale du véhicule, comme une prise depuis la fiche véhicule.
+
+## [5.32.0] — 23 octobre 2026
+
+### ✨ Nouveautés
+
+- **Kilométrage corrigé à la baisse : confirmation demandée** — à la prise d'un véhicule (fiche véhicule ou QR code), si le kilométrage réel saisi est inférieur au kilométrage connu, un avertissement s'affiche sous le champ et une confirmation est demandée avant d'enregistrer. Une faute de frappe (1 200 au lieu de 12 000 km) ne fait plus reculer le compteur du véhicule par mégarde.
+
+### Corrections
+
+- **2ème conducteur : seuls les chauffeurs actifs et habilités sont acceptés** — à la prise d'un véhicule, le 2ème conducteur doit être différent de vous, actif et habilité au type de véhicule (VL ou VPSP), y compris si la demande ne passe pas par l'écran.
+- **Ajout d'un 2ème conducteur à un trajet en cours** — sur la fiche véhicule, l'encadré « Ajouter 2nd cond. » propose désormais la liste des chauffeurs habilités aux chauffeurs eux-mêmes (elle était vide).
+- **Correction du kilométrage d'un véhicule connecté via le QR code** — ressaisir la valeur affichée comme « réelle » est désormais bien pris en compte, même si la valeur lue en direct sur le véhicule diffère.
+- **Page du QR code d'un véhicule emprunté** — si le conducteur n'a pas de nom renseigné, son email est affiché.
+
+## [5.31.1] — 23 octobre 2026
+
+### Corrections
+
+- **Prise d'un véhicule depuis sa fiche : la liste du 2ème conducteur était vide** — pour les chauffeurs (CHVL, CHVPSP) et les autres rôles non gestionnaires, la liste déroulante « 2ème Conducteur » ne proposait personne. Elle affiche désormais les chauffeurs habilités au type de véhicule.
+- **Page du QR code d'un véhicule emprunté : 2ème conducteur affiché** — l'encadré « En mission avec… » indique désormais aussi le nom du 2ème conducteur.
+
+## [5.31.0] — 23 octobre 2026
+
+### ✨ Nouveautés
+
+- **Emprunt par QR code : 2ème conducteur** — le formulaire d'emprunt affiché après le scan du QR code permet désormais d'ajouter un 2ème conducteur, choisi parmi les chauffeurs habilités au type de véhicule (VL ou VPSP), toutes unités locales confondues. Le 2ème conducteur peut ensuite rendre le véhicule lui-même.
+
+### Corrections
+
+- **Emprunt par QR code : corriger le kilométrage et le carburant** — après le scan du QR code d'un véhicule, le formulaire d'emprunt propose désormais la case « Le kilométrage et/ou le niveau d'essence est erroné », comme la fiche véhicule. Une fois cochée, elle permet de saisir le kilométrage réel et le niveau réel ; ces valeurs sont enregistrées au départ et le président, les cadres et les administrateurs reçoivent la notification « Données incorrectes ».
+
 ## [5.30.1] — 22 octobre 2026
 
 ### Corrections

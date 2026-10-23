@@ -79,6 +79,11 @@ describe('QRUnitLocalePage', () => {
         // Wizard visible après chargement
         const submitBtn = await screen.findByTestId('wizard-submit');
         expect(vi.mocked(MissionWizard)).toHaveBeenCalledTimes(1);
+        // Listes de l'étape « Équipage » : véhicules et chauffeurs de l'UL du QR,
+        // jamais GET /api/vehicles (UL de la session) ni GET /api/users (gestionnaires).
+        const wizardProps = vi.mocked(MissionWizard).mock.calls[0][0];
+        expect(wizardProps.crewEndpoints?.vehicles).toMatch(/^\/api\/qr-ul\/[^/]+\/vehicles$/);
+        expect(wizardProps.crewEndpoints?.drivers).toMatch(/^\/api\/qr-ul\/[^/]+\/drivers$/);
 
         // Déclenche onSuccess → carte de confirmation
         fireEvent.click(submitBtn);

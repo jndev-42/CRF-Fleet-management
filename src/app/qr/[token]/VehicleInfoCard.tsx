@@ -65,7 +65,8 @@ export default function VehicleInfoCard({ vehicle }: { vehicle: QRVehicle }) {
                     marginBottom: 20,
                 }}>
                     <div style={{ fontWeight: 700, color: 'var(--status-inuse)', marginBottom: 4 }}>
-                        🧑‍✈️ En mission avec {activeTrip.driverName}
+                        🧑‍✈️ En mission avec {activeTrip.driverName || activeTrip.driverEmail}
+                        {(activeTrip.secondDriverName || activeTrip.secondDriverEmail) && ` et ${activeTrip.secondDriverName || activeTrip.secondDriverEmail}`}
                     </div>
                     <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
                         Depuis le {formatDate(activeTrip.checkOutAt)} · {activeTrip.missionType}

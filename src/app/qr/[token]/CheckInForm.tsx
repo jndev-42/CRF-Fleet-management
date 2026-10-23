@@ -63,11 +63,13 @@ export default function CheckInForm({
 
     useEffect(() => {
         if (!isDesinf && !hasDesinfTracking) return;
-        fetch('/api/users')
+        // Route dédiée : `GET /api/users` est réservé aux gestionnaires, un chauffeur y
+        // recevait un 403 — liste vide, et retour d'une désinfection impossible.
+        fetch(`/api/qr/${encodeURIComponent(token)}/desinf-responsables`)
             .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
-    }, [isDesinf, hasDesinfTracking]);
+    }, [isDesinf, hasDesinfTracking, token]);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();

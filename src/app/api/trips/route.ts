@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
-import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
 import { isAdminOrAbove, isChvlDriver, isChvpspDriver } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
@@ -9,6 +8,8 @@ import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseSt
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { checkOutSchema } from './schema';
 import { withAudit } from '@/lib/audit/log';
+import { secondDriverError } from '@/lib/eligibleDrivers';
+import { applyCheckoutCorrection, readCheckoutBaseline, sendCheckoutAlerts } from '@/lib/checkout';
 
 async function postHandler(request: Request) {
     try {
@@ -161,33 +162,25 @@ async function postHandler(request: Request) {
             return forbiddenResponse('Vous n\'avez pas les droits pour emprunter ce véhicule');
         }
 
-        // Fetch live Renault data if vehicle is connected
-        let mileageOut = vehicle.mileage as number;
-        let fuelOut = vehicle.fuelLevel as number;
-        const connectedVehicleId = vehicle.id as string;
-
-        if (await isConnectedInDb(connectedVehicleId)) {
-            try {
-                const rData = await getRenaultVehicleData(connectedVehicleId);
-                if (rData.totalMileage !== null) mileageOut = rData.totalMileage;
-                if (rData.isElectric && rData.batteryLevel !== null) fuelOut = rData.batteryLevel;
-                if (!rData.isElectric && rData.fuelQuantity !== null) {
-                    fuelOut = Math.min(Math.round((rData.fuelQuantity / (Number(vehicle.maxFuelCapacity) || 50)) * 100), 100);
-                }
-            } catch (e) {
-                console.error('Failed to get live Renault data during checkout', e);
-            }
+        // Kilométrage/carburant de départ et correction déclarée — règles partagées avec
+        // `POST /api/qr/[token]/checkout` (cf. `@/lib/checkout`).
+        const baseline = await readCheckoutBaseline(vehicle);
+        const correction = applyCheckoutCorrection(baseline, data);
+        if (!correction.ok) {
+            return NextResponse.json(correction.body, { status: 400 });
         }
-
-        // Override with user-reported corrections for non-connected vehicles
-        const originalMileage = mileageOut;
-        const originalFuel = fuelOut;
-        if (data.dataIncorrect) {
-            if (data.correctedMileage !== undefined) mileageOut = data.correctedMileage;
-            if (data.correctedFuel !== undefined) fuelOut = data.correctedFuel;
-        }
+        const { mileage: mileageOut, fuel: fuelOut } = correction.levels;
 
         const driverId = session.user.id;
+
+        // 2ème conducteur : chauffeur actif habilité, distinct de l'emprunteur (même
+        // contrôle que l'emprunt par QR code).
+        if (data.secondDriverId) {
+            const secondDriverMessage = await secondDriverError(vehicle.type, driverId, data.secondDriverId);
+            if (secondDriverMessage) {
+                return NextResponse.json({ error: secondDriverMessage }, { status: 400 });
+            }
+        }
 
         // Créer le trip et mettre à jour le véhicule en transaction
         const tx = await db.transaction('write');
@@ -244,52 +237,13 @@ async function postHandler(request: Request) {
 
             await tx.commit();
 
-            // Incorrect data push notification (non-connected vehicle)
-            if (data.dataIncorrect) {
-                try {
-                    const { sendPushNotification } = await import('@/lib/push');
-                    const vName = vehicle.name || 'Véhicule inconnu';
-                    const fuelLabel = vehicle.fuelType === 'Électrique' ? 'Batterie' : 'Carburant';
-                    const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
-
-                    await sendPushNotification({
-                        roles: ['PRESIDENT', 'CADRE', 'ADMIN'],
-                        headings: { fr: `⚠️ Données incorrectes — ${vName}`, en: `⚠️ Incorrect data — ${vName}` },
-                        contents: {
-                            fr: `${driverDisplayName} a signalé des données incorrectes sur ${vName}. Km : ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel} : ${originalFuel}% → ${fuelOut}%.`,
-                            en: `${driverDisplayName} reported incorrect data on ${vName}. Mileage: ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel}: ${originalFuel}% → ${fuelOut}%.`,
-                        },
-                        url: `/vehicles/${encodeURIComponent(String(vName))}`,
-                        ulId: vehicle.ulId as string || 'ul-paris-18',
-                        excludeUserId: session.user.id
-                    });
-                } catch (pushError) {
-                    console.error('Erreur lors de l\'envoi de la notification données incorrectes:', pushError);
-                }
-            }
-
-            // Incident push notification
-            if (data.conditionOut === "Problème signalé" || data.conditionOut === "Dégradé") {
-                try {
-                    const { sendPushNotification } = await import('@/lib/push');
-                    const vName = vehicle.name || 'Véhicule inconnu';
-                    const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
-
-                    await sendPushNotification({
-                        roles: ['PRESIDENT', 'CADRE'],
-                        headings: { en: `🚨 Incident signalé à la prise de ${vName}`, fr: `🚨 Incident signalé à la prise de ${vName}` },
-                        contents: {
-                            en: `${driverDisplayName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,
-                            fr: `${driverDisplayName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`
-                        },
-                        url: `/vehicles/${encodeURIComponent(String(vName))}`,
-                        ulId: vehicle.ulId as string || 'ul-paris-18',
-                        excludeUserId: session.user.id
-                    });
-                } catch (pushError) {
-                    console.error('Erreur lors de l\'envoi de la notification Push Incident:', pushError);
-                }
-            }
+            await sendCheckoutAlerts({
+                vehicle,
+                user: session.user,
+                conditionOut: data.conditionOut,
+                baseline,
+                levels: correction.levels,
+            });
 
             const trip = {
                 id: tripId,

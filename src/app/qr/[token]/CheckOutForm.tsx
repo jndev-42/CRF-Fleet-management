@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import ChecklistItems from '@/components/vehicle/ChecklistItems';
+import UserCombobox from '@/components/ui/UserCombobox';
+import DataCorrectionFields from '@/components/vehicle/DataCorrectionFields';
+import { useQrDrivers } from './useQrDrivers';
 import type { QRVehicle } from './types';
+import { submitWithMileageDecreaseConfirm } from '@/components/vehicle/submitWithMileageDecreaseConfirm';
 
 export default function CheckOutForm({
     vehicle,
@@ -21,9 +25,46 @@ export default function CheckOutForm({
         commentsOut: '',
         parkingOut: vehicle.parkingSpot || '',
     });
+    const drivers = useQrDrivers(token);
+    const [secondDriverId, setSecondDriverId] = useState('');
     const [checklistOut, setChecklistOut] = useState<Record<string, boolean>>({});
+    const [dataIncorrect, setDataIncorrect] = useState(false);
+    // Chaîne vide autorisée : un champ vidé ne doit pas devenir 0 km.
+    const [correctedMileage, setCorrectedMileage] = useState<number | ''>(vehicle.mileage);
+    const [correctedFuel, setCorrectedFuel] = useState(vehicle.fuelLevel);
+    // Seules les valeurs que l'utilisateur a modifiées sont envoyées. On suit la saisie
+    // plutôt que de comparer à la valeur stockée : pour un véhicule connecté, le serveur
+    // part de la télémétrie, et ressaisir la valeur stockée est une vraie correction.
+    const [mileageTouched, setMileageTouched] = useState(false);
+    const [fuelTouched, setFuelTouched] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    async function postCheckout(confirmMileageDecrease: boolean) {
+        const isDsaChecked = checklistOut[`dsa-checkout-${vehicle.id}`] || false;
+        const sendMileage = dataIncorrect && mileageTouched && correctedMileage !== '';
+        const sendFuel = dataIncorrect && fuelTouched;
+
+        return fetch(`/api/qr/${token}/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                missionType: form.missionType,
+                missionName: form.missionName || undefined,
+                conditionOut: form.conditionOut,
+                cleanlinessOut: form.cleanlinessOut,
+                parkingOut: form.parkingOut || undefined,
+                commentsOut: form.commentsOut || undefined,
+                dsaChecked: isDsaChecked,
+                secondDriverId: secondDriverId || undefined,
+                checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
+                dataIncorrect: (sendMileage || sendFuel) || undefined,
+                correctedMileage: sendMileage ? correctedMileage : undefined,
+                correctedFuel: sendFuel ? correctedFuel : undefined,
+                confirmMileageDecrease: confirmMileageDecrease || undefined,
+            }),
+        });
+    }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -31,23 +72,9 @@ export default function CheckOutForm({
         setError(null);
 
         try {
-            const isDsaChecked = checklistOut[`dsa-checkout-${vehicle.id}`] || false;
-
-            const res = await fetch(`/api/qr/${token}/checkout`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    missionType: form.missionType,
-                    missionName: form.missionName || undefined,
-                    conditionOut: form.conditionOut,
-                    cleanlinessOut: form.cleanlinessOut,
-                    parkingOut: form.parkingOut || undefined,
-                    commentsOut: form.commentsOut || undefined,
-                    dsaChecked: isDsaChecked,
-                    checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
-                }),
-            });
-
+            // Kilométrage corrigé à la baisse : le serveur exige une confirmation explicite.
+            const res = await submitWithMileageDecreaseConfirm(postCheckout, "Confirmer l'emprunt avec ce kilométrage ?");
+            if (!res) return;
             const json = await res.json();
             if (res.ok) {
                 onSuccess();
@@ -80,6 +107,32 @@ export default function CheckOutForm({
                     {error}
                 </div>
             )}
+
+            <DataCorrectionFields
+                idPrefix="qr-checkout"
+                connected={vehicle.connection?.status === 'CONNECTED'}
+                fuelType={vehicle.fuelType}
+                dataIncorrect={dataIncorrect}
+                correctedMileage={correctedMileage}
+                correctedFuel={correctedFuel}
+                onDataIncorrectChange={setDataIncorrect}
+                knownMileage={vehicle.mileage}
+                onMileageChange={value => { setCorrectedMileage(value); setMileageTouched(true); }}
+                onFuelChange={value => { setCorrectedFuel(value); setFuelTouched(true); }}
+            />
+
+            <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                    2ème conducteur (optionnel)
+                </label>
+                <UserCombobox
+                    users={drivers}
+                    value={secondDriverId}
+                    onChange={setSecondDriverId}
+                    defaultLabel="— Aucun —"
+                    placeholder="Rechercher..."
+                />
+            </div>
 
             <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>

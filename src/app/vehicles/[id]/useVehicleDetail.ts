@@ -67,13 +67,16 @@ export function useVehicleDetail(id: string) {
         return () => fetchVehicleAbortRef.current?.abort();
     }, [fetchVehicle]);
 
+    // Candidats « 2ème conducteur » de l'encadré du trajet en cours (seul consommateur).
+    // Route dédiée : `GET /api/users` est réservé aux gestionnaires, un chauffeur y
+    // recevait un 403 et voyait une liste vide.
     useEffect(() => {
-        if (!vehicle?.type) return;
-        fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
+        if (!vehicle?.id) return;
+        fetch(`/api/vehicles/${encodeURIComponent(vehicle.id)}/drivers`)
             .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
-    }, [vehicle?.type]);
+    }, [vehicle?.id]);
 
     // Fetch all maintenance records for the vehicle (used for CT/revision calculations)
     const fetchAllMaintenanceRecords = useCallback(async () => {

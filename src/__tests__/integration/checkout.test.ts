@@ -45,7 +45,7 @@ vi.mock('@/lib/push', () => ({
 import { POST } from '@/app/api/trips/route';
 import { auth } from '@/auth';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
-import { db, seedVehicle, seedUser } from './setup';
+import { db, seedVehicle, seedUser, seedRoles, seedUserRole } from './setup';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { sendPushNotification } from '@/lib/push';
 
@@ -752,5 +752,85 @@ describe('POST /api/trips — liens des notifications', () => {
       roles: ['PRESIDENT', 'CADRE', 'ADMIN'],
       excludeUserId: 'user-driver',
     }));
+  });
+});
+
+describe('POST /api/trips — 2ème conducteur', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.mocked(isConnectedInDb).mockResolvedValue(false);
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedRoles([...['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'CADRE', 'CHVL', 'CHVPSP', 'INACTIF'], 'GUEST']);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedUserRole('user-driver', 'CHVL');
+    await seedUser({ id: 'user-chvl', email: 'chvl@test.com' });
+    await seedUserRole('user-chvl', 'CHVL');
+    await seedUser({ id: 'user-chvpsp', email: 'chvpsp@test.com' });
+    await seedUserRole('user-chvpsp', 'CHVPSP');
+    await seedUser({ id: 'user-inactif', email: 'inactif@test.com' });
+    await seedUserRole('user-inactif', 'CHVL');
+    await seedUserRole('user-inactif', 'INACTIF');
+    await seedUser({ id: 'user-guest', email: 'guest@test.com' });
+    await seedUserRole('user-guest', 'CHVL');
+    await seedUserRole('user-guest', 'GUEST');
+    await seedVehicle({ id: 'VL001', type: 'VL', status: 'AVAILABLE' });
+  });
+
+  it('enregistre un 2ème conducteur habilité et actif', async () => {
+    const res = await POST(makeRequest({ ...validCheckOutBody, secondDriverId: 'user-chvl' }));
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    const trip = await db.execute({ sql: `SELECT secondDriverId FROM Trip WHERE id = ?`, args: [body.id] });
+    expect(trip.rows[0].secondDriverId).toBe('user-chvl');
+  });
+
+  it.each([
+    ['soi-même', 'user-driver'],
+    ['inconnu', 'user-fantome'],
+    ['INACTIF', 'user-inactif'],
+    ['GUEST (hérité)', 'user-guest'],
+    ['non habilité au type (CHVPSP sur un VL)', 'user-chvpsp'],
+  ])('refuse en 400 un 2ème conducteur %s, sans créer de trajet', async (_label, secondDriverId) => {
+    const res = await POST(makeRequest({ ...validCheckOutBody, secondDriverId }));
+    expect(res.status).toBe(400);
+    const count = await db.execute(`SELECT COUNT(*) AS n FROM Trip`);
+    expect(Number(count.rows[0].n)).toBe(0);
+    const vehicle = await db.execute({ sql: `SELECT status FROM Vehicle WHERE id = ?`, args: ['VL001'] });
+    expect(vehicle.rows[0].status).toBe('AVAILABLE');
+  });
+});
+
+describe('POST /api/trips — kilométrage corrigé à la baisse', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.mocked(isConnectedInDb).mockResolvedValue(false);
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedVehicle({ id: 'VL001', status: 'AVAILABLE', mileage: 12000, fuelLevel: 50 });
+  });
+
+  it('exige une confirmation (400 MILEAGE_DECREASE_CONFIRM_REQUIRED) sans rien écrire', async () => {
+    const res = await POST(makeRequest({ ...validCheckOutBody, dataIncorrect: true, correctedMileage: 1200 }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe('MILEAGE_DECREASE_CONFIRM_REQUIRED');
+    expect(body.knownMileage).toBe(12000);
+    expect(body.error).toMatch(/1.200 km.*12.000 km/);
+    const count = await db.execute(`SELECT COUNT(*) AS n FROM Trip`);
+    expect(Number(count.rows[0].n)).toBe(0);
+  });
+
+  it('accepte la baisse confirmée et corrige le compteur', async () => {
+    const res = await POST(makeRequest({ ...validCheckOutBody, dataIncorrect: true, correctedMileage: 11800, confirmMileageDecrease: true }));
+    expect(res.status).toBe(201);
+    const vehicle = await db.execute({ sql: `SELECT mileage FROM Vehicle WHERE id = ?`, args: ['VL001'] });
+    expect(Number(vehicle.rows[0].mileage)).toBe(11800);
+  });
+
+  it("n'exige rien pour une correction à la hausse", async () => {
+    const res = await POST(makeRequest({ ...validCheckOutBody, dataIncorrect: true, correctedMileage: 12100 }));
+    expect(res.status).toBe(201);
   });
 });

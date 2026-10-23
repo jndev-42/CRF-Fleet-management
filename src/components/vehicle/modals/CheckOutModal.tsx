@@ -3,12 +3,13 @@ import { Vehicle } from '@/app/vehicles/[id]/types';
 import { isVehicleConnected } from '@/app/vehicles/[id]/utils';
 
 import ChecklistItems from '../ChecklistItems';
-import FuelBar from '@/components/vehicle/FuelBar';
+import DataCorrectionFields from '@/components/vehicle/DataCorrectionFields';
 import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import { submitWithMileageDecreaseConfirm } from '@/components/vehicle/submitWithMileageDecreaseConfirm';
 
 interface CheckOutModalProps {
     vehicle: Vehicle;
@@ -46,12 +47,14 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
     const [checklistOut, setChecklistOut] = useState<Record<string, boolean>>({});
 
     const [dataIncorrect, setDataIncorrect] = useState(false);
-    const [correctedMileage, setCorrectedMileage] = useState(vehicle.mileage);
+    // Chaîne vide autorisée : un champ vidé doit rester vide (et bloquer la validation
+    // via `required`), et non devenir 0 km.
+    const [correctedMileage, setCorrectedMileage] = useState<number | ''>(vehicle.mileage);
     const [correctedFuel, setCorrectedFuel] = useState(vehicle.fuelLevel);
 
     const [submitting, setSubmitting] = useState(false);
     const [sessionLoading, setSessionLoading] = useState(true);
-    const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+    const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
     const [photos, setPhotos] = useState<File[]>([]);
     // Booléen hissé hors de l'effet : `isVehicleConnected(vehicle)` y lirait l'objet `vehicle`
     // entier, que `exhaustive-deps` exigerait alors en dépendance — l'effet se rejouerait à
@@ -77,7 +80,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
             .catch(console.error)
             .finally(() => setSessionLoading(false));
 
-        fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
+        // Route dédiée : `GET /api/users` est réservé aux gestionnaires, un chauffeur y
+        // recevait un 403 et voyait une liste vide.
+        fetch(`/api/vehicles/${encodeURIComponent(vehicle.id)}/drivers`)
             .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => {
                 if (data.users) setUsers(data.users);
@@ -168,7 +173,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
             const isDsaChecked = checklistOut[`dsa-checkout-${vehicle.id}`] || false;
 
-            const res = await fetch('/api/trips', {
+            const postTrip = (confirmMileageDecrease: boolean) => fetch('/api/trips', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -184,10 +189,18 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                     driveFolderId,
                     checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
                     dataIncorrect: dataIncorrect || undefined,
-                    correctedMileage: dataIncorrect ? correctedMileage : undefined,
+                    correctedMileage: dataIncorrect && correctedMileage !== '' ? correctedMileage : undefined,
                     correctedFuel: dataIncorrect ? correctedFuel : undefined,
+                    confirmMileageDecrease: confirmMileageDecrease || undefined,
                 }),
             });
+
+            // Kilométrage corrigé à la baisse : le serveur exige une confirmation explicite.
+            const res = await submitWithMileageDecreaseConfirm(postTrip, 'Confirmer la prise du véhicule avec ce kilométrage ?');
+            if (!res) {
+                setSubmitting(false);
+                return;
+            }
             if (res.ok) {
                 // API completed successfully — close modal and trigger refetch
                 onSuccess();
@@ -230,7 +243,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         >
                             <div><strong>Immatriculation :</strong> {vehicle.plate}</div>
                             <div>
-                                <strong>Kilométrage :</strong> {loadingRenault ? '...' : (dataIncorrect ? correctedMileage : (vehicle.mileage)).toLocaleString('fr-FR')} km
+                                <strong>Kilométrage :</strong> {loadingRenault ? '...' : (dataIncorrect && correctedMileage !== '' ? correctedMileage : vehicle.mileage).toLocaleString('fr-FR')} km
                                 {connected && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
                                 {renaultError && <span style={{ marginLeft: 8, color: 'var(--error-text)', fontSize: 11 }}>⚠️ Renault injoignable</span>}
                             </div>
@@ -241,61 +254,19 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         </div>
 
                         {/* Correction données véhicule */}
-                        <div
-                            style={{
-                                marginBottom: 20,
-                                padding: '12px 14px',
-                                background: dataIncorrect ? 'var(--status-maintenance-bg)' : 'var(--bg-card)',
-                                borderRadius: 'var(--radius-sm)',
-                                border: `1px solid ${dataIncorrect ? 'rgba(239,68,68,0.4)' : 'var(--border-primary)'}`,
-                            }}
-                        >
-                            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
-                                <input
-                                    type="checkbox"
-                                    checked={dataIncorrect}
-                                    onChange={e => setDataIncorrect(e.target.checked)}
-                                    style={{ width: 16, height: 16, cursor: 'pointer' }}
-                                />
-                                <span>{connected ? 'Saisir manuellement le kilométrage/carburant' : 'Le kilométrage et/ou le niveau d\'essence est erroné'}</span>
-                            </label>
-
-                            {dataIncorrect && (
-                                <div className="form-row" style={{ marginTop: 14 }}>
-                                    <div className="form-group">
-                                        <label className="form-label" htmlFor="checkout-corrected-mileage">Kilométrage réel (km)</label>
-                                        <input
-                                            id="checkout-corrected-mileage"
-                                            className="form-input"
-                                            type="number"
-                                            min={0}
-                                            value={correctedMileage}
-                                            onChange={e => setCorrectedMileage(Number(e.target.value))}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label className="form-label" htmlFor="checkout-corrected-fuel">
-                                            {vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')} réel : {correctedFuel}%
-                                        </label>
-                                        <input
-                                            id="checkout-corrected-fuel"
-                                            type="range"
-                                            className="fuel-slider"
-                                            min={0}
-                                            max={100}
-                                            value={correctedFuel}
-                                            onChange={e => setCorrectedFuel(Number(e.target.value))}
-                                            aria-label="Niveau de carburant"
-                                            aria-valuemin={0}
-                                            aria-valuemax={100}
-                                            aria-valuenow={correctedFuel}
-                                        />
-                                        <FuelBar level={correctedFuel} electric={vehicle.fuelType === 'Électrique'} style={{ marginTop: 6 }} />
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                        <DataCorrectionFields
+                            idPrefix="checkout"
+                            connected={connected}
+                            fuelType={vehicle.fuelType}
+                            dataIncorrect={dataIncorrect}
+                            correctedMileage={correctedMileage}
+                            correctedFuel={correctedFuel}
+                            knownMileage={vehicle.mileage}
+                            onDataIncorrectChange={setDataIncorrect}
+                            onMileageChange={setCorrectedMileage}
+                            onFuelChange={setCorrectedFuel}
+                            style={{ marginBottom: 20 }}
+                        />
 
                         {/* Identité */}
                         <div className="form-row">

@@ -87,8 +87,8 @@ async function defaultFetchHandler(input: string | URL | Request, init?: Request
     if (url.includes('/checklist')) {
         return new Response(JSON.stringify([]), { status: 200 });
     }
-    if (url.includes('/api/users')) {
-        return new Response(JSON.stringify({ users: [] }), { status: 200 });
+    if (url.includes('/desinf-responsables')) {
+        return new Response(JSON.stringify({ users: [{ id: 'usr-2', name: 'Marie Martin', email: 'marie@croix-rouge.fr' }] }), { status: 200 });
     }
     if (url.includes('/checkin') && init?.method === 'PATCH') {
         return new Response(JSON.stringify({ success: true }), { status: 200 });
@@ -209,6 +209,21 @@ describe('CheckInModal', () => {
         await waitFor(() => {
             expect(window.alert).toHaveBeenCalledWith('Le responsable de la désinfection et le numéro de lot sont obligatoires.');
         });
+    });
+
+    it('propose les responsables de désinfection via la route dédiée (et non GET /api/users, réservé aux gestionnaires)', async () => {
+        const fetchMock = mockFetch();
+        const desinfTrip = { ...mockTrip, missionType: 'Désinfection' };
+        render(<CheckInModal vehicle={{ ...mockVehicle, type: 'VPSP' }} trip={desinfTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+
+        await screen.findByDisplayValue('12000');
+        await waitFor(() => {
+            const urls = fetchMock.mock.calls.map(([input]) => getUrl(input as string));
+            expect(urls).toContain(`/api/vehicles/${mockVehicle.id}/desinf-responsables`);
+            expect(urls.some(u => u.startsWith('/api/users'))).toBe(false);
+        });
+        fireEvent.click(screen.getByRole('button', { name: /Sélectionner|Rechercher|Aucun|—/ }));
+        expect(await screen.findByRole('option', { name: /Marie Martin/ })).toBeTruthy();
     });
 
     it('affiche une alerte si l\'API échoue', async () => {

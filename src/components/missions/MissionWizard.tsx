@@ -7,7 +7,7 @@ import { SUPPLY_CATEGORIES, type SupplyCategory } from '@/lib/mission-supplies';
 import Step0ULSelection from './steps/Step0ULSelection';
 import Step1General from './steps/Step1General';
 import StepInterventionBreakdown from './steps/StepInterventionBreakdown';
-import Step2Vehicle from './steps/Step2Vehicle';
+import Step2Vehicle, { type CrewEndpoints } from './steps/Step2Vehicle';
 import Step3Supplies from './steps/Step3Supplies';
 import Step4Oxygen from './steps/Step4Oxygen';
 import Step5Team from './steps/Step5Team';
@@ -109,6 +109,9 @@ interface MissionWizardProps {
     /** Route de soumission — la variante QR poste sur `/api/qr-ul/[token]/mission-report`,
      *  qui n'applique PAS le filtre de rôles de `/api/missions`. */
     submitEndpoint?: string;
+    /** Sources des listes de l'étape « Équipage » — la variante QR lit les véhicules de
+     *  l'UL du QR et les chauffeurs via des routes ouvertes à tout compte. */
+    crewEndpoints?: CrewEndpoints;
     onSuccess: (id: string) => void;
 }
 
@@ -119,6 +122,7 @@ export default function MissionWizard({
     lockedUlId,
     lockedUlName,
     submitEndpoint = '/api/missions',
+    crewEndpoints,
     onSuccess,
 }: MissionWizardProps) {
     const router = useRouter();
@@ -479,7 +483,7 @@ export default function MissionWizard({
                     onNatureChange={handleInterventionNatureChange}
                 />
             )}
-            {currentStepLabel === 'Équipage' && <Step2Vehicle data={formData} onChange={patchFormData} currentUserId={currentUserId} currentUserName={currentUserName} />}
+            {currentStepLabel === 'Équipage' && <Step2Vehicle data={formData} onChange={patchFormData} currentUserId={currentUserId} currentUserName={currentUserName} endpoints={crewEndpoints} />}
             {currentStepLabel === 'Matériel' && <Step3Supplies supplies={supplies} onSupplyChange={handleSupplyChange} />}
             {currentStepLabel === 'Oxygène' && <Step4Oxygen supplies={supplies} onSupplyChange={handleSupplyChange} />}
             {currentStepLabel === 'Équipe' && <Step5Team data={formData} onChange={patchFormData} currentUserUlName={currentUserUlName} />}

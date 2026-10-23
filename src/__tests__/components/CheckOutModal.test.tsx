@@ -47,8 +47,10 @@ async function defaultFetchHandler(input: string | URL | Request, init?: Request
     if (url.includes('/api/auth/session')) {
         return new Response(JSON.stringify({ user: { name: 'Jean Dupont', email: 'jean@test.com' } }), { status: 200 });
     }
-    if (url.includes('/api/users')) {
-        return new Response(JSON.stringify({ users: [] }), { status: 200 });
+    if (url.includes('/drivers')) {
+        return new Response(JSON.stringify({
+            users: [{ id: 'usr-2', name: 'Marie Martin', email: 'marie@croix-rouge.fr' }],
+        }), { status: 200 });
     }
     if (url.includes('/checklist')) {
         return new Response(JSON.stringify([]), { status: 200 });
@@ -84,6 +86,90 @@ describe('CheckOutModal', () => {
 
         expect(await screen.findByDisplayValue('Jean Dupont')).toBeTruthy();
         expect(screen.getByDisplayValue('jean@test.com')).toBeTruthy();
+    });
+
+    it('propose les 2èmes conducteurs de la route dédiée (et non GET /api/users, réservé aux gestionnaires)', async () => {
+        const fetchMock = mockFetch();
+        render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('Jean Dupont');
+
+        const urls = fetchMock.mock.calls.map(([input]) => getUrl(input as string));
+        expect(urls).toContain('/api/vehicles/VL001/drivers');
+        expect(urls.some(u => u.startsWith('/api/users'))).toBe(false);
+
+        fireEvent.click(screen.getByRole('button', { name: /Aucun/ }));
+        fireEvent.click(await screen.findByRole('option', { name: /Marie Martin/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+
+        await waitFor(() => {
+            const post = fetchMock.mock.calls.find(([input, init]) => getUrl(input as string).includes('/api/trips') && (init as RequestInit)?.method === 'POST');
+            expect(post).toBeTruthy();
+            expect(JSON.parse((post![1] as RequestInit).body as string).secondDriverId).toBe('usr-2');
+        });
+    });
+
+    it('un kilométrage réel vidé reste vide et obligatoire (et non 0 km)', async () => {
+        mockFetch();
+        render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('Jean Dupont');
+
+        fireEvent.click(screen.getByLabelText(/Le kilométrage et\/ou le niveau d'essence est erroné/));
+        const input = screen.getByLabelText(/Kilométrage réel/) as HTMLInputElement;
+        fireEvent.change(input, { target: { value: '' } });
+        expect(input.value).toBe('');
+        expect(input.required).toBe(true);
+        // Pas d'avertissement de baisse sur un champ vide.
+        expect(screen.queryByText(/Inférieur au kilométrage connu/)).toBeNull();
+    });
+
+    it("n'envoie jamais un kilométrage vidé, même si le formulaire est soumis", async () => {
+        const fetchMock = mockFetch();
+        const onSuccess = vi.fn();
+        const { container } = render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={onSuccess} />);
+        await screen.findByDisplayValue('Jean Dupont');
+
+        fireEvent.click(screen.getByLabelText(/Le kilométrage et\/ou le niveau d'essence est erroné/));
+        fireEvent.change(screen.getByLabelText(/Kilométrage réel/), { target: { value: '' } });
+        // Soumission programmatique : contourne le `required` du navigateur.
+        fireEvent.submit(container.querySelector('form')!);
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        const post = fetchMock.mock.calls.find(([input, init]) => getUrl(input as string).includes('/api/trips') && (init as RequestInit)?.method === 'POST');
+        const body = JSON.parse((post![1] as RequestInit).body as string);
+        expect(body.correctedMileage).toBeUndefined();
+    });
+
+    it('kilométrage corrigé à la baisse : avertit, demande confirmation puis renvoie avec confirmMileageDecrease', async () => {
+        let tripCalls = 0;
+        const fetchMock = mockFetch(async (input, init) => {
+            const url = getUrl(input);
+            if (url.includes('/api/trips') && init?.method === 'POST') {
+                tripCalls += 1;
+                if (tripCalls === 1) {
+                    return new Response(JSON.stringify({ error: 'Le kilométrage saisi est inférieur au kilométrage connu', code: 'MILEAGE_DECREASE_CONFIRM_REQUIRED' }), { status: 400 });
+                }
+                return new Response(JSON.stringify({ id: 'trip-1' }), { status: 201 });
+            }
+            return defaultFetchHandler(input, init);
+        });
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const onSuccess = vi.fn();
+        render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={onSuccess} />);
+        await screen.findByDisplayValue('Jean Dupont');
+
+        fireEvent.click(screen.getByLabelText(/Le kilométrage et\/ou le niveau d'essence est erroné/));
+        fireEvent.change(screen.getByLabelText(/Kilométrage réel/), { target: { value: '1200' } });
+        expect(screen.getByText(/Inférieur au kilométrage connu/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        expect(confirmSpy).toHaveBeenCalled();
+        const bodies = fetchMock.mock.calls
+            .filter(([input, init]) => getUrl(input as string).includes('/api/trips') && (init as RequestInit)?.method === 'POST')
+            .map(([, init]) => JSON.parse((init as RequestInit).body as string));
+        expect(bodies).toHaveLength(2);
+        expect(bodies[0].confirmMileageDecrease).toBeUndefined();
+        expect(bodies[1].confirmMileageDecrease).toBe(true);
     });
 
     it('affiche le kilométrage et le niveau de carburant actuels', async () => {

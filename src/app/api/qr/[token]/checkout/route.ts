@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isQrBlocked } from '@/lib/roles';
-import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { secondDriverError } from '@/lib/eligibleDrivers';
+import { applyCheckoutCorrection, readCheckoutBaseline, sendCheckoutAlerts } from '@/lib/checkout';
 
 /**
  * POST /api/qr/[token]/checkout
@@ -24,9 +25,12 @@ const checkOutSchema = z.object({
     dsaChecked: z.boolean().default(false),
     commentsOut: z.string().optional(),
     checklistOut: z.record(z.string(), z.boolean()).optional(),
+    secondDriverId: z.string().min(1).optional(),
     dataIncorrect: z.boolean().optional(),
     correctedMileage: z.number().int().min(0).optional(),
     correctedFuel: z.number().int().min(0).max(100).optional(),
+    /** Confirmation explicite d'un kilométrage corrigé à la baisse (cf. mileageAnomaly.ts). */
+    confirmMileageDecrease: z.boolean().optional(),
 });
 
 async function postHandler(
@@ -93,35 +97,27 @@ async function postHandler(
             return NextResponse.json({ error: 'Ce véhicule est en maintenance' }, { status: 400 });
         }
 
-        // Fetch live Renault data if connected
-        let mileageOut = vehicle.mileage as number;
-        let fuelOut = vehicle.fuelLevel as number;
-        const connectedVehicleId = vehicle.id as string;
-
-        if (await isConnectedInDb(connectedVehicleId)) {
-            try {
-                const rData = await getRenaultVehicleData(connectedVehicleId);
-                if (rData.totalMileage !== null) mileageOut = rData.totalMileage;
-                if (rData.isElectric && rData.batteryLevel !== null) fuelOut = rData.batteryLevel;
-                if (!rData.isElectric && rData.fuelQuantity !== null) {
-                    fuelOut = Math.min(
-                        Math.round((rData.fuelQuantity / (Number(vehicle.maxFuelCapacity) || 50)) * 100),
-                        100
-                    );
-                }
-            } catch (e) {
-                console.error('Failed to get live Renault data during QR checkout:', e);
-            }
+        // Kilométrage/carburant de départ et correction déclarée — règles partagées avec
+        // `POST /api/trips` (cf. `@/lib/checkout`).
+        const baseline = await readCheckoutBaseline(vehicle);
+        const correction = applyCheckoutCorrection(baseline, data);
+        if (!correction.ok) {
+            return NextResponse.json(correction.body, { status: 400 });
         }
-
-        // Override with user-reported corrections
-        if (data.dataIncorrect) {
-            if (data.correctedMileage !== undefined) mileageOut = data.correctedMileage;
-            if (data.correctedFuel !== undefined) fuelOut = data.correctedFuel;
-        }
+        const { mileage: mileageOut, fuel: fuelOut } = correction.levels;
 
         const driverId = session.user.id;
         const vehicleId = vehicle.id as string;
+
+        // 2ème conducteur : chauffeur actif habilité, distinct de l'emprunteur. Il pourra
+        // ensuite rendre le véhicule (check-in réservé aux conducteurs du trajet).
+        const secondDriverId = data.secondDriverId ?? null;
+        if (secondDriverId) {
+            const secondDriverMessage = await secondDriverError(vehicle.type, driverId, secondDriverId);
+            if (secondDriverMessage) {
+                return NextResponse.json({ error: secondDriverMessage }, { status: 400 });
+            }
+        }
         const tripId = crypto.randomUUID();
         const timestamp = new Date().toISOString();
 
@@ -137,7 +133,7 @@ async function postHandler(
                     tripId,
                     vehicleId,
                     driverId,
-                    null, // no second driver on QR checkout
+                    secondDriverId,
                     data.missionType,
                     data.missionName || null,
                     timestamp,
@@ -163,6 +159,14 @@ async function postHandler(
             await tx.rollback();
             throw e;
         }
+
+        await sendCheckoutAlerts({
+            vehicle,
+            user: session.user,
+            conditionOut: data.conditionOut,
+            baseline,
+            levels: correction.levels,
+        });
 
         return NextResponse.json({
             tripId,

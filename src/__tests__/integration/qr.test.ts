@@ -15,11 +15,18 @@ vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
   isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
 
+// Désactive les notifications push pour éviter les envois Web Push en test
+vi.mock('@/lib/push', () => ({
+  sendPushNotification: vi.fn().mockResolvedValue(undefined),
+  notifyRoles: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { GET as GET_QR_VEHICLE } from '@/app/api/qr/[token]/vehicle/route';
 import { POST as POST_QR_CHECKOUT } from '@/app/api/qr/[token]/checkout/route';
 import { POST as POST_QR_CHECKIN } from '@/app/api/qr/[token]/checkin/route';
 import { POST as POST_INCIDENT } from '@/app/api/incidents/route';
 import { auth } from '@/auth';
+import { sendPushNotification } from '@/lib/push';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { db, seedVehicle, seedUser } from './setup';
 
@@ -208,6 +215,172 @@ describe('QR Code API Flow', () => {
     });
     expect(Number(trip.rows[0].mileageIn)).toBe(66666);
     expect(Number(trip.rows[0].fuelIn)).toBe(80); // 40 L sur 50 L
+  });
+
+  it('POST /api/qr/[token]/checkout enregistre le kilométrage et le carburant corrigés et notifie les responsables', async () => {
+    await seedVehicle({ id: 'VLCOR', name: 'VL Correction', type: 'VL', status: 'AVAILABLE', qrToken: 'token-correction', mileage: 1000, fuelLevel: 20, ulId: 'ul-lyon' });
+    vi.mocked(sendPushNotification).mockClear();
+
+    const req = new Request('http://localhost/api/qr/token-correction/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        missionType: 'DPS',
+        conditionOut: 'Bon état',
+        cleanlinessOut: 'Propre',
+        dataIncorrect: true,
+        correctedMileage: 1250,
+        correctedFuel: 75,
+      }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-correction' }) });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.mileageOut).toBe(1250);
+    expect(body.fuelOut).toBe(75);
+
+    const trip = await db.execute({ sql: `SELECT mileageOut, fuelOut FROM Trip WHERE id = ?`, args: [body.tripId] });
+    expect(Number(trip.rows[0].mileageOut)).toBe(1250);
+    expect(Number(trip.rows[0].fuelOut)).toBe(75);
+
+    const vehicle = await db.execute({ sql: `SELECT mileage, fuelLevel FROM Vehicle WHERE id = ?`, args: ['VLCOR'] });
+    expect(Number(vehicle.rows[0].mileage)).toBe(1250);
+    expect(Number(vehicle.rows[0].fuelLevel)).toBe(75);
+
+    expect(sendPushNotification).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(sendPushNotification).mock.calls[0][0];
+    expect(call.roles).toEqual(['PRESIDENT', 'CADRE', 'ADMIN']);
+    expect(call.contents.fr).toMatch(/1.000 → 1.250 km/);
+    expect(call.contents.fr).toContain('20% → 75%');
+    // UL du véhicule (et non le repli codé en dur), auteur exclu de sa propre alerte.
+    expect(call.ulId).toBe('ul-lyon');
+    expect(call.excludeUserId).toBe('usr-driver-1');
+  });
+
+  it.each(['Dégradé', 'Problème signalé'])(
+    "POST /api/qr/[token]/checkout alerte présidents et cadres de l'UL du véhicule quand l'état est « %s »",
+    async (conditionOut) => {
+      await seedVehicle({ id: 'VLINC', name: 'VL Incident', type: 'VL', status: 'AVAILABLE', qrToken: 'token-incident', ulId: 'ul-lyon' });
+      vi.mocked(sendPushNotification).mockClear();
+
+      const res = await POST_QR_CHECKOUT(new Request('http://localhost/api/qr/token-incident/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missionType: 'DPS', conditionOut }),
+      }), { params: Promise.resolve({ token: 'token-incident' }) });
+      expect(res.status).toBe(201);
+
+      expect(sendPushNotification).toHaveBeenCalledTimes(1);
+      const call = vi.mocked(sendPushNotification).mock.calls[0][0];
+      expect(call.roles).toEqual(['PRESIDENT', 'CADRE']);
+      expect(call.headings.fr).toBe('🚨 Incident signalé à la prise de VL Incident');
+      expect(call.contents.fr).toContain(`État: ${conditionOut}`);
+      expect(call.ulId).toBe('ul-lyon');
+      expect(call.excludeUserId).toBe('usr-driver-1');
+      expect(call.url).toBe('/vehicles/VL%20Incident');
+    },
+  );
+
+  it.each(['Bon état', 'Acceptable'])(
+    "POST /api/qr/[token]/checkout n'alerte personne quand l'état est « %s »",
+    async (conditionOut) => {
+      await seedVehicle({ id: 'VLOK', name: 'VL OK', type: 'VL', status: 'AVAILABLE', qrToken: 'token-ok' });
+      vi.mocked(sendPushNotification).mockClear();
+
+      const res = await POST_QR_CHECKOUT(new Request('http://localhost/api/qr/token-ok/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missionType: 'DPS', conditionOut }),
+      }), { params: Promise.resolve({ token: 'token-ok' }) });
+      expect(res.status).toBe(201);
+      expect(sendPushNotification).not.toHaveBeenCalled();
+    },
+  );
+
+  it("POST /api/qr/[token]/checkout : l'échec de l'alerte n'empêche pas l'emprunt", async () => {
+    await seedVehicle({ id: 'VLFAIL', name: 'VL Fail', type: 'VL', status: 'AVAILABLE', qrToken: 'token-push-fail' });
+    vi.mocked(sendPushNotification).mockRejectedValueOnce(new Error('push indisponible'));
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const res = await POST_QR_CHECKOUT(new Request('http://localhost/api/qr/token-push-fail/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Dégradé' }),
+    }), { params: Promise.resolve({ token: 'token-push-fail' }) });
+    expect(res.status).toBe(201);
+    const vehicle = await db.execute({ sql: `SELECT status FROM Vehicle WHERE id = ?`, args: ['VLFAIL'] });
+    expect(vehicle.rows[0].status).toBe('IN_USE');
+    errorSpy.mockRestore();
+  });
+
+  it('POST /api/qr/[token]/checkout exige une confirmation pour un kilométrage corrigé à la baisse', async () => {
+    await seedVehicle({ id: 'VLDEC', name: 'VL Baisse', type: 'VL', status: 'AVAILABLE', qrToken: 'token-decrease', mileage: 12000, fuelLevel: 50 });
+    const send = (extra: Record<string, unknown>) => POST_QR_CHECKOUT(new Request('http://localhost/api/qr/token-decrease/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', dataIncorrect: true, correctedMileage: 1200, ...extra }),
+    }), { params: Promise.resolve({ token: 'token-decrease' }) });
+
+    const refused = await send({});
+    expect(refused.status).toBe(400);
+    const body = await refused.json();
+    expect(body.code).toBe('MILEAGE_DECREASE_CONFIRM_REQUIRED');
+    expect(body.knownMileage).toBe(12000);
+    const before = await db.execute({ sql: `SELECT status, mileage FROM Vehicle WHERE id = ?`, args: ['VLDEC'] });
+    expect(before.rows[0].status).toBe('AVAILABLE');
+    expect(Number(before.rows[0].mileage)).toBe(12000);
+
+    const confirmed = await send({ confirmMileageDecrease: true });
+    expect(confirmed.status).toBe(201);
+    const after = await db.execute({ sql: `SELECT mileage FROM Vehicle WHERE id = ?`, args: ['VLDEC'] });
+    expect(Number(after.rows[0].mileage)).toBe(1200);
+  });
+
+  it("POST /api/qr/[token]/checkout ignore les valeurs corrigées et ne notifie pas sans dataIncorrect", async () => {
+    await seedVehicle({ id: 'VLNOC', name: 'VL Sans correction', type: 'VL', status: 'AVAILABLE', qrToken: 'token-no-correction', mileage: 1000, fuelLevel: 20 });
+    vi.mocked(sendPushNotification).mockClear();
+
+    const req = new Request('http://localhost/api/qr/token-no-correction/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', correctedMileage: 9999, correctedFuel: 99 }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-no-correction' }) });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.mileageOut).toBe(1000);
+    expect(body.fuelOut).toBe(20);
+    expect(sendPushNotification).not.toHaveBeenCalled();
+  });
+
+  it("POST /api/qr/[token]/checkout ne notifie pas quand la correction ne change aucune valeur", async () => {
+    await seedVehicle({ id: 'VLSAME', name: 'VL Identique', type: 'VL', status: 'AVAILABLE', qrToken: 'token-same', mileage: 1000, fuelLevel: 20 });
+    vi.mocked(sendPushNotification).mockClear();
+
+    const req = new Request('http://localhost/api/qr/token-same/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', dataIncorrect: true, correctedMileage: 1000 }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-same' }) });
+    expect(res.status).toBe(201);
+    expect(sendPushNotification).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/qr/[token]/checkout returns 400 when correctedFuel exceeds 100 (Zod)', async () => {
+    await seedVehicle({ id: 'VLBAD', name: 'VL Bad', type: 'VL', status: 'AVAILABLE', qrToken: 'token-bad-fuel' });
+
+    const req = new Request('http://localhost/api/qr/token-bad-fuel/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', dataIncorrect: true, correctedFuel: 150 }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-bad-fuel' }) });
+    expect(res.status).toBe(400);
   });
 
   it('POST /api/qr/[token]/checkout saves checklistOut', async () => {
