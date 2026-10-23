@@ -72,3 +72,36 @@ export async function secondDriverError(
     }
     return null;
 }
+
+export interface MissionDriver extends EligibleDriver {
+    /** Rôles de conduite détenus (CHVL, CHVPSP) — l'étape « Équipage » filtre les VPSP dessus. */
+    roles: ('CHVL' | 'CHVPSP')[];
+}
+
+/**
+ * Chauffeurs proposables dans un rapport de mission (étape « Équipage ») : comptes portant
+ * CHVL ou CHVPSP, toutes unités locales confondues (population de l'ancien
+ * `GET /api/users?drivers=true`), hors comptes bloqués (INACTIF, GUEST). N'expose que
+ * l'identité et les rôles de conduite.
+ */
+export async function listMissionDrivers(): Promise<MissionDriver[]> {
+    const res = await db.execute(`
+        SELECT u.id, u.name, u.email, GROUP_CONCAT(r.name) AS driving_roles
+        FROM "User" u
+        JOIN "UserRole" ur ON ur.userId = u.id
+        JOIN "Role" r ON ur.roleId = r.id AND r.name IN ('CHVL', 'CHVPSP')
+        WHERE u.id NOT IN (
+            SELECT ur2.userId FROM "UserRole" ur2
+            JOIN "Role" r2 ON ur2.roleId = r2.id
+            WHERE r2.name IN ('INACTIF', 'GUEST')
+        )
+        GROUP BY u.id
+        ORDER BY COALESCE(u.name, u.email) COLLATE NOCASE ASC`);
+
+    return res.rows.map(row => ({
+        id: row.id as string,
+        name: (row.name as string | null) ?? null,
+        email: row.email as string,
+        roles: String(row.driving_roles ?? '').split(',').filter((r): r is 'CHVL' | 'CHVPSP' => r === 'CHVL' || r === 'CHVPSP'),
+    }));
+}

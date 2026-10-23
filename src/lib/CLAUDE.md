@@ -46,6 +46,8 @@ seule des deux routes. Côté interface, le pendant est `src/components/vehicle/
 Candidats « 2ème conducteur » (`listEligibleDrivers`) et contrôle serveur du choix
 (`secondDriverError`) — même prédicat SQL pour les deux : rôle de conduite du type de véhicule,
 ni INACTIF ni GUEST. Utilisé par les deux routes `drivers` et les deux routes d'emprunt.
+`listMissionDrivers` : chauffeurs (CHVL/CHVPSP, toutes UL, avec leurs rôles de conduite) de
+l'étape « Équipage » des rapports de mission — routes `/api/missions/drivers` et `/api/qr-ul/[token]/drivers`.
 
 ## ulMembers.ts
 `listActiveUlMembers(ulId)` : comptes actifs rattachés à une UL (`UserUL`), hors INACTIF/GUEST

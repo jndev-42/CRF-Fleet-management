@@ -18,23 +18,42 @@ interface Driver {
     roles: string[];
 }
 
+/** Sources des listes véhicules / chauffeurs. */
+export interface CrewEndpoints {
+    vehicles: string;
+    drivers: string;
+}
+
+/**
+ * Par défaut (`/missions/new`) : véhicules de l'UL de la session, chauffeurs via la route
+ * des rédacteurs de rapports. Jamais `GET /api/users` : il est réservé aux gestionnaires
+ * et la liste serait vide pour un CI/RPAPS.
+ */
+const DEFAULT_CREW_ENDPOINTS: CrewEndpoints = {
+    vehicles: '/api/vehicles',
+    drivers: '/api/missions/drivers',
+};
+
 interface Step2Props {
     data: MissionFormData;
     onChange: (patch: Partial<MissionFormData>) => void;
     currentUserId?: string;
     currentUserName?: string;
+    endpoints?: CrewEndpoints;
 }
 
-export default function Step2Vehicle({ data, onChange, currentUserId, currentUserName }: Step2Props) {
+export default function Step2Vehicle({ data, onChange, currentUserId, currentUserName, endpoints = DEFAULT_CREW_ENDPOINTS }: Step2Props) {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
+    // Primitives en dépendance : un objet `endpoints` recréé à chaque rendu relancerait l'effet.
+    const { vehicles: vehiclesEndpoint, drivers: driversEndpoint } = endpoints;
 
     useEffect(() => {
         async function load() {
             try {
                 const [vRes, dRes] = await Promise.all([
-                    fetch('/api/vehicles'),
-                    fetch('/api/users?drivers=true'),
+                    fetch(vehiclesEndpoint),
+                    fetch(driversEndpoint),
                 ]);
                 if (vRes.ok) {
                     const vData = await vRes.json();
@@ -49,7 +68,7 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
             }
         }
         load();
-    }, []);
+    }, [vehiclesEndpoint, driversEndpoint]);
 
     const volunteersRequired = !data.pegass_ok;
 

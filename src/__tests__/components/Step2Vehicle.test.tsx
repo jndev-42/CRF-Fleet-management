@@ -16,10 +16,11 @@ const vehicles = [{ id: 'VL001', name: 'VL186', type: 'VL' }, { id: 'VPSP001', n
 const drivers = [{ id: 'u1', name: 'Jean Dupont', email: 'jean@test.com', roles: ['CHVL'] }, { id: 'u2', name: 'Marie Curie', email: 'marie@test.com', roles: ['CHVPSP'] }];
 
 function mockFetch() {
-    vi.spyOn(global, 'fetch').mockImplementation((input: string | URL | Request) => {
+    return vi.spyOn(global, 'fetch').mockImplementation((input: string | URL | Request) => {
         const url = String(input);
-        if (url.includes('/api/vehicles')) return Promise.resolve(new Response(JSON.stringify(vehicles), { status: 200 }));
-        if (url.includes('/api/users')) return Promise.resolve(new Response(JSON.stringify({ users: drivers }), { status: 200 }));
+        if (url === '/api/vehicles') return Promise.resolve(new Response(JSON.stringify(vehicles), { status: 200 }));
+        if (url.endsWith('/vehicles')) return Promise.resolve(new Response(JSON.stringify({ vehicles }), { status: 200 }));
+        if (url.endsWith('/drivers')) return Promise.resolve(new Response(JSON.stringify({ users: drivers }), { status: 200 }));
         return Promise.resolve(new Response('{}', { status: 200 }));
     });
 }
@@ -38,6 +39,24 @@ describe('Step2Vehicle', () => {
         render(<Step2Vehicle data={baseData} onChange={vi.fn()} />);
         await waitFor(() => expect(screen.getByText('VL186 (VL)')).toBeTruthy());
         expect(screen.getByText('Jean Dupont')).toBeTruthy();
+    });
+
+    it('lit les chauffeurs via /api/missions/drivers par défaut, jamais via GET /api/users (réservé aux gestionnaires)', async () => {
+        const fetchSpy = mockFetch();
+        render(<Step2Vehicle data={baseData} onChange={vi.fn()} />);
+        await waitFor(() => expect(screen.getByText('Jean Dupont')).toBeTruthy());
+        const urls = fetchSpy.mock.calls.map(([input]) => String(input));
+        expect(urls).toEqual(expect.arrayContaining(['/api/vehicles', '/api/missions/drivers']));
+        expect(urls.some(u => u.startsWith('/api/users'))).toBe(false);
+    });
+
+    it("utilise les routes fournies (variante QR d'UL : véhicules de l'UL du QR)", async () => {
+        const fetchSpy = mockFetch();
+        render(<Step2Vehicle data={baseData} onChange={vi.fn()} endpoints={{ vehicles: '/api/qr-ul/tok/vehicles', drivers: '/api/qr-ul/tok/drivers' }} />);
+        await waitFor(() => expect(screen.getByText('VL186 (VL)')).toBeTruthy());
+        expect(screen.getByText('Jean Dupont')).toBeTruthy();
+        const urls = fetchSpy.mock.calls.map(([input]) => String(input));
+        expect(urls).toEqual(['/api/qr-ul/tok/vehicles', '/api/qr-ul/tok/drivers']);
     });
 
     it('met à jour le véhicule sélectionné (happy path)', async () => {

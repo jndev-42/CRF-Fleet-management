@@ -75,6 +75,3 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-expense-respo-validation.md`
   summary: Préciser dans CLAUDE.md que sans la migration add-expense-respo-step, toute la page Notes de frais (liste et détail) répond 500, pas seulement la soumission.
   evidence: GET /api/expenses et /api/expenses/[id] sélectionnent workflowVersion et respo* dans toutes les branches.
-- source_spec: `_bmad-output/implementation-artifacts/spec-qr-checkout-correction-km-carburant.md`
-  summary: Rapports de mission (MissionWizard, étape « Véhicule ») : la liste des chauffeurs vient de GET /api/users?drivers=true, réservé aux gestionnaires — vide pour un CI/RPAPS et sur la page QR de l'UL (/qr-ul/[token]).
-  evidence: src/components/missions/steps/Step2Vehicle.tsx:37 ; /missions/new est ouvert aux CI/RPAPS et la page /qr-ul/[token] à tout compte. Les réservations ne sont PAS concernées (liste chargée seulement pour les gestionnaires) ; le retour de véhicule (responsable de désinfection) est corrigé.

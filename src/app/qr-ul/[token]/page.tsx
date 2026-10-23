@@ -138,6 +138,10 @@ export default function QRUnitLocalePage() {
                         lockedUlId={ul.id}
                         lockedUlName={ul.name}
                         submitEndpoint={`/api/qr-ul/${encodeURIComponent(token)}/mission-report`}
+                        crewEndpoints={{
+                            vehicles: `/api/qr-ul/${encodeURIComponent(token)}/vehicles`,
+                            drivers: `/api/qr-ul/${encodeURIComponent(token)}/drivers`,
+                        }}
                         onSuccess={() => setDone(true)}
                     />
                 )}

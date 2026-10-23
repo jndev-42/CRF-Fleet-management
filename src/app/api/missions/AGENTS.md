@@ -13,6 +13,7 @@ Manages mission reports (comptes rendus de mission) submitted by CRF volunteers.
 
 ## Subdirectories
 - `[id]/` — fetch/delete individual mission report
+- `drivers/` — GET: drivers for the « Équipage » step of `/missions/new` (`listMissionDrivers` in `@/lib/eligibleDrivers`: CHVL/CHVPSP, all ULs, no INACTIF/GUEST, with their driving roles). Same access as POST (ADMIN and above, CI/RPAPS). Replaces manager-only `GET /api/users?drivers=true`, which returned 403 — an empty list — to a CI/RPAPS.
 
 ## For AI Agents
 

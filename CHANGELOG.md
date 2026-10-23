@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.32.5] — 23 octobre 2026
+
+### Corrections
+
+- **Rapport de mission : liste des chauffeurs vide** — à l'étape « Équipage », la liste « Chauffeur » ne proposait personne aux CI / RPAPS, ni à quiconque déposant un rapport via le QR code d'une unité locale. Elle propose désormais les chauffeurs actifs.
+- **Rapport de mission par QR code d'unité locale : bons véhicules** — la liste « Véhicule utilisé » affiche maintenant les véhicules de l'unité locale du QR code, et non ceux de l'unité locale de la personne connectée.
+
 ## [5.32.4] — 23 octobre 2026
 
 ### Corrections
