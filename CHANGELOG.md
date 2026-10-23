@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.32.2] — 23 octobre 2026
+
+### Corrections
+
+- **Prise d'un véhicule depuis sa fiche : kilométrage réel effacé** — effacer le champ « Kilométrage réel » le laisse désormais vide (et la validation est bloquée tant qu'il n'est pas rempli), au lieu d'y inscrire 0 et de risquer d'enregistrer un compteur à 0 km.
+
 ## [5.32.1] — 23 octobre 2026
 
 ### Corrections

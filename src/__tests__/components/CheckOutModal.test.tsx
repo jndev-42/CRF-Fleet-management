@@ -108,6 +108,37 @@ describe('CheckOutModal', () => {
         });
     });
 
+    it('un kilométrage réel vidé reste vide et obligatoire (et non 0 km)', async () => {
+        mockFetch();
+        render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('Jean Dupont');
+
+        fireEvent.click(screen.getByLabelText(/Le kilométrage et\/ou le niveau d'essence est erroné/));
+        const input = screen.getByLabelText(/Kilométrage réel/) as HTMLInputElement;
+        fireEvent.change(input, { target: { value: '' } });
+        expect(input.value).toBe('');
+        expect(input.required).toBe(true);
+        // Pas d'avertissement de baisse sur un champ vide.
+        expect(screen.queryByText(/Inférieur au kilométrage connu/)).toBeNull();
+    });
+
+    it("n'envoie jamais un kilométrage vidé, même si le formulaire est soumis", async () => {
+        const fetchMock = mockFetch();
+        const onSuccess = vi.fn();
+        const { container } = render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={onSuccess} />);
+        await screen.findByDisplayValue('Jean Dupont');
+
+        fireEvent.click(screen.getByLabelText(/Le kilométrage et\/ou le niveau d'essence est erroné/));
+        fireEvent.change(screen.getByLabelText(/Kilométrage réel/), { target: { value: '' } });
+        // Soumission programmatique : contourne le `required` du navigateur.
+        fireEvent.submit(container.querySelector('form')!);
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        const post = fetchMock.mock.calls.find(([input, init]) => getUrl(input as string).includes('/api/trips') && (init as RequestInit)?.method === 'POST');
+        const body = JSON.parse((post![1] as RequestInit).body as string);
+        expect(body.correctedMileage).toBeUndefined();
+    });
+
     it('kilométrage corrigé à la baisse : avertit, demande confirmation puis renvoie avec confirmMileageDecrease', async () => {
         let tripCalls = 0;
         const fetchMock = mockFetch(async (input, init) => {

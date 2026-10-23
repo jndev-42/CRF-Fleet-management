@@ -76,8 +76,8 @@
   summary: Préciser dans CLAUDE.md que sans la migration add-expense-respo-step, toute la page Notes de frais (liste et détail) répond 500, pas seulement la soumission.
   evidence: GET /api/expenses et /api/expenses/[id] sélectionnent workflowVersion et respo* dans toutes les branches.
 - source_spec: `_bmad-output/implementation-artifacts/spec-qr-checkout-correction-km-carburant.md`
-  summary: Dans CheckOutModal, vider le champ « Kilométrage réel » le transforme en 0 km, qui est alors enregistré ; mutualiser le bloc de correction (DataCorrectionFields) et la notification « données incorrectes » entre la modale et le parcours QR.
-  evidence: CheckOutModal.tsx:273 `Number(e.target.value)` sur un champ vide donne 0 et `required` ne bloque plus ; le parcours QR est corrigé, la modale non (préexistant, et notification dupliquée entre trips/route.ts et qr/[token]/checkout/route.ts).
+  summary: Mutualiser le bloc de correction kilométrage/carburant (DataCorrectionFields) et la notification « données incorrectes » entre CheckOutModal et le parcours QR.
+  evidence: Deux implémentations parallèles (CheckOutModal.tsx / qr/[token]/DataCorrectionFields.tsx ; trips/route.ts / qr/[token]/checkout/route.ts) — le bug du champ vidé (0 km) a dû être corrigé deux fois.
 
 ## Deferred from: code review of spec-qr-checkout-correction-km-carburant.md (2026-10-23)
 

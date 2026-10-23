@@ -47,7 +47,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
     const [checklistOut, setChecklistOut] = useState<Record<string, boolean>>({});
 
     const [dataIncorrect, setDataIncorrect] = useState(false);
-    const [correctedMileage, setCorrectedMileage] = useState(vehicle.mileage);
+    // Chaîne vide autorisée : un champ vidé doit rester vide (et bloquer la validation
+    // via `required`), et non devenir 0 km.
+    const [correctedMileage, setCorrectedMileage] = useState<number | ''>(vehicle.mileage);
     const [correctedFuel, setCorrectedFuel] = useState(vehicle.fuelLevel);
 
     const [submitting, setSubmitting] = useState(false);
@@ -187,7 +189,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                     driveFolderId,
                     checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
                     dataIncorrect: dataIncorrect || undefined,
-                    correctedMileage: dataIncorrect ? correctedMileage : undefined,
+                    correctedMileage: dataIncorrect && correctedMileage !== '' ? correctedMileage : undefined,
                     correctedFuel: dataIncorrect ? correctedFuel : undefined,
                     confirmMileageDecrease: confirmMileageDecrease || undefined,
                 }),
@@ -247,7 +249,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                         >
                             <div><strong>Immatriculation :</strong> {vehicle.plate}</div>
                             <div>
-                                <strong>Kilométrage :</strong> {loadingRenault ? '...' : (dataIncorrect ? correctedMileage : (vehicle.mileage)).toLocaleString('fr-FR')} km
+                                <strong>Kilométrage :</strong> {loadingRenault ? '...' : (dataIncorrect && correctedMileage !== '' ? correctedMileage : vehicle.mileage).toLocaleString('fr-FR')} km
                                 {connected && !loadingRenault && !renaultError && <span style={{ marginLeft: 8, color: 'var(--status-available)', fontSize: 11 }}>📡 Connecté</span>}
                                 {renaultError && <span style={{ marginLeft: 8, color: 'var(--error-text)', fontSize: 11 }}>⚠️ Renault injoignable</span>}
                             </div>
@@ -286,11 +288,12 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                             className="form-input"
                                             type="number"
                                             min={0}
+                                            step={1}
                                             value={correctedMileage}
-                                            onChange={e => setCorrectedMileage(Number(e.target.value))}
+                                            onChange={e => setCorrectedMileage(e.target.value === '' ? '' : Number(e.target.value))}
                                             required
                                         />
-                                        {isMileageDecrease(correctedMileage, vehicle.mileage) && (
+                                        {correctedMileage !== '' && isMileageDecrease(correctedMileage, vehicle.mileage) && (
                                             <div className="form-hint" style={{ color: 'var(--error-text)' }}>
                                                 ⚠️ Inférieur au kilométrage connu ({vehicle.mileage.toLocaleString('fr-FR')} km) : vérifiez la saisie, le compteur sera corrigé à la baisse.
                                             </div>
