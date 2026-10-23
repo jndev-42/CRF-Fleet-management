@@ -3,13 +3,14 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { listEligibleDrivers } from '@/lib/eligibleDrivers';
 
 /**
  * GET /api/qr/[token]/drivers
  *
- * Liste des 2èmes conducteurs proposables à l'emprunt par QR code : chauffeurs habilités
- * au type du véhicule (CHVPSP pour un VPSP, CHVL sinon), toutes unités locales
- * confondues, hors comptes INACTIF et hors utilisateur courant.
+ * Liste des 2èmes conducteurs proposables à l'emprunt par QR code (cf.
+ * `listEligibleDrivers` : chauffeurs habilités au type du véhicule, toutes UL, hors
+ * INACTIF et hors utilisateur courant).
  *
  * Accès : mêmes règles que le reste du parcours QR (tout compte CRF connecté sauf
  * INACTIF, cf. `isQrBlocked`). `GET /api/users` est réservé aux gestionnaires : cette
@@ -39,33 +40,7 @@ export async function GET(
             return NextResponse.json({ error: 'QR Code invalide ou expiré' }, { status: 404 });
         }
 
-        const isVPSP = String(vehicleRes.rows[0].type || '').toUpperCase().includes('VPSP');
-        const driverRole = isVPSP ? 'CHVPSP' : 'CHVL';
-
-        const usersRes = await db.execute({
-            sql: `SELECT u.id, u.name, u.email
-                  FROM "User" u
-                  WHERE u.id IN (
-                      SELECT ur.userId FROM "UserRole" ur
-                      JOIN "Role" r ON ur.roleId = r.id
-                      WHERE r.name = ?
-                  )
-                  AND u.id NOT IN (
-                      SELECT ur.userId FROM "UserRole" ur
-                      JOIN "Role" r ON ur.roleId = r.id
-                      WHERE r.name = 'INACTIF'
-                  )
-                  AND u.id != ?
-                  ORDER BY COALESCE(u.name, u.email) COLLATE NOCASE ASC`,
-            args: [driverRole, session.user.id ?? ''],
-        });
-
-        const users = usersRes.rows.map(row => ({
-            id: row.id as string,
-            name: (row.name as string | null) ?? null,
-            email: row.email as string,
-        }));
-
+        const users = await listEligibleDrivers(vehicleRes.rows[0].type, session.user.id ?? '');
         return NextResponse.json({ users });
     } catch (error) {
         console.error('Error fetching QR drivers:', error);

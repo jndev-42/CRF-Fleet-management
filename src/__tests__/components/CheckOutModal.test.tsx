@@ -47,8 +47,10 @@ async function defaultFetchHandler(input: string | URL | Request, init?: Request
     if (url.includes('/api/auth/session')) {
         return new Response(JSON.stringify({ user: { name: 'Jean Dupont', email: 'jean@test.com' } }), { status: 200 });
     }
-    if (url.includes('/api/users')) {
-        return new Response(JSON.stringify({ users: [] }), { status: 200 });
+    if (url.includes('/drivers')) {
+        return new Response(JSON.stringify({
+            users: [{ id: 'usr-2', name: 'Marie Martin', email: 'marie@croix-rouge.fr' }],
+        }), { status: 200 });
     }
     if (url.includes('/checklist')) {
         return new Response(JSON.stringify([]), { status: 200 });
@@ -84,6 +86,26 @@ describe('CheckOutModal', () => {
 
         expect(await screen.findByDisplayValue('Jean Dupont')).toBeTruthy();
         expect(screen.getByDisplayValue('jean@test.com')).toBeTruthy();
+    });
+
+    it('propose les 2èmes conducteurs de la route dédiée (et non GET /api/users, réservé aux gestionnaires)', async () => {
+        const fetchMock = mockFetch();
+        render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('Jean Dupont');
+
+        const urls = fetchMock.mock.calls.map(([input]) => getUrl(input as string));
+        expect(urls).toContain('/api/vehicles/VL001/drivers');
+        expect(urls.some(u => u.startsWith('/api/users'))).toBe(false);
+
+        fireEvent.click(screen.getByRole('button', { name: /Aucun/ }));
+        fireEvent.click(await screen.findByRole('option', { name: /Marie Martin/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+
+        await waitFor(() => {
+            const post = fetchMock.mock.calls.find(([input, init]) => getUrl(input as string).includes('/api/trips') && (init as RequestInit)?.method === 'POST');
+            expect(post).toBeTruthy();
+            expect(JSON.parse((post![1] as RequestInit).body as string).secondDriverId).toBe('usr-2');
+        });
     });
 
     it('affiche le kilométrage et le niveau de carburant actuels', async () => {

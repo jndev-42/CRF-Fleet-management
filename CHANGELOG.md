@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.31.1] — 23 octobre 2026
+
+### Corrections
+
+- **Prise d'un véhicule depuis sa fiche : la liste du 2ème conducteur était vide** — pour les chauffeurs (CHVL, CHVPSP) et les autres rôles non gestionnaires, la liste déroulante « 2ème Conducteur » ne proposait personne. Elle affiche désormais les chauffeurs habilités au type de véhicule.
+- **Page du QR code d'un véhicule emprunté : 2ème conducteur affiché** — l'encadré « En mission avec… » indique désormais aussi le nom du 2ème conducteur.
+
 ## [5.31.0] — 23 octobre 2026
 
 ### ✨ Nouveautés

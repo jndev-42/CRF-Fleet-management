@@ -51,7 +51,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
     const [submitting, setSubmitting] = useState(false);
     const [sessionLoading, setSessionLoading] = useState(true);
-    const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+    const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
     const [photos, setPhotos] = useState<File[]>([]);
     // Booléen hissé hors de l'effet : `isVehicleConnected(vehicle)` y lirait l'objet `vehicle`
     // entier, que `exhaustive-deps` exigerait alors en dépendance — l'effet se rejouerait à
@@ -77,7 +77,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
             .catch(console.error)
             .finally(() => setSessionLoading(false));
 
-        fetch(`/api/users?vehicleType=${encodeURIComponent(vehicle.type)}`)
+        // Route dédiée : `GET /api/users` est réservé aux gestionnaires, un chauffeur y
+        // recevait un 403 et voyait une liste vide.
+        fetch(`/api/vehicles/${encodeURIComponent(vehicle.id)}/drivers`)
             .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => {
                 if (data.users) setUsers(data.users);
