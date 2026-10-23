@@ -15,11 +15,18 @@ vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
   isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
 
+// Désactive les notifications push pour éviter les envois Web Push en test
+vi.mock('@/lib/push', () => ({
+  sendPushNotification: vi.fn().mockResolvedValue(undefined),
+  notifyRoles: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { GET as GET_QR_VEHICLE } from '@/app/api/qr/[token]/vehicle/route';
 import { POST as POST_QR_CHECKOUT } from '@/app/api/qr/[token]/checkout/route';
 import { POST as POST_QR_CHECKIN } from '@/app/api/qr/[token]/checkin/route';
 import { POST as POST_INCIDENT } from '@/app/api/incidents/route';
 import { auth } from '@/auth';
+import { sendPushNotification } from '@/lib/push';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { db, seedVehicle, seedUser } from './setup';
 
@@ -208,6 +215,90 @@ describe('QR Code API Flow', () => {
     });
     expect(Number(trip.rows[0].mileageIn)).toBe(66666);
     expect(Number(trip.rows[0].fuelIn)).toBe(80); // 40 L sur 50 L
+  });
+
+  it('POST /api/qr/[token]/checkout enregistre le kilométrage et le carburant corrigés et notifie les responsables', async () => {
+    await seedVehicle({ id: 'VLCOR', name: 'VL Correction', type: 'VL', status: 'AVAILABLE', qrToken: 'token-correction', mileage: 1000, fuelLevel: 20 });
+    vi.mocked(sendPushNotification).mockClear();
+
+    const req = new Request('http://localhost/api/qr/token-correction/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        missionType: 'DPS',
+        conditionOut: 'Bon état',
+        cleanlinessOut: 'Propre',
+        dataIncorrect: true,
+        correctedMileage: 1250,
+        correctedFuel: 75,
+      }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-correction' }) });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.mileageOut).toBe(1250);
+    expect(body.fuelOut).toBe(75);
+
+    const trip = await db.execute({ sql: `SELECT mileageOut, fuelOut FROM Trip WHERE id = ?`, args: [body.tripId] });
+    expect(Number(trip.rows[0].mileageOut)).toBe(1250);
+    expect(Number(trip.rows[0].fuelOut)).toBe(75);
+
+    const vehicle = await db.execute({ sql: `SELECT mileage, fuelLevel FROM Vehicle WHERE id = ?`, args: ['VLCOR'] });
+    expect(Number(vehicle.rows[0].mileage)).toBe(1250);
+    expect(Number(vehicle.rows[0].fuelLevel)).toBe(75);
+
+    expect(sendPushNotification).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(sendPushNotification).mock.calls[0][0];
+    expect(call.roles).toEqual(['PRESIDENT', 'CADRE', 'ADMIN']);
+    expect(call.contents.fr).toMatch(/1.000 → 1.250 km/);
+    expect(call.contents.fr).toContain('20% → 75%');
+  });
+
+  it("POST /api/qr/[token]/checkout ignore les valeurs corrigées et ne notifie pas sans dataIncorrect", async () => {
+    await seedVehicle({ id: 'VLNOC', name: 'VL Sans correction', type: 'VL', status: 'AVAILABLE', qrToken: 'token-no-correction', mileage: 1000, fuelLevel: 20 });
+    vi.mocked(sendPushNotification).mockClear();
+
+    const req = new Request('http://localhost/api/qr/token-no-correction/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', correctedMileage: 9999, correctedFuel: 99 }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-no-correction' }) });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.mileageOut).toBe(1000);
+    expect(body.fuelOut).toBe(20);
+    expect(sendPushNotification).not.toHaveBeenCalled();
+  });
+
+  it("POST /api/qr/[token]/checkout ne notifie pas quand la correction ne change aucune valeur", async () => {
+    await seedVehicle({ id: 'VLSAME', name: 'VL Identique', type: 'VL', status: 'AVAILABLE', qrToken: 'token-same', mileage: 1000, fuelLevel: 20 });
+    vi.mocked(sendPushNotification).mockClear();
+
+    const req = new Request('http://localhost/api/qr/token-same/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', dataIncorrect: true, correctedMileage: 1000 }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-same' }) });
+    expect(res.status).toBe(201);
+    expect(sendPushNotification).not.toHaveBeenCalled();
+  });
+
+  it('POST /api/qr/[token]/checkout returns 400 when correctedFuel exceeds 100 (Zod)', async () => {
+    await seedVehicle({ id: 'VLBAD', name: 'VL Bad', type: 'VL', status: 'AVAILABLE', qrToken: 'token-bad-fuel' });
+
+    const req = new Request('http://localhost/api/qr/token-bad-fuel/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', dataIncorrect: true, correctedFuel: 150 }),
+    });
+
+    const res = await POST_QR_CHECKOUT(req, { params: Promise.resolve({ token: 'token-bad-fuel' }) });
+    expect(res.status).toBe(400);
   });
 
   it('POST /api/qr/[token]/checkout saves checklistOut', async () => {

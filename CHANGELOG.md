@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.30.2] — 23 octobre 2026
+
+### Corrections
+
+- **Emprunt par QR code : corriger le kilométrage et le carburant** — après le scan du QR code d'un véhicule, le formulaire d'emprunt propose désormais la case « Le kilométrage et/ou le niveau d'essence est erroné », comme la fiche véhicule. Une fois cochée, elle permet de saisir le kilométrage réel et le niveau réel ; ces valeurs sont enregistrées au départ et le président, les cadres et les administrateurs reçoivent la notification « Données incorrectes ».
+
 ## [5.30.1] — 22 octobre 2026
 
 ### Corrections

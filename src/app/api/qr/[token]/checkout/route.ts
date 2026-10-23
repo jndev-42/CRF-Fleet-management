@@ -115,6 +115,8 @@ async function postHandler(
         }
 
         // Override with user-reported corrections
+        const originalMileage = mileageOut;
+        const originalFuel = fuelOut;
         if (data.dataIncorrect) {
             if (data.correctedMileage !== undefined) mileageOut = data.correctedMileage;
             if (data.correctedFuel !== undefined) fuelOut = data.correctedFuel;
@@ -162,6 +164,31 @@ async function postHandler(
         } catch (e) {
             await tx.rollback();
             throw e;
+        }
+
+        // Notification « données incorrectes », reprise de `POST /api/trips` — uniquement si
+        // la correction change réellement une valeur.
+        if (data.dataIncorrect && (mileageOut !== originalMileage || fuelOut !== originalFuel)) {
+            try {
+                const { sendPushNotification } = await import('@/lib/push');
+                const vName = vehicle.name || 'Véhicule inconnu';
+                const fuelLabel = vehicle.fuelType === 'Électrique' ? 'Batterie' : 'Carburant';
+                const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
+
+                await sendPushNotification({
+                    roles: ['PRESIDENT', 'CADRE', 'ADMIN'],
+                    headings: { fr: `⚠️ Données incorrectes — ${vName}`, en: `⚠️ Incorrect data — ${vName}` },
+                    contents: {
+                        fr: `${driverDisplayName} a signalé des données incorrectes sur ${vName}. Km : ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel} : ${originalFuel}% → ${fuelOut}%.`,
+                        en: `${driverDisplayName} reported incorrect data on ${vName}. Mileage: ${originalMileage.toLocaleString('fr-FR')} → ${mileageOut.toLocaleString('fr-FR')} km. ${fuelLabel}: ${originalFuel}% → ${fuelOut}%.`,
+                    },
+                    url: `/vehicles/${encodeURIComponent(String(vName))}`,
+                    ulId: vehicle.ulId as string || 'ul-paris-18',
+                    excludeUserId: session.user.id,
+                });
+            } catch (pushError) {
+                console.error('Erreur lors de l\'envoi de la notification données incorrectes:', pushError);
+            }
         }
 
         return NextResponse.json({

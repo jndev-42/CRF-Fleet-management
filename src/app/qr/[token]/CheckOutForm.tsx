@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import ChecklistItems from '@/components/vehicle/ChecklistItems';
+import DataCorrectionFields from './DataCorrectionFields';
 import type { QRVehicle } from './types';
 
 export default function CheckOutForm({
@@ -22,6 +23,10 @@ export default function CheckOutForm({
         parkingOut: vehicle.parkingSpot || '',
     });
     const [checklistOut, setChecklistOut] = useState<Record<string, boolean>>({});
+    const [dataIncorrect, setDataIncorrect] = useState(false);
+    // Chaîne vide autorisée : un champ vidé ne doit pas devenir 0 km.
+    const [correctedMileage, setCorrectedMileage] = useState<number | ''>(vehicle.mileage);
+    const [correctedFuel, setCorrectedFuel] = useState(vehicle.fuelLevel);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +37,13 @@ export default function CheckOutForm({
 
         try {
             const isDsaChecked = checklistOut[`dsa-checkout-${vehicle.id}`] || false;
+
+            // Seules les valeurs réellement modifiées sont envoyées : pour un véhicule
+            // connecté, la valeur stockée est plus ancienne que la télémétrie lue par le
+            // serveur et ne doit pas l'écraser.
+            const mileageChanged = dataIncorrect && correctedMileage !== '' && correctedMileage !== vehicle.mileage;
+            const fuelChanged = dataIncorrect && correctedFuel !== vehicle.fuelLevel;
+            const hasCorrection = mileageChanged || fuelChanged;
 
             const res = await fetch(`/api/qr/${token}/checkout`, {
                 method: 'POST',
@@ -45,6 +57,9 @@ export default function CheckOutForm({
                     commentsOut: form.commentsOut || undefined,
                     dsaChecked: isDsaChecked,
                     checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
+                    dataIncorrect: hasCorrection || undefined,
+                    correctedMileage: mileageChanged ? correctedMileage : undefined,
+                    correctedFuel: fuelChanged ? correctedFuel : undefined,
                 }),
             });
 
@@ -80,6 +95,17 @@ export default function CheckOutForm({
                     {error}
                 </div>
             )}
+
+            <DataCorrectionFields
+                connected={vehicle.connection?.status === 'CONNECTED'}
+                fuelType={vehicle.fuelType}
+                dataIncorrect={dataIncorrect}
+                correctedMileage={correctedMileage}
+                correctedFuel={correctedFuel}
+                onDataIncorrectChange={setDataIncorrect}
+                onMileageChange={setCorrectedMileage}
+                onFuelChange={setCorrectedFuel}
+            />
 
             <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
