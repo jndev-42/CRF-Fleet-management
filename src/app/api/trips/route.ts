@@ -9,6 +9,8 @@ import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseSt
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { checkOutSchema } from './schema';
 import { withAudit } from '@/lib/audit/log';
+import { secondDriverError } from '@/lib/eligibleDrivers';
+import { MILEAGE_DECREASE_CONFIRM_REQUIRED, isMileageDecrease, mileageDecreaseMessage } from '@/lib/utils/mileageAnomaly';
 
 async function postHandler(request: Request) {
     try {
@@ -183,11 +185,31 @@ async function postHandler(request: Request) {
         const originalMileage = mileageOut;
         const originalFuel = fuelOut;
         if (data.dataIncorrect) {
+            if (
+                data.correctedMileage !== undefined
+                && isMileageDecrease(data.correctedMileage, originalMileage)
+                && !data.confirmMileageDecrease
+            ) {
+                return NextResponse.json({
+                    error: mileageDecreaseMessage(originalMileage, data.correctedMileage),
+                    code: MILEAGE_DECREASE_CONFIRM_REQUIRED,
+                    knownMileage: originalMileage,
+                }, { status: 400 });
+            }
             if (data.correctedMileage !== undefined) mileageOut = data.correctedMileage;
             if (data.correctedFuel !== undefined) fuelOut = data.correctedFuel;
         }
 
         const driverId = session.user.id;
+
+        // 2ème conducteur : chauffeur actif habilité, distinct de l'emprunteur (même
+        // contrôle que l'emprunt par QR code).
+        if (data.secondDriverId) {
+            const secondDriverMessage = await secondDriverError(vehicle.type, driverId, data.secondDriverId);
+            if (secondDriverMessage) {
+                return NextResponse.json({ error: secondDriverMessage }, { status: 400 });
+            }
+        }
 
         // Créer le trip et mettre à jour le véhicule en transaction
         const tx = await db.transaction('write');

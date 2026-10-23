@@ -51,6 +51,14 @@ describe('VehicleInfoCard (QR) — véhicule emprunté', () => {
         expect(screen.getByText(/En mission avec Jean Dupont et Marie Martin/)).toBeTruthy();
     });
 
+    it("se rabat sur l'email du conducteur principal s'il n'a pas de nom", () => {
+        render(<VehicleInfoCard vehicle={{
+            ...vehicle,
+            activeTrip: { ...trip, driverName: null, secondDriverId: 'usr-2', secondDriverName: 'Marie Martin', secondDriverEmail: 'marie@croix-rouge.fr' },
+        }} />);
+        expect(screen.getByText(/En mission avec jean@croix-rouge\.fr et Marie Martin/)).toBeTruthy();
+    });
+
     it("se rabat sur l'email du 2ème conducteur s'il n'a pas de nom", () => {
         render(<VehicleInfoCard vehicle={{
             ...vehicle,

@@ -9,6 +9,7 @@ import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import { MILEAGE_DECREASE_CONFIRM_REQUIRED, isMileageDecrease } from '@/lib/utils/mileageAnomaly';
 
 interface CheckOutModalProps {
     vehicle: Vehicle;
@@ -170,7 +171,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
 
             const isDsaChecked = checklistOut[`dsa-checkout-${vehicle.id}`] || false;
 
-            const res = await fetch('/api/trips', {
+            const postTrip = (confirmMileageDecrease: boolean) => fetch('/api/trips', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -188,8 +189,22 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                     dataIncorrect: dataIncorrect || undefined,
                     correctedMileage: dataIncorrect ? correctedMileage : undefined,
                     correctedFuel: dataIncorrect ? correctedFuel : undefined,
+                    confirmMileageDecrease: confirmMileageDecrease || undefined,
                 }),
             });
+
+            let res = await postTrip(false);
+            // Kilométrage corrigé à la baisse : le serveur exige une confirmation explicite.
+            if (res.status === 400) {
+                const errorData = await res.clone().json().catch(() => ({}));
+                if (errorData.code === MILEAGE_DECREASE_CONFIRM_REQUIRED) {
+                    if (!window.confirm(`${errorData.error}\n\nConfirmer la prise du véhicule avec ce kilométrage ?`)) {
+                        setSubmitting(false);
+                        return;
+                    }
+                    res = await postTrip(true);
+                }
+            }
             if (res.ok) {
                 // API completed successfully — close modal and trigger refetch
                 onSuccess();
@@ -275,6 +290,11 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                             onChange={e => setCorrectedMileage(Number(e.target.value))}
                                             required
                                         />
+                                        {isMileageDecrease(correctedMileage, vehicle.mileage) && (
+                                            <div className="form-hint" style={{ color: 'var(--error-text)' }}>
+                                                ⚠️ Inférieur au kilométrage connu ({vehicle.mileage.toLocaleString('fr-FR')} km) : vérifiez la saisie, le compteur sera corrigé à la baisse.
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label" htmlFor="checkout-corrected-fuel">

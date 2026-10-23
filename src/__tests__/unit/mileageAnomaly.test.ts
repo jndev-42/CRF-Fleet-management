@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
     MAX_KM_PER_DAY,
+    isMileageDecrease,
+    mileageDecreaseMessage,
     checkMileageAnomaly,
     elapsedDays,
     formatElapsed,
@@ -113,5 +115,22 @@ describe('negativeMileageMessage', () => {
         expect(message).toContain('inférieur au kilométrage de départ');
         expect(message).toContain('indisponible');
         expect(message).toContain('responsable');
+    });
+});
+
+describe('isMileageDecrease', () => {
+    it('vrai seulement si la valeur corrigée est strictement inférieure au kilométrage connu', () => {
+        expect(isMileageDecrease(1200, 12000)).toBe(true);
+        expect(isMileageDecrease(12000, 12000)).toBe(false);
+        expect(isMileageDecrease(12100, 12000)).toBe(false);
+    });
+});
+
+describe('mileageDecreaseMessage', () => {
+    it('cite les deux kilométrages au format français', () => {
+        const msg = mileageDecreaseMessage(12000, 1200);
+        expect(msg).toMatch(/\(1.200 km\)/);
+        expect(msg).toMatch(/\(12.000 km\)/);
+        expect(msg).toContain('corrigé à la baisse');
     });
 });

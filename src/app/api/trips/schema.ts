@@ -15,4 +15,6 @@ export const checkOutSchema = z.object({
     dataIncorrect: z.boolean().optional(),
     correctedMileage: z.number().int().min(0).optional(),
     correctedFuel: z.number().int().min(0).max(100).optional(),
+    /** Confirmation explicite d'un kilométrage corrigé à la baisse (cf. mileageAnomaly.ts). */
+    confirmMileageDecrease: z.boolean().optional(),
 });

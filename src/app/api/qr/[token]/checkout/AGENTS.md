@@ -35,7 +35,8 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 3. For fuel: electric vehicles use batteryLevel; fuel vehicles use fuelQuantity / maxFuelCapacity * 100 (capped at 100).
 4. If `dataIncorrect = true` and correctedMileage/correctedFuel provided: override fetched/existing values.
 5. Fallback parking spot: user-supplied or vehicle.parkingSpot or null.
-6. Trip is created with driverId = session.user.id and the optional `secondDriverId` (must be an existing User distinct from the borrower, else 400). The second driver can then check the vehicle in. Candidates come from `GET /api/qr/[token]/drivers`.
+5b. A `correctedMileage` below the known mileage (stored or telemetry) requires `confirmMileageDecrease: true`, else 400 with `code: 'MILEAGE_DECREASE_CONFIRM_REQUIRED'` (shared with `POST /api/trips`, see `@/lib/utils/mileageAnomaly`). The "Données incorrectes" push is sent only when a value actually changes.
+6. Trip is created with driverId = session.user.id and the optional `secondDriverId` (checked by `secondDriverError()` from `@/lib/eligibleDrivers`: distinct from the borrower, active, holding the driving role for the vehicle type — else 400). The second driver can then check the vehicle in. Candidates come from `GET /api/qr/[token]/drivers`.
 
 **DB Details:**
 - Transactional (write): atomically insert Trip + update Vehicle.

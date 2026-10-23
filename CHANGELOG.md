@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.32.0] — 23 octobre 2026
+
+### ✨ Nouveautés
+
+- **Kilométrage corrigé à la baisse : confirmation demandée** — à la prise d'un véhicule (fiche véhicule ou QR code), si le kilométrage réel saisi est inférieur au kilométrage connu, un avertissement s'affiche sous le champ et une confirmation est demandée avant d'enregistrer. Une faute de frappe (1 200 au lieu de 12 000 km) ne fait plus reculer le compteur du véhicule par mégarde.
+
+### Corrections
+
+- **2ème conducteur : seuls les chauffeurs actifs et habilités sont acceptés** — à la prise d'un véhicule, le 2ème conducteur doit être différent de vous, actif et habilité au type de véhicule (VL ou VPSP), y compris si la demande ne passe pas par l'écran.
+- **Ajout d'un 2ème conducteur à un trajet en cours** — sur la fiche véhicule, l'encadré « Ajouter 2nd cond. » propose désormais la liste des chauffeurs habilités aux chauffeurs eux-mêmes (elle était vide).
+- **Correction du kilométrage d'un véhicule connecté via le QR code** — ressaisir la valeur affichée comme « réelle » est désormais bien pris en compte, même si la valeur lue en direct sur le véhicule diffère.
+- **Page du QR code d'un véhicule emprunté** — si le conducteur n'a pas de nom renseigné, son email est affiché.
+
 ## [5.31.1] — 23 octobre 2026
 
 ### Corrections

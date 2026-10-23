@@ -14,6 +14,7 @@ Vehicle-specific endpoints: fetch full details (including trip history, active m
 ## Subdirectories
 - `checklist` — Checkout/checkin checklist items for this vehicle
 - `desinfections` — Disinfection history (VPSP or tracking-enabled)
+- `drivers` — Eligible second drivers for checkout / active trip (any active account, UL-scoped vehicle, `[id]` = UUID)
 - `incidents` — Incident reports for this vehicle
 - `maintenance` — Maintenance records (historical log with pagination)
 - `maintenance/[recordId]` — Delete individual maintenance record

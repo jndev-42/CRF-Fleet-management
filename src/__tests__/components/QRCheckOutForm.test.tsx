@@ -143,6 +143,107 @@ describe('CheckOutForm (QR) — correction kilométrage / carburant', () => {
         expect(lastCheckoutBody().secondDriverId).toBeUndefined();
     });
 
+    it("véhicule connecté : ressaisir la valeur stockée est une vraie correction (la télémétrie peut différer)", async () => {
+        const onSuccess = vi.fn();
+        render(<CheckOutForm vehicle={{ ...vehicle, connection: { status: 'CONNECTED' } }} token="tok-1" onSuccess={onSuccess} />);
+        fireEvent.click(screen.getByLabelText(/Saisir manuellement le kilométrage\/carburant/));
+        const mileage = screen.getByLabelText(/Kilométrage réel/);
+        fireEvent.change(mileage, { target: { value: '12001' } });
+        fireEvent.change(mileage, { target: { value: '12000' } });
+        fireEvent.click(screen.getByRole('button', { name: /Confirmer l'emprunt/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        const body = lastCheckoutBody();
+        expect(body.dataIncorrect).toBe(true);
+        expect(body.correctedMileage).toBe(12000);
+        expect(body.correctedFuel).toBeUndefined();
+    });
+
+    it("un kilométrage vidé n'est jamais envoyé (ni 0 ni chaîne vide)", async () => {
+        const onSuccess = vi.fn();
+        const { container } = render(<CheckOutForm vehicle={vehicle} token="tok-1" onSuccess={onSuccess} />);
+        fireEvent.click(screen.getByLabelText(/Le kilométrage et\/ou le niveau d'essence est erroné/));
+        fireEvent.change(screen.getByLabelText(/Kilométrage réel/), { target: { value: '' } });
+        fireEvent.change(screen.getByLabelText(/Diesel réel/), { target: { value: '70' } });
+        // Soumission programmatique : contourne le `required` du navigateur.
+        fireEvent.submit(container.querySelector('form')!);
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        const body = lastCheckoutBody();
+        expect(body.correctedMileage).toBeUndefined();
+        expect(body.correctedFuel).toBe(70);
+    });
+
+    it('signale une saisie inférieure au kilométrage connu', () => {
+        render(<CheckOutForm vehicle={vehicle} token="tok-1" onSuccess={vi.fn()} />);
+        fireEvent.click(screen.getByLabelText(/Le kilométrage et\/ou le niveau d'essence est erroné/));
+        expect(screen.queryByText(/Inférieur au kilométrage connu/)).toBeNull();
+        fireEvent.change(screen.getByLabelText(/Kilométrage réel/), { target: { value: '1200' } });
+        expect(screen.getByText(/Inférieur au kilométrage connu \(12.000 km\)/)).toBeTruthy();
+    });
+
+    describe('kilométrage corrigé à la baisse', () => {
+        function mockDecreaseFlow() {
+            let checkoutCalls = 0;
+            fetchMock.mockImplementation((url: string) => {
+                if (String(url).includes('/drivers')) {
+                    return Promise.resolve(new Response(JSON.stringify({ users: [] }), { status: 200 }));
+                }
+                checkoutCalls += 1;
+                if (checkoutCalls === 1) {
+                    return Promise.resolve(new Response(JSON.stringify({
+                        error: 'Le kilométrage saisi (1 200 km) est inférieur au kilométrage connu (12 000 km)',
+                        code: 'MILEAGE_DECREASE_CONFIRM_REQUIRED',
+                    }), { status: 400 }));
+                }
+                return Promise.resolve(new Response(JSON.stringify({ tripId: 't1' }), { status: 201 }));
+            });
+        }
+
+        function checkoutBodies(): Record<string, unknown>[] {
+            return fetchMock.mock.calls
+                .filter(([url]) => String(url).includes('/checkout'))
+                .map(([, init]) => JSON.parse((init as RequestInit).body as string));
+        }
+
+        function submitDecrease() {
+            fireEvent.click(screen.getByLabelText(/Le kilométrage et\/ou le niveau d'essence est erroné/));
+            fireEvent.change(screen.getByLabelText(/Kilométrage réel/), { target: { value: '1200' } });
+            fireEvent.click(screen.getByRole('button', { name: /Confirmer l'emprunt/ }));
+        }
+
+        it('demande confirmation puis renvoie avec confirmMileageDecrease', async () => {
+            mockDecreaseFlow();
+            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+            const onSuccess = vi.fn();
+            render(<CheckOutForm vehicle={vehicle} token="tok-1" onSuccess={onSuccess} />);
+            submitDecrease();
+
+            await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+            expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('inférieur au kilométrage connu'));
+            const bodies = checkoutBodies();
+            expect(bodies).toHaveLength(2);
+            expect(bodies[0].confirmMileageDecrease).toBeUndefined();
+            expect(bodies[1].confirmMileageDecrease).toBe(true);
+            expect(bodies[1].correctedMileage).toBe(1200);
+            confirmSpy.mockRestore();
+        });
+
+        it("n'emprunte pas si l'utilisateur annule la confirmation", async () => {
+            mockDecreaseFlow();
+            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+            const onSuccess = vi.fn();
+            render(<CheckOutForm vehicle={vehicle} token="tok-1" onSuccess={onSuccess} />);
+            submitDecrease();
+
+            await waitFor(() => expect(confirmSpy).toHaveBeenCalled());
+            await waitFor(() => expect((screen.getByRole('button', { name: /Confirmer l'emprunt/ }) as HTMLButtonElement).disabled).toBe(false));
+            expect(checkoutBodies()).toHaveLength(1);
+            expect(onSuccess).not.toHaveBeenCalled();
+            confirmSpy.mockRestore();
+        });
+    });
+
     it('propose la saisie manuelle pour un véhicule connecté', () => {
         render(<CheckOutForm vehicle={{ ...vehicle, connection: { status: 'CONNECTED' } }} token="tok-1" onSuccess={vi.fn()} />);
         expect(screen.getByLabelText(/Saisir manuellement le kilométrage\/carburant/)).toBeTruthy();

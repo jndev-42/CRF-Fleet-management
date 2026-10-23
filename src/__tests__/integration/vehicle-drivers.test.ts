@@ -86,6 +86,12 @@ describe('GET /api/vehicles/[id]/drivers', () => {
     expect(again.users.map((u: { id: string }) => u.id)).toEqual(['usr-chvpsp']);
   });
 
+  it('un gestionnaire (ADMIN) de la même UL obtient aussi la liste', async () => {
+    asUser('usr-admin', ['ADMIN']);
+    const { users } = await (await getDrivers('VL01')).json();
+    expect(users.map((u: { id: string }) => u.id).sort()).toEqual(['usr-chvl', 'usr-me']);
+  });
+
   it('un SUPER_ADMIN voit les conducteurs pour un véhicule de toute UL', async () => {
     asUser('usr-sa', ['SUPER_ADMIN'], 'ul-paris-18');
     const res = await getDrivers('VL-LYON');

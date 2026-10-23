@@ -6,6 +6,8 @@ import { isQrBlocked } from '@/lib/roles';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { secondDriverError } from '@/lib/eligibleDrivers';
+import { MILEAGE_DECREASE_CONFIRM_REQUIRED, isMileageDecrease, mileageDecreaseMessage } from '@/lib/utils/mileageAnomaly';
 
 /**
  * POST /api/qr/[token]/checkout
@@ -28,6 +30,8 @@ const checkOutSchema = z.object({
     dataIncorrect: z.boolean().optional(),
     correctedMileage: z.number().int().min(0).optional(),
     correctedFuel: z.number().int().min(0).max(100).optional(),
+    /** Confirmation explicite d'un kilométrage corrigé à la baisse (cf. mileageAnomaly.ts). */
+    confirmMileageDecrease: z.boolean().optional(),
 });
 
 async function postHandler(
@@ -119,6 +123,17 @@ async function postHandler(
         const originalMileage = mileageOut;
         const originalFuel = fuelOut;
         if (data.dataIncorrect) {
+            if (
+                data.correctedMileage !== undefined
+                && isMileageDecrease(data.correctedMileage, originalMileage)
+                && !data.confirmMileageDecrease
+            ) {
+                return NextResponse.json({
+                    error: mileageDecreaseMessage(originalMileage, data.correctedMileage),
+                    code: MILEAGE_DECREASE_CONFIRM_REQUIRED,
+                    knownMileage: originalMileage,
+                }, { status: 400 });
+            }
             if (data.correctedMileage !== undefined) mileageOut = data.correctedMileage;
             if (data.correctedFuel !== undefined) fuelOut = data.correctedFuel;
         }
@@ -126,19 +141,13 @@ async function postHandler(
         const driverId = session.user.id;
         const vehicleId = vehicle.id as string;
 
-        // 2ème conducteur : compte existant, distinct de l'emprunteur. Il pourra
+        // 2ème conducteur : chauffeur actif habilité, distinct de l'emprunteur. Il pourra
         // ensuite rendre le véhicule (check-in réservé aux conducteurs du trajet).
         const secondDriverId = data.secondDriverId ?? null;
         if (secondDriverId) {
-            if (secondDriverId === driverId) {
-                return NextResponse.json({ error: 'Le 2ème conducteur doit être différent de vous' }, { status: 400 });
-            }
-            const secondDriverRes = await db.execute({
-                sql: `SELECT 1 FROM "User" WHERE id = ?`,
-                args: [secondDriverId],
-            });
-            if (secondDriverRes.rows.length === 0) {
-                return NextResponse.json({ error: '2ème conducteur introuvable' }, { status: 400 });
+            const secondDriverMessage = await secondDriverError(vehicle.type, driverId, secondDriverId);
+            if (secondDriverMessage) {
+                return NextResponse.json({ error: secondDriverMessage }, { status: 400 });
             }
         }
         const tripId = crypto.randomUUID();

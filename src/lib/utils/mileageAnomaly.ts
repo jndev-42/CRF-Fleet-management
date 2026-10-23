@@ -78,3 +78,25 @@ export function checkMileageAnomaly(
     if (delta < 0) return 'negative';
     return delta > MAX_KM_PER_DAY * elapsedDays(checkOutAt, now) ? 'excessive' : null;
 }
+
+/**
+ * Correction à l'emprunt (« le kilométrage est erroné ») inférieure au kilométrage connu.
+ *
+ * Légitime — corriger un compteur trop haut est précisément l'objet de la correction — mais
+ * une faute de frappe (1 200 au lieu de 12 000) ferait reculer le compteur du véhicule.
+ * Le serveur exige donc une confirmation explicite (`confirmMileageDecrease`) et répond
+ * sinon 400 avec ce code ; le formulaire demande alors confirmation et renvoie.
+ */
+export const MILEAGE_DECREASE_CONFIRM_REQUIRED = 'MILEAGE_DECREASE_CONFIRM_REQUIRED';
+
+/** Vrai si le kilométrage corrigé est inférieur au kilométrage connu. */
+export function isMileageDecrease(correctedMileage: number, knownMileage: number): boolean {
+    return correctedMileage < knownMileage;
+}
+
+/** Message de confirmation, littéral unique partagé front ↔ serveur. */
+export function mileageDecreaseMessage(knownMileage: number, correctedMileage: number): string {
+    return `Le kilométrage saisi (${correctedMileage.toLocaleString('fr-FR')} km) est inférieur au `
+        + `kilométrage connu (${knownMileage.toLocaleString('fr-FR')} km) : le compteur du véhicule sera `
+        + `corrigé à la baisse. Vérifiez la saisie.`;
+}

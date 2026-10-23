@@ -39,3 +39,18 @@ context: []
 - Tests manquants — partiellement retenu : ajout des cas « valeur modifiée seule », « aucun changement », « champ vidé ».
 - Rubrique du changelog — rejeté : du point de vue de l'utilisateur, c'est un manque corrigé.
 - Fichier de spec non suivi — faux : les specs de `_bmad-output/implementation-artifacts` sont versionnées dans le dépôt.
+
+### Review Findings (code review PR #150, 2026-10-23)
+
+- [x] [Review][Patch] Encadré « Ajouter 2nd cond. » vide pour les chauffeurs (GET /api/users réservé aux gestionnaires) [src/app/vehicles/[id]/useVehicleDetail.ts:72]
+- [x] [Review][Patch] Le serveur acceptait tout compte existant comme 2ème conducteur (INACTIF, non habilité) [src/app/api/qr/[token]/checkout/route.ts]
+- [x] [Review][Patch] Rôle hérité GUEST non exclu de la liste des conducteurs [src/lib/eligibleDrivers.ts]
+- [x] [Review][Patch] Véhicule connecté : ressaisir la valeur stockée était ignoré (comparaison à la valeur stockée au lieu de la saisie) [src/app/qr/[token]/CheckOutForm.tsx]
+- [x] [Review][Patch] « En mission avec  et … » si le conducteur principal n'a pas de nom [src/app/qr/[token]/VehicleInfoCard.tsx]
+- [x] [Review][Patch] Tests manquants : ulId/excludeUserId de la notification, 2ème conducteur via GET /api/qr/[token]/vehicle, rôle gestionnaire sur /api/vehicles/[id]/drivers
+- [x] [Review][Defer→Fixed] POST /api/trips sans contrôle du 2ème conducteur — même contrôle `secondDriverError()` que le QR [src/app/api/trips/route.ts]
+- [x] [Review][Defer→Fixed] Kilométrage corrigé à la baisse sans avertissement — avertissement + confirmation exigée par le serveur (`MILEAGE_DECREASE_CONFIRM_REQUIRED`) sur les deux routes [src/lib/utils/mileageAnomaly.ts]
+- [x] [Review][Defer→Fixed] AGENTS.md des routes drivers — créés, et trips/checkout mis à jour
+- [x] [Review][Defer] Listes de conducteurs des réservations et du retour réservées aux gestionnaires — deferred: hors périmètre, préexistant
+
+Rejected: lien de notification « cassé » (faux : /vehicles/[id] résout par nom) ; types hors VL/VPSP → CHVL (faux : règle `canBorrow`) ; annuaire toutes UL (choix produit) ; périmètre de la spec (correction = éditer la spec) ; kilométrage NULL (colonne DEFAULT 0) ; référence périmée / changement de token / course (improbables) ; échec de chargement silencieux (mineur) ; « X → X » partiel (parité /api/trips) ; métadonnées de la spec ; affirmation du message de commit.

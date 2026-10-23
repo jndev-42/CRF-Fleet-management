@@ -18,12 +18,14 @@ Container directory for trip (vehicle checkout/checkin) lifecycle management. Pr
 
 ### Working In This Directory
 - **POST /api/trips:** Create a new trip (checkout)
-  - Accepts checkOutSchema with: vehicleId, missionType, missionName, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut, secondDriverId, driveFolderId, checklistOut, dataIncorrect, correctedMileage, correctedFuel
+  - Accepts checkOutSchema with: vehicleId, missionType, missionName, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut, secondDriverId, driveFolderId, checklistOut, dataIncorrect, correctedMileage, correctedFuel, confirmMileageDecrease
   - Verifies vehicle exists and is AVAILABLE
   - Validates role+vehicle type permissions: ADMIN can borrow any, CHVPSP only VPSP vehicles, CHVL only non-VPSP
   - Désinfection mission only allowed on VPSP vehicles
   - Fetches live Renault data if the vehicle is connected (`isConnectedInDb(vehicle.id)`); auto-detects mileage and fuel level
   - Allows driver to override with `correctedMileage`/`correctedFuel` for non-connected vehicles (sends push notification to PRESIDENT, CADRE and ADMIN)
+  - A `correctedMileage` below the known mileage (stored or telemetry) requires `confirmMileageDecrease: true`, else 400 with `code: 'MILEAGE_DECREASE_CONFIRM_REQUIRED'` (shared message/predicate in `@/lib/utils/mileageAnomaly`; same rule on `POST /api/qr/[token]/checkout`). The forms ask for confirmation and resend.
+  - `secondDriverId` is checked by `secondDriverError()` (`@/lib/eligibleDrivers`): distinct from the borrower, active (no INACTIF/GUEST), holding CHVL/CHVPSP for the vehicle type — else 400. Candidates come from `GET /api/vehicles/[id]/drivers`.
   - Creates Trip record, updates Vehicle status to IN_USE, auto-deletes active reservation if user is taking reserved vehicle
   - Sends push notifications for incident conditions or data discrepancies
   - Returns 201 with Trip object including updated Vehicle details

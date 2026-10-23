@@ -108,6 +108,39 @@ describe('CheckOutModal', () => {
         });
     });
 
+    it('kilométrage corrigé à la baisse : avertit, demande confirmation puis renvoie avec confirmMileageDecrease', async () => {
+        let tripCalls = 0;
+        const fetchMock = mockFetch(async (input, init) => {
+            const url = getUrl(input);
+            if (url.includes('/api/trips') && init?.method === 'POST') {
+                tripCalls += 1;
+                if (tripCalls === 1) {
+                    return new Response(JSON.stringify({ error: 'Le kilométrage saisi est inférieur au kilométrage connu', code: 'MILEAGE_DECREASE_CONFIRM_REQUIRED' }), { status: 400 });
+                }
+                return new Response(JSON.stringify({ id: 'trip-1' }), { status: 201 });
+            }
+            return defaultFetchHandler(input, init);
+        });
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        const onSuccess = vi.fn();
+        render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={onSuccess} />);
+        await screen.findByDisplayValue('Jean Dupont');
+
+        fireEvent.click(screen.getByLabelText(/Le kilométrage et\/ou le niveau d'essence est erroné/));
+        fireEvent.change(screen.getByLabelText(/Kilométrage réel/), { target: { value: '1200' } });
+        expect(screen.getByText(/Inférieur au kilométrage connu/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        expect(confirmSpy).toHaveBeenCalled();
+        const bodies = fetchMock.mock.calls
+            .filter(([input, init]) => getUrl(input as string).includes('/api/trips') && (init as RequestInit)?.method === 'POST')
+            .map(([, init]) => JSON.parse((init as RequestInit).body as string));
+        expect(bodies).toHaveLength(2);
+        expect(bodies[0].confirmMileageDecrease).toBeUndefined();
+        expect(bodies[1].confirmMileageDecrease).toBe(true);
+    });
+
     it('affiche le kilométrage et le niveau de carburant actuels', async () => {
         mockFetch();
         render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);

@@ -6,6 +6,7 @@ import UserCombobox from '@/components/ui/UserCombobox';
 import DataCorrectionFields from './DataCorrectionFields';
 import { useQrDrivers } from './useQrDrivers';
 import type { QRVehicle } from './types';
+import { MILEAGE_DECREASE_CONFIRM_REQUIRED } from '@/lib/utils/mileageAnomaly';
 
 export default function CheckOutForm({
     vehicle,
@@ -31,8 +32,40 @@ export default function CheckOutForm({
     // Chaîne vide autorisée : un champ vidé ne doit pas devenir 0 km.
     const [correctedMileage, setCorrectedMileage] = useState<number | ''>(vehicle.mileage);
     const [correctedFuel, setCorrectedFuel] = useState(vehicle.fuelLevel);
+    // Seules les valeurs que l'utilisateur a modifiées sont envoyées. On suit la saisie
+    // plutôt que de comparer à la valeur stockée : pour un véhicule connecté, le serveur
+    // part de la télémétrie, et ressaisir la valeur stockée est une vraie correction.
+    const [mileageTouched, setMileageTouched] = useState(false);
+    const [fuelTouched, setFuelTouched] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    async function postCheckout(confirmMileageDecrease: boolean) {
+        const isDsaChecked = checklistOut[`dsa-checkout-${vehicle.id}`] || false;
+        const sendMileage = dataIncorrect && mileageTouched && correctedMileage !== '';
+        const sendFuel = dataIncorrect && fuelTouched;
+
+        const res = await fetch(`/api/qr/${token}/checkout`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                missionType: form.missionType,
+                missionName: form.missionName || undefined,
+                conditionOut: form.conditionOut,
+                cleanlinessOut: form.cleanlinessOut,
+                parkingOut: form.parkingOut || undefined,
+                commentsOut: form.commentsOut || undefined,
+                dsaChecked: isDsaChecked,
+                secondDriverId: secondDriverId || undefined,
+                checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
+                dataIncorrect: (sendMileage || sendFuel) || undefined,
+                correctedMileage: sendMileage ? correctedMileage : undefined,
+                correctedFuel: sendFuel ? correctedFuel : undefined,
+                confirmMileageDecrease: confirmMileageDecrease || undefined,
+            }),
+        });
+        return { res, json: await res.json() };
+    }
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -40,35 +73,12 @@ export default function CheckOutForm({
         setError(null);
 
         try {
-            const isDsaChecked = checklistOut[`dsa-checkout-${vehicle.id}`] || false;
-
-            // Seules les valeurs réellement modifiées sont envoyées : pour un véhicule
-            // connecté, la valeur stockée est plus ancienne que la télémétrie lue par le
-            // serveur et ne doit pas l'écraser.
-            const mileageChanged = dataIncorrect && correctedMileage !== '' && correctedMileage !== vehicle.mileage;
-            const fuelChanged = dataIncorrect && correctedFuel !== vehicle.fuelLevel;
-            const hasCorrection = mileageChanged || fuelChanged;
-
-            const res = await fetch(`/api/qr/${token}/checkout`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    missionType: form.missionType,
-                    missionName: form.missionName || undefined,
-                    conditionOut: form.conditionOut,
-                    cleanlinessOut: form.cleanlinessOut,
-                    parkingOut: form.parkingOut || undefined,
-                    commentsOut: form.commentsOut || undefined,
-                    dsaChecked: isDsaChecked,
-                    secondDriverId: secondDriverId || undefined,
-                    checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
-                    dataIncorrect: hasCorrection || undefined,
-                    correctedMileage: mileageChanged ? correctedMileage : undefined,
-                    correctedFuel: fuelChanged ? correctedFuel : undefined,
-                }),
-            });
-
-            const json = await res.json();
+            let { res, json } = await postCheckout(false);
+            // Kilométrage corrigé à la baisse : le serveur exige une confirmation explicite.
+            if (!res.ok && json.code === MILEAGE_DECREASE_CONFIRM_REQUIRED) {
+                if (!window.confirm(`${json.error}\n\nConfirmer l'emprunt avec ce kilométrage ?`)) return;
+                ({ res, json } = await postCheckout(true));
+            }
             if (res.ok) {
                 onSuccess();
             } else {
@@ -108,8 +118,9 @@ export default function CheckOutForm({
                 correctedMileage={correctedMileage}
                 correctedFuel={correctedFuel}
                 onDataIncorrectChange={setDataIncorrect}
-                onMileageChange={setCorrectedMileage}
-                onFuelChange={setCorrectedFuel}
+                knownMileage={vehicle.mileage}
+                onMileageChange={value => { setCorrectedMileage(value); setMileageTouched(true); }}
+                onFuelChange={value => { setCorrectedFuel(value); setFuelTouched(true); }}
             />
 
             <div>

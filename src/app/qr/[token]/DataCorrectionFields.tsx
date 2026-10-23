@@ -1,4 +1,5 @@
 import FuelBar from '@/components/vehicle/FuelBar';
+import { isMileageDecrease } from '@/lib/utils/mileageAnomaly';
 
 /**
  * Bloc « Le kilométrage et/ou le niveau d'essence est erroné » du formulaire d'emprunt QR.
@@ -11,6 +12,7 @@ export default function DataCorrectionFields({
     dataIncorrect,
     correctedMileage,
     correctedFuel,
+    knownMileage,
     onDataIncorrectChange,
     onMileageChange,
     onFuelChange,
@@ -20,11 +22,14 @@ export default function DataCorrectionFields({
     dataIncorrect: boolean;
     correctedMileage: number | '';
     correctedFuel: number;
+    /** Kilométrage connu du véhicule : une saisie inférieure est signalée. */
+    knownMileage: number;
     onDataIncorrectChange: (value: boolean) => void;
     onMileageChange: (value: number | '') => void;
     onFuelChange: (value: number) => void;
 }) {
     const electric = fuelType === 'Électrique';
+    const decrease = correctedMileage !== '' && isMileageDecrease(correctedMileage, knownMileage);
     const fuelLabel = electric ? 'Batterie' : (fuelType === 'Diesel' ? 'Diesel' : 'Essence');
 
     return (
@@ -60,7 +65,13 @@ export default function DataCorrectionFields({
                             value={correctedMileage}
                             onChange={e => onMileageChange(e.target.value === '' ? '' : Number(e.target.value))}
                             required
+                            aria-describedby={decrease ? 'qr-checkout-mileage-decrease' : undefined}
                         />
+                        {decrease && (
+                            <div id="qr-checkout-mileage-decrease" style={{ marginTop: 6, fontSize: 12, color: 'var(--error-text)' }}>
+                                ⚠️ Inférieur au kilométrage connu ({knownMileage.toLocaleString('fr-FR')} km) : vérifiez la saisie, le compteur sera corrigé à la baisse.
+                            </div>
+                        )}
                     </div>
                     <div>
                         <label htmlFor="qr-checkout-corrected-fuel" style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>

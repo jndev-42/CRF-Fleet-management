@@ -81,3 +81,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-qr-checkout-correction-km-carburant.md`
   summary: Dans CheckOutModal, vider le champ « Kilométrage réel » le transforme en 0 km, qui est alors enregistré ; mutualiser le bloc de correction (DataCorrectionFields) et la notification « données incorrectes » entre la modale et le parcours QR.
   evidence: CheckOutModal.tsx:273 `Number(e.target.value)` sur un champ vide donne 0 et `required` ne bloque plus ; le parcours QR est corrigé, la modale non (préexistant, et notification dupliquée entre trips/route.ts et qr/[token]/checkout/route.ts).
+
+## Deferred from: code review of spec-qr-checkout-correction-km-carburant.md (2026-10-23)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-qr-checkout-correction-km-carburant.md`
+  summary: Les listes de conducteurs de ReservationBlock / ReservationFormModal (/api/users?vehicleType=) et de CheckInModal (/api/users) restent réservées aux gestionnaires.
+  evidence: Vide pour un non-gestionnaire si ces écrans lui sont ouverts ; hors du périmètre demandé (préexistant).

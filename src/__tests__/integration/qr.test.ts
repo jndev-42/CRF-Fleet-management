@@ -218,7 +218,7 @@ describe('QR Code API Flow', () => {
   });
 
   it('POST /api/qr/[token]/checkout enregistre le kilométrage et le carburant corrigés et notifie les responsables', async () => {
-    await seedVehicle({ id: 'VLCOR', name: 'VL Correction', type: 'VL', status: 'AVAILABLE', qrToken: 'token-correction', mileage: 1000, fuelLevel: 20 });
+    await seedVehicle({ id: 'VLCOR', name: 'VL Correction', type: 'VL', status: 'AVAILABLE', qrToken: 'token-correction', mileage: 1000, fuelLevel: 20, ulId: 'ul-lyon' });
     vi.mocked(sendPushNotification).mockClear();
 
     const req = new Request('http://localhost/api/qr/token-correction/checkout', {
@@ -253,6 +253,32 @@ describe('QR Code API Flow', () => {
     expect(call.roles).toEqual(['PRESIDENT', 'CADRE', 'ADMIN']);
     expect(call.contents.fr).toMatch(/1.000 → 1.250 km/);
     expect(call.contents.fr).toContain('20% → 75%');
+    // UL du véhicule (et non le repli codé en dur), auteur exclu de sa propre alerte.
+    expect(call.ulId).toBe('ul-lyon');
+    expect(call.excludeUserId).toBe('usr-driver-1');
+  });
+
+  it('POST /api/qr/[token]/checkout exige une confirmation pour un kilométrage corrigé à la baisse', async () => {
+    await seedVehicle({ id: 'VLDEC', name: 'VL Baisse', type: 'VL', status: 'AVAILABLE', qrToken: 'token-decrease', mileage: 12000, fuelLevel: 50 });
+    const send = (extra: Record<string, unknown>) => POST_QR_CHECKOUT(new Request('http://localhost/api/qr/token-decrease/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'DPS', conditionOut: 'Bon état', dataIncorrect: true, correctedMileage: 1200, ...extra }),
+    }), { params: Promise.resolve({ token: 'token-decrease' }) });
+
+    const refused = await send({});
+    expect(refused.status).toBe(400);
+    const body = await refused.json();
+    expect(body.code).toBe('MILEAGE_DECREASE_CONFIRM_REQUIRED');
+    expect(body.knownMileage).toBe(12000);
+    const before = await db.execute({ sql: `SELECT status, mileage FROM Vehicle WHERE id = ?`, args: ['VLDEC'] });
+    expect(before.rows[0].status).toBe('AVAILABLE');
+    expect(Number(before.rows[0].mileage)).toBe(12000);
+
+    const confirmed = await send({ confirmMileageDecrease: true });
+    expect(confirmed.status).toBe(201);
+    const after = await db.execute({ sql: `SELECT mileage FROM Vehicle WHERE id = ?`, args: ['VLDEC'] });
+    expect(Number(after.rows[0].mileage)).toBe(1200);
   });
 
   it("POST /api/qr/[token]/checkout ignore les valeurs corrigées et ne notifie pas sans dataIncorrect", async () => {

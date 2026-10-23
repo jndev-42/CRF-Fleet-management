@@ -24,6 +24,7 @@ vi.mock('@/lib/push', () => ({
 import { GET as GET_QR_DRIVERS } from '@/app/api/qr/[token]/drivers/route';
 import { POST as POST_QR_CHECKOUT } from '@/app/api/qr/[token]/checkout/route';
 import { POST as POST_QR_CHECKIN } from '@/app/api/qr/[token]/checkin/route';
+import { GET as GET_QR_VEHICLE } from '@/app/api/qr/[token]/vehicle/route';
 import { auth } from '@/auth';
 import { db, seedVehicle, seedUser, seedRoles, seedUserRole } from './setup';
 
@@ -51,7 +52,7 @@ function checkout(token: string, body: Record<string, unknown>) {
 describe('QR — 2ème conducteur', () => {
   beforeEach(async () => {
     mockedAuth.mockReset();
-    await seedRoles();
+    await seedRoles(['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'CADRE', 'CHVL', 'CHVPSP', 'INACTIF', 'GUEST']);
     await seedUser({ id: 'usr-me', email: 'me@croix-rouge.fr', name: 'Moi' });
     await seedUser({ id: 'usr-chvl', email: 'chvl@croix-rouge.fr', name: 'Alice CHVL' });
     await seedUser({ id: 'usr-chvpsp', email: 'chvpsp@croix-rouge.fr', name: 'Bruno CHVPSP' });
@@ -62,6 +63,9 @@ describe('QR — 2ème conducteur', () => {
     await seedUserRole('usr-chvpsp', 'CHVPSP');
     await seedUserRole('usr-inactif', 'CHVL');
     await seedUserRole('usr-inactif', 'INACTIF');
+    await seedUser({ id: 'usr-guest', email: 'guest@croix-rouge.fr', name: 'Gaston Guest' });
+    await seedUserRole('usr-guest', 'CHVL');
+    await seedUserRole('usr-guest', 'GUEST');
     await seedVehicle({ id: 'VL01', name: 'VL 01', type: 'VL', status: 'AVAILABLE', qrToken: 'tok-vl', ulId: 'ul-lyon' });
     await seedVehicle({ id: 'VPSP01', name: 'VPSP 01', type: 'VPSP', status: 'AVAILABLE', qrToken: 'tok-vpsp' });
   });
@@ -90,6 +94,12 @@ describe('QR — 2ème conducteur', () => {
       expect(users).toEqual([{ id: 'usr-chvl', name: 'Alice CHVL', email: 'chvl@croix-rouge.fr' }]);
     });
 
+    it('exclut les comptes portant le rôle hérité GUEST', async () => {
+      asUser('usr-me', ['CHVL']);
+      const { users } = await (await getDrivers('tok-vl')).json();
+      expect(users.map((u: { id: string }) => u.id)).not.toContain('usr-guest');
+    });
+
     it('liste les CHVPSP pour un VPSP, y compris pour un compte sans rôle', async () => {
       asUser('usr-norole', []);
       const { users } = await (await getDrivers('tok-vpsp')).json();
@@ -106,6 +116,13 @@ describe('QR — 2ème conducteur', () => {
 
       const trip = await db.execute({ sql: `SELECT secondDriverId FROM Trip WHERE id = ?`, args: [tripId] });
       expect(trip.rows[0].secondDriverId).toBe('usr-chvl');
+
+      // La page du QR code lit le 2ème conducteur via GET /api/qr/[token]/vehicle.
+      const vehicleRes = await GET_QR_VEHICLE(new Request('http://localhost/api/qr/tok-vl/vehicle'), { params: Promise.resolve({ token: 'tok-vl' }) });
+      const vehicle = await vehicleRes.json();
+      expect(vehicle.activeTrip.secondDriverId).toBe('usr-chvl');
+      expect(vehicle.activeTrip.secondDriverName).toBe('Alice CHVL');
+      expect(vehicle.activeTrip.secondDriverEmail).toBe('chvl@croix-rouge.fr');
 
       asUser('usr-chvl', ['CHVL']);
       const checkin = await POST_QR_CHECKIN(new Request('http://localhost/api/qr/tok-vl/checkin', {
@@ -130,6 +147,24 @@ describe('QR — 2ème conducteur', () => {
       expect(res.status).toBe(400);
       const vehicle = await db.execute({ sql: `SELECT status FROM Vehicle WHERE id = ?`, args: ['VL01'] });
       expect(vehicle.rows[0].status).toBe('AVAILABLE');
+    });
+
+    it.each([
+      ['INACTIF', 'usr-inactif'],
+      ['GUEST (hérité)', 'usr-guest'],
+      ['non habilité au type (CHVPSP sur un VL)', 'usr-chvpsp'],
+      ['sans aucun rôle', 'usr-norole'],
+    ])('returns 400 for a %s second driver, without creating a trip', async (_label, secondDriverId) => {
+      asUser('usr-me', ['CHVL']);
+      expect((await checkout('tok-vl', { secondDriverId })).status).toBe(400);
+      const count = await db.execute(`SELECT COUNT(*) AS n FROM Trip`);
+      expect(Number(count.rows[0].n)).toBe(0);
+    });
+
+    it("accepte un 2ème conducteur d'une autre UL (choix « toutes UL »)", async () => {
+      asUser('usr-me', ['CHVL']);
+      // Le VL est rattaché à ul-lyon, la session à ul-paris-18 : le parcours QR ne cloisonne pas.
+      expect((await checkout('tok-vl', { secondDriverId: 'usr-chvl' })).status).toBe(201);
     });
 
     it('returns 400 when secondDriverId is an empty string (Zod)', async () => {
