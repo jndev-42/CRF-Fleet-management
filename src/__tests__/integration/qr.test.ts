@@ -250,7 +250,7 @@ describe('QR Code API Flow', () => {
 
     expect(sendPushNotification).toHaveBeenCalledTimes(1);
     const call = vi.mocked(sendPushNotification).mock.calls[0][0];
-    expect(call.roles).toEqual(['PRESIDENT', 'CADRE', 'ADMIN']);
+    expect(call.roles).toEqual(['PRESIDENT', 'RESP_VEHICULE', 'ADMIN']);
     expect(call.contents.fr).toMatch(/1.000 → 1.250 km/);
     expect(call.contents.fr).toContain('20% → 75%');
     // UL du véhicule (et non le repli codé en dur), auteur exclu de sa propre alerte.
@@ -273,7 +273,7 @@ describe('QR Code API Flow', () => {
 
       expect(sendPushNotification).toHaveBeenCalledTimes(1);
       const call = vi.mocked(sendPushNotification).mock.calls[0][0];
-      expect(call.roles).toEqual(['PRESIDENT', 'CADRE']);
+      expect(call.roles).toEqual(['PRESIDENT', 'RESP_VEHICULE']);
       expect(call.headings.fr).toBe('🚨 Incident signalé à la prise de VL Incident');
       expect(call.contents.fr).toContain(`État: ${conditionOut}`);
       expect(call.ulId).toBe('ul-lyon');

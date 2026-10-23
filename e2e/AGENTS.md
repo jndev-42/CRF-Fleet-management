@@ -26,7 +26,7 @@ await page.goto('/login');
 await page.getByRole('button', { name: 'CHVL' }).click();
 await page.waitForURL('/');
 ```
-Available dev-login buttons (badge text, from `src/app/login/page.tsx`; accounts defined in `DEV_USERS` of `src/auth.ts`): `S.ADMIN` (SUPER_ADMIN), `ADMIN`, `PRESIDENT`, `TRESORIER`, `RESPO` (responsable d'activité: expense-report validation only, no fleet/admin-panel access), `CADRE`, `CHVL`, `CI/RPAPS`, `INACTIF` (blocked on everything), `JN`.
+Available dev-login buttons (badge text, from `src/app/login/page.tsx`; accounts defined in `DEV_USERS` of `src/auth.ts`): `S.ADMIN` (SUPER_ADMIN), `ADMIN`, `PRESIDENT`, `TRESORIER`, `RESPO` (responsable d'activité: expense-report validation only, no fleet/admin-panel access), `CADRE` (reservations only, no vehicle management), `RESP_VEH` (RESP_VEHICULE: vehicle management of its UL, no admin panel), `CHVL`, `CI/RPAPS`, `INACTIF` (blocked on everything), `JN`.
 
 ### Role coverage
 Each E2E flow should be tested with the **minimum required role** and verify that a lesser role is blocked (404 or redirect, not crash).

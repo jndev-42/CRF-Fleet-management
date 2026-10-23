@@ -17,6 +17,7 @@ const MANAGEABLE_ROLES = [
     'TRESORIER',
     'RESPO',
     'CADRE',
+    'RESP_VEHICULE',
     'CHVPSP',
     'CHVL',
     'CI/RPAPS',

@@ -30,7 +30,7 @@ Container for bulk operations on recurring reservation groups. Allows owner or m
 ### Internal
 - `db` (libSQL)
 - `auth` from `@/auth`
-- `@/lib/roles` — `canAccessAdminPanel()`
+- `@/lib/roles` — `canManageReservations()`
 
 ### Tables Touched
 - `Reservation` (filter by recurrenceGroupId, bulk delete/update status)

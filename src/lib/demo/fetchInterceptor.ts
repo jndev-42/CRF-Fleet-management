@@ -158,7 +158,7 @@ export function setupFetchInterceptor() {
                     const users = DemoDB.getUsers();
                     return mockResponse({ 
                         users, 
-                        availableRoles: ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'CHVL', 'CHVPSP', 'CI/RPAPS', 'GUEST', 'INACTIF']
+                        availableRoles: ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'RESP_VEHICULE', 'CHVL', 'CHVPSP', 'CI/RPAPS', 'GUEST', 'INACTIF']
                     });
                 }
 

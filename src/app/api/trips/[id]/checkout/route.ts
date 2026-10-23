@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
@@ -31,7 +31,7 @@ async function patchHandler(
         }
 
         const roles = session.user.roles || [];
-        if (!isAdminOrAbove(roles)) {
+        if (!canManageVehicles(roles)) {
             return forbiddenResponse();
         }
 

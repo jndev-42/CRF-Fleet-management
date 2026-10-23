@@ -35,7 +35,7 @@ Manages QR code bypass tokens for vehicles. Lazy-creates tokens on first GET (st
 
 ### Internal
 - `@/lib/db` — `Vehicle` table (qrToken column)
-- `@/lib/roles` — `canAccessAdminPanel`
+- `@/lib/roles` — `canSuperviseVehicles`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

@@ -1,4 +1,5 @@
 import React from 'react';
+import { canManageVehicles } from '@/lib/roles';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import { statusClass, statusLabels } from '@/app/vehicles/[id]/utils';
 
@@ -23,7 +24,7 @@ interface VehicleBadgesProps {
  * - Nothing: DSA absent, regular user
  */
 export default function VehicleBadges({ vehicle, userRoles, onToggleDSA, onDelete, showAdminDsaToggle = false }: VehicleBadgesProps) {
-    const isAdmin = userRoles.includes('ADMIN');
+    const isAdmin = canManageVehicles(userRoles);
 
     /** Renders the DSA badge depending on state + role */
     function renderDSABadge() {

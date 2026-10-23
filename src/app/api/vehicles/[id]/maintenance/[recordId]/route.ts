@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { canManageVehicles, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
@@ -16,7 +16,7 @@ async function deleteHandler(
         }
 
         const roles = session.user.roles || ['INACTIF'];
-        if (!isAdminOrAbove(roles)) {
+        if (!canManageVehicles(roles)) {
             return forbiddenResponse();
         }
 

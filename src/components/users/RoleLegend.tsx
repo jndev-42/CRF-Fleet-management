@@ -13,13 +13,13 @@ const ROLE_DESCRIPTIONS = [
         key: 'ADMIN', label: 'Administrateur', color: '#ef4444',
         bgColor: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)',
         description: 'Gestion de son UL uniquement. Ne peut pas créer ou supprimer d\'UL.',
-        permissions: ['Gestion des utilisateurs de son UL', 'Gestion des droits (limité à son UL)', 'Validation des papiers/permis', 'Modification des paramètres de son UL', 'Gestion des véhicules & inventaire', 'Notifications push'],
+        permissions: ['Gestion des utilisateurs de son UL', 'Gestion des droits (limité à son UL)', 'Validation des papiers/permis', 'Modification des paramètres de son UL', 'Gestion des véhicules & inventaire', 'Validation des réservations', 'Alertes flotte (kilométrage, désinfection, usage suspect)', 'Notifications push'],
     },
     {
         key: 'PRESIDENT', label: 'Président', color: '#f97316',
         bgColor: 'rgba(249, 115, 22, 0.08)', borderColor: 'rgba(249, 115, 22, 0.25)',
         description: 'Lecture seule de son UL. Peut valider les papiers et les notes de frais. Ne peut pas créer de note de frais à son nom.',
-        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Validation finale et refus des notes de frais (signature et tampon de l\'UL)', 'Peut signer à la place du responsable d\'activité', 'Consulter les véhicules & missions', 'Consulter l\'inventaire'],
+        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Validation finale et refus des notes de frais (signature et tampon de l\'UL)', 'Peut signer à la place du responsable d\'activité', 'Consulter les véhicules & missions', 'Validation des réservations et QR des véhicules', 'Notifications des incidents véhicule', 'Consulter l\'inventaire'],
     },
     {
         key: 'TRESORIER', label: 'Trésorier', color: '#10b981',
@@ -36,8 +36,14 @@ const ROLE_DESCRIPTIONS = [
     {
         key: 'CADRE', label: 'Cadre', color: '#eab308',
         bgColor: 'rgba(234, 179, 8, 0.08)', borderColor: 'rgba(234, 179, 8, 0.25)',
-        description: 'Lecture seule de son UL. Peut valider les papiers des utilisateurs.',
-        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Consulter les véhicules & missions', 'Consulter l\'inventaire'],
+        description: 'Lecture seule de son UL. Peut valider les papiers des utilisateurs et gérer les réservations, sans gérer les véhicules.',
+        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Consulter les véhicules & missions', 'Validation, annulation et réassignation des réservations', 'Statistiques véhicules', 'Notification des nouvelles demandes de réservation', 'Consulter l\'inventaire', 'Emprunter un véhicule : rôle CHVL ou CHVPSP requis'],
+    },
+    {
+        key: 'RESP_VEHICULE', label: 'Responsable véhicule', color: '#14b8a6',
+        bgColor: 'rgba(20, 184, 166, 0.08)', borderColor: 'rgba(20, 184, 166, 0.25)',
+        description: 'Gestion complète des véhicules de son UL, comme un administrateur, sans autre droit d\'administration.',
+        permissions: ['Édition, maintenance, checklist, guide et QR des véhicules', 'Connexion constructeur des véhicules', 'Validation des réservations', 'Clôture des trajets et suivi des incidents', 'Notifications véhicule (réservations, incidents, alertes flotte)', 'Statistiques véhicules'],
     },
     {
         key: 'CI/RPAPS', label: 'CI / RPAPS', color: '#0ea5e9',

@@ -31,6 +31,6 @@ Edit checkout details endpoint. Allows admin to modify checkout data (drivers, m
 
 ### Internal
 - `@/lib/db` — Trip, Vehicle, User queries and transactions
-- `@/lib/roles` — `isAdminOrAbove()` check
+- `@/lib/roles` — `canManageVehicles()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

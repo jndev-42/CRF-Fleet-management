@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { deleteDriveFolder } from '@/lib/drive';
-import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { canManageVehicles, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
@@ -15,7 +15,7 @@ async function deleteHandler(
         if (!session?.user) {
             return unauthorizedResponse();
         }
-        if (!isAdminOrAbove(session.user.roles || [])) {
+        if (!canManageVehicles(session.user.roles || [])) {
             return forbiddenResponse();
         }
 

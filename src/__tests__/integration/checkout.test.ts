@@ -732,14 +732,14 @@ describe('POST /api/trips — liens des notifications', () => {
     expect(response.status).toBe(201);
 
     expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
-      // Présidents et cadres nommés : RESPO désigne désormais le responsable des notes de frais.
-      roles: ['PRESIDENT', 'CADRE'],
+      // Présidents et responsables véhicule : le cadre ne reçoit plus les incidents.
+      roles: ['PRESIDENT', 'RESP_VEHICULE'],
       url: '/vehicles/VL%20186',
       excludeUserId: 'user-driver',
     }));
   });
 
-  it('les données incorrectes notifient présidents, cadres et administrateurs', async () => {
+  it('les données incorrectes notifient présidents, responsables véhicule et administrateurs', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue(driverWithNameSession);
     await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
@@ -749,7 +749,7 @@ describe('POST /api/trips — liens des notifications', () => {
     expect(response.status).toBe(201);
 
     expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
-      roles: ['PRESIDENT', 'CADRE', 'ADMIN'],
+      roles: ['PRESIDENT', 'RESP_VEHICULE', 'ADMIN'],
       excludeUserId: 'user-driver',
     }));
   });

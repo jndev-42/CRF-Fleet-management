@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import styles from './VehicleCalendar.module.css';
 import { useUL } from '@/lib/contexts/ULContext';
 import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 import { isMaintenanceEditable } from '@/lib/maintenanceStatus';
 import { getDaySpanLabel, overlapsDay } from '@/lib/calendarDaySpan';
 import EditMaintenanceEventModal from './modals/EditMaintenanceEventModal';
@@ -100,7 +100,7 @@ export default function VehicleCalendar({ dtView = false, refreshKey = 0 }: Vehi
 
   // La vue DT est en lecture seule par contrat et affiche des véhicules d'autres ULs :
   // le serveur répondrait 403. On y masque donc les actions de maintenance.
-  const canEditMaintenance = isAdminOrAbove(session?.user?.roles || []) && !dtView;
+  const canEditMaintenance = canManageVehicles(session?.user?.roles || []) && !dtView;
 
   // Reset vehicle filter when active UL changes
   useEffect(() => {

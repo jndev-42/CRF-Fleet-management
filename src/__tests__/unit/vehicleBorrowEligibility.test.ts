@@ -350,3 +350,25 @@ describe('getBorrowCtaState — agrégation MAINTENANCE_ACTIVE', () => {
         expect(res.reason).toBe('ROLE_NOT_ALLOWED');
     });
 });
+
+describe('CADRE et RESP_VEHICULE — emprunt', () => {
+    const borrow = (userRoles: string[], vehicleType: string, licenseBlocked = false) =>
+        getBorrowEligibility({ vehicleStatus: 'AVAILABLE', vehicleType, userRoles, isReservedByOther: false, licenseBlocked });
+
+    it('CADRE seul : refusé sur VL et VPSP', () => {
+        expect(borrow(['CADRE'], 'VL')).toEqual({ canBorrow: false, blockingReason: 'ROLE_NOT_ALLOWED' });
+        expect(borrow(['CADRE'], 'VPSP')).toEqual({ canBorrow: false, blockingReason: 'ROLE_NOT_ALLOWED' });
+    });
+
+    it('CADRE + CHVL : VL autorisé, VPSP refusé, papiers bloqués non contournés', () => {
+        expect(borrow(['CADRE', 'CHVL'], 'VL').canBorrow).toBe(true);
+        expect(borrow(['CADRE', 'CHVL'], 'VPSP')).toEqual({ canBorrow: false, blockingReason: 'VPSP_REQUIRES_CHVPSP' });
+        expect(borrow(['CADRE', 'CHVL'], 'VL', true)).toEqual({ canBorrow: false, blockingReason: 'LICENSE_BLOCKED' });
+    });
+
+    it('RESP_VEHICULE : bypass comme un ADMIN (VL, VPSP, papiers bloqués)', () => {
+        expect(borrow(['RESP_VEHICULE'], 'VL').canBorrow).toBe(true);
+        expect(borrow(['RESP_VEHICULE'], 'VPSP').canBorrow).toBe(true);
+        expect(borrow(['RESP_VEHICULE'], 'VL', true).canBorrow).toBe(true);
+    });
+});

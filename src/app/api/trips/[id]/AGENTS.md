@@ -37,6 +37,6 @@ Container for individual trip operations by trip ID. Supports deletion, checkin/
 ### Internal
 - `@/lib/db` — Trip, Vehicle queries and transactions
 - `@/lib/drive` — `deleteDriveFolder()` function
-- `@/lib/roles` — `isAdminOrAbove()` check
+- `@/lib/roles` — `canManageVehicles()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

@@ -90,6 +90,28 @@ describe('PATCH /api/vehicles/[id]/metrics', () => {
         expect(body.mileage).toBe(1500);
     });
 
+    it('retourne 403 pour un CADRE seul : il ne gère plus les véhicules', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@test.com', roles: ['CADRE'] } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', vin: null, mileage: 500 });
+        const res = await PATCH(makeRequest({ mileage: 1500 }), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it('retourne 403 pour un RESP_VEHICULE inactif', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'rv@test.com', roles: ['RESP_VEHICULE', 'INACTIF'] } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', vin: null, mileage: 500 });
+        const res = await PATCH(makeRequest({ mileage: 1500 }), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it.each([['PRESIDENT'], ['RESP_VEHICULE']])('met à jour le kilométrage pour un %s', async (role) => {
+        mockedAuth.mockResolvedValue({ user: { email: 'mgr@test.com', roles: [role] } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186', vin: null, mileage: 500 });
+        const res = await PATCH(makeRequest({ mileage: 1500 }), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(200);
+        expect((await res.json()).mileage).toBe(1500);
+    });
+
     it('notifie les ADMIN avec un lien relatif encodé, sans notifier l\'auteur', async () => {
         mockedAuth.mockResolvedValue({ user: { id: 'admin-1', email: 'admin@test.com', roles: ['ADMIN'] } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL 186', vin: null, mileage: 500 });
@@ -98,6 +120,7 @@ describe('PATCH /api/vehicles/[id]/metrics', () => {
         expect(res.status).toBe(200);
 
         expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
+            roles: ['ADMIN', 'RESP_VEHICULE'],
             url: '/vehicles/VL%20186',
             excludeUserId: 'admin-1',
         }));

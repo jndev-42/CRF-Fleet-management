@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { canManageVehicles, isSuperAdmin } from '@/lib/roles';
 import { recalcVehicleStatus } from '@/lib/vehicleStatusRecalc';
 import { withAudit } from '@/lib/audit/log';
 
@@ -214,7 +214,7 @@ async function patchHandler(
         if (!session?.user) {
             return unauthorizedResponse();
         }
-        if (!isAdminOrAbove(session.user.roles || [])) {
+        if (!canManageVehicles(session.user.roles || [])) {
             return forbiddenResponse();
         }
 
@@ -354,7 +354,7 @@ async function deleteHandler(
         if (!session?.user) {
             return unauthorizedResponse();
         }
-        if (!isAdminOrAbove(session.user.roles || [])) {
+        if (!canManageVehicles(session.user.roles || [])) {
             return forbiddenResponse();
         }
 

@@ -57,6 +57,14 @@ export const PREVIEW_ACCOUNTS = [
         label: 'Cadre',
     },
     {
+        key: 'preview-resp-vehicule',
+        email: 'preview-resp-vehicule@preview.local',
+        name: 'Resp. Véhicule Preview',
+        badge: 'RESP_VEH',
+        color: '#14b8a6',
+        label: 'Resp. véhicule',
+    },
+    {
         key: 'preview-chvl',
         email: 'preview-chvl@preview.local',
         name: 'Chauffeur Preview',

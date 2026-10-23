@@ -81,6 +81,22 @@ describe('DELETE /api/vehicles/[id]/qr-token', () => {
         expect(res.status).toBe(403);
     });
 
+    it('retourne 403 pour un CADRE seul : il ne gère plus le QR véhicule', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@test.com', roles: ['CADRE'] } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186' });
+        const res = await DELETE(makeRequest('DELETE'), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it.each([['PRESIDENT'], ['RESP_VEHICULE']])('régénère le token pour un %s', async (role) => {
+        mockedAuth.mockResolvedValue({ user: { email: 'mgr@test.com', roles: [role] } } as never);
+        await seedVehicle({ id: 'VL001', name: 'VL186' });
+        await db.execute({ sql: `UPDATE Vehicle SET qrToken = 'old-token' WHERE id = ?`, args: ['VL001'] });
+        const res = await DELETE(makeRequest('DELETE'), { params: Promise.resolve({ id: 'VL001' }) });
+        expect(res.status).toBe(200);
+        expect((await res.json()).token).not.toBe('old-token');
+    });
+
     it('régénère le token pour un admin (happy path)', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'admin@test.com', roles: ['ADMIN'] } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186' });

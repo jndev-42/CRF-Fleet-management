@@ -30,7 +30,7 @@ Manages active maintenance windows for a vehicle. Admins create events with star
 
 ### Internal
 - `@/lib/db` — `VehicleMaintenance`, `Vehicle` tables
-- `@/lib/roles` — `isAdminOrAbove`
+- `@/lib/roles` — `canManageVehicles`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

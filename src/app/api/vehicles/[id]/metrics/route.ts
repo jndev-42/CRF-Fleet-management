@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { sendPushNotification } from '@/lib/push';
-import { canAccessAdminPanel } from '@/lib/roles';
+import { canSuperviseVehicles, ROLES } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
@@ -23,7 +23,7 @@ async function patchHandler(
         }
 
         const roles = session.user.roles || [];
-        if (!canAccessAdminPanel(roles)) {
+        if (!canSuperviseVehicles(roles)) {
             return forbiddenResponse();
         }
 
@@ -106,7 +106,7 @@ async function patchHandler(
         try {
             // Send Push Notification (it also creates in-app notifications automatically)
             await sendPushNotification({
-                roles: ['ADMIN'],
+                roles: ['ADMIN', ROLES.RESP_VEHICULE],
                 headings: { en: notificationTitle, fr: notificationTitle },
                 contents: { en: notificationMessage, fr: notificationMessage },
                 url: notificationUrl,

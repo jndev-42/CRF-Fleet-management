@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
+import { ROLES } from '@/lib/roles';
 import { parisToday } from '@/lib/themes/catalog';
 import {
     activeAlertKeys,
@@ -108,7 +109,7 @@ export async function GET(request: Request) {
                 if (claimed.length === 0) continue;
                 const { title, message } = buildDesinfMessage(alert);
                 const sent = await sendPushNotification({
-                    roles: ['ADMIN', 'CHVPSP'],
+                    roles: ['ADMIN', ROLES.RESP_VEHICULE, 'CHVPSP'],
                     headings: { fr: title, en: title },
                     contents: { fr: message, en: message },
                     url: `/vehicles/${encodeURIComponent(alert.vehicle.name)}`,

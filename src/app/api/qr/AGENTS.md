@@ -38,7 +38,7 @@ Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass nor
 ### Internal
 - `db` (libSQL)
 - `auth` from `@/auth`
-- `@/lib/roles` — `isQrBlocked()`, `isAdminOrAbove()`
+- `@/lib/roles` — `isQrBlocked()`, `canManageVehicles()`
 - `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId)` for live vehicle telemetry
 
 ### Tables Touched

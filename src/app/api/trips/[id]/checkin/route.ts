@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles, ROLES } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { checkInSchema } from './schema';
 import {
@@ -31,7 +31,7 @@ async function patchHandler(
         }
 
         const userRoles = session.user.roles || [];
-        const isAdmin = isAdminOrAbove(userRoles);
+        const isAdmin = canManageVehicles(userRoles);
 
         // 2. Parse & validate body
         const { id } = await params;
@@ -235,7 +235,7 @@ async function patchHandler(
                     const vName = vehicle.name || 'Véhicule inconnu';
 
                     await sendPushNotification({
-                        roles: ['PRESIDENT', 'CADRE'],
+                        roles: ['PRESIDENT', ROLES.RESP_VEHICULE],
                         headings: { en: `🚨 Incident signalé au retour de ${vName}`, fr: `🚨 Incident signalé au retour de ${vName}` },
                         contents: {
                             en: `Un incident a été signalé lors du retour de ${vName}. Problème: ${data.incident || 'Non spécifié'}`,

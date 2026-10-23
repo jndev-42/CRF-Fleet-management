@@ -29,7 +29,7 @@ Manages vehicle checkout/checkin checklists. Lists checklist items by type (chec
 
 ### Internal
 - `@/lib/db` — `VehicleChecklistItem` table
-- `@/lib/roles` — `isAdminOrAbove`
+- `@/lib/roles` — `canManageVehicles`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

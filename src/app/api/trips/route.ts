@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, isChvlDriver, isChvpspDriver } from '@/lib/roles';
+import { canManageVehicles, isChvlDriver, isChvpspDriver } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
@@ -23,7 +23,7 @@ async function postHandler(request: Request) {
         // en a besoin, bien avant la garde d'éligibilité (`canBorrow`) qui les consommait
         // seule auparavant.
         const roles = session?.user?.roles || ['INACTIF'];
-        const isAdmin = isAdminOrAbove(roles);
+        const isAdmin = canManageVehicles(roles);
 
         const body = await request.json();
         const data = checkOutSchema.parse(body);
@@ -98,7 +98,7 @@ async function postHandler(request: Request) {
         // active maintenant n'est empruntable que par son détenteur — ou par un admin.
         //
         // Exception : une réservation « Chauffeur non décidé » n'a pas de détenteur
-        // opposable (son `userEmail` n'est que celui du gestionnaire (canAccessAdminPanel) qui l'a posée). Elle est
+        // opposable (son `userEmail` n'est que celui du gestionnaire (canManageReservations) qui l'a posée). Elle est
         // donc exclue de la recherche du `holder` : tout chauffeur éligible peut prendre
         // le véhicule sur le créneau. Le `!=` écarte aussi le créateur d'un privilège
         // qu'il n'a pas — il emprunte au même titre que les autres.

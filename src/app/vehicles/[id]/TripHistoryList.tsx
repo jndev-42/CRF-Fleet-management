@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { canManageVehicles } from '@/lib/roles';
 import PhotoViewer from '@/components/PhotoViewer';
 import TripItem from '@/components/vehicle/TripItem';
 import type { Trip, Vehicle } from './types';
@@ -29,7 +30,7 @@ export default function TripHistoryList({
             <div className="section-header">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                     <h2 className="section-title" style={{ margin: 0 }}>Historique des sorties</h2>
-                    {userRoles.includes('ADMIN') && vehicle.trips.length > 0 && (
+                    {canManageVehicles(userRoles) && vehicle.trips.length > 0 && (
                         <button
                             className="btn btn-secondary"
                             style={{ color: 'var(--status-maintenance)', borderColor: 'rgba(239, 68, 68, 0.3)', padding: '4px 10px', fontSize: 13 }}

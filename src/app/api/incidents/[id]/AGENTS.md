@@ -25,7 +25,7 @@ Single incident report retrieval and state management. GET is readable by any me
 - Returns 403 when out of UL scope or on another user's DRAFT, 404 if not found, 401 if not logged in
 
 **PATCH:** Flexible field update (not action-driven like expenses).
-- Auth: Owner or admin (checked via `isAdminOrAbove` helper)
+- Auth: Owner or admin (checked via `canManageVehicles` helper)
 - Zod schema allows optional fields: type, status, all dates, all JSON objects, descriptions
 - Dynamically builds UPDATE clause from provided fields
 - Auto-JSON-serializes object fields before insert
@@ -45,7 +45,7 @@ Single incident report retrieval and state management. GET is readable by any me
 
 ### Internal
 - `@/lib/db` — Turso SQL queries
-- `@/lib/roles` — `isAdminOrAbove()` role check
+- `@/lib/roles` — `canManageVehicles()` role check
 - `@/lib/incidentAccess` — `canViewIncident()`, `canRevealIncidentAuthor()` (shared read boundary for the three incident read routes)
 - `@/auth` — Session & user ID
 

@@ -19,7 +19,7 @@ Manages user accounts, roles, and local unit (UL) assignments. Provides endpoint
 ## For AI Agents
 
 ### Working In This Directory
-**GET /api/users** — `canAccessAdminPanel` required (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE). Returns all users with combined global + UL-home roles, optional filtering by `drivers=true` or `vehicleType=VPSP|VL`. Auto-seeds system roles into `Role` table. Response includes `availableRoles` list.
+**GET /api/users** — `canAccessAdminPanel` required (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE). Returns all users with combined global + UL-home roles, optional filtering by `drivers=true` or `vehicleType=VPSP|VL`. Fleet managers without admin-panel access (`canManageVehicles || canManageReservations`, i.e. RESP_VEHICULE) may call it **only** with one of these filters: they get `{ users: [{ id, name, email }] }` restricted to drivers of the session UL (empty without a session UL); unfiltered → 403. Désinfection-responsable pickers use the dedicated `…/desinf-responsables` routes instead. Auto-seeds system roles into `Role` table. Response includes `availableRoles` list.
 
 **POST /api/users** — ADMIN only. Creates new user with email, name, optional initial roles and UL assignment. Automatically sets `papiers_valides=0` and `start_date_invalidation_process` for new driver-role users. Returns `{ success: true, id, ulName }`.
 

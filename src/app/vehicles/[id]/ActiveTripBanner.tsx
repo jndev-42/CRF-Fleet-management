@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 import { formatDate } from './utils';
 import type { Trip } from './types';
 
@@ -95,7 +95,7 @@ export default function ActiveTripBanner({
                     {activeTrip.missionName && ` : ${activeTrip.missionName}`}
                 </div>
 
-                {activeTrip.missionType === 'Désinfection' && userRoles.includes('ADMIN') && (
+                {activeTrip.missionType === 'Désinfection' && canManageVehicles(userRoles) && (
                     <div style={{ marginTop: 12 }}>
                         <button
                             className="btn btn-secondary"
@@ -107,7 +107,7 @@ export default function ActiveTripBanner({
                     </div>
                 )}
 
-                {!activeTrip.secondDriverName && (currentUserEmail === activeTrip.driverEmail || userRoles.includes('ADMIN')) && (
+                {!activeTrip.secondDriverName && (currentUserEmail === activeTrip.driverEmail || canManageVehicles(userRoles)) && (
                     <div style={{ marginTop: 12 }}>
                         {!showAddSecondDriver ? (
                             <button
@@ -145,7 +145,7 @@ export default function ActiveTripBanner({
                         )}
                     </div>
                 )}
-                {isAdminOrAbove(userRoles) && (
+                {canManageVehicles(userRoles) && (
                     <div style={{ marginTop: 12 }}>
                         <button
                             className="btn btn-secondary"

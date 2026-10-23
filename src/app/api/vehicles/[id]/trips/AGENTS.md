@@ -28,7 +28,7 @@ Clears trip history for a vehicle. Admin only. Deletes all trips associated with
 ### Internal
 - `@/lib/db` — `Trip`, `Vehicle` tables (transaction)
 - `@/lib/drive` — `deleteDriveFolder()` for Google Drive cleanup
-- `@/lib/roles` — `isAdminOrAbove`
+- `@/lib/roles` — `canManageVehicles`
 - `@/auth` — NextAuth v5 session
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

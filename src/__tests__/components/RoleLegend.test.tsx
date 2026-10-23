@@ -17,6 +17,14 @@ describe('RoleLegend', () => {
         expect(screen.getByText('Inactif')).toBeTruthy();
     });
 
+    it('décrit le responsable véhicule et un cadre sans gestion des véhicules', () => {
+        render(<RoleLegend />);
+        fireEvent.click(screen.getByText('ℹ️ Légende des rôles'));
+
+        expect(screen.getByText('Responsable véhicule')).toBeTruthy();
+        expect(screen.getByText(/sans gérer les véhicules/)).toBeTruthy();
+    });
+
     it('replie la légende à un second clic', () => {
         render(<RoleLegend />);
         const toggle = screen.getByText('ℹ️ Légende des rôles');

@@ -28,7 +28,7 @@ Fetches incident reports for a vehicle, scoped to the caller's UL. Every member 
 
 ### Internal
 - `@/lib/db` — `IncidentReport`, `Vehicle`, `User` tables (JOIN)
-- `@/lib/roles` — `isAdminOrAbove`
+- `@/lib/roles` — `canManageVehicles`
 - `@/lib/incidentAccess` — `isWithinUlScope`, `isIncidentAuthor`, `canRevealIncidentAuthor`, `isIncidentViewerBlocked`
 - `@/auth` — NextAuth v5 session
 

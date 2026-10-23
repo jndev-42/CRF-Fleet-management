@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Download, FileText, AlertCircle } from 'lucide-react';
 
+import { canViewStatsPage } from '@/lib/roles';
 import { StatsData } from '@/components/stats/types';
 import MultiSelectDropdown from '@/components/stats/MultiSelectDropdown';
 import KPICards from '@/components/stats/KPICards';
@@ -83,8 +84,7 @@ export default function StatsPage() {
       router.push('/login');
     } else if (status === 'authenticated') {
       const roles = (session?.user?.roles || ['GUEST']) as string[];
-      const allowed = ['ADMIN', 'CHVL', 'CHVPSP', 'PRESIDENT', 'TRESORIER', 'SUPER_ADMIN'];
-      if (!roles.some((r) => allowed.includes(r))) {
+      if (!canViewStatsPage(roles)) {
         router.push('/');
       }
     }

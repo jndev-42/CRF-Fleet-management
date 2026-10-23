@@ -158,12 +158,18 @@ async function main() {
     });
 
     // Seed des rôles
-    const roles = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'CHVPSP', 'CHVL', 'CI/RPAPS', 'INACTIF'];
+    const roles = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'RESP_VEHICULE', 'CHVPSP', 'CHVL', 'CI/RPAPS', 'INACTIF'];
     for (const role of roles) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
-            // RESPO : même identifiant que le seed preview et l'auto-seed de GET /api/users.
-            args: [role === 'RESPO' ? 'role-respo' : crypto.randomUUID(), role],
+            // RESPO, RESP_VEHICULE : même identifiant que le seed preview, l'auto-seed de
+            // GET /api/users et la migration scripts/add-resp-vehicule-role.ts.
+            args: [
+                role === 'RESPO' ? 'role-respo'
+                    : role === 'RESP_VEHICULE' ? 'role-resp_vehicule'
+                    : crypto.randomUUID(),
+                role,
+            ],
         });
     }
 
@@ -948,6 +954,8 @@ async function main() {
     const devUsers = [
         { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
+        { email: 'cadre@dev.local', name: 'Cadre Dev', roles: ['CADRE', 'CHVL'], papiers_valides: 1, start_date_invalidation_process: null },
+        { email: 'respvehicule@dev.local', name: 'Resp. Véhicule Dev', roles: ['RESP_VEHICULE'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'chvl@dev.local', name: 'Chauffeur Dev', roles: ['CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'guest@dev.local', name: 'Inactif Dev', roles: ['INACTIF'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'secouriste@dev.local', name: 'Secouriste Dev', roles: ['SECOURISTE'], papiers_valides: 1, start_date_invalidation_process: null },
@@ -1478,6 +1486,8 @@ async function main() {
     console.log('\nComptes disponibles sur http://localhost:3000/login :');
     console.log('  Admin    → admin@dev.local');
     console.log('  Respo    → respo@dev.local');
+    console.log('  Cadre    → cadre@dev.local');
+    console.log('  RespVéh. → respvehicule@dev.local');
     console.log('  Chauffeur→ chvl@dev.local');
     console.log('  Invité   → guest@dev.local');
     }

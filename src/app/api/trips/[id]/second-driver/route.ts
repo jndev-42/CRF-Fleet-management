@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
@@ -34,7 +34,7 @@ async function patchHandler(
             return NextResponse.json({ error: 'Trajet non trouvé' }, { status: 404 });
         }
 
-        const isAdmin = isAdminOrAbove(session.user.roles || []);
+        const isAdmin = canManageVehicles(session.user.roles || []);
         const isPrimaryDriver = session.user.id === tripRes.rows[0].driverId;
 
         if (!isAdmin && !isPrimaryDriver) {

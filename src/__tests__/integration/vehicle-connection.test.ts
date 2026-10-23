@@ -415,3 +415,31 @@ describe('GET /api/brand-credentials', () => {
         expect(body.credential).toEqual({ brand: 'RENAULT', login: LOGIN });
     });
 });
+
+describe('RESP_VEHICULE — connexion constructeur', () => {
+    const RV = { user: { email: 'rv@test.com', roles: ['RESP_VEHICULE'], ulId: UL } };
+    const RV_OTHER_UL = { user: { email: 'rv2@test.com', roles: ['RESP_VEHICULE'], ulId: OTHER_UL } };
+
+    it("connecte puis déconnecte un véhicule de son UL", async () => {
+        mockedAuth.mockResolvedValue(RV as never);
+        const created = await POST(makeRequest(fullBody()), connectionParams('veh-1'));
+        expect(created.status).toBe(201);
+
+        const removed = await DELETE(makeRequest({}, 'DELETE'), connectionParams('veh-1'));
+        expect(removed.status).toBe(200);
+        expect(await countRows('VehicleConnection')).toBe(0);
+    });
+
+    it("retourne 403 pour un RESP_VEHICULE d'une autre UL", async () => {
+        mockedAuth.mockResolvedValue(RV_OTHER_UL as never);
+        const res = await POST(makeRequest(fullBody()), connectionParams('veh-1'));
+        expect(res.status).toBe(403);
+        expect(await countRows('BrandCredential')).toBe(0);
+    });
+
+    it('GET /api/brand-credentials → 200', async () => {
+        mockedAuth.mockResolvedValue(RV as never);
+        const res = await GET_CREDENTIALS(new Request('http://localhost/api/brand-credentials?brand=RENAULT'));
+        expect(res.status).toBe(200);
+    });
+});

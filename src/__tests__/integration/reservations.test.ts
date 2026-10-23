@@ -571,3 +571,85 @@ describe('RESPO n\'a aucun droit de gestion des réservations', () => {
         expect(check.rows[0].status).toBe('PENDING');
     });
 });
+
+// Responsable véhicule : gère les réservations comme un ADMIN (canManageReservations).
+// Le cadre garde ces droits (D4) ; un responsable véhicule inactif n'en a aucun.
+describe('RESP_VEHICULE gère les réservations', () => {
+    const rvSession = { user: { email: 'rv@dev.local', name: 'Resp Véhicule Test', roles: ['RESP_VEHICULE'], ulId: 'ul-paris-18' } };
+
+    async function seedPending(id: string, offset: number, groupId: string | null = null) {
+        const { startTime, endTime } = futureWindow(offset, 2);
+        await db.execute({
+            sql: `INSERT INTO "Reservation" (id, vehicleId, userEmail, userName, startTime, endTime, status, recurrenceGroupId)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [id, VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'PENDING', groupId],
+        });
+    }
+
+    it('28. crée une réservation directement VALIDATED, au nom d\'un autre', async () => {
+        mockedAuth.mockResolvedValue(rvSession as never);
+        const { startTime, endTime } = futureWindow(120, 2);
+        const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        expect(res.status).toBe(201);
+        const body = await res.json();
+        expect(body.status).toBe('VALIDATED');
+        const rows = await db.execute({ sql: `SELECT userEmail FROM "Reservation" WHERE id = ?`, args: [body.id] });
+        expect(rows.rows[0].userEmail).toBe('target@dev.local');
+    });
+
+    it('29. valide une réservation PENDING d\'un chauffeur de son UL', async () => {
+        await seedPending('res-rv-validate', 125);
+        mockedAuth.mockResolvedValue(rvSession as never);
+        const res = await PATCH_RESERVATION(new Request('http://localhost/api/reservations/res-rv-validate', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'validate' }),
+        }), { params: Promise.resolve({ id: 'res-rv-validate' }) });
+        expect(res.status).toBe(200);
+        const check = await db.execute({ sql: `SELECT status FROM "Reservation" WHERE id = 'res-rv-validate'`, args: [] });
+        expect(check.rows[0].status).toBe('VALIDATED');
+    });
+
+    it('30. supprime la réservation d\'un autre chauffeur et valide un groupe de récurrence', async () => {
+        await seedPending('res-rv-delete', 130);
+        await seedPending('res-rv-rec', 135, 'group-rv');
+        mockedAuth.mockResolvedValue(rvSession as never);
+
+        const del = await DELETE_RESERVATION(new Request('http://localhost/api/reservations/res-rv-delete', { method: 'DELETE' }),
+            { params: Promise.resolve({ id: 'res-rv-delete' }) });
+        expect(del.status).toBe(200);
+
+        const rec = await PATCH_RECURRENCE(new Request('http://localhost/api/reservations/recurrence/group-rv', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({}),
+        }), { params: Promise.resolve({ groupId: 'group-rv' }) });
+        expect(rec.status).toBe(200);
+        const check = await db.execute({ sql: `SELECT status FROM "Reservation" WHERE id = 'res-rv-rec'`, args: [] });
+        expect(check.rows[0].status).toBe('VALIDATED');
+    });
+
+    it('31. CADRE seul garde la réassignation du conducteur', async () => {
+        await seedPending('res-cadre-driver', 140);
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
+        const res = await PATCH_RESERVATION(new Request('http://localhost/api/reservations/res-cadre-driver', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'update', isUnassignedDriver: true }),
+        }), { params: Promise.resolve({ id: 'res-cadre-driver' }) });
+        expect(res.status).toBe(200);
+        const rows = await db.execute({ sql: `SELECT userName FROM "Reservation" WHERE id = 'res-cadre-driver'`, args: [] });
+        expect(rows.rows[0].userName).toBe('Chauffeur non décidé');
+    });
+
+    it('32. un RESP_VEHICULE inactif ne valide rien (403)', async () => {
+        await seedPending('res-rv-inactif', 145);
+        mockedAuth.mockResolvedValue({ user: { ...rvSession.user, roles: ['RESP_VEHICULE', 'INACTIF'] } } as never);
+        const res = await PATCH_RESERVATION(new Request('http://localhost/api/reservations/res-rv-inactif', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'validate' }),
+        }), { params: Promise.resolve({ id: 'res-rv-inactif' }) });
+        expect(res.status).toBe(403);
+    });
+});

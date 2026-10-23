@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { canAccessAdminPanel } from '@/lib/roles';
+import { canSuperviseVehicles } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
@@ -78,7 +78,7 @@ async function deleteHandler(
     if (!session?.user) {
         return unauthorizedResponse();
     }
-    if (!canAccessAdminPanel(session.user.roles || [])) {
+    if (!canSuperviseVehicles(session.user.roles || [])) {
         return forbiddenResponse();
     }
 

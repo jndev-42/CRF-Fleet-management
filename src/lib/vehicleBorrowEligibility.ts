@@ -10,7 +10,7 @@
  * un véhicule non-VPSP est refusé des deux côtés, et un SUPER_ADMIN pur est
  * autorisé des deux côtés.
  */
-import { isAdminOrAbove, isChvlDriver, isChvpspDriver } from '@/lib/roles';
+import { canManageVehicles, isChvlDriver, isChvpspDriver } from '@/lib/roles';
 
 /** Raison typée d'un refus d'emprunt. */
 export type BorrowDenialReason =
@@ -44,9 +44,9 @@ export function isVpspVehicle(vehicleType: string): boolean {
     return vehicleType.toUpperCase().includes('VPSP');
 }
 
-/** Bypass administrateur de l'emprunt. Suit la règle serveur (`isAdminOrAbove`). */
+/** Bypass administrateur de l'emprunt. Suit la règle serveur (`canManageVehicles`). */
 function isAdminForBorrow(userRoles: string[]): boolean {
-    return isAdminOrAbove(userRoles);
+    return canManageVehicles(userRoles);
 }
 
 /**

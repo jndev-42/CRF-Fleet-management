@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertTriangle, Link2, Pencil, RefreshCw, Unlink } from 'lucide-react';
 import type { RenaultVehicleData } from '@/lib/renault';
 import type { Vehicle } from '@/app/vehicles/[id]/types';
-import { isSuperAdmin } from '@/lib/roles';
+import { canManageVehicles, isSuperAdmin } from '@/lib/roles';
 import RenaultConnectBlock from './RenaultConnectBlock';
 
 interface VehicleConnectionBlockProps {
@@ -36,7 +36,7 @@ export default function VehicleConnectionBlock({
     // Jamais dérivé de la présence de `connection` : la vue DT traverse plusieurs ULs et
     // renvoie `connection` pour des véhicules que l'appelant n'administre pas.
     const canManage = isSuperAdmin(userRoles)
-        || (userRoles.includes('ADMIN') && currentUserUlId === vehicle.ulId);
+        || (canManageVehicles(userRoles) && currentUserUlId === vehicle.ulId);
 
     const connection = vehicle.connection;
 

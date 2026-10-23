@@ -387,8 +387,8 @@ describe('PATCH /api/trips/[id]/checkin — lien de la notification d\'incident'
     expect((await PATCH(req, ctx)).status).toBe(200);
 
     expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
-      // Présidents et cadres nommés : RESPO désigne désormais le responsable des notes de frais.
-      roles: ['PRESIDENT', 'CADRE'],
+      // Présidents et responsables véhicule : le cadre ne reçoit plus les incidents.
+      roles: ['PRESIDENT', 'RESP_VEHICULE'],
       url: '/vehicles/VL%20186',
       excludeUserId: 'user-driver',
     }));

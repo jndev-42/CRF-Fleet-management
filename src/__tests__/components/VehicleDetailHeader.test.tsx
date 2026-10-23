@@ -270,3 +270,25 @@ describe('bouton Maintenance', () => {
         expect(screen.queryByRole('button', { name: MAINT_LABEL })).toBeNull();
     });
 });
+
+describe('VehicleDetailHeader — actions de gestion selon le rôle', () => {
+    const MAINT_LABEL = '🔧 Maintenance';
+    const EDIT_LABEL = /Éditer le véhicule/;
+    const CHECKLIST_LABEL = /Gérer la checklist/;
+
+    it('RESP_VEHICULE : édition, maintenance et checklist visibles', () => {
+        renderHeader({ userRoles: ['RESP_VEHICULE'] });
+
+        expect(screen.getByRole('button', { name: EDIT_LABEL })).toBeTruthy();
+        expect(screen.getByRole('button', { name: MAINT_LABEL })).toBeTruthy();
+        expect(screen.getByRole('button', { name: CHECKLIST_LABEL })).toBeTruthy();
+    });
+
+    it('CADRE seul : édition, maintenance et checklist masquées', () => {
+        renderHeader({ userRoles: ['CADRE'] });
+
+        expect(screen.queryByRole('button', { name: EDIT_LABEL })).toBeNull();
+        expect(screen.queryByRole('button', { name: MAINT_LABEL })).toBeNull();
+        expect(screen.queryByRole('button', { name: CHECKLIST_LABEL })).toBeNull();
+    });
+});

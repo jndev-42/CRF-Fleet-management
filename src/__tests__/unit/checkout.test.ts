@@ -88,7 +88,7 @@ describe('sendCheckoutAlerts', () => {
         await sendCheckoutAlerts({ vehicle, user, conditionOut: 'Bon état', baseline, levels: { mileage: 12500, fuel: 40 } });
         expect(sendPushNotification).toHaveBeenCalledTimes(1);
         const call = vi.mocked(sendPushNotification).mock.calls[0][0];
-        expect(call.roles).toEqual(['PRESIDENT', 'CADRE', 'ADMIN']);
+        expect(call.roles).toEqual(['PRESIDENT', 'RESP_VEHICULE', 'ADMIN']);
         expect(call.headings.fr).toBe('⚠️ Données incorrectes — VL 186');
         expect(call.contents.fr).toMatch(/Km : 12.000 → 12.500 km\. Carburant : 40% → 40%\./);
         expect(call).toMatchObject({ url: '/vehicles/VL%20186', ulId: 'ul-lyon', excludeUserId: 'usr-1' });
@@ -98,7 +98,7 @@ describe('sendCheckoutAlerts', () => {
         await sendCheckoutAlerts({ vehicle, user, conditionOut: 'Dégradé', baseline, levels: baseline });
         expect(sendPushNotification).toHaveBeenCalledTimes(1);
         const call = vi.mocked(sendPushNotification).mock.calls[0][0];
-        expect(call.roles).toEqual(['PRESIDENT', 'CADRE']);
+        expect(call.roles).toEqual(['PRESIDENT', 'RESP_VEHICULE']);
         expect(call.contents.fr).toBe('Jean Dupont a signalé un incident lors de la prise du véhicule VL 186. État: Dégradé');
     });
 

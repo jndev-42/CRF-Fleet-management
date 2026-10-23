@@ -16,9 +16,9 @@ Manages an individual reservation: delete, edit fields (time/reason/driver), or 
 ### Working In This Directory
 
 **Roles & Access:**
-- DELETE: owner (userEmail === session.user.email) OR `canAccessAdminPanel()`. Otherwise 403.
+- DELETE: owner (userEmail === session.user.email) OR `canManageReservations()`. Otherwise 403.
 - PATCH (edit): same as DELETE.
-- PATCH (validate): manager only (`canAccessAdminPanel()`), else 403. 409 if already validated.
+- PATCH (validate): manager only (`canManageReservations()`), else 403. 409 if already validated.
 
 **Zod Schema (updateReservationSchema):**
 - `startTime`, `endTime` (optional, ISO datetime)
@@ -65,7 +65,7 @@ Manages an individual reservation: delete, edit fields (time/reason/driver), or 
 ### Internal
 - `db` (libSQL)
 - `auth` from `@/auth`
-- `@/lib/roles` — `canAccessAdminPanel()`
+- `@/lib/roles` — `canManageReservations()`
 
 ### Tables Touched
 - `Reservation` (lookup, update, conflict check)

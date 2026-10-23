@@ -30,6 +30,6 @@ Add or update second driver for a trip. Allows the primary driver or admin to as
 
 ### Internal
 - `@/lib/db` — Trip, User queries
-- `@/lib/roles` — `isAdminOrAbove()` check
+- `@/lib/roles` — `canManageVehicles()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

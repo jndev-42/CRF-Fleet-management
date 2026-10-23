@@ -38,6 +38,7 @@ npx tsx scripts/add-push-subscriptions.ts      # Migration prod : table PushSubs
 npx web-push generate-vapid-keys                # Génère la paire de clés VAPID → VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY (+ VAPID_SUBJECT=mailto:…) dans les variables d'environnement Vercel
 npx tsx scripts/add-scheduled-alerts.ts        # Migration prod : table ScheduledAlert (mémoire des alertes d'échéance quotidiennes : désinfection VPSP, péremption et stock minimum ; idempotente ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.29.0 : sans la table, /api/cron/daily-alerts répond 500 et n'envoie aucune notification
 npx tsx scripts/add-expense-respo-step.ts      # Migration prod : étape « responsable d'activité » des notes de frais (colonnes ExpenseReport.workflowVersion DEFAULT 1 / respoValidatedAt / respoValidatedBy / respoSignature + ligne Role RESPO ; dry-run ; --apply pour écrire) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.30.0 : sans les colonnes, la liste, le détail, la soumission et la validation des notes de frais répondent 500 ; le script liste aussi les comptes portant encore l'ancien rôle RESPO (ils deviendraient valideurs)
+npx tsx scripts/add-resp-vehicule-role.ts      # Migration prod : rôle RESP_VEHICULE (responsable véhicule) — ligne Role `role-resp_vehicule`, ajout de RESP_VEHICULE aux UserRole et aux CSV UserUL.roles de chaque porteur de CADRE, sans jamais retirer CADRE ; liste les comptes et UL concernés ; dry-run ; --apply pour écrire puis vérifier — À EXÉCUTER AVANT OU AU MOMENT DU DÉPLOIEMENT de la v5.33.0 : sans elle, les notifications véhicule qui visaient les cadres ne partent plus qu'aux présidents et aux admins, et les cadres perdent la mise à jour du kilométrage et la régénération du QR des véhicules
 npx tsx scripts/verify-signed-pdf.ts <fichier>  # Vérifie les signatures d'un PDF scellé
 npx tsx scripts/backfill-signed-pdfs.ts         # Scelle rétroactivement les notes existantes (dry-run par défaut, --apply pour écrire)
 npx tsx scripts/add-vehicle-connections.ts      # Migration prod : tables BrandCredential / VehicleConnection + reprise du compte MyRenault global (dry-run ; --apply --ul=<id> pour écrire)
@@ -58,7 +59,7 @@ npx tsx scripts/rewrap-credentials.ts           # Rotation de CREDENTIALS_ENCRYP
 
 **Auth:** Production = Google OAuth2 (`@croix-rouge.fr`). Dev = credentials (`@dev.local`). Roles in JWT.
 
-**Roles & access:** `SUPER_ADMIN, ADMIN, PRESIDENT, TRESORIER, CADRE, DT, CHVPSP, CHVL, CI/RPAPS, INACTIF` — defined in `src/lib/roles.ts` (`ROLES`, `ROLE_LABELS`). `INACTIF` unconditionally blocks all authorization regardless of other roles held. Enforced in API routes and UI via `session.user.roles`.
+**Roles & access:** `SUPER_ADMIN, ADMIN, PRESIDENT, TRESORIER, RESPO, CADRE, RESP_VEHICULE, DT, CHVPSP, CHVL, CI/RPAPS, INACTIF` — defined in `src/lib/roles.ts` (`ROLES`, `ROLE_LABELS`). `INACTIF` unconditionally blocks all authorization regardless of other roles held. `RESP_VEHICULE` (responsable véhicule) a sur les véhicules de son UL les droits d'un ADMIN (`canManageVehicles`) et rien d'autre ; CADRE gère les réservations (`canManageReservations`) mais plus les véhicules. Enforced in API routes and UI via `session.user.roles`.
 
 **Styling:** CSS Modules per component + global CSS variables in `app/globals.css`. `next-themes` for dark/light.
 

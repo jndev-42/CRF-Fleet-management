@@ -1,7 +1,7 @@
 import React from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import { formatDate } from '@/app/vehicles/[id]/utils';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 
 interface TripItemProps {
     trip: Trip;
@@ -16,7 +16,7 @@ interface TripItemProps {
  * Renders a single trip log detailing checkout and check-in times, mileage, fuel, and incident reports.
  */
 export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPhotos, onEditCheckOut }: TripItemProps) {
-    const isAdmin = isAdminOrAbove(userRoles);
+    const isAdmin = canManageVehicles(userRoles);
     return (
         <div className={`trip-item ${!trip.checkInAt ? 'active' : ''}`}>
             <div className="trip-header">

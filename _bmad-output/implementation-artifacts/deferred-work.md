@@ -75,3 +75,18 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-expense-respo-validation.md`
   summary: Préciser dans CLAUDE.md que sans la migration add-expense-respo-step, toute la page Notes de frais (liste et détail) répond 500, pas seulement la soumission.
   evidence: GET /api/expenses et /api/expenses/[id] sélectionnent workflowVersion et respo* dans toutes les branches.
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-vehicule.md`
+  summary: Cloisonner par UL les routes de gestion qui ne le sont pas : réservations (POST vehicles/[id]/reservations, PATCH/DELETE reservations/[id], reservations/recurrence/[groupId]), trips/[id] (DELETE, checkout, desinf-pre), PATCH/DELETE incidents/[id], POST vehicles, checklist, metrics et qr-token. Aujourd'hui, un gestionnaire de l'UL A peut agir sur les données de l'UL B.
+  evidence: faille antérieure relevée pendant l'implémentation du rôle RESP_VEHICULE. La corriger change le comportement d'ADMIN, CADRE et PRESIDENT, et casse les tests qui créent des sessions sans ulId : hors périmètre.
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-vehicule.md`
+  summary: Le trou de cloisonnement par UL (entrée précédente) concerne désormais aussi chaque RESP_VEHICULE, donc chaque cadre migré. Prioriser les routes destructrices : DELETE trips/[id], DELETE incidents/[id], DELETE réservations.
+  evidence: revue de la PR RESP_VEHICULE ; `canManageVehicles` ne vérifie pas l'UL et ces routes ne comparent pas `session.user.ulId` à `vehicle.ulId`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-vehicule.md`
+  summary: Un CADRE ou PRESIDENT sans rôle chauffeur ne peut pas créer de réservation au nom d'autrui depuis l'UI : le contournement d'éligibilité suit `canManageVehicles`, alors que le serveur les accepte comme valideurs (`canManageReservations`).
+  evidence: antérieur (le contournement était `isAdminOrAbove`) ; à arbitrer avec l'utilisateur, car « le cadre doit avoir CHVL pour emprunter ».
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-vehicule.md`
+  summary: Les listes de chauffeurs de GET /api/users filtrent sur `UserRole` global (et non sur `UserUL.roles` de l'UL) et n'excluent pas les comptes INACTIF.
+  evidence: même sémantique dans la branche ADMIN existante et dans la nouvelle branche des gestionnaires de flotte ; un INACTIF peut être choisi comme conducteur.
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-vehicule.md`
+  summary: Ajouter un test de rendu de /stats vérifiant qu'une session CADRE ou RESP_VEHICULE n'est pas redirigée.
+  evidence: seul le prédicat `canViewStatsPage` est testé.

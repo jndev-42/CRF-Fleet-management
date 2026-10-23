@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.33.0] — 23 octobre 2026
+
+### ✨ Nouveautés
+
+- **Nouveau rôle « Responsable véhicule »** — dans son unité locale, il gère les véhicules comme un administrateur : édition et suppression, maintenance, checklist, guide de vérification, QR code, connexion constructeur, validation des réservations, clôture des trajets et suivi des incidents. Il n'a aucun autre droit d'administration (utilisateurs, notes de frais, inventaire, uniformes, missions, réglages).
+- **Notifications véhicule au responsable véhicule** — les incidents déclarés, les problèmes signalés au départ ou au retour, les données incorrectes, les mises à jour manuelles du kilométrage, les alertes de désinfection et les alertes d'utilisation suspecte lui sont envoyés. Il reçoit aussi les nouvelles demandes de réservation.
+- **Statistiques véhicules** — le responsable véhicule et le cadre ouvrent désormais la page Statistiques, onglet véhicules ; l'onglet notes de frais leur reste fermé.
+
+### 🔧 Changements
+
+- **Le cadre gère les réservations, plus les véhicules** — il valide, annule, supprime et réassigne toujours les réservations, et reçoit toujours les nouvelles demandes. En revanche, il ne modifie plus le kilométrage ni le QR code d'un véhicule et ne reçoit plus les notifications d'incident ni de problème au départ ou au retour : ces actions passent au responsable véhicule. Pour emprunter un véhicule, il lui faut toujours le rôle Chauffeur VL ou Chauffeur VPSP. Les cadres actuels reçoivent aussi le rôle « Responsable véhicule » lors de la mise à jour : ils gardent donc ces accès et ces notifications tant qu'un administrateur ne leur retire pas ce rôle.
+- **Reprise des cadres existants** — chaque cadre reçoit aussi le rôle « Responsable véhicule » dans les unités locales où il est cadre : personne ne perd l'accès qu'il avait aux véhicules.
+- **Légende des rôles** — elle décrit le nouveau rôle et le périmètre révisé du cadre.
+
 ## [5.32.5] — 23 octobre 2026
 
 ### Corrections

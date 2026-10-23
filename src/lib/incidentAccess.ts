@@ -10,7 +10,7 @@
  * Les autorisations d'ÉCRITURE (PATCH / DELETE) ne passent pas par ici : elles
  * restent réservées à l'auteur et aux administrateurs, et n'ont pas été élargies.
  */
-import { isAdminOrAbove, isSuperAdmin, isQrBlocked } from './roles';
+import { canManageVehicles, isSuperAdmin, isQrBlocked } from './roles';
 
 export interface IncidentViewer {
     /** Identifiant de l'appelant ; absent sur certaines sessions historiques. */
@@ -73,7 +73,7 @@ export function canViewIncident(viewer: IncidentViewer, subject: IncidentSubject
     // historique en basculant d'UL.
     if (isIncidentAuthor(viewer, subject)) return true;
     if (!isWithinUlScope(viewer, subject.vehicleUlId)) return false;
-    if (isAdminOrAbove(viewer.roles)) return true;
+    if (canManageVehicles(viewer.roles)) return true;
     return subject.status === 'SUBMITTED';
 }
 
@@ -87,5 +87,5 @@ export function canViewIncident(viewer: IncidentViewer, subject: IncidentSubject
  */
 export function canRevealIncidentAuthor(viewer: IncidentViewer, subject: IncidentSubject): boolean {
     if (isIncidentViewerBlocked(viewer.roles)) return false;
-    return isIncidentAuthor(viewer, subject) || isAdminOrAbove(viewer.roles);
+    return isIncidentAuthor(viewer, subject) || canManageVehicles(viewer.roles);
 }

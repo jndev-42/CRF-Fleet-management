@@ -30,6 +30,6 @@ Pre-checkin desinfection data endpoint. Allows admin to record desinfection pre-
 
 ### Internal
 - `@/lib/db` — Trip queries
-- `@/lib/roles` — `isAdminOrAbove()` check
+- `@/lib/roles` — `canManageVehicles()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

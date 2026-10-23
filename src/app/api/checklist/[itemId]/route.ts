@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isAdminOrAbove, isSuperAdmin } from '@/lib/roles';
+import { canManageVehicles, isSuperAdmin } from '@/lib/roles';
 import { forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
@@ -22,7 +22,7 @@ async function patchHandler(
 ) {
     try {
         const session = await auth();
-        if (!isAdminOrAbove(session?.user?.roles || [])) {
+        if (!canManageVehicles(session?.user?.roles || [])) {
             return forbiddenResponse();
         }
 
@@ -97,7 +97,7 @@ async function deleteHandler(
 ) {
     try {
         const session = await auth();
-        if (!isAdminOrAbove(session?.user?.roles || [])) {
+        if (!canManageVehicles(session?.user?.roles || [])) {
             return forbiddenResponse();
         }
 

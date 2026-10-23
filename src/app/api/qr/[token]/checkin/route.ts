@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { isQrBlocked, isAdminOrAbove } from '@/lib/roles';
+import { isQrBlocked, canManageVehicles } from '@/lib/roles';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import {
@@ -82,7 +82,7 @@ async function postHandler(
 
         // Authorization: driver, second driver, or admin
         const userId = session.user.id;
-        const isAdmin = isAdminOrAbove(session.user.roles || []);
+        const isAdmin = canManageVehicles(session.user.roles || []);
         const isFirstDriver = userId === trip.driverId;
         const isSecondDriver = userId === trip.secondDriverId;
 

@@ -3,6 +3,7 @@
 import { Suspense, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { canManageVehicles } from '@/lib/roles';
 
 import { Trip } from './types';
 import { useVehicleDetail } from './useVehicleDetail';
@@ -149,7 +150,7 @@ function VehicleDetailPageContent() {
     // Determine whether there's an active (un-checked-in) trip to render Check-In UI
     const activeTrip = vehicle?.trips.find((t) => !t.checkInAt);
     const canCheckIn = activeTrip ? (
-        userRoles.includes('ADMIN') ||
+        canManageVehicles(userRoles) ||
         activeTrip.driverEmail === currentUserEmail ||
         activeTrip.secondDriverEmail === currentUserEmail
     ) : false;
@@ -370,6 +371,7 @@ function VehicleDetailPageContent() {
             {showDesinfPre && activeTrip && (
                 <DesinfPreCheckinModal
                     tripId={activeTrip.id}
+                    vehicleId={vehicle.id}
                     onClose={() => setShowDesinfPre(false)}
                     onConfirm={() => {
                         setShowDesinfPre(false);
@@ -486,7 +488,7 @@ function VehicleDetailPageContent() {
             {showMaintenanceModal && vehicle && (
                 <MaintenanceHistoryModal
                     vehicle={vehicle}
-                    isAdmin={userRoles.includes('ADMIN')}
+                    isAdmin={canManageVehicles(userRoles)}
                     onClose={() => {
                         setShowMaintenanceModal(false);
                         bumpMaintenanceRefresh();

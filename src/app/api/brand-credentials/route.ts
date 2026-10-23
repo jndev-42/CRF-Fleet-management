@@ -11,7 +11,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { isAdmin, isSuperAdmin } from '@/lib/roles';
+import { canManageVehicles, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { BRANDS, isBrand } from '@/lib/brands';
 import { getErrorMessage } from '@/lib/utils/error';
@@ -23,8 +23,9 @@ export async function GET(request: Request) {
 
         const roles = session.user.roles || [];
         // Le login est l'adresse du compte constructeur de l'UL : réservé aux
-        // administrateurs, comme l'écriture qu'il prépare.
-        if (!isSuperAdmin(roles) && !isAdmin(roles)) return forbiddenResponse();
+        // gestionnaires de la flotte (ADMIN, Responsable véhicule), comme l'écriture
+        // qu'il prépare.
+        if (!canManageVehicles(roles)) return forbiddenResponse();
 
         const url = new URL(request.url);
         const brand = url.searchParams.get('brand') ?? BRANDS[0];

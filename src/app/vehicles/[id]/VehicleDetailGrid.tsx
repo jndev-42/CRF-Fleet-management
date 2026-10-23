@@ -1,4 +1,5 @@
 import type { RenaultVehicleData } from '@/lib/renault';
+import { canManageVehicles } from '@/lib/roles';
 import FuelBar from '@/components/vehicle/FuelBar';
 import DetailCard from '@/components/vehicle/DetailCard';
 import MaintenanceCard from '@/components/vehicle/MaintenanceCard';
@@ -41,7 +42,7 @@ export default function VehicleDetailGrid({
                             ? `${renaultData.totalMileage.toLocaleString('fr-FR')} km`
                             : `${vehicle.mileage.toLocaleString('fr-FR')} km`
                 }
-                onEdit={(vehicle.connection == null && userRoles.includes('ADMIN')) ? onEditMetrics : undefined}
+                onEdit={(vehicle.connection == null && canManageVehicles(userRoles)) ? onEditMetrics : undefined}
             />
             <DetailCard
                 title={vehicle.fuelType === 'Électrique' ? 'Batterie' : (vehicle.fuelType === 'Diesel' ? 'Diesel' : 'Essence')}
@@ -57,7 +58,7 @@ export default function VehicleDetailGrid({
                     }
                     return `${vehicle.fuelLevel}%`;
                 })()}
-                onEdit={(vehicle.connection == null && userRoles.includes('ADMIN')) ? onEditMetrics : undefined}
+                onEdit={(vehicle.connection == null && canManageVehicles(userRoles)) ? onEditMetrics : undefined}
             >
                 <FuelBar
                     level={(() => {
@@ -88,7 +89,7 @@ export default function VehicleDetailGrid({
                     vehicle={vehicle}
                     records={maintenanceRecords}
                     onClick={onShowMaintenance}
-                    onEdit={userRoles.includes('ADMIN') ? onEditRevision : undefined}
+                    onEdit={canManageVehicles(userRoles) ? onEditRevision : undefined}
                 />
             )}
             {vehicle.type.toUpperCase().includes('VPSP') && (() => {
