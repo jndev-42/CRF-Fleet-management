@@ -19,7 +19,7 @@ Administration panel (`/users`) — despite the route name, this is the app's ge
 Three distinct permission tiers govern the UI — do not collapse them:
 - `isSuperAdminUser` → **Menus** tab, and `isSuperAdmin` prop for `ULsTab` / `BannersTab`.
 - `isAdminUser` (`isAdminOrAbove`) → **Unités Locales** tab, full-write `UsersTab`.
-- `isReadOnly` = `isReadOnlyManager(roles) && !isAdminUser` — Président/Cadre viewing their UL's members. The `&& !isAdminUser` is load-bearing: without it an admin who is also Président would be locked into read-only. The page description text also switches on `isAdminUser`.
+- `isReadOnly` = `isReadOnlyManager(roles) && !isAdminUser` — Président/Cadre in read-only mode. They see the **full** user list, like admins (`GET /api/users` is not UL-filtered — user decision of 2026-10-23). Writes stay UL-limited server-side: creation, roles, UL assignment and deletion under the existing rules of the `api/users` routes; paper validation requires the target to be a member of the actor's active UL, or to have no UL (otherwise 404 « Ce membre n'appartient pas à votre unité locale »). The `&& !isAdminUser` is load-bearing: without it an admin who is also Président would be locked into read-only. The page description text also switches on `isAdminUser`.
 
 The **Utilisateurs** and **Bandeaux** tabs are visible to all four roles; only Menus and ULs are gated.
 

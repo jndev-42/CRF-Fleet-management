@@ -95,6 +95,8 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-permis-et-cloisonnement-ul.md`
   summary: Cloisonner par UL la gestion des utilisateurs : liste complète de GET /api/users, PATCH validate-papers, édition des rôles. Un admin de l'UL A peut aujourd'hui valider les papiers d'un utilisateur de l'UL B.
   evidence: hors de l'intention de cette spec (faille des routes véhicule) ; `validate-papers` ne vérifie que `canAccessAdminPanel`.
+  resolved: `spec-cloisonnement-ul-utilisateurs.md` (v5.31.0) — PATCH validate-papers répond 404 hors SUPER_ADMIN si la cible a une UL et aucune dans l'UL active de l'acteur ; un compte sans UL reste validable. La liste complète de GET /api/users et la gestion des rôles et des UL (`users/[email]`, `users/[email]/ul`) restent volontairement non cloisonnées, par décision de l'utilisateur (2026-10-23). Tests : `src/__tests__/integration/licenseCheck.test.ts`.
 - source_spec: `_bmad-output/implementation-artifacts/spec-permis-et-cloisonnement-ul.md`
   summary: Mettre à jour les AGENTS.md qui décrivent encore le contrôle des papiers comme réservé aux chauffeurs (src/app/api/me/AGENTS.md:7,15 ; src/app/users/AGENTS.md ; validate-papers/AGENTS.md) et harmoniser la casse « Cross-UL ».
   evidence: le contrôle des papiers s'applique désormais à tout conducteur.
+  resolved: `spec-cloisonnement-ul-utilisateurs.md` (v5.31.0) — api/me, validate-papers, api/users et app/users corrigés (papiers de tout compte qui emprunte, liste complète visible) ; « (cross-UL ( » en minuscule dans checklist et refresh-renault.
