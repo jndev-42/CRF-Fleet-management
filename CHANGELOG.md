@@ -1,6 +1,10 @@
 # Changelog
 
-## [5.30.2] — 23 octobre 2026
+## [5.31.0] — 23 octobre 2026
+
+### ✨ Nouveautés
+
+- **Emprunt par QR code : 2ème conducteur** — le formulaire d'emprunt affiché après le scan du QR code permet désormais d'ajouter un 2ème conducteur, choisi parmi les chauffeurs habilités au type de véhicule (VL ou VPSP), toutes unités locales confondues. Le 2ème conducteur peut ensuite rendre le véhicule lui-même.
 
 ### Corrections
 

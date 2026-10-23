@@ -24,6 +24,7 @@ const checkOutSchema = z.object({
     dsaChecked: z.boolean().default(false),
     commentsOut: z.string().optional(),
     checklistOut: z.record(z.string(), z.boolean()).optional(),
+    secondDriverId: z.string().min(1).optional(),
     dataIncorrect: z.boolean().optional(),
     correctedMileage: z.number().int().min(0).optional(),
     correctedFuel: z.number().int().min(0).max(100).optional(),
@@ -124,6 +125,22 @@ async function postHandler(
 
         const driverId = session.user.id;
         const vehicleId = vehicle.id as string;
+
+        // 2ème conducteur : compte existant, distinct de l'emprunteur. Il pourra
+        // ensuite rendre le véhicule (check-in réservé aux conducteurs du trajet).
+        const secondDriverId = data.secondDriverId ?? null;
+        if (secondDriverId) {
+            if (secondDriverId === driverId) {
+                return NextResponse.json({ error: 'Le 2ème conducteur doit être différent de vous' }, { status: 400 });
+            }
+            const secondDriverRes = await db.execute({
+                sql: `SELECT 1 FROM "User" WHERE id = ?`,
+                args: [secondDriverId],
+            });
+            if (secondDriverRes.rows.length === 0) {
+                return NextResponse.json({ error: '2ème conducteur introuvable' }, { status: 400 });
+            }
+        }
         const tripId = crypto.randomUUID();
         const timestamp = new Date().toISOString();
 
@@ -139,7 +156,7 @@ async function postHandler(
                     tripId,
                     vehicleId,
                     driverId,
-                    null, // no second driver on QR checkout
+                    secondDriverId,
                     data.missionType,
                     data.missionName || null,
                     timestamp,

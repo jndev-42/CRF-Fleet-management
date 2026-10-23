@@ -10,6 +10,7 @@ Container for QR token-based vehicle checkin/checkout flow. QR tokens bypass nor
 - `[token]/` — dynamic QR token container
   - `checkin/` — finalize trip checkin
   - `checkout/` — start trip checkout
+  - `drivers/` — eligible second drivers for checkout (CHVL for a VL, CHVPSP for a VPSP, all ULs, excluding INACTIF and the caller; id/name/email only — `GET /api/users` is manager-only)
   - `vehicle/` — resolve token to vehicle + active trip
 
 ## For AI Agents

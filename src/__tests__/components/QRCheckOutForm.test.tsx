@@ -33,7 +33,14 @@ function lastCheckoutBody(): Record<string, unknown> {
 
 describe('CheckOutForm (QR) — correction kilométrage / carburant', () => {
     beforeEach(() => {
-        fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ tripId: 't1' }), { status: 201 }));
+        fetchMock = vi.fn((url: string) => {
+            if (String(url).includes('/drivers')) {
+                return Promise.resolve(new Response(JSON.stringify({
+                    users: [{ id: 'usr-2', name: 'Marie Martin', email: 'marie@croix-rouge.fr' }],
+                }), { status: 200 }));
+            }
+            return Promise.resolve(new Response(JSON.stringify({ tripId: 't1' }), { status: 201 }));
+        });
         vi.stubGlobal('fetch', fetchMock);
     });
 
@@ -112,6 +119,28 @@ describe('CheckOutForm (QR) — correction kilométrage / carburant', () => {
         fireEvent.change(input, { target: { value: '' } });
         expect(input.value).toBe('');
         expect(input.required).toBe(true);
+    });
+
+    it('charge les conducteurs proposables et envoie le 2ème conducteur choisi', async () => {
+        const onSuccess = vi.fn();
+        render(<CheckOutForm vehicle={vehicle} token="tok-1" onSuccess={onSuccess} />);
+        expect(fetchMock).toHaveBeenCalledWith('/api/qr/tok-1/drivers');
+
+        fireEvent.click(screen.getByRole('button', { name: /Aucun/ }));
+        fireEvent.click(await screen.findByRole('option', { name: /Marie Martin/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Confirmer l'emprunt/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        expect(lastCheckoutBody().secondDriverId).toBe('usr-2');
+    });
+
+    it("n'envoie pas de 2ème conducteur par défaut", async () => {
+        const onSuccess = vi.fn();
+        render(<CheckOutForm vehicle={vehicle} token="tok-1" onSuccess={onSuccess} />);
+        fireEvent.click(screen.getByRole('button', { name: /Confirmer l'emprunt/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        expect(lastCheckoutBody().secondDriverId).toBeUndefined();
     });
 
     it('propose la saisie manuelle pour un véhicule connecté', () => {

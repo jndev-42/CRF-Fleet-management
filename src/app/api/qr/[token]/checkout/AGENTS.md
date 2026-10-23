@@ -35,11 +35,11 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 3. For fuel: electric vehicles use batteryLevel; fuel vehicles use fuelQuantity / maxFuelCapacity * 100 (capped at 100).
 4. If `dataIncorrect = true` and correctedMileage/correctedFuel provided: override fetched/existing values.
 5. Fallback parking spot: user-supplied or vehicle.parkingSpot or null.
-6. Trip is created with driverId = session.user.id, secondDriverId = null (no second driver on QR checkout).
+6. Trip is created with driverId = session.user.id and the optional `secondDriverId` (must be an existing User distinct from the borrower, else 400). The second driver can then check the vehicle in. Candidates come from `GET /api/qr/[token]/drivers`.
 
 **DB Details:**
 - Transactional (write): atomically insert Trip + update Vehicle.
-- Trip insert: 16 fields (id, vehicleId, driverId, secondDriverId=null, missionType, missionName, checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut, checklistOut, createdAt).
+- Trip insert: 16 fields (id, vehicleId, driverId, secondDriverId (nullable), missionType, missionName, checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut, checklistOut, createdAt).
 - Vehicle update: status = 'IN_USE', mileage, fuelLevel, updatedAt.
 
 **Response Shape:**

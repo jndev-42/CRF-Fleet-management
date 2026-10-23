@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import ChecklistItems from '@/components/vehicle/ChecklistItems';
+import UserCombobox from '@/components/ui/UserCombobox';
 import DataCorrectionFields from './DataCorrectionFields';
+import { useQrDrivers } from './useQrDrivers';
 import type { QRVehicle } from './types';
 
 export default function CheckOutForm({
@@ -22,6 +24,8 @@ export default function CheckOutForm({
         commentsOut: '',
         parkingOut: vehicle.parkingSpot || '',
     });
+    const drivers = useQrDrivers(token);
+    const [secondDriverId, setSecondDriverId] = useState('');
     const [checklistOut, setChecklistOut] = useState<Record<string, boolean>>({});
     const [dataIncorrect, setDataIncorrect] = useState(false);
     // Chaîne vide autorisée : un champ vidé ne doit pas devenir 0 km.
@@ -56,6 +60,7 @@ export default function CheckOutForm({
                     parkingOut: form.parkingOut || undefined,
                     commentsOut: form.commentsOut || undefined,
                     dsaChecked: isDsaChecked,
+                    secondDriverId: secondDriverId || undefined,
                     checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
                     dataIncorrect: hasCorrection || undefined,
                     correctedMileage: mileageChanged ? correctedMileage : undefined,
@@ -106,6 +111,19 @@ export default function CheckOutForm({
                 onMileageChange={setCorrectedMileage}
                 onFuelChange={setCorrectedFuel}
             />
+
+            <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                    2ème conducteur (optionnel)
+                </label>
+                <UserCombobox
+                    users={drivers}
+                    value={secondDriverId}
+                    onChange={setSecondDriverId}
+                    defaultLabel="— Aucun —"
+                    placeholder="Rechercher..."
+                />
+            </div>
 
             <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
