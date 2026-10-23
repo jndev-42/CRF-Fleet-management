@@ -76,11 +76,5 @@
   summary: Préciser dans CLAUDE.md que sans la migration add-expense-respo-step, toute la page Notes de frais (liste et détail) répond 500, pas seulement la soumission.
   evidence: GET /api/expenses et /api/expenses/[id] sélectionnent workflowVersion et respo* dans toutes les branches.
 - source_spec: `_bmad-output/implementation-artifacts/spec-qr-checkout-correction-km-carburant.md`
-  summary: Mutualiser le bloc de correction kilométrage/carburant (DataCorrectionFields) et la notification « données incorrectes » entre CheckOutModal et le parcours QR.
-  evidence: Deux implémentations parallèles (CheckOutModal.tsx / qr/[token]/DataCorrectionFields.tsx ; trips/route.ts / qr/[token]/checkout/route.ts) — le bug du champ vidé (0 km) a dû être corrigé deux fois.
-
-## Deferred from: code review of spec-qr-checkout-correction-km-carburant.md (2026-10-23)
-
-- source_spec: `_bmad-output/implementation-artifacts/spec-qr-checkout-correction-km-carburant.md`
   summary: Les listes de conducteurs de ReservationBlock / ReservationFormModal (/api/users?vehicleType=) et de CheckInModal (/api/users) restent réservées aux gestionnaires.
   evidence: Vide pour un non-gestionnaire si ces écrans lui sont ouverts ; hors du périmètre demandé (préexistant).

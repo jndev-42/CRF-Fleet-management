@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import ChecklistItems from '@/components/vehicle/ChecklistItems';
 import UserCombobox from '@/components/ui/UserCombobox';
-import DataCorrectionFields from './DataCorrectionFields';
+import DataCorrectionFields from '@/components/vehicle/DataCorrectionFields';
 import { useQrDrivers } from './useQrDrivers';
 import type { QRVehicle } from './types';
-import { MILEAGE_DECREASE_CONFIRM_REQUIRED } from '@/lib/utils/mileageAnomaly';
+import { submitWithMileageDecreaseConfirm } from '@/components/vehicle/submitWithMileageDecreaseConfirm';
 
 export default function CheckOutForm({
     vehicle,
@@ -45,7 +45,7 @@ export default function CheckOutForm({
         const sendMileage = dataIncorrect && mileageTouched && correctedMileage !== '';
         const sendFuel = dataIncorrect && fuelTouched;
 
-        const res = await fetch(`/api/qr/${token}/checkout`, {
+        return fetch(`/api/qr/${token}/checkout`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -64,7 +64,6 @@ export default function CheckOutForm({
                 confirmMileageDecrease: confirmMileageDecrease || undefined,
             }),
         });
-        return { res, json: await res.json() };
     }
 
     async function handleSubmit(e: React.FormEvent) {
@@ -73,12 +72,10 @@ export default function CheckOutForm({
         setError(null);
 
         try {
-            let { res, json } = await postCheckout(false);
             // Kilométrage corrigé à la baisse : le serveur exige une confirmation explicite.
-            if (!res.ok && json.code === MILEAGE_DECREASE_CONFIRM_REQUIRED) {
-                if (!window.confirm(`${json.error}\n\nConfirmer l'emprunt avec ce kilométrage ?`)) return;
-                ({ res, json } = await postCheckout(true));
-            }
+            const res = await submitWithMileageDecreaseConfirm(postCheckout, "Confirmer l'emprunt avec ce kilométrage ?");
+            if (!res) return;
+            const json = await res.json();
             if (res.ok) {
                 onSuccess();
             } else {
@@ -112,6 +109,7 @@ export default function CheckOutForm({
             )}
 
             <DataCorrectionFields
+                idPrefix="qr-checkout"
                 connected={vehicle.connection?.status === 'CONNECTED'}
                 fuelType={vehicle.fuelType}
                 dataIncorrect={dataIncorrect}

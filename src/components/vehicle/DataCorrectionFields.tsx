@@ -1,12 +1,32 @@
+import type { CSSProperties } from 'react';
 import FuelBar from '@/components/vehicle/FuelBar';
 import { isMileageDecrease } from '@/lib/utils/mileageAnomaly';
 
+interface DataCorrectionFieldsProps {
+    /** Préfixe des `id` des champs — deux formulaires peuvent coexister dans le DOM. */
+    idPrefix: string;
+    /** Véhicule connecté : la case devient « Saisir manuellement… ». */
+    connected: boolean;
+    fuelType: string | null | undefined;
+    dataIncorrect: boolean;
+    /** Chaîne vide autorisée : un champ effacé reste vide (et `required` bloque la validation). */
+    correctedMileage: number | '';
+    correctedFuel: number;
+    /** Kilométrage connu du véhicule : une saisie inférieure est signalée. */
+    knownMileage: number;
+    onDataIncorrectChange: (value: boolean) => void;
+    onMileageChange: (value: number | '') => void;
+    onFuelChange: (value: number) => void;
+    style?: CSSProperties;
+}
+
 /**
- * Bloc « Le kilométrage et/ou le niveau d'essence est erroné » du formulaire d'emprunt QR.
- * Pendant de la section correspondante de `CheckOutModal` : une case à cocher, puis la
- * saisie du kilométrage réel et du niveau réel une fois la case cochée.
+ * Bloc « Le kilométrage et/ou le niveau d'essence est erroné » des deux formulaires
+ * d'emprunt — modale de la fiche véhicule (`CheckOutModal`) et formulaire du QR code
+ * (`src/app/qr/[token]/CheckOutForm.tsx`). Source unique : ne pas le recopier.
  */
 export default function DataCorrectionFields({
+    idPrefix,
     connected,
     fuelType,
     dataIncorrect,
@@ -16,29 +36,25 @@ export default function DataCorrectionFields({
     onDataIncorrectChange,
     onMileageChange,
     onFuelChange,
-}: {
-    connected: boolean;
-    fuelType: string | null;
-    dataIncorrect: boolean;
-    correctedMileage: number | '';
-    correctedFuel: number;
-    /** Kilométrage connu du véhicule : une saisie inférieure est signalée. */
-    knownMileage: number;
-    onDataIncorrectChange: (value: boolean) => void;
-    onMileageChange: (value: number | '') => void;
-    onFuelChange: (value: number) => void;
-}) {
+    style,
+}: DataCorrectionFieldsProps) {
     const electric = fuelType === 'Électrique';
-    const decrease = correctedMileage !== '' && isMileageDecrease(correctedMileage, knownMileage);
     const fuelLabel = electric ? 'Batterie' : (fuelType === 'Diesel' ? 'Diesel' : 'Essence');
+    const decrease = correctedMileage !== '' && isMileageDecrease(correctedMileage, knownMileage);
+    const mileageId = `${idPrefix}-corrected-mileage`;
+    const fuelId = `${idPrefix}-corrected-fuel`;
+    const decreaseId = `${idPrefix}-mileage-decrease`;
 
     return (
-        <div style={{
-            padding: '12px 14px',
-            background: dataIncorrect ? 'var(--status-maintenance-bg)' : 'var(--bg-card)',
-            borderRadius: 8,
-            border: `1px solid ${dataIncorrect ? 'rgba(239,68,68,0.4)' : 'var(--border-primary)'}`,
-        }}>
+        <div
+            style={{
+                padding: '12px 14px',
+                background: dataIncorrect ? 'var(--status-maintenance-bg)' : 'var(--bg-card)',
+                borderRadius: 'var(--radius-sm)',
+                border: `1px solid ${dataIncorrect ? 'rgba(239,68,68,0.4)' : 'var(--border-primary)'}`,
+                ...style,
+            }}
+        >
             <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
                 <input
                     type="checkbox"
@@ -50,13 +66,11 @@ export default function DataCorrectionFields({
             </label>
 
             {dataIncorrect && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 14 }}>
-                    <div>
-                        <label htmlFor="qr-checkout-corrected-mileage" style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
-                            Kilométrage réel (km)
-                        </label>
+                <div className="form-row" style={{ marginTop: 14 }}>
+                    <div className="form-group">
+                        <label className="form-label" htmlFor={mileageId}>Kilométrage réel (km)</label>
                         <input
-                            id="qr-checkout-corrected-mileage"
+                            id={mileageId}
                             className="form-input"
                             type="number"
                             inputMode="numeric"
@@ -65,20 +79,20 @@ export default function DataCorrectionFields({
                             value={correctedMileage}
                             onChange={e => onMileageChange(e.target.value === '' ? '' : Number(e.target.value))}
                             required
-                            aria-describedby={decrease ? 'qr-checkout-mileage-decrease' : undefined}
+                            aria-describedby={decrease ? decreaseId : undefined}
                         />
                         {decrease && (
-                            <div id="qr-checkout-mileage-decrease" style={{ marginTop: 6, fontSize: 12, color: 'var(--error-text)' }}>
+                            <div id={decreaseId} className="form-hint" style={{ color: 'var(--error-text)' }}>
                                 ⚠️ Inférieur au kilométrage connu ({knownMileage.toLocaleString('fr-FR')} km) : vérifiez la saisie, le compteur sera corrigé à la baisse.
                             </div>
                         )}
                     </div>
-                    <div>
-                        <label htmlFor="qr-checkout-corrected-fuel" style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                    <div className="form-group">
+                        <label className="form-label" htmlFor={fuelId}>
                             {fuelLabel} réel : {correctedFuel}%
                         </label>
                         <input
-                            id="qr-checkout-corrected-fuel"
+                            id={fuelId}
                             type="range"
                             className="fuel-slider"
                             min={0}

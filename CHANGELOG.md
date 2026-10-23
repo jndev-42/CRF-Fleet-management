@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.32.3] — 23 octobre 2026
+
+### Améliorations
+
+- **Correction du kilométrage et du carburant identique partout** — le bloc « Le kilométrage et/ou le niveau d'essence est erroné » est désormais le même dans la fiche véhicule et après le scan du QR code (même présentation, mêmes contrôles, mêmes alertes).
+- **Moins de notifications inutiles** — signaler des données incorrectes sans rien changer aux valeurs n'envoie plus de notification « Données incorrectes » aux responsables, y compris depuis la fiche véhicule.
+
 ## [5.32.2] — 23 octobre 2026
 
 ### Corrections
