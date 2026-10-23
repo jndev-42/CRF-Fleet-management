@@ -27,7 +27,8 @@ VALUES
     ('preview-user-respo',       'preview-respo@preview.local',       'Responsable Preview', 1, date('now'), 'System Preview'),
     ('preview-user-cadre',       'preview-cadre@preview.local',       'Cadre Preview', 1, date('now'), 'System Preview'),
     ('preview-user-resp-vehicule', 'preview-resp-vehicule@preview.local', 'Resp. Véhicule Preview', 1, date('now'), 'System Preview'),
-    ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-resp-uniforme', 'preview-resp-uniforme@preview.local', 'Resp. Uniforme Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-chvl',        'preview-chvl@preview.local',       'Chauffeur Preview', 1, date('now'), 'System Preview'),
     ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, date('now'), 'System Preview'),
     ('preview-user-inactif',     'preview-inactif@preview.local',     'Inactif Preview', 1, date('now'), 'System Preview');
 
@@ -46,6 +47,7 @@ VALUES
     ('preview-user-respo',      'ul-paris-18', 1, 'RESPO'),
     ('preview-user-cadre',      'ul-paris-18', 1, 'CADRE,CHVL'),
     ('preview-user-resp-vehicule', 'ul-paris-18', 1, 'RESP_VEHICULE'),
+    ('preview-user-resp-uniforme', 'ul-paris-18', 1, 'RESP_UNIFORME'),
     ('preview-user-chvl',       'ul-paris-18', 1, 'CHVL'),
     ('preview-user-ci',         'ul-paris-18', 1, 'CI/RPAPS'),
     ('preview-user-inactif',    'ul-paris-18', 1, 'INACTIF');

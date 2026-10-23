@@ -59,7 +59,7 @@ npx tsx scripts/rewrap-credentials.ts           # Rotation de CREDENTIALS_ENCRYP
 
 **Auth:** Production = Google OAuth2 (`@croix-rouge.fr`). Dev = credentials (`@dev.local`). Roles in JWT.
 
-**Roles & access:** `SUPER_ADMIN, ADMIN, PRESIDENT, TRESORIER, RESPO, CADRE, RESP_VEHICULE, DT, CHVPSP, CHVL, CI/RPAPS, INACTIF` — defined in `src/lib/roles.ts` (`ROLES`, `ROLE_LABELS`). `INACTIF` unconditionally blocks all authorization regardless of other roles held. `RESP_VEHICULE` (responsable véhicule) a sur les véhicules de son UL les droits d'un ADMIN (`canManageVehicles`) et rien d'autre ; CADRE gère les réservations (`canManageReservations`) mais plus les véhicules. Enforced in API routes and UI via `session.user.roles`.
+**Roles & access:** `SUPER_ADMIN, ADMIN, PRESIDENT, TRESORIER, RESPO, CADRE, RESP_VEHICULE, RESP_UNIFORME, DT, CHVPSP, CHVL, CI/RPAPS, INACTIF` — defined in `src/lib/roles.ts` (`ROLES`, `ROLE_LABELS`). `INACTIF` unconditionally blocks all authorization regardless of other roles held. `RESP_VEHICULE` (responsable véhicule) a sur les véhicules de son UL les droits d'un ADMIN (`canManageVehicles`) et rien d'autre ; `RESP_UNIFORME` (responsable uniforme) a sur les uniformes de son UL les droits d'un ADMIN (`canManageUniforms` : Historique, Emprunts, Gestion, QR) et rien d'autre ; CADRE gère les réservations (`canManageReservations`) mais plus les véhicules. Enforced in API routes and UI via `session.user.roles`.
 
 **Styling:** CSS Modules per component + global CSS variables in `app/globals.css`. `next-themes` for dark/light.
 

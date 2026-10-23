@@ -1,4 +1,4 @@
-import { isAdminOrAbove, isSuperAdmin } from './roles';
+import { canManageUniforms, isAdminOrAbove, isSuperAdmin } from './roles';
 
 /**
  * Visibilités possibles d'un menu (table `MenuSetting`).
@@ -31,4 +31,14 @@ export function canSeeMenu(visibility: MenuVisibility, roles: string[]): boolean
         case 'admin_only': return isAdminOrAbove(roles);
         default: return true;
     }
+}
+
+/**
+ * Menu Uniformes : comme `canSeeMenu`, mais « Admin uniquement » accepte aussi le
+ * responsable uniforme (`canManageUniforms`), qui a sur ce module les droits d'un
+ * admin. Les autres menus ne sont pas concernés.
+ */
+export function canSeeUniformsMenu(visibility: MenuVisibility, roles: string[]): boolean {
+    if (visibility === 'admin_only') return canManageUniforms(roles);
+    return canSeeMenu(visibility, roles);
 }

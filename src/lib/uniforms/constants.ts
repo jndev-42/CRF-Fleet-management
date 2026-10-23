@@ -5,3 +5,6 @@
 
 /** Plafond de lignes de l'onglet « Emprunts » (les plus récentes). */
 export const UL_LOANS_LIMIT = 500;
+
+/** Événements par page du journal « Historique ». */
+export const HISTORY_PAGE_SIZE = 50;

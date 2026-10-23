@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { MAX_LABEL_LENGTH, MAX_NAME_LENGTH, MAX_QUANTITY } from './catalog';
 import { MAX_LOAN_PIECES } from './loans';
+import { HISTORY_TYPES, decodeCursor } from './history';
 
 /**
  * Schémas partagés : les routes appli et QR valident le même panier et le même
@@ -38,6 +39,13 @@ export const returnSchema = z.object({
     // redevient disponible ou part à laver — il ne se devine pas.
     returnedClean: z.boolean(),
     comment: z.string().trim().max(1000).optional().nullable(),
+}).strict();
+
+/** Paramètres de `GET /api/uniforms/history` ; le curseur est opaque mais vérifié. */
+export const historyQuerySchema = z.object({
+    type: z.enum(HISTORY_TYPES).default('all'),
+    q: z.string().trim().max(100).optional(),
+    cursor: z.string().max(500).refine(v => decodeCursor(v) !== null, 'Curseur invalide').optional(),
 }).strict();
 
 /**

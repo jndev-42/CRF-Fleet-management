@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageUniforms } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { archiveSize, getSizeRef, updateSize } from '@/lib/uniforms/catalog';
@@ -13,7 +13,7 @@ import { withAudit } from '@/lib/audit/log';
  * DELETE /api/uniforms/items/[id]/sizes/[sizeId] — archive la taille (409 s'il
  *                                                 reste des pièces empruntées).
  *
- * `isAdminOrAbove`, cloisonné à l'UL de session. Réduire la quantité sous le
+ * `canManageUniforms`, cloisonné à l'UL de session. Réduire la quantité sous le
  * nombre de pièces sorties est permis : c'est une correction de parc, le
  * disponible affiché est simplement borné à zéro.
  */
@@ -24,7 +24,7 @@ async function patchHandler(request: Request, { params }: RouteContext) {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
         const roles = session.user.roles || [];
-        if (!isAdminOrAbove(roles)) return forbiddenResponse();
+        if (!canManageUniforms(roles)) return forbiddenResponse();
 
         const parsed = await parseBody(request, updateSizeSchema);
         if ('response' in parsed) return parsed.response;
@@ -51,7 +51,7 @@ async function deleteHandler(_request: Request, { params }: RouteContext) {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
         const roles = session.user.roles || [];
-        if (!isAdminOrAbove(roles)) return forbiddenResponse();
+        if (!canManageUniforms(roles)) return forbiddenResponse();
 
         const { id, sizeId } = await params;
         const size = await getSizeRef(id, sizeId);

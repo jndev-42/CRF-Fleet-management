@@ -15,6 +15,7 @@ export const ROLES = {
     RESPO:       'RESPO',
     CADRE:       'CADRE',
     RESP_VEHICULE: 'RESP_VEHICULE',
+    RESP_UNIFORME: 'RESP_UNIFORME',
     DT:          'DT',
     CHVPSP:      'CHVPSP',
     CHVL:        'CHVL',
@@ -33,6 +34,7 @@ export const MANAGEABLE_ROLES: Role[] = [
     ROLES.RESPO,
     ROLES.CADRE,
     ROLES.RESP_VEHICULE,
+    ROLES.RESP_UNIFORME,
     ROLES.DT,
     ROLES.CHVPSP,
     ROLES.CHVL,
@@ -48,6 +50,7 @@ export const ROLE_LABELS: Record<Role, string> = {
     [ROLES.RESPO]:       'Responsable d\'activité',
     [ROLES.CADRE]:       'Cadre',
     [ROLES.RESP_VEHICULE]: 'Responsable véhicule',
+    [ROLES.RESP_UNIFORME]: 'Responsable uniforme',
     [ROLES.DT]:          'Direction Territoriale (DT)',
     [ROLES.CHVPSP]:      'Chauffeur VPSP',
     [ROLES.CHVL]:        'Chauffeur VL',
@@ -159,6 +162,18 @@ export function canAccessAdminPanel(roles: string[]): boolean {
  */
 export const canManageVehicles = denyWhenInactive(roles =>
     isAdminOrAbove(roles) || roles.includes(ROLES.RESP_VEHICULE));
+
+/**
+ * Gestion complète des uniformes de l'UL : historique, gestion du catalogue
+ * (articles, tailles, quantités, archivage), onglet Emprunts et QR. Admin (ou
+ * plus) ou Responsable uniforme.
+ *
+ * RESP_UNIFORME n'est PAS ajouté à `isAdminOrAbove` ni à `canAccessAdminPanel` :
+ * il n'a aucun droit hors uniformes. Le cloisonnement par UL reste à la charge
+ * de l'appelant, comme pour l'ADMIN.
+ */
+export const canManageUniforms = denyWhenInactive(roles =>
+    isAdminOrAbove(roles) || roles.includes(ROLES.RESP_UNIFORME));
 
 /**
  * Supervision de la flotte : métriques (km, carburant) et QR véhicule.

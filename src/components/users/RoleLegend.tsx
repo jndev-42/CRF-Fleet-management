@@ -46,6 +46,12 @@ const ROLE_DESCRIPTIONS = [
         permissions: ['Édition, maintenance, checklist, guide et QR des véhicules', 'Connexion constructeur des véhicules', 'Validation des réservations', 'Clôture des trajets et suivi des incidents', 'Notifications véhicule (réservations, incidents, alertes flotte)', 'Statistiques véhicules'],
     },
     {
+        key: 'RESP_UNIFORME', label: 'Responsable uniforme', color: '#d946ef',
+        bgColor: 'rgba(217, 70, 239, 0.08)', borderColor: 'rgba(217, 70, 239, 0.25)',
+        description: 'Gestion complète des uniformes de son UL, comme un administrateur, sans autre droit d\'administration.',
+        permissions: ['Historique des emprunts, rendus et lavages', 'Suivi des emprunts en cours', 'Gestion du catalogue : articles, tailles, quantités, archivage', 'QR Uniformes de l\'UL'],
+    },
+    {
         key: 'CI/RPAPS', label: 'CI / RPAPS', color: '#0ea5e9',
         bgColor: 'rgba(14, 165, 233, 0.08)', borderColor: 'rgba(14, 165, 233, 0.25)',
         description: 'Chargé d\'intervention / Responsable poste de secours.',

@@ -6,23 +6,12 @@ import { UL_LOANS_LIMIT } from '@/lib/uniforms/constants';
 import { UNIFORMS_CHANGED_EVENT, formatDateTime } from './events';
 import styles from './uniforms.module.css';
 
-type Status = 'open' | 'all';
-
-function StateBadge({ loan }: { loan: UlLoanRow }) {
-    if (!loan.returnedAt) return <span className={styles.badgeOpen}>En cours</span>;
-    if (loan.returnedClean) return <span className={styles.badgeClean}>Rendue propre</span>;
-    if (loan.washedAt) {
-        return <span className={styles.badgeClean}>Lavée{loan.washedByName ? ` par ${loan.washedByName}` : ''}</span>;
-    }
-    return <span className={styles.badgeDirty}>Rendue sale — à laver</span>;
-}
-
 /**
  * Onglet « Emprunts » : qui a emprunté quoi parmi les articles de l'UL active,
- * quelle que soit l'UL de l'emprunteur. Réservé à `canAccessAdminPanel`.
+ * quelle que soit l'UL de l'emprunteur, emprunts en cours seulement (le journal
+ * complet est l'onglet « Historique »). `canAccessAdminPanel` ou `canManageUniforms`.
  */
 export default function UniformLoansTable() {
-    const [status, setStatus] = useState<Status>('open');
     const [loans, setLoans] = useState<UlLoanRow[]>([]);
     const [truncated, setTruncated] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -30,7 +19,7 @@ export default function UniformLoansTable() {
 
     const fetchLoans = useCallback(async () => {
         try {
-            const res = await fetch(`/api/uniforms/loans/ul?status=${status}`);
+            const res = await fetch('/api/uniforms/loans/ul');
             const data = await res.json().catch(() => ({}));
             if (!res.ok) { setError(data.error || 'Erreur de chargement'); return; }
             setError(null);
@@ -41,7 +30,7 @@ export default function UniformLoansTable() {
         } finally {
             setLoading(false);
         }
-    }, [status]);
+    }, []);
 
     useEffect(() => {
         fetchLoans();
@@ -51,21 +40,12 @@ export default function UniformLoansTable() {
 
     return (
         <div className={styles.section}>
-            <div className="filters-bar" role="tablist" aria-label="Filtre des emprunts">
-                <button role="tab" aria-selected={status === 'open'} className={`filter-btn${status === 'open' ? ' active' : ''}`} onClick={() => setStatus('open')}>
-                    En cours
-                </button>
-                <button role="tab" aria-selected={status === 'all'} className={`filter-btn${status === 'all' ? ' active' : ''}`} onClick={() => setStatus('all')}>
-                    Tout l&apos;historique
-                </button>
-            </div>
-
             {error && <div className={styles.errorBox} role="alert"><span className={styles.errorText}>{error}</span></div>}
 
             {loading ? (
                 <div className={styles.loading} role="status">Chargement…</div>
             ) : loans.length === 0 ? (
-                <div className={styles.emptyState}>Aucun emprunt.</div>
+                <div className={styles.emptyState}>Aucun emprunt en cours.</div>
             ) : (
                 <>
                 {truncated && (
@@ -80,9 +60,7 @@ export default function UniformLoansTable() {
                                 <th>Emprunteur</th>
                                 <th>Pièce</th>
                                 <th>Emprunté le</th>
-                                <th>Rendu le</th>
                                 <th>État</th>
-                                <th>Commentaire</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -91,9 +69,7 @@ export default function UniformLoansTable() {
                                     <td>{loan.borrowerName || loan.borrowerEmail || '—'}</td>
                                     <td>{loan.itemName} {loan.sizeLabel}</td>
                                     <td>{formatDateTime(loan.borrowedAt)}</td>
-                                    <td>{formatDateTime(loan.returnedAt) || '—'}</td>
-                                    <td><StateBadge loan={loan} /></td>
-                                    <td>{loan.returnComment || ''}</td>
+                                    <td><span className={styles.badgeOpen}>En cours</span></td>
                                 </tr>
                             ))}
                         </tbody>

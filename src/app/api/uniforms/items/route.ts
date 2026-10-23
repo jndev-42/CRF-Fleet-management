@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { isAdminOrAbove, isInactive } from '@/lib/roles';
+import { canManageUniforms, isInactive } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { createItem, listCatalog } from '@/lib/uniforms/catalog';
@@ -14,7 +14,7 @@ import { withAudit } from '@/lib/audit/log';
  * actif (`!isInactive`) : c'est l'écran d'emprunt de l'appli.
  *
  * POST /api/uniforms/items
- * Crée un article (et ses tailles initiales) dans l'UL active. `isAdminOrAbove`.
+ * Crée un article (et ses tailles initiales) dans l'UL active. `canManageUniforms`.
  */
 export async function GET() {
     try {
@@ -36,7 +36,7 @@ async function postHandler(request: Request) {
     try {
         const session = await auth();
         if (!session?.user) return unauthorizedResponse();
-        if (!isAdminOrAbove(session.user.roles || [])) return forbiddenResponse();
+        if (!canManageUniforms(session.user.roles || [])) return forbiddenResponse();
 
         const parsed = await parseBody(request, createItemSchema);
         if ('response' in parsed) return parsed.response;
