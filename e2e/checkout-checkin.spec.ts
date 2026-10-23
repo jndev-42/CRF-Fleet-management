@@ -6,9 +6,9 @@ import { test, expect } from '@playwright/test';
 
 test('check-out puis check-in d\'un véhicule disponible', async ({ page }) => {
   await page.goto('/login');
-  // Le compte dev CHVL a des "papiers" expirés dans les fixtures de la DB
-  // de dev (bloque l'emprunt) — Admin est explicitement exempté de ce
-  // contrôle (cf. VehicleDetailHeader.tsx: licenseBlocked && !isAdmin).
+  // Aucun rôle n'est dispensé du contrôle des papiers : on emprunte avec le
+  // compte Admin dev, seedé avec des papiers valides (scripts/setup-dev.ts),
+  // contrairement au compte CHVL dev dont les papiers expirent.
   await page.getByRole('button', { name: 'ADMIN Admin' }).click();
   await page.waitForURL('/');
 

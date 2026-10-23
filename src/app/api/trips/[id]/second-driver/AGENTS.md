@@ -14,6 +14,8 @@ Add or update second driver for a trip. Allows the primary driver or admin to as
 ## For AI Agents
 
 ### Working In This Directory
+- **UL scope:** the primary driver keeps access to their own trip; for managers, cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too; SUPER_ADMIN only escapes it.
+- **Papers guard:** the designated second driver must have valid papers (`isLicenseBlocked`, `@/lib/licenseGuard`, fail-closed) → 403 otherwise.
 - **PATCH /api/trips/[id]/second-driver:** Assign or update second driver
   - Accepts updateSecondDriverSchema: secondDriverId (required, min 1 char)
   - Auth required; authorization: ADMIN or primary driver of the trip

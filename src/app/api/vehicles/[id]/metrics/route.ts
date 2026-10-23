@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { sendPushNotification } from '@/lib/push';
 import { canSuperviseVehicles, ROLES } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
 const updateMetricsSchema = z.object({
@@ -43,7 +43,8 @@ async function patchHandler(
             args: [vehicleId]
         });
 
-        if (vehicleRes.rows.length === 0) {
+        // Cloisonnement UL : un véhicule d'une autre UL est indiscernable d'un véhicule inconnu.
+        if (vehicleRes.rows.length === 0 || isOutsideUl(roles, session.user.ulId, vehicleRes.rows[0].ulId)) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 

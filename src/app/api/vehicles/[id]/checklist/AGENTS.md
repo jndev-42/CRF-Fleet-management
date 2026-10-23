@@ -14,7 +14,7 @@ Manages vehicle checkout/checkin checklists. Lists checklist items by type (chec
 ## For AI Agents
 
 ### Working In This Directory
-**GET /api/vehicles/[id]/checklist** — Any authenticated user. Fetches checklist items for this vehicle, optionally filtered by `?type=checkout|checkin`. Returns array of items ordered by `order` ASC, then `createdAt` ASC.
+**GET /api/vehicles/[id]/checklist** — Any authenticated user of the vehicle's UL (Cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too. SUPER_ADMIN only escapes it. The QR forms, open across ULs, read `GET /api/qr/[token]/checklist` instead). Fetches checklist items for this vehicle, optionally filtered by `?type=checkout|checkin`. Returns array of items ordered by `order` ASC, then `createdAt` ASC.
 
 **POST /api/vehicles/[id]/checklist** — ADMIN only. Creates new checklist item with `label` (1–200 chars), `type` ('checkout' or 'checkin'), optional `required` boolean. Automatically assigns next `order` value for this vehicle + type (count current items). Returns created item with `{ id, vehicleId, label, type, required, order, createdAt }` 201.
 

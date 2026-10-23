@@ -99,7 +99,7 @@ beforeEach(() => {
 });
 
 // ── Table de non-régression : rôle × VPSP × réservation × permis ──────────────
-// Les 10 cas de la §2 de la revue de code, sur un véhicule AVAILABLE en vue UL.
+// Les cas de la §2 de la revue de code, sur un véhicule AVAILABLE en vue UL.
 const CASES: {
     name: string;
     roles: string[];
@@ -109,7 +109,10 @@ const CASES: {
     disabled: boolean;
     title: string;
 }[] = [
-    { name: 'ADMIN, VPSP réservé et permis bloqué : bypass complet', roles: ['ADMIN'], type: 'VPSP', reserved: true, license: true, disabled: false, title: ALLOWED },
+    { name: 'ADMIN, VPSP réservé : dispense de rôle et de réservation', roles: ['ADMIN'], type: 'VPSP', reserved: true, disabled: false, title: ALLOWED },
+    { name: 'ADMIN, VPSP réservé et permis bloqué : bloqué (aucune dispense de papiers)', roles: ['ADMIN'], type: 'VPSP', reserved: true, license: true, disabled: true, title: TITLE_LICENSE },
+    { name: 'ADMIN, VL libre, permis bloqué : bouton bloqué', roles: ['ADMIN'], license: true, disabled: true, title: TITLE_LICENSE },
+    { name: 'RESP_VEHICULE, permis bloqué : bloqué', roles: ['RESP_VEHICULE'], license: true, disabled: true, title: TITLE_LICENSE },
     { name: 'CHVPSP pur, VL : refusé (aligné sur POST /api/trips)', roles: ['CHVPSP'], disabled: true, title: TITLE_ROLE },
     { name: 'CHVPSP, VPSP, rien', roles: ['CHVPSP'], type: 'VPSP', disabled: false, title: ALLOWED },
     { name: 'CHVPSP, réservé par un tiers', roles: ['CHVPSP'], reserved: true, disabled: true, title: TITLE_RESERVED },

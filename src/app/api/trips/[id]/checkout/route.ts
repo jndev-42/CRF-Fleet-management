@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canManageVehicles } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { isLicenseBlocked, OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE } from '@/lib/licenseGuard';
 
 const editCheckOutSchema = z.object({
     driverId: z.string().min(1, 'Le conducteur principal est requis'),
@@ -39,11 +40,14 @@ async function patchHandler(
 
         // Check if trip exists and is currently active (checkInAt IS NULL)
         const tripRes = await db.execute({
-            sql: `SELECT vehicleId, checkInAt FROM Trip WHERE id = ?`,
+            sql: `SELECT t.vehicleId, t.checkInAt, t.driverId, t.secondDriverId, v.ulId AS vehicleUlId
+                  FROM Trip t LEFT JOIN Vehicle v ON v.id = t.vehicleId
+                  WHERE t.id = ?`,
             args: [id]
         });
 
-        if (tripRes.rows.length === 0) {
+        // Cloisonnement UL : un trajet d'une autre UL est indiscernable d'un trajet inconnu.
+        if (tripRes.rows.length === 0 || isOutsideUl(roles, session.user.ulId, tripRes.rows[0].vehicleUlId)) {
             return NextResponse.json({ error: 'Trajet non trouvé' }, { status: 404 });
         }
 
@@ -75,6 +79,17 @@ async function patchHandler(
             if (secondDriverRes.rows.length === 0) {
                 return NextResponse.json({ error: 'Deuxième conducteur introuvable' }, { status: 400 });
             }
+        }
+
+        // Garde des papiers sur tout conducteur nouvellement désigné. Un conducteur déjà
+        // en place n'est pas recontrôlé : corriger un trajet en cours ne doit pas buter
+        // sur des papiers expirés depuis la prise.
+        if (data.driverId !== trip.driverId && await isLicenseBlocked(data.driverId)) {
+            return forbiddenResponse(OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE);
+        }
+        if (data.secondDriverId && data.secondDriverId !== trip.secondDriverId
+            && await isLicenseBlocked(data.secondDriverId)) {
+            return forbiddenResponse(OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE);
         }
 
         const tx = await db.transaction('write');

@@ -6,6 +6,7 @@ import { canManageVehicles } from '@/lib/roles';
 import {
     canRevealIncidentAuthor,
     canViewIncident,
+    isWithinUlScope,
     type IncidentViewer,
 } from '@/lib/incidentAccess';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
@@ -121,16 +122,25 @@ async function patchHandler(
 
         // Check ownership or admin
         const check = await db.execute({
-            sql: `SELECT userId, status FROM IncidentReport WHERE id = ?`,
+            sql: `SELECT ir.userId, ir.status, v.ulId AS vehicleUlId
+                  FROM IncidentReport ir
+                  LEFT JOIN Vehicle v ON v.id = ir.vehicleId
+                  WHERE ir.id = ?`,
             args: [id],
         });
 
-        if (check.rows.length === 0) {
+        // Cloisonnement UL : l'auteur garde la main sur sa déclaration (incident QR
+        // inter-UL compris) ; pour tout autre compte, un rapport hors UL est inconnu.
+        const isAuthor = check.rows.length > 0 && check.rows[0].userId === session.user.id;
+        if (check.rows.length === 0 || (!isAuthor && !isWithinUlScope(
+            { userId: session.user.id, ulId: session.user.ulId, roles: session.user.roles || [] },
+            (check.rows[0].vehicleUlId as string | null) ?? null,
+        ))) {
             return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
         }
 
         const isAdmin = canManageVehicles(session.user.roles);
-        if (check.rows[0].userId !== session.user.id && !isAdmin) {
+        if (!isAuthor && !isAdmin) {
             return forbiddenResponse();
         }
 
@@ -201,16 +211,25 @@ async function deleteHandler(
 
     try {
         const check = await db.execute({
-            sql: `SELECT userId, status FROM IncidentReport WHERE id = ?`,
+            sql: `SELECT ir.userId, ir.status, v.ulId AS vehicleUlId
+                  FROM IncidentReport ir
+                  LEFT JOIN Vehicle v ON v.id = ir.vehicleId
+                  WHERE ir.id = ?`,
             args: [id],
         });
 
-        if (check.rows.length === 0) {
+        // Cloisonnement UL : l'auteur garde la main sur sa déclaration (incident QR
+        // inter-UL compris) ; pour tout autre compte, un rapport hors UL est inconnu.
+        const isAuthor = check.rows.length > 0 && check.rows[0].userId === session.user.id;
+        if (check.rows.length === 0 || (!isAuthor && !isWithinUlScope(
+            { userId: session.user.id, ulId: session.user.ulId, roles: session.user.roles || [] },
+            (check.rows[0].vehicleUlId as string | null) ?? null,
+        ))) {
             return NextResponse.json({ error: 'Rapport introuvable' }, { status: 404 });
         }
 
         const isAdmin = canManageVehicles(session.user.roles);
-        if (check.rows[0].userId !== session.user.id && !isAdmin) {
+        if (!isAuthor && !isAdmin) {
             return forbiddenResponse();
         }
 

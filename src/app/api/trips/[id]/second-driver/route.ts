@@ -3,8 +3,9 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
 import { canManageVehicles } from '@/lib/roles';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { isLicenseBlocked, OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE } from '@/lib/licenseGuard';
 
 const updateSecondDriverSchema = z.object({
     secondDriverId: z.string().min(1, 'L\'identifiant du 2ème conducteur est requis'),
@@ -26,7 +27,9 @@ async function patchHandler(
 
         // Verify if user is admin or is the primary driver for this trip
         const tripRes = await db.execute({
-            sql: `SELECT driverId FROM Trip WHERE id = ?`,
+            sql: `SELECT t.driverId, t.secondDriverId, v.ulId AS vehicleUlId
+                  FROM Trip t LEFT JOIN Vehicle v ON v.id = t.vehicleId
+                  WHERE t.id = ?`,
             args: [id]
         });
 
@@ -34,8 +37,15 @@ async function patchHandler(
             return NextResponse.json({ error: 'Trajet non trouvé' }, { status: 404 });
         }
 
-        const isAdmin = canManageVehicles(session.user.roles || []);
+        const roles = session.user.roles || [];
+        const isAdmin = canManageVehicles(roles);
         const isPrimaryDriver = session.user.id === tripRes.rows[0].driverId;
+
+        // Cloisonnement UL des gestionnaires. Le conducteur principal garde la main sur
+        // son propre trajet, y compris pris par QR sur un véhicule d'une autre UL.
+        if (!isPrimaryDriver && isOutsideUl(roles, session.user.ulId, tripRes.rows[0].vehicleUlId)) {
+            return NextResponse.json({ error: 'Trajet non trouvé' }, { status: 404 });
+        }
 
         if (!isAdmin && !isPrimaryDriver) {
             return forbiddenResponse('Non autorisé à modifier ce trajet');
@@ -48,6 +58,12 @@ async function patchHandler(
         });
         if (userRes.rows.length === 0) {
             return NextResponse.json({ error: 'Utilisateur 2ème conducteur introuvable' }, { status: 404 });
+        }
+
+        // Comme `trips/[id]/checkout` : seul un second conducteur nouvellement désigné
+        // est contrôlé, celui déjà en place n'est pas recontrôlé.
+        if (data.secondDriverId !== tripRes.rows[0].secondDriverId && await isLicenseBlocked(data.secondDriverId)) {
+            return forbiddenResponse(OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE);
         }
 
         await db.execute({

@@ -10,6 +10,7 @@ import CheckInForm from './CheckInForm';
 import VehicleInfoCard from './VehicleInfoCard';
 import VehicleGuideCard from '@/components/vehicle/VehicleGuideCard';
 import QRActions from './QRActions';
+import { useLicenseBlocked } from './useLicenseBlocked';
 import type { QRVehicle } from './types';
 
 export default function QRVehiclePage() {
@@ -27,6 +28,7 @@ export default function QRVehiclePage() {
     const [done, setDone] = useState<'checkedout' | 'checkedin' | null>(null);
     const [showIncidentReport, setShowIncidentReport] = useState(false);
     const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const licenseBlocked = useLicenseBlocked();
 
     function showToast(message: string, type = 'success') {
         if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -189,6 +191,7 @@ export default function QRVehiclePage() {
                             <QRActions
                                 vehicle={vehicle}
                                 canCheckIn={canCheckIn}
+                                licenseBlocked={licenseBlocked}
                                 onCheckOut={() => setStep('checkout')}
                                 onCheckIn={() => setStep('checkin')}
                                 onDeclareIncident={() => setShowIncidentReport(true)}

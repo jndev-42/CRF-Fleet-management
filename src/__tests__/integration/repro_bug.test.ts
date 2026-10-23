@@ -20,7 +20,7 @@ function makePostRequest(body: Record<string, unknown>): Request {
     });
 }
 
-const adminSession = { user: { email: 'admin@test.com', roles: ['ADMIN'] } };
+const adminSession = { user: { email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } };
 
 describe('Reproduction Bug: Papiers valides par défaut à la création', () => {
     it('devrait initialiser papiers_valides à 0 pour un nouveau chauffeur', async () => {

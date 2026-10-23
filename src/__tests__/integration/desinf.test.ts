@@ -153,7 +153,7 @@ describe('Désinfection — checkin (PATCH /api/trips/[id]/checkin)', () => {
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'], ulId: 'ul-paris-18' },
     });
 
     const res = await PATCH(
@@ -179,7 +179,7 @@ describe('Désinfection — checkin (PATCH /api/trips/[id]/checkin)', () => {
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'], ulId: 'ul-paris-18' },
     });
 
     const res = await PATCH(
@@ -205,7 +205,7 @@ describe('Désinfection — checkin (PATCH /api/trips/[id]/checkin)', () => {
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'], ulId: 'ul-paris-18' },
     });
 
     const res = await PATCH(
@@ -257,7 +257,7 @@ describe('Désinfection — checkin (PATCH /api/trips/[id]/checkin)', () => {
     });
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'], ulId: 'ul-paris-18' },
     });
 
     const res = await PATCH(
@@ -287,7 +287,7 @@ describe('Désinfection — checkin (PATCH /api/trips/[id]/checkin)', () => {
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVPSP'], ulId: 'ul-paris-18' },
     });
 
     const res = await PATCH(
@@ -327,7 +327,7 @@ describe('Désinfection — suppression trip (DELETE /api/trips/[id])', () => {
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'] },
+      user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
     });
 
     const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ id: 'trip-1' }) });
@@ -367,7 +367,7 @@ describe('Désinfection — suppression trip (DELETE /api/trips/[id])', () => {
 
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'] },
+      user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
     });
 
     const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ id: 'trip-1' }) });
@@ -397,7 +397,7 @@ describe('Désinfection — suppression trip (DELETE /api/trips/[id])', () => {
     }
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'] },
+      user: { id: 'user-admin', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' },
     });
 
     const res = await DELETE(makeDeleteRequest(), { params: Promise.resolve({ id: 'trip-1' }) });
@@ -430,7 +430,7 @@ describe('Désinfection — historique (GET /api/vehicles/[id]/desinfections)', 
   it('returns 404 for unknown vehicle', async () => {
     mockedAuth.mockResolvedValue({
       // @ts-expect-error — partial session for test
-      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] },
+      user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' },
     });
 
     const res = await GET_DESINF(makeGetRequest(), { params: Promise.resolve({ id: 'UNKNOWN' }) });

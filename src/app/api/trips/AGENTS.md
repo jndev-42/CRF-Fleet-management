@@ -20,7 +20,8 @@ Container directory for trip (vehicle checkout/checkin) lifecycle management. Pr
 - **POST /api/trips:** Create a new trip (checkout)
   - Accepts checkOutSchema with: vehicleId, missionType, missionName, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut, secondDriverId, driveFolderId, checklistOut, dataIncorrect, correctedMileage, correctedFuel, confirmMileageDecrease
   - Verifies vehicle exists and is AVAILABLE
-  - Validates role+vehicle type permissions: ADMIN can borrow any, CHVPSP only VPSP vehicles, CHVL only non-VPSP
+  - Papers guard (`isLicenseBlocked` from `@/lib/licenseGuard`) on the driver **and** the `secondDriverId`, with no role exemption (ADMIN, RESP_VEHICULE, SUPER_ADMIN included) and fail-closed (missing `User` row → 403)
+  - Validates role+vehicle type permissions: managers (`canManageVehicles`) can borrow any — role exemption only, never a papers exemption —, CHVPSP only VPSP vehicles, CHVL only non-VPSP
   - Désinfection mission only allowed on VPSP vehicles
   - Fetches live Renault data if the vehicle is connected (`isConnectedInDb(vehicle.id)`); auto-detects mileage and fuel level
   - Allows driver to override with `correctedMileage`/`correctedFuel` for non-connected vehicles (sends push notification to PRESIDENT, RESP_VEHICULE and ADMIN)

@@ -952,7 +952,9 @@ async function main() {
 
     const today = new Date().toISOString().slice(0, 10);
     const devUsers = [
-        { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
+        // Papiers valides : compte qui emprunte dans e2e/checkout-checkin.spec.ts. Plus aucun
+        // rôle n'est dispensé du contrôle des papiers, ADMIN compris.
+        { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'], papiers_valides: 1, start_date_invalidation_process: null, last_validation: today },
         { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'cadre@dev.local', name: 'Cadre Dev', roles: ['CADRE', 'CHVL'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'respvehicule@dev.local', name: 'Resp. Véhicule Dev', roles: ['RESP_VEHICULE'], papiers_valides: 1, start_date_invalidation_process: null },
@@ -972,15 +974,15 @@ async function main() {
             userId = existing.rows[0].id as string;
             // Idempotent: update license columns in case they were just added
             await db.execute({
-                sql: `UPDATE "User" SET papiers_valides = ?, start_date_invalidation_process = ? WHERE id = ?`,
-                args: [devUser.papiers_valides, devUser.start_date_invalidation_process, userId],
+                sql: `UPDATE "User" SET papiers_valides = ?, start_date_invalidation_process = ?, last_validation = COALESCE(?, last_validation) WHERE id = ?`,
+                args: [devUser.papiers_valides, devUser.start_date_invalidation_process, devUser.last_validation ?? null, userId],
             });
             console.log(`↩  ${devUser.email} déjà existant`);
         } else {
             userId = crypto.randomUUID();
             await db.execute({
-                sql: `INSERT INTO "User" (id, email, name, papiers_valides, start_date_invalidation_process) VALUES (?, ?, ?, ?, ?)`,
-                args: [userId, devUser.email, devUser.name, devUser.papiers_valides, devUser.start_date_invalidation_process],
+                sql: `INSERT INTO "User" (id, email, name, papiers_valides, start_date_invalidation_process, last_validation) VALUES (?, ?, ?, ?, ?, ?)`,
+                args: [userId, devUser.email, devUser.name, devUser.papiers_valides, devUser.start_date_invalidation_process, devUser.last_validation ?? null],
             });
         }
 

@@ -69,10 +69,10 @@ const validCheckInBody = {
 };
 
 // Session objects for mocking — kept as constants so @ts-expect-error applies to a single line
-const driverSession = { user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'] } };
-const otherUserSession = { user: { id: 'other-user', email: 'other@test.com', roles: ['CHVL'] } };
-const secondDriverSession = { user: { id: 'user-second', email: 'second@test.com', roles: ['CHVL'] } };
-const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'] } };
+const driverSession = { user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } };
+const otherUserSession = { user: { id: 'other-user', email: 'other@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } };
+const secondDriverSession = { user: { id: 'user-second', email: 'second@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } };
+const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } };
 
 describe('PATCH /api/trips/[id]/checkin', () => {
   beforeEach(() => {

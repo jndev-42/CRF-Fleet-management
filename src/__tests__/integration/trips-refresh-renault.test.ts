@@ -39,13 +39,13 @@ describe('PATCH /api/trips/[id]/refresh-renault', () => {
     });
 
     it('retourne 404 pour un trajet inconnu', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const res = await PATCH(makeRequest(), { params: Promise.resolve({ id: 'unknown' }) });
         expect(res.status).toBe(404);
     });
 
     it('retourne 400 si le véhicule n\'a aucune connexion constructeur', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         mockedIsConnectedInDb.mockResolvedValue(false);
         // Le VIN sur Vehicle ne suffit plus : seule VehicleConnection décide.
         await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012' });
@@ -58,7 +58,7 @@ describe('PATCH /api/trips/[id]/refresh-renault', () => {
     });
 
     it('retourne throttled si vérifié il y a moins de 5 minutes', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012' });
         await seedUser({ id: 'user-1', email: 'driver@test.com' });
         await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-1', checkInAt: new Date().toISOString() });
@@ -74,7 +74,7 @@ describe('PATCH /api/trips/[id]/refresh-renault', () => {
     });
 
     it('valide et met à jour le trajet avec les données Renault fraîches (happy path)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         mockedIsConnectedInDb.mockResolvedValue(true);
         const checkInAt = new Date().toISOString();
         await seedVehicle({ id: 'VL001', name: 'VL186', vin: 'VF1AB123456789012' });

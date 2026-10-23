@@ -98,12 +98,12 @@ describe('véhicule — PATCH /api/vehicles/[id]', () => {
         expect(row.rows[0].maxFuelCapacity).toBe(80);
     });
 
-    it('RESP_VEHICULE est refusé sur le véhicule d\'une autre UL (403)', async () => {
+    it('RESP_VEHICULE est refusé sur le véhicule d\'une autre UL (404 indiscernable, cf. isOutsideUl)', async () => {
         asUser(['RESP_VEHICULE'], OTHER_UL);
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: UL, maxFuelCapacity: 56 });
 
         const res = await patchVehicle(patchVehicleRequest({ maxFuelCapacity: 80 }), { params: Promise.resolve({ id: 'VL186' }) });
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(404);
     });
 
     it('CADRE seul ne peut plus éditer un véhicule (403)', async () => {

@@ -42,9 +42,9 @@ const validEditBody = {
   dsaChecked: true,
 };
 
-const driverSession = { user: { id: 'user-driver-1', email: 'driver1@test.com', roles: ['CHVL'] } };
-const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'] } };
-const superAdminSession = { user: { id: 'superadmin-id', email: 'superadmin@test.com', roles: ['SUPER_ADMIN'] } };
+const driverSession = { user: { id: 'user-driver-1', email: 'driver1@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } };
+const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } };
+const superAdminSession = { user: { id: 'superadmin-id', email: 'superadmin@test.com', roles: ['SUPER_ADMIN'], ulId: 'ul-paris-18' } };
 
 describe('PATCH /api/trips/[id]/checkout', () => {
   beforeEach(() => {

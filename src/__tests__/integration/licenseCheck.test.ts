@@ -4,7 +4,7 @@
  * Cas couverts :
  *  GET /api/me/license-check
  *   1. 401 sans session
- *   2. Non-driver → validated: true, blocked: false
+ *   2. Non-chauffeur : contrôlé comme un chauffeur (bloqué hors délai, valide sinon)
  *   3. Driver avec papiers valides → validated: true
  *   4. Driver avec papiers invalides (papiers_valides=0) et dans la période de grâce
  *   5. Driver avec papiers invalides et hors délai → blocked: true
@@ -50,9 +50,33 @@ describe('GET /api/me/license-check', () => {
         expect(res.status).toBe(401);
     });
 
-    it('2. Non-driver → validated: true, blocked: false', async () => {
+    it('2. Non-chauffeur (ADMIN) aux papiers hors délai → blocked: true (plus de dispense)', async () => {
+        const pastDate = new Date();
+        pastDate.setDate(pastDate.getDate() - 20);
+        const user = await seedUser({
+            id: 'admin-blocked',
+            email: 'admin-blocked@test.com',
+            papiers_valides: 0,
+            start_date_invalidation_process: pastDate.toISOString().slice(0, 10),
+        });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
-        mockedAuth.mockResolvedValue({ user: { id: 'guest-id', email: 'guest@test.com', roles: ['GUEST'] } } as any);
+        mockedAuth.mockResolvedValue({ user: { id: user.id, email: user.email, roles: ['ADMIN'] } } as any);
+        const res = await GET();
+        expect(res.status).toBe(200);
+        const body = await res.json();
+        expect(body.validated).toBe(false);
+        expect(body.blocked).toBe(true);
+    });
+
+    it('2b. Non-chauffeur aux papiers valides → validated: true, blocked: false', async () => {
+        const user = await seedUser({
+            id: 'guest-valid',
+            email: 'guest-valid@test.com',
+            papiers_valides: 1,
+            last_validation: new Date().toISOString().slice(0, 10),
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue({ user: { id: user.id, email: user.email, roles: ['GUEST'] } } as any);
         const res = await GET();
         expect(res.status).toBe(200);
         const body = await res.json();
@@ -159,6 +183,16 @@ describe('GET /api/me/license-check', () => {
 });
 
 describe('PATCH /api/users/[id]/validate-papers', () => {
+    it('7b. 403 quand un administrateur valide ses propres papiers, rien n\'est écrit', async () => {
+        await seedUser({ id: 'admin-id', email: 'admin@test.com', papiers_valides: 0, start_date_invalidation_process: '2025-01-01' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue(adminSession as any);
+        const res = await PATCH(makePatchRequest('admin-id'), { params: Promise.resolve({ email: 'admin-id' }) });
+        expect(res.status).toBe(403);
+        const row = (await db.execute({ sql: `SELECT papiers_valides FROM "User" WHERE id = ?`, args: ['admin-id'] })).rows[0];
+        expect(Number(row.papiers_valides)).toBe(0);
+    });
+
     it('7. 401 sans session', async () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- null session for test
         mockedAuth.mockResolvedValue(null as any);

@@ -15,7 +15,7 @@ Renault vehicle data refresh endpoint. Polls Renault Connect API to validate or 
 
 ### Working In This Directory
 - **PATCH /api/trips/[id]/refresh-renault:** Refresh Renault data validation
-  - Auth required; any authenticated user can call
+  - Auth required; the trip's drivers can always call, anyone else only within the vehicle's UL (Cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too. SUPER_ADMIN only escapes it.)
   - Fetches trip and vehicle records
   - Returns early if: trip not found, renaultDataValidated !== 0 (already validated or not applicable)
   - Throttle logic: skips re-check if last checked within 5 minutes; returns `{ status: 'throttled', validated: false, ... }`

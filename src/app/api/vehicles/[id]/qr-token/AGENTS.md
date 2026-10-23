@@ -20,8 +20,9 @@ Manages QR code bypass tokens for vehicles. Lazy-creates tokens on first GET (st
 
 **DELETE /api/vehicles/[id]/qr-token** — ADMIN only. Regenerates token (new UUID), invalidating old QR codes. Returns `{ token: newToken }` or 404 if vehicle not found.
 
-**Known gaps — deliberately NOT fixed here (out of scope, do not "align" the other way):**
-- **No UL scope.** Any authenticated user can obtain the token of any vehicle in the organisation by iterating over IDs — i.e. fabricate QR-bypass access without ever seeing the printed QR. The newer `/api/inventory/stocks/[id]/qr-token` **does** scope on the stock's UL and is the reference to follow. This route is the one lagging behind; fixing it means adding the scope here, never removing it there.
+**UL scope:** GET, POST and DELETE are scoped to the vehicle's UL. Cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too. SUPER_ADMIN only escapes it.
+
+**Known gap — deliberately NOT fixed here:**
 - **No unique index on `Vehicle.qrToken`** (`setup.ts` declares plain `qrToken TEXT`), whereas `InvStockList.qrToken` carries a partial unique index. Two vehicles sharing a token would be indistinguishable.
 
 **Key business rules:**

@@ -251,6 +251,7 @@ export default function CheckInForm({
 
             <ChecklistItems
                 vehicleId={vehicle.id}
+                qrToken={token}
                 type="checkin"
                 responses={checklistIn}
                 onChange={setChecklistIn}

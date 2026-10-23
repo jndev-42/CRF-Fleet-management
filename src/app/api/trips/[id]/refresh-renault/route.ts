@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getRenaultVehicleData, isConnectedInDb } from '@/lib/vehicle-connection';
 import { auth } from '@/auth';
-import { unauthorizedResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
 export const maxDuration = 30;
@@ -23,11 +23,16 @@ async function patchHandler(
     const { id } = await params;
 
     const tripResult = await db.execute({
-        sql: 'SELECT * FROM Trip WHERE id = ?',
+        sql: `SELECT t.*, v.ulId AS vehicleUlId
+              FROM Trip t LEFT JOIN Vehicle v ON v.id = t.vehicleId
+              WHERE t.id = ?`,
         args: [id]
     });
     const trip = tripResult.rows[0];
-    if (!trip) {
+    // Cloisonnement UL : seuls les conducteurs du trajet y échappent (emprunt QR inter-UL).
+    const isTripDriver = !!trip && !!session.user.id
+        && (session.user.id === trip.driverId || session.user.id === trip.secondDriverId);
+    if (!trip || (!isTripDriver && isOutsideUl(session.user.roles || [], session.user.ulId, trip.vehicleUlId))) {
         return NextResponse.json({ error: 'Trip non trouvé' }, { status: 404 });
     }
 

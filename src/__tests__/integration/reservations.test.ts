@@ -78,7 +78,7 @@ describe('POST /api/vehicles/[id]/reservations — authentification', () => {
 
 describe('POST /api/vehicles/[id]/reservations — autorisation onBehalfOf', () => {
     it('2. retourne 403 si CHVL utilise onBehalfOfUserId', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow();
         const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(403);
@@ -87,7 +87,7 @@ describe('POST /api/vehicles/[id]/reservations — autorisation onBehalfOf', () 
     });
 
     it('3. autorise un CADRE à utiliser onBehalfOfUserId (201)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow();
         const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
@@ -96,7 +96,7 @@ describe('POST /api/vehicles/[id]/reservations — autorisation onBehalfOf', () 
 
 describe('POST /api/vehicles/[id]/reservations — validation Zod', () => {
     it('4. retourne 400 si endTime est avant startTime', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const start = new Date(Date.now() + 2 * 60 * 60 * 1000);
         const end = new Date(Date.now() + 1 * 60 * 60 * 1000);
         const res = await POST(makeRequest({ startTime: start.toISOString(), endTime: end.toISOString() }), { params: Promise.resolve({ id: VEHICLE_ID }) });
@@ -108,7 +108,7 @@ describe('POST /api/vehicles/[id]/reservations — validation Zod', () => {
 
 describe('POST /api/vehicles/[id]/reservations — onBehalfOf 404', () => {
     it('5. retourne 404 si ADMIN fournit un userId inconnu', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow();
         const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-unknown-xyz' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(404);
@@ -119,7 +119,7 @@ describe('POST /api/vehicles/[id]/reservations — onBehalfOf 404', () => {
 
 describe('POST /api/vehicles/[id]/reservations — happy paths', () => {
     it('6. CHVL réservant pour lui-même → 201, status PENDING, userEmail = CHVL', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow(2, 2);
         const res = await POST(makeRequest({ startTime, endTime, reason: 'Maraude test' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
@@ -135,7 +135,7 @@ describe('POST /api/vehicles/[id]/reservations — happy paths', () => {
     // 🔴 Non-régression « réservation rapide » : réserver n'immobilise PAS le véhicule,
     // contrairement à l'emprunt (`POST /api/trips`, qui bascule le statut en IN_USE).
     it('6 bis. la création d\'une réservation ne modifie pas Vehicle.status', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const before = await db.execute({ sql: `SELECT status FROM "Vehicle" WHERE id = ?`, args: [VEHICLE_ID] });
         expect(before.rows[0].status).toBe('AVAILABLE');
 
@@ -148,7 +148,7 @@ describe('POST /api/vehicles/[id]/reservations — happy paths', () => {
     });
 
     it('7. ADMIN réservant pour lui-même → 201, status VALIDATED', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow(4, 2);
         const res = await POST(makeRequest({ startTime, endTime }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
@@ -161,7 +161,7 @@ describe('POST /api/vehicles/[id]/reservations — happy paths', () => {
     });
 
     it('8. ADMIN réservant pour un autre → 201, status VALIDATED, userEmail = cible', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow(7, 2);
         const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
@@ -186,7 +186,7 @@ describe('POST /api/vehicles/[id]/reservations — conflits', () => {
             args: ['res-existing', VEHICLE_ID, 'admin@dev.local', 'Admin Test', startTime, endTime, 'VALIDATED']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         // Overlapping window
         const overlapStart = new Date(Date.now() + 11 * 60 * 60 * 1000);
         const overlapEnd = new Date(Date.now() + 12 * 60 * 60 * 1000);
@@ -209,7 +209,7 @@ describe('POST /api/vehicles/[id]/reservations — conflits', () => {
             args: ['res-vl001-chvl', 'VL001', 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'VALIDATED']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const req = new Request('http://localhost/api/vehicles/VL002/reservations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -227,7 +227,7 @@ describe('POST /api/vehicles/[id]/reservations — conflits', () => {
             args: ['res-pending', VEHICLE_ID, 'other@dev.local', 'Other User', startTime, endTime, 'PENDING']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const overlapStart = new Date(Date.now() + 31 * 60 * 60 * 1000);
         const overlapEnd = new Date(Date.now() + 32 * 60 * 60 * 1000);
         const res = await POST(
@@ -247,7 +247,7 @@ describe('POST /api/vehicles/[id]/reservations — conflits', () => {
             args: ['res-pending-2', VEHICLE_ID, 'other@dev.local', 'Other User', startTime, endTime, 'PENDING']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         const overlapStart = new Date(Date.now() + 36 * 60 * 60 * 1000);
         const overlapEnd = new Date(Date.now() + 37 * 60 * 60 * 1000);
         const res = await POST(
@@ -262,7 +262,7 @@ describe('POST /api/vehicles/[id]/reservations — conflits', () => {
 
 describe('POST & PATCH /api/reservations — Chauffeur non décidé & modifications', () => {
     it('13. permet à un ADMIN/CADRE de créer une réservation avec "Chauffeur non décidé"', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow(40, 2);
         const res = await POST(makeRequest({ startTime, endTime, reason: 'Transport urgent', isUnassignedDriver: true }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
@@ -273,7 +273,7 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
     });
 
     it('14. bloque un utilisateur simple (CHVL) qui tente de réserver comme "Chauffeur non décidé" ou pour autrui (403)', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow(45, 2);
         const res = await POST(makeRequest({ startTime, endTime, isUnassignedDriver: true }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(403);
@@ -287,7 +287,7 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
             args: ['res-to-edit', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'Initial Reason', 'VALIDATED']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
 
         const newStart = new Date(Date.now() + 51 * 60 * 60 * 1000).toISOString();
         const newEnd = new Date(Date.now() + 54 * 60 * 60 * 1000).toISOString();
@@ -321,7 +321,7 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
             args: ['res-no-date-change', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'Initial Reason', 'VALIDATED']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
 
         const patchReq = new Request('http://localhost/api/reservations/res-no-date-change', {
             method: 'PATCH',
@@ -348,7 +348,7 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
             args: ['res-change-driver', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'Reason', 'VALIDATED']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
 
         const patchReq = new Request('http://localhost/api/reservations/res-change-driver', {
             method: 'PATCH',
@@ -371,7 +371,7 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
             args: ['res-admin-edit', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'Reason', 'VALIDATED']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'admin@dev.local', name: 'Admin Test', roles: ['ADMIN'], ulId: 'ul-paris-18' } } as never);
 
         const patchReq = new Request('http://localhost/api/reservations/res-admin-edit', {
             method: 'PATCH',
@@ -397,7 +397,7 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
             args: ['res-other', VEHICLE_ID, 'other@dev.local', 'Other User', startTime, endTime, 'Reason', 'PENDING']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
 
         const patchReq = new Request('http://localhost/api/reservations/res-other', {
             method: 'PATCH',
@@ -427,7 +427,7 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
             args: ['res-B', VEHICLE_ID, 'admin@dev.local', 'Admin Test', win2.startTime, win2.endTime, 'VALIDATED']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'chvl@dev.local', name: 'Chauffeur Test', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
 
         const patchReq = new Request('http://localhost/api/reservations/res-A', {
             method: 'PATCH',
@@ -448,7 +448,7 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
 
 describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
     it('20. CADRE crée une réservation → statut VALIDATED directement', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow(80, 2);
         const res = await POST(makeRequest({ startTime, endTime, reason: 'Mission Cadre' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
@@ -457,7 +457,7 @@ describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
     });
 
     it('21. PRESIDENT crée une réservation → statut VALIDATED directement', async () => {
-        mockedAuth.mockResolvedValue({ user: { email: 'president@dev.local', name: 'President Test', roles: ['PRESIDENT'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'president@dev.local', name: 'President Test', roles: ['PRESIDENT'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow(85, 2);
         const res = await POST(makeRequest({ startTime, endTime, reason: 'Mission Président' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
@@ -474,7 +474,7 @@ describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
         });
 
         // Test valider avec CADRE
-        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
         const reqCadre = new Request('http://localhost/api/reservations/res-pending-chvl', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -495,7 +495,7 @@ describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
             args: ['res-to-delete-cadre', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'VALIDATED']
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
         const reqDelete = new Request('http://localhost/api/reservations/res-to-delete-cadre', { method: 'DELETE' });
         const resDelete = await DELETE_RESERVATION(reqDelete, { params: Promise.resolve({ id: 'res-to-delete-cadre' }) });
         expect(resDelete.status).toBe(200);
@@ -513,7 +513,7 @@ describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
             args: ['res-rec-1', VEHICLE_ID, 'chvl@dev.local', 'Chauffeur Test', startTime, endTime, 'VALIDATED', groupId]
         });
 
-        mockedAuth.mockResolvedValue({ user: { email: 'president@dev.local', name: 'President Test', roles: ['PRESIDENT'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'president@dev.local', name: 'President Test', roles: ['PRESIDENT'], ulId: 'ul-paris-18' } } as never);
         const reqRecDelete = new Request(`http://localhost/api/reservations/recurrence/${groupId}`, { method: 'DELETE' });
         const resRecDelete = await DELETE_RECURRENCE(reqRecDelete, { params: Promise.resolve({ groupId }) });
         expect(resRecDelete.status).toBe(200);
@@ -526,7 +526,7 @@ describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
 // D1 : RESPO est désormais le responsable d'activité des notes de frais. Il n'hérite
 // plus d'aucun droit de gestionnaire de réservations.
 describe('RESPO n\'a aucun droit de gestion des réservations', () => {
-    const respoSession = { user: { email: 'respo@dev.local', name: 'Respo Test', roles: ['RESPO'] } };
+    const respoSession = { user: { email: 'respo@dev.local', name: 'Respo Test', roles: ['RESPO'], ulId: 'ul-paris-18' } };
 
     it('25. 403 pour réserver au nom d\'un autre (onBehalfOfUserId)', async () => {
         mockedAuth.mockResolvedValue(respoSession as never);
@@ -631,7 +631,7 @@ describe('RESP_VEHICULE gère les réservations', () => {
 
     it('31. CADRE seul garde la réassignation du conducteur', async () => {
         await seedPending('res-cadre-driver', 140);
-        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
         const res = await PATCH_RESERVATION(new Request('http://localhost/api/reservations/res-cadre-driver', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -644,7 +644,7 @@ describe('RESP_VEHICULE gère les réservations', () => {
 
     it('32. un RESP_VEHICULE inactif ne valide rien (403)', async () => {
         await seedPending('res-rv-inactif', 145);
-        mockedAuth.mockResolvedValue({ user: { ...rvSession.user, roles: ['RESP_VEHICULE', 'INACTIF'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { ...rvSession.user, roles: ['RESP_VEHICULE', 'INACTIF'], ulId: 'ul-paris-18' } } as never);
         const res = await PATCH_RESERVATION(new Request('http://localhost/api/reservations/res-rv-inactif', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },

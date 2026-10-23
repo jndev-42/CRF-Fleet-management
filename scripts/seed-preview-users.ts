@@ -32,20 +32,22 @@ async function seed() {
     }
     console.log('    Legacy preview users cleaned up');
 
-    // Insert preview users
+    // Insert preview users — papiers validés aujourd'hui : plus aucun rôle n'en est
+    // dispensé pour emprunter, et une date figée expirerait au bout de 182 jours.
+    const today = new Date().toISOString().slice(0, 10);
     await db.execute({
         sql: `INSERT OR REPLACE INTO "User" (id, email, name, papiers_valides, last_validation, validated_by) VALUES
-            ('preview-user-superadmin',  'preview-superadmin@preview.local',  'Super Admin Preview', 1, '2026-07-10', 'System Preview'),
-            ('preview-user-admin',       'preview-admin@preview.local',       'Admin Preview', 1, '2026-07-10', 'System Preview'),
-            ('preview-user-president',   'preview-president@preview.local',   'Président Preview', 1, '2026-07-10', 'System Preview'),
-            ('preview-user-tresorier',   'preview-tresorier@preview.local',   'Trésorier Preview', 1, '2026-07-10', 'System Preview'),
-            ('preview-user-respo',       'preview-respo@preview.local',       'Responsable Preview', 1, '2026-07-10', 'System Preview'),
-            ('preview-user-cadre',       'preview-cadre@preview.local',       'Cadre Preview', 1, '2026-07-10', 'System Preview'),
-            ('preview-user-resp-vehicule', 'preview-resp-vehicule@preview.local', 'Resp. Véhicule Preview', 1, '2026-07-10', 'System Preview'),
-            ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview', 1, '2026-07-10', 'System Preview'),
-            ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, '2026-07-10', 'System Preview'),
-            ('preview-user-inactif',     'preview-inactif@preview.local',     'Inactif Preview', 1, '2026-07-10', 'System Preview')`,
-        args: [],
+            ('preview-user-superadmin',  'preview-superadmin@preview.local',  'Super Admin Preview', 1, ?, 'System Preview'),
+            ('preview-user-admin',       'preview-admin@preview.local',       'Admin Preview', 1, ?, 'System Preview'),
+            ('preview-user-president',   'preview-president@preview.local',   'Président Preview', 1, ?, 'System Preview'),
+            ('preview-user-tresorier',   'preview-tresorier@preview.local',   'Trésorier Preview', 1, ?, 'System Preview'),
+            ('preview-user-respo',       'preview-respo@preview.local',       'Responsable Preview', 1, ?, 'System Preview'),
+            ('preview-user-cadre',       'preview-cadre@preview.local',       'Cadre Preview', 1, ?, 'System Preview'),
+            ('preview-user-resp-vehicule', 'preview-resp-vehicule@preview.local', 'Resp. Véhicule Preview', 1, ?, 'System Preview'),
+            ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview', 1, ?, 'System Preview'),
+            ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, ?, 'System Preview'),
+            ('preview-user-inactif',     'preview-inactif@preview.local',     'Inactif Preview', 1, ?, 'System Preview')`,
+        args: Array(10).fill(today),
     });
     console.log('    Users inserted/updated with validated papers');
 

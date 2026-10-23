@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { canManageVehicles, isSuperAdmin } from '@/lib/roles';
+import { canManageVehicles } from '@/lib/roles';
 import { recalcVehicleStatus } from '@/lib/vehicleStatusRecalc';
 import { withAudit } from '@/lib/audit/log';
 
@@ -58,7 +58,7 @@ export async function GET(
 
         // Pas de fuite d'existence inter-UL : un véhicule d'une autre UL renvoie
         // un 404 identique à "non trouvé" (l'accès via QR code reste séparé, cf. /api/qr/[token]/vehicle)
-        if (!isSuperAdmin(session.user.roles || []) && session.user.ulId !== row.ulId) {
+        if (isOutsideUl(session.user.roles || [], session.user.ulId, row.ulId)) {
             return NextResponse.json(
                 { error: 'Véhicule non trouvé' },
                 { status: 404 }
@@ -235,8 +235,8 @@ async function patchHandler(
         }
         const currentVehicle = currentVehicleRes.rows[0];
 
-        if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== currentVehicle.ulId) {
-            return forbiddenResponse();
+        if (isOutsideUl(session?.user?.roles || [], session?.user?.ulId, currentVehicle.ulId)) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
         const vehicleUuid = currentVehicle.id as string;
@@ -343,7 +343,7 @@ async function patchHandler(
 }
 
 import { deleteDriveFolder } from '@/lib/drive';
-import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 
 async function deleteHandler(
     _request: Request,
@@ -373,8 +373,8 @@ async function deleteHandler(
             );
         }
 
-        if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== vehicleResult.rows[0].ulId) {
-            return forbiddenResponse();
+        if (isOutsideUl(session?.user?.roles || [], session?.user?.ulId, vehicleResult.rows[0].ulId)) {
+            return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
         const realId = vehicleResult.rows[0].id;

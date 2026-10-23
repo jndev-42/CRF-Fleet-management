@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canManageVehicles, isChvlDriver, isChvpspDriver } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
-import { getLicenseStatus, isDriverRole, type LicenseRow } from '@/lib/licenseStatus';
+import { isLicenseBlocked, LICENSE_BLOCKED_MESSAGE, secondDriverLicenseError } from '@/lib/licenseGuard';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { checkOutSchema } from './schema';
 import { withAudit } from '@/lib/audit/log';
@@ -120,29 +120,12 @@ async function postHandler(request: Request) {
         const vehicleType = String(vehicle.type || '');
         const isVPSP = vehicleType.toUpperCase().includes('VPSP');
 
-        // Garde des papiers de conduite : jusqu'ici la validité n'était vérifiée
-        // qu'à l'affichage (`GET /api/me/license-check`), sans contrôle serveur — un
-        // conducteur aux papiers périmés pouvait donc emprunter. La décision est
-        // rejouée ici en lecture seule : contrairement à la route, cette garde
-        // n'écrit jamais l'invalidation en base.
-        if (!isAdmin && isDriverRole(roles)) {
-            const userId = session.user.id;
-            if (userId) {
-                const licenseRes = await db.execute({
-                    sql: `SELECT papiers_valides, last_validation, start_date_invalidation_process
-                          FROM "User" WHERE id = ?`,
-                    args: [userId],
-                });
-                const licenseRow = licenseRes.rows[0] as unknown as LicenseRow | undefined;
-                if (licenseRow) {
-                    const today = new Date().toISOString().slice(0, 10);
-                    if (getLicenseStatus(licenseRow, today).blocked) {
-                        return forbiddenResponse(
-                            "Vos papiers n'ont pas été validés dans les délais — emprunt impossible"
-                        );
-                    }
-                }
-            }
+        // Garde des papiers de conduite, sans dispense par rôle : un gestionnaire qui
+        // prend le volant y est soumis comme un chauffeur. Fermée par défaut (compte
+        // introuvable → refus) et rejouée en lecture seule, cf. `@/lib/licenseGuard`.
+        // La dispense de *rôle chauffeur* des gestionnaires (`canBorrow`) est conservée.
+        if (await isLicenseBlocked(session.user.id)) {
+            return forbiddenResponse(LICENSE_BLOCKED_MESSAGE);
         }
 
         // Désinfection n'est disponible que pour les véhicules VPSP (validation véhicule indépendante du rôle)
@@ -179,6 +162,11 @@ async function postHandler(request: Request) {
             const secondDriverMessage = await secondDriverError(vehicle.type, driverId, data.secondDriverId);
             if (secondDriverMessage) {
                 return NextResponse.json({ error: secondDriverMessage }, { status: 400 });
+            }
+            // Papiers du 2ème conducteur : même garde que l'emprunt par QR code.
+            const licenseMessage = await secondDriverLicenseError(data.secondDriverId);
+            if (licenseMessage) {
+                return forbiddenResponse(licenseMessage);
             }
         }
 

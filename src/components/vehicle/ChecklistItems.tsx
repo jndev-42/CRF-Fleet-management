@@ -3,6 +3,8 @@ import { ChecklistItemType } from './ChecklistManager';
 
 interface ChecklistItemsProps {
     vehicleId: string;
+    /** Parcours QR : lit la checklist via le token (ouvert entre ULs) plutôt que via l'id. */
+    qrToken?: string;
     type: 'checkout' | 'checkin';
     responses: Record<string, boolean>;
     onChange: (responses: Record<string, boolean>) => void;
@@ -12,7 +14,7 @@ interface ChecklistItemsProps {
  * Renders the custom checklist for a vehicle in the CheckOut/CheckIn modals.
  * Blocks form submission if a required item is not checked (using native HTML5 validation).
  */
-export default function ChecklistItems({ vehicleId, type, responses, onChange }: ChecklistItemsProps) {
+export default function ChecklistItems({ vehicleId, qrToken, type, responses, onChange }: ChecklistItemsProps) {
     const [items, setItems] = useState<ChecklistItemType[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -20,7 +22,10 @@ export default function ChecklistItems({ vehicleId, type, responses, onChange }:
         let mounted = true;
         async function fetchItems() {
             try {
-                const res = await fetch(`/api/vehicles/${vehicleId}/checklist?type=${type}`);
+                const url = qrToken
+                    ? `/api/qr/${encodeURIComponent(qrToken)}/checklist?type=${type}`
+                    : `/api/vehicles/${vehicleId}/checklist?type=${type}`;
+                const res = await fetch(url);
                 if (!res.ok) throw new Error();
                 const data: ChecklistItemType[] = await res.json();
                 if (mounted) {
@@ -45,7 +50,7 @@ export default function ChecklistItems({ vehicleId, type, responses, onChange }:
         fetchItems();
         return () => { mounted = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- responses/onChange omitted intentionally: including them causes infinite re-fetch loop since onChange updates responses on every render
-    }, [vehicleId, type]);
+    }, [vehicleId, qrToken, type]);
 
     if (loading || items.length === 0) return null;
 

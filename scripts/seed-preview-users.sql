@@ -20,16 +20,21 @@ DELETE FROM "User" WHERE id IN ('preview-user-secouriste');
 
 INSERT OR IGNORE INTO "User" (id, email, name, papiers_valides, last_validation, validated_by)
 VALUES
-    ('preview-user-superadmin',  'preview-superadmin@preview.local',  'Super Admin Preview', 1, '2026-07-10', 'System Preview'),
-    ('preview-user-admin',       'preview-admin@preview.local',       'Admin Preview', 1, '2026-07-10', 'System Preview'),
-    ('preview-user-president',   'preview-president@preview.local',   'Président Preview', 1, '2026-07-10', 'System Preview'),
-    ('preview-user-tresorier',   'preview-tresorier@preview.local',   'Trésorier Preview', 1, '2026-07-10', 'System Preview'),
-    ('preview-user-respo',       'preview-respo@preview.local',       'Responsable Preview', 1, '2026-07-10', 'System Preview'),
-    ('preview-user-cadre',       'preview-cadre@preview.local',       'Cadre Preview', 1, '2026-07-10', 'System Preview'),
-    ('preview-user-resp-vehicule', 'preview-resp-vehicule@preview.local', 'Resp. Véhicule Preview', 1, '2026-07-10', 'System Preview'),
-    ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview', 1, '2026-07-10', 'System Preview'),
-    ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, '2026-07-10', 'System Preview'),
-    ('preview-user-inactif',     'preview-inactif@preview.local',     'Inactif Preview', 1, '2026-07-10', 'System Preview');
+    ('preview-user-superadmin',  'preview-superadmin@preview.local',  'Super Admin Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-admin',       'preview-admin@preview.local',       'Admin Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-president',   'preview-president@preview.local',   'Président Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-tresorier',   'preview-tresorier@preview.local',   'Trésorier Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-respo',       'preview-respo@preview.local',       'Responsable Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-cadre',       'preview-cadre@preview.local',       'Cadre Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-resp-vehicule', 'preview-resp-vehicule@preview.local', 'Resp. Véhicule Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-chvl',        'preview-chvl@preview.local',        'Chauffeur Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, date('now'), 'System Preview'),
+    ('preview-user-inactif',     'preview-inactif@preview.local',     'Inactif Preview', 1, date('now'), 'System Preview');
+
+-- Papiers rafraîchis à chaque exécution (INSERT OR IGNORE n'écrase pas) : plus aucun
+-- rôle n'est dispensé du contrôle des papiers pour emprunter.
+UPDATE "User" SET papiers_valides = 1, last_validation = date('now'), start_date_invalidation_process = NULL
+WHERE id LIKE 'preview-user-%';
 
 -- ── Rattachement à l'UL principale ──────────────────────────────────────────
 INSERT OR IGNORE INTO "UserUL" (userId, ulId, is_home, roles)

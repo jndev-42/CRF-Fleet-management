@@ -7,13 +7,15 @@ import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 import { secondDriverError } from '@/lib/eligibleDrivers';
 import { applyCheckoutCorrection, readCheckoutBaseline, sendCheckoutAlerts } from '@/lib/checkout';
+import { isLicenseBlocked, LICENSE_BLOCKED_MESSAGE, secondDriverLicenseError } from '@/lib/licenseGuard';
 
 /**
  * POST /api/qr/[token]/checkout
  *
  * Creates a trip (checkout) for the vehicle identified by a QR token.
  * Access : tout compte CRF connecté, avec ou sans rôle attribué, sauf s'il porte
- * INACTIF (ou GUEST) — cf. `isQrBlocked`. Aucun contrôle d'UL ni de rôle chauffeur.
+ * INACTIF (ou GUEST) — cf. `isQrBlocked`. Aucun contrôle d'UL ni de rôle chauffeur,
+ * mais les papiers de conduite sont contrôlés (`@/lib/licenseGuard`), sans dispense.
  */
 
 const checkOutSchema = z.object({
@@ -63,7 +65,7 @@ async function postHandler(
         // Ne pas « harmoniser » les deux : le verrou de comportement est
         // `src/__tests__/integration/qr.test.ts` → « l'emprunt QR reste ouvert entre unités
         // locales (bypass volontaire des droits) ». Seul le verrou maintenance ci-dessous
-        // restreint ce parcours.
+        // restreint ce parcours, avec la garde des papiers.
         const vehicleRes = await db.execute({
             sql: `SELECT * FROM Vehicle WHERE qrToken = ?`,
             args: [token],
@@ -97,6 +99,11 @@ async function postHandler(
             return NextResponse.json({ error: 'Ce véhicule est en maintenance' }, { status: 400 });
         }
 
+        // Garde des papiers : le QR ouvre l'UL et le rôle, jamais les papiers.
+        if (await isLicenseBlocked(session.user.id)) {
+            return forbiddenResponse(LICENSE_BLOCKED_MESSAGE);
+        }
+
         // Kilométrage/carburant de départ et correction déclarée — règles partagées avec
         // `POST /api/trips` (cf. `@/lib/checkout`).
         const baseline = await readCheckoutBaseline(vehicle);
@@ -116,6 +123,11 @@ async function postHandler(
             const secondDriverMessage = await secondDriverError(vehicle.type, driverId, secondDriverId);
             if (secondDriverMessage) {
                 return NextResponse.json({ error: secondDriverMessage }, { status: 400 });
+            }
+            // Papiers du 2ème conducteur : même garde que `POST /api/trips` (`@/lib/licenseGuard`).
+            const licenseMessage = await secondDriverLicenseError(secondDriverId);
+            if (licenseMessage) {
+                return forbiddenResponse(licenseMessage);
             }
         }
         const tripId = crypto.randomUUID();

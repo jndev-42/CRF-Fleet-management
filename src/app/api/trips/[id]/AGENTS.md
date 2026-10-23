@@ -21,6 +21,7 @@ Container for individual trip operations by trip ID. Supports deletion, checkin/
 ## For AI Agents
 
 ### Working In This Directory
+- **UL scope (DELETE):** cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too; SUPER_ADMIN only escapes it. Nothing is deleted.
 - **DELETE /api/trips/[id]:** Delete a trip (authenticated, ADMIN-only)
   - Fetches trip record to get vehicleId, checkInAt, driveFolderId, missionType
   - Silently succeeds if trip not found

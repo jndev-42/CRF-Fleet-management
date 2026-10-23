@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { canManageVehicles, isSuperAdmin } from '@/lib/roles';
-import { forbiddenResponse } from '@/lib/apiAuth';
+import { canManageVehicles } from '@/lib/roles';
+import { forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
 const patchItemSchema = z.object({
@@ -35,8 +35,8 @@ async function patchHandler(
         if (ownerRes.rows.length === 0) {
             return NextResponse.json({ error: 'Élément non trouvé' }, { status: 404 });
         }
-        if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== ownerRes.rows[0].ulId) {
-            return forbiddenResponse();
+        if (isOutsideUl(session?.user?.roles || [], session?.user?.ulId, ownerRes.rows[0].ulId)) {
+            return NextResponse.json({ error: 'Élément non trouvé' }, { status: 404 });
         }
 
         const body = await request.json();
@@ -114,8 +114,8 @@ async function deleteHandler(
         if (ownerRes.rows.length === 0) {
             return NextResponse.json({ error: 'Élément non trouvé' }, { status: 404 });
         }
-        if (!isSuperAdmin(session?.user?.roles || []) && session?.user?.ulId !== ownerRes.rows[0].ulId) {
-            return forbiddenResponse();
+        if (isOutsideUl(session?.user?.roles || [], session?.user?.ulId, ownerRes.rows[0].ulId)) {
+            return NextResponse.json({ error: 'Élément non trouvé' }, { status: 404 });
         }
 
         await db.execute({

@@ -41,6 +41,12 @@ async function postHandler(request: Request) {
             return forbiddenResponse();
         }
 
+        // Cloisonnement UL, comme `GET /api/stats` : l'export ne porte que sur l'UL de session.
+        const ulId = session.user.ulId as string | undefined;
+        if (!ulId || ulId === 'default') {
+            return NextResponse.json({ error: 'Aucune unité locale active' }, { status: 400 });
+        }
+
         const body = await request.json();
         const parsed = postSchema.safeParse(body);
         if (!parsed.success) {
@@ -80,8 +86,9 @@ async function postHandler(request: Request) {
                   JOIN "User" u ON u.id = t.driverId
                   LEFT JOIN "User" u2 ON u2.id = t.secondDriverId
                   WHERE DATE(t.checkOutAt) >= ? AND DATE(t.checkOutAt) <= ?
+                    AND v.ulId = ?
                   ORDER BY t.checkOutAt DESC`,
-            args: [dateFrom, dateTo],
+            args: [dateFrom, dateTo, ulId],
         });
 
         const headers = [

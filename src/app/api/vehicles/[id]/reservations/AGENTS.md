@@ -14,9 +14,11 @@ Manages vehicle reservations: single-slot and recurring. Supports conflict detec
 ## For AI Agents
 
 ### Working In This Directory
-**GET /api/vehicles/[id]/reservations** — Any authenticated user. Lists all reservations for this vehicle ordered by `startTime ASC`. Fields: `id`, `vehicleId`, `userEmail`, `userName`, `startTime`, `endTime`, `reason`, `status`, `createdAt`, `recurrenceGroupId`.
+**UL scope (GET and POST):** Cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too. SUPER_ADMIN only escapes it.
 
-**POST /api/vehicles/[id]/reservations** — Any authenticated user. Creates reservation(s) with two flows:
+**GET /api/vehicles/[id]/reservations** — Any authenticated user of the vehicle's UL. Lists all reservations for this vehicle ordered by `startTime ASC`. Fields: `id`, `vehicleId`, `userEmail`, `userName`, `startTime`, `endTime`, `reason`, `status`, `createdAt`, `recurrenceGroupId`.
+
+**POST /api/vehicles/[id]/reservations** — Any authenticated user of the vehicle's UL. Creates reservation(s) with two flows:
 
 1. **Simple single reservation**: `{ startTime, endTime, reason?, onBehalfOfUserId?, isUnassignedDriver? }`
    - Validates: startTime < endTime, startTime in future

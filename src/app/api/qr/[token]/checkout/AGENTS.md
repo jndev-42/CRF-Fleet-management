@@ -18,6 +18,7 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 **Auth & Access:**
 - Requires: `session?.user` (401), `!isQrBlocked(roles)` (403 — INACTIF is dominant, even combined with active roles).
 - No role check; an account with no role at all can checkout.
+- **Papers are checked** (`isLicenseBlocked` from `@/lib/licenseGuard`, no role exemption, fail-closed when the `User` row is missing) → 403 with the shared message. The QR opens UL and role, never the papers.
 
 **Zod Schema (checkOutSchema):**
 - `missionType` (required string, min 1)

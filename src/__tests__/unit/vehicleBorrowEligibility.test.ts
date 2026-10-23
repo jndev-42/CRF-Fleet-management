@@ -32,14 +32,18 @@ describe('isVpspVehicle', () => {
 });
 
 describe('getBorrowEligibility', () => {
-    it('ADMIN bypasse VPSP, réservation tierce et permis bloqué', () => {
+    it('ADMIN bypasse VPSP et réservation tierce', () => {
         const res = getBorrowEligibility(input({
             userRoles: ['ADMIN'],
             vehicleType: 'VPSP',
             isReservedByOther: true,
-            licenseBlocked: true,
         }));
         expect(res).toEqual({ canBorrow: true, blockingReason: null });
+    });
+
+    it.each([['ADMIN'], ['RESP_VEHICULE'], ['SUPER_ADMIN']])('%s aux papiers bloqués → LICENSE_BLOCKED (aucune dispense)', (role) => {
+        expect(getBorrowEligibility(input({ userRoles: [role], vehicleType: 'VPSP', isReservedByOther: true, licenseBlocked: true })))
+            .toEqual({ canBorrow: false, blockingReason: 'LICENSE_BLOCKED' });
     });
 
     it('CHVPSP peut emprunter un VPSP disponible', () => {
@@ -131,13 +135,20 @@ describe('getBorrowDenialTitle', () => {
             .toBe("Vous n'avez pas les droits pour emprunter ce véhicule");
     });
 
-    it('un ADMIN ne voit jamais les chaînes licence/réservation', () => {
+    it('un ADMIN ne voit jamais la chaîne réservation', () => {
         expect(getBorrowDenialTitle(input({
             userRoles: ['ADMIN'],
             vehicleStatus: 'IN_USE',
-            licenseBlocked: true,
             isReservedByOther: true,
         }))).toBe("Vous n'avez pas les droits pour emprunter ce véhicule");
+    });
+
+    it('un ADMIN aux papiers bloqués voit la chaîne licence', () => {
+        expect(getBorrowDenialTitle(input({
+            userRoles: ['ADMIN'],
+            licenseBlocked: true,
+            isReservedByOther: true,
+        }))).toBe("Vos papiers n'ont pas été validés — emprunt bloqué.");
     });
 });
 
@@ -157,9 +168,9 @@ describe('getBorrowCtaState', () => {
         });
     });
 
-    it('un ADMIN n\'est pas bloqué par ses papiers', () => {
+    it('un ADMIN est bloqué par ses papiers comme tout le monde', () => {
         expect(getBorrowCtaState({ ...base, userRoles: ['ADMIN'], licenseBlocked: true, eligibleCount: 2 }).state)
-            .toBe('NOMINAL');
+            .toBe('LICENSE_BLOCKED');
     });
 
     it('NOMINAL dès qu\'un véhicule est éligible', () => {
@@ -366,9 +377,9 @@ describe('CADRE et RESP_VEHICULE — emprunt', () => {
         expect(borrow(['CADRE', 'CHVL'], 'VL', true)).toEqual({ canBorrow: false, blockingReason: 'LICENSE_BLOCKED' });
     });
 
-    it('RESP_VEHICULE : bypass comme un ADMIN (VL, VPSP, papiers bloqués)', () => {
+    it('RESP_VEHICULE : dispense de rôle comme un ADMIN (VL, VPSP), jamais de papiers', () => {
         expect(borrow(['RESP_VEHICULE'], 'VL').canBorrow).toBe(true);
         expect(borrow(['RESP_VEHICULE'], 'VPSP').canBorrow).toBe(true);
-        expect(borrow(['RESP_VEHICULE'], 'VL', true).canBorrow).toBe(true);
+        expect(borrow(['RESP_VEHICULE'], 'VL', true)).toEqual({ canBorrow: false, blockingReason: 'LICENSE_BLOCKED' });
     });
 });

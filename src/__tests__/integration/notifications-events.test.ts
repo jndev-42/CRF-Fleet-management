@@ -65,7 +65,7 @@ beforeEach(async () => {
 });
 
 function asUser(email: string, id: string, roles: string[], name = 'Test') {
-    mockedAuth.mockResolvedValue({ user: { id, email, name, roles } } as never);
+    mockedAuth.mockResolvedValue({ user: { id, email, name, roles, ulId: 'ul-paris-18' } } as never);
 }
 
 describe('POST /api/vehicles/[id]/reservations — demande en attente', () => {

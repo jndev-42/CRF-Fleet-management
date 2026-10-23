@@ -8,8 +8,8 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+    canBorrowVehicles,
     getLicenseStatus,
-    isDriverRole,
     INVALIDATION_GRACE_DAYS,
     VALIDATION_VALIDITY_DAYS,
     type LicenseRow,
@@ -33,17 +33,17 @@ function row(overrides: Partial<LicenseRow> = {}): LicenseRow {
     };
 }
 
-describe('isDriverRole', () => {
-    it('reconnaît les rôles conducteurs', () => {
-        expect(isDriverRole(['CHVL'])).toBe(true);
-        expect(isDriverRole(['CHVPSP'])).toBe(true);
-        expect(isDriverRole(['CHVL', 'ADMIN'])).toBe(true);
+describe('canBorrowVehicles', () => {
+    it('vrai pour les chauffeurs et les gestionnaires de flotte', () => {
+        for (const roles of [['CHVL'], ['CHVPSP'], ['ADMIN'], ['RESP_VEHICULE'], ['SUPER_ADMIN']]) {
+            expect(canBorrowVehicles(roles)).toBe(true);
+        }
     });
 
-    it('exclut les rôles non conducteurs', () => {
-        expect(isDriverRole(['ADMIN'])).toBe(false);
-        expect(isDriverRole(['GUEST'])).toBe(false);
-        expect(isDriverRole([])).toBe(false);
+    it('faux pour les comptes qui n\'empruntent jamais, et pour un INACTIF', () => {
+        for (const roles of [['TRESORIER'], ['PRESIDENT'], ['DT'], [], ['CHVL', 'INACTIF']]) {
+            expect(canBorrowVehicles(roles)).toBe(false);
+        }
     });
 });
 

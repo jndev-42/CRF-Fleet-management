@@ -30,12 +30,13 @@ Single incident report retrieval and state management. GET is readable by any me
 - Dynamically builds UPDATE clause from provided fields
 - Auto-JSON-serializes object fields before insert
 - Sets `updatedAt` to current ISO timestamp
-- Returns 403 if neither owner nor admin, 404 if report not found
+- UL scope: the author keeps access (QR incident on another UL included); anyone else out of the vehicle's UL (`isWithinUlScope`, SUPER_ADMIN excepted) gets **404**
+- Returns 403 if neither owner nor admin, 404 if report not found or out of UL scope
 
 **DELETE:**
-- Auth: Owner or admin only
+- Auth: Owner or admin only, same UL scope as PATCH (404 out of scope)
 - Any status allowed (unlike expenses which restrict to draft)
-- Returns 403 if neither owner nor admin, 404 if not found
+- Returns 403 if neither owner nor admin, 404 if not found or out of UL scope
 
 **DB tables:** IncidentReport, Vehicle, User
 

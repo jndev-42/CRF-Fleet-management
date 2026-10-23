@@ -46,11 +46,13 @@ export function isIncidentViewerBlocked(roles: string[]): boolean {
  *
  * SUPER_ADMIN passe outre (accès inter-UL). Une UL absente des deux côtés ne vaut
  * pas correspondance : `null === null` serait vrai en JS, or deux véhicules non
- * rattachés ne constituent pas une UL commune.
+ * rattachés ne constituent pas une UL commune. La sentinelle de session `'default'`
+ * (aucune UL active) est refusée, comme dans `isOutsideUl` (`@/lib/apiAuth`).
  */
 export function isWithinUlScope(viewer: IncidentViewer, vehicleUlId: string | null): boolean {
     if (isSuperAdmin(viewer.roles)) return true;
-    return Boolean(viewer.ulId) && Boolean(vehicleUlId) && viewer.ulId === vehicleUlId;
+    if (!viewer.ulId || viewer.ulId === 'default') return false;
+    return Boolean(vehicleUlId) && viewer.ulId === vehicleUlId;
 }
 
 /** L'appelant est-il le déclarant du rapport ? */

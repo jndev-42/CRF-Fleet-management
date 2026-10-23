@@ -14,6 +14,7 @@ Updates mileage and fuel level for manual (non-connected) vehicles. Blocked for 
 ## For AI Agents
 
 ### Working In This Directory
+- **UL scope:** cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too; SUPER_ADMIN only escapes it.
 **PATCH /api/vehicles/[id]/metrics** — `canSuperviseVehicles` only (SUPER_ADMIN, ADMIN, RESP_VEHICULE, PRESIDENT — not CADRE). Updates `mileage` (number ≥ 0) and/or `fuelLevel` (0–100). Validates payload (both optional, but at least one required). Rejects if vehicle has VIN (Renault Connect vehicles auto-sync). Sends Web Push notification to ADMIN and RESP_VEHICULE roles with change summary (emoji formatting). Returns updated vehicle object or message if no changes detected.
 
 **Key business rules:**

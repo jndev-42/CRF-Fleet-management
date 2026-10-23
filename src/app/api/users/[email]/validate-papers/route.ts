@@ -9,6 +9,8 @@ import { withAudit } from '@/lib/audit/log';
  *
  * Marque les papiers d'un conducteur comme validés.
  * Accessible via `canAccessAdminPanel` uniquement (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE).
+ * Jamais sur soi-même, quel que soit le rôle : aucun rôle n'est dispensé du contrôle
+ * des papiers, s'auto-valider le contournerait.
  *
  * Effets :
  * - papiers_valides = 1
@@ -32,6 +34,10 @@ async function patchHandler(
         }
 
         const { email: userId } = await params;
+
+        if (session.user.id && session.user.id === userId) {
+            return forbiddenResponse('Vous ne pouvez pas valider vos propres papiers');
+        }
 
         const userRes = await db.execute({
             sql: `SELECT id FROM "User" WHERE id = ?`,

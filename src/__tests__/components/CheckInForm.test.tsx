@@ -37,3 +37,21 @@ describe('CheckInForm — sélecteur du responsable de désinfection', () => {
         });
     });
 });
+
+describe('CheckInForm — checklist QR', () => {
+    it('lit la checklist par la route QR (ouverte entre ULs)', async () => {
+        const fetchMock = vi.fn().mockImplementation(async (input: string) => new Response(
+            JSON.stringify(String(input).includes('/checklist') ? [] : { users: [] }),
+            { status: 200 },
+        ));
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<CheckInForm vehicle={vehicle()} token="tok" onSuccess={() => {}} />);
+
+        await waitFor(() => {
+            const urls = fetchMock.mock.calls.map(([u]) => String(u));
+            expect(urls).toContain('/api/qr/tok/checklist?type=checkin');
+            expect(urls.some(u => u.startsWith('/api/vehicles/'))).toBe(false);
+        });
+    });
+});

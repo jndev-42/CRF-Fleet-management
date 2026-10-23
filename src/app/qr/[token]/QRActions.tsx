@@ -3,12 +3,15 @@ import type { QRVehicle } from './types';
 export default function QRActions({
     vehicle,
     canCheckIn,
+    licenseBlocked = false,
     onCheckOut,
     onCheckIn,
     onDeclareIncident,
 }: {
     vehicle: QRVehicle;
     canCheckIn: boolean | null;
+    /** Papiers bloqués : l'emprunt est refusé (le serveur répond 403 de toute façon). */
+    licenseBlocked?: boolean;
     onCheckOut: () => void;
     onCheckIn: () => void;
     onDeclareIncident: () => void;
@@ -17,12 +20,25 @@ export default function QRActions({
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {vehicle.status === 'AVAILABLE' && (
                 <button
-                    className="btn btn-primary btn-lg"
-                    onClick={onCheckOut}
+                    className={`btn btn-primary btn-lg ${licenseBlocked ? 'disabled' : ''}`}
+                    onClick={() => { if (!licenseBlocked) onCheckOut(); }}
+                    disabled={licenseBlocked}
+                    title={licenseBlocked ? "Vos papiers n'ont pas été validés — emprunt bloqué." : ''}
                     style={{ width: '100%' }}
                 >
                     🚗 Emprunter ce véhicule
                 </button>
+            )}
+
+            {vehicle.status === 'AVAILABLE' && licenseBlocked && (
+                <div role="alert" style={{
+                    textAlign: 'center', padding: '12px 16px',
+                    background: 'var(--bg-card)', border: '1px solid var(--border-primary)',
+                    borderRadius: 12, fontSize: 13, color: 'var(--status-maintenance)'
+                }}>
+                    Vos papiers n&apos;ont pas été validés dans les délais — emprunt impossible.
+                    Présentez vos papiers à votre DLUS/DLAS.
+                </div>
             )}
 
             {vehicle.status === 'IN_USE' && canCheckIn && (

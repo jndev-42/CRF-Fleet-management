@@ -131,7 +131,7 @@ describe('PATCH /api/incidents/[id]', () => {
     });
 
     it('retourne 403 pour un autre utilisateur non-admin', async () => {
-        mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'autre@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'autre@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186' });
         await seedUser({ id: 'user-1', email: 'reporter@test.com' });
         await seedUser({ id: 'user-2', email: 'autre@test.com' });
@@ -175,7 +175,7 @@ describe('DELETE /api/incidents/[id]', () => {
     });
 
     it('retourne 403 pour un autre utilisateur non-admin', async () => {
-        mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'autre@test.com', roles: ['CHVL'] } } as never);
+        mockedAuth.mockResolvedValue({ user: { id: 'user-2', email: 'autre@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
         await seedVehicle({ id: 'VL001', name: 'VL186' });
         await seedUser({ id: 'user-1', email: 'reporter@test.com' });
         await seedUser({ id: 'user-2', email: 'autre@test.com' });

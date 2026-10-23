@@ -78,9 +78,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-vehicule.md`
   summary: Cloisonner par UL les routes de gestion qui ne le sont pas : réservations (POST vehicles/[id]/reservations, PATCH/DELETE reservations/[id], reservations/recurrence/[groupId]), trips/[id] (DELETE, checkout, desinf-pre), PATCH/DELETE incidents/[id], POST vehicles, checklist, metrics et qr-token. Aujourd'hui, un gestionnaire de l'UL A peut agir sur les données de l'UL B.
   evidence: faille antérieure relevée pendant l'implémentation du rôle RESP_VEHICULE. La corriger change le comportement d'ADMIN, CADRE et PRESIDENT, et casse les tests qui créent des sessions sans ulId : hors périmètre.
+  resolved: `spec-permis-et-cloisonnement-ul.md` (v5.31.0) — `isOutsideUl` → 404 sur GET/POST vehicles/[id]/reservations, PATCH/PUT/DELETE reservations/[id], PATCH/DELETE reservations/recurrence/[groupId] (chaque véhicule du groupe), trips/[id] (DELETE, checkout, desinf-pre, checkin, second-driver, refresh-renault), PATCH/DELETE incidents/[id] (`isWithinUlScope`), GET/POST vehicles/[id]/checklist, PATCH metrics, GET/POST/DELETE qr-token, POST stats/csv et stats/pdf ; motif en ligne durci dans vehicles/[id], maintenance, maintenance/[recordId], vehicles/[id]/trips, checklist/[itemId], desinfections, renault/[vin]. POST /api/vehicles était déjà cloisonné. Tests : `src/__tests__/integration/ul-scoping.test.ts`.
 - source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-vehicule.md`
   summary: Le trou de cloisonnement par UL (entrée précédente) concerne désormais aussi chaque RESP_VEHICULE, donc chaque cadre migré. Prioriser les routes destructrices : DELETE trips/[id], DELETE incidents/[id], DELETE réservations.
   evidence: revue de la PR RESP_VEHICULE ; `canManageVehicles` ne vérifie pas l'UL et ces routes ne comparent pas `session.user.ulId` à `vehicle.ulId`.
+  resolved: `spec-permis-et-cloisonnement-ul.md` (v5.31.0) — DELETE trips/[id], DELETE incidents/[id], DELETE reservations/[id] et reservations/recurrence/[groupId] répondent 404 hors UL, RESP_VEHICULE compris (cf. entrée précédente).
 - source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-vehicule.md`
   summary: Un CADRE ou PRESIDENT sans rôle chauffeur ne peut pas créer de réservation au nom d'autrui depuis l'UI : le contournement d'éligibilité suit `canManageVehicles`, alors que le serveur les accepte comme valideurs (`canManageReservations`).
   evidence: antérieur (le contournement était `isAdminOrAbove`) ; à arbitrer avec l'utilisateur, car « le cadre doit avoir CHVL pour emprunter ».
@@ -90,3 +92,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-vehicule.md`
   summary: Ajouter un test de rendu de /stats vérifiant qu'une session CADRE ou RESP_VEHICULE n'est pas redirigée.
   evidence: seul le prédicat `canViewStatsPage` est testé.
+- source_spec: `_bmad-output/implementation-artifacts/spec-permis-et-cloisonnement-ul.md`
+  summary: Cloisonner par UL la gestion des utilisateurs : liste complète de GET /api/users, PATCH validate-papers, édition des rôles. Un admin de l'UL A peut aujourd'hui valider les papiers d'un utilisateur de l'UL B.
+  evidence: hors de l'intention de cette spec (faille des routes véhicule) ; `validate-papers` ne vérifie que `canAccessAdminPanel`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-permis-et-cloisonnement-ul.md`
+  summary: Mettre à jour les AGENTS.md qui décrivent encore le contrôle des papiers comme réservé aux chauffeurs (src/app/api/me/AGENTS.md:7,15 ; src/app/users/AGENTS.md ; validate-papers/AGENTS.md) et harmoniser la casse « Cross-UL ».
+  evidence: le contrôle des papiers s'applique désormais à tout conducteur.

@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { deleteDriveFolder } from '@/lib/drive';
 import { canManageVehicles } from '@/lib/roles';
-import { forbiddenResponse } from '@/lib/apiAuth';
+import { forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 
 async function deleteHandler(
@@ -12,7 +12,8 @@ async function deleteHandler(
 ) {
     try {
         const session = await auth();
-        if (!canManageVehicles(session?.user?.roles || [])) {
+        const roles = session?.user?.roles || [];
+        if (!canManageVehicles(roles)) {
             return forbiddenResponse();
         }
 
@@ -20,7 +21,9 @@ async function deleteHandler(
 
         // Find the trip to check if it has a drive folder or is currently active
         const tripRes = await db.execute({
-            sql: `SELECT vehicleId, checkInAt, driveFolderId, missionType FROM Trip WHERE id = ?`,
+            sql: `SELECT t.vehicleId, t.checkInAt, t.driveFolderId, t.missionType, v.ulId AS vehicleUlId
+                  FROM Trip t LEFT JOIN Vehicle v ON v.id = t.vehicleId
+                  WHERE t.id = ?`,
             args: [id]
         });
 
@@ -29,6 +32,11 @@ async function deleteHandler(
         }
 
         const trip = tripRes.rows[0];
+
+        // Cloisonnement UL : rien n'est supprimé sur un trajet d'une autre UL.
+        if (isOutsideUl(roles, session?.user?.ulId, trip.vehicleUlId)) {
+            return NextResponse.json({ error: 'Trajet non trouvé' }, { status: 404 });
+        }
 
         if (trip.driveFolderId) {
             // Do not block deletion if drive folder fails to delete (e.g. already deleted manually)

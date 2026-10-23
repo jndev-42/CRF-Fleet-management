@@ -17,7 +17,7 @@ Vehicle detail-page UI: badges, trip/reservation timeline, checklist, maintenanc
 | `VehicleBadges.tsx` | Status/role badges |
 | `VehicleNotes.tsx` | Free-text notes |
 | `VehicleInteractiveSVG.tsx` | Interactive vehicle diagram (damage reporting) |
-| `ChecklistItems.tsx` | Checklist display during a trip |
+| `ChecklistItems.tsx` | Checklist display during a trip — with `qrToken`, reads `/api/qr/{token}/checklist` (QR forms, open across ULs) instead of the UL-scoped `/api/vehicles/{id}/checklist` |
 | `ChecklistManager.tsx` | Checklist admin editing (separate from `ChecklistItems.tsx` on purpose) |
 | `MaintenanceCard.tsx` | Maintenance summary card |
 | `FuelBar.tsx` | Fuel level indicator |

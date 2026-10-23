@@ -14,6 +14,7 @@ Bulk operations on a recurrence group: DELETE cancels all future occurrences; PA
 ## For AI Agents
 
 ### Working In This Directory
+- **UL scope (DELETE, PATCH):** every vehicle of the group is checked — cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too; SUPER_ADMIN only escapes it.
 
 **Auth & Access:**
 - DELETE: owner (any member's userEmail) OR manager (`canManageReservations()`), else 403.
