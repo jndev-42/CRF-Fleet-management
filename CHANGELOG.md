@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.32.4] — 23 octobre 2026
+
+### Corrections
+
+- **Retour d'un véhicule après une désinfection : liste des responsables vide** — pour les chauffeurs, la liste « Responsable de la désinfection » ne proposait personne, alors que ce champ est obligatoire : le véhicule ne pouvait pas être rendu. Elle propose désormais les membres actifs de l'unité locale du véhicule, depuis la fiche véhicule comme depuis le QR code.
+
 ## [5.32.3] — 23 octobre 2026
 
 ### Améliorations

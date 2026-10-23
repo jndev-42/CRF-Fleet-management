@@ -101,7 +101,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [desinfResponsableId, setDesinfResponsableId] = useState(initialDesinfResponsableId);
     const [desinfLotNumber, setDesinfLotNumber] = useState(initialDesinfLotNumber);
     const [desinfType, setDesinfType] = useState('simple');
-    const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
+    const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
     // Booléen hissé hors de l'effet : `isVehicleConnected(vehicle)` y lirait l'objet `vehicle`
     // entier, que `exhaustive-deps` exigerait alors en dépendance — l'effet se rejouerait à
     // chaque nouvelle identité de `vehicle`. Une primitive garde les dépendances granulaires.
@@ -135,11 +135,13 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
     useEffect(() => {
         if (!isDesinf && !hasDesinfTracking) return;
-        fetch('/api/users')
+        // Route dédiée : `GET /api/users` est réservé aux gestionnaires, un chauffeur y
+        // recevait un 403 — liste vide, et retour d'une désinfection impossible.
+        fetch(`/api/vehicles/${encodeURIComponent(vehicle.id)}/desinf-responsables`)
             .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
             .then(data => { if (data.users) setUsers(data.users); })
             .catch(console.error);
-    }, [isDesinf, hasDesinfTracking, vehicle.type]);
+    }, [isDesinf, hasDesinfTracking, vehicle.id]);
 
     useEffect(() => {
         // Un véhicule CONNECTED porte toujours son VIN (écrit par le flux de connexion),

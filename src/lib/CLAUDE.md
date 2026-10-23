@@ -47,6 +47,12 @@ Candidats « 2ème conducteur » (`listEligibleDrivers`) et contrôle serveur du
 (`secondDriverError`) — même prédicat SQL pour les deux : rôle de conduite du type de véhicule,
 ni INACTIF ni GUEST. Utilisé par les deux routes `drivers` et les deux routes d'emprunt.
 
+## ulMembers.ts
+`listActiveUlMembers(ulId)` : comptes actifs rattachés à une UL (`UserUL`), hors INACTIF/GUEST
+globaux ou propres à l'UL — candidats « Responsable de la désinfection » des deux routes
+`desinf-responsables`. Ne jamais faire appeler `GET /api/users` (réservé aux gestionnaires) par un
+écran ouvert aux chauffeurs : la liste y serait vide.
+
 ## crypto.ts
 AES-256-GCM for `BrandCredential.passwordEncrypted`. Format frozen by the spec: exactly
 `iv:authTag:ciphertext`, three non-empty base64 segments, no key-id and no version — a corrupted
