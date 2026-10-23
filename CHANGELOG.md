@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.32.1] — 23 octobre 2026
+
+### Corrections
+
+- **Emprunt par QR code : alerte d'incident** — prendre un véhicule via son QR code en indiquant l'état « Dégradé » ou « Problème signalé » prévient désormais le président et les cadres de l'unité locale du véhicule, comme une prise depuis la fiche véhicule.
+
 ## [5.32.0] — 23 octobre 2026
 
 ### ✨ Nouveautés

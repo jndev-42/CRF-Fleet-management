@@ -217,6 +217,30 @@ async function postHandler(
             }
         }
 
+        // Alerte « incident à la prise » — même règle que `POST /api/trips` : un véhicule
+        // emprunté par QR code en état dégradé doit prévenir les responsables de son UL.
+        if (data.conditionOut === 'Problème signalé' || data.conditionOut === 'Dégradé') {
+            try {
+                const { sendPushNotification } = await import('@/lib/push');
+                const vName = vehicle.name || 'Véhicule inconnu';
+                const driverDisplayName = session.user.name || session.user.email || 'Chauffeur inconnu';
+
+                await sendPushNotification({
+                    roles: ['PRESIDENT', 'CADRE'],
+                    headings: { en: `🚨 Incident signalé à la prise de ${vName}`, fr: `🚨 Incident signalé à la prise de ${vName}` },
+                    contents: {
+                        en: `${driverDisplayName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,
+                        fr: `${driverDisplayName} a signalé un incident lors de la prise du véhicule ${vName}. État: ${data.conditionOut}`,
+                    },
+                    url: `/vehicles/${encodeURIComponent(String(vName))}`,
+                    ulId: vehicle.ulId as string || 'ul-paris-18',
+                    excludeUserId: session.user.id,
+                });
+            } catch (pushError) {
+                console.error('Erreur lors de l\'envoi de la notification Push Incident:', pushError);
+            }
+        }
+
         return NextResponse.json({
             tripId,
             vehicleId,

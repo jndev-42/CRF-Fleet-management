@@ -76,9 +76,6 @@
   summary: Préciser dans CLAUDE.md que sans la migration add-expense-respo-step, toute la page Notes de frais (liste et détail) répond 500, pas seulement la soumission.
   evidence: GET /api/expenses et /api/expenses/[id] sélectionnent workflowVersion et respo* dans toutes les branches.
 - source_spec: `_bmad-output/implementation-artifacts/spec-qr-checkout-correction-km-carburant.md`
-  summary: L'emprunt par QR code n'envoie pas la notification « Incident signalé à la prise » quand l'état est « Dégradé » ou « Problème signalé », contrairement à POST /api/trips.
-  evidence: src/app/api/trips/route.ts:271-292 notifie PRESIDENT/CADRE ; src/app/api/qr/[token]/checkout/route.ts n'a pas d'équivalent (préexistant).
-- source_spec: `_bmad-output/implementation-artifacts/spec-qr-checkout-correction-km-carburant.md`
   summary: Dans CheckOutModal, vider le champ « Kilométrage réel » le transforme en 0 km, qui est alors enregistré ; mutualiser le bloc de correction (DataCorrectionFields) et la notification « données incorrectes » entre la modale et le parcours QR.
   evidence: CheckOutModal.tsx:273 `Number(e.target.value)` sur un champ vide donne 0 et `required` ne bloque plus ; le parcours QR est corrigé, la modale non (préexistant, et notification dupliquée entre trips/route.ts et qr/[token]/checkout/route.ts).
 
