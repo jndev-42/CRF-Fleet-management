@@ -143,6 +143,20 @@ describe('McpTokensTab', () => {
         expect(screen.getByText(/Ne versionnez jamais le jeton/)).toBeTruthy();
     });
 
+    it('donne une configuration Claude Desktop via le pont mcp-remote, sans espace dans args', async () => {
+        mockApi();
+        render(<McpTokensTab isSuperAdmin={false} showToast={showToast} />);
+        const url = `${window.location.origin}/api/mcp`;
+        const block = await screen.findByText(/"mcp-remote"/);
+        const config = JSON.parse(block.textContent ?? '');
+        expect(config.mcpServers['crf-fleet']).toEqual({
+            command: 'npx',
+            args: ['-y', 'mcp-remote', url, '--header', 'Authorization:${CRF_AUTH_HEADER}'],
+            env: { CRF_AUTH_HEADER: 'Bearer crf_mcp_…' },
+        });
+        expect(config.mcpServers['crf-fleet'].args.some((a: string) => a.includes(' '))).toBe(false);
+    });
+
     it('signale un échec de copie dans le presse-papiers', async () => {
         mockApi();
         Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error('refusé')) } });

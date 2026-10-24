@@ -21,6 +21,18 @@ export default function McpClientConfig() {
         },
     }, null, 2);
 
+    // Claude Desktop n'accepte que des serveurs locaux (command/args) : le pont `mcp-remote`
+    // relaie vers l'URL. Pas d'espace dans `args` (mal géré par Desktop) : l'en-tête passe par `env`.
+    const desktopJson = JSON.stringify({
+        mcpServers: {
+            'crf-fleet': {
+                command: 'npx',
+                args: ['-y', 'mcp-remote', url, '--header', 'Authorization:${CRF_AUTH_HEADER}'],
+                env: { CRF_AUTH_HEADER: 'Bearer crf_mcp_…' },
+            },
+        },
+    }, null, 2);
+
     return (
         <div className={styles.card}>
             <h3 className={styles.cardTitle}>Connecter une IA</h3>
@@ -36,6 +48,11 @@ export default function McpClientConfig() {
             <pre className={styles.code}>{`claude mcp add --transport http crf-fleet ${url} --header "Authorization: Bearer $CRF_MCP_TOKEN"`}</pre>
             <p className={styles.meta}>Ou client configuré par fichier JSON (.mcp.json de Claude Code, Cursor…) :</p>
             <pre className={styles.code}>{json}</pre>
+            <p className={styles.meta}>
+                3. Claude Desktop (Node.js requis) — dans <code className={styles.prefix}>claude_desktop_config.json</code>, remplacez{' '}
+                <code className={styles.prefix}>crf_mcp_…</code> par le jeton, puis quittez et relancez Claude Desktop :
+            </p>
+            <pre className={styles.code}>{desktopJson}</pre>
             <p className={styles.warning}>Ne versionnez jamais le jeton : gardez-le hors de tout fichier commité.</p>
         </div>
     );
