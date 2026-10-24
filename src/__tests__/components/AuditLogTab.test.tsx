@@ -48,6 +48,7 @@ function entry(overrides: Partial<AuditLogEntry> = {}): AuditLogEntry {
         entityId: 'abc',
         status: 200,
         ip: '203.0.113.7',
+        via: null,
         ...overrides,
     };
 }
@@ -117,6 +118,20 @@ describe('AuditLogTab', () => {
         expect(await screen.findByText('en tant que x@croix-rouge.fr')).toBeTruthy();
         expect(screen.getByText('super@croix-rouge.fr')).toBeTruthy();
         expect(screen.getByText('1 à 1 sur 1 événement')).toBeTruthy();
+    });
+
+    it('marque d’un badge « MCP » et du nom du jeton une action faite par une IA', async () => {
+        mockFetch(pageOf([
+            entry({ id: 'mcp', via: 'MCP · Claude bureau' }),
+            entry({ id: 'web', action: "Modification d'un véhicule" }),
+        ], 1, 2, 1));
+        render(<AuditLogTab users={users} />);
+        await screen.findByText("Modification d'un véhicule");
+        const rows = screen.getAllByRole('row').slice(1);
+        expect(within(rows[0]).getByText('MCP')).toBeTruthy();
+        expect(within(rows[0]).getByText(/jeton « Claude bureau »/)).toBeTruthy();
+        // Les actions faites dans le navigateur n'ont pas ce badge.
+        expect(within(rows[1]).queryByText('MCP')).toBeNull();
     });
 
     it("filtre sur la personne choisie et l'écrit dans l'URL, en revenant à la page 1", async () => {

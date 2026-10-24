@@ -73,7 +73,7 @@ export async function GET(request: Request) {
             }),
             db.execute({
                 sql: `SELECT id, createdAt, actorEmail, actorName, impersonatedEmail, ulId,
-                             method, path, action, entityType, entityId, status, ip
+                             method, path, action, entityType, entityId, status, ip, via
                         FROM "${AUDIT_LOG_TABLE}"
                        WHERE ${where.join(' AND ')}
                        ORDER BY createdAt DESC, id DESC
@@ -97,6 +97,7 @@ export async function GET(request: Request) {
             entityId: r.entityId == null ? null : String(r.entityId),
             status: Number(r.status),
             ip: r.ip == null ? null : String(r.ip),
+            via: r.via == null ? null : String(r.via),
         }));
 
         return NextResponse.json({

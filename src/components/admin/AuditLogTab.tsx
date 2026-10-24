@@ -18,6 +18,8 @@ export interface AuditLogEntry {
     entityId: string | null;
     status: number;
     ip: string | null;
+    /** `MCP · <nom du jeton>` pour une action faite par une IA via le serveur MCP. */
+    via: string | null;
 }
 
 interface AuditLogTabProps {
@@ -35,6 +37,14 @@ function formatDate(iso: string): string {
 function resourceLabel(entry: AuditLogEntry): string {
     if (entry.entityType && entry.entityId) return `${entry.entityType}/${entry.entityId}`;
     return entry.entityType ?? entry.path;
+}
+
+const MCP_VIA_PREFIX = 'MCP · ';
+
+/** Nom du jeton d'une action faite via le serveur MCP, `null` pour une action du navigateur. */
+function mcpTokenName(entry: AuditLogEntry): string | null {
+    if (!entry.via?.startsWith(MCP_VIA_PREFIX)) return null;
+    return entry.via.slice(MCP_VIA_PREFIX.length);
 }
 
 function summary(page: number, total: number): string {
@@ -99,6 +109,7 @@ export default function AuditLogTab({ users }: AuditLogTabProps) {
                     <tbody>
                         {entries.map(entry => {
                             const failed = entry.status >= 400;
+                            const tokenName = mcpTokenName(entry);
                             return (
                                 <tr key={entry.id} className={failed ? styles.failedRow : undefined}>
                                     <td className={styles.date}>{formatDate(entry.createdAt)}</td>
@@ -109,6 +120,12 @@ export default function AuditLogTab({ users }: AuditLogTabProps) {
                                         )}
                                         {entry.impersonatedEmail && (
                                             <div className={styles.meta}>en tant que {entry.impersonatedEmail}</div>
+                                        )}
+                                        {tokenName !== null && (
+                                            <div className={styles.meta}>
+                                                <span className={styles.mcpBadge} title="Action faite par une IA via le serveur MCP">MCP</span>
+                                                {' '}jeton « {tokenName} »
+                                            </div>
                                         )}
                                     </td>
                                     <td>{entry.action}</td>

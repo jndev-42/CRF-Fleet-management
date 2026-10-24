@@ -1,4 +1,4 @@
-import NextAuth, { type DefaultSession, type NextAuthConfig } from "next-auth";
+import NextAuth, { type DefaultSession, type NextAuthConfig, type Session } from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
@@ -6,6 +6,9 @@ import { isPreview, isDev as isDevEnv } from "@/lib/env";
 import { PREVIEW_ACCOUNTS } from "@/lib/preview-accounts";
 import { resolveSessionRoles } from "@/lib/session-roles";
 import { recordAudit } from "@/lib/audit/log";
+import { fetchUserULs, resolveActiveUL } from "@/lib/user-uls";
+import { MCP_ASSERTION_HEADER, verifyMcpAssertion } from "@/lib/mcp/assertion";
+import { loadMcpPrincipal, type McpPrincipal } from "@/lib/mcp/tokens";
 
 declare module "next-auth" {
     interface Session {
@@ -16,6 +19,10 @@ declare module "next-auth" {
             availableULs: { id: string; name: string; slug: string; isHome: boolean; roles?: string[] }[];
             originalEmail?: string;
             impersonatedEmail?: string;
+            /** Session d'une IA via le serveur MCP : jeton utilisé (absent pour le navigateur). */
+            mcpTokenId?: string;
+            mcpTokenName?: string;
+            mcpScope?: "read" | "write";
         } & DefaultSession["user"];
     }
 }
@@ -54,45 +61,6 @@ const isDev = isDevEnv;
 const PREVIEW_USERS: Record<string, { email: string; name: string }> = Object.fromEntries(
     PREVIEW_ACCOUNTS.map(a => [a.key, { email: a.email, name: a.name }])
 );
-
-// ── UL helpers ───────────────────────────────────────────────────────────────
-type ULEntry = { id: string; name: string; slug: string; isHome: boolean; dtCode?: string | null; roles?: string[] };
-
-async function fetchUserULs(userId: string): Promise<ULEntry[]> {
-    try {
-        const res = await db.execute({
-            sql: `SELECT ul.id, ul.name, ul.slug, ul.dtCode, uu.is_home, uu.roles
-                  FROM "UserUL" uu
-                  JOIN "UniteLocale" ul ON ul.id = uu.ulId
-                  WHERE uu.userId = ?
-                  ORDER BY uu.is_home DESC, ul.name ASC`,
-            args: [userId],
-        });
-        return res.rows.map(r => {
-            const rolesStr = r.roles as string | null;
-            const roles = rolesStr 
-                ? rolesStr.split(',').map(role => role.trim()).filter(Boolean) 
-                : undefined;
-            return {
-                id: r.id as string,
-                name: r.name as string,
-                slug: r.slug as string,
-                isHome: !!r.is_home,
-                dtCode: (r.dtCode as string) || null,
-                roles,
-            };
-        });
-    } catch {
-        return [];
-    }
-}
-
-/** Retourne l'ulId actif : UL d'appartenance (is_home=1) en priorité, sinon première UL disponible, sinon 'default' */
-function resolveActiveUL(uls: ULEntry[]): string {
-    if (uls.length === 0) return 'default';
-    const home = uls.find(u => u.isHome);
-    return home ? home.id : uls[0].id;
-}
 
 // ── Providers ────────────────────────────────────────────────────────────────
 const providers = [
@@ -415,7 +383,7 @@ export const authEvents: NonNullable<NextAuthConfig["events"]> = {
     },
 };
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const nextAuth = NextAuth({
     providers,
     pages: {
         signIn: "/login",
@@ -424,3 +392,67 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     callbacks: authCallbacks,
     events: authEvents,
 });
+
+export const { handlers, signIn, signOut } = nextAuth;
+
+/** Session du propriétaire d'un jeton MCP — durée de vie de l'assertion, pas plus. */
+function mcpSession(principal: McpPrincipal): Session {
+    return {
+        user: {
+            id: principal.userId,
+            email: principal.email,
+            name: principal.name,
+            // Pas d'impersonation possible via le MCP : l'auteur est le propriétaire.
+            originalEmail: principal.email,
+            roles: principal.roles,
+            ulId: principal.ulId,
+            availableULs: principal.availableULs.map(({ id, name, slug, isHome, roles }) => ({ id, name, slug, isHome, roles })),
+            mcpTokenId: principal.tokenId,
+            mcpTokenName: principal.tokenName,
+            mcpScope: principal.scope,
+        },
+        expires: new Date(Date.now() + 60_000).toISOString(),
+    };
+}
+
+/**
+ * Session d'un appel interne du serveur MCP (en-tête `x-crf-mcp-assertion` signé), ou
+ * `null`. Les droits sont relus en base : un jeton révoqué ou un propriétaire rétrogradé
+ * ne produit aucune session. Hors contexte de requête (scripts, tests), `null`.
+ */
+async function sessionFromMcpAssertion(): Promise<Session | null> {
+    let assertion: string | null;
+    try {
+        const { headers } = await import("next/headers");
+        assertion = (await headers()).get(MCP_ASSERTION_HEADER);
+    } catch {
+        return null;
+    }
+    const claims = verifyMcpAssertion(assertion);
+    if (!claims) return null;
+    try {
+        const principal = await loadMcpPrincipal(claims.tokenId, claims.userId);
+        return principal ? mcpSession(principal) : null;
+    } catch (e) {
+        console.error("[mcp] session impossible à construire :", e instanceof Error ? e.message : String(e));
+        return null;
+    }
+}
+
+const nextAuthAuth = nextAuth.auth;
+
+/**
+ * `auth()` de NextAuth, qui reconnaît en plus les appels du serveur MCP.
+ *
+ * Sans argument (routes API, composants serveur) : une assertion MCP valide donne la
+ * session du propriétaire du jeton, sinon délégation à NextAuth (cookie de session).
+ * Avec arguments (enveloppe de middleware, etc.) : délégation pure. Le jeton brut n'est
+ * jamais accepté ici — seulement par `/api/mcp`.
+ */
+export const auth = (async (...args: unknown[]) => {
+    if (args.length === 0) {
+        const session = await sessionFromMcpAssertion();
+        if (session) return session;
+    }
+    return (nextAuthAuth as (...a: unknown[]) => unknown)(...args);
+}) as typeof nextAuthAuth;

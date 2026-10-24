@@ -36,7 +36,7 @@ function lastInsert(): Record<string, unknown> {
     const call = execute.mock.calls.findLast(c => String(c[0].sql).includes('INSERT INTO "AuditLog"'));
     if (!call) throw new Error('aucun INSERT AuditLog');
     const cols = ['id', 'createdAt', 'actorUserId', 'actorEmail', 'actorName', 'impersonatedEmail', 'ulId',
-        'method', 'path', 'action', 'entityType', 'entityId', 'status', 'ip', 'userAgent'];
+        'method', 'path', 'action', 'entityType', 'entityId', 'status', 'ip', 'userAgent', 'via'];
     return Object.fromEntries(cols.map((c, i) => [c, call[0].args[i]]));
 }
 
@@ -101,6 +101,7 @@ describe('actorFromSession', () => {
             impersonatedEmail: 'x@croix-rouge.fr',
             // UL active de l'utilisateur incarné : pas celle de l'auteur.
             ulId: null,
+            via: null,
         });
     });
 
@@ -109,6 +110,17 @@ describe('actorFromSession', () => {
             user: { id: 'u-1', email: 'a@croix-rouge.fr', name: 'A', ulId: 'ul-1', originalEmail: 'a@croix-rouge.fr' },
         });
         expect(actor).toMatchObject({ actorUserId: 'u-1', actorEmail: 'a@croix-rouge.fr', actorName: 'A', impersonatedEmail: null, ulId: 'ul-1' });
+    });
+
+    it("session MCP : au nom du propriétaire du jeton, marquée « MCP · <nom du jeton> »", () => {
+        const actor = actorFromSession({
+            user: { id: 'u-1', email: 'a@croix-rouge.fr', name: 'A', ulId: 'ul-1', originalEmail: 'a@croix-rouge.fr', mcpTokenName: 'Claude bureau' },
+        });
+        expect(actor).toMatchObject({ actorUserId: 'u-1', actorEmail: 'a@croix-rouge.fr', impersonatedEmail: null, via: 'MCP · Claude bureau' });
+    });
+
+    it('session du navigateur : pas de marque MCP', () => {
+        expect(actorFromSession({ user: { id: 'u-1', email: 'a@croix-rouge.fr' } }).via).toBeNull();
     });
 
     it("la sentinelle 'default' n'est pas enregistrée comme UL", () => {

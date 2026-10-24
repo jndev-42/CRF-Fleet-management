@@ -161,6 +161,18 @@ describe('GET /api/audit-logs', () => {
         expect(body.entries[0]).toMatchObject({ actorEmail: 'super@croix-rouge.fr', impersonatedEmail: 'x@croix-rouge.fr', ip: '203.0.113.7' });
     });
 
+    it('renvoie la marque MCP (`via`), nulle pour une action du navigateur', async () => {
+        asSuperAdmin();
+        await seed('web', 'a@croix-rouge.fr', 2000);
+        await db.execute({
+            sql: `INSERT INTO "AuditLog" (id, createdAt, actorEmail, method, path, action, status, via)
+                  VALUES ('mcp', ?, 'a@croix-rouge.fr', 'PATCH', '/api/vehicles/v1', 'Modification', 200, 'MCP · Claude')`,
+            args: [new Date(Date.now() - 1000).toISOString()],
+        });
+        const body = await (await get('')).json();
+        expect(body.entries.map((e: { id: string; via: string | null }) => [e.id, e.via])).toEqual([['mcp', 'MCP · Claude'], ['web', null]]);
+    });
+
     it('`?limit=` vide prend la valeur par défaut', async () => {
         asSuperAdmin();
         expect((await get('?limit=')).status).toBe(200);
