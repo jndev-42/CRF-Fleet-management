@@ -9,7 +9,8 @@ import crypto from 'crypto';
 // Chemin relatif volontaire : ce script tourne hors du bundler Next, l'alias `@/` n'y est pas résolu.
 import { DEFAULT_EXPENSE_BUDGETS, seedDefaultBudgets } from '../src/lib/expenses/budgets';
 import { REFERENTIEL_FTS_DDL, REFERENTIEL_TABLES } from '../src/lib/referentiel/schema';
-import { AUDIT_LOG_DDL, AUDIT_LOG_INDEXES } from '../src/lib/audit/schema';
+import { AUDIT_LOG_DDL, AUDIT_LOG_INDEXES, AUDIT_LOG_VIA_COLUMN_DDL } from '../src/lib/audit/schema';
+import { MCP_TOKEN_DDL, MCP_TOKEN_INDEXES } from '../src/lib/mcp/schema';
 import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '../src/lib/themes/schema';
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '../src/lib/push/schema';
 import { SCHEDULED_ALERT_DDL } from '../src/lib/alerts/schema';
@@ -733,6 +734,15 @@ async function main() {
 
     await db.execute(AUDIT_LOG_DDL);
     for (const index of AUDIT_LOG_INDEXES) await db.execute(index.ddl);
+    const auditCols = await db.execute('PRAGMA table_info("AuditLog")');
+    if (!auditCols.rows.some(r => r.name === 'via')) {
+        await db.execute(AUDIT_LOG_VIA_COLUMN_DDL);
+    }
+
+    // ── Jetons d'accès IA (serveur MCP) ───────────────────────────
+
+    await db.execute(MCP_TOKEN_DDL);
+    for (const index of MCP_TOKEN_INDEXES) await db.execute(index.ddl);
 
     // ── Thèmes saisonniers ────────────────────────────────────────
 

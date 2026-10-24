@@ -10,6 +10,7 @@ import BannersTab from '@/components/admin/BannersTab';
 import ReferentielTab from '@/components/admin/ReferentielTab';
 import AuditLogTab from '@/components/admin/AuditLogTab';
 import ThemesTab from '@/components/admin/ThemesTab';
+import McpTokensTab from '@/components/admin/McpTokensTab';
 import { isSuperAdmin, isAdminOrAbove, isReadOnlyManager, canAccessAdminPanel } from '@/lib/roles';
 
 interface User {
@@ -26,15 +27,15 @@ interface User {
     homeUlName?: string | null;
 }
 
-type TabId = 'users' | 'menus' | 'uls' | 'banners' | 'referentiel' | 'audit' | 'themes';
-const TAB_IDS: readonly TabId[] = ['users', 'menus', 'uls', 'banners', 'referentiel', 'audit', 'themes'];
+type TabId = 'users' | 'menus' | 'uls' | 'banners' | 'referentiel' | 'audit' | 'themes' | 'mcp';
+const TAB_IDS: readonly TabId[] = ['users', 'menus', 'uls', 'banners', 'referentiel', 'audit', 'themes', 'mcp'];
 
 function isTabId(value: string | null): value is TabId {
     return TAB_IDS.includes(value as TabId);
 }
 
 function canSeeTab(tab: TabId, superAdmin: boolean, admin: boolean): boolean {
-    if (tab === 'uls') return admin;
+    if (tab === 'uls' || tab === 'mcp') return admin;
     if (tab === 'menus' || tab === 'referentiel' || tab === 'audit' || tab === 'themes') return superAdmin;
     return true;
 }
@@ -279,6 +280,16 @@ function AdminPageContent() {
                         Thèmes
                     </button>
                 )}
+                {isAdminUser && (
+                    <button
+                        role="tab"
+                        aria-selected={activeTab === 'mcp'}
+                        className={`tab-btn${activeTab === 'mcp' ? ' active' : ''}`}
+                        onClick={() => setActiveTab('mcp')}
+                    >
+                        Accès IA (MCP)
+                    </button>
+                )}
             </div>
 
             {activeTab === 'users' && (
@@ -311,6 +322,8 @@ function AdminPageContent() {
             {activeTab === 'audit' && isSuperAdminUser && <AuditLogTab users={users} />}
 
             {activeTab === 'themes' && isSuperAdminUser && <ThemesTab />}
+
+            {activeTab === 'mcp' && isAdminUser && <McpTokensTab isSuperAdmin={isSuperAdminUser} showToast={showToast} />}
 
             {activeTab === 'banners' && (
                 <BannersTab

@@ -9,7 +9,8 @@
  * Seules exemptions : `auth/[...nextauth]` (la connexion est tracée par
  * `events.signIn` de `src/auth.ts`) et `cron/*` (appels machine, sans utilisateur),
  * plus `push/subscriptions` dont le POST est un réabonnement silencieux rejoué à chaque
- * chargement de page (son DELETE, lui, reste enveloppé).
+ * chargement de page (son DELETE, lui, reste enveloppé), et `mcp` : le serveur MCP n'est
+ * qu'un transport JSON-RPC, les écritures qu'il relaie sont tracées par les routes appelées.
  */
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'fs';
@@ -17,7 +18,7 @@ import { join, relative, sep } from 'path';
 
 const API_DIR = join(process.cwd(), 'src', 'app', 'api');
 const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'] as const;
-const EXEMPT = [/^auth\/\[\.\.\.nextauth\]\//, /^cron\//, /^push\/subscriptions\//];
+const EXEMPT = [/^auth\/\[\.\.\.nextauth\]\//, /^cron\//, /^push\/subscriptions\//, /^mcp\/route\.ts$/];
 
 function routeFiles(dir: string): string[] {
     return readdirSync(dir).flatMap(name => {

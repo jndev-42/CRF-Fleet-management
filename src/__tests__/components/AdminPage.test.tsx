@@ -40,6 +40,7 @@ vi.mock('@/components/admin/ULsTab', () => ({ default: () => <div data-testid="t
 vi.mock('@/components/admin/BannersTab', () => ({ default: () => <div data-testid="tab-banners" /> }));
 vi.mock('@/components/admin/ReferentielTab', () => ({ default: () => <div data-testid="tab-referentiel" /> }));
 vi.mock('@/components/admin/ThemesTab', () => ({ default: () => <div data-testid="tab-themes" /> }));
+vi.mock('@/components/admin/McpTokensTab', () => ({ default: () => <div data-testid="tab-mcp" /> }));
 vi.mock('@/components/admin/AuditLogTab', () => ({
     default: ({ users }: { users: unknown[] }) => <div data-testid="tab-audit">{users.length} personnes</div>,
 }));
@@ -147,6 +148,25 @@ describe('AdminPage — onglet dans l’URL', () => {
         render(<AdminPage />);
         expect(await screen.findByTestId('tab-users')).toBeTruthy();
         expect(screen.queryByTestId('tab-uls')).toBeNull();
+    });
+
+    it('un ADMIN voit l’onglet « Accès IA (MCP) » et `?onglet=mcp` l’ouvre', async () => {
+        mockUseSession.mockReturnValue(sessionFor(['ADMIN']));
+        setUrl('onglet=mcp');
+        render(<AdminPage />);
+        expect(await screen.findByTestId('tab-mcp')).toBeTruthy();
+        expect(tabNames()).toContain('Accès IA (MCP)');
+        expect(selectedTab()).toBe('Accès IA (MCP)');
+    });
+
+    it('un PRÉSIDENT n’a pas l’onglet MCP : `?onglet=mcp` retombe sur « Utilisateurs »', async () => {
+        mockUseSession.mockReturnValue(sessionFor(['PRESIDENT']));
+        setUrl('onglet=mcp');
+        render(<AdminPage />);
+        expect(await screen.findByTestId('tab-users')).toBeTruthy();
+        expect(screen.queryByTestId('tab-mcp')).toBeNull();
+        expect(tabNames()).not.toContain('Accès IA (MCP)');
+        expect(selectedTab()).toBe('Utilisateurs');
     });
 
     it('un SUPER_ADMIN inactif ne voit pas le journal d’audit par l’URL', async () => {

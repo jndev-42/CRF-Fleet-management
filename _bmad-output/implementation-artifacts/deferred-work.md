@@ -100,3 +100,6 @@
   summary: Mettre à jour les AGENTS.md qui décrivent encore le contrôle des papiers comme réservé aux chauffeurs (src/app/api/me/AGENTS.md:7,15 ; src/app/users/AGENTS.md ; validate-papers/AGENTS.md) et harmoniser la casse « Cross-UL ».
   evidence: le contrôle des papiers s'applique désormais à tout conducteur.
   resolved: `spec-cloisonnement-ul-utilisateurs.md` (v5.31.0) — api/me, validate-papers, api/users et app/users corrigés (papiers de tout compte qui emprunte, liste complète visible) ; « (cross-UL ( » en minuscule dans checklist et refresh-renault.
+- source_spec: `_bmad-output/implementation-artifacts/spec-mcp-server-tokens.md`
+  summary: Permettre à l'IA connectée en MCP d'agir sur une autre UL que l'UL d'attache du propriétaire du jeton (paramètre `ulId` validé contre ses UL).
+  evidence: La session MCP est figée sur l'UL d'attache (`resolveActiveUL`) ; un admin de plusieurs UL ne peut pas agir sur une UL secondaire via le MCP (revue edge/blind).

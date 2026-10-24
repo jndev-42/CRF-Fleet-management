@@ -34,6 +34,8 @@ export interface AuditEntry {
     status: number;
     ip?: string | null;
     userAgent?: string | null;
+    /** Canal hors navigateur, ex. `MCP · Claude bureau` ; `null` pour une action faite dans l'application. */
+    via?: string | null;
 }
 
 export interface AuditOptions {
@@ -69,8 +71,8 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
         await db.execute({
             sql: `INSERT INTO "${AUDIT_LOG_TABLE}" (
                     id, createdAt, actorUserId, actorEmail, actorName, impersonatedEmail, ulId,
-                    method, path, action, entityType, entityId, status, ip, userAgent
-                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    method, path, action, entityType, entityId, status, ip, userAgent, via
+                  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 crypto.randomUUID(),
                 new Date().toISOString(),
@@ -87,6 +89,7 @@ export async function recordAudit(entry: AuditEntry): Promise<void> {
                 entry.status,
                 entry.ip ?? null,
                 entry.userAgent ? entry.userAgent.slice(0, USER_AGENT_MAX) : null,
+                entry.via ?? null,
             ],
         });
     } catch (e: unknown) {
@@ -111,11 +114,13 @@ type SessionLike = {
         name?: string | null;
         ulId?: string | null;
         originalEmail?: string | null;
+        /** Présent uniquement sur une session construite par le serveur MCP (`src/auth.ts`). */
+        mcpTokenName?: string | null;
     };
 } | null;
 
 /** Auteur réel et identité incarnée, à partir de la session NextAuth. */
-export function actorFromSession(session: SessionLike): Pick<AuditEntry, 'actorUserId' | 'actorEmail' | 'actorName' | 'impersonatedEmail' | 'ulId'> {
+export function actorFromSession(session: SessionLike): Pick<AuditEntry, 'actorUserId' | 'actorEmail' | 'actorName' | 'impersonatedEmail' | 'ulId' | 'via'> {
     const user = session?.user;
     if (!user) return { actorEmail: null };
     const effectiveEmail = user.email ?? null;
@@ -130,6 +135,8 @@ export function actorFromSession(session: SessionLike): Pick<AuditEntry, 'actorU
         impersonatedEmail: impersonating ? effectiveEmail : null,
         // En impersonation, l'UL active est celle de l'utilisateur incarné ; 'default' n'est pas une UL.
         ulId: impersonating || !user.ulId || user.ulId === 'default' ? null : user.ulId,
+        // Action d'une IA via le serveur MCP : au nom du propriétaire du jeton, mais marquée.
+        via: user.mcpTokenName ? `MCP · ${user.mcpTokenName}` : null,
     };
 }
 

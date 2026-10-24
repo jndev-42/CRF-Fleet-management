@@ -27,8 +27,16 @@ export const AUDIT_LOG_DDL = `CREATE TABLE IF NOT EXISTS "${AUDIT_LOG_TABLE}" (
     "entityId"          TEXT,
     "status"            INTEGER NOT NULL,
     "ip"                TEXT,
-    "userAgent"         TEXT
+    "userAgent"         TEXT,
+    "via"               TEXT
 )`;
+
+/**
+ * Canal de l'action quand ce n'est pas le navigateur : `MCP · <nom du jeton>` pour une
+ * action faite par une IA via le serveur MCP, `NULL` sinon. Colonne ajoutée après coup :
+ * une base créée avant elle la reçoit par `ALTER TABLE` (migration `add-mcp-tokens`).
+ */
+export const AUDIT_LOG_VIA_COLUMN_DDL = `ALTER TABLE "${AUDIT_LOG_TABLE}" ADD COLUMN "via" TEXT`;
 
 export const AUDIT_LOG_INDEXES: { name: string; ddl: string }[] = [
     {
