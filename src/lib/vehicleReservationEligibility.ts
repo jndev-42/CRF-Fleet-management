@@ -16,8 +16,19 @@
  * réciproquement : la seule chose partagée est `isVpspVehicle`, un prédicat de
  * nommage sans règle métier.
  */
-import { canManageVehicles, isChvlDriver, isChvpspDriver } from '@/lib/roles';
+import { canManageReservations, canManageVehicles, isChvlDriver, isChvpspDriver } from '@/lib/roles';
 import { isVpspVehicle } from '@/lib/vehicleBorrowEligibility';
+
+/**
+ * Peut-on réserver À SON PROPRE NOM un véhicule de ce type ? Règle unique, partagée
+ * par le formulaire (option « Moi-même ») et le serveur (403) : `canManageVehicles`
+ * (bypass) ou rôle de conduite du type (cascade CHVL / CHVPSP, cumul = les deux types).
+ */
+export function canReserveForSelf(userRoles: string[], vehicleType: string | null | undefined): boolean {
+    if (canManageVehicles(userRoles)) return true;
+    const isVpsp = isVpspVehicle(vehicleType ?? '');
+    return isVpsp ? isChvpspDriver(userRoles) : isChvlDriver(userRoles);
+}
 
 /** Raison typée d'un refus de réservation. */
 export type ReservationDenialReason =
@@ -49,18 +60,18 @@ export function getReservationEligibility(input: ReservationEligibilityInput): {
 
     if (isDtView) return { canReserve: false, blockingReason: 'DT_VIEW' };
 
-    // Gestionnaires de véhicules (`canManageVehicles` : ADMIN, RESP_VEHICULE) : bypass
-    // du rôle chauffeur et du permis, parité avec `getBorrowEligibility`. Ce n'est PAS
-    // `canManageReservations` : CADRE et PRESIDENT gèrent les réservations d'autrui
-    // mais restent soumis aux rôles chauffeur et aux papiers pour réserver eux-mêmes.
-    if (canManageVehicles(userRoles)) return { canReserve: true, blockingReason: null };
+    // Gestionnaires de réservations (`canManageReservations` : ADMIN, RESP_VEHICULE,
+    // PRESIDENT, CADRE) : réservent tout véhicule de leur UL pour un chauffeur ou en
+    // « Chauffeur non décidé », sans rôle de conduite. Réserver à leur propre nom reste
+    // soumis à `canReserveForSelf` (formulaire + serveur).
+    if (canManageReservations(userRoles)) return { canReserve: true, blockingReason: null };
 
     const isCHVL = isChvlDriver(userRoles);
     const isCHVPSP = isChvpspDriver(userRoles);
     const isVpsp = isVpspVehicle(vehicleType);
 
     // Cascade identique à l'emprunt : cumuler CHVL et CHVPSP ouvre les deux types.
-    const roleAllowed = (isCHVPSP && isVpsp) || (isCHVL && !isVpsp);
+    const roleAllowed = canReserveForSelf(userRoles, vehicleType);
     if (!roleAllowed) {
         if (isVpsp && isCHVL) return { canReserve: false, blockingReason: 'VPSP_REQUIRES_CHVPSP' };
         if (!isVpsp && isCHVPSP) return { canReserve: false, blockingReason: 'VL_REQUIRES_CHVL' };
@@ -108,9 +119,9 @@ export function getReservationCtaState(args: {
 }): { state: ReservationCtaState; reason: ReservationDenialReason | null; message: string } {
     if (args.loading) return { state: 'LOADING', reason: null, message: '' };
 
-    // Parité avec `ReservationBlock` : un gestionnaire de véhicules (`canManageVehicles`) réserve
-    // malgré ses propres papiers, puisqu'il réserve au nom d'autrui.
-    if (args.licenseBlocked && !canManageVehicles(args.userRoles)) {
+    // Parité avec `ReservationBlock` : un gestionnaire de réservations réserve malgré ses
+    // propres papiers, puisqu'il réserve au nom d'autrui.
+    if (args.licenseBlocked && !canManageReservations(args.userRoles)) {
         return {
             state: 'LICENSE_BLOCKED',
             reason: null,

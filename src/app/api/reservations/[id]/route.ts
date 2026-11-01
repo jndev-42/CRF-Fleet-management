@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canManageReservations } from '@/lib/roles';
+import { canReserveForSelf } from '@/lib/vehicleReservationEligibility';
 import { withAudit } from '@/lib/audit/log';
 import { isUnassignedDriverName } from '@/lib/reservationDriver';
 
@@ -120,7 +121,7 @@ async function patchHandler(request: Request, props: { params: Promise<{ id: str
         const checkResult = await db.execute({
             sql: `
                 SELECT r.id, r.userEmail, r.userName, r.vehicleId, r.startTime, r.endTime, r.reason, r.status,
-                       v.ulId AS vehicleUlId
+                       v.ulId AS vehicleUlId, v.type AS vehicleType
                 FROM "Reservation" r
                 LEFT JOIN "Vehicle" v ON v.id = r.vehicleId
                 WHERE r.id = ?
@@ -176,6 +177,16 @@ async function patchHandler(request: Request, props: { params: Promise<{ id: str
                 return forbiddenResponse('Seul un responsable peut modifier le chauffeur de la réservation.');
             }
 
+            // Réassignation à soi-même sans rôle de conduite du type : refusée (cf. POST).
+            const reassignsToSelf = isChangingDriver
+                && !parsed.isUnassignedDriver
+                && !!parsed.onBehalfOfUserId
+                && parsed.onBehalfOfUserId !== 'UNASSIGNED'
+                && (parsed.onBehalfOfUserId === 'SELF' || parsed.onBehalfOfUserId === session.user.id);
+            if (reassignsToSelf && !canReserveForSelf(userRoles, (reservation.vehicleType as string | null) ?? '')) {
+                return forbiddenResponse('Votre rôle ne vous permet pas de vous attribuer ce type de véhicule. Choisissez un autre chauffeur ou « Chauffeur non décidé ».');
+            }
+
             const newStartStr = parsed.startTime || (reservation.startTime as string);
             const newEndStr = parsed.endTime || (reservation.endTime as string);
 
@@ -227,6 +238,10 @@ async function patchHandler(request: Request, props: { params: Promise<{ id: str
                     }
                     newUserEmail = targetResult.rows[0].email as string;
                     newUserName = (targetResult.rows[0].name as string) || newUserEmail;
+                    if (newUserEmail.toLowerCase() === String(session.user.email ?? '').toLowerCase()
+                        && !canReserveForSelf(userRoles, (reservation.vehicleType as string | null) ?? '')) {
+                        return forbiddenResponse('Votre rôle ne vous permet pas de vous attribuer ce type de véhicule. Choisissez un autre chauffeur ou « Chauffeur non décidé ».');
+                    }
                 }
             }
 

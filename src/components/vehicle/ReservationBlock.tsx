@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import styles from './Reservation.module.css';
 import UserCombobox from '@/components/ui/UserCombobox';
 import { canManageReservations } from '@/lib/roles';
+import { canReserveForSelf, getReservationEligibility } from '@/lib/vehicleReservationEligibility';
 import ReservationFormModal from './modals/ReservationFormModal';
 import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
 import Pagination from '@/components/Pagination';
@@ -60,6 +61,8 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
 
     const canValidate = canManageReservations(userRoles);
     const canManageDriver = canManageReservations(userRoles);
+    const selfHidden = canManageDriver && !canReserveForSelf(userRoles, vehicleType);
+    const canReserve = getReservationEligibility({ vehicleType, userRoles }).canReserve;
 
     const fetchReservations = useCallback(async () => {
         try {
@@ -166,7 +169,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                     bodyPayload.onBehalfOfUserId = 'UNASSIGNED';
                 } else if (editDriverSelection) {
                     bodyPayload.onBehalfOfUserId = editDriverSelection;
-                } else {
+                } else if (!selfHidden) {
                     const selfUser = users.find(u => u.email === currentUserEmail);
                     bodyPayload.onBehalfOfUserId = selfUser ? selfUser.id : 'SELF';
                 }
@@ -270,7 +273,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
         <div className={styles.container}>
             <div className={styles.header}>
                 <h2 className={styles.title}>Réservations prévues</h2>
-                {!readOnly && (
+                {!readOnly && canReserve && (
                     <button
                         className={`btn btn-secondary ${styles.addBtn}`}
                         onClick={() => {
@@ -464,6 +467,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                                 onChange={setEditDriverSelection}
                                                 excludeEmail={currentUserEmail ?? undefined}
                                                 defaultLabel="Moi-même"
+                                                hideDefault={selfHidden}
                                             />
                                         </div>
                                         <button
@@ -514,7 +518,7 @@ export default function ReservationBlock({ vehicleId, vehicleType, currentUserEm
                                 <input type="text" value={editReason} onChange={e => setEditReason(e.target.value)} className="form-input" placeholder="Ex: Réserve pour une maraude" />
                             </div>
                             <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={editingSubmitting}>
+                                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={editingSubmitting || (selfHidden && !editDriverSelection)}>
                                     {editingSubmitting ? '...' : 'Enregistrer les modifications'}
                                 </button>
                                 <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setEditingReservation(null)}>

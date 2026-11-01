@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import styles from '../Reservation.module.css';
 import UserCombobox from '@/components/ui/UserCombobox';
 import { canManageReservations } from '@/lib/roles';
+import { canReserveForSelf } from '@/lib/vehicleReservationEligibility';
 import RecurrencePanel, { RecurrenceFormState } from '../RecurrencePanel';
 import ReservationSlotPicker from '../ReservationSlotPicker';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
@@ -82,7 +83,11 @@ export default function ReservationFormModal({
     const [endDate, setEndDate] = useState('');
     const [endTime, setEndTime] = useState('');
     const [reason, setReason] = useState('');
-    const [driverSelection, setDriverSelection] = useState(initialDriverSelection);
+    // Gestionnaire sans rôle de conduite du type : « Moi-même » est masqué (le serveur le refuse).
+    const selfHidden = canManageReservations(userRoles) && !canReserveForSelf(userRoles, vehicleType);
+    const [driverSelection, setDriverSelection] = useState(
+        initialDriverSelection || (selfHidden ? 'UNASSIGNED' : ''),
+    );
     const [submitting, setSubmitting] = useState(false);
     const [recurrence, setRecurrence] = useState<RecurrenceFormState>(DEFAULT_RECURRENCE);
 
@@ -190,6 +195,7 @@ export default function ReservationFormModal({
                                         onChange={setDriverSelection}
                                         excludeEmail={currentUserEmail ?? undefined}
                                         defaultLabel="Moi-même"
+                                        hideDefault={selfHidden}
                                     />
                                 </div>
                                 <button
@@ -271,7 +277,7 @@ export default function ReservationFormModal({
                         <input type="text" value={reason} onChange={e => setReason(e.target.value)} className="form-input" placeholder="Ex: Réserve pour une maraude" />
                     </div>
                     <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                        <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
+                        <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting || (selfHidden && !driverSelection)}>
                             {submitting ? '...' : canValidate
                                 ? (recurrence.enabled ? '🔁 Créer les réservations' : 'Valider')
                                 : (recurrence.enabled ? '🔁 Soumettre la récurrence' : 'Soumettre la demande')}

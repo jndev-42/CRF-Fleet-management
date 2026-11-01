@@ -110,6 +110,23 @@ describe('ReservationBlock', () => {
         expect(screen.getByText('Votre demande sera soumise à validation par un responsable.')).toBeTruthy();
     });
 
+    it('masque "+ Réserver" pour un chauffeur simple face au mauvais type, l\'affiche pour un cadre non chauffeur', async () => {
+        mockFetch(async () => new Response(JSON.stringify([]), { status: 200 }));
+
+        const { unmount } = render(
+            <ReservationBlock vehicleId="VP001" vehicleType="VPSP" currentUserEmail="me@test.com" userRoles={['CHVL']} />
+        );
+        await screen.findByText('Aucune réservation prévue pour le moment.');
+        expect(screen.queryByRole('button', { name: '+ Réserver' })).toBeNull();
+        unmount();
+
+        render(
+            <ReservationBlock vehicleId="VP001" vehicleType="VPSP" currentUserEmail="me@test.com" userRoles={['CADRE']} />
+        );
+        await screen.findByText('Aucune réservation prévue pour le moment.');
+        expect(screen.getByRole('button', { name: '+ Réserver' })).toBeTruthy();
+    });
+
     it('désactive le bouton "+ Réserver" si le permis est bloqué et l\'utilisateur non-gestionnaire', async () => {
         mockFetch(async () => new Response(JSON.stringify([]), { status: 200 }));
 
@@ -166,6 +183,44 @@ describe('ReservationBlock', () => {
         await waitFor(() => {
             const postCall = fetchMock.mock.calls.find(c => c[1]?.method === 'POST');
             expect(postCall).toBeTruthy();
+        });
+    });
+
+    it('édition par un gestionnaire sans rôle de conduite : pas de « Moi-même », submit bloqué jusqu\'au choix d\'un chauffeur', async () => {
+        const own = { ...baseReservation, vehicleId: 'VP001', userEmail: 'me@test.com', userName: 'Moi Cadre' };
+        const fetchMock = mockFetch(async (input, init) => {
+            const url = getUrl(input);
+            if (init?.method === 'PATCH') return new Response(JSON.stringify({ success: true }), { status: 200 });
+            if (url.includes('/reservations')) return new Response(JSON.stringify([own]), { status: 200 });
+            return new Response(JSON.stringify({}), { status: 200 });
+        });
+
+        render(
+            <ReservationBlock vehicleId="VP001" vehicleType="VPSP" currentUserEmail="me@test.com" userRoles={['CADRE']} />
+        );
+
+        await screen.findByText('Moi Cadre');
+        fireEvent.click(screen.getByRole('button', { name: 'Modifier cette occurrence' }));
+
+        const submit = screen.getByRole('button', { name: 'Enregistrer les modifications' }) as HTMLButtonElement;
+        expect(screen.getByText('Choisir un chauffeur')).toBeTruthy();
+        expect(submit.disabled).toBe(true);
+
+        fireEvent.click(screen.getByText('Choisir un chauffeur'));
+        expect(screen.queryByRole('option', { name: 'Moi-même' })).toBeNull();
+        fireEvent.click(screen.getByText('Choisir un chauffeur'));
+
+        const modal = submit.closest('form') as HTMLElement;
+        fireEvent.click(within(modal).getByRole('button', { name: 'Chauffeur non décidé' }));
+        expect(submit.disabled).toBe(false);
+        fireEvent.click(submit);
+
+        await waitFor(() => {
+            const call = fetchMock.mock.calls.find(c => c[1]?.method === 'PATCH');
+            expect(call).toBeTruthy();
+            const body = JSON.parse(String(call![1]!.body));
+            expect(body.onBehalfOfUserId).toBe('UNASSIGNED');
+            expect(body.isUnassignedDriver).toBe(true);
         });
     });
 

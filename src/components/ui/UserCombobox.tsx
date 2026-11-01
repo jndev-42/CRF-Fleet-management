@@ -10,6 +10,9 @@ interface UserComboboxProps {
     onChange: (userId: string) => void;
     excludeEmail?: string;
     defaultLabel?: string;
+    /** Masque l'entrée « défaut » (ex. « Moi-même ») ; le déclencheur affiche alors `emptyLabel` si rien n'est choisi. */
+    hideDefault?: boolean;
+    emptyLabel?: string;
     placeholder?: string;
 }
 
@@ -19,6 +22,8 @@ export default function UserCombobox({
     onChange,
     excludeEmail,
     defaultLabel = 'Moi-même',
+    hideDefault = false,
+    emptyLabel = 'Choisir un chauffeur',
     placeholder = 'Rechercher...',
 }: UserComboboxProps) {
     const [userSearch, setUserSearch] = useState('');
@@ -41,8 +46,8 @@ export default function UserCombobox({
     const triggerLabel = value === 'UNASSIGNED'
         ? UNASSIGNED_DRIVER_NAME
         : value
-        ? (selectedUser?.name || selectedUser?.email || defaultLabel)
-        : defaultLabel;
+        ? (selectedUser?.name || selectedUser?.email || (hideDefault ? emptyLabel : defaultLabel))
+        : hideDefault ? emptyLabel : defaultLabel;
 
     const filteredUsers = users.filter(u =>
         u.email !== excludeEmail &&
@@ -82,14 +87,16 @@ export default function UserCombobox({
                         aria-label={placeholder}
                     />
                     <div className={styles.userDropdownList}>
-                        <div
-                            role="option"
-                            aria-selected={value === ''}
-                            className={`${styles.userDropdownItem} ${value === '' ? styles.userDropdownItemSelected : ''}`}
-                            onClick={() => handleSelect('')}
-                        >
-                            {defaultLabel}
-                        </div>
+                        {!hideDefault && (
+                            <div
+                                role="option"
+                                aria-selected={value === ''}
+                                className={`${styles.userDropdownItem} ${value === '' ? styles.userDropdownItemSelected : ''}`}
+                                onClick={() => handleSelect('')}
+                            >
+                                {defaultLabel}
+                            </div>
+                        )}
                         {filteredUsers.map(u => (
                             <div
                                 key={u.id}
