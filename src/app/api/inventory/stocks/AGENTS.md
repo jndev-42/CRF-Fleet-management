@@ -79,6 +79,6 @@ Manage stock containers (storage locations/groups). Each user's `ulId` can have 
 
 ### Internal
 - Database: `InvStockList`, `InvItem`, `InvBatch`, `InvStockLog`
-- Lib modules: `@/lib/db`, `@/auth`, `@/lib/utils/error`, `@/lib/roles` (`isAdminOrAbove`), `@/lib/inventory/stocks` (`getOrCreateDefaultStock`, `duplicateStock`), `@/lib/apiAuth`
+- Lib modules: `@/lib/db`, `@/auth`, `@/lib/utils/error`, `@/lib/roles` (`canManageInventory`), `@/lib/inventory/stocks` (`getOrCreateDefaultStock`, `duplicateStock`), `@/lib/apiAuth`
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

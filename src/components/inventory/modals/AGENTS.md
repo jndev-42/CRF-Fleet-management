@@ -32,12 +32,12 @@ Two prop conventions coexist — pick the one matching the modal's job:
 
 **Cross-modal navigation.** `LowStockModal` and `ExpiringSoonModal` both take `onOpenBatches(itemId, itemName)` — they don't open `ItemBatchesModal` themselves, they ask the page to swap modals. Preserve that indirection.
 
-**Role visibility.** `ItemBatchesModal` is the only modal here that reads roles directly: `isAdminOrAbove((session?.user?.roles ?? []) as string[])` from `@/lib/roles` via `useSession()`, gating batch deletion. Elsewhere admin state arrives as a prop from the page.
+**Role visibility.** `ItemBatchesModal` is the only modal here that reads roles directly: `canManageInventory((session?.user?.roles ?? []) as string[])` from `@/lib/roles` via `useSession()`, gating batch deletion. Elsewhere admin state arrives as a prop from the page.
 
 **`StockQRCodeModal` — two deliberate divergences from the vehicle `QRCodeModal` it is adapted from:**
 - The canvas id is **`qr-stock-code-canvas`**, not `qr-code-canvas`. `downloadQRCode` resolves it with a global `getElementById`; if both modals used the same id, whichever mounted first would be downloaded. Pinned by AC-Q4 — do not "simplify" the id back.
 - Regeneration errors render in an **inline box**, not `alert()`. Regeneration is destructive (every printed QR for that stock dies instantly), so the failure has to stay on screen next to the button that caused it.
-Confirmation before the `DELETE` is required (AC-Q5/AC-Q6), and the "Régénérer" button is gated on `canAccessAdminPanel(userRoles)` — roles arrive as a **prop** from the page, as everywhere else here except `ItemBatchesModal`.
+Confirmation before the `DELETE` is required (AC-Q5/AC-Q6), and the "Régénérer" button is gated on `canAccessAdminPanel(userRoles) || canManageInventory(userRoles)` — roles arrive as a **prop** from the page, as everywhere else here except `ItemBatchesModal`.
 
 **Styling.** Global classes (`modal`, `btn btn-primary`, `form-group`, `form-label`, `form-input`) plus a co-located `<Modal>.module.css` per modal for everything static (overlay `z-index`, `max-width`, error banners, tables, chips). Inline `style` is reserved for values computed at runtime — the selected category chip, `deficitColor(item)`, the expired-row tint, the "copied" state of the QR button. Don't move a static rule back inline. All labels, buttons, and error messages in French.
 
@@ -53,6 +53,6 @@ Confirmation before the `DELETE` is required (AC-Q5/AC-Q6), and the "Régénére
 - `GET /api/inventory/low-stock[?stockId=]`, `GET /api/inventory/expiring-soon[?stockId=]`
 - `POST|DELETE /api/inventory/stocks/[id]/qr-token` — `StockQRCodeModal`
 - `POST /api/inventory/stocks/import` — `ImportCsvModal` (`multipart/form-data`: `name` + `file`)
-- `@/lib/roles` — `isAdminOrAbove` (`ItemBatchesModal` only), `canAccessAdminPanel` (`StockQRCodeModal`)
+- `@/lib/roles` — `canManageInventory` (`ItemBatchesModal`, `StockQRCodeModal`), `canAccessAdminPanel` (`StockQRCodeModal`)
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

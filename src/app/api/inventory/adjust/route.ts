@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageInventory } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { loadItemBatchStates, planStockMovement } from '@/lib/inventory/adjustments';
 import { withAudit } from '@/lib/audit/log';
@@ -24,7 +24,7 @@ async function postHandler(request: Request) {
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
-        if (!isAdminOrAbove(userRoles)) {
+        if (!canManageInventory(userRoles)) {
             return forbiddenResponse();
         }
 

@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.36.0] — 1 novembre 2026
+
+### ✨ Nouveautés
+
+- **Nouveau rôle « Responsable inventaire »** — dans son unité locale, il a sur l'inventaire les mêmes droits qu'un administrateur : nouvel article, quantités, lots, stocks (création, renommage, duplication, suppression), import CSV et régénération du QR code d'un stock. Il n'a aucun autre droit d'administration. Le rôle s'attribue à la main depuis la liste des utilisateurs. Il accède aussi au menu Inventaire quand celui-ci est réglé sur « Admin uniquement ».
+- **Résumé quotidien des stocks** — le résumé des péremptions et des stocks minimum est aussi envoyé aux responsables inventaire de l'unité locale, en plus des administrateurs.
+
+### 🔧 Changements
+
+- **Légende des rôles** — elle décrit le nouveau rôle.
+
 ## [5.35.0] — 24 octobre 2026
 
 ### ✨ Nouveautés

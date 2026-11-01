@@ -103,3 +103,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-mcp-server-tokens.md`
   summary: Permettre à l'IA connectée en MCP d'agir sur une autre UL que l'UL d'attache du propriétaire du jeton (paramètre `ulId` validé contre ses UL).
   evidence: La session MCP est figée sur l'UL d'attache (`resolveActiveUL`) ; un admin de plusieurs UL ne peut pas agir sur une UL secondaire via le MCP (revue edge/blind).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-inventaire.md`
+  summary: `sendPushNotification` (src/lib/push.ts) cible aussi les comptes portant INACTIF (ADMIN, RESP_INVENTAIRE…) — exclure les destinataires inactifs de la requête UserUL/UserRole.
+  evidence: la requête filtre par `',' || uu.roles || ',' LIKE '%,ROLE,%'` sans condition sur INACTIF ; un `['ADMIN','INACTIF']` reçoit donc le résumé de stock et les alertes véhicule.
+- source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-inventaire.md`
+  summary: Description du menu Inventaire dans `src/components/admin/MenusTab.tsx` obsolète (« onglet Inventaire sur la fiche véhicule » n'existe plus) et muette sur l'accès des responsables inventaire en « Admin uniquement ».
+  evidence: MenusTab.tsx l.26 ; aucun onglet Inventaire dans la fiche véhicule ; `canSeeInventoryMenu` accepte RESP_INVENTAIRE en admin_only.

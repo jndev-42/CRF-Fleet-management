@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageInventory } from '@/lib/roles';
 import { getOrCreateDefaultStock } from '@/lib/inventory/stocks';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
@@ -51,7 +51,7 @@ async function postHandler(request: Request) {
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
-        if (!isAdminOrAbove(userRoles)) {
+        if (!canManageInventory(userRoles)) {
             return forbiddenResponse();
         }
 
@@ -96,7 +96,7 @@ async function patchHandler(request: Request) {
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
-        if (!isAdminOrAbove(userRoles)) {
+        if (!canManageInventory(userRoles)) {
             return forbiddenResponse();
         }
 
@@ -142,7 +142,7 @@ async function deleteHandler(request: Request) {
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
-        if (!isAdminOrAbove(userRoles)) {
+        if (!canManageInventory(userRoles)) {
             return forbiddenResponse();
         }
 

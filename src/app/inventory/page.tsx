@@ -14,7 +14,7 @@ import StockQRCodeModal from '@/components/inventory/modals/StockQRCodeModal';
 import StockModal from '@/components/inventory/modals/StockModal';
 import ImportCsvModal from '@/components/inventory/modals/ImportCsvModal';
 import { InvStockListRow } from '@/lib/inventory/stocks';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageInventory } from '@/lib/roles';
 import styles from './page.module.css';
 import Pagination from '@/components/Pagination';
 
@@ -106,7 +106,7 @@ export default function InventoryPage() {
     }, [status, activeStockId]);
 
     const userRoles = (session?.user?.roles ?? ['GUEST']) as string[];
-    const isAdmin = isAdminOrAbove(userRoles);
+    const isAdmin = canManageInventory(userRoles);
 
     const fetchInventoryAbortRef = useRef<AbortController | null>(null);
 

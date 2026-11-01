@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageInventory } from '@/lib/roles';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 import styles from './ItemBatchesModal.module.css';
 
@@ -22,7 +22,7 @@ interface ItemBatchesModalProps {
 export default function ItemBatchesModal({ itemId, itemName, onClose, onBatchDeleted }: ItemBatchesModalProps) {
     useEscapeKey(onClose);
     const { data: session } = useSession();
-    const isAdmin = isAdminOrAbove((session?.user?.roles ?? []) as string[]);
+    const isAdmin = canManageInventory((session?.user?.roles ?? []) as string[]);
 
     const [batches, setBatches] = useState<Batch[]>([]);
     const [loading, setLoading] = useState(true);

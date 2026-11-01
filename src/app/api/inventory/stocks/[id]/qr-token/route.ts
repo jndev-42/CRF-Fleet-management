@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { getErrorMessage } from '@/lib/utils/error';
-import { canAccessAdminPanel, isQrBlocked } from '@/lib/roles';
+import { canAccessAdminPanel, canManageInventory, isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import {
     ensureStockTableExists,
@@ -47,8 +47,8 @@ import { withAudit } from '@/lib/audit/log';
  * `getOrCreateStockQrToken` CRÉE le token s'il n'existe pas encore : la simple
  * lecture est déjà une écriture.
  *
- * Sur `DELETE`, la garde de rôle seule est insuffisante : `canAccessAdminPanel`
- * est satisfait par `['ADMIN','INACTIF']`. Un administrateur bloqué régénérerait
+ * Sur `DELETE`, la garde de rôle seule (`canAccessAdminPanel || canManageInventory`)
+ * est insuffisante : `canAccessAdminPanel` est satisfait par `['ADMIN','INACTIF']`. Un administrateur bloqué régénérerait
  * les tokens et invaliderait tous les QR papier déjà collés — déni de service
  * sur la fonctionnalité. `isQrBlocked` est ce qui ferme ce chemin.
  *
@@ -136,8 +136,8 @@ async function deleteHandler(
             return unauthorizedResponse();
         }
 
-        // `canAccessAdminPanel` plus bas ne suffit pas : il est satisfait par
-        // `['ADMIN','INACTIF']`. La garde d'inactivité vient donc en premier.
+        // `canAccessAdminPanel || canManageInventory` plus bas ne suffit pas : ils sont
+        // satisfaits par `['ADMIN','INACTIF']`. La garde d'inactivité vient donc en premier.
         if (isQrBlocked(session.user.roles || [])) {
             return forbiddenResponse('Compte inactif');
         }
@@ -157,7 +157,8 @@ async function deleteHandler(
             return forbiddenResponse('Ce stock appartient à une autre unité locale');
         }
 
-        if (!canAccessAdminPanel(session.user.roles || [])) {
+        const roles = session.user.roles || [];
+        if (!canAccessAdminPanel(roles) && !canManageInventory(roles)) {
             return forbiddenResponse();
         }
 

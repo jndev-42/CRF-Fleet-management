@@ -52,6 +52,12 @@ const ROLE_DESCRIPTIONS = [
         permissions: ['Historique des emprunts, rendus et lavages', 'Suivi des emprunts en cours', 'Gestion du catalogue : articles, tailles, quantités, archivage', 'QR Uniformes de l\'UL'],
     },
     {
+        key: 'RESP_INVENTAIRE', label: 'Responsable inventaire', color: '#84cc16',
+        bgColor: 'rgba(132, 204, 22, 0.08)', borderColor: 'rgba(132, 204, 22, 0.25)',
+        description: 'Gestion complète de l\'inventaire de son UL, comme un administrateur, sans autre droit d\'administration.',
+        permissions: ['Articles, lots et quantités', 'Gestion des stocks : création, renommage, duplication, suppression', 'Import CSV d\'un stock', 'QR des stocks de l\'UL (régénération)', 'Résumé quotidien des péremptions et des stocks minimum'],
+    },
+    {
         key: 'CI/RPAPS', label: 'CI / RPAPS', color: '#0ea5e9',
         bgColor: 'rgba(14, 165, 233, 0.08)', borderColor: 'rgba(14, 165, 233, 0.25)',
         description: 'Chargé d\'intervention / Responsable poste de secours.',

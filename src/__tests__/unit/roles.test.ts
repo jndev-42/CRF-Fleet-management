@@ -14,6 +14,7 @@ import {
     canValidateExpenseAsRespo,
     canManageVehicles,
     canManageUniforms,
+    canManageInventory,
     canSuperviseVehicles,
     canManageReservations,
     canViewStatsPage,
@@ -46,15 +47,15 @@ describe('Roles helper functions', () => {
     });
 
     describe('canManageExpenseBudgets', () => {
-        // Matrice complète des 13 rôles gérables (MANAGEABLE_ROLES).
+        // Matrice complète des 14 rôles gérables (MANAGEABLE_ROLES).
         const AUTHORIZED = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.PRESIDENT, ROLES.TRESORIER, ROLES.CADRE];
-        const DENIED = [ROLES.RESPO, ROLES.RESP_VEHICULE, ROLES.RESP_UNIFORME, ROLES.DT, ROLES.CHVPSP, ROLES.CHVL, ROLES.CI_RPAPS, ROLES.INACTIF];
+        const DENIED = [ROLES.RESPO, ROLES.RESP_VEHICULE, ROLES.RESP_UNIFORME, ROLES.RESP_INVENTAIRE, ROLES.DT, ROLES.CHVPSP, ROLES.CHVL, ROLES.CI_RPAPS, ROLES.INACTIF];
 
         it('couvre tous les rôles gérables', () => {
             expect([...AUTHORIZED, ...DENIED].sort()).toEqual([...MANAGEABLE_ROLES].sort());
         });
 
-        it('canManageExpenseBudgets autorise CADRE, PRESIDENT, TRESORIER, ADMIN, SUPER_ADMIN et refuse RESPO, RESP_VEHICULE, RESP_UNIFORME, CHVL, CHVPSP, DT, CI/RPAPS, INACTIF', () => {
+        it('canManageExpenseBudgets autorise CADRE, PRESIDENT, TRESORIER, ADMIN, SUPER_ADMIN et refuse RESPO, RESP_VEHICULE, RESP_UNIFORME, RESP_INVENTAIRE, CHVL, CHVPSP, DT, CI/RPAPS, INACTIF', () => {
             for (const role of AUTHORIZED) {
                 expect(canManageExpenseBudgets([role]), `${role} devrait être autorisé`).toBe(true);
             }
@@ -156,6 +157,39 @@ describe('Roles helper functions', () => {
             expect(canManageUniforms(['ADMIN', 'INACTIF'])).toBe(false);
             expect(canManageUniforms(['RESP_UNIFORME', 'GUEST'])).toBe(false);
             expect(canManageUniforms([])).toBe(false);
+        });
+    });
+
+    describe('Rôle RESP_INVENTAIRE — responsable inventaire (inventaire uniquement)', () => {
+        it('est déclaré, gérable (après RESP_UNIFORME) et libellé', () => {
+            expect(ROLES.RESP_INVENTAIRE).toBe('RESP_INVENTAIRE');
+            expect(MANAGEABLE_ROLES.indexOf(ROLES.RESP_INVENTAIRE)).toBe(MANAGEABLE_ROLES.indexOf(ROLES.RESP_UNIFORME) + 1);
+            expect(rolesModule.ROLE_LABELS[ROLES.RESP_INVENTAIRE]).toBe('Responsable inventaire');
+        });
+
+        it('canManageInventory : SUPER_ADMIN, ADMIN et RESP_INVENTAIRE, personne d\'autre', () => {
+            const autorises: string[] = [ROLES.SUPER_ADMIN, ROLES.ADMIN, ROLES.RESP_INVENTAIRE];
+            for (const role of MANAGEABLE_ROLES) {
+                expect(canManageInventory([role]), role).toBe(autorises.includes(role));
+            }
+        });
+
+        it('n\'ouvre aucun autre droit', () => {
+            const r = ['RESP_INVENTAIRE'];
+            expect(isAdminOrAbove(r)).toBe(false);
+            expect(canAccessAdminPanel(r)).toBe(false);
+            expect(isReadOnlyManager(r)).toBe(false);
+            expect(canManageVehicles(r)).toBe(false);
+            expect(canManageUniforms(r)).toBe(false);
+            expect(canManageExpenseBudgets(r)).toBe(false);
+            expect(canAssignRole(r, 'CHVL')).toBe(false);
+        });
+
+        it('est refusé une fois INACTIF (ou GUEST), même cumulé à ADMIN', () => {
+            expect(canManageInventory(['RESP_INVENTAIRE', 'INACTIF'])).toBe(false);
+            expect(canManageInventory(['ADMIN', 'INACTIF'])).toBe(false);
+            expect(canManageInventory(['RESP_INVENTAIRE', 'GUEST'])).toBe(false);
+            expect(canManageInventory([])).toBe(false);
         });
     });
 
@@ -445,6 +479,7 @@ describe('Roles helper functions', () => {
             expect(predicatsAutorisation.map(([n]) => n).sort()).toEqual([
                 'canAccessAdminPanel',
                 'canManageExpenseBudgets',
+                'canManageInventory',
                 'canManageReservations',
                 'canManageUniforms',
                 'canManageVehicles',

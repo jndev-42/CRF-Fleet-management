@@ -105,7 +105,7 @@ describe('GET /api/cron/daily-alerts', () => {
         expect(mockedPush).not.toHaveBeenCalled();
     });
 
-    it('stock : un résumé par UL, limité aux ADMIN de l\'UL', async () => {
+    it('stock : un résumé par UL, adressé aux ADMIN et RESP_INVENTAIRE de l\'UL', async () => {
         await seedInvItem({ id: 'ia', name: 'Compresses', ulId: 'ul-a', quantity: 1, minStock: 5 });
         await seedInvBatch({ id: 'ba1', itemId: 'ia', expiryDate: addDays(today(), 10) });
         await seedInvBatch({ id: 'ba2', itemId: 'ia', expiryDate: addDays(today(), -2) });
@@ -118,7 +118,7 @@ describe('GET /api/cron/daily-alerts', () => {
         const calls = mockedPush.mock.calls.map(c => c[0]);
         expect(calls.map(c => c.ulId).sort()).toEqual(['ul-a', 'ul-b']);
         for (const call of calls) {
-            expect(call.roles).toEqual(['ADMIN']);
+            expect(call.roles).toEqual(['ADMIN', 'RESP_INVENTAIRE']);
             expect(call.url).toBe('/inventory');
         }
         const a = calls.find(c => c.ulId === 'ul-a')!;

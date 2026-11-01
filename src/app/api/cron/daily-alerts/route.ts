@@ -136,7 +136,7 @@ export async function GET(request: Request) {
                 const title = buildStockDigestTitle(ulNames.get(digest.ulId) ?? null);
                 const message = buildStockDigestMessage(mine);
                 const sent = await sendPushNotification({
-                    roles: ['ADMIN'],
+                    roles: [ROLES.ADMIN, ROLES.RESP_INVENTAIRE],
                     headings: { fr: title, en: title },
                     contents: { fr: message, en: message },
                     url: '/inventory',

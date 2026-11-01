@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getErrorMessage } from '@/lib/utils/error';
-import { isAdminOrAbove } from '@/lib/roles';
+import { canManageInventory } from '@/lib/roles';
 import { parseStockCsv } from '@/lib/inventory/csvImport';
 import { importStockFromCsv } from '@/lib/inventory/stocks';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
@@ -24,7 +24,7 @@ async function postHandler(request: Request) {
         }
 
         const userRoles = (session.user.roles ?? []) as string[];
-        if (!isAdminOrAbove(userRoles)) {
+        if (!canManageInventory(userRoles)) {
             return forbiddenResponse();
         }
 
