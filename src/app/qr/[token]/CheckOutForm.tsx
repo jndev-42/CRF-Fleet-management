@@ -90,7 +90,7 @@ export default function CheckOutForm({
 
     const isVPSP = vehicle.type.toUpperCase().includes('VPSP');
     const missionTypes = [
-        'DPS', 'PAPS', 'Réseaux', 'Urgence', 'Opération', 'Formation', 'Logistique', 'Maraude', 'Administratif',
+        'DPS', 'PAPS', 'Réseaux', 'Urgence', 'Opération', 'Formation', 'Entraînement', 'Logistique', 'Maraude', 'Administratif',
         ...(isVPSP ? ['Désinfection'] : []),
         'Autre',
     ];
@@ -135,10 +135,11 @@ export default function CheckOutForm({
             </div>
 
             <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                <label htmlFor="qr-checkout-mission-type" style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
                     Type de mission *
                 </label>
                 <select
+                    id="qr-checkout-mission-type"
                     className="form-input"
                     value={form.missionType}
                     onChange={e => setForm(f => ({ ...f, missionType: e.target.value }))}

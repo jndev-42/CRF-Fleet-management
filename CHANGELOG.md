@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.36.0] — 1er novembre 2026
+
+### ✨ Nouveautés
+
+- **Type de mission « Entraînement »** — lors de l'emprunt d'un véhicule (depuis la fiche du véhicule ou en scannant son QR code), on peut désormais choisir « Entraînement » comme type de mission. Ce type peut aussi être sélectionné en modifiant les informations d'une prise déjà faite, et il apparaît dans l'historique des trajets et dans les graphiques des statistiques par type de mission.
+
 ## [5.35.0] — 24 octobre 2026
 
 ### ✨ Nouveautés

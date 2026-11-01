@@ -218,6 +218,22 @@ describe('CheckOutModal', () => {
         expect(body.missionType).toBe('DPS');
     });
 
+    it('propose le type de mission « Entraînement » et l\'envoie tel quel', async () => {
+        const fetchMock = mockFetch();
+        const onSuccess = vi.fn();
+
+        render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={onSuccess} />);
+
+        await screen.findByDisplayValue('Jean Dupont');
+        fireEvent.change(screen.getByLabelText(/Type de mission/), { target: { value: 'Entraînement' } });
+        fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]).includes('/api/trips') && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body.missionType).toBe('Entraînement');
+    });
+
     it('affiche une alerte et ne ferme pas la modale si l\'API échoue', async () => {
         const onSuccess = vi.fn();
         mockFetch(async (input, init) => {

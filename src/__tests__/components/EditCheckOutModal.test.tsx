@@ -73,6 +73,16 @@ describe('EditCheckOutModal', () => {
         expect(await screen.findByText('Trajet non trouvé')).toBeTruthy();
     });
 
+    it('propose le type de mission « Entraînement »', () => {
+        render(<EditCheckOutModal trip={mockTrip} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        expect(screen.getByRole('option', { name: 'Entraînement' })).toBeTruthy();
+    });
+
+    it('pré-sélectionne « Entraînement » pour une prise déjà faite avec ce type', () => {
+        render(<EditCheckOutModal trip={{ ...mockTrip, missionType: 'Entraînement' }} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        expect((screen.getByLabelText(/Type de mission/) as HTMLSelectElement).value).toBe('Entraînement');
+    });
+
     it('affiche l\'option Désinfection uniquement pour un véhicule VPSP', () => {
         const { rerender } = render(<EditCheckOutModal trip={mockTrip} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
         expect(screen.queryByText('🧴 Désinfection')).toBeNull();

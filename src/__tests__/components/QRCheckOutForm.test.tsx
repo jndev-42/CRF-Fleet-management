@@ -248,4 +248,16 @@ describe('CheckOutForm (QR) — correction kilométrage / carburant', () => {
         render(<CheckOutForm vehicle={{ ...vehicle, connection: { status: 'CONNECTED' } }} token="tok-1" onSuccess={vi.fn()} />);
         expect(screen.getByLabelText(/Saisir manuellement le kilométrage\/carburant/)).toBeTruthy();
     });
+
+    it('propose le type de mission « Entraînement » et l\'envoie tel quel', async () => {
+        const onSuccess = vi.fn();
+        render(<CheckOutForm vehicle={vehicle} token="tok-1" onSuccess={onSuccess} />);
+        expect(screen.getByRole('option', { name: 'Entraînement' })).toBeTruthy();
+
+        fireEvent.change(screen.getByLabelText(/Type de mission/), { target: { value: 'Entraînement' } });
+        fireEvent.click(screen.getByRole('button', { name: /Confirmer l'emprunt/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        expect(lastCheckoutBody().missionType).toBe('Entraînement');
+    });
 });
