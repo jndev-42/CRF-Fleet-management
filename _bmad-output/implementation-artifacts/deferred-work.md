@@ -121,3 +121,18 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-mission-type-entrainement.md`
   summary: Valider côté serveur missionType contre la liste connue (z.enum ou refine) pour éviter des variantes orthographiques qui scindent les statistiques.
   evidence: checkOutSchema.missionType est z.string().min(1) ; un client API/MCP peut envoyer « Entrainement » sans accent. Nécessite au préalable la constante partagée et la prise en compte des valeurs historiques en base.
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-report-accident-et-historique.md`
+  summary: Un lien de notification vers un objet d'une autre UL que l'UL active renvoie 403 jusqu'au changement manuel d'UL (toutes notifications ciblées par UL, dont les alertes d'incident mission).
+  evidence: `canReadMissionReport` compare à `session.user.ulId` ; aucun basculement d'UL à l'ouverture d'une notification.
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-report-accident-et-historique.md`
+  summary: La ligne de migration v5.36.0 (`add-mission-report-edits.ts`) est insérée avant celle de la v5.35.0 dans CLAUDE.md — à remettre dans l'ordre chronologique.
+  evidence: ordre des commandes de migration dans la section Commands de CLAUDE.md.
+  resolved: v5.38.0 — ligne `add-mission-report-edits.ts` placée après celle de la v5.37.0.
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-report-accident-et-historique.md`
+  summary: Vérifier que `sendPushNotification` exclut les comptes portant INACTIF dans `UserUL.roles` (non vérifié, pré-existant ; medium si avéré).
+  evidence: la requête de ciblage de `src/lib/push.ts` (~l.66-80) filtre par LIKE sur les rôles sans exclusion explicite d'INACTIF ; à confirmer par un test d'intégration.
+  resolved: v5.37.0 — `sendPushNotification` exclut INACTIF/GUEST (cf. entrée RESP_INVENTAIRE ci-dessus).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-report-accident-et-historique.md`
+  summary: DELETE /api/missions/[id] laisse orphelines les lignes mission_report_supplies et mission_report_interventions (les FK ne sont pas activées, le ON DELETE CASCADE ne joue pas).
+  evidence: `src/__tests__/integration/setup.ts` (« les FK ne sont pas activées dans ce repo ») ; le DELETE ne supprime que mission_report_edits et mission_reports.

@@ -9,7 +9,7 @@ Retrieves detail or deletes a specific mission report. GET enforces UL-based acc
 ## Key Files
 | File | Description |
 |------|-------------|
-| `route.ts` | GET (detail with role-based access), DELETE (ADMIN only) |
+| `route.ts` | GET (detail with role-based access, `can_edit`, `edits`), PATCH (edit after submission + history), DELETE (ADMIN only) |
 
 ## For AI Agents
 
@@ -17,7 +17,11 @@ Retrieves detail or deletes a specific mission report. GET enforces UL-based acc
 
 **Roles & Access:**
 - GET: Access granted if: `isSuperAdmin()` OR (isAdmin AND same UL) OR (isReadOnlyManager AND same UL) OR (submitter has CI/RPAPS/CHVL/CHVPSP AND submitted this report). Otherwise 403.
+- GET also allows RESP_MISSION of the same UL (`canReadMissionReport` uses `canManageMissionReports`). A DT-attached report (`ulId` NULL) counts, for ADMIN / RESP_MISSION only, as belonging to its author's home UL (`withAuthorHomeUl` → `resolveAuthorHomeUlId`: `UserUL.is_home`, else first UL) — read, edit and "Tous les rapports"; CADRE/PRESIDENT gain nothing on DT reports.
+- PATCH: `canEditMissionReport` (`lib/missions/access.ts`) — SUPER_ADMIN; ADMIN or RESP_MISSION when report UL = active UL; the author while still a contributor/admin. Order: 401 → 404 → 403 → 400 (Zod `updateMissionReportSchema`, same rules as creation).
 - DELETE: ADMIN-only (checked via `isAdminOrAbove()`). 404 if report not found.
+
+**Edit history (`mission_report_edits`):** written by `updateMissionReport` (`lib/missions/update-mission-report.ts`) in the same transaction as the UPDATE — one row per save that changes at least one field, `changes` = JSON `[{ field, label, old, new }]` already rendered as readable labels and frozen; `edited_by_name` freezes the editor's name (read first, before the live `User` row). DELETE removes the report's history rows explicitly in the same batch — FKs are not enabled, so `ON DELETE CASCADE` never runs. Never edited, never purged (not the AuditLog). Attachment (UL/DT), author, submission date, photos and signed report are never modified. A flag that goes false → true (`newlyRaisedFlags`) triggers `notifyMissionIncident` (RESP_MISSION of the report's UL); a failed alert never fails the save.
 
 **Business Rules:**
 - GET returns supplies grouped by category for UI rendering.

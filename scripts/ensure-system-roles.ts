@@ -20,6 +20,7 @@ const MANAGEABLE_ROLES = [
     'RESP_VEHICULE',
     'RESP_UNIFORME',
     'RESP_INVENTAIRE',
+    'RESP_MISSION',
     'CHVPSP',
     'CHVL',
     'CI/RPAPS',

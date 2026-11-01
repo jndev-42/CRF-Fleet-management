@@ -81,6 +81,14 @@ export const PREVIEW_ACCOUNTS = [
         label: 'Resp. inventaire',
     },
     {
+        key: 'preview-resp-mission',
+        email: 'preview-resp-mission@preview.local',
+        name: 'Resp. Mission Preview',
+        badge: 'RESP_MIS',
+        color: '#e11d48',
+        label: 'Resp. mission',
+    },
+    {
         key: 'preview-chvl',
         email: 'preview-chvl@preview.local',
         name: 'Chauffeur Preview',

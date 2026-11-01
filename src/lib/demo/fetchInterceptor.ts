@@ -110,7 +110,15 @@ export function setupFetchInterceptor() {
                     const id = missionDetailMatch[1];
                     if (!init || init.method === 'GET') {
                         const mission = DemoDB.getMission(id);
-                        return mission ? mockResponse(mission) : mockResponse({ error: 'Not found' }, 404);
+                        // Démo : le compte de démonstration (super admin) peut tout modifier ; pas d'historique.
+                        return mission ? mockResponse({ ...mission, can_edit: true, edits: [] }) : mockResponse({ error: 'Not found' }, 404);
+                    }
+                    if (init.method === 'PATCH') {
+                        const body = JSON.parse(init.body as string);
+                        const mission = DemoDB.updateMission(id, body);
+                        return mission
+                            ? mockResponse({ success: true, changed: true, changes: [] })
+                            : mockResponse({ error: 'Not found' }, 404);
                     }
                     if (init.method === 'DELETE') {
                         DemoDB.deleteMission(id);
@@ -158,7 +166,7 @@ export function setupFetchInterceptor() {
                     const users = DemoDB.getUsers();
                     return mockResponse({ 
                         users, 
-                        availableRoles: ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'RESP_VEHICULE', 'RESP_UNIFORME', 'RESP_INVENTAIRE', 'CHVL', 'CHVPSP', 'CI/RPAPS', 'GUEST', 'INACTIF']
+                        availableRoles: ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'RESP_VEHICULE', 'RESP_UNIFORME', 'RESP_INVENTAIRE', 'RESP_MISSION', 'CHVL', 'CHVPSP', 'CI/RPAPS', 'GUEST', 'INACTIF']
                     });
                 }
 

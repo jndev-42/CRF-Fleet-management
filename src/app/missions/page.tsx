@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, QrCode } from 'lucide-react';
 import { MISSION_TYPE_LABELS } from '@/lib/mission-supplies';
-import { isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
+import { canManageMissionReports, isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
 import MissionsTable, { type MissionReport } from './MissionsTable';
 import ULQRCodeModal from '@/components/missions/ULQRCodeModal';
 import styles from './missions.module.css';
@@ -21,15 +21,21 @@ export default function MissionsPage() {
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [typeFilter, setTypeFilter] = useState('');
-    const [scope, setScope] = useState<Scope>('mine');
+    // `null` tant que l'utilisateur n'a pas choisi : le périmètre par défaut dépend
+    // des rôles, connus seulement une fois la session chargée.
+    const [scopeChoice, setScope] = useState<Scope | null>(null);
     const [showQrCode, setShowQrCode] = useState(false);
 
     const roles = (session?.user?.roles || ['GUEST']) as string[];
-    const canAccess = isAdminOrAbove(roles) || isReadOnlyManager(roles) || roles.includes('CI/RPAPS');
+    const canAccess = canManageMissionReports(roles) || isReadOnlyManager(roles) || roles.includes('CI/RPAPS');
     const canCreate = isAdminOrAbove(roles) || roles.includes('CI/RPAPS');
     // « Tous les rapports » suit l'UL active du sélecteur de la Navbar ; l'API
-    // refuse le scope à quiconque n'est pas cadre/président/admin.
-    const canSeeAll = isAdminOrAbove(roles) || isReadOnlyManager(roles);
+    // refuse le scope à quiconque n'est pas cadre/président/admin/responsable mission.
+    const canSeeAll = canManageMissionReports(roles) || isReadOnlyManager(roles);
+    // Le responsable mission ne rédige pas : il arrive directement sur les rapports de son UL.
+    const scope: Scope = scopeChoice ?? (canSeeAll && !canCreate ? 'all' : 'mine');
+    // Le QR Code d'UL reste réservé aux gestionnaires de l'UL (inchangé).
+    const canShowQr = isAdminOrAbove(roles) || isReadOnlyManager(roles);
 
     const activeUlName = session?.user?.availableULs?.find(ul => ul.id === session?.user?.ulId)?.name;
     // Le bouton QR Code cible l'UL active du gestionnaire — comme le sélecteur
@@ -75,7 +81,7 @@ export default function MissionsPage() {
             <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
                 <h1 className="page-title">Comptes rendus de mission</h1>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {canSeeAll && hasActiveUl && (
+                    {canShowQr && hasActiveUl && (
                         <button
                             type="button"
                             className="btn btn-secondary"
@@ -157,7 +163,7 @@ export default function MissionsPage() {
                 <ULQRCodeModal
                     ulId={activeUlId}
                     ulName={activeUlName ? `Unité Locale ${activeUlName}` : 'votre UL'}
-                    canRegenerate={canSeeAll}
+                    canRegenerate={canShowQr}
                     onClose={() => setShowQrCode(false)}
                 />
             )}

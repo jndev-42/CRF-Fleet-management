@@ -73,6 +73,48 @@ export default function Step6Incidents({ data, onChange }: Step6Props) {
                     Aucun incident critique à signaler — la question de suivi ne s&apos;affiche que si un incident est coché.
                 </p>
             )}
+
+            <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                <span className="form-label" id="volunteer-accident-label">Accident bénévole</span>
+                <p className={styles.fieldHint}>Un bénévole a-t-il été victime d&apos;un accident pendant la mission ?</p>
+                <div className={styles.toggleRow} role="group" aria-labelledby="volunteer-accident-label">
+                    <button
+                        type="button"
+                        className={`${styles.toggleBtn} ${data.volunteer_accident ? styles.toggleBtnActive : ''}`}
+                        aria-pressed={data.volunteer_accident}
+                        onClick={() => onChange({ volunteer_accident: true })}
+                    >
+                        Oui
+                    </button>
+                    <button
+                        type="button"
+                        className={`${styles.toggleBtn} ${!data.volunteer_accident ? styles.toggleBtnActive : ''}`}
+                        aria-pressed={!data.volunteer_accident}
+                        // Non : la description n'a plus lieu d'être, elle est vidée.
+                        onClick={() => onChange({ volunteer_accident: false, volunteer_accident_details: '' })}
+                    >
+                        Non
+                    </button>
+                </div>
+            </div>
+
+            {data.volunteer_accident && (
+                <div className="form-group">
+                    <label className="form-label" htmlFor="volunteer-accident-details">
+                        Description de l&apos;accident *
+                    </label>
+                    <textarea
+                        id="volunteer-accident-details"
+                        className="form-input"
+                        value={data.volunteer_accident_details}
+                        onChange={e => onChange({ volunteer_accident_details: e.target.value })}
+                        rows={3}
+                        placeholder="Circonstances, bénévole concerné, blessure, suites données…"
+                        aria-required="true"
+                    />
+                    <span className={styles.fieldHint}>Obligatoire : le responsable mission de l&apos;UL est alerté.</span>
+                </div>
+            )}
         </div>
     );
 }

@@ -34,15 +34,25 @@ const DEFAULT_CREW_ENDPOINTS: CrewEndpoints = {
     drivers: '/api/missions/drivers',
 };
 
+/** Valeur déjà enregistrée (mode édition), avec son libellé lisible. */
+export interface StoredCrewOption {
+    id: string;
+    name: string;
+}
+
 interface Step2Props {
     data: MissionFormData;
     onChange: (patch: Partial<MissionFormData>) => void;
     currentUserId?: string;
     currentUserName?: string;
     endpoints?: CrewEndpoints;
+    /** Mode édition : véhicule / conducteur enregistrés. S'ils manquent aux listes
+     *  chargées (autre UL, liste refusée), une option les conserve — sans quoi le
+     *  select afficherait « Aucun » et l'enregistrement effacerait la valeur. */
+    stored?: { vehicle?: StoredCrewOption | null; driver?: StoredCrewOption | null };
 }
 
-export default function Step2Vehicle({ data, onChange, currentUserId, currentUserName, endpoints = DEFAULT_CREW_ENDPOINTS }: Step2Props) {
+export default function Step2Vehicle({ data, onChange, currentUserId, currentUserName, endpoints = DEFAULT_CREW_ENDPOINTS, stored }: Step2Props) {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [drivers, setDrivers] = useState<Driver[]>([]);
     // Primitives en dépendance : un objet `endpoints` recréé à chaque rendu relancerait l'effet.
@@ -82,6 +92,16 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
         .filter(d => d.id !== currentUserId)
         .filter(d => !isVPSP || d.roles.includes('CHVPSP'));
 
+    // Affichées tant qu'elles manquent aux listes, quelle que soit la sélection
+    // courante : l'éditeur peut toujours revenir à la valeur enregistrée.
+    const storedVehicle = stored?.vehicle
+        && !vehicles.some(v => v.id === stored.vehicle!.id) && !(stored.vehicle.id in EXTERNAL_VEHICLES)
+        ? stored.vehicle : null;
+    const storedDriver = stored?.driver
+        && !visibleDrivers.some(d => d.id === stored.driver!.id)
+        && !(showCurrentUserOption && currentUserId === stored.driver.id)
+        ? stored.driver : null;
+
     return (
         <div className={styles.stepContent}>
             <h2 className={styles.stepTitle}>Véhicule et équipage</h2>
@@ -95,6 +115,7 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
                     onChange={e => onChange({ vehicle_id: e.target.value || null, driver_id: null })}
                 >
                     <option value="">— Aucun / non renseigné —</option>
+                    {storedVehicle && <option value={storedVehicle.id}>{storedVehicle.name}</option>}
                     {vehicles.map(v => (
                         <option key={v.id} value={v.id}>{v.name}{v.type ? ` (${v.type})` : ''}</option>
                     ))}
@@ -113,6 +134,7 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
                     onChange={e => onChange({ driver_id: e.target.value || null })}
                 >
                     <option value="">— Non renseigné —</option>
+                    {storedDriver && <option value={storedDriver.id}>{storedDriver.name}</option>}
                     {showCurrentUserOption && (
                         <option value={currentUserId}>Moi ({currentUserName ?? 'moi'})</option>
                     )}

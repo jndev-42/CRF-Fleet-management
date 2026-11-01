@@ -2,7 +2,7 @@ import type { Session } from 'next-auth';
 import { db } from '@/lib/db';
 import { isSuperAdmin } from '@/lib/roles';
 import { canViewExpense } from '@/lib/expenses/workflow';
-import { canReadMissionReport, resolveSessionUserId, type MissionReportAccessInfo } from '@/lib/missions/access';
+import { canReadMissionReport, resolveSessionUserId, withAuthorHomeUl, type MissionReportAccessInfo } from '@/lib/missions/access';
 
 type DriveFolderOwner =
     | { kind: 'trip' | 'incident'; ulId: string }
@@ -67,7 +67,9 @@ function toMissionAccessInfo(row: Record<string, unknown>): MissionReportAccessI
 
 async function canReadAnyMissionReport(session: Session, reports: MissionReportAccessInfo[]): Promise<boolean> {
     const userId = await resolveSessionUserId(session);
-    return reports.some(report => canReadMissionReport(session, report, userId));
+    // Rapport DT : rapproché de l'UL de rattachement de l'auteur, comme sur la fiche.
+    const enriched = await Promise.all(reports.map(withAuthorHomeUl));
+    return enriched.some(report => canReadMissionReport(session, report, userId));
 }
 
 /**

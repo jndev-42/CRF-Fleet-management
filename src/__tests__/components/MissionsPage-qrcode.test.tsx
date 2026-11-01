@@ -53,6 +53,14 @@ describe('MissionsPage — bouton QR Code', () => {
         expect(screen.queryByRole('button', { name: /QR Code/ })).toBeNull();
     });
 
+    it('n\'affiche pas le bouton pour un RESP_MISSION (QR réservé aux gestionnaires de l\'UL)', async () => {
+        mockSession(['RESP_MISSION']);
+        render(<MissionsPage />);
+        // Le RESP_MISSION arrive sur « Tous les rapports » de son UL.
+        await screen.findByText('Aucun compte rendu pour l\'UL sélectionnée.');
+        expect(screen.queryByRole('button', { name: /QR Code/ })).toBeNull();
+    });
+
     it('n\'affiche pas le bouton sans UL active', async () => {
         mockSession(['ADMIN'], 'default');
         render(<MissionsPage />);

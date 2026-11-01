@@ -17,6 +17,8 @@ export interface MissionReport {
     had_hemorrhage: boolean;
     had_complex_care: boolean;
     needs_followup: boolean;
+    /** Accident bénévole déclaré — absent des réponses antérieures (démo). */
+    volunteer_accident?: boolean;
     submitted_at: string;
     submitter_name: string | null;
     vehicle_name: string | null;
@@ -26,7 +28,7 @@ export interface MissionReport {
     dt_code: string | null;
 }
 
-const hasIncidents = (r: MissionReport) => r.had_acr || r.had_hemorrhage || r.had_complex_care;
+const hasIncidents = (r: MissionReport) => r.had_acr || r.had_hemorrhage || r.had_complex_care || Boolean(r.volunteer_accident);
 
 /** Tag de rattachement : UL réelle, ou entité DT synthétique. Les deux ne sont
  *  jamais renseignés ensemble (invariant garanti côté API). */

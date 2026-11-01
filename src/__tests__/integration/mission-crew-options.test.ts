@@ -92,6 +92,13 @@ describe("Listes de l'étape « Équipage » du rapport de mission", () => {
       asUser(['ADMIN']);
       expect((await GET_MISSION_DRIVERS()).status).toBe(200);
     });
+
+    it('autorise un RESP_MISSION (modification des rapports de son UL), pas s\'il est INACTIF', async () => {
+      asUser(['RESP_MISSION']);
+      expect((await GET_MISSION_DRIVERS()).status).toBe(200);
+      asUser(['RESP_MISSION', 'INACTIF']);
+      expect((await GET_MISSION_DRIVERS()).status).toBe(403);
+    });
   });
 
   describe('GET /api/qr-ul/[token]/drivers', () => {

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
-import { AlertCircle, ArrowLeft, Camera, FileText, Trash2, ZoomIn } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Camera, FileText, Pencil, Trash2, ZoomIn } from 'lucide-react';
 import { SUPPLIES_BY_CATEGORY, MISSION_TYPE_LABELS, TEAM_DYNAMICS_LABELS } from '@/lib/mission-supplies';
 import type { SupplyCategory } from '@/lib/mission-supplies';
 import {
@@ -14,6 +14,8 @@ import {
     INTERVENTION_NATURE_LABELS,
 } from '@/lib/mission-interventions';
 import MissionPhotosModal from '@/components/missions/MissionPhotosModal';
+import MissionEditHistory, { type MissionEdit } from '@/components/missions/MissionEditHistory';
+import { isAdminOrAbove } from '@/lib/roles';
 import SignedReportLightbox from '@/components/missions/SignedReportLightbox';
 import styles from './mission-detail.module.css';
 
@@ -52,6 +54,8 @@ interface MissionDetail {
     had_hemorrhage: boolean;
     had_complex_care: boolean;
     needs_followup: boolean;
+    volunteer_accident: boolean;
+    volunteer_accident_details: string | null;
     drive_folder_id: string | null;
     signed_report_drive_id: string | null;
     /** Name of the UL the report belongs to (mr.ulId) — null if the report is attached to a DT */
@@ -61,7 +65,13 @@ interface MissionDetail {
     supplies: Record<string, SupplyEntry[]>;
     /** Répartition du total d'interventions — vide pour les rapports antérieurs à la fonctionnalité. */
     interventions: { mode: Record<string, number>; nature: Record<string, number> };
+    /** L'utilisateur courant peut-il modifier ce rapport (règle `canEditMissionReport`). */
+    can_edit?: boolean;
+    /** Historique des modifications, du plus récent au plus ancien. */
+    edits?: MissionEdit[];
 }
+
+type DetailTab = 'report' | 'history';
 
 function boolLabel(val: boolean | null): string {
     if (val === null) return '—';
@@ -111,9 +121,11 @@ export default function MissionDetailPage() {
     const [photosOpen, setPhotosOpen] = useState(false);
     const [signedReportOpen, setSignedReportOpen] = useState(false);
     const [signedReportIsPdf, setSignedReportIsPdf] = useState(false);
+    const [tab, setTab] = useState<DetailTab>('report');
 
     const roles = (session?.user?.roles || ['GUEST']) as string[];
-    const isAdmin = roles.includes('ADMIN');
+    // Même règle que DELETE /api/missions/[id] (SUPER_ADMIN compris, INACTIF exclu).
+    const canDelete = isAdminOrAbove(roles);
 
     useEffect(() => {
         if (status === 'unauthenticated') { router.push('/'); return; }
@@ -151,6 +163,10 @@ export default function MissionDetailPage() {
     if (!report) return null;
 
     const hasIncidents = report.had_acr || report.had_hemorrhage || report.had_complex_care;
+    const edits = report.edits ?? [];
+    // L'onglet n'existe que s'il y a au moins une modification.
+    const showHistoryTab = edits.length > 0;
+    const activeTab: DetailTab = showHistoryTab ? tab : 'report';
     const supplyCategories = Object.keys(report.supplies) as SupplyCategory[];
     // Répartition : absente des rapports créés avant la fonctionnalité — on n'affiche
     // alors que le total, sans section ni message d'erreur.
@@ -183,7 +199,17 @@ export default function MissionDetailPage() {
                             Photos
                         </button>
                     )}
-                    {isAdmin && (
+                    {report.can_edit && (
+                        <Link
+                            href={`/missions/${report.id}/edit`}
+                            className="btn btn-secondary"
+                            aria-label="Modifier ce compte rendu"
+                        >
+                            <Pencil size={15} />
+                            Modifier
+                        </Link>
+                    )}
+                    {canDelete && (
                         <button
                             className="btn btn-danger"
                             onClick={handleDelete}
@@ -208,6 +234,45 @@ export default function MissionDetailPage() {
                 {report.submitter_name && <span className={styles.metaItem}>Par {report.submitter_name}</span>}
             </div>
 
+            {showHistoryTab && (
+                <div className="filters-bar" role="tablist" aria-label="Sections du compte rendu">
+                    <button
+                        type="button"
+                        role="tab"
+                        id="mission-tab-report"
+                        aria-controls="mission-panel-report"
+                        aria-selected={activeTab === 'report'}
+                        className={`filter-btn${activeTab === 'report' ? ' active' : ''}`}
+                        onClick={() => setTab('report')}
+                    >
+                        Rapport
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="mission-tab-history"
+                        aria-controls="mission-panel-history"
+                        aria-selected={activeTab === 'history'}
+                        className={`filter-btn${activeTab === 'history' ? ' active' : ''}`}
+                        onClick={() => setTab('history')}
+                    >
+                        Historique des modifications ({edits.length})
+                    </button>
+                </div>
+            )}
+
+            {activeTab === 'history' && (
+                <div role="tabpanel" id="mission-panel-history" aria-labelledby="mission-tab-history">
+                    <MissionEditHistory edits={edits} />
+                </div>
+            )}
+
+            {activeTab === 'report' && (
+            <div
+                role={showHistoryTab ? 'tabpanel' : undefined}
+                id={showHistoryTab ? 'mission-panel-report' : undefined}
+                aria-labelledby={showHistoryTab ? 'mission-tab-report' : undefined}
+            >
             <div className={styles.grid}>
                 {/* Section 1 — Infos mission */}
                 <div className="card">
@@ -239,6 +304,17 @@ export default function MissionDetailPage() {
                         {report.needs_followup && (
                             <p className={styles.followupNote}>Suivi nécessaire signalé.</p>
                         )}
+                    </div>
+                )}
+
+                {/* Accident bénévole */}
+                {report.volunteer_accident && (
+                    <div className={`card ${styles.incidentCard}`}>
+                        <h2 className={styles.cardTitle}>
+                            <AlertCircle size={18} className={styles.incidentIcon} />
+                            Accident bénévole
+                        </h2>
+                        <p className={styles.accidentDetails}>{report.volunteer_accident_details || '—'}</p>
                     </div>
                 )}
 
@@ -346,6 +422,9 @@ export default function MissionDetailPage() {
                         })}
                     </div>
                 </section>
+            )}
+
+            </div>
             )}
 
             {photosOpen && report.drive_folder_id && (

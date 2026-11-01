@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.38.0] — 1er novembre 2026
+
+### ✨ Nouveautés
+
+- **Accident bénévole dans le compte rendu de mission** — l'étape « Incidents » demande désormais si un bénévole a été victime d'un accident pendant la mission (Oui / Non). Si c'est le cas, une description est obligatoire ; elle apparaît sur la fiche du compte rendu.
+- **Nouveau rôle « Responsable mission »** — dans son unité locale, il a sur les comptes rendus de mission les mêmes droits qu'un administrateur : il voit tous les comptes rendus de l'UL et peut les corriger. Il n'a aucun autre droit d'administration. Le rôle s'attribue à la main depuis la liste des utilisateurs ; il accède aussi au menu Missions quand celui-ci est réglé sur « Admin uniquement ».
+- **Alertes d'incident** — le responsable mission reçoit une notification (sur son téléphone et dans l'application) quand un compte rendu de son UL déclare un accident bénévole, un arrêt cardio-respiratoire, une hémorragie grave, une prise en charge complexe ou un besoin de suivi. Une correction ultérieure ne prévient que pour une case nouvellement cochée. Pour un compte rendu rattaché à une Direction Territoriale, l'alerte part vers l'UL de l'auteur.
+- **Corriger un compte rendu après envoi** — un bouton « Modifier » permet à l'auteur, au responsable mission ou à un administrateur de l'UL de corriger un compte rendu déjà envoyé. Le rattachement, les photos et le rapport signé restent inchangés.
+- **Comptes rendus d'une Direction Territoriale** — un compte rendu rattaché à une DT est désormais visible, corrigeable et listé dans « Tous les rapports » pour le responsable mission et l'administrateur de l'UL de son auteur (les cadres et présidents ne le voient toujours pas).
+- **Liste des comptes rendus** — les cadres, présidents et responsables mission, qui ne rédigent pas de compte rendu, arrivent directement sur « Tous les rapports » de leur UL au lieu d'une liste « Mes rapports » vide.
+- **Accident bénévole signalé dans la liste** — un compte rendu qui déclare un accident bénévole porte, comme les autres incidents, le pictogramme d'alerte dans la liste.
+- **Historique des modifications** — chaque correction est conservée : qui l'a faite, à quelle date et heure, et pour chaque champ l'ancienne et la nouvelle valeur. Un onglet « Historique des modifications » apparaît sur la fiche dès la première correction. Les modifications s'affichent deux par page, de la plus récente à la plus ancienne.
+
 ## [5.37.0] — 1er novembre 2026
 
 ### ✨ Nouveautés

@@ -17,6 +17,7 @@ export const ROLES = {
     RESP_VEHICULE: 'RESP_VEHICULE',
     RESP_UNIFORME: 'RESP_UNIFORME',
     RESP_INVENTAIRE: 'RESP_INVENTAIRE',
+    RESP_MISSION: 'RESP_MISSION',
     DT:          'DT',
     CHVPSP:      'CHVPSP',
     CHVL:        'CHVL',
@@ -37,6 +38,7 @@ export const MANAGEABLE_ROLES: Role[] = [
     ROLES.RESP_VEHICULE,
     ROLES.RESP_UNIFORME,
     ROLES.RESP_INVENTAIRE,
+    ROLES.RESP_MISSION,
     ROLES.DT,
     ROLES.CHVPSP,
     ROLES.CHVL,
@@ -54,6 +56,7 @@ export const ROLE_LABELS: Record<Role, string> = {
     [ROLES.RESP_VEHICULE]: 'Responsable véhicule',
     [ROLES.RESP_UNIFORME]: 'Responsable uniforme',
     [ROLES.RESP_INVENTAIRE]: 'Responsable inventaire',
+    [ROLES.RESP_MISSION]: 'Responsable mission',
     [ROLES.DT]:          'Direction Territoriale (DT)',
     [ROLES.CHVPSP]:      'Chauffeur VPSP',
     [ROLES.CHVL]:        'Chauffeur VL',
@@ -189,6 +192,18 @@ export const canManageUniforms = denyWhenInactive(roles =>
  */
 export const canManageInventory = denyWhenInactive(roles =>
     isAdminOrAbove(roles) || roles.includes(ROLES.RESP_INVENTAIRE));
+
+/**
+ * Gestion des comptes rendus de mission de l'UL : lecture de tous les rapports de
+ * l'UL, modification après envoi, alertes d'incident. Admin (ou plus) ou
+ * Responsable mission.
+ *
+ * RESP_MISSION n'est PAS ajouté à `isAdminOrAbove` ni à `canAccessAdminPanel` :
+ * il n'a aucun droit hors comptes rendus (pas de création, pas de suppression).
+ * Le cloisonnement par UL reste à la charge de l'appelant, comme pour l'ADMIN.
+ */
+export const canManageMissionReports = denyWhenInactive(roles =>
+    isAdminOrAbove(roles) || roles.includes(ROLES.RESP_MISSION));
 
 /**
  * Supervision de la flotte : métriques (km, carburant) et QR véhicule.

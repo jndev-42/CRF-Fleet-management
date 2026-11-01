@@ -58,6 +58,12 @@ const ROLE_DESCRIPTIONS = [
         permissions: ['Articles, lots et quantités', 'Gestion des stocks : création, renommage, duplication, suppression', 'Import CSV d\'un stock', 'QR des stocks de l\'UL (régénération)', 'Résumé quotidien des péremptions et des stocks minimum'],
     },
     {
+        key: 'RESP_MISSION', label: 'Responsable mission', color: '#e11d48',
+        bgColor: 'rgba(225, 29, 72, 0.08)', borderColor: 'rgba(225, 29, 72, 0.25)',
+        description: 'Suivi des comptes rendus de mission de son UL, comme un administrateur, sans autre droit d\'administration.',
+        permissions: ['Lecture de tous les comptes rendus de l\'UL', 'Modification d\'un compte rendu après envoi (historique conservé)', 'Notifications : accident bénévole, incident critique, besoin de suivi'],
+    },
+    {
         key: 'CI/RPAPS', label: 'CI / RPAPS', color: '#0ea5e9',
         bgColor: 'rgba(14, 165, 233, 0.08)', borderColor: 'rgba(14, 165, 233, 0.25)',
         description: 'Chargé d\'intervention / Responsable poste de secours.',

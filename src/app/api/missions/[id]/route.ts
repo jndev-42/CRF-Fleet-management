@@ -1,16 +1,21 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
 import { isAdminOrAbove } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
-import { canReadMissionReport, resolveSessionUserId } from '@/lib/missions/access';
+import { canEditMissionReport, canReadMissionReport, resolveSessionUserId, withAuthorHomeUl } from '@/lib/missions/access';
+import { updateMissionReportSchema, type UpdateMissionReportInput } from '@/lib/missions/create-mission-report';
+import { updateMissionReport, type MissionReportChange } from '@/lib/missions/update-mission-report';
+import { newlyRaisedFlags, notifyMissionIncident } from '@/lib/missions/incident-alert';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 /** GET /api/missions/[id] — Détail d'un compte rendu.
- *  ADMIN : tous. CI/RPAPS : uniquement le leur. */
+ *  Lecture : `canReadMissionReport`. Renvoie aussi `can_edit` (`canEditMissionReport`)
+ *  et `edits` — l'historique des modifications, du plus récent au plus ancien. */
 export async function GET(_request: Request, { params }: RouteContext) {
     try {
         const session = await auth();
@@ -48,11 +53,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
         const row = reportResult.rows[0];
 
         const userId = await resolveSessionUserId(session);
-        const canRead = canReadMissionReport(
-            session,
-            { ulId: (row.ulId as string | null) ?? null, submittedBy: (row.submitted_by as string | null) ?? null },
-            userId,
-        );
+        const accessInfo = await withAuthorHomeUl({ ulId: (row.ulId as string | null) ?? null, submittedBy: (row.submitted_by as string | null) ?? null });
+        const canRead = canReadMissionReport(session, accessInfo, userId);
         if (!canRead) {
             return forbiddenResponse();
         }
@@ -87,6 +89,34 @@ export async function GET(_request: Request, { params }: RouteContext) {
             const bucket = (i.breakdown as string) === 'NATURE' ? interventions.nature : interventions.mode;
             bucket[i.category as string] = Number(i.quantity);
         }
+
+        // Historique des modifications — figé à l'écriture, jamais recalculé.
+        const editsResult = await db.execute({
+            // Le nom figé à l'écriture prime : l'entrée reste lisible si le compte
+            // de l'éditeur est supprimé ou renommé.
+            sql: `SELECT e.id, e.edited_at, e.changes,
+                         COALESCE(e.edited_by_name, u.name, u.email) AS editor_name
+                  FROM "mission_report_edits" e
+                  LEFT JOIN "User" u ON u.id = e.edited_by
+                  WHERE e.report_id = ?
+                  ORDER BY e.edited_at DESC, e.rowid DESC`,
+            args: [id],
+        });
+        const edits = editsResult.rows.map(e => {
+            let changes: MissionReportChange[] = [];
+            try {
+                const parsed: unknown = JSON.parse(e.changes as string);
+                if (Array.isArray(parsed)) changes = parsed as MissionReportChange[];
+            } catch {
+                // Entrée illisible : affichée sans détail plutôt que de casser la fiche.
+            }
+            return {
+                id: e.id as string,
+                edited_at: e.edited_at as string,
+                editor_name: (e.editor_name as string | null) || 'Utilisateur supprimé',
+                changes,
+            };
+        });
 
         const vehicleId = row.vehicle_id as string | null;
         const vehicleName = (row.vehicle_name as string | null) || (vehicleId ? EXTERNAL_VEHICLES[vehicleId]?.name : null);
@@ -123,10 +153,15 @@ export async function GET(_request: Request, { params }: RouteContext) {
             had_hemorrhage: Boolean(Number(row.had_hemorrhage)),
             had_complex_care: Boolean(Number(row.had_complex_care)),
             needs_followup: Boolean(Number(row.needs_followup)),
+            volunteer_accident: Boolean(Number(row.volunteer_accident ?? 0)),
+            volunteer_accident_details: (row.volunteer_accident_details as string | null) ?? null,
             drive_folder_id: (row.drive_folder_id as string | null) ?? null,
             signed_report_drive_id: (row.signed_report_drive_id as string | null) ?? null,
             supplies: suppliesByCategory,
             interventions,
+            // Même condition que le PATCH, qui refuse une session sans utilisateur résolu.
+            can_edit: userId !== null && canEditMissionReport(session, accessInfo, userId),
+            edits,
         };
 
         return NextResponse.json(report);
@@ -135,6 +170,86 @@ export async function GET(_request: Request, { params }: RouteContext) {
         return NextResponse.json({ error: 'Erreur lors de la récupération du compte rendu' }, { status: 500 });
     }
 }
+
+/** PATCH /api/missions/[id] — Modification d'un compte rendu après envoi.
+ *  Autorisé par `canEditMissionReport` (SUPER_ADMIN ; ADMIN / RESP_MISSION de l'UL
+ *  active ; auteur encore contributeur/admin). Mêmes règles Zod qu'à la création,
+ *  sans rattachement, photos ni rapport signé (ignorés s'ils sont envoyés).
+ *  Chaque enregistrement qui change au moins un champ est journalisé dans
+ *  `mission_report_edits` ; une case d'incident qui passe de faux à vrai alerte
+ *  les responsables mission. */
+async function patchHandler(request: Request, { params }: RouteContext) {
+    try {
+        const session = await auth();
+        if (!session?.user) {
+            return unauthorizedResponse();
+        }
+
+        const { id } = await params;
+
+        const existing = await db.execute({
+            sql: `SELECT id, ulId, dt_code, submitted_by, mission_name, mission_type, signed_report_drive_id FROM "mission_reports" WHERE id = ?`,
+            args: [id],
+        });
+        if (existing.rows.length === 0) {
+            return NextResponse.json({ error: 'Compte rendu non trouvé' }, { status: 404 });
+        }
+        const row = existing.rows[0];
+        const accessInfo = await withAuthorHomeUl({ ulId: (row.ulId as string | null) ?? null, submittedBy: (row.submitted_by as string | null) ?? null });
+
+        const userId = await resolveSessionUserId(session);
+        if (!userId || !canEditMissionReport(session, accessInfo, userId)) {
+            return forbiddenResponse();
+        }
+
+        let data: UpdateMissionReportInput;
+        try {
+            data = updateMissionReportSchema.parse(await request.json());
+        } catch (parseErr) {
+            if (parseErr instanceof z.ZodError) {
+                return NextResponse.json({ error: 'Données invalides', details: parseErr.issues }, { status: 400 });
+            }
+            if (parseErr instanceof SyntaxError) {
+                return NextResponse.json({ error: 'Corps de requête invalide' }, { status: 400 });
+            }
+            throw parseErr;
+        }
+
+        // DPS et PAPS exigent un rapport signé, qui ne se dépose pas en modification :
+        // un rapport sans rapport signé ne peut pas PASSER en DPS/PAPS. Un rapport déjà
+        // DPS/PAPS sans rapport signé (antérieur à l'obligation) reste modifiable.
+        const needsSignedReport = (t: unknown) => t === 'DPS' || t === 'PAPS';
+        if (needsSignedReport(data.mission_type) && !needsSignedReport(row.mission_type) && !row.signed_report_drive_id) {
+            return NextResponse.json({
+                error: 'Ce compte rendu n\'a pas de rapport signé : il ne peut pas passer en DPS ou PAPS, qui en exigent un.',
+            }, { status: 400 });
+        }
+
+        const result = await updateMissionReport(id, data, userId, session.user.id);
+        if (!result.ok) {
+            return NextResponse.json({ error: result.error }, { status: result.status });
+        }
+
+        if (result.changed) {
+            // Seules les cases qui PASSENT à vrai déclenchent une alerte ; un échec
+            // d'envoi ne fait jamais échouer l'enregistrement.
+            await notifyMissionIncident({
+                id,
+                missionName: result.after.mission_name,
+                ulId: accessInfo.ulId,
+                dtCode: (row.dt_code as string | null) ?? null,
+                submittedBy: accessInfo.submittedBy,
+            }, newlyRaisedFlags(result.before, result.after), userId);
+        }
+
+        return NextResponse.json({ success: true, changed: result.changed, changes: result.changes });
+    } catch (error) {
+        console.error('Error updating mission report:', error);
+        return NextResponse.json({ error: 'Erreur lors de la modification du compte rendu' }, { status: 500 });
+    }
+}
+
+export const PATCH = withAudit(patchHandler, { action: "Modification d'un rapport de mission", entityType: 'missionReport' });
 
 /** DELETE /api/missions/[id] — Suppression (ADMIN seulement).
  *  La suppression en cascade sur mission_report_supplies et
@@ -162,10 +277,13 @@ async function deleteHandler(_request: Request, { params }: RouteContext) {
             return NextResponse.json({ error: 'Compte rendu non trouvé' }, { status: 404 });
         }
 
-        await db.execute({
-            sql: `DELETE FROM "mission_reports" WHERE id = ?`,
-            args: [id],
-        });
+        // Les clés étrangères ne sont pas activées sur la connexion : le
+        // `ON DELETE CASCADE` de `mission_report_edits` ne s'exécute jamais.
+        // L'historique est donc supprimé explicitement, dans la même transaction.
+        await db.batch([
+            { sql: `DELETE FROM "mission_report_edits" WHERE report_id = ?`, args: [id] },
+            { sql: `DELETE FROM "mission_reports" WHERE id = ?`, args: [id] },
+        ], 'write');
 
         return NextResponse.json({ success: true });
     } catch (error) {
