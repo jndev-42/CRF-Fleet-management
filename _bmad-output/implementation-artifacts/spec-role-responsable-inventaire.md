@@ -22,7 +22,8 @@ context: []
 **Always:** `canManageInventory` enveloppé par `denyWhenInactive` ; cloisonnement par UL inchangé (le RESP_INVENTAIRE n'agit que sur les stocks de son UL, comme l'ADMIN) ; le menu Inventaire réglé « Admin uniquement » reste visible au responsable inventaire ; ordre des gardes du `DELETE qr-token` conservé (session → `isQrBlocked` → UL → rôle).
 **Décision (modifiable à la validation) :** le responsable inventaire reçoit le résumé quotidien de stock (péremptions / stock minimum) avec les ADMIN, comme le responsable véhicule reçoit les alertes véhicule.
 
-**Never:** ajouter RESP_INVENTAIRE à `isAdminOrAbove`, `canAccessAdminPanel` ou `isReadOnlyManager` ; toucher aux routes de consommation `/api/qr-stock/[token]/*` ; script de migration (la ligne `Role` est auto-créée par `GET /api/users` via `MANAGEABLE_ROLES`).
+**Never:** ajouter RESP_INVENTAIRE à `isAdminOrAbove`, `canAccessAdminPanel` ou `isReadOnlyManager` ; toucher aux routes de consommation `/api/qr-stock/[token]/*`  ; écrire une ligne `Role` depuis une route.
+**Décision (renégociée après livraison) :** la ligne `Role` RESP_INVENTAIRE est créée par le script de migration `scripts/add-resp-inventaire-role.ts` ; `GET /api/users` ne fait plus aucune écriture (suppression de l'auto-seed `MANAGEABLE_ROLES`).
 
 ## I/O & Edge-Case Matrix
 
@@ -68,6 +69,8 @@ context: []
 ## Implementation Notes
 
 ## Spec Change Log
+
+- Demande humaine après livraison : « les rôles ne doivent pas être ajoutés par le code, ce sont des données qui doivent être ajoutées par un script de migration ; un GET ne doit pas faire d'écriture en base ». Bloc gelé amendé (Never + Décision) ; auto-seed retiré de `GET /api/users`, migration `add-resp-inventaire-role.ts` ajoutée. KEEP : tout le reste de l'implémentation. Ligne 9 du Triage Log (« false ») n'est plus valable : la ligne `Role` dépend désormais de la migration.
 
 ## Review Triage Log
 

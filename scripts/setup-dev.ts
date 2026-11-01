@@ -163,8 +163,8 @@ async function main() {
     for (const role of roles) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
-            // RESPO, RESP_VEHICULE, RESP_UNIFORME, RESP_INVENTAIRE : même identifiant que le seed preview et l'auto-seed de
-            // GET /api/users (RESP_VEHICULE : aussi celui de scripts/add-resp-vehicule-role.ts).
+            // RESPO, RESP_VEHICULE, RESP_UNIFORME, RESP_INVENTAIRE : même identifiant que le seed preview et les scripts
+            // de migration (scripts/add-resp-vehicule-role.ts, scripts/add-resp-inventaire-role.ts).
             args: [
                 role === 'RESPO' ? 'role-respo'
                     : role === 'RESP_VEHICULE' ? 'role-resp_vehicule'
