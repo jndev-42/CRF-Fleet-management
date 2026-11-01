@@ -59,6 +59,6 @@ Inventory management API for tracking medical supplies and goods across multiple
 
 ### Internal
 - Database: `InvItem`, `InvBatch`, `InvStockLog`, `InvStockList` (including `InvStockList.qrToken`)
-- Lib modules: `@/lib/db`, `@/auth`, `@/lib/utils/error`, `@/lib/roles` (`isAdminOrAbove`), `@/lib/inventory/stocks` (`getOrCreateDefaultStock`, `getOrCreateStockQrToken`, `regenerateStockQrToken`), `@/lib/inventory/adjustments` (`loadItemBatchStates`, `planStockMovement`, `RESYNC_ITEM_QUANTITY_SQL`, `FEFO_ORDER_BY`)
+- Lib modules: `@/lib/db`, `@/auth`, `@/lib/utils/error`, `@/lib/roles` (`canManageInventory`), `@/lib/inventory/stocks` (`getOrCreateDefaultStock`, `getOrCreateStockQrToken`, `regenerateStockQrToken`), `@/lib/inventory/adjustments` (`loadItemBatchStates`, `planStockMovement`, `RESYNC_ITEM_QUANTITY_SQL`, `FEFO_ORDER_BY`)
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

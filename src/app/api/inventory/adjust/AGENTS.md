@@ -45,6 +45,6 @@ Adjust inventory quantities at the batch level with FEFO (First Expiry First Out
 
 ### Internal
 - Database: `InvItem`, `InvBatch`, `InvStockLog`
-- Lib modules: `@/lib/db`, `@/auth`, `@/lib/utils/error`, `@/lib/roles` (`isAdminOrAbove`)
+- Lib modules: `@/lib/db`, `@/auth`, `@/lib/utils/error`, `@/lib/roles` (`canManageInventory`)
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

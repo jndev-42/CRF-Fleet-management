@@ -17,7 +17,7 @@ Mints, returns and regenerates the QR token of one inventory stock. This is the 
 
 **`GET` and `POST` are the same handler.** `POST` delegates to `GET` and therefore inherits *all* its guards. Never rewrite it as an independent copy — the guards would drift apart at the first edit.
 
-**`DELETE` is destructive.** It replaces the token, which **instantly invalidates every QR code already printed and glued to a cupboard**. There is no undo and no history: the previous token is overwritten, and any scan of an old label returns 404. It is gated on `canAccessAdminPanel`, and the modal asks for confirmation before calling it (AC-Q5/AC-Q6).
+**`DELETE` is destructive.** It replaces the token, which **instantly invalidates every QR code already printed and glued to a cupboard**. There is no undo and no history: the previous token is overwritten, and any scan of an old label returns 404. It is gated on `canAccessAdminPanel || canManageInventory`, and the modal asks for confirmation before calling it (AC-Q5/AC-Q6).
 
 #### Why this route is UL-scoped while the consumption routes are not
 
@@ -46,7 +46,7 @@ A blocked account (`INACTIF`, or the legacy `GUEST`) is a perfectly legitimate U
 An account with **no role at all is still allowed** — that is the deliberate divergence between `isQrBlocked` and `isInactive`, and a test pins it. Do not "fix" it.
 
 #### Other invariants
-- Order of checks on `DELETE`: session → `isQrBlocked` → UL scope → `canAccessAdminPanel`. The UL scope precedes the role check on purpose: an admin of another UL has no more business regenerating this token than reading it.
+- Order of checks on `DELETE`: session → `isQrBlocked` → UL scope → `canAccessAdminPanel || canManageInventory`. The UL scope precedes the role check on purpose: an admin of another UL has no more business regenerating this token than reading it.
 - `params` is a `Promise` — always `await params`.
 - `qrToken` must never leak into any other response. `GET /api/inventory/stocks` and `.../duplicate` project columns explicitly; there is no `SELECT *` on `InvStockList` (AC-T9/AC-T10).
 - ⚠️ `/api/vehicles/[id]/qr-token` carries the same shape **without** the UL scope. That is a known gap, documented in its own `AGENTS.md`, out of scope for this PR. It is the older route that is behind — do not align this one down to it.
@@ -55,7 +55,7 @@ An account with **no role at all is still allowed** — that is the deliberate d
 
 ### Internal
 - `@/auth`, `@/lib/apiAuth` — `unauthorizedResponse`, `forbiddenResponse`
-- `@/lib/roles` — `isQrBlocked`, `canAccessAdminPanel`
+- `@/lib/roles` — `isQrBlocked`, `canAccessAdminPanel`, `canManageInventory`
 - `@/lib/inventory/stocks` — `ensureStockTableExists`, `getOrCreateStockQrToken`, `regenerateStockQrToken`
 
 ### Tables Touched

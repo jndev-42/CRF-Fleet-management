@@ -6,7 +6,7 @@
  * migration attribue RESP_VEHICULE à tout compte qui porte CADRE, partout où il le
  * porte :
  *   - insère la ligne `Role` RESP_VEHICULE (identifiant `role-resp_vehicule`, le même
- *     que l'auto-seed de GET /api/users, le seed preview et setup-dev) ;
+ *     que le seed preview et setup-dev) ;
  *   - ajoute un `UserRole` RESP_VEHICULE à chaque porteur d'un `UserRole` CADRE ;
  *   - ajoute RESP_VEHICULE à chaque CSV `UserUL.roles` qui contient CADRE.
  * CADRE n'est jamais retiré.

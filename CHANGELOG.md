@@ -1,5 +1,21 @@
 # Changelog
 
+## [5.37.0] — 1er novembre 2026
+
+### ✨ Nouveautés
+
+- **Nouveau rôle « Responsable inventaire »** — dans son unité locale, il a sur l'inventaire les mêmes droits qu'un administrateur : nouvel article, quantités, lots, stocks (création, renommage, duplication, suppression), import CSV et régénération du QR code d'un stock. Il n'a aucun autre droit d'administration. Le rôle s'attribue à la main depuis la liste des utilisateurs. Il accède aussi au menu Inventaire quand celui-ci est réglé sur « Admin uniquement ».
+- **Résumé quotidien des stocks** — le résumé des péremptions et des stocks minimum est aussi envoyé aux responsables inventaire de l'unité locale, en plus des administrateurs.
+
+### 🔧 Changements
+
+- **Légende des rôles** — elle décrit le nouveau rôle.
+- **Réglage des menus** — la description du menu Inventaire précise que les responsables inventaire y gardent accès en « Admin uniquement », et ne mentionne plus un onglet de la fiche véhicule qui n'existe pas.
+
+### 🐛 Corrections
+
+- **Notifications des comptes inactifs** — un compte marqué « Inactif » ne reçoit plus les notifications adressées à un rôle (résumé quotidien des stocks, alertes véhicule, incidents…), même s'il cumule ce rôle avec un autre.
+
 ## [5.36.0] — 1er novembre 2026
 
 ### ✨ Nouveautés

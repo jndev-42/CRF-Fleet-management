@@ -21,6 +21,9 @@ const mockedAuth = vi.mocked(auth);
 const CHVL_A = { user: { email: 'chvl@test.com', name: 'Camille', ulId: 'ul-a', roles: ['CHVL'] } };
 const ADMIN_A = { user: { email: 'admin@test.com', name: 'Alex', ulId: 'ul-a', roles: ['ADMIN'] } };
 const ADMIN_B = { user: { email: 'autre@test.com', name: 'Bruno', ulId: 'ul-b', roles: ['ADMIN'] } };
+const RESP_INV_A = { user: { email: 'ri@test.com', name: 'Rita', ulId: 'ul-a', roles: ['RESP_INVENTAIRE'] } };
+const RESP_INV_INACTIF_A = { user: { email: 'riko@test.com', name: 'Riko', ulId: 'ul-a', roles: ['RESP_INVENTAIRE', 'INACTIF'] } };
+const RESP_UNI_A = { user: { email: 'ru@test.com', name: 'Ugo', ulId: 'ul-a', roles: ['RESP_UNIFORME'] } };
 const INACTIF_A = { user: { email: 'bloque@test.com', name: 'Inès', ulId: 'ul-a', roles: ['INACTIF'] } };
 const INACTIF_CHVL_A = { user: { email: 'cumul@test.com', name: 'Cumul', ulId: 'ul-a', roles: ['INACTIF', 'CHVL'] } };
 const INACTIF_ADMIN_A = { user: { email: 'adminko@test.com', name: 'Adam', ulId: 'ul-a', roles: ['ADMIN', 'INACTIF'] } };
@@ -130,6 +133,41 @@ describe('DELETE /api/inventory/stocks/[id]/qr-token', () => {
         const after = await res.json();
         expect(after.token).not.toBe(before.token);
         expect(await tokenInDb('stock-a')).toBe(after.token);
+    });
+
+    it('régénère un token pour un RESP_INVENTAIRE de l\'UL (200)', async () => {
+        mockedAuth.mockResolvedValue(RESP_INV_A as never);
+        await seedStock('stock-a', 'ul-a');
+        const before = await (await GET(makeRequest('GET'), withId('stock-a'))).json();
+
+        const res = await DELETE(makeRequest('DELETE'), withId('stock-a'));
+        expect(res.status).toBe(200);
+        expect((await res.json()).token).not.toBe(before.token);
+    });
+
+    it('refuse en 403 un RESP_INVENTAIRE d\'une autre UL', async () => {
+        mockedAuth.mockResolvedValue({ user: { ...RESP_INV_A.user, ulId: 'ul-b' } } as never);
+        await seedStock('stock-a', 'ul-a');
+        const res = await DELETE(makeRequest('DELETE'), withId('stock-a'));
+        expect(res.status).toBe(403);
+    });
+
+    it('refuse en 403 un RESP_INVENTAIRE INACTIF, sans toucher au token', async () => {
+        mockedAuth.mockResolvedValue(RESP_INV_A as never);
+        await seedStock('stock-a', 'ul-a');
+        const before = await (await GET(makeRequest('GET'), withId('stock-a'))).json();
+
+        mockedAuth.mockResolvedValue(RESP_INV_INACTIF_A as never);
+        const res = await DELETE(makeRequest('DELETE'), withId('stock-a'));
+        expect(res.status).toBe(403);
+        expect(await tokenInDb('stock-a')).toBe(before.token);
+    });
+
+    it('refuse en 403 un RESP_UNIFORME (hors périmètre)', async () => {
+        mockedAuth.mockResolvedValue(RESP_UNI_A as never);
+        await seedStock('stock-a', 'ul-a');
+        const res = await DELETE(makeRequest('DELETE'), withId('stock-a'));
+        expect(res.status).toBe(403);
     });
 
     it('retourne 404 pour un stock inconnu', async () => {

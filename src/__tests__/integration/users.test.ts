@@ -380,6 +380,21 @@ describe('GET /api/users', () => {
         const res = await GET(makeGetRequest());
         expect(res.status).toBe(401);
     });
+
+    it('lecture seule : ne crée aucune ligne Role ; un rôle absent de la table n\'est pas proposé', async () => {
+        await db.execute(`DELETE FROM "Role"`);
+        await seedRoles(['SUPER_ADMIN', 'ADMIN', 'CHVL']);
+        mockedAuth.mockResolvedValue(adminSession as never);
+
+        const res = await GET(makeGetRequest());
+        expect(res.status).toBe(200);
+        const body = await res.json();
+
+        const roles = await db.execute(`SELECT name FROM "Role" ORDER BY name`);
+        expect(roles.rows.map(r => r.name)).toEqual(['ADMIN', 'CHVL', 'SUPER_ADMIN']);
+        expect(body.availableRoles).toEqual(['SUPER_ADMIN', 'ADMIN', 'CHVL']);
+        expect(body.availableRoles).not.toContain('RESP_INVENTAIRE');
+    });
 });
 
 describe('Local Admin Scope Restrictions', () => {

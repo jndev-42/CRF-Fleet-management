@@ -8,7 +8,7 @@
  *     signature et elles DOIVENT suivre l'ancien circuit ;
  *   - `respoValidatedAt`, `respoValidatedBy`, `respoSignature`.
  * Puis insère la ligne `Role` RESPO (identifiant `role-respo`, le même que le seed
- * preview et l'auto-seed de GET /api/users).
+ * preview et setup-dev).
  *
  * À exécuter AVANT le déploiement : les routes des notes de frais lisent et écrivent
  * ces colonnes. Sans elles, la liste (GET /api/expenses), le détail, la soumission

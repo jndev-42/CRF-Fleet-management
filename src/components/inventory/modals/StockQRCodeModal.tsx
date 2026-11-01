@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { canAccessAdminPanel } from '@/lib/roles';
+import { canAccessAdminPanel, canManageInventory } from '@/lib/roles';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 import styles from './StockQRCodeModal.module.css';
 
@@ -203,7 +203,7 @@ export default function StockQRCodeModal({ onClose, stockName, stockId, userRole
                         </button>
                     </div>
 
-                    {canAccessAdminPanel(userRoles) && (
+                    {(canAccessAdminPanel(userRoles) || canManageInventory(userRoles)) && (
                         <button
                             className={`btn btn-secondary ${styles.regenerateBtn}`}
                             onClick={handleRegenerate}

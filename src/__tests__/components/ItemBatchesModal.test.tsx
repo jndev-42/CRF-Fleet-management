@@ -87,6 +87,16 @@ describe('ItemBatchesModal', () => {
         expect(screen.queryByRole('button', { name: /Supprimer/ })).toBeNull();
     });
 
+    it('affiche les actions de lot pour un RESP_INVENTAIRE', async () => {
+        mockSession(['RESP_INVENTAIRE']);
+        mockFetch();
+        render(<ItemBatchesModal itemId="item-1" itemName="Gants" onClose={vi.fn()} />);
+
+        await screen.findByText('2027/01/01');
+        expect(screen.getAllByTitle('+1').length).toBeGreaterThan(0);
+        expect(screen.getAllByRole('button', { name: /Supprimer/ }).length).toBeGreaterThan(0);
+    });
+
     it('ajuste la quantité d\'un lot pour un admin', async () => {
         mockSession(['ADMIN']);
         const fetchMock = mockFetch();

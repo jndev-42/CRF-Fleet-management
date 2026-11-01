@@ -16,7 +16,7 @@ Stock inventory page (`/inventory`) — manages medical and logistics supplies a
 ## For AI Agents
 
 ### Working In This Directory
-**Minimum role: any authenticated user** (unauthenticated → `/login`). Write actions are gated on `isAdmin = isAdminOrAbove(userRoles)` (SUPER_ADMIN or ADMIN): the "+ Nouvel article" button, the Actions table column, per-row edit/delete, the quantity `-10/-1/+1/+10` buttons and the custom-quantity input, and — via the `isAdmin` prop on `StockTabs` — stock management. The "Stock faible" and "Périmé bientôt" report buttons are open to everyone.
+**Minimum role: any authenticated user** (unauthenticated → `/login`). Write actions are gated on `isAdmin = canManageInventory(userRoles)` (SUPER_ADMIN, ADMIN or RESP_INVENTAIRE): the "+ Nouvel article" button, the Actions table column, per-row edit/delete, the quantity `-10/-1/+1/+10` buttons and the custom-quantity input, and — via the `isAdmin` prop on `StockTabs` — stock management. The "Stock faible" and "Périmé bientôt" report buttons are open to everyone.
 
 **Caution on `types.ts`:** nothing in the repo imports `@/app/inventory/types` — `page.tsx` declares its own local, much smaller `InvItem` (id, name, category, quantity, notes, updatedAt, nearestExpiry, minStock). The file also carries self-described migration aliases (`InventoryItem`, `InventoryLot`, `InventoryTransferPayload`) marked "à supprimer après la bascule complète". Treat it as stale scaffolding: verify before importing from it, and do not assume the page's shapes match it.
 
@@ -43,7 +43,7 @@ Category chips are inline-styled pills rather than the global `filter-btn` class
 - `@/components/inventory/StockTabs`
 - `@/components/inventory/modals/` — `AddItemModal`, `EditItemModal`, `InventoryHistoryModal`, `ItemBatchesModal`, `ExpiringSoonModal`, `LowStockModal`, `StockModal`
 - `@/lib/inventory/stocks` — `InvStockListRow` (the type actually used for stocks)
-- `@/lib/roles` — `isAdminOrAbove`
+- `@/lib/roles` — `canManageInventory`
 - `GET /api/inventory` (list, `categoriesOnly=1`), `DELETE /api/inventory?id=`
 - `POST /api/inventory/adjust`
 - `GET|POST|PATCH /api/inventory/stocks`, `DELETE /api/inventory/stocks?id=`

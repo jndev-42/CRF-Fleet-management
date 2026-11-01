@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { canSeeMenu, canSeeUniformsMenu, MENU_KEYS, MENU_VISIBILITIES } from '@/lib/menuVisibility';
+import { canSeeInventoryMenu, canSeeMenu, canSeeUniformsMenu, MENU_KEYS, MENU_VISIBILITIES } from '@/lib/menuVisibility';
 
 describe('canSeeUniformsMenu', () => {
     it('admin_only : admins et responsable uniforme, ni cadre ni président ni chauffeur', () => {
@@ -56,5 +56,28 @@ describe('listes de référence', () => {
     it('contiennent Frais et l\'option super admin', () => {
         expect(MENU_KEYS).toContain('expenses');
         expect(MENU_VISIBILITIES).toContain('super_admin_only');
+    });
+});
+
+describe('canSeeInventoryMenu', () => {
+    it('admin_only : admins et responsable inventaire, ni cadre ni président ni chauffeur', () => {
+        for (const role of ['SUPER_ADMIN', 'ADMIN', 'RESP_INVENTAIRE']) {
+            expect(canSeeInventoryMenu('admin_only', [role]), role).toBe(true);
+        }
+        for (const role of ['CADRE', 'PRESIDENT', 'CHVL', 'RESP_VEHICULE', 'RESP_UNIFORME']) {
+            expect(canSeeInventoryMenu('admin_only', [role]), role).toBe(false);
+        }
+        expect(canSeeInventoryMenu('admin_only', ['RESP_INVENTAIRE', 'INACTIF'])).toBe(false);
+    });
+
+    it('les autres réglages se comportent comme canSeeMenu', () => {
+        expect(canSeeInventoryMenu('available', ['CHVL'])).toBe(true);
+        expect(canSeeInventoryMenu('disabled', ['RESP_INVENTAIRE'])).toBe(false);
+        expect(canSeeInventoryMenu('super_admin_only', ['RESP_INVENTAIRE'])).toBe(false);
+        expect(canSeeInventoryMenu('super_admin_only', ['SUPER_ADMIN'])).toBe(true);
+    });
+
+    it('canSeeMenu générique reste inchangé : RESP_INVENTAIRE n\'est pas admin ailleurs', () => {
+        expect(canSeeMenu('admin_only', ['RESP_INVENTAIRE'])).toBe(false);
     });
 });

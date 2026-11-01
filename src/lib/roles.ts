@@ -16,6 +16,7 @@ export const ROLES = {
     CADRE:       'CADRE',
     RESP_VEHICULE: 'RESP_VEHICULE',
     RESP_UNIFORME: 'RESP_UNIFORME',
+    RESP_INVENTAIRE: 'RESP_INVENTAIRE',
     DT:          'DT',
     CHVPSP:      'CHVPSP',
     CHVL:        'CHVL',
@@ -35,6 +36,7 @@ export const MANAGEABLE_ROLES: Role[] = [
     ROLES.CADRE,
     ROLES.RESP_VEHICULE,
     ROLES.RESP_UNIFORME,
+    ROLES.RESP_INVENTAIRE,
     ROLES.DT,
     ROLES.CHVPSP,
     ROLES.CHVL,
@@ -51,6 +53,7 @@ export const ROLE_LABELS: Record<Role, string> = {
     [ROLES.CADRE]:       'Cadre',
     [ROLES.RESP_VEHICULE]: 'Responsable véhicule',
     [ROLES.RESP_UNIFORME]: 'Responsable uniforme',
+    [ROLES.RESP_INVENTAIRE]: 'Responsable inventaire',
     [ROLES.DT]:          'Direction Territoriale (DT)',
     [ROLES.CHVPSP]:      'Chauffeur VPSP',
     [ROLES.CHVL]:        'Chauffeur VL',
@@ -174,6 +177,18 @@ export const canManageVehicles = denyWhenInactive(roles =>
  */
 export const canManageUniforms = denyWhenInactive(roles =>
     isAdminOrAbove(roles) || roles.includes(ROLES.RESP_UNIFORME));
+
+/**
+ * Gestion complète de l'inventaire de l'UL : articles, lots, mouvements de
+ * quantité, stocks (création, renommage, duplication, suppression), import CSV
+ * et régénération du QR d'un stock. Admin (ou plus) ou Responsable inventaire.
+ *
+ * RESP_INVENTAIRE n'est PAS ajouté à `isAdminOrAbove`, `canAccessAdminPanel` ni
+ * `isReadOnlyManager` : il n'a aucun droit hors inventaire. Le cloisonnement par
+ * UL reste à la charge de l'appelant, comme pour l'ADMIN.
+ */
+export const canManageInventory = denyWhenInactive(roles =>
+    isAdminOrAbove(roles) || roles.includes(ROLES.RESP_INVENTAIRE));
 
 /**
  * Supervision de la flotte : métriques (km, carburant) et QR véhicule.

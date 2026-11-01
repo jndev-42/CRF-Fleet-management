@@ -11,9 +11,9 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { usePush } from '@/components/PushProvider';
 import { User } from 'next-auth';
 import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
-import { canSeeMenu, canSeeUniformsMenu } from '@/lib/menuVisibility';
+import { canSeeInventoryMenu, canSeeMenu, canSeeUniformsMenu } from '@/lib/menuVisibility';
 import { useUL } from '@/lib/contexts/ULContext';
-import { isAdminOrAbove, canAccessAdminPanel, isInactive } from '@/lib/roles';
+import { isAdminOrAbove, canAccessAdminPanel, canManageInventory, isInactive } from '@/lib/roles';
 
 const isPreview = process.env.NEXT_PUBLIC_APP_ENV === 'preview';
 
@@ -134,7 +134,7 @@ export default function Navbar({ user }: NavbarProps) {
                         {!isInactive(userRoles) && canSeeMenu(getVisibility('stats'), userRoles) && (
                             <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} data-tour="nav-stats" onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
                         )}
-                        {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles)) && canSeeMenu(getVisibility('inventory'), userRoles) && (
+                        {(canAccessAdminPanel(userRoles) || canManageInventory(userRoles)) && canSeeInventoryMenu(getVisibility('inventory'), userRoles) && (
                             <Link href="/inventory" className={`nav-link${pathname === '/inventory' ? ' active' : ''}`} data-tour="nav-inventory" onClick={() => setIsOpen(false)} aria-current={pathname === '/inventory' ? 'page' : undefined}>Inventaire</Link>
                         )}
                         {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles) || userRoles.includes('CI/RPAPS')) && canSeeMenu(getVisibility('missions'), userRoles) && (

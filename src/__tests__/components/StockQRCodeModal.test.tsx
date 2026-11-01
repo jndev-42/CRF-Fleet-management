@@ -87,6 +87,13 @@ describe('StockQRCodeModal', () => {
         expect(screen.queryByText(/Régénérer le QR Code/)).toBeNull();
     });
 
+    it('affiche « Régénérer » pour un RESP_INVENTAIRE', async () => {
+        mockFetch();
+        renderModal(['RESP_INVENTAIRE']);
+        await screen.findByText(/\/qr-stock\/tok-stock-1/);
+        expect(screen.getByText(/Régénérer le QR Code/)).toBeTruthy();
+    });
+
     it('affiche « Régénérer » pour un admin et remplace le token après confirmation (AC-Q5)', async () => {
         const fetchMock = mockFetch();
         renderModal(['ADMIN']);

@@ -53,14 +53,9 @@ export async function GET(request: Request) {
             return NextResponse.json({ users: await listMembersOfUl(managerFilter, session.user.ulId) });
         }
 
-        // Auto-seed missing system roles (such as TRESORIER) into the "Role" table
-        for (const roleName of MANAGEABLE_ROLES) {
-            await db.execute({
-                sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
-                args: [`role-${roleName.toLowerCase().replace('/', '-')}`, roleName],
-            });
-        }
-
+        // Lecture seule : les lignes `Role` sont des données créées par les scripts de
+        // migration (ex. scripts/add-resp-inventaire-role.ts), jamais par une route.
+        // Un rôle absent de la table n'est simplement pas proposé (`availableRoles`).
         const usersRes = await db.execute(
             roleFilter
                 ? {
