@@ -50,7 +50,7 @@ async function seed() {
             ('preview-user-chvl',       'preview-chvl@preview.local',        'Chauffeur Preview', 1, ?, 'System Preview'),
             ('preview-user-ci',          'preview-ci@preview.local',          'CI/RPAPS Preview', 1, ?, 'System Preview'),
             ('preview-user-inactif',     'preview-inactif@preview.local',     'Inactif Preview', 1, ?, 'System Preview')`,
-        args: Array(12).fill(today),
+        args: Array(13).fill(today),
     });
     console.log('    Users inserted/updated with validated papers');
 
