@@ -37,7 +37,7 @@ const ROLE_DESCRIPTIONS = [
         key: 'CADRE', label: 'Cadre', color: '#eab308',
         bgColor: 'rgba(234, 179, 8, 0.08)', borderColor: 'rgba(234, 179, 8, 0.25)',
         description: 'Lecture seule de son UL. Peut valider les papiers des utilisateurs et gérer les réservations, sans gérer les véhicules.',
-        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Consulter les véhicules & missions', 'Validation, annulation et réassignation des réservations', 'Statistiques véhicules', 'Notification des nouvelles demandes de réservation', 'Consulter l\'inventaire', 'Emprunter un véhicule : rôle CHVL ou CHVPSP requis'],
+        permissions: ['Consulter les utilisateurs (lecture)', 'Validation des papiers/permis', 'Consulter les véhicules & missions', 'Validation, annulation et réassignation des réservations', 'Réserver pour un chauffeur ou en « Chauffeur non décidé », sans rôle de conduite', 'Statistiques véhicules', 'Notification des nouvelles demandes de réservation', 'Consulter l\'inventaire', 'Emprunter un véhicule : rôle CHVL ou CHVPSP requis'],
     },
     {
         key: 'RESP_VEHICULE', label: 'Responsable véhicule', color: '#14b8a6',

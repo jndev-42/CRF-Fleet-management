@@ -59,4 +59,12 @@ describe('UserCombobox', () => {
         render(<UserCombobox users={users} value="UNASSIGNED" onChange={vi.fn()} />);
         expect(screen.getByText('Chauffeur non décidé')).toBeTruthy();
     });
+
+    it('hideDefault : masque l\'entrée par défaut et affiche « Choisir un chauffeur » sans sélection', () => {
+        render(<UserCombobox users={users} value="" onChange={vi.fn()} hideDefault />);
+        expect(screen.getByText('Choisir un chauffeur')).toBeTruthy();
+        fireEvent.click(screen.getByRole('button'));
+        expect(screen.queryByText('Moi-même')).toBeNull();
+        expect(screen.getAllByRole('option')).toHaveLength(users.length);
+    });
 });

@@ -136,3 +136,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-mission-report-accident-et-historique.md`
   summary: DELETE /api/missions/[id] laisse orphelines les lignes mission_report_supplies et mission_report_interventions (les FK ne sont pas activées, le ON DELETE CASCADE ne joue pas).
   evidence: `src/__tests__/integration/setup.ts` (« les FK ne sont pas activées dans ce repo ») ; le DELETE ne supprime que mission_report_edits et mission_reports.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-reservation-pour-autrui-cadre.md`
+  summary: Aucune route de réservation (POST /api/vehicles/[id]/reservations, PATCH /api/reservations/[id]) ne vérifie les papiers de qui réserve à son propre nom ; un gestionnaire chauffeur aux papiers non validés peut se réserver lui-même (fiche véhicule déjà, dashboard depuis la 5.39.0).
+  evidence: Le contrôle des papiers n'existe que côté interface (`getReservationCtaState`, `ReservationBlock`) ; la décision 3 de la spec a aligné le dashboard sur la fiche véhicule, qui laissait déjà passer ce cas.

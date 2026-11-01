@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canManageReservations, ROLES } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
+import { canReserveForSelf } from '@/lib/vehicleReservationEligibility';
 import { UNASSIGNED_DRIVER_NAME } from '@/lib/reservationDriver';
 import { withAudit } from '@/lib/audit/log';
 
@@ -43,8 +44,35 @@ async function isVehicleHidden(
     sessionUlId: string | undefined,
     vehicleId: string,
 ): Promise<boolean> {
-    const res = await db.execute({ sql: `SELECT ulId FROM "Vehicle" WHERE id = ?`, args: [vehicleId] });
-    return res.rows.length === 0 || isOutsideUl(roles, sessionUlId, res.rows[0].ulId);
+    return (await getVisibleVehicleType(roles, sessionUlId, vehicleId)) === null;
+}
+
+/** Type du véhicule, ou `null` s'il est inconnu / hors UL (même 404). Type absent → `''`. */
+async function getVisibleVehicleType(
+    roles: string[],
+    sessionUlId: string | undefined,
+    vehicleId: string,
+): Promise<string | null> {
+    const res = await db.execute({ sql: `SELECT ulId, type FROM "Vehicle" WHERE id = ?`, args: [vehicleId] });
+    if (res.rows.length === 0 || isOutsideUl(roles, sessionUlId, res.rows[0].ulId)) return null;
+    return (res.rows[0].type as string | null) ?? '';
+}
+
+const SELF_RESERVATION_FORBIDDEN =
+    'Votre rôle ne vous permet pas de réserver à votre propre nom ce type de véhicule. Choisissez un chauffeur ou « Chauffeur non décidé ».';
+
+/** Le compte cible est le sien (comparaison d'e-mails insensible à la casse). */
+function isOwnEmail(targetEmail: string, sessionEmail: string | null | undefined): boolean {
+    return !!sessionEmail && targetEmail.toLowerCase() === sessionEmail.toLowerCase();
+}
+
+/** Réservation à son propre nom : ni « non décidé », ni autre chauffeur (ou soi-même explicitement). */
+function isForSelf(
+    d: { onBehalfOfUserId?: string; isUnassignedDriver?: boolean },
+    sessionUserId: string | undefined,
+): boolean {
+    if (d.isUnassignedDriver || d.onBehalfOfUserId === 'UNASSIGNED') return false;
+    return !d.onBehalfOfUserId || d.onBehalfOfUserId === sessionUserId;
 }
 
 /** Generates all occurrence dates for a recurrence rule */
@@ -128,7 +156,8 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
         const params = await props.params;
         const vehicleId = params.id;
 
-        if (await isVehicleHidden(session.user.roles || [], session.user.ulId, vehicleId)) {
+        const vehicleType = await getVisibleVehicleType(session.user.roles || [], session.user.ulId, vehicleId);
+        if (vehicleType === null) {
             return NextResponse.json({ error: 'Véhicule non trouvé' }, { status: 404 });
         }
 
@@ -176,6 +205,10 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
                 return forbiddenResponse('Seul un responsable peut réserver au nom d\'un autre chauffeur ou déclarer "Chauffeur non décidé".');
             }
 
+            if (isForSelf(recurrenceData, session.user.id) && !canReserveForSelf(userRoles, vehicleType)) {
+                return forbiddenResponse(SELF_RESERVATION_FORBIDDEN);
+            }
+
             // Résolution du chauffeur
             let userEmail = session.user.email as string;
             let userName = session.user.name || session.user.email as string;
@@ -193,6 +226,9 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
                 }
                 userEmail = targetResult.rows[0].email as string;
                 userName = (targetResult.rows[0].name as string) || userEmail;
+                if (isOwnEmail(userEmail, session.user.email) && !canReserveForSelf(userRoles, vehicleType)) {
+                    return forbiddenResponse(SELF_RESERVATION_FORBIDDEN);
+                }
             }
 
             // Génération des occurrences
@@ -315,6 +351,10 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
             return forbiddenResponse('Seul un responsable peut réserver au nom d\'un autre chauffeur ou déclarer "Chauffeur non décidé".');
         }
 
+        if (isForSelf(data, session.user.id) && !canReserveForSelf(userRoles, vehicleType)) {
+            return forbiddenResponse(SELF_RESERVATION_FORBIDDEN);
+        }
+
         const start = new Date(data.startTime);
         const end = new Date(data.endTime);
 
@@ -358,6 +398,9 @@ async function postHandler(request: Request, props: { params: Promise<{ id: stri
             }
             userEmail = targetResult.rows[0].email as string;
             userName = (targetResult.rows[0].name as string) || userEmail;
+            if (isOwnEmail(userEmail, session.user.email) && !canReserveForSelf(userRoles, vehicleType)) {
+                return forbiddenResponse(SELF_RESERVATION_FORBIDDEN);
+            }
         }
 
         const id = crypto.randomUUID();

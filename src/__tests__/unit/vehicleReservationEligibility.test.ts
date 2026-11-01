@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
     getReservationEligibility,
+    canReserveForSelf,
     getReservationCtaState,
     RESERVATION_CTA_MESSAGES,
     type ReservationDenialReason,
@@ -115,20 +116,51 @@ describe('CADRE et RESP_VEHICULE — réservation', () => {
         loading: false, eligibleCount: 1, licenseBlocked: true, userRoles, denialReasons: [],
     });
 
-    it('CADRE seul : refusé sur VL et VPSP', () => {
-        expect(reserve(['CADRE'], 'VL')).toEqual({ canReserve: false, blockingReason: 'ROLE_NOT_ALLOWED' });
-        expect(reserve(['CADRE'], 'VPSP')).toEqual({ canReserve: false, blockingReason: 'ROLE_NOT_ALLOWED' });
+    it('CADRE seul : réservable sur VL et VPSP (pour autrui), papiers bloqués contournés', () => {
+        expect(reserve(['CADRE'], 'VL')).toEqual({ canReserve: true, blockingReason: null });
+        expect(reserve(['CADRE'], 'VPSP')).toEqual({ canReserve: true, blockingReason: null });
+        expect(cta(['CADRE']).state).toBe('NOMINAL');
     });
 
-    it('CADRE + CHVL : VL autorisé, VPSP refusé, papiers bloqués non contournés', () => {
+    it('CADRE + CHVL : réservable sur VL et VPSP, papiers bloqués contournés', () => {
         expect(reserve(['CADRE', 'CHVL'], 'VL').canReserve).toBe(true);
-        expect(reserve(['CADRE', 'CHVL'], 'VPSP')).toEqual({ canReserve: false, blockingReason: 'VPSP_REQUIRES_CHVPSP' });
-        expect(cta(['CADRE', 'CHVL']).state).toBe('LICENSE_BLOCKED');
+        expect(reserve(['CADRE', 'CHVL'], 'VPSP').canReserve).toBe(true);
+        expect(cta(['CADRE', 'CHVL']).state).toBe('NOMINAL');
+    });
+
+    it('chauffeur simple (sans gestion) : papiers bloqués non contournés, mauvais type refusé', () => {
+        expect(cta(['CHVL']).state).toBe('LICENSE_BLOCKED');
+        expect(reserve(['CHVL'], 'VPSP')).toEqual({ canReserve: false, blockingReason: 'VPSP_REQUIRES_CHVPSP' });
     });
 
     it('RESP_VEHICULE : bypass comme un ADMIN (VL, VPSP, papiers bloqués)', () => {
         expect(reserve(['RESP_VEHICULE'], 'VL').canReserve).toBe(true);
         expect(reserve(['RESP_VEHICULE'], 'VPSP').canReserve).toBe(true);
         expect(cta(['RESP_VEHICULE']).state).toBe('NOMINAL');
+    });
+});
+
+describe('canReserveForSelf', () => {
+    it('gestionnaire de véhicules : bypass sur tout type', () => {
+        expect(canReserveForSelf(['ADMIN'], 'VPSP')).toBe(true);
+        expect(canReserveForSelf(['RESP_VEHICULE'], 'VL')).toBe(true);
+    });
+
+    it('CADRE / PRESIDENT sans rôle de conduite : refusé', () => {
+        expect(canReserveForSelf(['CADRE'], 'VL')).toBe(false);
+        expect(canReserveForSelf(['PRESIDENT'], 'VPSP')).toBe(false);
+    });
+
+    it('cascade CHVL / CHVPSP selon le type', () => {
+        expect(canReserveForSelf(['CADRE', 'CHVL'], 'VL')).toBe(true);
+        expect(canReserveForSelf(['CADRE', 'CHVL'], 'VPSP')).toBe(false);
+        expect(canReserveForSelf(['CADRE', 'CHVPSP'], 'VPSP 12')).toBe(true);
+        expect(canReserveForSelf(['CADRE', 'CHVPSP'], 'VL')).toBe(false);
+        expect(canReserveForSelf(['CHVL', 'CHVPSP'], 'VL')).toBe(true);
+    });
+
+    it('type absent traité comme VL ; INACTIF bloque tout', () => {
+        expect(canReserveForSelf(['CHVL'], null)).toBe(true);
+        expect(canReserveForSelf(['ADMIN', 'INACTIF'], 'VL')).toBe(false);
     });
 });

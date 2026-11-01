@@ -190,7 +190,7 @@ describe('ReservationFormModal — soumission simple', () => {
         routeFetch();
         renderModal({ userRoles: ['CADRE'] });
 
-        fireEvent.click(screen.getByRole('button', { name: 'Chauffeur non décidé' }));
+        // CADRE sans rôle de conduite : « Chauffeur non décidé » est présélectionné.
         expect(screen.getByText('Cette réservation sera enregistrée sans chauffeur attribué.')).toBeTruthy();
 
         fillSimpleSlot();
@@ -198,6 +198,41 @@ describe('ReservationFormModal — soumission simple', () => {
 
         await waitFor(() => expect(postCall()).toBeTruthy());
         expect(JSON.parse(String(postCall()![1]!.body)).isUnassignedDriver).toBe(true);
+    });
+
+    it('CADRE sans rôle de conduite : « Moi-même » masqué, désélection → submit désactivé', () => {
+        routeFetch();
+        renderModal({ userRoles: ['CADRE'] });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Chauffeur non décidé' }));
+        expect(screen.getByText('Choisir un chauffeur')).toBeTruthy();
+        expect((screen.getByRole('button', { name: 'Valider' }) as HTMLButtonElement).disabled).toBe(true);
+
+        fireEvent.click(screen.getByText('Choisir un chauffeur'));
+        expect(screen.queryByRole('option', { name: 'Moi-même' })).toBeNull();
+    });
+
+    it('CADRE + CHVL face à un VL : « Moi-même » proposé et présélectionné', () => {
+        routeFetch();
+        renderModal({ userRoles: ['CADRE', 'CHVL'], vehicleType: 'VL' });
+
+        expect(screen.getByText('Moi-même')).toBeTruthy();
+        expect(screen.queryByText('Cette réservation sera enregistrée sans chauffeur attribué.')).toBeNull();
+    });
+
+    it('CADRE + CHVL face à un VPSP : « Moi-même » masqué, non décidé présélectionné', () => {
+        routeFetch();
+        renderModal({ userRoles: ['CADRE', 'CHVL'], vehicleType: 'VPSP' });
+
+        expect(screen.queryByText('Moi-même')).toBeNull();
+        expect(screen.getByText('Cette réservation sera enregistrée sans chauffeur attribué.')).toBeTruthy();
+    });
+
+    it('ADMIN non chauffeur : « Moi-même » reste proposé', () => {
+        routeFetch();
+        renderModal({ userRoles: ['ADMIN'], vehicleType: 'VPSP' });
+
+        expect(screen.getByText('Moi-même')).toBeTruthy();
     });
 
     it('bouton Annuler : onClose appelé, aucun POST', () => {

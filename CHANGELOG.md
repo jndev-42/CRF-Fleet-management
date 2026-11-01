@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.39.0] — 1er novembre 2026
+
+### ✨ Nouveautés
+
+- **Réserver pour un chauffeur sans conduire soi-même** — les cadres, présidents, administrateurs et responsables véhicule peuvent désormais réserver n'importe quel véhicule de leur UL depuis le tableau de bord, pour un chauffeur ou en « Chauffeur non décidé », même sans rôle CHVL ou CHVPSP et même si leurs propres papiers ne sont pas validés.
+- **Formulaire de réservation adapté** — quand vous ne pouvez pas conduire le type de véhicule, l'option « Moi-même » n'est plus proposée (création et modification) et « Chauffeur non décidé » est présélectionné.
+
+### 🔒 Sécurité
+
+- Réserver à son propre nom exige le rôle de conduite du type de véhicule (administrateurs et responsables véhicule exceptés) : sans lui, la réservation, simple ou récurrente, ou la réassignation à soi est refusée avec un message invitant à choisir un chauffeur ou « Chauffeur non décidé ».
+
 ## [5.38.0] — 1er novembre 2026
 
 ### ✨ Nouveautés

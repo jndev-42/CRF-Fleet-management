@@ -447,10 +447,10 @@ describe('POST & PATCH /api/reservations — Chauffeur non décidé & modificati
 });
 
 describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
-    it('20. CADRE crée une réservation → statut VALIDATED directement', async () => {
+    it('20. CADRE crée une réservation (non décidé) → statut VALIDATED directement', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow(80, 2);
-        const res = await POST(makeRequest({ startTime, endTime, reason: 'Mission Cadre' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        const res = await POST(makeRequest({ startTime, endTime, reason: 'Mission Cadre', isUnassignedDriver: true }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
         const body = await res.json();
         expect(body.status).toBe('VALIDATED');
@@ -459,7 +459,7 @@ describe('Droits des rôles CADRE et PRESIDENT sur les réservations', () => {
     it('21. PRESIDENT crée une réservation → statut VALIDATED directement', async () => {
         mockedAuth.mockResolvedValue({ user: { email: 'president@dev.local', name: 'President Test', roles: ['PRESIDENT'], ulId: 'ul-paris-18' } } as never);
         const { startTime, endTime } = futureWindow(85, 2);
-        const res = await POST(makeRequest({ startTime, endTime, reason: 'Mission Président' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
+        const res = await POST(makeRequest({ startTime, endTime, reason: 'Mission Président', onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: VEHICLE_ID }) });
         expect(res.status).toBe(201);
         const body = await res.json();
         expect(body.status).toBe('VALIDATED');
@@ -651,5 +651,118 @@ describe('RESP_VEHICULE gère les réservations', () => {
             body: JSON.stringify({ action: 'validate' }),
         }), { params: Promise.resolve({ id: 'res-rv-inactif' }) });
         expect(res.status).toBe(403);
+    });
+});
+
+describe('Réservation à son propre nom sans rôle de conduite du type', () => {
+    const cadre = (roles: string[]) => ({ user: { id: 'user-cadre', email: 'cadre@dev.local', name: 'Cadre Test', roles, ulId: 'ul-paris-18' } }) as never;
+    const params = { params: Promise.resolve({ id: VEHICLE_ID }) };
+    const recurrence = (extra: Record<string, unknown> = {}) => {
+        const d = new Date(Date.now() + 3 * 24 * 3600 * 1000);
+        const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return { recurrence: { daysOfWeek: [d.getDay()], startHour: '08:00', endHour: '10:00', firstOccurrenceDate: day, recurrenceEndDate: day, ...extra } };
+    };
+    const patch = (id: string, body: Record<string, unknown>) => PATCH_RESERVATION(
+        new Request(`http://localhost/api/reservations/${id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        }),
+        { params: Promise.resolve({ id }) },
+    );
+
+    it('403 : CADRE sans rôle de conduite, simple, ni chauffeur ni non décidé', async () => {
+        mockedAuth.mockResolvedValue(cadre(['CADRE']));
+        const { startTime, endTime } = futureWindow(100, 2);
+        const res = await POST(makeRequest({ startTime, endTime }), params);
+        expect(res.status).toBe(403);
+        expect((await res.json()).error).toContain('Chauffeur non décidé');
+        const rows = await db.execute({ sql: `SELECT id FROM "Reservation" WHERE vehicleId = ?`, args: [VEHICLE_ID] });
+        expect(rows.rows).toHaveLength(0);
+    });
+
+    it('403 : onBehalfOfUserId égal à son propre id', async () => {
+        mockedAuth.mockResolvedValue(cadre(['CADRE']));
+        const { startTime, endTime } = futureWindow(100, 2);
+        const res = await POST(makeRequest({ startTime, endTime, onBehalfOfUserId: 'user-cadre' }), params);
+        expect(res.status).toBe(403);
+    });
+
+    it('403 : récurrence à son propre nom', async () => {
+        mockedAuth.mockResolvedValue(cadre(['CADRE']));
+        const res = await POST(makeRequest(recurrence()), params);
+        expect(res.status).toBe(403);
+    });
+
+    it('403 : CHVL simple pour lui-même sur un VPSP', async () => {
+        await seedVehicle({ id: 'VPSP004', name: 'VPSP 4', type: 'VPSP' });
+        mockedAuth.mockResolvedValue(cadre(['CHVL']));
+        const res = await POST(makeRequest(futureWindow(170, 2)), { params: Promise.resolve({ id: 'VPSP004' }) });
+        expect(res.status).toBe(403);
+    });
+
+    it('403 : PRESIDENT sans rôle de conduite, sans champ chauffeur', async () => {
+        mockedAuth.mockResolvedValue(cadre(['PRESIDENT']));
+        const res = await POST(makeRequest(futureWindow(180, 2)), params);
+        expect(res.status).toBe(403);
+    });
+
+    it('403 : onBehalfOfUserId résolvant à son propre e-mail alors que session.user.id est absent', async () => {
+        await seedUser({ id: 'user-cadre-row', email: 'Cadre@dev.local', name: 'Cadre Test' });
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
+        const res = await POST(makeRequest({ ...futureWindow(190, 2), onBehalfOfUserId: 'user-cadre-row' }), params);
+        expect(res.status).toBe(403);
+        const rec = await POST(makeRequest(recurrence({ onBehalfOfUserId: 'user-cadre-row' })), params);
+        expect(rec.status).toBe(403);
+    });
+
+    it('PATCH 403 : réassignation vers son propre e-mail sans session.user.id', async () => {
+        await seedUser({ id: 'user-cadre-row2', email: 'cadre@dev.local', name: 'Cadre Test' });
+        mockedAuth.mockResolvedValue(cadre(['CADRE']));
+        const created = await POST(makeRequest({ ...futureWindow(200, 2), isUnassignedDriver: true }), params);
+        const { id } = await created.json();
+        mockedAuth.mockResolvedValue({ user: { email: 'cadre@dev.local', name: 'Cadre Test', roles: ['CADRE'], ulId: 'ul-paris-18' } } as never);
+        expect((await patch(id, { action: 'update', onBehalfOfUserId: 'user-cadre-row2' })).status).toBe(403);
+    });
+
+    it('201 : récurrence en « Chauffeur non décidé »', async () => {
+        mockedAuth.mockResolvedValue(cadre(['CADRE']));
+        const res = await POST(makeRequest(recurrence({ isUnassignedDriver: true })), params);
+        expect(res.status).toBe(201);
+    });
+
+    it('201 : CADRE pour autrui ou non décidé sur un VPSP', async () => {
+        await seedVehicle({ id: 'VPSP001', name: 'VPSP 1', type: 'VPSP' });
+        mockedAuth.mockResolvedValue(cadre(['CADRE']));
+        const r1 = await POST(makeRequest({ ...futureWindow(110, 2), isUnassignedDriver: true }), { params: Promise.resolve({ id: 'VPSP001' }) });
+        expect(r1.status).toBe(201);
+        expect((await r1.json()).status).toBe('VALIDATED');
+        const r2 = await POST(makeRequest({ ...futureWindow(120, 2), onBehalfOfUserId: 'user-target' }), { params: Promise.resolve({ id: 'VPSP001' }) });
+        expect(r2.status).toBe(201);
+    });
+
+    it('201 : CADRE + CHVL pour lui-même sur un VL ; 403 sur un VPSP', async () => {
+        await seedVehicle({ id: 'VPSP002', name: 'VPSP 2', type: 'VPSP' });
+        mockedAuth.mockResolvedValue(cadre(['CADRE', 'CHVL']));
+        const ok = await POST(makeRequest(futureWindow(130, 2)), params);
+        expect(ok.status).toBe(201);
+        const ko = await POST(makeRequest(futureWindow(140, 2)), { params: Promise.resolve({ id: 'VPSP002' }) });
+        expect(ko.status).toBe(403);
+    });
+
+    it('201 : ADMIN (bypass canManageVehicles) pour lui-même sur un VPSP', async () => {
+        await seedVehicle({ id: 'VPSP003', name: 'VPSP 3', type: 'VPSP' });
+        mockedAuth.mockResolvedValue(cadre(['ADMIN']));
+        const res = await POST(makeRequest(futureWindow(150, 2)), { params: Promise.resolve({ id: 'VPSP003' }) });
+        expect(res.status).toBe(201);
+    });
+
+    it('PATCH 403 : CADRE sans rôle de conduite se réassigne une réservation (SELF ou son id), 200 vers autrui', async () => {
+        mockedAuth.mockResolvedValue(cadre(['CADRE']));
+        const created = await POST(makeRequest({ ...futureWindow(160, 2), isUnassignedDriver: true }), params);
+        const { id } = await created.json();
+        for (const target of ['SELF', 'user-cadre']) {
+            expect((await patch(id, { action: 'update', onBehalfOfUserId: target })).status).toBe(403);
+        }
+        expect((await patch(id, { action: 'update', onBehalfOfUserId: 'user-target' })).status).toBe(200);
     });
 });
