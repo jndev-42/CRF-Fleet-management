@@ -11,7 +11,7 @@
 - **Comptes rendus d'une Direction Territoriale** — un compte rendu rattaché à une DT est désormais visible, corrigeable et listé dans « Tous les rapports » pour le responsable mission et l'administrateur de l'UL de son auteur (les cadres et présidents ne le voient toujours pas).
 - **Liste des comptes rendus** — les cadres, présidents et responsables mission, qui ne rédigent pas de compte rendu, arrivent directement sur « Tous les rapports » de leur UL au lieu d'une liste « Mes rapports » vide.
 - **Accident bénévole signalé dans la liste** — un compte rendu qui déclare un accident bénévole porte, comme les autres incidents, le pictogramme d'alerte dans la liste.
-- **Historique des modifications** — chaque correction est conservée : qui l'a faite, à quelle date et heure, et pour chaque champ l'ancienne et la nouvelle valeur. Un onglet « Historique des modifications » apparaît sur la fiche dès la première correction.
+- **Historique des modifications** — chaque correction est conservée : qui l'a faite, à quelle date et heure, et pour chaque champ l'ancienne et la nouvelle valeur. Un onglet « Historique des modifications » apparaît sur la fiche dès la première correction. Les modifications s'affichent deux par page, de la plus récente à la plus ancienne.
 
 ## [5.37.0] — 1er novembre 2026
 

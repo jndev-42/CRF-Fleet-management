@@ -121,6 +121,46 @@ describe('MissionEditHistory', () => {
     it('formatEditDate gère l\'heure d\'été', () => {
         expect(formatEditDate('2026-07-01T08:00:00.000Z')).toBe('01/07/2026 à 10:00');
     });
+
+    const makeEdits = (n: number) => Array.from({ length: n }, (_, i) => ({
+        id: `e${i + 1}`,
+        edited_at: '2026-03-15T13:05:00.000Z',
+        editor_name: `Éditeur ${i + 1}`,
+        changes: [{ field: 'location', label: 'Lieu', old: 'A', new: 'B' }],
+    }));
+
+    it('2 modifications au plus : tout sur une page, sans pagination', () => {
+        render(<MissionEditHistory edits={makeEdits(2)} />);
+        expect(screen.getByText('Éditeur 1')).toBeTruthy();
+        expect(screen.getByText('Éditeur 2')).toBeTruthy();
+        expect(screen.queryByRole('navigation', { name: /Pagination de l'historique/ })).toBeNull();
+    });
+
+    it('5 modifications : 2 par page, navigation précédente / suivante', () => {
+        render(<MissionEditHistory edits={makeEdits(5)} />);
+        expect(screen.getAllByRole('listitem')).toHaveLength(2);
+        expect(screen.getByText('Éditeur 1')).toBeTruthy();
+        expect(screen.getByText('Éditeur 2')).toBeTruthy();
+        expect(screen.queryByText('Éditeur 3')).toBeNull();
+        expect(screen.getByText('Page 1 sur 3')).toBeTruthy();
+        expect(screen.getByText('1 à 2 sur 5 modifications')).toBeTruthy();
+        expect((screen.getByRole('button', { name: 'Page précédente' }) as HTMLButtonElement).disabled).toBe(true);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Page suivante' }));
+        expect(screen.getByText('Éditeur 3')).toBeTruthy();
+        expect(screen.getByText('Éditeur 4')).toBeTruthy();
+        expect(screen.queryByText('Éditeur 1')).toBeNull();
+        expect(screen.getByText('Page 2 sur 3')).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Page suivante' }));
+        expect(screen.getAllByRole('listitem')).toHaveLength(1);
+        expect(screen.getByText('Éditeur 5')).toBeTruthy();
+        expect(screen.getByText('5 à 5 sur 5 modifications')).toBeTruthy();
+        expect((screen.getByRole('button', { name: 'Page suivante' }) as HTMLButtonElement).disabled).toBe(true);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Page précédente' }));
+        expect(screen.getByText('Éditeur 3')).toBeTruthy();
+    });
 });
 
 describe('Fiche /missions/[id]', () => {
