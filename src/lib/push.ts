@@ -15,6 +15,17 @@ export interface PushPayload {
 }
 
 /**
+ * Exclut un compte bloqué par ses rôles globaux (`UserRole`) : INACTIF, ou GUEST
+ * (valeur héritée équivalente). Même dominance que `isInactive` (`roles.ts`) — un
+ * compte qui le porte ne reçoit rien, quels que soient ses autres rôles.
+ */
+const NOT_GLOBALLY_INACTIVE_SQL = `NOT EXISTS (
+    SELECT 1 FROM "UserRole" uri
+    JOIN "Role" ri ON uri.roleId = ri.id
+    WHERE uri.userId = u.id AND ri.name IN ('INACTIF', 'GUEST')
+)`;
+
+/**
  * Notifie les utilisateurs porteurs d'au moins un des `roles` (dans l'UL `ulId` si fournie) :
  * une notification in-app (table `Notification`) par utilisateur, puis un envoi Web Push
  * (W3C, VAPID) vers chacun de ses appareils abonnés.
@@ -23,6 +34,8 @@ export interface PushPayload {
  * pour joindre présidents et cadres, les nommer explicitement. `RESP_VEHICULE` (responsable véhicule)
  * reçoit les notifications véhicule (incidents, problèmes au départ ou au retour, alertes flotte) ; CADRE
  * n'est plus visé que par les nouvelles demandes de réservation.
+ * Un compte INACTIF (ou GUEST) n'est jamais visé par rôle : dans l'UL, ses rôles CSV le
+ * bloquent ; sans rôles CSV, ce sont ses rôles globaux qui tranchent, comme à la session.
  * `userIds` ajoute des utilisateurs nommés aux destinataires ; `excludeUserId` écarte l'auteur de l'action.
  * Chaque utilisateur ne reçoit qu'une notification, même s'il cumule plusieurs rôles ciblés.
  * Ne lève jamais : un échec d'envoi push ne doit pas faire échouer la route appelante.
@@ -73,13 +86,16 @@ export async function sendPushNotification({
                         JOIN "UserUL" uu ON u.id = uu.userId
                         WHERE uu.ulId = ?
                           AND (
-                            (uu.roles IS NOT NULL AND uu.roles != '' AND (${roleConditions}))
+                            (uu.roles IS NOT NULL AND uu.roles != ''
+                              AND (${roleConditions})
+                              AND ',' || uu.roles || ',' NOT LIKE '%,INACTIF,%'
+                              AND ',' || uu.roles || ',' NOT LIKE '%,GUEST,%')
                             OR
                             ((uu.roles IS NULL OR uu.roles = '') AND EXISTS (
                                SELECT 1 FROM "UserRole" ur
                                JOIN "Role" r ON ur.roleId = r.id
                                WHERE ur.userId = u.id AND r.name IN (${placeholders})
-                            ))
+                            ) AND ${NOT_GLOBALLY_INACTIVE_SQL})
                           )
                     `,
                     args: [ulId, ...roleLikeArgs, ...expandedRoleNames]
@@ -93,6 +109,7 @@ export async function sendPushNotification({
                         JOIN "UserRole" ur ON u.id = ur.userId
                         JOIN "Role" r ON ur.roleId = r.id
                         WHERE r.name IN (${placeholders})
+                          AND ${NOT_GLOBALLY_INACTIVE_SQL}
                     `,
                     args: expandedRoleNames
                 });

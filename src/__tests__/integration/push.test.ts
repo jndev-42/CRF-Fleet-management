@@ -94,6 +94,40 @@ describe('sendPushNotification', () => {
         expect(notifs.rows.map(r => r.userId)).toEqual(['admin-a']);
     });
 
+    it('n\'envoie rien à un compte INACTIF (ou GUEST) de l\'UL, même cumulé au rôle visé', async () => {
+        await seedRoles();
+        await seedUniteLocale({ id: 'ul-a', name: 'A', slug: 'a' });
+        await seedUser({ id: 'actif', email: 'actif@test.com' });
+        await seedUser({ id: 'bloque', email: 'bloque@test.com' });
+        await seedUser({ id: 'guest', email: 'guest@test.com' });
+        await seedUserUL({ userId: 'actif', ulId: 'ul-a', roles: ['RESP_INVENTAIRE'] });
+        await seedUserUL({ userId: 'bloque', ulId: 'ul-a', roles: ['RESP_INVENTAIRE', 'INACTIF'] });
+        await seedUserUL({ userId: 'guest', ulId: 'ul-a', roles: ['ADMIN', 'GUEST'] });
+
+        await sendPushNotification({ ...baseArgs, roles: ['ADMIN', 'RESP_INVENTAIRE'], ulId: 'ul-a' });
+
+        const notifs = await db.execute(`SELECT userId FROM "Notification"`);
+        expect(notifs.rows.map(r => r.userId)).toEqual(['actif']);
+    });
+
+    it('sans rôles CSV dans l\'UL, exclut le compte porteur d\'INACTIF dans ses rôles globaux', async () => {
+        await seedRoles();
+        await seedUniteLocale({ id: 'ul-a', name: 'A', slug: 'a' });
+        await seedUser({ id: 'actif', email: 'actif@test.com' });
+        await seedUser({ id: 'bloque', email: 'bloque@test.com' });
+        await seedUserUL({ userId: 'actif', ulId: 'ul-a', roles: [] });
+        await seedUserUL({ userId: 'bloque', ulId: 'ul-a', roles: [] });
+        await seedUserRole('actif', 'ADMIN');
+        await seedUserRole('bloque', 'ADMIN');
+        await seedUserRole('bloque', 'INACTIF');
+
+        await sendPushNotification({ ...baseArgs, roles: ['ADMIN'], ulId: 'ul-a' });
+        await sendPushNotification({ ...baseArgs, roles: ['ADMIN'] });
+
+        const notifs = await db.execute(`SELECT userId FROM "Notification"`);
+        expect(notifs.rows.map(r => r.userId)).toEqual(['actif', 'actif']);
+    });
+
     it('envoie un Web Push à chaque appareil abonné (2 admins, 3 appareils)', async () => {
         await seedRoles();
         await seedUser({ id: 'admin-1', email: 'a1@test.com' });

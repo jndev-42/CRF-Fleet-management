@@ -10,6 +10,11 @@
 ### 🔧 Changements
 
 - **Légende des rôles** — elle décrit le nouveau rôle.
+- **Réglage des menus** — la description du menu Inventaire précise que les responsables inventaire y gardent accès en « Admin uniquement », et ne mentionne plus un onglet de la fiche véhicule qui n'existe pas.
+
+### 🐛 Corrections
+
+- **Notifications des comptes inactifs** — un compte marqué « Inactif » ne reçoit plus les notifications adressées à un rôle (résumé quotidien des stocks, alertes véhicule, incidents…), même s'il cumule ce rôle avec un autre.
 
 ## [5.35.0] — 24 octobre 2026
 

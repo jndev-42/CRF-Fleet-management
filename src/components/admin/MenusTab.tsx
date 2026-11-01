@@ -23,7 +23,7 @@ const MENU_CONFIGS: MenuConfig[] = [
     {
         key: 'inventory',
         label: 'Inventaire',
-        description: 'Accès à la page d\'inventaire et à l\'onglet Inventaire sur la fiche véhicule.',
+        description: 'Accès à la page d\'inventaire. En « Admin uniquement », les responsables inventaire y gardent accès.',
     },
     {
         key: 'missions',
