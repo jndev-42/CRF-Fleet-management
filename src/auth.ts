@@ -50,6 +50,7 @@ const DEV_USERS: Record<string, { email: string; name: string; roles: string[] }
     respvehicule: { email: 'respvehicule@dev.local', name: 'Resp. Véhicule Dev', roles: ['RESP_VEHICULE'] },
     respuniforme: { email: 'respuniforme@dev.local', name: 'Resp. Uniforme Dev', roles: ['RESP_UNIFORME'] },
     respinventaire: { email: 'respinventaire@dev.local', name: 'Resp. Inventaire Dev', roles: ['RESP_INVENTAIRE'] },
+    respmission: { email: 'respmission@dev.local', name: 'Resp. Mission Dev', roles: ['RESP_MISSION'] },
     chvl:       { email: 'chvl@dev.local',        name: 'Chauffeur Dev',   roles: ['CHVL'] },
     guest:      { email: 'guest@dev.local',       name: 'Inactif Dev',     roles: ['INACTIF'] },
     ci:         { email: 'ci@dev.local',          name: 'CI/RPAPS Dev',    roles: ['CI/RPAPS'] },

@@ -18,6 +18,7 @@ import { MCP_TOKEN_DDL, MCP_TOKEN_INDEXES } from '@/lib/mcp/schema';
 import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '@/lib/themes/schema';
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '@/lib/push/schema';
 import { SCHEDULED_ALERT_DDL } from '@/lib/alerts/schema';
+import { MISSION_REPORT_EDITS_DDL, MISSION_REPORT_EDITS_INDEX_DDL } from '@/lib/missions/edits-schema';
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'martine-test-'));
 /** Exporté pour les tests de concurrence, qui ouvrent un second client sur le même fichier. */
@@ -580,7 +581,9 @@ async function createTables() {
     "drive_folder_id"       TEXT,
     "signed_report_drive_id" TEXT,
     "ulId"                  TEXT,
-    "dt_code"               TEXT
+    "dt_code"               TEXT,
+    "volunteer_accident"    INTEGER NOT NULL DEFAULT 0,
+    "volunteer_accident_details" TEXT
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "mission_report_supplies" (
@@ -598,6 +601,9 @@ async function createTables() {
     "category"  TEXT NOT NULL,
     "quantity"  INTEGER NOT NULL DEFAULT 0
   )`);
+
+  await db.execute(MISSION_REPORT_EDITS_DDL);
+  await db.execute(MISSION_REPORT_EDITS_INDEX_DDL);
 }
 
 async function truncateTables() {
@@ -615,6 +621,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "UniformLoanBatch"`);
   await db.execute(`DELETE FROM "UniformSize"`);
   await db.execute(`DELETE FROM "UniformItem"`);
+  await db.execute(`DELETE FROM "mission_report_edits"`);
   await db.execute(`DELETE FROM "mission_report_interventions"`);
   await db.execute(`DELETE FROM "mission_report_supplies"`);
   await db.execute(`DELETE FROM "mission_reports"`);
@@ -764,7 +771,7 @@ export async function seedUser(overrides: Partial<{
   return u;
 }
 
-export async function seedRoles(names: string[] = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'RESP_VEHICULE', 'RESP_UNIFORME', 'RESP_INVENTAIRE', 'CHVL', 'CHVPSP', 'INACTIF', 'CI/RPAPS']) {
+export async function seedRoles(names: string[] = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'RESP_VEHICULE', 'RESP_UNIFORME', 'RESP_INVENTAIRE', 'RESP_MISSION', 'CHVL', 'CHVPSP', 'INACTIF', 'CI/RPAPS']) {
   for (const name of names) {
     await db.execute({
       sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,

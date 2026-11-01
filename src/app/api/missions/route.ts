@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
-import { isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
+import { canManageMissionReports, isAdminOrAbove, isReadOnlyManager } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import {
     createMissionReportSchema,
@@ -11,12 +11,14 @@ import {
     type CreateMissionReportInput,
 } from '@/lib/missions/create-mission-report';
 import { withAudit } from '@/lib/audit/log';
+import { incidentFlags, notifyMissionIncident } from '@/lib/missions/incident-alert';
 
 const ALLOWED_ROLES = ['ADMIN', 'CI/RPAPS'];
 
 /** GET /api/missions — Liste paginée des comptes rendus.
  *  `scope=mine` (défaut) : tous les rapports du soumetteur, toutes UL/DT confondues.
- *  `scope=all` : les rapports de l'UL ACTIVE, réservé aux cadres/présidents/admins.
+ *  `scope=all` : les rapports de l'UL ACTIVE, réservé aux cadres/présidents/admins
+ *  et aux responsables mission.
  *  Query params: page, limit, type, scope */
 export async function GET(request: Request) {
     try {
@@ -26,7 +28,7 @@ export async function GET(request: Request) {
         }
 
         const roles = (session.user.roles || ['INACTIF']) as string[];
-        const canView = ALLOWED_ROLES.some(r => roles.includes(r)) || isAdminOrAbove(roles) || isReadOnlyManager(roles);
+        const canView = ALLOWED_ROLES.some(r => roles.includes(r)) || canManageMissionReports(roles) || isReadOnlyManager(roles);
         if (!canView) {
             return forbiddenResponse();
         }
@@ -34,7 +36,7 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const scope = searchParams.get('scope') === 'all' ? 'all' : 'mine';
 
-        const isManager = isAdminOrAbove(roles) || isReadOnlyManager(roles);
+        const isManager = canManageMissionReports(roles) || isReadOnlyManager(roles);
         if (scope === 'all' && !isManager) {
             return forbiddenResponse();
         }
@@ -67,10 +69,21 @@ export async function GET(request: Request) {
         const args: (string | number | null)[] = [];
 
         if (scope === 'all') {
-            // Un rapport rattaché à une DT (ulId NULL) n'est jamais rapproché d'une
-            // UL : il reste visible uniquement via « Mes rapports » de son auteur.
-            conditions.push('mr.ulId = ?');
-            args.push(ulId ?? null);
+            if (canManageMissionReports(roles)) {
+                // ADMIN / RESP_MISSION : un rapport rattaché à une DT (ulId NULL)
+                // compte pour l'UL de rattachement de son auteur — même résolution
+                // que `resolveAuthorHomeUlId` (UserUL.is_home, sinon première UL).
+                conditions.push(`(mr.ulId = ? OR (mr.ulId IS NULL AND (
+                    SELECT uu.ulId FROM "UserUL" uu WHERE uu.userId = mr.submitted_by
+                    ORDER BY uu.is_home DESC, uu.ulId LIMIT 1
+                ) = ?))`);
+                args.push(ulId ?? null, ulId ?? null);
+            } else {
+                // Cadre / président : un rapport DT n'est rapproché d'aucune UL, il
+                // reste visible uniquement via « Mes rapports » de son auteur.
+                conditions.push('mr.ulId = ?');
+                args.push(ulId ?? null);
+            }
         } else {
             conditions.push('mr.submitted_by = ?');
             args.push(userId);
@@ -103,6 +116,7 @@ export async function GET(request: Request) {
                     mr.had_hemorrhage,
                     mr.had_complex_care,
                     mr.needs_followup,
+                    mr.volunteer_accident,
                     mr.submitted_at,
                     mr.dt_code,
                     u.name   AS submitter_name,
@@ -137,6 +151,7 @@ export async function GET(request: Request) {
                 had_hemorrhage: Boolean(Number(row.had_hemorrhage)),
                 had_complex_care: Boolean(Number(row.had_complex_care)),
                 needs_followup: Boolean(Number(row.needs_followup)),
+                volunteer_accident: Boolean(Number(row.volunteer_accident ?? 0)),
                 submitted_at: row.submitted_at,
                 submitter_name: row.submitter_name,
                 submitter_email: row.submitter_email,
@@ -186,6 +201,15 @@ async function postHandler(request: Request) {
                 ? unauthorizedResponse(result.error)
                 : NextResponse.json({ error: result.error }, { status: result.status });
         }
+
+        // Après l'écriture : un échec d'alerte ne fait jamais échouer la création.
+        await notifyMissionIncident({
+            id: result.id,
+            missionName: data.mission_name,
+            ulId: data.selected_ul_id ?? null,
+            dtCode: data.selected_ul_id ? null : (data.selected_dt_code ?? null),
+            submittedBy: result.submittedBy,
+        }, incidentFlags(data), result.submittedBy);
 
         return NextResponse.json({ success: true, id: result.id }, { status: 201 });
     } catch (error) {

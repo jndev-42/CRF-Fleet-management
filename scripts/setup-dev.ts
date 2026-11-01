@@ -14,6 +14,7 @@ import { MCP_TOKEN_DDL, MCP_TOKEN_INDEXES } from '../src/lib/mcp/schema';
 import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '../src/lib/themes/schema';
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '../src/lib/push/schema';
 import { SCHEDULED_ALERT_DDL } from '../src/lib/alerts/schema';
+import { MISSION_REPORT_ACCIDENT_COLUMNS, MISSION_REPORT_EDITS_DDL, MISSION_REPORT_EDITS_INDEX_DDL } from '../src/lib/missions/edits-schema';
 import { menuSettingNeedsRebuild, menuSettingTableDdl, rebuildMenuSettingTable } from '../src/lib/menu-settings-schema';
 
 // DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
@@ -159,17 +160,19 @@ async function main() {
     });
 
     // Seed des rôles
-    const roles = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'RESP_VEHICULE', 'RESP_UNIFORME', 'RESP_INVENTAIRE', 'CHVPSP', 'CHVL', 'CI/RPAPS', 'INACTIF'];
+    const roles = ['SUPER_ADMIN', 'ADMIN', 'PRESIDENT', 'TRESORIER', 'RESPO', 'CADRE', 'RESP_VEHICULE', 'RESP_UNIFORME', 'RESP_INVENTAIRE', 'RESP_MISSION', 'CHVPSP', 'CHVL', 'CI/RPAPS', 'INACTIF'];
     for (const role of roles) {
         await db.execute({
             sql: `INSERT OR IGNORE INTO "Role" (id, name) VALUES (?, ?)`,
-            // RESPO, RESP_VEHICULE, RESP_UNIFORME, RESP_INVENTAIRE : même identifiant que le seed preview et les scripts
-            // de migration (scripts/add-resp-vehicule-role.ts, scripts/add-resp-inventaire-role.ts).
+            // RESPO, RESP_VEHICULE, RESP_UNIFORME, RESP_INVENTAIRE, RESP_MISSION : même identifiant que le seed preview et les scripts
+            // de migration (scripts/add-resp-vehicule-role.ts, scripts/add-resp-inventaire-role.ts,
+            // scripts/add-mission-report-edits.ts).
             args: [
                 role === 'RESPO' ? 'role-respo'
                     : role === 'RESP_VEHICULE' ? 'role-resp_vehicule'
                     : role === 'RESP_UNIFORME' ? 'role-resp_uniforme'
                     : role === 'RESP_INVENTAIRE' ? 'role-resp_inventaire'
+                    : role === 'RESP_MISSION' ? 'role-resp_mission'
                     : crypto.randomUUID(),
                 role,
             ],
@@ -664,6 +667,18 @@ async function main() {
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_supplies_report_id_idx" ON "mission_report_supplies"("report_id")`);
     await db.execute(`CREATE INDEX IF NOT EXISTS "mission_report_interventions_report_id_idx" ON "mission_report_interventions"("report_id")`);
 
+    // Accident bénévole + historique des modifications des comptes rendus.
+    // Équivalent local de scripts/add-mission-report-edits.ts (DDL partagé).
+    const missionColsAccident = await db.execute('PRAGMA table_info("mission_reports")');
+    for (const col of MISSION_REPORT_ACCIDENT_COLUMNS) {
+        if (!missionColsAccident.rows.some(r => r.name === col.name)) {
+            await db.execute(col.ddl);
+            console.log(`  ↳ Migration : colonne mission_reports.${col.name} ajoutée`);
+        }
+    }
+    await db.execute(MISSION_REPORT_EDITS_DDL);
+    await db.execute(MISSION_REPORT_EDITS_INDEX_DDL);
+
     // ── Uniformes ─────────────────────────────────────────────────
     // Le disponible d'une taille n'est JAMAIS stocké : il se dérive de
     // `quantity` moins les pièces non rendues et les pièces rendues sales non
@@ -972,6 +987,7 @@ async function main() {
         { email: 'respvehicule@dev.local', name: 'Resp. Véhicule Dev', roles: ['RESP_VEHICULE'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'respuniforme@dev.local', name: 'Resp. Uniforme Dev', roles: ['RESP_UNIFORME'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'respinventaire@dev.local', name: 'Resp. Inventaire Dev', roles: ['RESP_INVENTAIRE'], papiers_valides: 1, start_date_invalidation_process: null },
+        { email: 'respmission@dev.local', name: 'Resp. Mission Dev', roles: ['RESP_MISSION'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'chvl@dev.local', name: 'Chauffeur Dev', roles: ['CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'guest@dev.local', name: 'Inactif Dev', roles: ['INACTIF'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'secouriste@dev.local', name: 'Secouriste Dev', roles: ['SECOURISTE'], papiers_valides: 1, start_date_invalidation_process: null },
@@ -1506,6 +1522,7 @@ async function main() {
     console.log('  RespVéh. → respvehicule@dev.local');
     console.log('  RespUnif.→ respuniforme@dev.local');
     console.log('  RespInv. → respinventaire@dev.local');
+    console.log('  RespMiss.→ respmission@dev.local');
     console.log('  Chauffeur→ chvl@dev.local');
     console.log('  Invité   → guest@dev.local');
     }

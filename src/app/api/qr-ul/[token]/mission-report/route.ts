@@ -6,6 +6,7 @@ import { isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { createMissionReportSchema, insertMissionReport } from '@/lib/missions/create-mission-report';
 import { withAudit } from '@/lib/audit/log';
+import { incidentFlags, notifyMissionIncident } from '@/lib/missions/incident-alert';
 
 /**
  * POST /api/qr-ul/[token]/mission-report
@@ -66,6 +67,15 @@ async function postHandler(
                 ? unauthorizedResponse(result.error)
                 : NextResponse.json({ error: result.error }, { status: result.status });
         }
+
+        // Après l'écriture : un échec d'alerte ne fait jamais échouer la création.
+        await notifyMissionIncident({
+            id: result.id,
+            missionName: data.mission_name,
+            ulId,
+            dtCode: null,
+            submittedBy: result.submittedBy,
+        }, incidentFlags(data), result.submittedBy);
 
         return NextResponse.json({ success: true, id: result.id }, { status: 201 });
     } catch (error) {

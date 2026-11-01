@@ -7,7 +7,7 @@ import { SUPPLY_CATEGORIES, type SupplyCategory } from '@/lib/mission-supplies';
 import Step0ULSelection from './steps/Step0ULSelection';
 import Step1General from './steps/Step1General';
 import StepInterventionBreakdown from './steps/StepInterventionBreakdown';
-import Step2Vehicle, { type CrewEndpoints } from './steps/Step2Vehicle';
+import Step2Vehicle, { type CrewEndpoints, type StoredCrewOption } from './steps/Step2Vehicle';
 import Step3Supplies from './steps/Step3Supplies';
 import Step4Oxygen from './steps/Step4Oxygen';
 import Step5Team from './steps/Step5Team';
@@ -51,6 +51,10 @@ export interface MissionFormData {
     had_hemorrhage: boolean;
     had_complex_care: boolean;
     needs_followup: boolean;
+    /** Accident survenu à un bénévole pendant la mission. */
+    volunteer_accident: boolean;
+    /** Description de l'accident — obligatoire si `volunteer_accident`, vidée sinon. */
+    volunteer_accident_details: string;
     /** Répartition du total d'interventions par type de prise en charge — clé = catégorie. */
     intervention_types: Record<string, number>;
     /** Répartition du total d'interventions par nature clinique — clé = catégorie. */
@@ -79,6 +83,8 @@ const INITIAL_FORM: MissionFormData = {
     had_hemorrhage: false,
     had_complex_care: false,
     needs_followup: false,
+    volunteer_accident: false,
+    volunteer_accident_details: '',
     intervention_types: {},
     intervention_natures: {},
 };
@@ -112,6 +118,20 @@ interface MissionWizardProps {
     /** Sources des listes de l'étape « Équipage » — la variante QR lit les véhicules de
      *  l'UL du QR et les chauffeurs via des routes ouvertes à tout compte. */
     crewEndpoints?: CrewEndpoints;
+    /** Mode édition d'un rapport déjà envoyé : formulaire pré-rempli, envoi en PATCH
+     *  sur `/api/missions/[id]`, sans étapes UL / DT, rapport signé ni photos (non
+     *  modifiables après envoi) et sans brouillon local. */
+    edit?: {
+        reportId: string;
+        formData: MissionFormData;
+        supplies: Record<string, number>;
+        /** Le rapport enregistré a-t-il un rapport signé ? Sans lui, passer en DPS/PAPS
+         *  est bloqué : l'étape « Rapport signé » n'existe pas en édition. */
+        hasSignedReport?: boolean;
+        /** Véhicule / conducteur enregistrés, conservés même absents des listes. */
+        storedVehicle?: StoredCrewOption | null;
+        storedDriver?: StoredCrewOption | null;
+    };
     onSuccess: (id: string) => void;
 }
 
@@ -123,8 +143,10 @@ export default function MissionWizard({
     lockedUlName,
     submitEndpoint = '/api/missions',
     crewEndpoints,
+    edit,
     onSuccess,
 }: MissionWizardProps) {
+    const isEdit = Boolean(edit);
     const router = useRouter();
     const pathname = usePathname();
     // Brouillon (issue #134) : sur Android, l'appareil photo peut faire tuer
@@ -132,17 +154,19 @@ export default function MissionWizard({
     // Le wizard n'est jamais rendu côté serveur (les deux pages attendent un
     // état client avant de l'afficher), la lecture synchrone est donc sûre.
     const draftKey = missionDraftKey(submitEndpoint, currentUserId);
+    // En édition, pas de brouillon : le formulaire part toujours du rapport enregistré.
     const [restoredDraft] = useState<WizardDraft | null>(() =>
-        typeof window === 'undefined' ? null : loadDraft<WizardDraft>(draftKey)
+        typeof window === 'undefined' || edit ? null : loadDraft<WizardDraft>(draftKey)
     );
     const [step, setStep] = useState(restoredDraft?.step ?? 1);
     const [formData, setFormData] = useState<MissionFormData>(() => {
+        if (edit) return { ...INITIAL_FORM, ...edit.formData };
         if (!restoredDraft) return initialFormFor(lockedUlId);
         const restored = { ...INITIAL_FORM, ...restoredDraft.formData };
         // Le rattachement verrouillé par le QR prime toujours sur le brouillon.
         return lockedUlId ? { ...restored, selected_ul_id: lockedUlId, selected_dt_code: null } : restored;
     });
-    const [supplies, setSupplies] = useState<Record<string, number>>(restoredDraft?.supplies ?? {});
+    const [supplies, setSupplies] = useState<Record<string, number>>(edit?.supplies ?? restoredDraft?.supplies ?? {});
     const [signedReportFile, setSignedReportFile] = useState<File | null>(null);
     const [photos, setPhotos] = useState<File[]>([]);
     const [draftRestored, setDraftRestored] = useState(restoredDraft !== null);
@@ -156,14 +180,16 @@ export default function MissionWizard({
     const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
     const [successMissionId, setSuccessMissionId] = useState<string | null>(null);
 
-    const showReportStep = formData.mission_type === 'DPS' || formData.mission_type === 'PAPS';
+    // Rapport signé et photos ne se modifient pas après envoi : étapes absentes en édition.
+    const showReportStep = !isEdit && (formData.mission_type === 'DPS' || formData.mission_type === 'PAPS');
     const isExternalVehicle = formData.vehicle_id?.startsWith('EXTERNAL_');
 
     const activeSteps = [
         // Verrouillée par le QR : l'étape n'a plus rien à demander, et la laisser
         // visible permettrait de choisir une AUTRE structure que celle scannée —
         // que le serveur écraserait de toute façon.
-        ...(lockedUlId ? [] : ['UL / DT']),
+        // En édition, le rattachement n'est pas modifiable.
+        ...(lockedUlId || isEdit ? [] : ['UL / DT']),
         'Général',
         ...(formData.victim_count >= 1 ? ['Répartition interventions'] : []),
         'Équipage',
@@ -172,7 +198,7 @@ export default function MissionWizard({
         'Incidents',
         ...(showReportStep ? ['Rapport signé'] : []),
         'Commentaire',
-        'Photos',
+        ...(isEdit ? [] : ['Photos']),
     ];
 
     // Ensure step index is not out of bounds if activeSteps length decreases
@@ -181,6 +207,7 @@ export default function MissionWizard({
 
     // Relecture des fichiers du brouillon (asynchrone : IndexedDB).
     useEffect(() => {
+        if (isEdit) return;
         let cancelled = false;
         loadDraftFiles(draftKey).then(files => {
             if (cancelled) return;
@@ -192,13 +219,13 @@ export default function MissionWizard({
             setDraftFilesLoaded(true);
         });
         return () => { cancelled = true; };
-    }, [draftKey]);
+    }, [draftKey, isEdit]);
 
     // Sauvegarde des champs à chaque modification. Un formulaire encore vierge
     // n'est pas sauvegardé, pour ne pas annoncer un « brouillon » vide à la
     // prochaine ouverture.
     useEffect(() => {
-        if (submittedRef.current) return;
+        if (isEdit || submittedRef.current) return;
         const pristine = step === 1
             && Object.keys(supplies).length === 0
             && JSON.stringify(formData) === JSON.stringify(initialFormFor(lockedUlId));
@@ -207,13 +234,13 @@ export default function MissionWizard({
             return;
         }
         saveDraft<WizardDraft>(draftKey, { step, formData, supplies });
-    }, [draftKey, step, formData, supplies, lockedUlId]);
+    }, [draftKey, step, formData, supplies, lockedUlId, isEdit]);
 
     // Sauvegarde du rapport signé et des photos.
     useEffect(() => {
-        if (!draftFilesLoaded || submittedRef.current) return;
+        if (isEdit || !draftFilesLoaded || submittedRef.current) return;
         void saveDraftFiles(draftKey, { signedReport: signedReportFile, photos });
-    }, [draftKey, draftFilesLoaded, signedReportFile, photos]);
+    }, [draftKey, draftFilesLoaded, signedReportFile, photos, isEdit]);
 
     function handleDiscardDraft() {
         void clearDraft(draftKey);
@@ -260,6 +287,13 @@ export default function MissionWizard({
             if (!formData.mission_name.trim()) return 'Le nom de la mission est requis.';
             if (!formData.mission_date) return 'La date est requise.';
             if (!formData.location.trim()) return 'Le lieu est requis.';
+            // Seul un PASSAGE en DPS/PAPS est bloqué : un rapport déjà DPS/PAPS sans
+            // rapport signé (antérieur à l'obligation) reste modifiable.
+            const needsSignedReport = (t: string) => t === 'DPS' || t === 'PAPS';
+            if (edit && !edit.hasSignedReport
+                && needsSignedReport(formData.mission_type) && !needsSignedReport(edit.formData.mission_type)) {
+                return 'Ce compte rendu n\'a pas de rapport signé : il ne peut pas passer en DPS ou PAPS, qui en exigent un. Créez un nouveau compte rendu si nécessaire.';
+            }
         }
         if (label === 'Répartition interventions') {
             const modeTotal = breakdownTotal(formData.intervention_types);
@@ -273,6 +307,11 @@ export default function MissionWizard({
         }
         if (label === 'Équipage') {
             if (!formData.pegass_ok && !formData.volunteers.trim()) return 'Veuillez renseigner les bénévoles présents (requis si inscriptions Pegass non à jour).';
+        }
+        if (label === 'Incidents') {
+            if (formData.volunteer_accident && !formData.volunteer_accident_details.trim()) {
+                return 'Décrivez l\'accident survenu au bénévole.';
+            }
         }
         if (label === 'Rapport signé') {
             if (!signedReportFile) return 'Le rapport signé est obligatoire. Veuillez photographier ou importer le document.';
@@ -329,6 +368,19 @@ export default function MissionWizard({
                 : [];
         const interventionTypesArr = toInterventionArr(formData.intervention_types);
         const interventionNaturesArr = toInterventionArr(formData.intervention_natures);
+        // Description d'accident : envoyée seulement si l'accident est déclaré.
+        const accidentDetails = formData.volunteer_accident ? formData.volunteer_accident_details : null;
+
+        if (edit) {
+            await submitEdit(edit.reportId, {
+                ...formData,
+                volunteer_accident_details: accidentDetails,
+                supplies: suppliesArr,
+                intervention_types: interventionTypesArr,
+                intervention_natures: interventionNaturesArr,
+            });
+            return;
+        }
 
         // Upload the signed report (mandatory for DPS/PAPS)
         let signedReportDriveId: string | null = null;
@@ -373,6 +425,7 @@ export default function MissionWizard({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    volunteer_accident_details: accidentDetails,
                     supplies: suppliesArr,
                     intervention_types: interventionTypesArr,
                     intervention_natures: interventionNaturesArr,
@@ -406,6 +459,34 @@ export default function MissionWizard({
             } else {
                 onSuccess(data.id);
             }
+        } catch {
+            setError('Erreur réseau. Veuillez réessayer.');
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    /** Enregistrement d'une modification : PATCH, sans upload ni animation. */
+    async function submitEdit(reportId: string, payload: Record<string, unknown>) {
+        // `selected_ul_id` / `selected_dt_code` partent avec le formulaire mais sont
+        // ignorés par l'API : le rattachement n'est jamais modifiable.
+        try {
+            const res = await fetch(`/api/missions/${reportId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            if (!res.ok) {
+                if (res.status === 401) {
+                    router.push(`/login?callbackUrl=${encodeURIComponent(pathname)}`);
+                    return;
+                }
+                const data = await res.json().catch(() => ({}));
+                setError(data.error || 'Erreur lors de l\'enregistrement.');
+                return;
+            }
+            submittedRef.current = true;
+            onSuccess(reportId);
         } catch {
             setError('Erreur réseau. Veuillez réessayer.');
         } finally {
@@ -483,7 +564,7 @@ export default function MissionWizard({
                     onNatureChange={handleInterventionNatureChange}
                 />
             )}
-            {currentStepLabel === 'Équipage' && <Step2Vehicle data={formData} onChange={patchFormData} currentUserId={currentUserId} currentUserName={currentUserName} endpoints={crewEndpoints} />}
+            {currentStepLabel === 'Équipage' && <Step2Vehicle data={formData} onChange={patchFormData} currentUserId={currentUserId} currentUserName={currentUserName} endpoints={crewEndpoints} stored={edit ? { vehicle: edit.storedVehicle, driver: edit.storedDriver } : undefined} />}
             {currentStepLabel === 'Matériel' && <Step3Supplies supplies={supplies} onSupplyChange={handleSupplyChange} />}
             {currentStepLabel === 'Oxygène' && <Step4Oxygen supplies={supplies} onSupplyChange={handleSupplyChange} />}
             {currentStepLabel === 'Équipe' && <Step5Team data={formData} onChange={patchFormData} currentUserUlName={currentUserUlName} />}
@@ -506,6 +587,16 @@ export default function MissionWizard({
                             Suivant
                         </button>
                     ) : (
+                        isEdit ? (
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={handleSubmit}
+                                disabled={submitting}
+                            >
+                                {submitting ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                            </button>
+                        ) : (
                         <>
                             <button
                                 type="button"
@@ -528,6 +619,7 @@ export default function MissionWizard({
                                         : 'Soumettre le compte rendu'}
                             </button>
                         </>
+                        )
                     )}
                 </div>
             </div>

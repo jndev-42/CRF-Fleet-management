@@ -42,10 +42,14 @@ const sumQuantities = (entries: { quantity: number }[]) => entries.reduce((acc, 
 const hasDuplicateCategory = (entries: { category: string }[]) =>
     new Set(entries.map(e => e.category)).size !== entries.length;
 
-export const createMissionReportSchema = z.object({
-    /** Rattachement du poste — exactement un des deux est renseigné (cf. superRefine). */
-    selected_ul_id: z.string().min(1).nullable().optional(),
-    selected_dt_code: z.string().min(1).nullable().optional(),
+/**
+ * Contenu d'un rapport, partagé par la création et la modification après envoi.
+ *
+ * Le rattachement (UL / DT), les photos et le rapport signé n'en font PAS partie :
+ * ils ne se modifient jamais après envoi. Un PATCH qui les porterait les verrait
+ * simplement ignorés (Zod retire les clés inconnues).
+ */
+export const missionReportContentSchema = z.object({
     mission_type: z.enum(['RESEAU', 'DPS', 'PAPS']),
     mission_name: z.string().min(1, 'Le nom de la mission est requis'),
     mission_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Format de date invalide (YYYY-MM-DD)' }),
@@ -65,14 +69,21 @@ export const createMissionReportSchema = z.object({
     had_hemorrhage: z.boolean(),
     had_complex_care: z.boolean(),
     needs_followup: z.boolean(),
+    /** Accident survenu à un bénévole pendant la mission. Absent = Non (anciens clients). */
+    volunteer_accident: z.boolean().default(false),
+    /** Description de l'accident — obligatoire si Oui, ignorée (vidée) si Non. */
+    volunteer_accident_details: z.string().nullable().optional(),
     supplies: z.array(supplySchema),
     /** Répartition du total par type de prise en charge — somme = victim_count. */
     intervention_types: z.array(interventionModeEntrySchema).default([]),
     /** Répartition du total par nature clinique — somme = victim_count. */
     intervention_natures: z.array(interventionNatureEntrySchema).default([]),
-    drive_folder_id: z.string().nullable().optional(),
-    signed_report_drive_id: z.string().nullable().optional(),
-}).superRefine((data, ctx) => {
+});
+
+type MissionReportContent = z.infer<typeof missionReportContentSchema>;
+
+/** Règles transverses du contenu — appliquées à l'identique à la création et à la modification. */
+function refineMissionReportContent(data: MissionReportContent, ctx: z.RefinementCtx) {
     if (!data.pegass_ok && !data.volunteers.trim()) {
         ctx.addIssue({
             code: 'custom',
@@ -80,18 +91,12 @@ export const createMissionReportSchema = z.object({
             message: 'Requis si inscriptions Pegass non à jour',
         });
     }
-    // Invariant du rattachement : exactement un des deux champs. Une UL ET une DT
-    // rendraient la visibilité ambiguë ; aucune des deux rendrait le rapport
-    // invisible dans « Tous les rapports » sans que personne l'ait choisi.
-    const hasUl = Boolean(data.selected_ul_id);
-    const hasDt = Boolean(data.selected_dt_code);
-    if (hasUl === hasDt) {
+
+    if (data.volunteer_accident && !(data.volunteer_accident_details ?? '').trim()) {
         ctx.addIssue({
             code: 'custom',
-            path: ['selected_ul_id'],
-            message: hasUl
-                ? 'Choisissez soit une UL, soit une Direction Territoriale — pas les deux.'
-                : 'Veuillez sélectionner l\'UL ou la Direction Territoriale qui héberge le poste.',
+            path: ['volunteer_accident_details'],
+            message: 'Décrivez l\'accident survenu au bénévole.',
         });
     }
 
@@ -151,14 +156,59 @@ export const createMissionReportSchema = z.object({
             });
         }
     }
+}
+
+/** Description d'accident à stocker : conservée seulement si l'accident est déclaré. */
+export function accidentDetailsToStore(data: Pick<MissionReportContent, 'volunteer_accident' | 'volunteer_accident_details'>): string | null {
+    if (!data.volunteer_accident) return null;
+    const details = (data.volunteer_accident_details ?? '').trim();
+    return details || null;
+}
+
+export const createMissionReportSchema = missionReportContentSchema.extend({
+    /** Rattachement du poste — exactement un des deux est renseigné (cf. superRefine). */
+    selected_ul_id: z.string().min(1).nullable().optional(),
+    selected_dt_code: z.string().min(1).nullable().optional(),
+    drive_folder_id: z.string().nullable().optional(),
+    signed_report_drive_id: z.string().nullable().optional(),
+}).superRefine((data, ctx) => {
+    refineMissionReportContent(data, ctx);
+    // Invariant du rattachement : exactement un des deux champs. Une UL ET une DT
+    // rendraient la visibilité ambiguë ; aucune des deux rendrait le rapport
+    // invisible dans « Tous les rapports » sans que personne l'ait choisi.
+    const hasUl = Boolean(data.selected_ul_id);
+    const hasDt = Boolean(data.selected_dt_code);
+    if (hasUl === hasDt) {
+        ctx.addIssue({
+            code: 'custom',
+            path: ['selected_ul_id'],
+            message: hasUl
+                ? 'Choisissez soit une UL, soit une Direction Territoriale — pas les deux.'
+                : 'Veuillez sélectionner l\'UL ou la Direction Territoriale qui héberge le poste.',
+        });
+    }
 });
+
+/**
+ * Modification après envoi : mêmes règles que la création, sans rattachement, photos ni
+ * rapport signé. Le PATCH REMPLACE tout le contenu : chaque clé est obligatoire (valeur
+ * `null` admise là où elle l'est), sans valeur par défaut — un corps partiel (client
+ * API / MCP) effacerait sinon en silence les champs omis.
+ */
+export const updateMissionReportSchema = missionReportContentSchema.extend({
+    volunteer_accident: z.boolean(),
+    intervention_types: z.array(interventionModeEntrySchema),
+    intervention_natures: z.array(interventionNatureEntrySchema),
+}).required().superRefine(refineMissionReportContent);
+
+export type UpdateMissionReportInput = z.infer<typeof updateMissionReportSchema>;
 
 export type CreateMissionReportInput = z.infer<typeof createMissionReportSchema>;
 
 /** Résultat de l'insertion — l'appelant traduit `status`/`error` en réponse HTTP.
  *  Une exception reste une exception : elle remonte à la route, qui répond 500. */
 export type InsertMissionReportResult =
-    | { ok: true; id: string }
+    | { ok: true; id: string; submittedBy: string }
     | { ok: false; status: 400 | 401; error: string };
 
 /**
@@ -226,8 +276,9 @@ export async function insertMissionReport(
                 location, volunteers, pegass_ok, vehicle_id, driver_id, victim_count,
                 presence_ul, team_dynamics, all_found_place, member_difficulties, free_comment,
                 mission_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup,
-                drive_folder_id, signed_report_drive_id, ulId, dt_code
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                drive_folder_id, signed_report_drive_id, ulId, dt_code,
+                volunteer_accident, volunteer_accident_details
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 reportId,
                 submittedBy ?? null,
@@ -255,6 +306,8 @@ export async function insertMissionReport(
                 data.signed_report_drive_id ?? null,
                 ulId,
                 dtCode,
+                data.volunteer_accident ? 1 : 0,
+                accidentDetailsToStore(data),
             ],
         });
 
@@ -286,7 +339,7 @@ export async function insertMissionReport(
         }
 
         await tx.commit();
-        return { ok: true, id: reportId };
+        return { ok: true, id: reportId, submittedBy };
     } catch (e) {
         await tx.rollback();
         throw e;

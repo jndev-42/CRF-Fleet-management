@@ -1,4 +1,4 @@
-import { canManageInventory, canManageUniforms, isAdminOrAbove, isSuperAdmin } from './roles';
+import { canManageInventory, canManageMissionReports, canManageUniforms, isAdminOrAbove, isSuperAdmin } from './roles';
 
 /**
  * Visibilités possibles d'un menu (table `MenuSetting`).
@@ -50,5 +50,15 @@ export function canSeeUniformsMenu(visibility: MenuVisibility, roles: string[]):
  */
 export function canSeeInventoryMenu(visibility: MenuVisibility, roles: string[]): boolean {
     if (visibility === 'admin_only') return canManageInventory(roles);
+    return canSeeMenu(visibility, roles);
+}
+
+/**
+ * Menu Missions : comme `canSeeMenu`, mais « Admin uniquement » accepte aussi le
+ * responsable mission (`canManageMissionReports`), qui a sur les comptes rendus
+ * les droits d'un admin.
+ */
+export function canSeeMissionsMenu(visibility: MenuVisibility, roles: string[]): boolean {
+    if (visibility === 'admin_only') return canManageMissionReports(roles);
     return canSeeMenu(visibility, roles);
 }

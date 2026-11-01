@@ -11,9 +11,9 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { usePush } from '@/components/PushProvider';
 import { User } from 'next-auth';
 import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
-import { canSeeInventoryMenu, canSeeMenu, canSeeUniformsMenu } from '@/lib/menuVisibility';
+import { canSeeInventoryMenu, canSeeMenu, canSeeMissionsMenu, canSeeUniformsMenu } from '@/lib/menuVisibility';
 import { useUL } from '@/lib/contexts/ULContext';
-import { isAdminOrAbove, canAccessAdminPanel, canManageInventory, isInactive } from '@/lib/roles';
+import { isAdminOrAbove, canAccessAdminPanel, canManageInventory, canManageMissionReports, isInactive } from '@/lib/roles';
 
 const isPreview = process.env.NEXT_PUBLIC_APP_ENV === 'preview';
 
@@ -137,7 +137,7 @@ export default function Navbar({ user }: NavbarProps) {
                         {(canAccessAdminPanel(userRoles) || canManageInventory(userRoles)) && canSeeInventoryMenu(getVisibility('inventory'), userRoles) && (
                             <Link href="/inventory" className={`nav-link${pathname === '/inventory' ? ' active' : ''}`} data-tour="nav-inventory" onClick={() => setIsOpen(false)} aria-current={pathname === '/inventory' ? 'page' : undefined}>Inventaire</Link>
                         )}
-                        {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles) || userRoles.includes('CI/RPAPS')) && canSeeMenu(getVisibility('missions'), userRoles) && (
+                        {(isAdminOrAbove(userRoles) || canAccessAdminPanel(userRoles) || canManageMissionReports(userRoles) || userRoles.includes('CI/RPAPS')) && canSeeMissionsMenu(getVisibility('missions'), userRoles) && (
                             <Link href="/missions" className={`nav-link${pathname.startsWith('/missions') ? ' active' : ''}`} data-tour="nav-missions" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/missions') ? 'page' : undefined}>Missions</Link>
                         )}
                         {!isInactive(userRoles) && canSeeUniformsMenu(getVisibility('uniforms'), userRoles) && (

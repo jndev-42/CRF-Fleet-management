@@ -151,6 +151,16 @@ describe('Navbar', () => {
         expect(screen.queryByText('Inventaire')).toBeNull();
     });
 
+    it('RESP_MISSION : menu Missions visible (même en admin_only), pas d\'Administration', () => {
+        mockGetVisibility = vi.fn((key: string) => (key === 'missions' ? 'admin_only' : 'available'));
+        const { unmount } = render(<Navbar user={{ email: 'rm@test.com', roles: ['RESP_MISSION'] }} />);
+        expect(screen.getByText('Missions')).toBeTruthy();
+        expect(screen.queryByText('Administration')).toBeNull();
+        unmount();
+        render(<Navbar user={{ email: 'cadre@test.com', roles: ['CADRE'] }} />);
+        expect(screen.queryByText('Missions')).toBeNull();
+    });
+
     it('super_admin_only : masqué pour un ADMIN, visible pour un SUPER_ADMIN', () => {
         mockGetVisibility = vi.fn((key: string) => (key === 'stats' ? 'super_admin_only' : 'available'));
         const { unmount } = render(<Navbar user={{ email: 'admin@test.com', roles: ['ADMIN'] }} />);

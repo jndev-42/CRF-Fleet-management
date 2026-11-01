@@ -92,6 +92,8 @@ const INITIAL_MISSIONS: MissionDetail[] = [
         had_hemorrhage: false,
         had_complex_care: false,
         needs_followup: false,
+        volunteer_accident: false,
+        volunteer_accident_details: null,
         drive_folder_id: null,
         signed_report_drive_id: null,
         supplies: {},
@@ -131,6 +133,8 @@ interface MissionDetail {
     had_hemorrhage: boolean;
     had_complex_care: boolean;
     needs_followup: boolean;
+    volunteer_accident?: boolean;
+    volunteer_accident_details?: string | null;
     drive_folder_id: string | null;
     signed_report_drive_id: string | null;
     supplies: Record<string, unknown[]>;
@@ -402,6 +406,8 @@ export class DemoDB {
         had_hemorrhage?: boolean;
         had_complex_care?: boolean;
         needs_followup?: boolean;
+        volunteer_accident?: boolean;
+        volunteer_accident_details?: string | null;
         drive_folder_id?: string | null;
         signed_report_drive_id?: string | null;
         /** Répartition par type de prise en charge — non validée en mode démo. */
@@ -442,6 +448,8 @@ export class DemoDB {
             had_hemorrhage: payload.had_hemorrhage || false,
             had_complex_care: payload.had_complex_care || false,
             needs_followup: payload.needs_followup || false,
+            volunteer_accident: payload.volunteer_accident || false,
+            volunteer_accident_details: payload.volunteer_accident ? (payload.volunteer_accident_details || null) : null,
             drive_folder_id: payload.drive_folder_id || null,
             signed_report_drive_id: payload.signed_report_drive_id || null,
             supplies: {},
@@ -454,6 +462,40 @@ export class DemoDB {
         data.missions.push(newMission);
         this.saveData(data);
         return newMission;
+    }
+
+    /** Modification après envoi — mode démo : champs mis à jour, sans historique ni validation. */
+    static updateMission(id: string, payload: Omit<Partial<MissionDetail>, 'supplies'> & {
+        intervention_types?: { category: string; quantity: number }[];
+        intervention_natures?: { category: string; quantity: number }[];
+        supplies?: { category: string; item_name: string; quantity_used: number }[];
+    }) {
+        const data = this.getData();
+        const mission = data.missions.find(m => m.id === id);
+        if (!mission) return null;
+        const { intervention_types, intervention_natures, supplies, ...fields } = payload;
+        if (supplies) {
+            // Même forme que la fiche : consommables regroupés par catégorie, quantité > 0 seulement.
+            const grouped: Record<string, { id: string; item_name: string; quantity_used: number }[]> = {};
+            for (const s of supplies) {
+                if (s.quantity_used <= 0) continue;
+                (grouped[s.category] ??= []).push({ id: `${s.category}__${s.item_name}`, item_name: s.item_name, quantity_used: s.quantity_used });
+            }
+            mission.supplies = grouped;
+        }
+        const editable: (keyof typeof fields)[] = [
+            'mission_type', 'mission_name', 'mission_date', 'location', 'volunteers', 'pegass_ok',
+            'vehicle_id', 'driver_id', 'victim_count', 'presence_ul', 'team_dynamics', 'all_found_place',
+            'member_difficulties', 'free_comment', 'mission_comment', 'had_acr', 'had_hemorrhage',
+            'had_complex_care', 'needs_followup', 'volunteer_accident', 'volunteer_accident_details',
+        ];
+        for (const key of editable) {
+            if (key in fields) (mission as unknown as Record<string, unknown>)[key] = fields[key];
+        }
+        if (!mission.volunteer_accident) mission.volunteer_accident_details = null;
+        mission.interventions = { mode: toBreakdown(intervention_types), nature: toBreakdown(intervention_natures) };
+        this.saveData(data);
+        return mission;
     }
 
     static deleteMission(id: string) {

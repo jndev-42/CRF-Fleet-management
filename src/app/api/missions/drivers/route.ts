@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { isAdminOrAbove, isInactive } from '@/lib/roles';
+import { canManageMissionReports, isInactive } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { listMissionDrivers } from '@/lib/eligibleDrivers';
 
@@ -14,7 +14,8 @@ const ALLOWED_ROLES = ['ADMIN', 'CI/RPAPS'];
  * `GET /api/users?drivers=true` est réservé aux gestionnaires : un CI/RPAPS y recevait un
  * 403 et la liste restait vide. Population : cf. `listMissionDrivers`.
  *
- * Accès : rédacteurs de rapports (ADMIN et au-dessus, CI/RPAPS) ; compte inactif refusé.
+ * Accès : rédacteurs de rapports (ADMIN et au-dessus, CI/RPAPS) et responsable mission,
+ * qui modifie les rapports de son UL après envoi (`/missions/[id]/edit`). Compte inactif refusé.
  */
 export async function GET() {
     const session = await auth();
@@ -26,7 +27,7 @@ export async function GET() {
     if (isInactive(roles)) {
         return forbiddenResponse('Compte inactif — accès refusé');
     }
-    if (!ALLOWED_ROLES.some(r => roles.includes(r)) && !isAdminOrAbove(roles)) {
+    if (!ALLOWED_ROLES.some(r => roles.includes(r)) && !canManageMissionReports(roles)) {
         return forbiddenResponse();
     }
 

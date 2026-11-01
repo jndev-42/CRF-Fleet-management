@@ -39,7 +39,7 @@ export const MCP_API_CATALOG: readonly CatalogRoute[] = [
     { path: "/api/inventory/stocks/import", methods: ['POST'] },
     { path: "/api/me/license-check", methods: ['GET'] },
     { path: "/api/missions", methods: ['GET', 'POST'] },
-    { path: "/api/missions/[id]", methods: ['GET', 'DELETE'] },
+    { path: "/api/missions/[id]", methods: ['GET', 'PATCH', 'DELETE'] },
     { path: "/api/missions/drivers", methods: ['GET'] },
     { path: "/api/notifications", methods: ['GET', 'DELETE'] },
     { path: "/api/notifications/[id]", methods: ['DELETE'] },
