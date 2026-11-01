@@ -6,6 +6,7 @@ import UserCombobox from '@/components/ui/UserCombobox';
 import DataCorrectionFields from '@/components/vehicle/DataCorrectionFields';
 import { useQrDrivers } from './useQrDrivers';
 import type { QRVehicle } from './types';
+import { missionTypesForVehicle, missionTypeLabel } from '@/lib/mission-types';
 import { submitWithMileageDecreaseConfirm } from '@/components/vehicle/submitWithMileageDecreaseConfirm';
 
 export default function CheckOutForm({
@@ -88,12 +89,7 @@ export default function CheckOutForm({
         }
     }
 
-    const isVPSP = vehicle.type.toUpperCase().includes('VPSP');
-    const missionTypes = [
-        'DPS', 'PAPS', 'Réseaux', 'Urgence', 'Opération', 'Formation', 'Entraînement', 'Logistique', 'Maraude', 'Administratif',
-        ...(isVPSP ? ['Désinfection'] : []),
-        'Autre',
-    ];
+    const missionTypes = missionTypesForVehicle(vehicle.type);
     const conditions = ['Bon état', 'Acceptable', 'Dégradé', 'Problème signalé'];
     const cleanlinesses = ['Propre', 'Correct', 'Sale'];
 
@@ -145,7 +141,7 @@ export default function CheckOutForm({
                     onChange={e => setForm(f => ({ ...f, missionType: e.target.value }))}
                     required
                 >
-                    {missionTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                    {missionTypes.map(t => <option key={t} value={t}>{missionTypeLabel(t)}</option>)}
                 </select>
             </div>
 

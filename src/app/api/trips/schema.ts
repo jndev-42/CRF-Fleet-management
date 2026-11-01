@@ -1,8 +1,20 @@
 import { z } from 'zod';
+import { MISSION_TYPES } from '@/lib/mission-types';
+
+/**
+ * Type de mission d'une nouvelle prise : uniquement une valeur de la liste partagée,
+ * pour qu'une variante orthographique (« Entrainement » sans accent, casse…) envoyée
+ * par un client API ne scinde pas les statistiques par type.
+ */
+export const missionTypeSchema = z.enum(MISSION_TYPES, {
+    error: (issue) => (issue.input === undefined || issue.input === ''
+        ? 'Le type de mission est requis'
+        : 'Type de mission inconnu'),
+});
 
 export const checkOutSchema = z.object({
     vehicleId: z.string().min(1),
-    missionType: z.string().min(1, 'Le type de mission est requis'),
+    missionType: missionTypeSchema,
     missionName: z.string().optional(),
     conditionOut: z.string().min(1, "L'état du véhicule est requis"),
     cleanlinessOut: z.string().optional(),

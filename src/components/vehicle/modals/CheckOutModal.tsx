@@ -9,6 +9,7 @@ import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
 import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import { missionTypesForVehicle, missionTypeLabel } from '@/lib/mission-types';
 import { submitWithMileageDecreaseConfirm } from '@/components/vehicle/submitWithMileageDecreaseConfirm';
 
 interface CheckOutModalProps {
@@ -326,16 +327,9 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                     value={form.missionType}
                                     onChange={(e) => setForm({ ...form, missionType: e.target.value })}
                                 >
-                                    <option value="DPS">DPS</option>
-                                    <option value="PAPS">PAPS</option>
-                                    <option value="Réseaux">Réseaux</option>
-                                    <option value="Urgence">Urgence</option>
-                                    <option value="Logistique">Logistique</option>
-                                    <option value="Maraude">Maraude</option>
-                                    <option value="Entraînement">Entraînement</option>
-                                    {vehicle.type.toUpperCase().includes('VPSP') && (
-                                        <option value="Désinfection">🧴 Désinfection</option>
-                                    )}
+                                    {missionTypesForVehicle(vehicle.type).map(t => (
+                                        <option key={t} value={t}>{missionTypeLabel(t)}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="form-group">

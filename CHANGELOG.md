@@ -4,7 +4,13 @@
 
 ### ✨ Nouveautés
 
-- **Type de mission « Entraînement »** — lors de l'emprunt d'un véhicule (depuis la fiche du véhicule ou en scannant son QR code), on peut désormais choisir « Entraînement » comme type de mission. Ce type peut aussi être sélectionné en modifiant les informations d'une prise déjà faite, et il apparaît dans l'historique des trajets et dans les graphiques des statistiques par type de mission.
+- **Type de mission « Entraînement »** — lors de l'emprunt d'un véhicule (depuis la fiche du véhicule ou en scannant son QR code), on peut désormais choisir « Entraînement » comme type de mission. Ce type peut aussi être sélectionné en modifiant les informations d'une prise déjà faite, et il apparaît dans l'historique des trajets et dans les statistiques par type de mission.
+- **Mêmes types de mission partout** — la prise depuis la fiche du véhicule, la prise par QR code et la modification d'une prise proposent désormais exactement la même liste : DPS, PAPS, Réseaux, Urgence, Opération, Formation, Entraînement, Logistique, Maraude, Administratif, Autre (et Désinfection pour les VPSP). Le filtre « Type de mission » de la page Statistiques propose aussi cette liste complète, au lieu de quatre types seulement.
+
+### 🐛 Corrections
+
+- **Modification d'une prise : le type de mission n'est plus remplacé par « DPS »** — modifier une prise faite par QR code avec un type comme Formation, Opération, Administratif ou Autre affichait « DPS » et pouvait l'enregistrer à la place du vrai type. Le type d'origine est désormais conservé, y compris pour un ancien type qui ne figure plus dans la liste.
+- **Types de mission contrôlés** — un type de mission inconnu (par exemple « Entrainement » sans accent) est désormais refusé avec le message « Type de mission inconnu », pour que les statistiques par type ne se retrouvent pas coupées en deux. La désinfection reste réservée aux VPSP, y compris lors d'une prise par QR code ou d'une modification de la prise.
 
 ## [5.35.0] — 24 octobre 2026
 

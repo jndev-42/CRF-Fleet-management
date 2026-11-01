@@ -18,6 +18,7 @@ Container directory for trip (vehicle checkout/checkin) lifecycle management. Pr
 
 ### Working In This Directory
 - **POST /api/trips:** Create a new trip (checkout)
+  - `missionType` : `missionTypeSchema` (`schema.ts`) — uniquement une valeur de `MISSION_TYPES` (`@/lib/mission-types`, source unique des types de mission ; ne jamais repasser en texte libre ni dupliquer la liste) ; sinon 400 « Type de mission inconnu ».
   - Accepts checkOutSchema with: vehicleId, missionType, missionName, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut, secondDriverId, driveFolderId, checklistOut, dataIncorrect, correctedMileage, correctedFuel, confirmMileageDecrease
   - Verifies vehicle exists and is AVAILABLE
   - Papers guard (`isLicenseBlocked` from `@/lib/licenseGuard`) on the driver **and** the `secondDriverId`, with no role exemption (ADMIN, RESP_VEHICULE, SUPER_ADMIN included) and fail-closed (missing `User` row → 403)

@@ -3,6 +3,7 @@ import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import UserCombobox from '@/components/ui/UserCombobox';
 import FuelBar from '@/components/vehicle/FuelBar';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
+import { missionTypesForVehicle, missionTypeLabel } from '@/lib/mission-types';
 
 interface EditCheckOutModalProps {
     trip: Trip;
@@ -19,7 +20,9 @@ export default function EditCheckOutModal({ trip, vehicle, onClose, onSuccess }:
     const [form, setForm] = useState({
         driverId: trip.driverId || '',
         secondDriverId: trip.secondDriverId || '',
-        missionType: trip.missionType || 'DPS',
+        // Pas de « DPS » par défaut : un trajet sans type doit en recevoir un choisi
+        // délibérément, pas un type écrit à l'insu de l'utilisateur.
+        missionType: trip.missionType || '',
         missionName: trip.missionName || '',
         mileageOut: trip.mileageOut ?? vehicle.mileage,
         fuelOut: trip.fuelOut ?? vehicle.fuelLevel,
@@ -29,6 +32,14 @@ export default function EditCheckOutModal({ trip, vehicle, onClose, onSuccess }:
         commentsOut: trip.commentsOut || '',
         dsaChecked: !!trip.dsaChecked,
     });
+
+    // Un trajet peut porter un type absent de la liste proposée (ancienne valeur, ou
+    // « Désinfection » sur un véhicule dont le type a changé) : on le garde en tête de
+    // liste pour que la modification n'écrase pas silencieusement le type d'origine.
+    const proposedTypes: string[] = missionTypesForVehicle(vehicle.type);
+    const missionTypeOptions = trip.missionType && !proposedTypes.includes(trip.missionType)
+        ? [trip.missionType, ...proposedTypes]
+        : proposedTypes;
 
     const [users, setUsers] = useState<{ id: string; name: string; email: string }[]>([]);
     const [submitting, setSubmitting] = useState(false);
@@ -156,17 +167,14 @@ export default function EditCheckOutModal({ trip, vehicle, onClose, onSuccess }:
                                     className="form-select"
                                     value={form.missionType}
                                     onChange={(e) => setForm({ ...form, missionType: e.target.value })}
+                                    required
                                 >
-                                    <option value="DPS">DPS</option>
-                                    <option value="PAPS">PAPS</option>
-                                    <option value="Réseaux">Réseaux</option>
-                                    <option value="Urgence">Urgence</option>
-                                    <option value="Logistique">Logistique</option>
-                                    <option value="Maraude">Maraude</option>
-                                    <option value="Entraînement">Entraînement</option>
-                                    {vehicle.type.toUpperCase().includes('VPSP') && (
-                                        <option value="Désinfection">🧴 Désinfection</option>
+                                    {!trip.missionType && (
+                                        <option value="" disabled>— Choisir un type —</option>
                                     )}
+                                    {missionTypeOptions.map(t => (
+                                        <option key={t} value={t}>{missionTypeLabel(t)}</option>
+                                    ))}
                                 </select>
                             </div>
                             <div className="form-group">

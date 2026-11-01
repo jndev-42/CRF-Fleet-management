@@ -172,4 +172,57 @@ describe('PATCH /api/trips/[id]/checkout', () => {
     expect(body.missionType).toBe('Logistique');
     expect(body.secondDriverId).toBeNull();
   });
+
+  describe('type de mission', () => {
+    async function seedActiveTrip(missionType: string, vehicleType = 'VL') {
+      // @ts-expect-error — admin session
+      mockedAuth.mockResolvedValue(adminSession);
+      await seedUser({ id: 'user-driver-1', name: 'Conducteur 1', email: 'driver1@test.com' });
+      await seedUser({ id: 'user-driver-2', name: 'Conducteur 2', email: 'driver2@test.com' });
+      await seedVehicle({ id: 'VLMT', type: vehicleType, status: 'IN_USE', mileage: 50000, fuelLevel: 50 });
+      await seedTrip({ id: 'trip-mt', vehicleId: 'VLMT', driverId: 'user-driver-1', checkInAt: null, mileageOut: 50000, fuelOut: 50, missionType });
+    }
+
+    it('refuse en 400 un nouveau type hors liste, sans modifier le trajet', async () => {
+      await seedActiveTrip('DPS');
+      const response = await PATCH(...makeRequest('trip-mt', { ...validEditBody, missionType: 'Entrainement' }));
+      expect(response.status).toBe(400);
+      expect((await response.json()).error).toBe('Type de mission inconnu');
+      const tripRes = await db.execute({ sql: 'SELECT missionType FROM Trip WHERE id = ?', args: ['trip-mt'] });
+      expect(tripRes.rows[0].missionType).toBe('DPS');
+    });
+
+    it("accepte de garder un ancien type hors liste déjà enregistré sur le trajet", async () => {
+      await seedActiveTrip('Poste de secours');
+      const response = await PATCH(...makeRequest('trip-mt', { ...validEditBody, missionType: 'Poste de secours' }));
+      expect(response.status).toBe(200);
+      expect((await response.json()).missionType).toBe('Poste de secours');
+    });
+
+    it('accepte le type « Entraînement »', async () => {
+      await seedActiveTrip('DPS');
+      const response = await PATCH(...makeRequest('trip-mt', { ...validEditBody, missionType: 'Entraînement' }));
+      expect(response.status).toBe(200);
+      expect((await response.json()).missionType).toBe('Entraînement');
+    });
+
+    it('refuse de passer en désinfection un trajet sur un véhicule non VPSP', async () => {
+      await seedActiveTrip('DPS');
+      const response = await PATCH(...makeRequest('trip-mt', { ...validEditBody, missionType: 'Désinfection' }));
+      expect(response.status).toBe(400);
+      expect((await response.json()).error).toMatch(/réservé aux véhicules VPSP/);
+    });
+
+    it("accepte de garder une désinfection déjà enregistrée sur un véhicule qui n'est plus VPSP", async () => {
+      await seedActiveTrip('Désinfection', 'VL');
+      const response = await PATCH(...makeRequest('trip-mt', { ...validEditBody, missionType: 'Désinfection' }));
+      expect(response.status).toBe(200);
+    });
+
+    it('accepte de passer en désinfection un trajet sur un VPSP', async () => {
+      await seedActiveTrip('DPS', 'VPSP');
+      const response = await PATCH(...makeRequest('trip-mt', { ...validEditBody, missionType: 'Désinfection', dsaChecked: true }));
+      expect(response.status).toBe(200);
+    });
+  });
 });

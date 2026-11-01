@@ -174,7 +174,7 @@ const CASES: Case[] = [
         name: 'PATCH /api/trips/[id]/checkout',
         seed: () => seedTrip({ id: 'trip-1' }).then(() => undefined),
         call: () => patchTripCheckout(req('PATCH', {
-            driverId: 'user-driver', missionType: 'LOGISTIQUE', mileageOut: 10050, fuelOut: 70, conditionOut: 'BON',
+            driverId: 'user-driver', missionType: 'Logistique', mileageOut: 10050, fuelOut: 70, conditionOut: 'BON',
         }), tripParams),
         okStatus: 200,
         probe: async () => (await db.execute(`SELECT mileageOut FROM "Trip" WHERE id = 'trip-1'`)).rows[0].mileageOut,

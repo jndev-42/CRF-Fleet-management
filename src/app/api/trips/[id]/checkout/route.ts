@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { DESINFECTION_MISSION_TYPE, isMissionType, isVpspVehicleType } from '@/lib/mission-types';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { canManageVehicles } from '@/lib/roles';
@@ -40,7 +41,7 @@ async function patchHandler(
 
         // Check if trip exists and is currently active (checkInAt IS NULL)
         const tripRes = await db.execute({
-            sql: `SELECT t.vehicleId, t.checkInAt, t.driverId, t.secondDriverId, v.ulId AS vehicleUlId
+            sql: `SELECT t.vehicleId, t.checkInAt, t.driverId, t.secondDriverId, t.missionType, v.ulId AS vehicleUlId, v.type AS vehicleType
                   FROM Trip t LEFT JOIN Vehicle v ON v.id = t.vehicleId
                   WHERE t.id = ?`,
             args: [id]
@@ -61,6 +62,21 @@ async function patchHandler(
 
         const body = await request.json();
         const data = editCheckOutSchema.parse(body);
+
+        // Le type doit appartenir à la liste partagée, sauf s'il reste celui déjà
+        // enregistré : un trajet portant une ancienne valeur doit rester modifiable
+        // (conducteur, kilométrage…) sans être forcé de changer de type.
+        const keepsStoredType = data.missionType === trip.missionType;
+        if (!keepsStoredType && !isMissionType(data.missionType)) {
+            return NextResponse.json({ error: 'Type de mission inconnu' }, { status: 400 });
+        }
+        if (!keepsStoredType && data.missionType === DESINFECTION_MISSION_TYPE
+            && !isVpspVehicleType(String(trip.vehicleType ?? ''))) {
+            return NextResponse.json(
+                { error: 'Le type de mission Désinfection est réservé aux véhicules VPSP' },
+                { status: 400 }
+            );
+        }
 
         // Verify driver exists
         const driverRes = await db.execute({
