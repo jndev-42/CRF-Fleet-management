@@ -62,7 +62,7 @@ function makeRequest(body: Record<string, unknown>): Request {
 
 const validCheckOutBody = {
   vehicleId: 'VL001',
-  missionType: 'LOGISTIQUE',
+  missionType: 'Logistique',
   conditionOut: 'BON',
   dsaChecked: false,
 };
@@ -259,6 +259,20 @@ describe('POST /api/trips (checkout)', () => {
     expect(body.error).toMatch(/disponible/i);
   });
 
+  it('returns 400 for an unknown mission type (Zod), without creating a trip', async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverWithNameSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com', name: 'Test Driver' });
+    await seedVehicle({ id: 'VL001', status: 'AVAILABLE', mileage: 10000, fuelLevel: 75 });
+
+    const response = await POST(makeRequest({ ...validCheckOutBody, missionType: 'Entrainement' }));
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body.details[0].message).toBe('Type de mission inconnu');
+    const trips = await db.execute({ sql: 'SELECT id FROM Trip WHERE vehicleId = ?', args: ['VL001'] });
+    expect(trips.rows).toHaveLength(0);
+  });
+
   it('returns 201 and sets vehicle to IN_USE on successful checkout', async () => {
     // @ts-expect-error — partial session object for testing
     mockedAuth.mockResolvedValue(driverWithNameSession);
@@ -271,7 +285,7 @@ describe('POST /api/trips (checkout)', () => {
     const trip = await response.json();
     expect(trip.vehicleId).toBe('VL001');
     expect(trip.driverId).toBe('user-driver');
-    expect(trip.missionType).toBe('LOGISTIQUE');
+    expect(trip.missionType).toBe('Logistique');
     // checkInAt doit être null au checkout — il sera rempli au retour
     expect(trip.checkInAt == null).toBe(true);
 

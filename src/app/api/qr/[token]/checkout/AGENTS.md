@@ -21,7 +21,7 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 - **Papers are checked** (`isLicenseBlocked` from `@/lib/licenseGuard`, no role exemption, fail-closed when the `User` row is missing) → 403 with the shared message. The QR opens UL and role, never the papers.
 
 **Zod Schema (checkOutSchema):**
-- `missionType` (required string, min 1)
+- `missionType` (required, `missionTypeSchema` de `@/app/api/trips/schema` : une valeur de `MISSION_TYPES`, `@/lib/mission-types` ; sinon 400 « Type de mission inconnu »). « Désinfection » sur un véhicule non VPSP → 400.
 - `missionName` (optional string)
 - `conditionOut` (required string, min 1)
 - `cleanlinessOut`, `parkingOut`, `commentsOut` (optional strings)

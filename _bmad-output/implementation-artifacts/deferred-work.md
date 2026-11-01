@@ -103,3 +103,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-mcp-server-tokens.md`
   summary: Permettre à l'IA connectée en MCP d'agir sur une autre UL que l'UL d'attache du propriétaire du jeton (paramètre `ulId` validé contre ses UL).
   evidence: La session MCP est figée sur l'UL d'attache (`resolveActiveUL`) ; un admin de plusieurs UL ne peut pas agir sur une UL secondaire via le MCP (revue edge/blind).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-type-entrainement.md`
+  summary: Centraliser la liste des types de mission dans une constante partagée (CheckOutModal, EditCheckOutModal, CheckOutForm QR, filtre Statistiques).
+  evidence: Les trois formulaires et le filtre de src/app/stats/page.tsx:49 tiennent chacun leur propre liste, déjà divergentes (le QR propose Opération/Formation/Administratif/Autre, pas les modales ; le filtre stats ne propose ni DPS ni Entraînement).
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-type-entrainement.md`
+  summary: Modifier une prise créée par QR avec un type absent de EditCheckOutModal (Formation, Opération, Administratif, Autre) affiche puis peut enregistrer un autre type.
+  evidence: Bug antérieur. EditCheckOutModal initialise missionType à trip.missionType mais son select n'a pas d'option pour ces valeurs ; un select contrôlé sans option correspondante affiche la première option (DPS).
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-type-entrainement.md`
+  summary: Valider côté serveur missionType contre la liste connue (z.enum ou refine) pour éviter des variantes orthographiques qui scindent les statistiques.
+  evidence: checkOutSchema.missionType est z.string().min(1) ; un client API/MCP peut envoyer « Entrainement » sans accent. Nécessite au préalable la constante partagée et la prise en compte des valeurs historiques en base.
