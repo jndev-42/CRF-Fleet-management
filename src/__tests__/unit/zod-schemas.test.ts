@@ -12,7 +12,7 @@ import { checkInSchema } from '@/app/api/trips/[id]/checkin/schema';
 
 const validCheckOut = {
   vehicleId: 'VL001',
-  missionType: 'LOGISTIQUE',
+  missionType: 'Logistique',
   conditionOut: 'BON',
   dsaChecked: false,
 };

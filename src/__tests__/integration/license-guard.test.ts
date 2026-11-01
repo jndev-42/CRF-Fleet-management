@@ -92,7 +92,7 @@ describe('POST /api/trips — second conducteur', () => {
         asUser('u1', ['CHVL']);
 
         const res = await postTrip(req('POST', {
-            vehicleId: 'VL001', missionType: 'LOGISTIQUE', conditionOut: 'BON', dsaChecked: false, secondDriverId: 'blocked',
+            vehicleId: 'VL001', missionType: 'Logistique', conditionOut: 'BON', dsaChecked: false, secondDriverId: 'blocked',
         }));
         expect(res.status).toBe(403);
         expect((await db.execute(`SELECT id FROM "Trip"`)).rows).toHaveLength(0);
@@ -101,7 +101,7 @@ describe('POST /api/trips — second conducteur', () => {
 });
 
 describe('POST /api/qr/[token]/checkout — garde des papiers', () => {
-    const body = { missionType: 'LOGISTIQUE', conditionOut: 'BON' };
+    const body = { missionType: 'Logistique', conditionOut: 'BON' };
     const qrParams = { params: Promise.resolve({ token: 'qr-tok' }) };
 
     beforeEach(async () => {
@@ -143,7 +143,7 @@ describe('POST /api/qr/[token]/checkout — garde des papiers', () => {
 });
 
 describe('PATCH /api/trips/[id]/checkout — changement de conducteur', () => {
-    const base = { missionType: 'LOGISTIQUE', mileageOut: 10050, fuelOut: 70, conditionOut: 'BON' };
+    const base = { missionType: 'Logistique', mileageOut: 10050, fuelOut: 70, conditionOut: 'BON' };
 
     beforeEach(async () => {
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: UL, status: 'IN_USE' });

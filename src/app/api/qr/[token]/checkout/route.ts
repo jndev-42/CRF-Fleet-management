@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { missionTypeSchema } from '@/app/api/trips/schema';
+import { DESINFECTION_MISSION_TYPE, isVpspVehicleType } from '@/lib/mission-types';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isQrBlocked } from '@/lib/roles';
@@ -19,7 +21,7 @@ import { isLicenseBlocked, LICENSE_BLOCKED_MESSAGE, secondDriverLicenseError } f
  */
 
 const checkOutSchema = z.object({
-    missionType: z.string().min(1, 'Le type de mission est requis'),
+    missionType: missionTypeSchema,
     missionName: z.string().optional(),
     conditionOut: z.string().min(1, "L'état du véhicule est requis"),
     cleanlinessOut: z.string().optional(),
@@ -76,6 +78,14 @@ async function postHandler(
         }
 
         const vehicle = vehicleRes.rows[0];
+
+        // Même règle que POST /api/trips : la désinfection n'a de sens que pour un VPSP.
+        if (data.missionType === DESINFECTION_MISSION_TYPE && !isVpspVehicleType(String(vehicle.type ?? ''))) {
+            return NextResponse.json(
+                { error: 'Le type de mission Désinfection est réservé aux véhicules VPSP' },
+                { status: 400 }
+            );
+        }
 
         if (vehicle.status !== 'AVAILABLE') {
             return NextResponse.json({ error: 'Ce véhicule n\'est pas disponible' }, { status: 400 });

@@ -96,6 +96,47 @@ describe('QR Code API Flow', () => {
     expect(res.status).toBe(400);
   });
 
+  it.each([
+    ['une variante sans accent', 'Entrainement'],
+    ['une valeur inconnue', 'Promenade'],
+  ])('POST /api/qr/[token]/checkout refuse en 400 %s du type de mission, sans créer de trajet', async (_label, missionType) => {
+    await seedVehicle({ id: 'VLTYPE', name: 'VL type', type: 'VL', status: 'AVAILABLE', qrToken: 'token-type' });
+
+    const res = await POST_QR_CHECKOUT(new Request('http://localhost/api/qr/token-type/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType, conditionOut: 'Bon état' }),
+    }), { params: Promise.resolve({ token: 'token-type' }) });
+    expect(res.status).toBe(400);
+    const trips = await db.execute({ sql: 'SELECT id FROM Trip WHERE vehicleId = ?', args: ['VLTYPE'] });
+    expect(trips.rows).toHaveLength(0);
+  });
+
+  it('POST /api/qr/[token]/checkout accepte le type « Entraînement »', async () => {
+    await seedVehicle({ id: 'VLENT', name: 'VL entraînement', type: 'VL', status: 'AVAILABLE', qrToken: 'token-ent' });
+
+    const res = await POST_QR_CHECKOUT(new Request('http://localhost/api/qr/token-ent/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'Entraînement', conditionOut: 'Bon état' }),
+    }), { params: Promise.resolve({ token: 'token-ent' }) });
+    expect(res.status).toBe(201);
+    const trips = await db.execute({ sql: 'SELECT missionType FROM Trip WHERE vehicleId = ?', args: ['VLENT'] });
+    expect(trips.rows[0].missionType).toBe('Entraînement');
+  });
+
+  it('POST /api/qr/[token]/checkout refuse la désinfection sur un véhicule non VPSP', async () => {
+    await seedVehicle({ id: 'VLDES', name: 'VL désinf', type: 'VL', status: 'AVAILABLE', qrToken: 'token-des' });
+
+    const res = await POST_QR_CHECKOUT(new Request('http://localhost/api/qr/token-des/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ missionType: 'Désinfection', conditionOut: 'Bon état' }),
+    }), { params: Promise.resolve({ token: 'token-des' }) });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toMatch(/réservé aux véhicules VPSP/);
+  });
+
   it('GET /api/qr/[token]/vehicle returns desinfTracking property', async () => {
     await seedVehicle({ id: 'VPSP01', name: 'VPSP Paris 18', type: 'VPSP', status: 'AVAILABLE', desinfTracking: true, qrToken: 'token-vpsp-01' });
 

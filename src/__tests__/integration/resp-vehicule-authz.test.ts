@@ -124,7 +124,7 @@ describe('véhicule — PATCH /api/vehicles/[id]', () => {
 });
 
 describe('trajet — POST /api/trips et PATCH /api/trips/[id]/checkin', () => {
-    const checkOutBody = { vehicleId: 'VL001', missionType: 'LOGISTIQUE', conditionOut: 'BON', dsaChecked: false };
+    const checkOutBody = { vehicleId: 'VL001', missionType: 'Logistique', conditionOut: 'BON', dsaChecked: false };
 
     it('RESP_VEHICULE emprunte un véhicule de son UL sans rôle chauffeur (bypass ADMIN)', async () => {
         asUser(['RESP_VEHICULE']);

@@ -846,7 +846,7 @@ export async function seedTrip(overrides: Partial<{
     id: 'trip-1',
     vehicleId: 'VL001',
     driverId: 'user-driver',
-    missionType: 'LOGISTIQUE',
+    missionType: 'Logistique',
     checkOutAt: new Date().toISOString(),
     conditionOut: 'BON',
     mileageOut: 10000,

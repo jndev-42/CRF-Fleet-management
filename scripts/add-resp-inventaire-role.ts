@@ -10,7 +10,7 @@
  * Signale aussi, sans les écrire, les autres rôles de `MANAGEABLE_ROLES` absents de
  * la table — ils relèvent de leur propre migration.
  *
- * À exécuter AVANT ou au moment du déploiement de la v5.36.0.
+ * À exécuter AVANT ou au moment du déploiement de la v5.37.0.
  *
  * Idempotent. Usage :
  *   npx tsx scripts/add-resp-inventaire-role.ts                         # dry-run, n'écrit rien

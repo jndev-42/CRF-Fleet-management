@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { Download, FileText, AlertCircle } from 'lucide-react';
 
 import { canViewStatsPage } from '@/lib/roles';
+import { MISSION_TYPES } from '@/lib/mission-types';
 import { StatsData } from '@/components/stats/types';
 import MultiSelectDropdown from '@/components/stats/MultiSelectDropdown';
 import KPICards from '@/components/stats/KPICards';
@@ -46,8 +47,6 @@ function diffDays(from: string, to: string): number {
   return (t - f) / (1000 * 60 * 60 * 24);
 }
 
-const MISSION_TYPES = ['Opération', 'Formation', 'Logistique', 'Autre'];
-
 export default function StatsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -66,6 +65,14 @@ export default function StatsPage() {
   const [vehicles, setVehicles] = useState<VehicleOption[]>([]);
   const [drivers, setDrivers] = useState<DriverOption[]>([]);
   const [data, setData] = useState<StatsData | null>(null);
+  // Liste partagée + anciennes valeurs encore présentes dans les trajets de la période,
+  // pour qu'un type présent dans le graphique reste sélectionnable dans le filtre.
+  const missionTypeFilterOptions = [
+    ...MISSION_TYPES,
+    ...(data?.byMissionType ?? [])
+      .map((m) => m.missionType)
+      .filter((t): t is string => !!t && !(MISSION_TYPES as readonly string[]).includes(t)),
+  ];
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showExportModal, setShowExportModal] = useState<'csv' | 'pdf' | null>(null);
@@ -363,7 +370,7 @@ export default function StatsPage() {
               aria-label="Filtrer par type de mission"
             >
               <option value="">Tous types</option>
-              {MISSION_TYPES.map((t) => (
+              {missionTypeFilterOptions.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>

@@ -171,7 +171,7 @@ describe('Un compte INACTIF n\'exerce aucune autorisation d\'API', () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    vehicleId: 'VL001', missionType: 'LOGISTIQUE', conditionOut: 'BON', dsaChecked: false,
+                    vehicleId: 'VL001', missionType: 'Logistique', conditionOut: 'BON', dsaChecked: false,
                 }),
             }));
 

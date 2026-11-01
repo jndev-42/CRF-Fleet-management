@@ -73,6 +73,47 @@ describe('EditCheckOutModal', () => {
         expect(await screen.findByText('Trajet non trouvé')).toBeTruthy();
     });
 
+    it('propose le type de mission « Entraînement »', () => {
+        render(<EditCheckOutModal trip={mockTrip} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        expect(screen.getByRole('option', { name: 'Entraînement' })).toBeTruthy();
+    });
+
+    it('pré-sélectionne « Entraînement » pour une prise déjà faite avec ce type', () => {
+        render(<EditCheckOutModal trip={{ ...mockTrip, missionType: 'Entraînement' }} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        expect((screen.getByLabelText(/Type de mission/) as HTMLSelectElement).value).toBe('Entraînement');
+    });
+
+    it('propose les types de mission saisis par QR code (Formation, Opération, Administratif, Autre)', () => {
+        render(<EditCheckOutModal trip={mockTrip} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        for (const type of ['Formation', 'Opération', 'Administratif', 'Autre']) {
+            expect(screen.getByRole('option', { name: type })).toBeTruthy();
+        }
+    });
+
+    it("garde un ancien type hors liste au lieu d'afficher DPS, et l'envoie inchangé", async () => {
+        const fetchMock = vi.fn().mockImplementation((input: string | URL | Request) => {
+            const url = typeof input === 'string' ? input : String(input);
+            if (url.includes('/api/users')) return Promise.resolve(new Response(JSON.stringify({ users: [] }), { status: 200 }));
+            return Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }));
+        });
+        vi.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+        render(<EditCheckOutModal trip={{ ...mockTrip, missionType: 'Poste de secours' }} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        expect((screen.getByLabelText(/Type de mission/) as HTMLSelectElement).value).toBe('Poste de secours');
+
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer les modifications/ }));
+        await waitFor(() => expect(fetchMock.mock.calls.some(c => (c[1] as RequestInit)?.method === 'PATCH')).toBe(true));
+        const patchCall = fetchMock.mock.calls.find(c => (c[1] as RequestInit)?.method === 'PATCH');
+        expect(JSON.parse((patchCall![1] as RequestInit).body as string).missionType).toBe('Poste de secours');
+    });
+
+    it("n'impose pas « DPS » à un trajet sans type : le choix est vide et obligatoire", () => {
+        render(<EditCheckOutModal trip={{ ...mockTrip, missionType: '' }} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        const select = screen.getByLabelText(/Type de mission/) as HTMLSelectElement;
+        expect(select.value).toBe('');
+        expect(select.required).toBe(true);
+        expect(screen.getByRole('option', { name: /Choisir un type/ })).toBeTruthy();
+    });
+
     it('affiche l\'option Désinfection uniquement pour un véhicule VPSP', () => {
         const { rerender } = render(<EditCheckOutModal trip={mockTrip} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
         expect(screen.queryByText('🧴 Désinfection')).toBeNull();

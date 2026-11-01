@@ -408,7 +408,7 @@ describe('convergence de Vehicle.status après mutation de maintenance', () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           vehicleId: 'v-3',
-          missionType: 'LOGISTIQUE',
+          missionType: 'Logistique',
           conditionOut: 'BON',
           dsaChecked: false,
         }),

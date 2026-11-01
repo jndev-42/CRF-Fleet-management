@@ -76,7 +76,7 @@ describe('PATCH /api/trips/[id]/desinf-pre', () => {
         await seedRoles();
         await seedVehicle();
         await seedUser();
-        await seedTrip({ missionType: 'LOGISTIQUE' });
+        await seedTrip({ missionType: 'Logistique' });
 
         const res = await PATCH(makeRequest(validBody), makeParams());
         expect(res.status).toBe(400);

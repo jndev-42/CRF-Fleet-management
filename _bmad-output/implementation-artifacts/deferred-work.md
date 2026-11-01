@@ -107,8 +107,17 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-inventaire.md`
   summary: `sendPushNotification` (src/lib/push.ts) cible aussi les comptes portant INACTIF (ADMIN, RESP_INVENTAIRE…) — exclure les destinataires inactifs de la requête UserUL/UserRole.
   evidence: la requête filtre par `',' || uu.roles || ',' LIKE '%,ROLE,%'` sans condition sur INACTIF ; un `['ADMIN','INACTIF']` reçoit donc le résumé de stock et les alertes véhicule.
-  resolved: v5.36.0 — `sendPushNotification` exclut INACTIF/GUEST (rôles CSV de l'UL, sinon rôles globaux) ; tests dans `push.test.ts`.
+  resolved: v5.37.0 — `sendPushNotification` exclut INACTIF/GUEST (rôles CSV de l'UL, sinon rôles globaux) ; tests dans `push.test.ts`.
 - source_spec: `_bmad-output/implementation-artifacts/spec-role-responsable-inventaire.md`
   summary: Description du menu Inventaire dans `src/components/admin/MenusTab.tsx` obsolète (« onglet Inventaire sur la fiche véhicule » n'existe plus) et muette sur l'accès des responsables inventaire en « Admin uniquement ».
   evidence: MenusTab.tsx l.26 ; aucun onglet Inventaire dans la fiche véhicule ; `canSeeInventoryMenu` accepte RESP_INVENTAIRE en admin_only.
-  resolved: v5.36.0 — description du menu Inventaire corrigée.
+  resolved: v5.37.0 — description du menu Inventaire corrigée.
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-type-entrainement.md`
+  summary: Centraliser la liste des types de mission dans une constante partagée (CheckOutModal, EditCheckOutModal, CheckOutForm QR, filtre Statistiques).
+  evidence: Les trois formulaires et le filtre de src/app/stats/page.tsx:49 tiennent chacun leur propre liste, déjà divergentes (le QR propose Opération/Formation/Administratif/Autre, pas les modales ; le filtre stats ne propose ni DPS ni Entraînement).
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-type-entrainement.md`
+  summary: Modifier une prise créée par QR avec un type absent de EditCheckOutModal (Formation, Opération, Administratif, Autre) affiche puis peut enregistrer un autre type.
+  evidence: Bug antérieur. EditCheckOutModal initialise missionType à trip.missionType mais son select n'a pas d'option pour ces valeurs ; un select contrôlé sans option correspondante affiche la première option (DPS).
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-type-entrainement.md`
+  summary: Valider côté serveur missionType contre la liste connue (z.enum ou refine) pour éviter des variantes orthographiques qui scindent les statistiques.
+  evidence: checkOutSchema.missionType est z.string().min(1) ; un client API/MCP peut envoyer « Entrainement » sans accent. Nécessite au préalable la constante partagée et la prise en compte des valeurs historiques en base.
