@@ -86,7 +86,12 @@ export default function ReferentielTab({ showToast }: ReferentielTabProps) {
         }
         try {
             setPhase({ step: 'uploading', percent: 0 });
-            const { id, uploadUrl } = await postJson<{ id: string; uploadUrl: string }>('/api/referentiel/upload', { fileName: file.name });
+            const { id, uploadUrl } = await postJson<{ id: string; uploadUrl?: string }>('/api/referentiel/upload', { fileName: file.name });
+            if (!uploadUrl) {
+                // Réponse simulée du mode démo : rien à envoyer ni à indexer.
+                showToast("Action simulée : rien n'a été enregistré", 'success');
+                return;
+            }
             await putWithProgress(uploadUrl, file, percent => setPhase({ step: 'uploading', percent }));
 
             await runIndexing(id, 1, 0, null);

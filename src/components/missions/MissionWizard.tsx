@@ -450,14 +450,16 @@ export default function MissionWizard({
 
             const data = await res.json();
             submittedRef.current = true;
-            void clearDraft(draftKey);
-            setSuccessMissionId(data.id);
+            // Mode démo (simulated) : on garde le vrai brouillon local.
+            if (!data.simulated) void clearDraft(draftKey);
+            // Mode démo : la réponse simulée n'a pas d'id ; la page décide où aller.
+            setSuccessMissionId(data.id ?? '');
             // Show success animation only for Paris 18 UL — celle du POSTE choisi,
             // pas celle du soumetteur : c'est le rattachement du rapport qui compte.
             if (formData.selected_ul_id === 'ul-paris-18') {
                 setShowSuccessAnimation(true);
             } else {
-                onSuccess(data.id);
+                onSuccess(data.id ?? '');
             }
         } catch {
             setError('Erreur réseau. Veuillez réessayer.');
@@ -628,7 +630,7 @@ export default function MissionWizard({
                 <MarineApprovedOverlay
                     onAnimationComplete={() => {
                         setShowSuccessAnimation(false);
-                        if (successMissionId) {
+                        if (successMissionId !== null) {
                             onSuccess(successMissionId);
                         }
                     }}

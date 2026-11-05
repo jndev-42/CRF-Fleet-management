@@ -1,5 +1,21 @@
 # Changelog
 
+## [5.40.0] — 5 novembre 2026
+
+### ✨ Nouveautés
+
+- **Mode démo avec vos vraies données** — le mode démo (Aide) affiche désormais vos véritables véhicules, trajets, missions, frais, inventaire et uniformes, au lieu d'un jeu de données fictif.
+- **Actions simulées** — en mode démo, valider un formulaire va jusqu'au bout du parcours et affiche « Action simulée : rien n'a été enregistré » ; aucune donnée n'est jamais modifiée.
+
+### 🔒 Sécurité
+
+- En mode démo, le serveur refuse lui aussi toute écriture (erreur « Mode démo : lecture seule »), même si une action échappait à la simulation. Les pages QR publiques ne sont pas concernées : la démo y est désactivée.
+
+### 🔧 Modifications
+
+- Le bouton « Réinitialiser » du bandeau démo disparaît : il n'y a plus de données fictives à remettre à zéro.
+- Les exports (CSV et PDF des statistiques) restent utilisables en mode démo.
+
 ## [5.39.0] — 1er novembre 2026
 
 ### ✨ Nouveautés

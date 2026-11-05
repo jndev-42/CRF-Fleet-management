@@ -104,6 +104,16 @@ describe('McpTokensTab', () => {
         expect(screen.queryByText(new RegExp(RAW))).toBeNull();
     });
 
+    it('réponse simulée (mode démo) : message explicite et aucun jeton affiché', async () => {
+        mockApi(() => json({ success: true, simulated: true }));
+        render(<McpTokensTab isSuperAdmin={false} showToast={showToast} />);
+        await screen.findByText('Claude bureau');
+        fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'x' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Générer le jeton' }));
+        await waitFor(() => expect(showToast).toHaveBeenCalledWith('Action simulée (mode démo) : aucun jeton créé', 'error'));
+        expect(screen.queryByLabelText("Jeton d'accès")).toBeNull();
+    });
+
     it("affiche l'erreur de l'API à la création (limite de 10)", async () => {
         mockApi(() => json({ error: 'Nombre maximal de jetons actifs atteint (10)' }, 409));
         render(<McpTokensTab isSuperAdmin={false} showToast={showToast} />);

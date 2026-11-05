@@ -1,7 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { setupFetchInterceptor } from '../demo/fetchInterceptor';
+import {
+    DEMO_COOKIE_NAME,
+    DEMO_COOKIE_VALUE,
+    IS_DEMO_MODE_KEY,
+    isQrPage,
+} from '../demo/readOnly';
 
 interface DemoContextType {
     isDemoMode: boolean;
@@ -10,7 +17,29 @@ interface DemoContextType {
 
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
 
-export const IS_DEMO_MODE_KEY = 'crf_is_demo_mode';
+export { IS_DEMO_MODE_KEY };
+
+// Installé dès l'évaluation du module, avant les effets des composants enfants :
+// les mutations émises au premier rendu sont déjà interceptées.
+if (typeof window !== 'undefined') {
+    setupFetchInterceptor();
+}
+
+const LEGACY_DEMO_DB_KEY = 'crf_demo_db';
+
+function setDemoCookie(active: boolean) {
+    document.cookie = active
+        ? `${DEMO_COOKIE_NAME}=${DEMO_COOKIE_VALUE}; path=/; SameSite=Lax`
+        : `${DEMO_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
+}
+
+function purgeLegacyDemoDb() {
+    try {
+        localStorage.removeItem(LEGACY_DEMO_DB_KEY);
+    } catch {
+        // ignoré
+    }
+}
 
 export function DemoProvider({ children }: { children: React.ReactNode }) {
     // Initial state from localStorage to avoid hydration mismatch/cascading renders
@@ -20,22 +49,47 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         }
         return false;
     });
+    const pathname = usePathname();
 
+    // La démo est désactivée sur les pages QR publiques.
+    const effectiveDemo = isDemoMode && !isQrPage(pathname);
+
+    // Cookie aligné sur la démo effective : retiré sur les pages QR (vraies écritures),
+    // restauré ailleurs ; un localStorage actif sans cookie est resynchronisé au chargement.
     useEffect(() => {
-        // Initialize fetch interceptor as early as possible on client side
-        setupFetchInterceptor();
+        const hasCookie = document.cookie
+            .split('; ')
+            .some((c) => c === `${DEMO_COOKIE_NAME}=${DEMO_COOKIE_VALUE}`);
+        if (effectiveDemo && !hasCookie) setDemoCookie(true);
+        else if (!effectiveDemo && hasCookie) setDemoCookie(false);
+    }, [effectiveDemo]);
+
+    // Ancienne base fictive : purgée une fois au montage.
+    useEffect(() => {
+        purgeLegacyDemoDb();
+    }, []);
+
+    // Autre onglet qui bascule la démo : on recharge pour rester cohérent.
+    useEffect(() => {
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === IS_DEMO_MODE_KEY) window.location.reload();
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
     }, []);
 
     const toggleDemoMode = () => {
         const newValue = !isDemoMode;
         setIsDemoMode(newValue);
         localStorage.setItem(IS_DEMO_MODE_KEY, String(newValue));
-        // Reload to ensure fetch interceptor is properly set up or removed
+        setDemoCookie(newValue);
+        purgeLegacyDemoDb();
+        // Reload pour repartir d'un état propre (données réelles / mode démo)
         window.location.reload();
     };
 
     return (
-        <DemoContext.Provider value={{ isDemoMode, toggleDemoMode }}>
+        <DemoContext.Provider value={{ isDemoMode: effectiveDemo, toggleDemoMode }}>
             {children}
         </DemoContext.Provider>
     );

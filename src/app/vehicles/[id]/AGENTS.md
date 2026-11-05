@@ -6,7 +6,7 @@
 ## Purpose
 Vehicle detail page (`/vehicles/{name}`) — the operational hub of the app. Displays one vehicle's identity and badges, live Renault Connect telemetry (mileage, fuel/battery) with fallback to stored values, reservations, maintenance/CT status, VPSP disinfection deadlines, free-text notes, and a paginated trip history. It hosts the check-out ("Prendre le véhicule") and check-in ("Rendre") flows, incident declaration, second-driver assignment, maintenance toggling, QR code generation, and the admin edit/delete actions — roughly twenty modals in total.
 
-This directory also owns the **shared vehicle type and helper modules** imported across `src/components/vehicle/`, `src/lib/maintenanceUtils.ts`, `src/lib/demo/DemoDB.ts`, and the API route `api/vehicles/[id]/desinfections`.
+This directory also owns the **shared vehicle type and helper modules** imported across `src/components/vehicle/`, `src/lib/maintenanceUtils.ts`, and the API route `api/vehicles/[id]/desinfections`.
 
 ## Key Files
 | File | Description |
