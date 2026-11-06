@@ -124,6 +124,14 @@ export function buildVehicleGuideKey(vehicleId: string, attempt: string): string
     return `vehicle-guides/${safeVehicleId}/${safeAttempt}.pdf`;
 }
 
+/** Clé R2 de la photo d'un véhicule, VERSIONNÉE comme celle du guide. */
+export function buildVehiclePhotoKey(vehicleId: string, attempt: string): string {
+    if (!vehicleId) throw new R2Error('vehicleId requis pour construire une clé de photo R2');
+    const safeVehicleId = vehicleId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeAttempt = attempt.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'x';
+    return `vehicle-photos/${safeVehicleId}/${safeAttempt}.jpg`;
+}
+
 const MAX_ATTEMPTS = 3;
 
 /**

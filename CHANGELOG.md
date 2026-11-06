@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.43.0] — 6 novembre 2026
+
+### ✨ Nouveautés
+
+- **Une photo pour chaque véhicule** — les gestionnaires peuvent déposer, remplacer ou retirer la photo d'un véhicule depuis les fenêtres de création et de modification, à l'appareil photo ou depuis la galerie.
+- **Vérifier d'un coup d'œil qu'il s'agit du bon véhicule** — la photo s'affiche en petite vignette à côté du nom, sur la page du véhicule comme sur la page ouverte en scannant son QR code. Un clic l'agrandit en plein écran ; on la referme avec le bouton, un clic à côté ou la touche Échap.
+
+### 🔒 Sécurité
+
+- La position GPS et les autres informations enregistrées par le téléphone sont retirées de la photo avant son enregistrement.
+- L'emplacement interne des guides de vérification n'est plus transmis au navigateur lors d'une prise de véhicule, d'une restitution ou d'une mise à jour du kilométrage.
+
 ## [5.42.0] — 6 novembre 2026
 
 ### ✨ Nouveautés

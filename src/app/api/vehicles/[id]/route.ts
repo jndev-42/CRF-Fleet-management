@@ -146,6 +146,8 @@ export async function GET(
             guideFileName: row.guideR2Key ? row.guideFileName as string | null : null,
             guideSize: row.guideR2Key ? row.guideSize as number | null : null,
             guideUpdatedAt: row.guideR2Key ? row.guideUpdatedAt as string | null : null,
+            // Version de la photo — jamais la clé R2, servie par /photo.
+            photoUpdatedAt: row.photoR2Key ? row.photoUpdatedAt as string | null : null,
             createdAt: new Date(row.createdAt as string),
             updatedAt: new Date(row.updatedAt as string),
             // La maintenance est un flag parallèle au statut : elle survit à `IN_USE`
@@ -362,7 +364,7 @@ async function deleteHandler(
 
         // Find the vehicle by name first to get its UUID
         const vehicleResult = await db.execute({
-            sql: `SELECT id, ulId, guideR2Key FROM Vehicle WHERE name = ?`,
+            sql: `SELECT id, ulId, guideR2Key, photoR2Key FROM Vehicle WHERE name = ?`,
             args: [id]
         });
 
@@ -411,6 +413,14 @@ async function deleteHandler(
             const { deleteObject } = await import('@/lib/r2');
             await deleteObject(guideKey).catch((e: unknown) =>
                 console.error(`[vehicle-guide] suppression du guide ${guideKey} impossible :`, e instanceof Error ? e.message : String(e)));
+        }
+
+        // Photo : même règle.
+        const photoKey = vehicleResult.rows[0].photoR2Key as string | null;
+        if (photoKey) {
+            const { deleteObject } = await import('@/lib/r2');
+            await deleteObject(photoKey).catch((e: unknown) =>
+                console.error(`[vehicle-photo] suppression de la photo ${photoKey} impossible :`, e instanceof Error ? e.message : String(e)));
         }
 
         return NextResponse.json({ success: true });

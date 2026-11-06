@@ -170,6 +170,24 @@ describe('VehicleDetailHeader — bouton « Prendre le véhicule »', () => {
     });
 });
 
+describe('VehicleDetailHeader — photo', () => {
+    const THUMBNAIL = /Agrandir la photo du véhicule/;
+
+    it('sans photo : aucune vignette', () => {
+        const { container } = renderHeader();
+        expect(screen.queryByRole('button', { name: THUMBNAIL })).toBeNull();
+        expect(container.querySelector('.vehicle-detail-info img')).toBeNull();
+    });
+
+    it('avec photo : vignette à gauche du nom, URL versionnée', () => {
+        const { container } = renderHeader({ vehicle: { ...baseVehicle, name: 'VPSP 182', photoUpdatedAt: '2026-11-06T10:00:00.000Z' } });
+        const thumbnail = screen.getByRole('button', { name: THUMBNAIL });
+        expect(thumbnail.nextElementSibling?.tagName).toBe('H1');
+        expect(container.querySelector('.vehicle-detail-info img')?.getAttribute('src'))
+            .toBe('/api/vehicles/VPSP%20182/photo?v=2026-11-06T10%3A00%3A00.000Z');
+    });
+});
+
 describe('VehicleDetailHeader — garde de rendu par statut', () => {
     it('AVAILABLE : seul « Prendre » est rendu', () => {
         const { container } = renderHeader();

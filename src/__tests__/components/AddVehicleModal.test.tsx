@@ -203,6 +203,71 @@ describe('AddVehicleModal', () => {
         expect(fetchMock.mock.calls.some(c => getUrl(c[0]).endsWith('/guide'))).toBe(false);
     });
 
+    describe('photo', () => {
+        async function choosePhoto() {
+            // jsdom n'implémente pas createObjectURL, utilisé par l'aperçu de PhotoPicker.
+            URL.createObjectURL = vi.fn(() => 'blob:apercu');
+            await waitFor(() => expect(fieldSelect('Lieu de stationnement habituel *').value).toBe('Place A-1'));
+            const input = document.querySelector('input[accept="image/jpeg,image/png,image/webp"]') as HTMLInputElement;
+            fireEvent.change(input, { target: { files: [new File(['x'], 'photo.jpg', { type: 'image/jpeg' })] } });
+            await screen.findByAltText('Aperçu');
+        }
+
+        it('part après la création, sous le nom du véhicule créé, jamais dans le JSON', async () => {
+            const fetchMock = mockFetch(async (input, init) => {
+                if (getUrl(input) === '/api/vehicles' && init?.method === 'POST') {
+                    return new Response(JSON.stringify({ id: 'uuid', name: 'VL999' }), { status: 201 });
+                }
+                return defaultFetchHandler(input, init);
+            });
+            const onSuccess = vi.fn();
+            render(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={onSuccess} />);
+            await choosePhoto();
+            fillRequiredFields();
+            fireEvent.click(screen.getByRole('button', { name: 'Créer le véhicule' }));
+
+            await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+            const posts = fetchMock.mock.calls.filter(c => (c[1] as RequestInit)?.method === 'POST');
+            expect(posts.map(c => getUrl(c[0]))).toEqual(['/api/vehicles', '/api/vehicles/VL999/photo']);
+            expect(String((posts[0][1] as RequestInit).body)).not.toContain('photo');
+            expect((posts[1][1] as RequestInit).body).toBeInstanceOf(FormData);
+            expect(window.alert).not.toHaveBeenCalled();
+        });
+
+        it('conserve le véhicule créé si la photo est refusée, et le signale', async () => {
+            mockFetch(async (input, init) => {
+                if (getUrl(input).endsWith('/photo')) {
+                    return new Response(JSON.stringify({ error: 'La photo doit être au format JPEG, PNG ou WebP.' }), { status: 400 });
+                }
+                return defaultFetchHandler(input, init);
+            });
+            const onSuccess = vi.fn();
+            render(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={onSuccess} />);
+            await choosePhoto();
+            fillRequiredFields();
+            fireEvent.click(screen.getByRole('button', { name: 'Créer le véhicule' }));
+
+            await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+            expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('Véhicule créé, photo non enregistrée : La photo doit être au format JPEG, PNG ou WebP.'));
+        });
+
+        it("n'envoie pas la photo d'une création précédente après fermeture puis réouverture", async () => {
+            const fetchMock = mockFetch();
+            const onSuccess = vi.fn();
+            const { rerender } = render(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={onSuccess} />);
+            await choosePhoto();
+
+            rerender(<AddVehicleModal isOpen={false} onClose={vi.fn()} onSuccess={onSuccess} />);
+            rerender(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={onSuccess} />);
+            await waitFor(() => expect(screen.getByTestId('photo-status').textContent).toContain('Aucune photo'));
+
+            fillRequiredFields();
+            fireEvent.click(screen.getByRole('button', { name: 'Créer le véhicule' }));
+            await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+            expect(fetchMock.mock.calls.some(c => getUrl(c[0]).endsWith('/photo'))).toBe(false);
+        });
+    });
+
     it('appelle onClose au clic sur Annuler', async () => {
         mockFetch();
         const onClose = vi.fn();

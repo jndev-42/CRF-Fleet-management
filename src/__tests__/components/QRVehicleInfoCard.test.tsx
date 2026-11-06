@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import VehicleInfoCard from '@/app/qr/[token]/VehicleInfoCard';
 import type { ActiveTrip, QRVehicle } from '@/app/qr/[token]/types';
@@ -65,5 +65,24 @@ describe('VehicleInfoCard (QR) — véhicule emprunté', () => {
             activeTrip: { ...trip, secondDriverId: 'usr-2', secondDriverName: null, secondDriverEmail: 'marie@croix-rouge.fr' },
         }} />);
         expect(screen.getByText(/et marie@croix-rouge\.fr/)).toBeTruthy();
+    });
+});
+
+describe('VehicleInfoCard (QR) — photo', () => {
+    const THUMBNAIL = 'Agrandir la photo du véhicule VL186';
+
+    it('sans photo : aucune vignette', () => {
+        render(<VehicleInfoCard vehicle={vehicle} photoSrc={null} />);
+        expect(screen.queryByRole('button', { name: THUMBNAIL })).toBeNull();
+    });
+
+    it("avec photo : vignette à gauche du nom, que l'on peut agrandir", () => {
+        const { container } = render(<VehicleInfoCard vehicle={vehicle} photoSrc="/api/qr/tok/photo?v=1" />);
+        const thumbnail = screen.getByRole('button', { name: THUMBNAIL });
+        expect(thumbnail.nextElementSibling?.tagName).toBe('H1');
+        expect(container.querySelector('img')?.getAttribute('src')).toBe('/api/qr/tok/photo?v=1');
+
+        fireEvent.click(thumbnail);
+        expect(screen.getByRole('dialog', { name: 'Photo du véhicule VL186' })).toBeTruthy();
     });
 });

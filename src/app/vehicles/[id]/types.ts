@@ -95,6 +95,8 @@ export interface Vehicle {
     guideSize?: number | null;
     /** Date ISO du dernier dépôt du guide */
     guideUpdatedAt?: string | null;
+    /** Date ISO du dernier dépôt de la photo — `null` si le véhicule n'en a pas */
+    photoUpdatedAt?: string | null;
     ulId?: string | null;
     activeMaintenance?: {
         id: string;

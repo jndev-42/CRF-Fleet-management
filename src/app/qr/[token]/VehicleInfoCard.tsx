@@ -1,8 +1,9 @@
 import FuelBar from '@/components/vehicle/FuelBar';
+import VehiclePhoto from '@/components/vehicle/VehiclePhoto';
 import type { QRVehicle } from './types';
 import { formatDate } from './types';
 
-export default function VehicleInfoCard({ vehicle }: { vehicle: QRVehicle }) {
+export default function VehicleInfoCard({ vehicle, photoSrc }: { vehicle: QRVehicle; photoSrc?: string | null }) {
     const activeTrip = vehicle.activeTrip;
 
     return (
@@ -16,7 +17,10 @@ export default function VehicleInfoCard({ vehicle }: { vehicle: QRVehicle }) {
                 marginBottom: 20,
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{vehicle.name}</h1>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {photoSrc && <VehiclePhoto src={photoSrc} vehicleName={vehicle.name} />}
+                        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800 }}>{vehicle.name}</h1>
+                    </div>
                     <span style={{
                         fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
                         background: vehicle.status === 'AVAILABLE'

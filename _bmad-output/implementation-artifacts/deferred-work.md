@@ -150,3 +150,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-qr-stock-recherche-scroll-infini.md`
   summary: Mettre à jour `src/app/api/qr-stock/AGENTS.md` avec le nouveau contrat de `GET /stock` (`q`/`offset`/`limit`, `total`, `hasMore`, page par défaut de 30).
   evidence: Le fichier documente encore `{ stock, items }` ; seuls les AGENTS.md de la page ont été mis à jour (route « defer » des fichiers de contexte agent).
+- source_spec: `_bmad-output/implementation-artifacts/spec-photo-vehicule.md`
+  summary: Le script `scripts/add-vehicle-photo.ts` n'est exécuté par aucun test (dry-run, `--apply`, seconde exécution).
+  evidence: Une colonne retirée de `COLUMNS` passerait inaperçue et `POST /photo` répondrait 500 en prod ; même lacune que `add-vehicle-guide.ts`, atténuée par la lecture du dry-run.
