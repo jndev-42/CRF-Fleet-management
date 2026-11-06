@@ -37,9 +37,13 @@ export function vehiclePhotoUrl(base: string, updatedAt: string | null | undefin
     return updatedAt ? `${base}?v=${encodeURIComponent(updatedAt)}` : null;
 }
 
-/** Retire la clé R2 d'une ligne `Vehicle` lue en `SELECT *` avant de la renvoyer au client. */
-export function omitVehiclePhotoKey<T extends object>(row: T): Omit<T, 'photoR2Key'> {
-    const copy: T & { photoR2Key?: unknown } = { ...row };
+/**
+ * Retire les clés R2 (photo et guide) d'une ligne `Vehicle` lue en `SELECT *` avant
+ * de la renvoyer au client : ces chemins internes ne doivent jamais sortir de l'API.
+ */
+export function omitVehicleR2Keys<T extends object>(row: T): Omit<T, 'photoR2Key' | 'guideR2Key'> {
+    const copy: T & { photoR2Key?: unknown; guideR2Key?: unknown } = { ...row };
     delete copy.photoR2Key;
+    delete copy.guideR2Key;
     return copy;
 }

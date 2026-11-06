@@ -6,7 +6,7 @@ import { sendPushNotification } from '@/lib/push';
 import { canSuperviseVehicles, ROLES } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
-import { omitVehiclePhotoKey } from '@/lib/vehiclePhoto';
+import { omitVehicleR2Keys } from '@/lib/vehiclePhoto';
 
 const updateMetricsSchema = z.object({
     mileage: z.number().min(0).optional(),
@@ -84,7 +84,7 @@ async function patchHandler(
         }
 
         if (setClauses.length === 0) {
-            return NextResponse.json({ message: 'Aucun changement détecté', vehicle: omitVehiclePhotoKey(vehicle) });
+            return NextResponse.json({ message: 'Aucun changement détecté', vehicle: omitVehicleR2Keys(vehicle) });
         }
 
         const timestamp = new Date().toISOString();
@@ -126,7 +126,7 @@ async function patchHandler(
             args: [vehicleId]
         });
 
-        return NextResponse.json(omitVehiclePhotoKey(updatedVehicleRes.rows[0]));
+        return NextResponse.json(omitVehicleR2Keys(updatedVehicleRes.rows[0]));
 
     } catch (error) {
         if (error instanceof z.ZodError) {

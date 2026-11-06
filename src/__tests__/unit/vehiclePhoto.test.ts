@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
     MAX_PHOTO_SIZE,
     hasAcceptedPhotoSignature,
-    omitVehiclePhotoKey,
+    omitVehicleR2Keys,
     vehiclePhotoUrl,
 } from '@/lib/vehiclePhoto';
 import { buildVehiclePhotoKey } from '@/lib/r2';
@@ -49,11 +49,19 @@ describe('vehiclePhotoUrl', () => {
     });
 });
 
-describe('omitVehiclePhotoKey', () => {
-    it('retire la clé sans toucher au reste ni à la ligne source', () => {
-        const row = { id: 'v1', name: 'VL1', photoR2Key: 'vehicle-photos/v1/a.jpg', photoUpdatedAt: 'x' };
-        expect(omitVehiclePhotoKey(row)).toEqual({ id: 'v1', name: 'VL1', photoUpdatedAt: 'x' });
+describe('omitVehicleR2Keys', () => {
+    it('retire les deux clés sans toucher au reste ni à la ligne source', () => {
+        const row = {
+            id: 'v1',
+            name: 'VL1',
+            photoR2Key: 'vehicle-photos/v1/a.jpg',
+            photoUpdatedAt: 'x',
+            guideR2Key: 'vehicle-guides/v1/a.pdf',
+            guideFileName: 'guide.pdf',
+        };
+        expect(omitVehicleR2Keys(row)).toEqual({ id: 'v1', name: 'VL1', photoUpdatedAt: 'x', guideFileName: 'guide.pdf' });
         expect(row.photoR2Key).toBe('vehicle-photos/v1/a.jpg');
+        expect(row.guideR2Key).toBe('vehicle-guides/v1/a.pdf');
     });
 });
 

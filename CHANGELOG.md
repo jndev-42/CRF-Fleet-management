@@ -10,6 +10,7 @@
 ### 🔒 Sécurité
 
 - La position GPS et les autres informations enregistrées par le téléphone sont retirées de la photo avant son enregistrement.
+- L'emplacement interne des guides de vérification n'est plus transmis au navigateur lors d'une prise de véhicule, d'une restitution ou d'une mise à jour du kilométrage.
 
 ## [5.42.0] — 6 novembre 2026
 

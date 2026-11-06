@@ -94,7 +94,7 @@ context:
 
 ## Implementation Notes
 
-- Le sous-agent a ajouté `omitVehiclePhotoKey` (`src/lib/vehiclePhoto.ts`) et l'applique dans `trips`, `trips/[id]/checkin` et `vehicles/[id]/metrics`, qui renvoient une ligne en `SELECT *` : exigence « pas de `photoR2Key` dans une réponse API ».
+- Le sous-agent a ajouté `omitVehiclePhotoKey` (`src/lib/vehiclePhoto.ts`), renommé ensuite `omitVehicleR2Keys`, et l'applique dans `trips`, `trips/[id]/checkin` et `vehicles/[id]/metrics`, qui renvoient une ligne en `SELECT *` : exigence « pas de `photoR2Key` dans une réponse API ».
 - `GET /api/vehicles` liste ses champs : ni la clé, ni `photoUpdatedAt` n'en sortent, conformément à l'interdiction de vignette en liste.
 - `src/__tests__/integration/vehicle-photo.test.ts` : type du mock de `db.execute` corrigé après revue, car il cassait la vérification de types de `npm run build`.
 - Échecs hors périmètre : 2 tests de récurrence de `ReservationFormModal.test.tsx`, fichier inchangé ici ; corrigés par `c644a7c` et `d42ce6b` sur `feat/mode-demo-lecture-seule`, pas encore sur `main`.
@@ -111,7 +111,7 @@ context:
 | 4 | blind + edge | Dépôts ou retrait concurrents : objet R2 orphelin, ou plus récent perdu | low | Deux gestionnaires simultanés improbables ; la correction demande un compare-and-swap ; déjà accepté pour le guide | rejet |
 | 5 | blind | Échec de suppression R2 seulement journalisé, sans reprise | false | Comportement exigé par la matrice (« Échec → log ») | rejet |
 | 6 | blind | `omitVehiclePhotoKey` laisse fuiter la clé via d'autres `SELECT *` | false | Tous les `SELECT *` relus : `qr/checkin` et `qr/checkout` ne renvoient pas la ligne, `GET` et `POST` listent leurs champs, `PATCH` renvoie `data` filtré par Zod | rejet |
-| 7 | blind | `guideR2Key` reste renvoyée par les réponses en `SELECT *` | medium | Antérieur à ce changement : `trips`, `checkin` et `metrics` étalent la ligne entière | defer |
+| 7 | blind | `guideR2Key` reste renvoyée par les réponses en `SELECT *` | low | Antérieur à ce changement : `trips`, `checkin` et `metrics` étalent la ligne entière. Reporté au tri, puis corrigé à la demande de l'utilisateur (`omitVehicleR2Keys`) | patch |
 | 8 | blind | Réponses `POST`/`PATCH` véhicule non contrôlées pour la clé | low | Champs listés (`POST`) et `data` filtré par Zod (`PATCH`) : fuite impossible en l'état ; la base est bien vérifiée | rejet |
 | 9 | blind | Pas de `limitInputPixels` explicite | maybe-false | Dépôt réservé aux gestionnaires, limite `sharp` par défaut active ; à trancher par un test mémoire sur Vercel ; au pire low | rejet |
 | 10 | blind + edge | Toute erreur `sharp` devient un 400 « mauvais format » | low | Pannes `libvips` rares ; distinguer les erreurs ajoute de la logique | rejet |

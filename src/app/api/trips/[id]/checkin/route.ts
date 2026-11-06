@@ -14,7 +14,7 @@ import {
     negativeMileageMessage,
 } from '@/lib/utils/mileageAnomaly';
 import { withAudit } from '@/lib/audit/log';
-import { omitVehiclePhotoKey } from '@/lib/vehiclePhoto';
+import { omitVehicleR2Keys } from '@/lib/vehiclePhoto';
 // Increase duration limits for Vercel Serverless Functions
 export const maxDuration = 30; // 30 seconds max duration
 
@@ -268,7 +268,7 @@ async function patchHandler(
                 commentsIn: data.commentsIn || null,
                 parkingPhoto: data.parkingPhoto || null,
                 vehicle: {
-                    ...omitVehiclePhotoKey(vehicle),
+                    ...omitVehicleR2Keys(vehicle),
                     status: 'AVAILABLE',
                     mileage: finalMileageIn,
                     fuelLevel: finalFuelIn,

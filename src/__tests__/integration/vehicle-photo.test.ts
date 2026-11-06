@@ -443,12 +443,25 @@ describe('GET /api/qr/[token]/photo', () => {
     });
 });
 
-describe("Exposition dans l'API : photoUpdatedAt, jamais la clé R2", () => {
+describe("Exposition dans l'API : photoUpdatedAt, jamais une clé R2", () => {
     const jsonRequest = (method: string, body: unknown) => new Request('http://localhost/api/x', {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
     });
+
+    /** Un guide déposé : sa clé doit rester aussi invisible que celle de la photo. */
+    const seedGuide = () => db.execute({
+        sql: `UPDATE Vehicle SET guideR2Key = ?, guideFileName = 'guide.pdf' WHERE id = ?`,
+        args: [`vehicle-guides/${VEHICLE_ID}/att1.pdf`, VEHICLE_ID],
+    });
+
+    const expectNoR2Key = (text: string) => {
+        expect(text).not.toContain('photoR2Key');
+        expect(text).not.toContain('vehicle-photos/');
+        expect(text).not.toContain('guideR2Key');
+        expect(text).not.toContain('vehicle-guides/');
+    };
 
     it('GET /api/vehicles/[id] expose la version', async () => {
         await seedPhoto(VOLUNTEER);
@@ -485,21 +498,23 @@ describe("Exposition dans l'API : photoUpdatedAt, jamais la clé R2", () => {
 
     it('PATCH /api/vehicles/[id]/metrics — mise à jour et absence de changement', async () => {
         await seedPhoto();
+        await seedGuide();
         const updated = await patchMetrics(jsonRequest('PATCH', { mileage: 99999 }), params(VEHICLE_ID));
         expect(updated.status).toBe(200);
         const updatedText = await updated.text();
         expect(updatedText).toContain('99999');
-        expect(updatedText).not.toContain('photoR2Key');
+        expectNoR2Key(updatedText);
 
         const unchanged = await patchMetrics(jsonRequest('PATCH', { mileage: 99999 }), params(VEHICLE_ID));
         expect(unchanged.status).toBe(200);
         const unchangedText = await unchanged.text();
         expect(unchangedText).toContain('Aucun changement');
-        expect(unchangedText).not.toContain('photoR2Key');
+        expectNoR2Key(unchangedText);
     });
 
-    it('POST /api/trips — le véhicule renvoyé ne porte pas la clé', async () => {
+    it('POST /api/trips — le véhicule renvoyé ne porte aucune clé R2', async () => {
         await seedPhoto();
+        await seedGuide();
         await seedUser({ id: ADMIN.user.id, email: ADMIN.user.email });
         const res = await postTrip(jsonRequest('POST', {
             vehicleId: VEHICLE_ID,
@@ -510,11 +525,12 @@ describe("Exposition dans l'API : photoUpdatedAt, jamais la clé R2", () => {
         expect(res.status).toBe(201);
         const text = await res.text();
         expect(JSON.parse(text).vehicle.id).toBe(VEHICLE_ID);
-        expect(text).not.toContain('photoR2Key');
+        expectNoR2Key(text);
     });
 
-    it('PATCH /api/trips/[id]/checkin — le véhicule renvoyé ne porte pas la clé', async () => {
+    it('PATCH /api/trips/[id]/checkin — le véhicule renvoyé ne porte aucune clé R2', async () => {
         await seedPhoto();
+        await seedGuide();
         await seedUser({ id: ADMIN.user.id, email: ADMIN.user.email });
         await seedTrip({ id: 'trip-1', vehicleId: VEHICLE_ID, driverId: ADMIN.user.id, mileageOut: 1000 });
         const res = await patchCheckin(
@@ -524,7 +540,7 @@ describe("Exposition dans l'API : photoUpdatedAt, jamais la clé R2", () => {
         expect(res.status).toBe(200);
         const text = await res.text();
         expect(JSON.parse(text).vehicle.id).toBe(VEHICLE_ID);
-        expect(text).not.toContain('photoR2Key');
+        expectNoR2Key(text);
     });
 
     it('les payloads JSON de création et de modification ignorent une photo', async () => {

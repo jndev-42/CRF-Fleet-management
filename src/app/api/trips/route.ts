@@ -10,7 +10,7 @@ import { checkOutSchema } from './schema';
 import { withAudit } from '@/lib/audit/log';
 import { secondDriverError } from '@/lib/eligibleDrivers';
 import { applyCheckoutCorrection, readCheckoutBaseline, sendCheckoutAlerts } from '@/lib/checkout';
-import { omitVehiclePhotoKey } from '@/lib/vehiclePhoto';
+import { omitVehicleR2Keys } from '@/lib/vehiclePhoto';
 
 async function postHandler(request: Request) {
     try {
@@ -253,7 +253,7 @@ async function postHandler(request: Request) {
                 driveFolderId: data.driveFolderId || null,
                 checklistOut: data.checklistOut || null,
                 createdAt: timestamp,
-                vehicle: { ...omitVehiclePhotoKey(vehicle), status: 'IN_USE', mileage: mileageOut, fuelLevel: fuelOut, updatedAt: timestamp }
+                vehicle: { ...omitVehicleR2Keys(vehicle), status: 'IN_USE', mileage: mileageOut, fuelLevel: fuelOut, updatedAt: timestamp }
             };
 
             return NextResponse.json(trip, { status: 201 });
