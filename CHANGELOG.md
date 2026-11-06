@@ -13,7 +13,7 @@
 
 ### 🔒 Sécurité
 
-- Correction de failles connues dans des composants utilisés par l'application (validation des données, envoi d'e-mails, signature des documents et connexion aux services Google).
+- Correction de failles connues dans des composants utilisés par l'application (validation des données, signature des documents et connexion aux services Google).
 
 ### 🐛 Corrections
 

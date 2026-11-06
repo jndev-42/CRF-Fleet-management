@@ -173,5 +173,5 @@
   summary: Tester la ligne d'audit réellement écrite par `POST /api/demo/refresh`.
   evidence: `demo-refresh.test.ts` n'exécute pas le traçage ; seul le contrôle statique de `withAudit` couvre la route.
 - source_spec: `_bmad-output/implementation-artifacts/spec-securite-et-recopie-demo-manuelle.md`
-  summary: Vérifier Drive et l'envoi d'e-mail avec les versions montées de leurs bibliothèques.
-  evidence: Non vérifié : les tests mockent `googleapis` et `nodemailer`. À trancher par une action Drive et un e-mail réels sur preview.
+  summary: Vérifier Drive avec les versions montées de ses bibliothèques.
+  evidence: Non vérifié : les tests mockent `googleapis`. À trancher par une action Drive réelle sur preview.
