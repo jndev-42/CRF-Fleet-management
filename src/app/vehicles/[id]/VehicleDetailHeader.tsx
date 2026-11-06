@@ -1,5 +1,7 @@
 import { QrCode } from 'lucide-react';
 import VehicleBadges from '@/components/vehicle/VehicleBadges';
+import VehiclePhoto from '@/components/vehicle/VehiclePhoto';
+import { vehiclePhotoUrl } from '@/lib/vehiclePhoto';
 import { canManageVehicles } from '@/lib/roles';
 import { getBorrowEligibility, getBorrowDenialTitle } from '@/lib/vehicleBorrowEligibility';
 import type { Trip, Vehicle } from './types';
@@ -43,10 +45,13 @@ export default function VehicleDetailHeader({
     onEditVehicle,
     onManageChecklist,
 }: VehicleDetailHeaderProps) {
+    const photoSrc = vehiclePhotoUrl(`/api/vehicles/${encodeURIComponent(vehicle.name)}/photo`, vehicle.photoUpdatedAt);
+
     return (
         <div className="vehicle-detail-header">
             <div className="vehicle-detail-info">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    {photoSrc && <VehiclePhoto src={photoSrc} vehicleName={vehicle.name} />}
                     <h1 style={{ margin: 0 }}>{vehicle.name}</h1>
                     <button
                         onClick={onShowQR}

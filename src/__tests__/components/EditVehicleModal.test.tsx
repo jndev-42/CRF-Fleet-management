@@ -282,6 +282,87 @@ describe('EditVehicleModal Component', () => {
         expect(alertSpy).toHaveBeenCalledWith('Véhicule modifié, guide non enregistré : Le fichier est trop volumineux (4 Mo maximum).');
     });
 
+    it('retire la photo après la modification, sous le nouveau nom du véhicule', async () => {
+        const calls: Array<{ url: string; method: string }> = [];
+        mockFetch(async (input: string | URL | Request, init?: RequestInit) => {
+            const urlStr = getUrl(input);
+            if (urlStr.includes('/api/ul')) {
+                return new Response(JSON.stringify({ uls: [] }), { status: 200 });
+            }
+            calls.push({ url: urlStr, method: init?.method || 'GET' });
+            return new Response(JSON.stringify({}), { status: 200 });
+        });
+        const handleSuccess = vi.fn();
+
+        render(<EditVehicleModal isOpen={true} onClose={vi.fn()} onSuccess={handleSuccess} vehicle={{ ...mockVehicle, photoUpdatedAt: '2026-11-06T10:00:00.000Z' }} />);
+
+        const name = await screen.findByDisplayValue('VL186');
+        expect(screen.getByAltText('Photo actuelle du véhicule').getAttribute('src')).toBe('/api/vehicles/VL186/photo?v=2026-11-06T10%3A00%3A00.000Z');
+        fireEvent.change(name, { target: { value: 'VL186-MOD' } });
+        fireEvent.click(screen.getByRole('button', { name: /Retirer/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
+
+        await waitFor(() => expect(handleSuccess).toHaveBeenCalled());
+        expect(calls).toEqual([
+            { url: '/api/vehicles/VL186', method: 'PATCH' },
+            { url: '/api/vehicles/VL186-MOD/photo', method: 'DELETE' },
+        ]);
+    });
+
+    it('attend la fin de la requête photo avant onSuccess, qui recharge le véhicule', async () => {
+        let resolvePhoto: (response: Response) => void = () => undefined;
+        const photoResponse = new Promise<Response>(resolve => { resolvePhoto = resolve; });
+        const fetchMock = mockFetch(async (input: string | URL | Request) => {
+            const urlStr = getUrl(input);
+            if (urlStr.endsWith('/photo')) return photoResponse;
+            if (urlStr.includes('/api/ul')) {
+                return new Response(JSON.stringify({ uls: [] }), { status: 200 });
+            }
+            return new Response(JSON.stringify({}), { status: 200 });
+        });
+        const handleSuccess = vi.fn();
+
+        render(<EditVehicleModal isOpen={true} onClose={vi.fn()} onSuccess={handleSuccess} vehicle={{ ...mockVehicle, photoUpdatedAt: '2026-11-06T10:00:00.000Z' }} />);
+
+        await screen.findByDisplayValue('VL186');
+        fireEvent.click(screen.getByRole('button', { name: /Retirer/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
+
+        await waitFor(() => expect(fetchMock.mock.calls.some(c => getUrl(c[0]).endsWith('/photo'))).toBe(true));
+        expect(handleSuccess).not.toHaveBeenCalled();
+
+        resolvePhoto(new Response(JSON.stringify({ success: true }), { status: 200 }));
+        await waitFor(() => expect(handleSuccess).toHaveBeenCalled());
+    });
+
+    it("signale l'échec de la photo sans annuler la modification", async () => {
+        const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+        mockFetch(async (input: string | URL | Request) => {
+            const urlStr = getUrl(input);
+            if (urlStr.endsWith('/photo')) {
+                return new Response(JSON.stringify({ error: 'La photo est trop volumineuse (4 Mo maximum).' }), { status: 413 });
+            }
+            if (urlStr.includes('/api/ul')) {
+                return new Response(JSON.stringify({ uls: [] }), { status: 200 });
+            }
+            return new Response(JSON.stringify({}), { status: 200 });
+        });
+        const handleSuccess = vi.fn();
+        // jsdom n'implémente pas createObjectURL, utilisé par l'aperçu de PhotoPicker.
+        URL.createObjectURL = vi.fn(() => 'blob:apercu');
+
+        render(<EditVehicleModal isOpen={true} onClose={vi.fn()} onSuccess={handleSuccess} vehicle={mockVehicle} />);
+
+        await screen.findByDisplayValue('VL186');
+        const input = document.querySelector('input[accept="image/jpeg,image/png,image/webp"]') as HTMLInputElement;
+        fireEvent.change(input, { target: { files: [new File(['x'], 'photo.jpg', { type: 'image/jpeg' })] } });
+        await screen.findByAltText('Aperçu');
+        fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
+
+        await waitFor(() => expect(handleSuccess).toHaveBeenCalled());
+        expect(alertSpy).toHaveBeenCalledWith('Véhicule modifié, photo non enregistrée : La photo est trop volumineuse (4 Mo maximum).');
+    });
+
     it('displays error message when API returns error', async () => {
         mockFetch(async (input: string | URL | Request, init?: RequestInit) => {
             const urlStr = getUrl(input);

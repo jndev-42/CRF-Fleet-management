@@ -41,6 +41,7 @@ export const DEMO_EXTERNAL_WRITE_ROUTES: readonly { pattern: RegExp; methods?: r
     { pattern: /^\/api\/referentiel\/upload$/ },
     { pattern: /^\/api\/referentiel\/process$/ },
     { pattern: /^\/api\/vehicles\/[^/]+\/guide$/, methods: ['POST', 'DELETE'] },
+    { pattern: /^\/api\/vehicles\/[^/]+\/photo$/, methods: ['POST', 'DELETE'] },
     { pattern: /^\/api\/vehicles\/[^/]+\/connection$/ },
     { pattern: /^\/api\/trips\/[^/]+\/refresh-renault$/ },
     { pattern: /^\/api\/push\/subscriptions$/ },

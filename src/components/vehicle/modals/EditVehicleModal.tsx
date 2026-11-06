@@ -3,6 +3,8 @@ import { Vehicle } from '@/app/vehicles/[id]/types';
 import { useUL } from '@/lib/contexts/ULContext';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 import VehicleGuideField, { applyGuideChange, GuideChange } from '@/components/vehicle/VehicleGuideField';
+import VehiclePhotoField, { applyPhotoChange, PhotoChange } from '@/components/vehicle/VehiclePhotoField';
+import { vehiclePhotoUrl } from '@/lib/vehiclePhoto';
 
 interface EditVehicleModalProps {
     isOpen: boolean;
@@ -35,6 +37,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
         revisionYearInterval: vehicle.revisionYearInterval ? String(vehicle.revisionYearInterval) : '',
     });
     const [guide, setGuide] = useState<GuideChange>({ kind: 'keep' });
+    const [photo, setPhoto] = useState<PhotoChange>({ kind: 'keep' });
     const [submitting, setSubmitting] = useState(false);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -44,6 +47,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
 
         setErrorMsg(null);
         setGuide({ kind: 'keep' });
+        setPhoto({ kind: 'keep' });
 
         // Fetch parking spots from active UL
         fetch('/api/ul')
@@ -130,6 +134,10 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
                 const guideError = await applyGuideChange(payload.name, guide);
                 if (guideError) {
                     alert(`Véhicule modifié, guide non enregistré : ${guideError}`);
+                }
+                const photoError = await applyPhotoChange(payload.name, photo);
+                if (photoError) {
+                    alert(`Véhicule modifié, photo non enregistrée : ${photoError}`);
                 }
                 onSuccess({ ...payload, name: payload.name });
                 onClose();
@@ -390,6 +398,12 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
                             currentFileName={vehicle.guideFileName ?? null}
                             value={guide}
                             onChange={setGuide}
+                            disabled={submitting}
+                        />
+                        <VehiclePhotoField
+                            currentSrc={vehiclePhotoUrl(`/api/vehicles/${encodeURIComponent(vehicle.name)}/photo`, vehicle.photoUpdatedAt)}
+                            value={photo}
+                            onChange={setPhoto}
                             disabled={submitting}
                         />
                     </div>

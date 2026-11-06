@@ -37,6 +37,8 @@ export interface QRVehicle {
     guideFileName?: string | null;
     guideSize?: number | null;
     guideUpdatedAt?: string | null;
+    /** Date ISO du dernier dépôt de la photo — `null` si le véhicule n'en a pas. */
+    photoUpdatedAt?: string | null;
     activeTrip: ActiveTrip | null;
 }
 

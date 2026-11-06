@@ -11,6 +11,7 @@ import VehicleInfoCard from './VehicleInfoCard';
 import VehicleGuideCard from '@/components/vehicle/VehicleGuideCard';
 import QRActions from './QRActions';
 import { useLicenseBlocked } from './useLicenseBlocked';
+import { vehiclePhotoUrl } from '@/lib/vehiclePhoto';
 import type { QRVehicle } from './types';
 
 export default function QRVehiclePage() {
@@ -175,7 +176,10 @@ export default function QRVehiclePage() {
                             <span>Accès via QR Code — limité à ce véhicule uniquement.</span>
                         </div>
 
-                        <VehicleInfoCard vehicle={vehicle} />
+                        <VehicleInfoCard
+                            vehicle={vehicle}
+                            photoSrc={vehiclePhotoUrl(`/api/qr/${encodeURIComponent(token)}/photo`, vehicle.photoUpdatedAt)}
+                        />
 
                         {step === 'view' && vehicle.guideFileName && (
                             <VehicleGuideCard

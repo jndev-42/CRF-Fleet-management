@@ -70,6 +70,27 @@ describe('QRVehiclePage — guide de vérification', () => {
     });
 });
 
+describe('QRVehiclePage — photo', () => {
+    const THUMBNAIL = 'Agrandir la photo du véhicule VPSP 182';
+
+    it('affiche la vignette avec l\'URL versionnée de la route QR', async () => {
+        mockVehicle({ photoUpdatedAt: '2026-11-06T10:00:00.000Z' });
+        render(<QRVehiclePage />);
+
+        const thumbnail = await screen.findByRole('button', { name: THUMBNAIL });
+        expect(thumbnail.querySelector('img')?.getAttribute('src'))
+            .toBe('/api/qr/tok-182/photo?v=2026-11-06T10%3A00%3A00.000Z');
+    });
+
+    it("n'affiche aucune vignette quand le véhicule n'a pas de photo", async () => {
+        mockVehicle({ photoUpdatedAt: null });
+        render(<QRVehiclePage />);
+
+        expect(await screen.findByText('VPSP 182')).toBeTruthy();
+        expect(screen.queryByRole('button', { name: THUMBNAIL })).toBeNull();
+    });
+});
+
 describe('QRVehiclePage — papiers de conduite', () => {
     function mockFetch(licenseBlocked: boolean) {
         vi.spyOn(global, 'fetch').mockImplementation(async (input) => {

@@ -70,6 +70,8 @@ describe('proxy — base démo configurée', () => {
         ['/api/referentiel/process', 'POST'],
         ['/api/vehicles/x/guide', 'POST'],
         ['/api/vehicles/x/guide', 'DELETE'],
+        ['/api/vehicles/x/photo', 'POST'],
+        ['/api/vehicles/x/photo', 'DELETE'],
         ['/api/vehicles/x/connection', 'PUT'],
         ['/api/trips/t1/refresh-renault', 'POST'],
         ['/api/push/subscriptions', 'POST'],

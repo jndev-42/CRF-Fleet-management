@@ -48,6 +48,7 @@ import { GET as getMissions } from '@/app/api/missions/route';
 import { POST as postVehicle } from '@/app/api/vehicles/route';
 import { DELETE as deleteVehicle } from '@/app/api/vehicles/[id]/route';
 import { DELETE as deleteGuide } from '@/app/api/vehicles/[id]/guide/route';
+import { DELETE as deletePhoto } from '@/app/api/vehicles/[id]/photo/route';
 import { POST as postMaintenance } from '@/app/api/vehicles/[id]/maintenance/route';
 import { POST as postMaintenanceEvent } from '@/app/api/vehicles/[id]/maintenance-events/route';
 import { POST as postChecklistItem } from '@/app/api/vehicles/[id]/checklist/route';
@@ -299,6 +300,7 @@ describe('gardes canManageVehicles — pas de 403 pour RESP_VEHICULE dans son UL
         ['POST /api/vehicles', () => postVehicle(jsonRequest('http://localhost/api/vehicles', 'POST', { name: 'VL999', type: 'VL', plate: 'ZZ-999-ZZ' }))],
         ['DELETE /api/vehicles/[id]', () => deleteVehicle(new Request('http://localhost/api/vehicles/VL186', { method: 'DELETE' }), byId('VL186'))],
         ['DELETE /api/vehicles/[id]/guide', () => deleteGuide(new Request('http://localhost/api/vehicles/VL186/guide', { method: 'DELETE' }), byId('VL186'))],
+        ['DELETE /api/vehicles/[id]/photo', () => deletePhoto(new Request('http://localhost/api/vehicles/VL186/photo', { method: 'DELETE' }), byId('VL186'))],
         ['POST /api/vehicles/[id]/maintenance', () => postMaintenance(jsonRequest('http://localhost/api/vehicles/VL186/maintenance', 'POST', {}), byId('VL186'))],
         ['POST /api/vehicles/[id]/maintenance-events', () => postMaintenanceEvent(jsonRequest('http://localhost/api/vehicles/VL001/maintenance-events', 'POST', {}), byId('VL001'))],
         ['POST /api/vehicles/[id]/checklist', () => postChecklistItem(jsonRequest('http://localhost/api/vehicles/VL001/checklist', 'POST', {}), byId('VL001'))],

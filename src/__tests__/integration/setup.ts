@@ -55,6 +55,8 @@ async function createTables() {
     guideFileName TEXT,
     guideSize INTEGER,
     guideUpdatedAt TEXT,
+    photoR2Key TEXT,
+    photoUpdatedAt TEXT,
     ulId TEXT,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
