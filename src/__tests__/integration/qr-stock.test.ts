@@ -168,6 +168,106 @@ describe('GET /api/qr-stock/[token]/stock', () => {
                 minStock: 2,
                 batches: [{ expiryDate: '2030-01-01', quantity: 4 }],
             }],
+            total: 1,
+            hasMore: false,
+        });
+    });
+
+    describe('pagination et recherche', () => {
+        function makeQueryRequest(qs: string): Request {
+            return new Request(`http://localhost/api/qr-stock/${TOKEN}/stock?${qs}`, { method: 'GET' });
+        }
+
+        async function seed75(): Promise<string> {
+            const stockId = await createStock('stock-a', 'ul-a', TOKEN);
+            for (let i = 1; i <= 75; i++) {
+                await createItem(stockId, `Article ${String(i).padStart(3, '0')}`, [{ quantity: 1, expiryDate: null }], { id: `it-${i}` });
+            }
+            return stockId;
+        }
+
+        it('pagine : 30 + 30 + 15, sans doublon, hasMore à jour', async () => {
+            await seed75();
+
+            const p1 = await (await getStock(makeGetRequest(), withToken())).json();
+            expect(p1.items).toHaveLength(30);
+            expect(p1.total).toBe(75);
+            expect(p1.hasMore).toBe(true);
+
+            const p2 = await (await getStock(makeQueryRequest('offset=30&limit=30'), withToken())).json();
+            expect(p2.items).toHaveLength(30);
+            expect(p2.items[0].name).toBe('Article 031');
+            expect(p2.hasMore).toBe(true);
+
+            const p3 = await (await getStock(makeQueryRequest('offset=60&limit=30'), withToken())).json();
+            expect(p3.items).toHaveLength(15);
+            expect(p3.hasMore).toBe(false);
+
+            const ids = [...p1.items, ...p2.items, ...p3.items].map((i: { id: string }) => i.id);
+            expect(new Set(ids).size).toBe(75);
+        });
+
+        it('trouve un article hors de la première page', async () => {
+            await seed75();
+            const body = await (await getStock(makeQueryRequest('q=Article%20070'), withToken())).json();
+            expect(body.items.map((i: { name: string }) => i.name)).toEqual(['Article 070']);
+            expect(body.total).toBe(1);
+        });
+
+        it('cherche sans casse ni accents, sur le nom et la catégorie', async () => {
+            const stockId = await createStock('stock-a', 'ul-a', TOKEN);
+            await createItem(stockId, 'Compresse stérile', [], { id: 'c1', category: 'Soins' });
+            await createItem(stockId, 'Écharpe', [], { id: 'c2', category: 'Pansements' });
+            await createItem(stockId, 'Garrot', [], { id: 'c3', category: null });
+
+            const byName = await (await getStock(makeQueryRequest('q=STERILE'), withToken())).json();
+            expect(byName.items.map((i: { id: string }) => i.id)).toEqual(['c1']);
+
+            const byAccent = await (await getStock(makeQueryRequest(`q=${encodeURIComponent('écharpe')}`), withToken())).json();
+            expect(byAccent.items.map((i: { id: string }) => i.id)).toEqual(['c2']);
+
+            const byCategory = await (await getStock(makeQueryRequest('q=pansem'), withToken())).json();
+            expect(byCategory.items.map((i: { id: string }) => i.id)).toEqual(['c2']);
+
+            const none = await (await getStock(makeQueryRequest('q=zzz'), withToken())).json();
+            expect(none).toMatchObject({ items: [], total: 0, hasMore: false });
+        });
+
+        it('gère les ligatures françaises (œ, æ) dans la recherche', async () => {
+            const stockId = await createStock('stock-a', 'ul-a', TOKEN);
+            await createItem(stockId, 'Cœur artificiel', [], { id: 'l1' });
+            await createItem(stockId, 'Œdème gel', [], { id: 'l2' });
+
+            const coeur = await (await getStock(makeQueryRequest('q=coeur'), withToken())).json();
+            expect(coeur.items.map((i: { id: string }) => i.id)).toEqual(['l1']);
+            const oedeme = await (await getStock(makeQueryRequest('q=oedeme'), withToken())).json();
+            expect(oedeme.items.map((i: { id: string }) => i.id)).toEqual(['l2']);
+        });
+
+        it.each([
+            ['limit=0'], ['limit=500'], ['offset=-1'], [`q=${'a'.repeat(101)}`],
+        ])('rejette %s en 400', async (qs) => {
+            await createStock('stock-a', 'ul-a', TOKEN);
+            const res = await getStock(makeQueryRequest(qs), withToken());
+            expect(res.status).toBe(400);
+        });
+
+        it('ne charge les lots que pour les articles de la page', async () => {
+            await seed75();
+            const spy = vi.spyOn(db, 'execute');
+            await getStock(makeQueryRequest('offset=0&limit=5'), withToken());
+            type Stmt = string | { sql: string; args?: unknown[] };
+            const calls = spy.mock.calls as unknown as Array<[Stmt]>;
+            const batchCalls = calls.filter(([stmt]) => {
+                const sql = typeof stmt === 'string' ? stmt : stmt.sql;
+                return sql.includes('InvBatch');
+            });
+            expect(batchCalls.length).toBeGreaterThan(0);
+            for (const [stmt] of batchCalls) {
+                const args = typeof stmt === 'string' ? [] : (stmt.args ?? []);
+                expect(args.length).toBeLessThanOrEqual(5);
+            }
+            spy.mockRestore();
         });
     });
 

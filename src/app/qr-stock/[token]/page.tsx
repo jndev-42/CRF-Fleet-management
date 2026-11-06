@@ -9,6 +9,9 @@ import CartSummary from './CartSummary';
 import type { PendingMovement, QRStock, QRStockItem } from './types';
 import styles from './page.module.css';
 
+const PAGE_SIZE = 30;
+const SEARCH_DEBOUNCE_MS = 300;
+
 /**
  * Page publique du QR stock — hors app shell, mobile d'abord.
  *
@@ -26,50 +29,117 @@ export default function QRStockPage() {
     const router = useRouter();
 
     const [stock, setStock] = useState<QRStock | null>(null);
+    const [items, setItems] = useState<QRStockItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [moreError, setMoreError] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [query, setQuery] = useState('');
+    const [appliedQuery, setAppliedQuery] = useState('');
     const [cart, setCart] = useState<PendingMovement[]>([]);
     const [picking, setPicking] = useState<QRStockItem | null>(null);
     const [done, setDone] = useState<PendingMovement[] | null>(null);
 
     const fetchAbortRef = useRef<AbortController | null>(null);
+    const nextOffsetRef = useRef(0);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-    const fetchStock = useCallback(async () => {
+    // Debounce de la saisie : une seule requête après une pause de frappe.
+    useEffect(() => {
+        const timer = setTimeout(() => setAppliedQuery(query.trim()), SEARCH_DEBOUNCE_MS);
+        return () => clearTimeout(timer);
+    }, [query]);
+
+    /**
+     * Charge une page du stock. `reset` repart de la page 0 (nouvelle recherche,
+     * retour du succès) ; sinon la page suivante s'ajoute à la liste. Toute
+     * requête en cours est annulée : une réponse obsolète n'est jamais appliquée.
+     */
+    const fetchPage = useCallback(async (q: string, reset: boolean) => {
         fetchAbortRef.current?.abort();
         const controller = new AbortController();
         fetchAbortRef.current = controller;
-        setLoading(true);
+        if (reset) {
+            setLoading(true);
+            setLoadingMore(false);
+        } else {
+            setLoadingMore(true);
+        }
+        setMoreError(null);
         try {
+            const offset = reset ? 0 : nextOffsetRef.current;
+            const qs = new URLSearchParams({ offset: String(offset), limit: String(PAGE_SIZE) });
+            if (q) qs.set('q', q);
             // `encodeURIComponent` : `useParams()` rend le segment DÉCODÉ. Un lien
             // forgé `/qr-stock/..%2F..%2Finventory%2Fstocks%3F` donnerait un token
             // `../../inventory/stocks?`, que le navigateur normaliserait en une
             // requête same-origin vers un endpoint arbitraire, cookie de session
             // compris. Le `callbackUrl` ci-dessous l'encode déjà.
-            const res = await fetch(`/api/qr-stock/${encodeURIComponent(token)}/stock`, { signal: controller.signal });
+            const res = await fetch(`/api/qr-stock/${encodeURIComponent(token)}/stock?${qs}`, { signal: controller.signal });
+            if (controller.signal.aborted) return;
             if (res.status === 401) {
                 router.push(`/login?callbackUrl=${encodeURIComponent(`/qr-stock/${token}`)}`);
                 return;
             }
             if (!res.ok) {
                 const data = await res.json().catch(() => ({}));
-                setError(data.error || 'Erreur de chargement');
-                setStock(null);
+                if (controller.signal.aborted) return;
+                const message = data.error || 'Erreur de chargement';
+                if (reset) {
+                    // `stock` est conservé : le retirer démonterait la recherche et le panier.
+                    setError(message);
+                    setItems([]);
+                } else {
+                    setMoreError(message);
+                }
                 return;
             }
-            setError(null);
-            setStock(await res.json());
+            const data: QRStock = await res.json();
+            if (controller.signal.aborted) return;
+            if (reset) setError(null);
+            // Prochain offset d'après le serveur, pas d'après la liste dédoublonnée :
+            // une page de doublons ferait sinon redemander la même page en boucle.
+            nextOffsetRef.current = offset + data.items.length;
+            setStock(data);
+            setItems(prev => {
+                if (reset) return data.items;
+                const known = new Set(prev.map(i => i.id));
+                return [...prev, ...data.items.filter(i => !known.has(i.id))];
+            });
         } catch (e) {
             if (e instanceof Error && e.name === 'AbortError') return;
-            setError('Erreur de connexion');
+            if (reset) {
+                setError('Erreur de connexion');
+                setItems([]);
+            } else setMoreError('Erreur de connexion');
         } finally {
-            if (fetchAbortRef.current === controller) setLoading(false);
+            if (fetchAbortRef.current === controller) {
+                setLoading(false);
+                setLoadingMore(false);
+            }
         }
     }, [token, router]);
 
+    // Page 0 au montage et à chaque changement de recherche.
     useEffect(() => {
-        fetchStock();
+        fetchPage(appliedQuery, true);
         return () => fetchAbortRef.current?.abort();
-    }, [fetchStock]);
+    }, [fetchPage, appliedQuery]);
+
+    const hasMore = stock?.hasMore ?? false;
+    const canLoadMore = hasMore && !loading && !loadingMore && !moreError && !done;
+
+    // Scroll infini : la sentinelle en bas de liste déclenche la page suivante.
+    useEffect(() => {
+        const node = sentinelRef.current;
+        if (!canLoadMore || !node || typeof IntersectionObserver === 'undefined') return;
+        const observer = new IntersectionObserver(entries => {
+            if (entries.some(en => en.isIntersecting)) fetchPage(appliedQuery, false);
+        }, { rootMargin: '200px' });
+        observer.observe(node);
+        return () => observer.disconnect();
+    }, [canLoadMore, fetchPage, appliedQuery, items.length]);
 
     function pushMovement(item: QRStockItem, change: number, expiryDate: string | null) {
         setCart(prev => [...prev, {
@@ -128,7 +198,7 @@ export default function QRStockPage() {
                         <button
                             type="button"
                             className="btn btn-secondary"
-                            onClick={() => { setDone(null); fetchStock(); }}
+                            onClick={() => { setDone(null); fetchPage(appliedQuery, true); }}
                         >
                             Retour
                         </button>
@@ -147,7 +217,7 @@ export default function QRStockPage() {
             </div>
 
             <div className={styles.container}>
-                {loading && <div className={styles.loading} role="status" aria-live="polite">Chargement…</div>}
+                {loading && !stock && <div className={styles.loading} role="status" aria-live="polite">Chargement…</div>}
 
                 {error && (
                     <div className={styles.errorBox} role="alert">
@@ -163,7 +233,7 @@ export default function QRStockPage() {
                     </div>
                 )}
 
-                {!loading && stock && (
+                {stock && (
                     <>
                         <h1 className={styles.stockName}>{stock.stock.name}</h1>
 
@@ -177,20 +247,71 @@ export default function QRStockPage() {
                             « Valider ». Si vous quittez cette page avant, ils seront perdus.
                         </div>
 
-                        {stock.items.length === 0 ? (
-                            <div className={styles.emptyState}>Ce stock ne contient aucun article.</div>
-                        ) : (
-                            <div className={styles.itemList}>
-                                {stock.items.map(item => (
-                                    <StockItemRow
-                                        key={item.id}
-                                        item={item}
-                                        pending={pendingByItem.get(item.id) ?? 0}
-                                        onRemove={i => pushMovement(i, -1, null)}
-                                        onAdd={handleAdd}
-                                    />
-                                ))}
+                        <div className={styles.searchBar}>
+                            <input
+                                ref={searchInputRef}
+                                type="search"
+                                className={styles.searchInput}
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                placeholder="Rechercher un article ou une catégorie"
+                                aria-label="Rechercher un article"
+                                maxLength={100}
+                                autoComplete="off"
+                            />
+                            {query && (
+                                <button
+                                    type="button"
+                                    className={styles.searchClear}
+                                    onClick={() => { setQuery(''); setAppliedQuery(''); searchInputRef.current?.focus(); }}
+                                    aria-label="Effacer la recherche"
+                                >
+                                    ✕
+                                </button>
+                            )}
+                        </div>
+
+                        {loading ? (
+                            <div className={styles.loading} role="status" aria-live="polite">Chargement…</div>
+                        ) : items.length === 0 ? (
+                            <div className={styles.emptyState} role="status" aria-live="polite">
+                                {appliedQuery
+                                    ? `Aucun article ne correspond à « ${appliedQuery} »`
+                                    : 'Ce stock ne contient aucun article.'}
                             </div>
+                        ) : (
+                            <>
+                                <div className={styles.resultCount} role="status" aria-live="polite">
+                                    {stock.total} article{stock.total > 1 ? 's' : ''}
+                                </div>
+                                <div className={styles.itemList}>
+                                    {items.map(item => (
+                                        <StockItemRow
+                                            key={item.id}
+                                            item={item}
+                                            pending={pendingByItem.get(item.id) ?? 0}
+                                            onRemove={i => pushMovement(i, -1, null)}
+                                            onAdd={handleAdd}
+                                        />
+                                    ))}
+                                </div>
+                                {moreError && (
+                                    <div className={styles.errorBox} role="alert">
+                                        <span className={styles.errorText}>{moreError}</span>
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            onClick={() => fetchPage(appliedQuery, false)}
+                                        >
+                                            Réessayer
+                                        </button>
+                                    </div>
+                                )}
+                                {loadingMore && (
+                                    <div className={styles.loadingMore} role="status" aria-live="polite">Chargement…</div>
+                                )}
+                                {hasMore && <div ref={sentinelRef} className={styles.sentinel} aria-hidden="true" />}
+                            </>
                         )}
 
                         {/* Réserve d'espace : la barre du panier est fixe et

@@ -3,7 +3,7 @@
  *
  * Couvre AC-I1 → AC-I11, dont AC-I6′ (forme exacte du corps posté).
  */
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockPush = vi.fn();
@@ -42,7 +42,23 @@ const STOCK = {
             batches: [],
         },
     ],
+    total: 2,
+    hasMore: false,
 };
+
+// jsdom n'a pas IntersectionObserver : on le stubbe et on déclenche à la main.
+type IOCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
+let observers: IOCallback[] = [];
+async function triggerIntersection() {
+    // L'observateur est créé par un effet : attendre qu'il existe avant de le déclencher.
+    await waitFor(() => expect(observers.length).toBeGreaterThan(0));
+    const last = observers[observers.length - 1];
+    act(() => last?.([{ isIntersecting: true }]));
+}
+
+function makeItem(i: number) {
+    return { id: `p-${i}`, name: `Article ${i}`, category: null, quantity: 1, minStock: null, batches: [] };
+}
 
 function mockFetch(impl?: (url: string, init?: RequestInit) => Response | Promise<Response>) {
     const fn = vi.fn(async (url: string, init?: RequestInit) => {
@@ -64,9 +80,18 @@ async function renderPage() {
 
 beforeEach(() => {
     mockPush.mockReset();
+    observers = [];
+    class FakeIntersectionObserver {
+        constructor(cb: IOCallback) { observers.push(cb); }
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+    }
+    vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
 });
 
 afterEach(() => {
+    vi.unstubAllGlobals();
     vi.restoreAllMocks();
 });
 
@@ -299,5 +324,197 @@ describe('QRStockPage', () => {
         render(<QRStockPage />);
 
         expect(await screen.findByText('QR Code invalide ou expiré')).toBeTruthy();
+    });
+
+    describe('recherche et scroll infini', () => {
+        const stockUrl = (u: string) => new URL(u, 'http://localhost');
+
+        it('envoie q au serveur après le debounce, une seule fois malgré plusieurs frappes', async () => {
+            const fetchMock = mockFetch();
+            await renderPage();
+
+            const input = screen.getByLabelText('Rechercher un article');
+            for (const v of ['g', 'ga', 'gar', 'garr']) fireEvent.change(input, { target: { value: v } });
+
+            await waitFor(() => {
+                const qs = fetchMock.mock.calls.map(([u]) => stockUrl(u as string).searchParams.get('q'));
+                expect(qs).toContain('garr');
+            });
+            const searches = fetchMock.mock.calls
+                .map(([u]) => stockUrl(u as string).searchParams.get('q'))
+                .filter(q => q !== null);
+            expect(searches).toEqual(['garr']);
+        });
+
+        it('ignore la réponse obsolète d\'une recherche précédente', async () => {
+            let releaseSlow: (() => void) | null = null;
+            mockFetch((url) => {
+                const q = stockUrl(url).searchParams.get('q');
+                if (q === 'comp') {
+                    // Réponse lente : arrive APRÈS celle de la recherche suivante.
+                    return new Promise<Response>(resolve => {
+                        releaseSlow = () => resolve(new Response(JSON.stringify({ ...STOCK, items: [STOCK.items[0]], total: 1 }), { status: 200 }));
+                    });
+                }
+                const items = q === 'garr' ? [STOCK.items[1]] : STOCK.items;
+                return new Response(JSON.stringify({ ...STOCK, items, total: items.length }), { status: 200 });
+            });
+            await renderPage();
+
+            const input = screen.getByLabelText('Rechercher un article');
+            fireEvent.change(input, { target: { value: 'comp' } });
+            await waitFor(() => expect(releaseSlow).not.toBeNull());
+            fireEvent.change(input, { target: { value: 'garr' } });
+            await waitFor(() => expect(screen.queryByText('Compresses')).toBeNull());
+            expect(await screen.findByText('Garrot')).toBeTruthy();
+
+            await act(async () => { releaseSlow?.(); });
+            expect(screen.queryByText('Compresses')).toBeNull();
+            expect(screen.getByText('Garrot')).toBeTruthy();
+        });
+
+        it('conserve q sur la page suivante', async () => {
+            const matches = Array.from({ length: 30 }, (_, i) => makeItem(i + 1));
+            const fetchMock = mockFetch((url) => {
+                const u = stockUrl(url);
+                const offset = Number(u.searchParams.get('offset') ?? 0);
+                if (!u.searchParams.get('q')) return new Response(JSON.stringify(STOCK), { status: 200 });
+                const body = offset === 0
+                    ? { ...STOCK, items: matches, total: 31, hasMore: true }
+                    : { ...STOCK, items: [makeItem(31)], total: 31, hasMore: false };
+                return new Response(JSON.stringify(body), { status: 200 });
+            });
+            await renderPage();
+
+            fireEvent.change(screen.getByLabelText('Rechercher un article'), { target: { value: 'article' } });
+            await screen.findByText('Article 1');
+            await triggerIntersection();
+
+            await screen.findByText('Article 31');
+            const next = fetchMock.mock.calls
+                .map(([u]) => stockUrl(u as string))
+                .find(u => u.searchParams.get('offset') === '30');
+            expect(next?.searchParams.get('q')).toBe('article');
+        });
+
+        it('garde la barre de recherche et le panier si une recherche échoue', async () => {
+            mockFetch((url) => {
+                if (stockUrl(url).searchParams.get('q')) {
+                    return new Response(JSON.stringify({ error: 'Panne serveur' }), { status: 500 });
+                }
+                return new Response(JSON.stringify(STOCK), { status: 200 });
+            });
+            await renderPage();
+            fireEvent.click(screen.getByLabelText('Retirer une unité de Compresses'));
+
+            fireEvent.change(screen.getByLabelText('Rechercher un article'), { target: { value: 'x' } });
+
+            expect(await screen.findByText('Panne serveur')).toBeTruthy();
+            expect(screen.getByLabelText('Rechercher un article')).toBeTruthy();
+            expect(screen.getByText(/Mouvements en attente \(1\)/)).toBeTruthy();
+        });
+
+        it('charge la page suivante (offset=30) quand la sentinelle devient visible', async () => {
+            const first = Array.from({ length: 30 }, (_, i) => makeItem(i + 1));
+            const second = Array.from({ length: 5 }, (_, i) => makeItem(i + 31));
+            const fetchMock = mockFetch((url) => {
+                const offset = Number(stockUrl(url).searchParams.get('offset') ?? 0);
+                const body = offset === 0
+                    ? { ...STOCK, items: first, total: 35, hasMore: true }
+                    : { ...STOCK, items: second, total: 35, hasMore: false };
+                return new Response(JSON.stringify(body), { status: 200 });
+            });
+            await renderPage();
+            expect(screen.queryByText('Article 31')).toBeNull();
+
+            await triggerIntersection();
+
+            expect(await screen.findByText('Article 31')).toBeTruthy();
+            expect(screen.getByText('Article 1')).toBeTruthy();
+            expect(fetchMock.mock.calls.some(([u]) => stockUrl(u as string).searchParams.get('offset') === '30')).toBe(true);
+        });
+
+        it('conserve le panier après une recherche puis son effacement', async () => {
+            mockFetch((url) => {
+                const q = stockUrl(url).searchParams.get('q');
+                const items = q ? STOCK.items.filter(i => i.name.toLowerCase().includes(q)) : STOCK.items;
+                return new Response(JSON.stringify({ ...STOCK, items, total: items.length }), { status: 200 });
+            });
+            await renderPage();
+
+            fireEvent.click(screen.getByLabelText('Ajouter une unité de Garrot'));
+            fireEvent.click(within(screen.getByRole('dialog')).getByText('Stock sans date'));
+            expect(screen.getByTestId('pending-item-2').textContent).toBe('+1');
+
+            fireEvent.change(screen.getByLabelText('Rechercher un article'), { target: { value: 'compresse' } });
+            await waitFor(() => expect(screen.queryByText('Garrot')).toBeNull());
+            expect(screen.getByText(/Mouvements en attente \(1\)/)).toBeTruthy();
+
+            fireEvent.click(screen.getByLabelText('Effacer la recherche'));
+            expect(await screen.findByText('Garrot')).toBeTruthy();
+            expect(screen.getByTestId('pending-item-2').textContent).toBe('+1');
+            expect(screen.getByText(/Mouvements en attente \(1\)/)).toBeTruthy();
+        });
+
+        it('affiche un état vide propre à la recherche', async () => {
+            mockFetch((url) => {
+                const q = stockUrl(url).searchParams.get('q');
+                const body = q ? { ...STOCK, items: [], total: 0 } : STOCK;
+                return new Response(JSON.stringify(body), { status: 200 });
+            });
+            await renderPage();
+
+            fireEvent.change(screen.getByLabelText('Rechercher un article'), { target: { value: 'zzz' } });
+
+            expect(await screen.findByText('Aucun article ne correspond à « zzz »')).toBeTruthy();
+        });
+
+        it('conserve les articles chargés et propose « Réessayer » si la page suivante échoue', async () => {
+            const first = Array.from({ length: 30 }, (_, i) => makeItem(i + 1));
+            let fail = true;
+            mockFetch((url) => {
+                const offset = Number(stockUrl(url).searchParams.get('offset') ?? 0);
+                if (offset === 0) {
+                    return new Response(JSON.stringify({ ...STOCK, items: first, total: 31, hasMore: true }), { status: 200 });
+                }
+                if (fail) {
+                    fail = false;
+                    return new Response(JSON.stringify({ error: 'Erreur réseau' }), { status: 500 });
+                }
+                return new Response(JSON.stringify({ ...STOCK, items: [makeItem(31)], total: 31, hasMore: false }), { status: 200 });
+            });
+            await renderPage();
+
+            await triggerIntersection();
+            expect(await screen.findByText('Erreur réseau')).toBeTruthy();
+            expect(screen.getByText('Article 1')).toBeTruthy();
+
+            fireEvent.click(screen.getByRole('button', { name: 'Réessayer' }));
+
+            expect(await screen.findByText('Article 31')).toBeTruthy();
+            expect(screen.queryByText('Erreur réseau')).toBeNull();
+        });
+
+        it('recharge depuis la page 0 en gardant la recherche après « Retour »', async () => {
+            const fetchMock = mockFetch();
+            await renderPage();
+
+            fireEvent.change(screen.getByLabelText('Rechercher un article'), { target: { value: 'garr' } });
+            await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => stockUrl(u as string).searchParams.get('q') === 'garr')).toBe(true));
+            await screen.findByText('Garrot');
+
+            fireEvent.click(screen.getByLabelText('Ajouter une unité de Garrot'));
+            fireEvent.click(within(screen.getByRole('dialog')).getByText('Stock sans date'));
+            fireEvent.click(screen.getByRole('button', { name: 'Valider' }));
+            await screen.findByText('1 mouvement enregistré');
+
+            fetchMock.mockClear();
+            fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
+
+            await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+            const u = stockUrl(fetchMock.mock.calls[0][0] as string);
+            expect(u.searchParams.get('q')).toBe('garr');
+            expect(u.searchParams.get('offset')).toBe('0');
+        });
     });
 });
