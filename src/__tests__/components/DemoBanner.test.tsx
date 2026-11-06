@@ -11,7 +11,7 @@ describe('DemoBanner', () => {
     it('affiche le texte de la base partagée et le message de simulation externe', () => {
         vi.useFakeTimers();
         render(<DemoBanner />);
-        expect(screen.getByText(/Base de démonstration partagée, remise à zéro chaque nuit/)).toBeTruthy();
+        expect(screen.getByText(/Base de démonstration partagée, remise à zéro chaque nuit ou à la demande/)).toBeTruthy();
         expect(screen.getByText(/jamais dans la base réelle/)).toBeTruthy();
         expect(screen.queryByText(/Action simulée/)).toBeNull();
         act(() => { window.dispatchEvent(new CustomEvent(DEMO_SIMULATED_EVENT)); });

@@ -1,5 +1,24 @@
 # Changelog
 
+## [5.46.0] — 6 novembre 2026
+
+### ✨ Nouveautés
+
+- **Recopier la base de démonstration à la demande** — sur la page Aide, sous le bouton d'entrée en démo, les super-administrateurs disposent d'un bouton « Recopier la base démo ». Il remet la démo à zéro à partir des vraies données sans attendre la nuit, par exemple après une séance de formation ou après une recopie nocturne qui a échoué.
+- **La démo redevient accessible sans recharger la page** — une fois la recopie terminée, son résultat s'affiche et le bouton d'entrée en démo apparaît aussitôt. Une confirmation prévient avant le lancement : les changements faits en démo sont perdus et la démo reste indisponible pendant la copie.
+
+### 🔧 Modifications
+
+- Une seule recopie de la démo peut tourner à la fois : si celle de la nuit ou un autre clic est déjà en cours, un message le signale et la recopie en cours continue normalement.
+
+### 🔒 Sécurité
+
+- Correction de failles connues dans des composants utilisés par l'application (validation des données, signature des documents et connexion aux services Google).
+
+### 🐛 Corrections
+
+- **Aperçus de photos** — les aperçus sont libérés de la mémoire dès qu'ils ne servent plus, ce qui évite de ralentir le navigateur après de nombreuses photos. Un fichier qui n'est pas une image n'est plus jamais affiché comme une image.
+
 ## [5.45.0] — 6 novembre 2026
 
 ### ✨ Nouveautés

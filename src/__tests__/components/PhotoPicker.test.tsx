@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 
@@ -195,5 +195,50 @@ describe('PhotoPicker — scanner de document', () => {
 
         expect(click).toHaveBeenCalled();
         expect(screen.queryByRole('dialog')).toBeNull();
+    });
+});
+
+describe('PhotoPicker — aperçus', () => {
+    const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+
+    beforeEach(() => {
+        URL.createObjectURL = vi.fn(() => 'blob:apercu');
+        URL.revokeObjectURL = vi.fn();
+    });
+
+    afterEach(() => {
+        URL.createObjectURL = original.create;
+        URL.revokeObjectURL = original.revoke;
+    });
+
+    const image = new File(['x'], 'photo.jpg', { type: 'image/jpeg' });
+    const html = new File(['<script>'], 'piege.jpg', { type: 'text/html' });
+
+    it('mode multiple : aperçu des images seulement', async () => {
+        const { container } = render(<PhotoPicker photos={[image, html]} onPhotosChange={vi.fn()} />);
+        await waitFor(() => expect(container.querySelectorAll('img')).toHaveLength(1));
+        expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+        expect(URL.createObjectURL).toHaveBeenCalledWith(image);
+    });
+
+    it('mode unique : aucun aperçu pour un fichier qui n\'est pas une image', () => {
+        const { container } = render(<PhotoPicker file={html} onFileChange={vi.fn()} />);
+        expect(container.querySelector('img')).toBeNull();
+        expect(URL.createObjectURL).not.toHaveBeenCalled();
+    });
+
+    it("révoque l'URL quand la photo est retirée", async () => {
+        const { container, rerender } = render(<PhotoPicker photos={[image]} onPhotosChange={vi.fn()} />);
+        await waitFor(() => expect(container.querySelector('img')).not.toBeNull());
+        rerender(<PhotoPicker photos={[]} onPhotosChange={vi.fn()} />);
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:apercu');
+    });
+
+    it('ne recrée pas les URL à chaque rendu', async () => {
+        const photos = [image];
+        const { container, rerender } = render(<PhotoPicker photos={photos} onPhotosChange={vi.fn()} />);
+        await waitFor(() => expect(container.querySelector('img')).not.toBeNull());
+        rerender(<PhotoPicker photos={photos} onPhotosChange={vi.fn()} label="Autre" />);
+        expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
     });
 });

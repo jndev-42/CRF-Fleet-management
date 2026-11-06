@@ -17,7 +17,7 @@ export interface CatalogRoute {
 }
 
 /** Préfixes refusés : le chemin lui-même et tout ce qui est en dessous. */
-export const EXCLUDED_API_PREFIXES = ['/api/auth', '/api/cron', '/api/mcp', '/api/mcp-tokens'] as const;
+export const EXCLUDED_API_PREFIXES = ['/api/auth', '/api/cron', '/api/demo/refresh', '/api/mcp', '/api/mcp-tokens'] as const;
 
 export function isExcludedApiPath(path: string): boolean {
     return EXCLUDED_API_PREFIXES.some(prefix => path === prefix || path.startsWith(`${prefix}/`));

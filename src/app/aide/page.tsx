@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useDemoMode } from '@/lib/contexts/DemoContext';
 import { useEffect, useState } from 'react';
 import { useUL } from '@/lib/contexts/ULContext';
+import DemoRefreshButton from '@/components/demo/DemoRefreshButton';
 
 interface PhoneNum {
     label: string;
@@ -19,7 +20,8 @@ interface UL {
 
 export default function AidePage() {
     const router = useRouter();
-    const { isDemoMode, isDemoAvailable, toggleDemoMode } = useDemoMode();
+    const { isDemoMode, isDemoAvailable, isDemoRefreshing, canRefreshDemo, toggleDemoMode } = useDemoMode();
+    const canEnterDemo = (isDemoAvailable && !isDemoRefreshing) || isDemoMode;
     const { activeUL } = useUL();
     const [uls, setUls] = useState<UL[]>([]);
     const [loading, setLoading] = useState(true);
@@ -75,24 +77,33 @@ export default function AidePage() {
                 </button>
             </div>
 
-            {/* Mode Démo : proposé seulement si la base démo est configurée */}
-            {(isDemoAvailable || isDemoMode) && (
+            {/* Mode Démo : proposé si la base démo est prête ; toujours visible pour qui peut la recopier */}
+            {(canEnterDemo || canRefreshDemo) && (
             <div className="detail-card" style={{ marginBottom: 24, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, border: isDemoMode ? '1px solid #ff9800' : '1px solid var(--border-primary)' }}>
                 <div>
                     <h2 className="section-title" style={{ fontSize: 16, marginBottom: 4 }}>🛠️ Mode Démo</h2>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
-                        {isDemoMode 
-                            ? "Vous êtes en mode démo. Base de démonstration partagée, remise à zéro chaque nuit à partir des vraies données. Vos actions sont réellement enregistrées dans la démo, jamais dans la base réelle."
-                            : "Entraînez-vous sur une base de démonstration partagée, remise à zéro chaque nuit à partir des vraies données. Vos actions sont réellement enregistrées dans la démo, jamais dans la base réelle."}
+                        {!canEnterDemo
+                            ? (isDemoRefreshing
+                                ? "Recopie de la base de démonstration en cours."
+                                : "La base de démonstration n'est pas disponible. Lancez une recopie pour la rendre accessible.")
+                            : isDemoMode
+                            ? "Vous êtes en mode démo. Base de démonstration partagée, remise à zéro chaque nuit ou à la demande à partir des vraies données. Vos actions sont réellement enregistrées dans la démo, jamais dans la base réelle."
+                            : "Entraînez-vous sur une base de démonstration partagée, remise à zéro chaque nuit ou à la demande à partir des vraies données. Vos actions sont réellement enregistrées dans la démo, jamais dans la base réelle."}
                     </p>
                 </div>
-                <button
-                    className={isDemoMode ? "btn btn-secondary" : "btn btn-primary"}
-                    onClick={toggleDemoMode}
-                    style={{ display: 'flex', alignItems: 'center', gap: '8px', background: isDemoMode ? 'transparent' : '#ff9800', borderColor: '#ff9800', color: isDemoMode ? '#ff9800' : '#000' }}
-                >
-                    <span style={{ fontSize: '16px' }}>{isDemoMode ? '🚫' : '🧪'}</span> {isDemoMode ? 'Quitter le mode démo' : 'Activer le mode démo'}
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {canEnterDemo && (
+                    <button
+                        className={isDemoMode ? "btn btn-secondary" : "btn btn-primary"}
+                        onClick={toggleDemoMode}
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', background: isDemoMode ? 'transparent' : '#ff9800', borderColor: '#ff9800', color: isDemoMode ? '#ff9800' : '#000' }}
+                    >
+                        <span style={{ fontSize: '16px' }}>{isDemoMode ? '🚫' : '🧪'}</span> {isDemoMode ? 'Quitter le mode démo' : 'Activer le mode démo'}
+                    </button>
+                    )}
+                    <DemoRefreshButton />
+                </div>
             </div>
             )}
 

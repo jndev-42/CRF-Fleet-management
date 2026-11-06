@@ -27,7 +27,10 @@ vi.mock('@/lib/db', async () => {
     };
     return { db: routed, prodDb: db, get demoDb() { return demo.db; } };
 });
-vi.mock('@/lib/demo/cloneDatabase', () => ({ cloneDatabase: vi.fn() }));
+vi.mock('@/lib/demo/cloneDatabase', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/lib/demo/cloneDatabase')>()),
+    cloneDatabase: vi.fn(),
+}));
 vi.mock('@/lib/r2', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@/lib/r2')>()),
     purgeDemoObjects: vi.fn(async () => 0),
@@ -344,7 +347,8 @@ describe('GET /api/cron/daily-mileage-check', () => {
 
     describe('recopie prod → démo', () => {
         const mockedClone = vi.mocked(cloneDatabase);
-        const demoClient = { name: 'demo' };
+        // Seul le verrou s'exécute sur ce client : `cloneDatabase` est mocké.
+        const demoClient = { name: 'demo', execute: vi.fn() };
 
         const mockedPurge = vi.mocked(purgeDemoObjects);
 
@@ -353,6 +357,8 @@ describe('GET /api/cron/daily-mileage-check', () => {
             mockedClone.mockReset();
             mockedPurge.mockReset();
             mockedPurge.mockResolvedValue(0);
+            demoClient.execute.mockReset();
+            demoClient.execute.mockResolvedValue({ rowsAffected: 1 });
         });
         afterEach(() => {
             demo.db = null;
@@ -428,6 +434,21 @@ describe('GET /api/cron/daily-mileage-check', () => {
                 errorSpy.mockRestore();
                 vi.unstubAllEnvs();
             }
+        });
+
+        it("une recopie déjà en cours (bouton du SUPER_ADMIN) : le cron journalise et passe", async () => {
+            demo.db = demoClient;
+            demoClient.execute.mockResolvedValue({ rowsAffected: 0 });
+            const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+            const res = await GET(makeRequest());
+
+            expect(res.status).toBe(200);
+            expect(await res.json()).toEqual({ message: 'Aucun admin configuré pour recevoir des alertes.' });
+            expect(mockedClone).not.toHaveBeenCalled();
+            expect(mockedPurge).not.toHaveBeenCalled();
+            expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('déjà en cours'));
+            logSpy.mockRestore();
         });
 
         it("un échec de recopie est journalisé sans changer la réponse", async () => {

@@ -116,6 +116,60 @@ describe('DemoContext', () => {
             expect(fetchSpy).toHaveBeenCalledWith('/api/demo/status');
         });
 
+        it('expose canRefreshDemo seulement si le serveur renvoie canRefresh: true', async () => {
+            respond({ available: false, canRefresh: true });
+            const { result } = renderHook(() => useDemoMode(), { wrapper: DemoProvider });
+            expect(result.current.canRefreshDemo).toBe(false);
+            await waitFor(() => expect(result.current.canRefreshDemo).toBe(true));
+            expect(result.current.isDemoAvailable).toBe(false);
+        });
+
+        it('canRefreshDemo reste faux pour un autre compte', async () => {
+            respond({ available: true });
+            const { result } = renderHook(() => useDemoMode(), { wrapper: DemoProvider });
+            await waitFor(() => expect(result.current.isDemoAvailable).toBe(true));
+            expect(result.current.canRefreshDemo).toBe(false);
+        });
+
+        it('refreshDemoStatus relit le statut sans recharger la page', async () => {
+            respond({ available: false, canRefresh: true });
+            const { result } = renderHook(() => useDemoMode(), { wrapper: DemoProvider });
+            await waitFor(() => expect(result.current.canRefreshDemo).toBe(true));
+            expect(result.current.isDemoAvailable).toBe(false);
+
+            respond({ available: true, canRefresh: true });
+            await act(() => result.current.refreshDemoStatus());
+
+            expect(result.current.isDemoAvailable).toBe(true);
+            expect(window.location.reload).not.toHaveBeenCalled();
+        });
+
+        it('reste en démo pendant une copie (refreshing) et expose isDemoRefreshing', async () => {
+            localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
+            document.cookie = 'crf_demo_mode=1; path=/';
+            respond({ available: false, refreshing: true });
+            const { result } = renderHook(() => useDemoMode(), { wrapper: DemoProvider });
+            await waitFor(() => expect(result.current.isDemoRefreshing).toBe(true));
+            expect(result.current.isDemoMode).toBe(true);
+            expect(result.current.isDemoAvailable).toBe(false);
+            expect(localStorage.getItem(IS_DEMO_MODE_KEY)).toBe('true');
+            expect(document.cookie).toContain('crf_demo_mode=1');
+        });
+
+        it('markDemoRefreshing lève le drapeau, la relecture du statut le remet à jour', async () => {
+            respond({ available: true, canRefresh: true });
+            const { result } = renderHook(() => useDemoMode(), { wrapper: DemoProvider });
+            await waitFor(() => expect(result.current.isDemoAvailable).toBe(true));
+            expect(result.current.isDemoRefreshing).toBe(false);
+
+            act(() => result.current.markDemoRefreshing());
+            expect(result.current.isDemoRefreshing).toBe(true);
+
+            respond({ available: true, canRefresh: true });
+            await act(() => result.current.refreshDemoStatus());
+            expect(result.current.isDemoRefreshing).toBe(false);
+        });
+
         it('quitte une démo active si la base démo n\'est plus configurée', async () => {
             localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
             document.cookie = 'crf_demo_mode=1; path=/';

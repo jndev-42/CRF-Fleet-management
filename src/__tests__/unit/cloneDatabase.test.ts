@@ -124,6 +124,27 @@ describe('cloneDatabase', () => {
     });
 });
 
+describe('cloneDatabase — verrou de recopie', () => {
+    const LOCK_DDL = `CREATE TABLE "DemoRefreshLock" ("id" INTEGER PRIMARY KEY, "startedAt" TEXT NOT NULL)`;
+
+    it('ne supprime pas le verrou de la cible', async () => {
+        await target.execute(LOCK_DDL);
+        await target.execute(`INSERT INTO "DemoRefreshLock" (id, startedAt) VALUES (1, '2026-11-06T10:00:00.000Z')`);
+        await cloneDatabase(source, target);
+        const res = await target.execute(`SELECT startedAt FROM "DemoRefreshLock"`);
+        expect(res.rows.map((r) => r.startedAt)).toEqual(['2026-11-06T10:00:00.000Z']);
+    });
+
+    it('ne recopie pas un verrou présent côté source', async () => {
+        const raw = createClient({ url: `file:${path.join(dir, 'source.db')}` });
+        await raw.execute(LOCK_DDL);
+        raw.close();
+        await cloneDatabase(source, target);
+        const res = await target.execute(`SELECT name FROM sqlite_master WHERE name = 'DemoRefreshLock'`);
+        expect(res.rows).toHaveLength(0);
+    });
+});
+
 describe('cloneDatabase — état DemoMeta', () => {
     it("passe à 'ready' avec refreshedAt en fin de recopie", async () => {
         expect(await readDemoState(target).catch(() => null)).toBeNull();
@@ -134,6 +155,14 @@ describe('cloneDatabase — état DemoMeta', () => {
         // DemoMeta n'est pas une table de la source : jamais supprimée ni recopiée comme telle.
         await cloneDatabase(source, target);
         expect((await readDemoState(target))?.state).toBe('ready');
+    });
+
+    it("passe à 'refreshing' même si le schéma de la source est illisible", async () => {
+        await cloneDatabase(source, target);
+        expect((await readDemoState(target))?.state).toBe('ready');
+        const unreadable = { execute: () => Promise.reject(new Error('source injoignable')) } as unknown as Client;
+        await expect(cloneDatabase(unreadable, target)).rejects.toThrow('source injoignable');
+        expect((await readDemoState(target))?.state).toBe('refreshing');
     });
 
     it("reste 'refreshing' si la recopie échoue après la suppression", async () => {

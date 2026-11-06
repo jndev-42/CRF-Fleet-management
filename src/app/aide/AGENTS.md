@@ -19,7 +19,7 @@ Help & contacts page (`/aide`) — the operational phone directory and self-serv
 
 Data flow: a single `useEffect` fetches `GET /api/ul` on mount and stores `uls` in state; the list is then filtered against `activeUL` from `ULContext`, so only the currently selected Unité Locale's numbers render (when no UL is active, all are shown). Failures are swallowed with an empty `.catch(() => {})` and `loading` is cleared in `finally` — there is no error UI.
 
-Two context hooks drive behaviour: `useDemoMode()` (`isDemoMode`, `isDemoAvailable`, `toggleDemoMode`; the demo card is hidden unless the demo DB is available) and `useUL()` (`activeUL`). The demo-mode card changes its border and button colour to orange `#ff9800` when active.
+Two context hooks drive behaviour: `useDemoMode()` (`isDemoMode`, `isDemoAvailable`, `canRefreshDemo`, `toggleDemoMode`; the demo card is hidden unless the demo DB is available or the user can refresh it, and `DemoRefreshButton` sits under the entry button) and `useUL()` (`activeUL`). The demo-mode card changes its border and button colour to orange `#ff9800` when active.
 
 `handleRestartTour()` removes the `tour-completed` key from `localStorage`, navigates to `/`, then dispatches a `restart-tour` window event after a 500 ms delay so the destination page has mounted its listener first. If you touch the tour component, keep that event name and the ordering intact.
 

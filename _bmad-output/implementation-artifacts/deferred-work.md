@@ -165,3 +165,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-photo-vehicule-dashboard.md`
   summary: Aucun test automatisé ne couvre en navigateur le clic sur la vignette, le recalage du contenu, les hauteurs égales et le débordement sur téléphone.
   evidence: jsdom n'applique ni CSS ni mise en page ; `e2e/` tourne hors CI, sans données photo.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-securite-et-recopie-demo-manuelle.md`
+  summary: Prévenir les SUPER_ADMIN quand une recopie de la base démo échoue ou est sautée.
+  evidence: Le résultat `failed` ou `locked` du cron ne va que dans les logs ; un verrou tenu à 23h59 saute la recopie de la nuit sans nouvel essai.
+- source_spec: `_bmad-output/implementation-artifacts/spec-securite-et-recopie-demo-manuelle.md`
+  summary: Tester la ligne d'audit réellement écrite par `POST /api/demo/refresh`.
+  evidence: `demo-refresh.test.ts` n'exécute pas le traçage ; seul le contrôle statique de `withAudit` couvre la route.
+- source_spec: `_bmad-output/implementation-artifacts/spec-securite-et-recopie-demo-manuelle.md`
+  summary: Vérifier Drive avec les versions montées de ses bibliothèques.
+  evidence: Non vérifié : les tests mockent `googleapis`. À trancher par une action Drive réelle sur preview.

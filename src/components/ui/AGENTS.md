@@ -10,6 +10,7 @@ Generic, feature-agnostic primitives shared across the app: the file/photo picke
 | File | Description |
 |------|-------------|
 | `PhotoPicker.tsx` | The app's single file-selection component. Dual-mode: multi-file (`photos` + `onPhotosChange`) or single-file (`file` + `onFileChange`). Offers separate camera-capture and gallery inputs, thumbnail previews with per-item removal, PDF detection, and per-file/total size validation. Pre-compresses selections on pick. |
+| `useObjectUrl.ts` | Hook d'aperçu d'une image locale : renvoie la référence à poser sur l'`<img>` ; crée l'URL `blob:` dans un effet et la révoque quand le fichier change ou au démontage. Aucune URL si `type` ne commence pas par `image/`. Utilisé par `PhotoPicker`. |
 | `UserCombobox.tsx` | Searchable user dropdown — filters on name or email, click-outside to close, optional `excludeEmail`, and a `defaultLabel` (default `'Moi-même'`) for the empty value. Renders the special value `'UNASSIGNED'` as "Chauffeur non décidé". |
 | `UserCombobox.module.css` | Trigger, dropdown panel, search input, and option styling. |
 | `Skeleton.tsx` | Base `Skeleton` (variants `text` / `circular` / `rectangular` / `rounded`, `width`, `height`, passes through extra `div` props) plus composites `VehicleCardSkeleton` and `DashboardSkeletons({ count = 6 })`. |
