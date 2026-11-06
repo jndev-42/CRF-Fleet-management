@@ -4,7 +4,7 @@ import { IS_DEMO_MODE_KEY, DEMO_SIMULATED_EVENT } from '@/lib/demo/readOnly';
 
 const realFetch = vi.fn(async () => new Response('real', { status: 200 }));
 
-describe('fetchInterceptor (démo lecture seule)', () => {
+describe('fetchInterceptor (démo : base partagée, routes externes simulées)', () => {
     beforeAll(() => {
         window.fetch = realFetch as unknown as typeof window.fetch;
         setupFetchInterceptor();
@@ -34,11 +34,22 @@ describe('fetchInterceptor (démo lecture seule)', () => {
         expect(realFetch).toHaveBeenCalledTimes(2);
     });
 
-    it('simule une mutation, sans réseau, et émet l\'événement', async () => {
+    it('laisse passer les écritures en base vers l\'API (base démo)', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
         const listener = vi.fn();
         window.addEventListener(DEMO_SIMULATED_EVENT, listener);
-        const res = await fetch('/api/vehicles/x/reservations', { method: 'POST', body: '{}' });
+        await fetch('/api/vehicles/x/reservations', { method: 'POST', body: '{}' });
+        await fetch('/api/users/x', { method: 'PATCH' });
+        window.removeEventListener(DEMO_SIMULATED_EVENT, listener);
+        expect(realFetch).toHaveBeenCalledTimes(2);
+        expect(listener).not.toHaveBeenCalled();
+    });
+
+    it('simule une écriture externe, sans réseau, et émet l\'événement', async () => {
+        localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
+        const listener = vi.fn();
+        window.addEventListener(DEMO_SIMULATED_EVENT, listener);
+        const res = await fetch('/api/drive/upload', { method: 'POST', body: '{}' });
         window.removeEventListener(DEMO_SIMULATED_EVENT, listener);
         expect(realFetch).not.toHaveBeenCalled();
         expect(res.status).toBe(200);
@@ -48,8 +59,8 @@ describe('fetchInterceptor (démo lecture seule)', () => {
 
     it('simule aussi les URL absolues et les Request', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
-        await fetch('http://localhost/api/users/x', { method: 'PATCH' });
-        await fetch(new Request('http://localhost/api/users/x', { method: 'DELETE' }));
+        await fetch('http://localhost/api/vehicles/x/connection', { method: 'PUT' });
+        await fetch(new Request('http://localhost/api/vehicles/x/guide', { method: 'DELETE' }));
         expect(realFetch).not.toHaveBeenCalled();
     });
 
@@ -79,7 +90,7 @@ describe('fetchInterceptor (démo lecture seule)', () => {
     it('ne simule rien sur une page QR', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
         window.history.pushState({}, '', '/qr/abc');
-        await fetch('/api/trips', { method: 'POST' });
+        await fetch('/api/drive/upload', { method: 'POST' });
         expect(realFetch).toHaveBeenCalledTimes(1);
     });
 });

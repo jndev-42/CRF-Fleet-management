@@ -21,9 +21,11 @@ vi.mock('next-auth', () => ({
 }));
 
 const mockExecute = vi.fn();
-vi.mock('@/lib/db', () => ({
-    db: { execute: (arg: { sql: string; args?: unknown[] }) => mockExecute(arg) },
-}));
+vi.mock('@/lib/db', () => {
+    const client = { execute: (arg: { sql: string; args?: unknown[] }) => mockExecute(arg) };
+    // `src/auth.ts` lit l'identité dans `prodDb` (toujours la prod, même en démo).
+    return { db: client, prodDb: client };
+});
 
 vi.mock('@/lib/session-roles', () => ({
     resolveSessionRoles: vi.fn(async () => ['CHVL', 'INACTIF']),

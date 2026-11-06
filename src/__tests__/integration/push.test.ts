@@ -8,6 +8,7 @@ vi.mock('@/lib/db', async () => {
     const { db } = await import('./setup');
     return { db };
 });
+vi.mock('@/lib/demo/server', () => ({ isDemoRequest: vi.fn(async () => false) }));
 vi.mock('web-push', () => ({
     default: {
         setVapidDetails: vi.fn(),
@@ -17,6 +18,7 @@ vi.mock('web-push', () => ({
 
 import webpush from 'web-push';
 import { sendPushNotification, notifyUsers } from '@/lib/push';
+import { isDemoRequest } from '@/lib/demo/server';
 import { db, seedRoles, seedUniteLocale, seedUser, seedUserRole, seedUserUL } from './setup';
 
 const mockedSend = vi.mocked(webpush.sendNotification);
@@ -371,5 +373,45 @@ describe('taille du corps du push', () => {
         await notifyUsers({ userIds: ['u1'], title: 'T', message: 'court' });
 
         expect((JSON.parse(mockedSend.mock.calls[0][1] as string) as { body: string }).body).toBe('court');
+    });
+});
+
+describe('mode démo', () => {
+    const originalEnv = { ...process.env };
+
+    beforeEach(() => {
+        mockedSend.mockReset();
+        process.env.VAPID_PUBLIC_KEY = 'public-key';
+        process.env.VAPID_PRIVATE_KEY = 'private-key';
+        process.env.VAPID_SUBJECT = 'mailto:test@croix-rouge.fr';
+        vi.mocked(isDemoRequest).mockResolvedValue(true);
+    });
+
+    afterEach(() => {
+        process.env = { ...originalEnv };
+        vi.mocked(isDemoRequest).mockResolvedValue(false);
+    });
+
+    it("garde la notification in-app mais n'envoie aucun Web Push", async () => {
+        await seedRoles();
+        await seedUser({ id: 'admin-1', email: 'admin@test.com' });
+        await seedUserRole('admin-1', 'ADMIN');
+        await seedSubscription('sub-1', 'admin-1', 'https://push.example/1');
+
+        const ok = await sendPushNotification({ ...baseArgs, roles: ['ADMIN'] });
+        expect(ok).toBe(true);
+        const notifs = await db.execute({ sql: `SELECT userId FROM "Notification" WHERE userId = ?`, args: ['admin-1'] });
+        expect(notifs.rows).toHaveLength(1);
+        expect(mockedSend).not.toHaveBeenCalled();
+    });
+
+    it("notifyUsers : in-app seulement", async () => {
+        await seedUser({ id: 'user-1', email: 'user@test.com' });
+        await seedSubscription('sub-1', 'user-1', 'https://push.example/1');
+
+        await notifyUsers({ userIds: ['user-1'], title: 'T', message: 'M' });
+        const notifs = await db.execute({ sql: `SELECT userId FROM "Notification" WHERE userId = ?`, args: ['user-1'] });
+        expect(notifs.rows).toHaveLength(1);
+        expect(mockedSend).not.toHaveBeenCalled();
     });
 });

@@ -1,7 +1,8 @@
 import NextAuth, { type DefaultSession, type NextAuthConfig, type Session } from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
-import { db } from "@/lib/db";
+// Identité, rôles et UL de session : toujours la prod, même en mode démo.
+import { prodDb as db } from "@/lib/db";
 import { isPreview, isDev as isDevEnv } from "@/lib/env";
 import { PREVIEW_ACCOUNTS } from "@/lib/preview-accounts";
 import { resolveSessionRoles } from "@/lib/session-roles";
@@ -306,7 +307,7 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
             }
             // Load UL data for dev users if not yet set
             if (!token.availableULs && token.userId) {
-                token.availableULs = await fetchUserULs(token.userId as string);
+                token.availableULs = await fetchUserULs(token.userId as string, db);
             }
             if (token.availableULs) {
                 if (!token.ulId || !token.availableULs.some(ul => ul.id === token.ulId)) {
@@ -333,7 +334,7 @@ export const authCallbacks: NonNullable<NextAuthConfig["callbacks"]> = {
                     token.userId = userRes.rows[0].id as string;
 
                     // Load UL data (always refresh on sign-in, keep ulId if already set via switch)
-                    token.availableULs = await fetchUserULs(token.userId as string);
+                    token.availableULs = await fetchUserULs(token.userId as string, db);
                     if (!token.ulId || !token.availableULs.some(ul => ul.id === token.ulId)) {
                         token.ulId = resolveActiveUL(token.availableULs);
                     }

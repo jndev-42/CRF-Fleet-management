@@ -12,6 +12,8 @@ import {
 
 interface DemoContextType {
     isDemoMode: boolean;
+    /** Base démo configurée côté serveur (`GET /api/demo/status`) : sinon, pas d'activation. */
+    isDemoAvailable: boolean;
     toggleDemoMode: () => void;
 }
 
@@ -49,20 +51,46 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         }
         return false;
     });
+    const [isDemoAvailable, setIsDemoAvailable] = useState(false);
     const pathname = usePathname();
 
     // La démo est désactivée sur les pages QR publiques.
     const effectiveDemo = isDemoMode && !isQrPage(pathname);
 
-    // Cookie aligné sur la démo effective : retiré sur les pages QR (vraies écritures),
-    // restauré ailleurs ; un localStorage actif sans cookie est resynchronisé au chargement.
+    // Cookie aligné sur la démo choisie (pas sur la page) : il est partagé entre onglets,
+    // le retirer sur une page QR ferait écrire en prod un autre onglet resté en démo.
+    // Les API QR ne sont jamais servies en démo : le proxy ne les marque pas.
     useEffect(() => {
         const hasCookie = document.cookie
             .split('; ')
             .some((c) => c === `${DEMO_COOKIE_NAME}=${DEMO_COOKIE_VALUE}`);
-        if (effectiveDemo && !hasCookie) setDemoCookie(true);
-        else if (!effectiveDemo && hasCookie) setDemoCookie(false);
-    }, [effectiveDemo]);
+        if (isDemoMode && !hasCookie) setDemoCookie(true);
+        else if (!isDemoMode && hasCookie) setDemoCookie(false);
+    }, [isDemoMode]);
+
+    // Disponibilité de la démo (base démo configurée). Une démo active alors que la base
+    // n'est plus configurée est quittée : le serveur refuserait toute écriture.
+    useEffect(() => {
+        let cancelled = false;
+        fetch('/api/demo/status')
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data: { available?: boolean } | null) => {
+                if (cancelled || !data) return;
+                const available = data.available === true;
+                setIsDemoAvailable(available);
+                if (!available && localStorage.getItem(IS_DEMO_MODE_KEY) === 'true') {
+                    localStorage.setItem(IS_DEMO_MODE_KEY, 'false');
+                    setDemoCookie(false);
+                    setIsDemoMode(false);
+                }
+            })
+            .catch(() => {
+                // Statut indisponible : bouton masqué, démo en cours inchangée.
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     // Ancienne base fictive : purgée une fois au montage.
     useEffect(() => {
@@ -84,12 +112,12 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(IS_DEMO_MODE_KEY, String(newValue));
         setDemoCookie(newValue);
         purgeLegacyDemoDb();
-        // Reload pour repartir d'un état propre (données réelles / mode démo)
+        // Reload pour repartir d'un état propre (base réelle / base démo)
         window.location.reload();
     };
 
     return (
-        <DemoContext.Provider value={{ isDemoMode: effectiveDemo, toggleDemoMode }}>
+        <DemoContext.Provider value={{ isDemoMode: effectiveDemo, isDemoAvailable, toggleDemoMode }}>
             {children}
         </DemoContext.Provider>
     );

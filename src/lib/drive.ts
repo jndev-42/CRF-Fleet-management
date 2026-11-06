@@ -32,6 +32,9 @@ export function getDriveClient() {
 export async function deleteDriveFolder(folderId: string) {
     try {
         if (!folderId) return false;
+        // Mode démo : les dossiers de la base démo sont ceux de la prod, jamais supprimés.
+        const { isDemoRequest } = await import('@/lib/demo/server');
+        if (await isDemoRequest()) return true;
         const drive = getDriveClient();
         await drive.files.delete({
             fileId: folderId,

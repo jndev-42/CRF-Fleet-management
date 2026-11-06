@@ -7,6 +7,9 @@ vi.mock('nodemailer', () => ({
     default: { createTransport: () => mockCreateTransport() },
 }));
 
+const demo = vi.hoisted(() => ({ active: false }));
+vi.mock('@/lib/demo/server', () => ({ isDemoRequest: vi.fn(async () => demo.active) }));
+
 import { sendEmailViaWebhook } from '@/lib/email';
 
 describe('sendEmailViaWebhook', () => {
@@ -77,5 +80,20 @@ describe('sendEmailViaWebhook', () => {
 
         expect(mockCreateTransport).toHaveBeenCalledTimes(1);
         expect(mockSendMail).toHaveBeenCalledTimes(2);
+    });
+
+    it("n'envoie rien en mode démo, même SMTP configuré", async () => {
+        process.env.SMTP_USER = 'sender@gmail.com';
+        process.env.SMTP_PASS = 'secret';
+        demo.active = true;
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        try {
+            const result = await sendEmailViaWebhook({ to: ['dest@test.com'], subject: 'Test', body: '<p>Hello</p>' });
+            expect(result).toBe(true);
+            expect(mockSendMail).not.toHaveBeenCalled();
+        } finally {
+            demo.active = false;
+            logSpy.mockRestore();
+        }
     });
 });

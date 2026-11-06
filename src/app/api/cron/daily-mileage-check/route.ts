@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, demoDb, prodDb } from '@/lib/db';
+import { cloneDatabase } from '@/lib/demo/cloneDatabase';
+import { isDemoDbSameAsProd } from '@/lib/demo/readOnly';
+import { purgeDemoObjects } from '@/lib/r2';
 import { getRenaultVehicleData } from '@/lib/vehicle-connection';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { ROLES } from '@/lib/roles';
 import { purgeAuditLogs } from '@/lib/audit/log';
+
+// Le contrôle kilométrique, puis la recopie prod → démo (plusieurs minutes possibles).
+export const maxDuration = 300;
 
 // Route sécurisée par Vercel Cron. On n'associe pas d'auth NextAuth ici.
 export async function GET(request: Request) {
@@ -13,6 +19,43 @@ export async function GET(request: Request) {
     if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
         return unauthorizedResponse();
     }
+
+    // Contrôle kilométrique d'abord ; la recopie démo ne change jamais la réponse.
+    const response = await runDailyChecks();
+    await refreshDemoDatabase();
+    return response;
+}
+
+/**
+ * Remplace la base démo partagée par une copie de la prod, puis vide les fichiers R2
+ * de démo (`demo/`). Côté prod : uniquement des SELECT paginés, ni transaction ni
+ * écriture. Un échec est journalisé, sans plus.
+ */
+async function refreshDemoDatabase(): Promise<void> {
+    // Garde-fou : une URL démo égale à la prod ferait supprimer toutes les tables de la prod.
+    if (isDemoDbSameAsProd()) {
+        console.error('[demo] recopie refusée : TURSO_DEMO_DATABASE_URL désigne la base de production');
+        return;
+    }
+    if (!demoDb) return;
+    const started = Date.now();
+    try {
+        const summary = await cloneDatabase(prodDb, demoDb);
+        console.log(`[demo] base démo recopiée depuis la prod : ${summary.tables} table(s), ${summary.rows} ligne(s) en ${summary.durationMs} ms`);
+    } catch (e: unknown) {
+        console.error(`[demo] recopie de la base démo impossible après ${Date.now() - started} ms :`, getErrorMessage(e));
+    }
+    // Fichiers écrits en démo (préfixe R2 `demo/`) : vidés avec la base, sans jamais
+    // toucher une vraie clé. Un échec est journalisé, la réponse ne change pas.
+    try {
+        const purged = await purgeDemoObjects();
+        console.log(`[demo] ${purged} fichier(s) R2 de démo supprimé(s)`);
+    } catch (e: unknown) {
+        console.error('[demo] purge des fichiers R2 de démo impossible :', getErrorMessage(e));
+    }
+}
+
+async function runDailyChecks(): Promise<NextResponse> {
 
     // Journal d'audit : rétention de 30 jours. Isolé, et lancé en premier : un échec
     // de purge n'empêche pas la suite du cron, et un échec de la suite ne la saute pas.

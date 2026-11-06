@@ -4,13 +4,15 @@
  * Partagé par `src/auth.ts` (JWT de session) et le serveur MCP (`src/lib/mcp/tokens.ts`),
  * qui construit la session du propriétaire d'un jeton sur son UL d'attache.
  */
+import type { Client } from "@libsql/client";
 import { db } from "@/lib/db";
 
 export type ULEntry = { id: string; name: string; slug: string; isHome: boolean; dtCode?: string | null; roles?: string[] };
 
-export async function fetchUserULs(userId: string): Promise<ULEntry[]> {
+/** `client` : `prodDb` pour l'identité de session (`src/auth.ts`), toujours lue en prod. */
+export async function fetchUserULs(userId: string, client: Client = db): Promise<ULEntry[]> {
     try {
-        const res = await db.execute({
+        const res = await client.execute({
             sql: `SELECT ul.id, ul.name, ul.slug, ul.dtCode, uu.is_home, uu.roles
                   FROM "UserUL" uu
                   JOIN "UniteLocale" ul ON ul.id = uu.ulId

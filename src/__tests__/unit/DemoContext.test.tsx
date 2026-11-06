@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 vi.mock('next/navigation', () => ({ usePathname: vi.fn(() => '/') }));
 import { usePathname } from 'next/navigation';
 import { DemoProvider, useDemoMode, IS_DEMO_MODE_KEY } from '@/lib/contexts/DemoContext';
@@ -70,12 +70,20 @@ describe('DemoContext', () => {
         expect(result.current.isDemoMode).toBe(false);
     });
 
-    it('retire le cookie sur une page QR même démo active', () => {
+    it('garde le cookie sur une page QR (partagé avec les autres onglets en démo)', () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
         document.cookie = 'crf_demo_mode=1; path=/';
         vi.mocked(usePathname).mockReturnValue('/qr/abc');
+        const { result } = renderHook(() => useDemoMode(), { wrapper: DemoProvider });
+        expect(result.current.isDemoMode).toBe(false);
+        expect(document.cookie).toContain('crf_demo_mode=1');
+    });
+
+    it('pose le cookie sur une page QR si la démo est active sans cookie', () => {
+        localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
+        vi.mocked(usePathname).mockReturnValue('/qr/abc');
         renderHook(() => useDemoMode(), { wrapper: DemoProvider });
-        expect(document.cookie).not.toContain('crf_demo_mode=1');
+        expect(document.cookie).toContain('crf_demo_mode=1');
     });
 
     it('recharge quand un autre onglet bascule la démo', () => {
@@ -88,6 +96,46 @@ describe('DemoContext', () => {
         localStorage.setItem('crf_demo_db', '{}');
         renderHook(() => useDemoMode(), { wrapper: DemoProvider });
         expect(localStorage.getItem('crf_demo_db')).toBeNull();
+    });
+
+    describe('disponibilité (GET /api/demo/status)', () => {
+        let fetchSpy: ReturnType<typeof vi.spyOn>;
+        const respond = (body: unknown, status = 200) =>
+            fetchSpy.mockResolvedValue(new Response(JSON.stringify(body), { status }));
+
+        beforeEach(() => {
+            fetchSpy = vi.spyOn(window, 'fetch');
+        });
+        afterEach(() => fetchSpy.mockRestore());
+
+        it('expose isDemoAvailable = true quand la base démo est configurée', async () => {
+            respond({ available: true });
+            const { result } = renderHook(() => useDemoMode(), { wrapper: DemoProvider });
+            expect(result.current.isDemoAvailable).toBe(false);
+            await waitFor(() => expect(result.current.isDemoAvailable).toBe(true));
+            expect(fetchSpy).toHaveBeenCalledWith('/api/demo/status');
+        });
+
+        it('quitte une démo active si la base démo n\'est plus configurée', async () => {
+            localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
+            document.cookie = 'crf_demo_mode=1; path=/';
+            respond({ available: false });
+            const { result } = renderHook(() => useDemoMode(), { wrapper: DemoProvider });
+            await waitFor(() => expect(result.current.isDemoMode).toBe(false));
+            expect(result.current.isDemoAvailable).toBe(false);
+            expect(localStorage.getItem(IS_DEMO_MODE_KEY)).toBe('false');
+            expect(document.cookie).not.toContain('crf_demo_mode=1');
+        });
+
+        it('garde la démo en cours si le statut est illisible (401)', async () => {
+            localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
+            respond({ error: 'Non authentifié' }, 401);
+            const { result } = renderHook(() => useDemoMode(), { wrapper: DemoProvider });
+            await waitFor(() => expect(fetchSpy).toHaveBeenCalled());
+            await Promise.resolve();
+            expect(result.current.isDemoMode).toBe(true);
+            expect(result.current.isDemoAvailable).toBe(false);
+        });
     });
 
     it('lève une erreur si utilisé hors DemoProvider', () => {

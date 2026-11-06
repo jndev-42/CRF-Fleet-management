@@ -199,4 +199,165 @@ describe('deleteObject', () => {
         const { deleteObject } = await import('@/lib/r2');
         await expect(deleteObject('deja-absent.jpg')).resolves.toBeUndefined();
     });
+
+    it("en mode démo, ne supprime que la copie demo/<clé> (jamais la vraie clé)", async () => {
+        vi.doMock('@/lib/demo/server', () => ({ isDemoRequest: async () => true }));
+        const spy = vi.fn(async () => new Response(null, { status: 204 }));
+        vi.stubGlobal('fetch', spy);
+        try {
+            const { deleteObject } = await import('@/lib/r2');
+            await deleteObject('expenses-staging/x/y.jpg');
+            expect(spy).toHaveBeenCalledTimes(1);
+            const req = (spy.mock.calls[0] as unknown as [Request])[0];
+            expect(req.url).toContain('/expenses-reports/demo/expenses-staging/x/y.jpg');
+            expect(req.method).toBe('DELETE');
+        } finally {
+            vi.doUnmock('@/lib/demo/server');
+        }
+    });
+});
+
+/** Bucket R2 simulé : `fetch` répond selon la méthode et la clé ; journal des appels. */
+function fakeBucket(initial: Record<string, string>, opts: { pageSize?: number } = {}) {
+    const objects = new Map(Object.entries(initial));
+    const calls: string[] = [];
+    const fetchMock = vi.fn(async (input: Request) => {
+        const url = new URL(input.url);
+        const key = decodeURIComponent(url.pathname.replace(/^\/expenses-reports\/?/, ''));
+        calls.push(`${input.method} ${key}${url.searchParams.get('list-type') ? `?prefix=${url.searchParams.get('prefix')}` : ''}`);
+        if (input.method === 'GET' && url.searchParams.get('list-type') === '2') {
+            const prefix = url.searchParams.get('prefix') ?? '';
+            const all = [...objects.keys()].filter((k) => k.startsWith(prefix)).sort();
+            // Jeton de continuation opaque, comme S3 : « après cette clé » (stable malgré les suppressions).
+            const after = url.searchParams.get('continuation-token');
+            const remaining = after ? all.filter((k) => k > after) : all;
+            const size = opts.pageSize ?? 1000;
+            const page = remaining.slice(0, size);
+            const truncated = remaining.length > size;
+            const esc = (v: string) => v.replace(/&/g, '&amp;');
+            const xml = `<ListBucketResult>${page.map((k) => `<Contents><Key>${esc(k)}</Key></Contents>`).join('')}`
+                + `<IsTruncated>${truncated}</IsTruncated>${truncated ? `<NextContinuationToken>${esc(page[page.length - 1])}</NextContinuationToken>` : ''}</ListBucketResult>`;
+            return new Response(xml, { status: 200 });
+        }
+        if (input.method === 'PUT') {
+            objects.set(key, await input.text());
+            return new Response(null, { status: 200 });
+        }
+        if (input.method === 'DELETE') {
+            objects.delete(key);
+            return new Response(null, { status: 204 });
+        }
+        const body = objects.get(key);
+        if (body === undefined) return new Response(null, { status: 404 });
+        return new Response(input.method === 'HEAD' ? null : body, { status: 200, headers: { 'content-length': String(body.length) } });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    return { objects, calls };
+}
+
+describe('mode démo — clés R2 sous demo/', () => {
+    beforeEach(() => {
+        vi.resetModules();
+        setEnv();
+        vi.doMock('@/lib/demo/server', () => ({ isDemoRequest: async () => true }));
+    });
+    afterEach(() => {
+        vi.doUnmock('@/lib/demo/server');
+        vi.unstubAllGlobals();
+    });
+
+    it('putObject écrit sous demo/<clé>, jamais sur la vraie clé', async () => {
+        const bucket = fakeBucket({});
+        const { putObject } = await import('@/lib/r2');
+        await putObject('rep-1/v1-abc.pdf', Buffer.from('%PDF-demo'));
+        expect([...bucket.objects.keys()]).toEqual(['demo/rep-1/v1-abc.pdf']);
+    });
+
+    it('getObject lit demo/<clé> en priorité, puis retombe sur la vraie clé (lecture seule)', async () => {
+        const bucket = fakeBucket({ 'rep-1/v1.pdf': 'PROD', 'demo/rep-2/v1.pdf': 'DEMO' });
+        const { getObject, headObject, getObjectSize } = await import('@/lib/r2');
+        expect((await getObject('rep-2/v1.pdf'))?.toString()).toBe('DEMO');
+        expect((await getObject('rep-1/v1.pdf'))?.toString()).toBe('PROD');
+        expect(await getObject('absent.pdf')).toBeNull();
+        expect(await headObject('rep-1/v1.pdf')).toBe(true);
+        expect(await getObjectSize('rep-2/v1.pdf')).toBe(4);
+        expect(bucket.calls.filter((c) => c.startsWith('PUT') || c.startsWith('DELETE'))).toEqual([]);
+    });
+
+    it('chaîne de scellement : écrire puis relire la même clé fonctionne en démo', async () => {
+        fakeBucket({});
+        const { putObject, getObject } = await import('@/lib/r2');
+        await putObject('rep-3/v2-x.pdf', Buffer.from('%PDF-v2'));
+        expect((await getObject('rep-3/v2-x.pdf'))?.toString()).toBe('%PDF-v2');
+    });
+
+    it('deleteObject ne supprime que demo/<clé>, jamais la vraie clé', async () => {
+        const bucket = fakeBucket({ 'staging/x.jpg': 'PROD', 'demo/staging/x.jpg': 'DEMO' });
+        const { deleteObject } = await import('@/lib/r2');
+        await deleteObject('staging/x.jpg');
+        expect([...bucket.objects.keys()]).toEqual(['staging/x.jpg']);
+    });
+
+    it("presignUrl refuse PUT ; GET vise demo/<clé> si elle existe, la vraie clé sinon", async () => {
+        fakeBucket({ 'demo/ref/a.pdf': 'DEMO', 'ref/b.pdf': 'PROD' });
+        const { presignUrl } = await import('@/lib/r2');
+        await expect(presignUrl('ref/a.pdf', 'PUT', 60)).rejects.toThrow(/mode démo/);
+        expect(await presignUrl('ref/a.pdf', 'GET', 60)).toContain('/demo/ref/a.pdf?');
+        const realUrl = await presignUrl('ref/b.pdf', 'GET', 60);
+        expect(realUrl).toContain('/ref/b.pdf?');
+        expect(realUrl).not.toContain('/demo/');
+    });
+});
+
+describe('hors démo — clés inchangées', () => {
+    beforeEach(() => {
+        vi.resetModules();
+        setEnv();
+        vi.doMock('@/lib/demo/server', () => ({ isDemoRequest: async () => false }));
+    });
+    afterEach(() => {
+        vi.doUnmock('@/lib/demo/server');
+        vi.unstubAllGlobals();
+    });
+
+    it('put / get / delete utilisent la vraie clé, sans détour par demo/', async () => {
+        const bucket = fakeBucket({ 'demo/rep-1/v1.pdf': 'DEMO' });
+        const { putObject, getObject, deleteObject } = await import('@/lib/r2');
+        await putObject('rep-1/v1.pdf', Buffer.from('PROD'));
+        expect(bucket.objects.get('rep-1/v1.pdf')).toBe('PROD');
+        expect((await getObject('rep-1/v1.pdf'))?.toString()).toBe('PROD');
+        await deleteObject('rep-1/v1.pdf');
+        expect([...bucket.objects.keys()]).toEqual(['demo/rep-1/v1.pdf']);
+        expect(bucket.calls.filter((c) => c.includes('demo/'))).toEqual([]);
+    });
+});
+
+describe('purgeDemoObjects', () => {
+    beforeEach(() => {
+        vi.resetModules();
+        setEnv();
+        vi.doMock('@/lib/demo/server', () => ({ isDemoRequest: async () => false }));
+    });
+    afterEach(() => {
+        vi.doUnmock('@/lib/demo/server');
+        vi.unstubAllGlobals();
+    });
+
+    it('supprime tous les objets sous demo/ (paginé) et aucun autre', async () => {
+        const bucket = fakeBucket({
+            'demo/a.pdf': '1', 'demo/b/c.pdf': '2', 'demo/d&e.pdf': '3',
+            'rep-1/v1.pdf': 'PROD', 'demofile.pdf': 'PROD', 'vehicle-guides/x/demo/y.pdf': 'PROD',
+        }, { pageSize: 2 });
+        const { purgeDemoObjects } = await import('@/lib/r2');
+        expect(await purgeDemoObjects()).toBe(3);
+        expect([...bucket.objects.keys()].sort()).toEqual(['demofile.pdf', 'rep-1/v1.pdf', 'vehicle-guides/x/demo/y.pdf']);
+        expect(bucket.calls.filter((c) => c.startsWith('GET') && c.includes('?prefix=demo/'))).toHaveLength(2);
+    });
+
+    it('ne fait rien sur un préfixe vide', async () => {
+        const bucket = fakeBucket({ 'rep-1/v1.pdf': 'PROD' });
+        const { purgeDemoObjects } = await import('@/lib/r2');
+        expect(await purgeDemoObjects()).toBe(0);
+        expect(bucket.objects.size).toBe(1);
+    });
 });

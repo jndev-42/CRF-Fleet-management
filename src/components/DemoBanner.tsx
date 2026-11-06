@@ -33,11 +33,11 @@ export default function DemoBanner() {
             <span className={styles.icon} aria-hidden="true">🛠️</span>
             <span className={styles.text}>
                 <span className={styles.strong}>Mode démo :</span>{' '}
-                vraies données, lecture seule. Vos actions sont simulées et ne sont pas enregistrées.
+                Base de démonstration partagée, remise à zéro chaque nuit à partir des vraies données. Vos actions sont réellement enregistrées dans la démo, jamais dans la base réelle.
             </span>
             {notice && (
                 <span className={styles.notice} role="status">
-                    Action simulée : rien n&apos;a été enregistré
+                    Action simulée : fichiers, véhicules connectés et notifications ne sont pas envoyés en démo
                 </span>
             )}
             <button type="button" className={styles.btnQuit} onClick={toggleDemoMode}>

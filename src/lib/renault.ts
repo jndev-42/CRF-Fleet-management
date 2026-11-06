@@ -156,6 +156,13 @@ async function postJson(url: URL, step: string): Promise<Record<string, unknown>
  * `errorCode !== 0`, tout le reste est transitoire.
  */
 export async function authenticateBrand(ctx: ConnectionContext): Promise<BrandSession> {
+    // Mode démo : aucun appel constructeur (les identifiants et sessions sont ceux de la
+    // prod ; un rafraîchissement ferait tourner ses jetons). Transitoire : aucun statut ne change.
+    const { isDemoRequest } = await import('@/lib/demo/server');
+    if (await isDemoRequest()) {
+        throw new BrandTransientError('Connexion constructeur indisponible en mode démo');
+    }
+
     const memo = sessionCache.get(ctx.credentialId);
     if (memo && isFresh(memo)) return memo;
 

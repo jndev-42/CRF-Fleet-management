@@ -2,6 +2,9 @@
 
 ## db.ts
 Single exported `db` client. Import it everywhere with `import { db } from '@/lib/db'`.
+`db` is a router: each call resolves to the shared demo DB for a demo request (`x-crf-demo: 1` header set by
+`src/proxy.ts` from the `crf_demo_mode=1` cookie + `TURSO_DEMO_DATABASE_URL`), else to prod (also outside a request: crons, scripts, tests). `prodDb`
+(always prod — `src/auth.ts`, crons, demo refresh) and `demoDb` (or `null`) are exported too. See `src/lib/demo/AGENTS.md`.
 Never instantiate another client. Never use template literals in SQL — always `{ sql, args }`.
 
 ## renault.ts

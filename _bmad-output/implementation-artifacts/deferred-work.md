@@ -141,6 +141,12 @@
   summary: Aucune route de réservation (POST /api/vehicles/[id]/reservations, PATCH /api/reservations/[id]) ne vérifie les papiers de qui réserve à son propre nom ; un gestionnaire chauffeur aux papiers non validés peut se réserver lui-même (fiche véhicule déjà, dashboard depuis la 5.39.0).
   evidence: Le contrôle des papiers n'existe que côté interface (`getReservationCtaState`, `ReservationBlock`) ; la décision 3 de la spec a aligné le dashboard sur la fiche véhicule, qui laissait déjà passer ce cas.
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-mode-demo-bac-a-sable.md`
+  summary: Test de composant de la page Aide pour l'affichage conditionnel de la carte démo (`isDemoAvailable || isDemoMode`).
+  evidence: Aucun test ne rend `AidePage` ; une régression masquerait l'activation ou la sortie de la démo sans faire échouer de test.
+- source_spec: `_bmad-output/implementation-artifacts/spec-mode-demo-bac-a-sable.md`
+  summary: Compléter CLAUDE.md et AGENTS.md : `maxDuration` 300 exige Fluid compute ou l'offre Pro, variables `TURSO_DEMO_*` à définir aussi en preview, démo indisponible pendant la recopie de 23h59.
+  evidence: Relevé en revue ; ce sont des fichiers de contexte agent, donc reportés.
 - source_spec: `_bmad-output/implementation-artifacts/spec-qr-stock-recherche-scroll-infini.md`
   summary: Mettre à jour `src/app/api/qr-stock/AGENTS.md` avec le nouveau contrat de `GET /stock` (`q`/`offset`/`limit`, `total`, `hasMore`, page par défaut de 30).
   evidence: Le fichier documente encore `{ stock, items }` ; seuls les AGENTS.md de la page ont été mis à jour (route « defer » des fichiers de contexte agent).
