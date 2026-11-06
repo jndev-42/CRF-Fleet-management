@@ -252,7 +252,7 @@ describe('ReservationFormModal — récurrence', () => {
     // la soumission dès que le calendrier les dépasse. Seul Date est simulé.
     beforeEach(() => {
         vi.useFakeTimers({ toFake: ['Date'] });
-        vi.setSystemTime(new Date('2026-10-15T09:00:00'));
+        vi.setSystemTime(new Date('2028-10-15T09:00:00'));
     });
     afterEach(() => {
         vi.useRealTimers();
@@ -285,8 +285,8 @@ describe('ReservationFormModal — récurrence', () => {
         // Panneau récurrence : startHour, endHour, firstOccurrenceDate, recurrenceEndDate, puis motif
         fireEvent.change(inputs[0], { target: { value: '09:00' } });
         fireEvent.change(inputs[1], { target: { value: '11:00' } });
-        fireEvent.change(inputs[2], { target: { value: '2026-11-02' } });
-        fireEvent.change(inputs[3], { target: { value: '2026-11-30' } });
+        fireEvent.change(inputs[2], { target: { value: '2028-11-02' } });
+        fireEvent.change(inputs[3], { target: { value: '2028-11-30' } });
 
         fireEvent.click(within(modal).getByRole('button', { name: /Soumettre la récurrence/ }));
 
@@ -295,14 +295,14 @@ describe('ReservationFormModal — récurrence', () => {
             daysOfWeek: [1],
             startHour: '09:00',
             endHour: '11:00',
-            firstOccurrenceDate: '2026-11-02',
-            recurrenceEndDate: '2026-11-30',
+            firstOccurrenceDate: '2028-11-02',
+            recurrenceEndDate: '2028-11-30',
         });
         await waitFor(() => expect(onSuccess).toHaveBeenCalledWith({ recurrenceWarning: null }));
     });
 
     it('créneaux ignorés : le bandeau d\'alerte est remonté à l\'appelant', async () => {
-        routeFetch({ post: { body: { success: true, created: 2, skipped: ['2026-11-09'] } } });
+        routeFetch({ post: { body: { success: true, created: 2, skipped: ['2028-11-09'] } } });
         const { onSuccess } = renderModal();
 
         enableRecurrence();
@@ -312,8 +312,8 @@ describe('ReservationFormModal — récurrence', () => {
         const inputs = Array.from(modal.querySelectorAll('input.form-input')) as HTMLInputElement[];
         fireEvent.change(inputs[0], { target: { value: '09:00' } });
         fireEvent.change(inputs[1], { target: { value: '11:00' } });
-        fireEvent.change(inputs[2], { target: { value: '2026-11-02' } });
-        fireEvent.change(inputs[3], { target: { value: '2026-11-30' } });
+        fireEvent.change(inputs[2], { target: { value: '2028-11-02' } });
+        fireEvent.change(inputs[3], { target: { value: '2028-11-30' } });
 
         fireEvent.click(within(modal).getByRole('button', { name: /Soumettre la récurrence/ }));
 
