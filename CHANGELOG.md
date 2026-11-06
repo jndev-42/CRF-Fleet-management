@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.44.1] — 6 novembre 2026
+
+### 🐛 Corrections
+
+- **Consignes de déclaration d'incident** — l'écran « Consignes incident » affiche désormais le texte définitif en français à la place du texte provisoire : numéros d'urgence cliquables (15, 18, 17, 112), conduite à tenir après un accident (sécuriser, secourir, prévenir Onyx au 01 84 83 28 00, constat amiable, photos), rappel pour les flashs radar et infractions, et délai de déclaration de 24 heures.
+
 ## [5.44.0] — 6 novembre 2026
 
 ### ✨ Nouveautés
