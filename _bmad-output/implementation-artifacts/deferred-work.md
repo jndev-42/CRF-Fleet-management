@@ -147,3 +147,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-mode-demo-bac-a-sable.md`
   summary: Compléter CLAUDE.md et AGENTS.md : `maxDuration` 300 exige Fluid compute ou l'offre Pro, variables `TURSO_DEMO_*` à définir aussi en preview, démo indisponible pendant la recopie de 23h59.
   evidence: Relevé en revue ; ce sont des fichiers de contexte agent, donc reportés.
+- source_spec: `_bmad-output/implementation-artifacts/spec-qr-stock-recherche-scroll-infini.md`
+  summary: Mettre à jour `src/app/api/qr-stock/AGENTS.md` avec le nouveau contrat de `GET /stock` (`q`/`offset`/`limit`, `total`, `hasMore`, page par défaut de 30).
+  evidence: Le fichier documente encore `{ stock, items }` ; seuls les AGENTS.md de la page ont été mis à jour (route « defer » des fichiers de contexte agent).
