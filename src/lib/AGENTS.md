@@ -16,7 +16,6 @@ Singleton service clients and integration wrappers — DB, auth-adjacent role he
 | `crypto.ts` | AES-256-GCM for `BrandCredential.passwordEncrypted` (`iv:authTag:ciphertext`). `encryptSecret`, `decryptSecret`, `needsRewrap`, `keyFingerprint`. Key read inside the functions, never at module load |
 | `push.ts` | Web Push (VAPID) notifications, targets users by role (and UL). Lazy-import in API routes to avoid cold-start cost. Also create a `Notification` DB row alongside every push. `sendPushNotification({roles, userIds?, excludeUserId?})` dédoublonne les destinataires (un utilisateur cumulant ADMIN+PRESIDENT reçoit une seule notification ; `RESPO` ne cible que les responsables d'activité (notes de frais) — pour joindre présidents et cadres, les nommer explicitement ; `RESP_VEHICULE` reçoit les notifications véhicule — incidents, problèmes au départ/retour, alertes flotte —, CADRE n'est plus visé que par les nouvelles demandes de réservation) ; `notifyUsers({userIds,…})` cible des utilisateurs nommés. Liens toujours relatifs (`/vehicles/<nom encodé>`) |
 | `drive.ts` | Google Drive service-account auth. Each trip gets a Drive folder (`driveFolderId` in `Trip` table). Quota errors are non-fatal |
-| `email.ts` | Nodemailer/SMTP for async notifications. Non-fatal — wrap in try/catch, never block main response |
 | `stats.ts` | Pure computation functions — no DB, no side effects. Unit-tested |
 | `roles.ts` | Role hierarchy/permission helpers. **Every authorization predicate is wrapped in `denyWhenInactive`**: an account carrying INACTIF (or the legacy GUEST) gets `false` everywhere, so the block reaches the ~47 API routes whose guards call `isAdminOrAbove`/`canAccessAdminPanel`/`canManageVehicles`/`isSuperAdmin` and never `isInactive` — `/api` is outside the middleware matcher (`src/proxy.ts:8`). A new predicate added without the wrapper fails the enumeration test in `__tests__/unit/roles.test.ts`. `isInactive` / `isQrBlocked` are **dominant**: carrying INACTIF (or the legacy GUEST) is enough, even alongside active roles. They diverge on one point only, deliberately — the empty role list is denied by `isInactive`, allowed by `isQrBlocked` |
 | `session-roles.ts` | `resolveSessionRoles(exec, userId, activeUlId)` — the single role resolution shared by both `auth.ts` callbacks. INACTIF is a property of the ACCOUNT (home UL row ∪ global roles), not of the active UL. The cascade is `active UserUL row → global roles` and **nothing else**: it never reads `token.roles`, which would make roles sticky and prevent revocation |
@@ -55,6 +54,6 @@ New lib module → unit tests for all exported functions.
 ## Dependencies
 
 ### External
-- `@libsql/client`, `googleapis`, `@remscodes/renault-api`, `web-push` (server-side send), `nodemailer`
+- `@libsql/client`, `googleapis`, `@remscodes/renault-api`, `web-push` (server-side send)
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

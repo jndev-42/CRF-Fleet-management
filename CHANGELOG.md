@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.46.1] — 6 novembre 2026
+
+### 🔧 Modifications
+
+- Nettoyage interne : retrait d'un module d'envoi d'e-mails qui n'était utilisé nulle part. Aucun changement pour les utilisateurs.
+
 ## [5.46.0] — 6 novembre 2026
 
 ### ✨ Nouveautés

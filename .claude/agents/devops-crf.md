@@ -70,9 +70,6 @@ You are a Senior DevOps/Platform Engineer specialized in the **martine** project
 | `ONESIGNAL_API_KEY` | Optional | Push notifications | — |
 | `GOOGLE_SERVICE_ACCOUNT_EMAIL` | Optional | Google Drive | — |
 | `GOOGLE_PRIVATE_KEY` | Optional | Google Drive | — |
-| `EMAIL_USER` | Optional | SMTP sender | — |
-| `EMAIL_PASS` | Optional | SMTP password | — |
-| `EMAIL_HOST` | Optional | SMTP host | — |
 | `CRON_SECRET` | Prod only | Protect cron endpoints | — |
 
 ### Environment files:

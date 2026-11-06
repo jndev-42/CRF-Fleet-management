@@ -203,19 +203,6 @@ import { uploadToDrive, listDrivePhotos } from '@/lib/drive';
 const fileId = await uploadToDrive(buffer, filename, mimeType, folderId);
 ```
 
-### Email (`src/lib/email.ts`)
-- Nodemailer via SMTP
-- Use for: reservation notifications, trip summaries, admin alerts
-
-```typescript
-import { sendEmail } from '@/lib/email';
-await sendEmail({
-  to: userEmail,
-  subject: 'Confirmation de réservation',
-  html: `<p>Votre réservation a été confirmée.</p>`,
-});
-```
-
 ---
 
 ## 6. URL PARAMS HANDLING

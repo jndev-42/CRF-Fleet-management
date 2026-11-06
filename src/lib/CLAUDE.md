@@ -90,10 +90,6 @@ Also create a `Notification` DB row alongside every push so the in-app bell show
 Service account auth (not OAuth). Organizes files by trip: each trip gets a Drive folder (`driveFolderId` stored in `Trip` table).
 Quota errors are non-fatal — log and continue.
 
-## email.ts
-Nodemailer over SMTP. Use for async notifications (reservation approved, etc.).
-Non-fatal — always wrap in try/catch, never block the main response on email delivery.
-
 ## stats-trips.ts / stats-expenses.ts
 Split by domain: trip stats (`buildTripWhere`, `fetchStatsData`) vs expense-report stats (`fetchExpenseStatsData`).
 Filtering/aggregation helpers live here and are unit-tested.
