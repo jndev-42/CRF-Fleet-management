@@ -33,8 +33,8 @@ describe('exportedMethods', () => {
 });
 
 describe('isExcludedApiPath', () => {
-    it('exclut auth, cron, mcp et mcp-tokens, préfixe compris', () => {
-        for (const path of ['/api/auth/session', '/api/cron/daily-alerts', '/api/mcp', '/api/mcp-tokens', '/api/mcp-tokens/abc']) {
+    it('exclut auth, cron, recopie démo, mcp et mcp-tokens, préfixe compris', () => {
+        for (const path of ['/api/auth/session', '/api/cron/daily-alerts', '/api/demo/refresh', '/api/mcp', '/api/mcp-tokens', '/api/mcp-tokens/abc']) {
             expect(isExcludedApiPath(path)).toBe(true);
         }
         for (const path of ['/api/vehicles', '/api/authors', '/api/mcpx']) {

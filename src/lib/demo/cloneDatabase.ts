@@ -2,8 +2,8 @@
  * Recopie complète d'une base libSQL dans une autre : schéma, lignes, index,
  * déclencheurs, vues, puis reconstruction de l'index FTS5 du référentiel.
  *
- * Utilisée par la recopie nocturne prod → démo (`/api/cron/daily-mileage-check`)
- * et par `scripts/dev-db-init.ts --prod-datas` (prod → conteneur local).
+ * Utilisée par la recopie prod → démo (`refreshDemoDatabase`, cron de 23h59 et bouton
+ * du SUPER_ADMIN) et par `scripts/dev-db-init.ts --prod-datas` (prod → conteneur local).
  *
  * Source : uniquement des `SELECT` paginés — jamais de transaction, de verrou ni
  * d'écriture. Cible : supprimée puis recréée à l'identique de la source, par lots
@@ -38,6 +38,9 @@ export const DEMO_SCHEMA_ONLY_TABLES: readonly string[] = [
 /** Marqueur d'état de la cible, hors données recopiées. */
 export const DEMO_META_TABLE = 'DemoMeta';
 export type DemoState = 'refreshing' | 'ready';
+
+/** Verrou de la recopie (`refresh.ts`) : tenu pendant la copie, donc jamais supprimé par elle. */
+export const DEMO_REFRESH_LOCK_TABLE = 'DemoRefreshLock';
 
 const DEMO_META_DDL = `CREATE TABLE IF NOT EXISTS "${DEMO_META_TABLE}" (
     "id"          INTEGER PRIMARY KEY CHECK ("id" = 1),
@@ -107,6 +110,7 @@ async function readSchema(client: Client): Promise<SchemaObject[]> {
         }))
         .filter((o) => !isInternalTable(o.name) && !isInternalTable(o.tblName))
         .filter((o) => o.name !== DEMO_META_TABLE && o.tblName !== DEMO_META_TABLE)
+        .filter((o) => o.name !== DEMO_REFRESH_LOCK_TABLE && o.tblName !== DEMO_REFRESH_LOCK_TABLE)
         // L'index FTS5 et ses tables fantômes ne se recopient pas ligne à ligne :
         // l'index est recréé puis reconstruit à partir des pages recopiées.
         .filter((o) => !isFtsShadowTable(o.name) && !isFtsShadowTable(o.tblName));
@@ -166,14 +170,15 @@ export async function cloneDatabase(source: Client, target: Client, options: Clo
     const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
     const log = options.log ?? (() => {});
 
+    // 0. Marquer la cible « en cours de recopie » avant tout : même une source illisible
+    //    laisse la démo indisponible, puisque ses fichiers R2 sont purgés ensuite.
+    await target.migrate([DEMO_META_DDL, demoStateStatement('refreshing', null)]);
+
     const sourceSchema = await readSchema(source);
     const sourceTables = sourceSchema.filter((o) => o.type === 'table' && o.sql);
     const insertOrder = dependencyOrder(sourceTables);
     const tableSql = new Map(sourceTables.map((t) => [t.name, t.sql as string]));
     const schemaOnly = withDependents(sourceTables, options.schemaOnlyTables ?? DEMO_SCHEMA_ONLY_TABLES);
-
-    // 0. Marquer la cible « en cours de recopie » avant d'y toucher.
-    await target.migrate([DEMO_META_DDL, demoStateStatement('refreshing', null)]);
 
     // 1. Vider la cible : vues, index FTS, puis tables enfants avant parents
     //    (sqld contrôle les clés étrangères jusque dans DROP TABLE).

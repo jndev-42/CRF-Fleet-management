@@ -159,3 +159,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-vehicle-documents.md`
   summary: Documenter dans `CLAUDE.md` que la base démo n'a pas la table `VehicleDocument` avant la recopie de 23h59, et la migrer si besoin avec `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` de la démo.
   evidence: `db` route les requêtes démo vers leur base et `listVehicleDocuments` y lève : les fiches véhicule répondent 500 en mode démo jusqu'à la recopie. Fichier de contexte agent, donc reporté.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-securite-et-recopie-demo-manuelle.md`
+  summary: Prévenir les SUPER_ADMIN quand une recopie de la base démo échoue ou est sautée.
+  evidence: Le résultat `failed` ou `locked` du cron ne va que dans les logs ; un verrou tenu à 23h59 saute la recopie de la nuit sans nouvel essai.
+- source_spec: `_bmad-output/implementation-artifacts/spec-securite-et-recopie-demo-manuelle.md`
+  summary: Tester la ligne d'audit réellement écrite par `POST /api/demo/refresh`.
+  evidence: `demo-refresh.test.ts` n'exécute pas le traçage ; seul le contrôle statique de `withAudit` couvre la route.
+- source_spec: `_bmad-output/implementation-artifacts/spec-securite-et-recopie-demo-manuelle.md`
+  summary: Vérifier Drive et l'envoi d'e-mail avec les versions montées de leurs bibliothèques.
+  evidence: Non vérifié : les tests mockent `googleapis` et `nodemailer`. À trancher par une action Drive et un e-mail réels sur preview.

@@ -11,7 +11,7 @@ Client-side React Context providers for app-wide state management: UL (organizat
 |------|-------------|
 | `ULContext.tsx` | Tracks active UL and available ULs from session; exports `useUL()` hook and `ULProvider` |
 | `MenuSettingsContext.tsx` | Fetches menu visibility settings from `/api/settings/menus`; exports `useMenuSettings()` hook and `MenuSettingsProvider` |
-| `DemoContext.tsx` | Manages the shared-demo-DB mode toggle via localStorage + cookie, reads availability from `GET /api/demo/status` (`isDemoAvailable`) and installs the fetch interceptor; exports `useDemoMode()` hook and `DemoProvider` |
+| `DemoContext.tsx` | Manages the shared-demo-DB mode toggle via localStorage + cookie, reads availability from `GET /api/demo/status` (`isDemoAvailable`, `canRefreshDemo`, `refreshDemoStatus()`) and installs the fetch interceptor; exports `useDemoMode()` hook and `DemoProvider` |
 
 ## For AI Agents
 

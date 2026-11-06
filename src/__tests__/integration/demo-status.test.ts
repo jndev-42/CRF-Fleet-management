@@ -64,7 +64,8 @@ describe('GET /api/demo/status', () => {
         const demo = useFreshDemoDb();
         await demo.execute(`CREATE TABLE "DemoMeta" (id INTEGER PRIMARY KEY, state TEXT NOT NULL, refreshedAt TEXT)`);
         await demo.execute(`INSERT INTO "DemoMeta" (id, state) VALUES (1, 'refreshing')`);
-        expect(await availability()).toEqual({ available: false });
+        // `refreshing` pour tout compte connecté : une personne en démo y reste.
+        expect(await availability()).toEqual({ available: false, refreshing: true });
     });
 
     it('available: false sur une base démo jamais recopiée (DemoMeta absente)', async () => {
@@ -95,6 +96,56 @@ describe('GET /api/demo/status', () => {
         const text = await (await GET()).text();
         expect(text).not.toContain('secret-demo');
         errorSpy.mockRestore();
+    });
+
+    describe('canRefresh (bouton de recopie)', () => {
+        const asRoles = (...roles: string[]) =>
+            mockedAuth.mockResolvedValue({ user: { email: 'u@dev.local', roles } } as never);
+        const silenceErrors = () => vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        it('true pour un SUPER_ADMIN avec base démo configurée, démo prête', async () => {
+            asRoles('SUPER_ADMIN');
+            const demo = useFreshDemoDb();
+            const source = createClient({ url: `file:${join(dir, `source-${fileIndex++}.db`)}` });
+            await source.execute(`CREATE TABLE "Vehicle" (id TEXT PRIMARY KEY)`);
+            await cloneDatabase(source, demo);
+            expect(await availability()).toEqual({ available: true, canRefresh: true });
+        });
+
+        it('true pour un SUPER_ADMIN sur une base jamais recopiée', async () => {
+            asRoles('SUPER_ADMIN');
+            useFreshDemoDb();
+            const errorSpy = silenceErrors();
+            expect(await availability()).toEqual({ available: false, canRefresh: true });
+            errorSpy.mockRestore();
+        });
+
+        it('absent pour un SUPER_ADMIN sans base démo configurée', async () => {
+            asRoles('SUPER_ADMIN');
+            vi.stubEnv('TURSO_DEMO_DATABASE_URL', '');
+            resetDemoClientForTests();
+            expect(await availability()).toEqual({ available: false });
+        });
+
+        it("absent pour un SUPER_ADMIN quand l'URL démo désigne la prod", async () => {
+            asRoles('SUPER_ADMIN');
+            vi.stubEnv('TURSO_DEMO_DATABASE_URL', 'https://crf-prod.turso.io');
+            resetDemoClientForTests();
+            const errorSpy = silenceErrors();
+            expect(await availability()).toEqual({ available: false });
+            errorSpy.mockRestore();
+        });
+
+        it.each([
+            ['ADMIN', ['ADMIN']],
+            ['SUPER_ADMIN + INACTIF', ['SUPER_ADMIN', 'INACTIF']],
+        ])('jamais renvoyé à %s', async (_label, roles) => {
+            asRoles(...roles);
+            useFreshDemoDb();
+            const errorSpy = silenceErrors();
+            expect(await availability()).toEqual({ available: false });
+            errorSpy.mockRestore();
+        });
     });
 
     it('500 si la session est illisible', async () => {

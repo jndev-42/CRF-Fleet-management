@@ -75,6 +75,7 @@ describe('proxy — base démo configurée', () => {
         ['/api/vehicles/x/connection', 'PUT'],
         ['/api/trips/t1/refresh-renault', 'POST'],
         ['/api/push/subscriptions', 'POST'],
+        ['/api/demo/refresh', 'POST'],
     ])('403 sur la route externe %s (%s)', async (p, m) => {
         const res = run(req(p, m, true)) as Response;
         expect(res.status).toBe(403);
@@ -83,6 +84,7 @@ describe('proxy — base démo configurée', () => {
 
     it('laisse passer une route externe sans cookie', () => {
         expect((run(req('/api/drive/upload', 'POST')) as Response).status).toBe(200);
+        expect((run(req('/api/demo/refresh', 'POST')) as Response).status).toBe(200);
     });
 });
 

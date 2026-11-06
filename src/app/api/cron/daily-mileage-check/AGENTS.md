@@ -24,6 +24,8 @@ Flow:
    - Otherwise silently update mileage if it increased (buffer for GPS/telemetry variance).
 3. Skip maintenance vehicles. Every loop iteration is wrapped in `try/catch` + `continue`: one failing vehicle must never abort the run. `failedCredentials` is a `Set` created **per run** — never at module level — so one refused login does not trigger a burst of retries against Gigya.
 
+4. After the checks, `refreshDemoDatabase()` (`@/lib/demo/refresh`, shared with `POST /api/demo/refresh`) copies prod into the demo DB. It never throws and never changes the response. If a manual copy holds the lock (`DemoRefreshLock`), the cron logs it and moves on.
+
 Push notification tags: `role_ADMIN = true`. Payload includes vehicle name and km delta.
 
 Returns 200 with `{ success: true, alertsSent: [...], reservationsDeleted: N }` on success, 500 on error.
@@ -34,6 +36,7 @@ Returns 200 with `{ success: true, alertsSent: [...], reservationsDeleted: N }` 
 - `Vehicle`, `Trip`, `Reservation` tables
 - `@/lib/vehicle-connection` — `getRenaultVehicleData(vehicleId, { failedCredentials })`
 - `@/lib/push` — `sendPushNotification()` (lazy-imported)
+- `@/lib/demo/refresh` — `refreshDemoDatabase()`
 - `process.env.CRON_SECRET` — Authorization check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

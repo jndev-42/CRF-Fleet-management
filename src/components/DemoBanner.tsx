@@ -33,7 +33,7 @@ export default function DemoBanner() {
             <span className={styles.icon} aria-hidden="true">🛠️</span>
             <span className={styles.text}>
                 <span className={styles.strong}>Mode démo :</span>{' '}
-                Base de démonstration partagée, remise à zéro chaque nuit à partir des vraies données. Vos actions sont réellement enregistrées dans la démo, jamais dans la base réelle.
+                Base de démonstration partagée, remise à zéro chaque nuit ou à la demande à partir des vraies données. Vos actions sont réellement enregistrées dans la démo, jamais dans la base réelle.
             </span>
             {notice && (
                 <span className={styles.notice} role="status">

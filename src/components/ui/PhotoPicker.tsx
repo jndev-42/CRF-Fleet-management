@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Camera, Image as ImageIcon, X, FileText, AlertTriangle } from 'lucide-react';
 import { compressImage, compressImages } from '@/lib/imageCompression';
+import { useObjectUrl } from './useObjectUrl';
 
 // Le scanner (et son moteur OpenCV) n'est téléchargé qu'à son ouverture
 const DocumentScanner = dynamic(() => import('./DocumentScanner'), { ssr: false });
@@ -26,6 +27,26 @@ interface PhotoPickerProps {
     onError?: (error: string | null) => void;
     /** Le bouton « Appareil photo » ouvre le scanner de document (PDF redressé) au lieu de l'appareil photo natif */
     scanDocument?: boolean;
+}
+
+/** Aperçu d'une image sélectionnée ; un fichier d'un autre type n'est jamais affiché. */
+function ImagePreview({ file }: { file: File }) {
+    const imgRef = useObjectUrl(file);
+    if (!file.type.startsWith('image/')) {
+        return (
+            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)' }}>
+                <X size={24} />
+            </div>
+        );
+    }
+    return (
+        /* eslint-disable-next-line @next/next/no-img-element -- aperçu d'un fichier local (URL blob:) */
+        <img
+            ref={imgRef}
+            alt="Aperçu"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+    );
 }
 
 export default function PhotoPicker({
@@ -258,12 +279,7 @@ export default function PhotoPicker({
                                     <span style={{ fontSize: '8px', color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>PDF</span>
                                 </div>
                             ) : (
-                                /* eslint-disable-next-line @next/next/no-img-element */
-                                <img
-                                    src={URL.createObjectURL(p)}
-                                    alt="Aperçu"
-                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                />
+                                <ImagePreview file={p} />
                             )}
                             <button
                                 type="button"
@@ -302,17 +318,8 @@ export default function PhotoPicker({
                                  {file.name}
                              </span>
                          </div>
-                     ) : file.type.startsWith('image/') ? (
-                         /* eslint-disable-next-line @next/next/no-img-element */
-                         <img
-                            src={URL.createObjectURL(file)}
-                            alt="Aperçu"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
                      ) : (
-                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-secondary)' }}>
-                             <X size={24} />
-                         </div>
+                         <ImagePreview file={file} />
                      )}
                     <button
                         type="button"

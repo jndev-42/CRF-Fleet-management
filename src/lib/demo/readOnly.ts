@@ -46,6 +46,7 @@ export const DEMO_EXTERNAL_WRITE_ROUTES: readonly { pattern: RegExp; methods?: r
     { pattern: /^\/api\/vehicles\/[^/]+\/connection$/ },
     { pattern: /^\/api\/trips\/[^/]+\/refresh-renault$/ },
     { pattern: /^\/api\/push\/subscriptions$/ },
+    { pattern: /^\/api\/demo\/refresh$/ },
 ];
 
 /** Vrai pour une écriture vers une route à effet externe (simulée en démo). */

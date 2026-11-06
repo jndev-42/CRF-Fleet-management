@@ -3,6 +3,7 @@
 import { FileText } from 'lucide-react';
 import styles from '../MissionWizard.module.css';
 import PhotoPicker from '@/components/ui/PhotoPicker';
+import { useObjectUrl } from '@/components/ui/useObjectUrl';
 
 export interface Step7SignedReportProps {
     file: File | null;
@@ -11,6 +12,7 @@ export interface Step7SignedReportProps {
 
 export default function Step7SignedReport({ file, onChange }: Step7SignedReportProps) {
     const isImage = file && file.type.startsWith('image/');
+    const previewRef = useObjectUrl(file);
 
     return (
         <div className={styles.stepContent}>
@@ -46,9 +48,9 @@ export default function Step7SignedReport({ file, onChange }: Step7SignedReportP
                         }}
                     >
                         {isImage ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
+                            /* eslint-disable-next-line @next/next/no-img-element -- aperçu d'un fichier local (URL blob:) */
                             <img
-                                src={URL.createObjectURL(file)}
+                                ref={previewRef}
                                 alt="Aperçu du rapport signé"
                                 style={{
                                     width: 80,

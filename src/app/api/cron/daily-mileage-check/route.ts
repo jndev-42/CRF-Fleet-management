@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db, demoDb, prodDb } from '@/lib/db';
-import { cloneDatabase } from '@/lib/demo/cloneDatabase';
-import { isDemoDbSameAsProd } from '@/lib/demo/readOnly';
-import { purgeDemoObjects } from '@/lib/r2';
+import { db } from '@/lib/db';
+import { refreshDemoDatabase } from '@/lib/demo/refresh';
 import { getRenaultVehicleData } from '@/lib/vehicle-connection';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
@@ -24,35 +22,6 @@ export async function GET(request: Request) {
     const response = await runDailyChecks();
     await refreshDemoDatabase();
     return response;
-}
-
-/**
- * Remplace la base démo partagée par une copie de la prod, puis vide les fichiers R2
- * de démo (`demo/`). Côté prod : uniquement des SELECT paginés, ni transaction ni
- * écriture. Un échec est journalisé, sans plus.
- */
-async function refreshDemoDatabase(): Promise<void> {
-    // Garde-fou : une URL démo égale à la prod ferait supprimer toutes les tables de la prod.
-    if (isDemoDbSameAsProd()) {
-        console.error('[demo] recopie refusée : TURSO_DEMO_DATABASE_URL désigne la base de production');
-        return;
-    }
-    if (!demoDb) return;
-    const started = Date.now();
-    try {
-        const summary = await cloneDatabase(prodDb, demoDb);
-        console.log(`[demo] base démo recopiée depuis la prod : ${summary.tables} table(s), ${summary.rows} ligne(s) en ${summary.durationMs} ms`);
-    } catch (e: unknown) {
-        console.error(`[demo] recopie de la base démo impossible après ${Date.now() - started} ms :`, getErrorMessage(e));
-    }
-    // Fichiers écrits en démo (préfixe R2 `demo/`) : vidés avec la base, sans jamais
-    // toucher une vraie clé. Un échec est journalisé, la réponse ne change pas.
-    try {
-        const purged = await purgeDemoObjects();
-        console.log(`[demo] ${purged} fichier(s) R2 de démo supprimé(s)`);
-    } catch (e: unknown) {
-        console.error('[demo] purge des fichiers R2 de démo impossible :', getErrorMessage(e));
-    }
 }
 
 async function runDailyChecks(): Promise<NextResponse> {

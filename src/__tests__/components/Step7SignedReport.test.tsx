@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import Step7SignedReport from '@/components/missions/steps/Step7SignedReport';
 
@@ -35,5 +35,30 @@ describe('Step7SignedReport — scanner', () => {
         const file = onChange.mock.calls[0][0] as File;
         expect(file.name).toBe('compte-rendu-scan.pdf');
         expect(file.type).toBe('application/pdf');
+    });
+});
+
+describe('Step7SignedReport — aperçu', () => {
+    const original = { create: URL.createObjectURL, revoke: URL.revokeObjectURL };
+
+    afterEach(() => {
+        URL.createObjectURL = original.create;
+        URL.revokeObjectURL = original.revoke;
+    });
+
+    it('une seule URL entre deux rendus, révoquée au démontage', () => {
+        URL.createObjectURL = vi.fn(() => 'blob:rapport');
+        URL.revokeObjectURL = vi.fn();
+        const file = new File(['x'], 'rapport.jpg', { type: 'image/jpeg' });
+
+        const { rerender, unmount } = render(<Step7SignedReport file={file} onChange={vi.fn()} />);
+        rerender(<Step7SignedReport file={file} onChange={vi.fn()} />);
+
+        expect(screen.getByAltText('Aperçu du rapport signé').getAttribute('src')).toBe('blob:rapport');
+        expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+        expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+
+        unmount();
+        expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:rapport');
     });
 });

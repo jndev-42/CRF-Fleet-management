@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { setupFetchInterceptor } from '../demo/fetchInterceptor';
 import {
@@ -14,6 +14,14 @@ interface DemoContextType {
     isDemoMode: boolean;
     /** Base démo configurée côté serveur (`GET /api/demo/status`) : sinon, pas d'activation. */
     isDemoAvailable: boolean;
+    /** SUPER_ADMIN avec base démo configurée : peut lancer une recopie (l'interface ne fait que masquer). */
+    canRefreshDemo: boolean;
+    /** Recopie en cours ou interrompue (`DemoMeta.state = 'refreshing'`), ou lancée depuis cet onglet. */
+    isDemoRefreshing: boolean;
+    /** Signale une recopie lancée depuis cet onglet ; la relecture du statut remet l'état à jour. */
+    markDemoRefreshing: () => void;
+    /** Relit `GET /api/demo/status`, par exemple après une recopie. */
+    refreshDemoStatus: () => Promise<void>;
     toggleDemoMode: () => void;
 }
 
@@ -35,6 +43,22 @@ function setDemoCookie(active: boolean) {
         : `${DEMO_COOKIE_NAME}=; path=/; max-age=0; SameSite=Lax`;
 }
 
+interface DemoStatus {
+    available?: boolean;
+    refreshing?: boolean;
+    canRefresh?: boolean;
+}
+
+/** Statut indisponible (`null`) : bouton masqué, démo en cours inchangée. */
+async function readDemoStatus(): Promise<DemoStatus | null> {
+    try {
+        const res = await fetch('/api/demo/status');
+        return res.ok ? ((await res.json()) as DemoStatus) : null;
+    } catch {
+        return null;
+    }
+}
+
 function purgeLegacyDemoDb() {
     try {
         localStorage.removeItem(LEGACY_DEMO_DB_KEY);
@@ -52,6 +76,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
         return false;
     });
     const [isDemoAvailable, setIsDemoAvailable] = useState(false);
+    const [canRefreshDemo, setCanRefreshDemo] = useState(false);
+    const [isDemoRefreshing, setIsDemoRefreshing] = useState(false);
     const pathname = usePathname();
 
     // La démo est désactivée sur les pages QR publiques.
@@ -70,27 +96,36 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
 
     // Disponibilité de la démo (base démo configurée). Une démo active alors que la base
     // n'est plus configurée est quittée : le serveur refuserait toute écriture.
+    const applyDemoStatus = useCallback((data: DemoStatus) => {
+        const available = data.available === true;
+        setIsDemoAvailable(available);
+        setCanRefreshDemo(data.canRefresh === true);
+        const refreshing = data.refreshing === true;
+        setIsDemoRefreshing(refreshing);
+        // Pendant une copie, on reste en démo : pas de bascule silencieuse vers les vraies données.
+        if (!available && !refreshing && localStorage.getItem(IS_DEMO_MODE_KEY) === 'true') {
+            localStorage.setItem(IS_DEMO_MODE_KEY, 'false');
+            setDemoCookie(false);
+            setIsDemoMode(false);
+        }
+    }, []);
+
     useEffect(() => {
         let cancelled = false;
-        fetch('/api/demo/status')
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data: { available?: boolean } | null) => {
-                if (cancelled || !data) return;
-                const available = data.available === true;
-                setIsDemoAvailable(available);
-                if (!available && localStorage.getItem(IS_DEMO_MODE_KEY) === 'true') {
-                    localStorage.setItem(IS_DEMO_MODE_KEY, 'false');
-                    setDemoCookie(false);
-                    setIsDemoMode(false);
-                }
-            })
-            .catch(() => {
-                // Statut indisponible : bouton masqué, démo en cours inchangée.
-            });
+        readDemoStatus().then((data) => {
+            if (!cancelled && data) applyDemoStatus(data);
+        });
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [applyDemoStatus]);
+
+    const markDemoRefreshing = useCallback(() => setIsDemoRefreshing(true), []);
+
+    const refreshDemoStatus = useCallback(async () => {
+        const data = await readDemoStatus();
+        if (data) applyDemoStatus(data);
+    }, [applyDemoStatus]);
 
     // Ancienne base fictive : purgée une fois au montage.
     useEffect(() => {
@@ -117,7 +152,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <DemoContext.Provider value={{ isDemoMode: effectiveDemo, isDemoAvailable, toggleDemoMode }}>
+        <DemoContext.Provider value={{ isDemoMode: effectiveDemo, isDemoAvailable, canRefreshDemo, isDemoRefreshing, markDemoRefreshing, refreshDemoStatus, toggleDemoMode }}>
             {children}
         </DemoContext.Provider>
     );
