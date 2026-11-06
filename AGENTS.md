@@ -46,7 +46,6 @@ CSS Modules per component + global CSS variables (`app/globals.css`), `next-them
 - `@remscodes/renault-api` — Renault Connect telemetry
 - `react-onesignal` — push notifications
 - `@react-pdf/renderer` — PDF export
-- `nodemailer` — email
 
 ### External services
 Vercel (deployment, auto-deploy on `main`), Turso (DB cloud), Google Drive (photo storage), OneSignal (push), Renault Connect API (vehicle telemetry).
