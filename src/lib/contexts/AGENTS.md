@@ -11,14 +11,14 @@ Client-side React Context providers for app-wide state management: UL (organizat
 |------|-------------|
 | `ULContext.tsx` | Tracks active UL and available ULs from session; exports `useUL()` hook and `ULProvider` |
 | `MenuSettingsContext.tsx` | Fetches menu visibility settings from `/api/settings/menus`; exports `useMenuSettings()` hook and `MenuSettingsProvider` |
-| `DemoContext.tsx` | Manages demo mode toggle via localStorage and fetch interceptor; exports `useDemoMode()` hook and `DemoProvider` |
+| `DemoContext.tsx` | Manages read-only demo mode toggle via localStorage + cookie and installs the fetch interceptor; exports `useDemoMode()` hook and `DemoProvider` |
 
 ## For AI Agents
 
 ### Working In This Directory
 - All three contexts are React Client Components (`'use client'`)
 - Export both a **Provider component** (e.g., `ULProvider`) and a **useContext hook** (e.g., `useUL`)
-- ULContext reads from NextAuth session; MenuSettingsContext fetches async; DemoContext uses localStorage
+- ULContext reads from NextAuth session; MenuSettingsContext fetches async; DemoContext uses localStorage + cookie
 - No DB queries or async side effects beyond fetching in MenuSettingsProvider
 - When adding a new context, follow the same Provider + hook pattern and wrap it in the root layout
 

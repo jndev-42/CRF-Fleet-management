@@ -63,6 +63,8 @@ export function useMcpTokens() {
         });
         if (!res.ok) throw new Error(await errorMessage(res, 'Création du jeton impossible'));
         const body = await res.json() as { token: string };
+        // Mode démo : réponse simulée, aucun jeton n'a été créé.
+        if (!body.token) throw new Error('Action simulée (mode démo) : aucun jeton créé');
         await refresh();
         return body.token;
     }, [refresh]);

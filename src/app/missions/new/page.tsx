@@ -25,7 +25,8 @@ export default function NewMissionPage() {
     }, [status, canAccess, router]);
 
     function handleSuccess(id: string) {
-        router.push(`/missions/${id}`);
+        // id vide : réponse simulée du mode démo, aucun compte rendu créé
+        router.push(id ? `/missions/${id}` : '/missions');
     }
 
     if (status === 'loading' || !canAccess) {

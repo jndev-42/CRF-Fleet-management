@@ -81,8 +81,8 @@ export default function AidePage() {
                     <h2 className="section-title" style={{ fontSize: 16, marginBottom: 4 }}>🛠️ Mode Démo</h2>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
                         {isDemoMode 
-                            ? "Vous êtes actuellement en mode démo. Les données sont fictives." 
-                            : "Testez l'application librement sans impacter les données réelles."}
+                            ? "Vous êtes en mode démo : vos vraies données, en lecture seule. Vos actions sont simulées." 
+                            : "Explorez l'application avec vos vraies données, sans rien pouvoir modifier : vos actions sont simulées."}
                     </p>
                 </div>
                 <button

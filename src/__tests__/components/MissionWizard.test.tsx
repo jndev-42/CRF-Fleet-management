@@ -212,6 +212,36 @@ describe('MissionWizard', () => {
         expect(body.mission_comment).toBe('RAS, mission calme.');
     });
 
+    it('réponse simulée (mode démo) : onSuccess(\'\') sans effacer le brouillon', async () => {
+        mockFetch(async () => new Response(JSON.stringify({ success: true, simulated: true }), { status: 200 }));
+        const onSuccess = vi.fn();
+        const draftKey = missionDraftKey('/api/missions', 'user-1');
+
+        render(<MissionWizard currentUserId="user-1" onSuccess={onSuccess} />);
+        await goToLastStep('ul:ul-lyon-3');
+        expect(window.localStorage.getItem(draftKey)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(''));
+        expect(window.localStorage.getItem(draftKey)).toBeTruthy();
+    });
+
+    it('réponse simulée (mode démo) : l\'animation Paris 18 aboutit à onSuccess(\'\')', async () => {
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        mockFetch(async () => new Response(JSON.stringify({ success: true, simulated: true }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        render(<MissionWizard currentUserId="user-1" onSuccess={onSuccess} />);
+        await goToLastStep('ul:ul-paris-18');
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+
+        await waitFor(() => expect(screen.getByAltText('MARINE APPROVED')).toBeTruthy());
+        await act(async () => { await vi.advanceTimersByTimeAsync(3700); });
+
+        expect(onSuccess).toHaveBeenCalledWith('');
+        expect(window.localStorage.getItem(missionDraftKey('/api/missions', 'user-1'))).toBeTruthy();
+    });
+
     it('affiche l\'animation de succès quand le POSTE choisi est l\'UL Paris 18', async () => {
         mockFetch(async () => new Response(JSON.stringify({ id: 'mission-1' }), { status: 200 }));
         const onSuccess = vi.fn();

@@ -1,129 +1,85 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-
-vi.mock('@/lib/demo/DemoDB', () => ({
-    DemoDB: {
-        getVehicles: vi.fn(),
-        getVehicle: vi.fn(),
-        updateVehicle: vi.fn(),
-        createTrip: vi.fn(),
-        checkInTrip: vi.fn(),
-        patchTrip: vi.fn(),
-        deleteTrip: vi.fn(),
-        deleteVehicleTrips: vi.fn(),
-        getMissions: vi.fn(),
-        createMission: vi.fn(),
-        getMission: vi.fn(),
-        deleteMission: vi.fn(),
-        getMaintenanceRecords: vi.fn(),
-        createMaintenanceRecord: vi.fn(),
-        deleteMaintenanceRecord: vi.fn(),
-        getUsers: vi.fn(),
-    },
-}));
-
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { setupFetchInterceptor } from '@/lib/demo/fetchInterceptor';
-import { IS_DEMO_MODE_KEY } from '@/lib/contexts/DemoContext';
-import { DemoDB } from '@/lib/demo/DemoDB';
+import { IS_DEMO_MODE_KEY, DEMO_SIMULATED_EVENT } from '@/lib/demo/readOnly';
 
-const mockedDemoDB = vi.mocked(DemoDB, true);
+const realFetch = vi.fn(async () => new Response('real', { status: 200 }));
 
-describe('setupFetchInterceptor', () => {
-    const originalFetch = window.fetch;
+describe('fetchInterceptor (démo lecture seule)', () => {
+    beforeAll(() => {
+        window.fetch = realFetch as unknown as typeof window.fetch;
+        setupFetchInterceptor();
+    });
 
     beforeEach(() => {
+        realFetch.mockClear();
         localStorage.clear();
-        window.fetch = originalFetch;
-        vi.clearAllMocks();
+        window.history.pushState({}, '', '/');
     });
 
-    afterEach(() => {
-        window.fetch = originalFetch;
-    });
-
-    it('laisse passer les requêtes réelles si le mode démo est désactivé', async () => {
-        const realFetch = vi.fn().mockResolvedValue(new Response('real'));
-        window.fetch = realFetch;
+    it('est idempotent', () => {
+        const installed = window.fetch;
         setupFetchInterceptor();
-
-        await window.fetch('/api/vehicles');
-        expect(realFetch).toHaveBeenCalledWith('/api/vehicles', undefined);
-        expect(mockedDemoDB.getVehicles).not.toHaveBeenCalled();
+        expect(window.fetch).toBe(installed);
     });
 
-    it('laisse passer les routes /api/auth/ même en mode démo', async () => {
-        const realFetch = vi.fn().mockResolvedValue(new Response('real-auth'));
-        window.fetch = realFetch;
+    it('laisse tout passer hors démo', async () => {
+        await fetch('/api/trips', { method: 'POST' });
+        expect(realFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('laisse passer les GET en démo', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
-        setupFetchInterceptor();
-
-        await window.fetch('/api/auth/session');
-        expect(realFetch).toHaveBeenCalled();
+        await fetch('/api/expenses');
+        await fetch('/api/expenses', { method: 'HEAD' });
+        expect(realFetch).toHaveBeenCalledTimes(2);
     });
 
-    it('intercepte /api/vehicles (GET) et retourne les données DemoDB', async () => {
-        window.fetch = vi.fn();
+    it('simule une mutation, sans réseau, et émet l\'événement', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
-        mockedDemoDB.getVehicles.mockReturnValue([{ id: 'VL001' }] as never);
-        setupFetchInterceptor();
-
-        const res = await window.fetch('/api/vehicles');
-        const body = await res.json();
-        expect(body).toEqual([{ id: 'VL001' }]);
+        const listener = vi.fn();
+        window.addEventListener(DEMO_SIMULATED_EVENT, listener);
+        const res = await fetch('/api/vehicles/x/reservations', { method: 'POST', body: '{}' });
+        window.removeEventListener(DEMO_SIMULATED_EVENT, listener);
+        expect(realFetch).not.toHaveBeenCalled();
+        expect(res.status).toBe(200);
+        expect(await res.json()).toEqual({ success: true, simulated: true });
+        expect(listener).toHaveBeenCalledTimes(1);
     });
 
-    it('intercepte PATCH /api/vehicles/[id] et appelle DemoDB.updateVehicle', async () => {
-        window.fetch = vi.fn();
+    it('simule aussi les URL absolues et les Request', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
-        mockedDemoDB.updateVehicle.mockReturnValue({ id: 'VL001', mileage: 5000 } as never);
-        setupFetchInterceptor();
-
-        const res = await window.fetch('/api/vehicles/VL001', { method: 'PATCH', body: JSON.stringify({ mileage: 5000 }) });
-        expect(mockedDemoDB.updateVehicle).toHaveBeenCalledWith('VL001', { mileage: 5000 });
-        const body = await res.json();
-        expect(body.mileage).toBe(5000);
+        await fetch('http://localhost/api/users/x', { method: 'PATCH' });
+        await fetch(new Request('http://localhost/api/users/x', { method: 'DELETE' }));
+        expect(realFetch).not.toHaveBeenCalled();
     });
 
-    it('retourne 404 pour un véhicule inconnu', async () => {
-        window.fetch = vi.fn();
+    it('simule /api/push/subscriptions sans émettre la notice', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
-        mockedDemoDB.getVehicle.mockReturnValue(null);
-        setupFetchInterceptor();
-
-        const res = await window.fetch('/api/vehicles/unknown');
-        expect(res.status).toBe(404);
+        const listener = vi.fn();
+        window.addEventListener(DEMO_SIMULATED_EVENT, listener);
+        const res = await fetch('/api/push/subscriptions', { method: 'POST', body: '{}' });
+        window.removeEventListener(DEMO_SIMULATED_EVENT, listener);
+        expect(realFetch).not.toHaveBeenCalled();
+        expect(await res.json()).toEqual({ success: true, simulated: true });
+        expect(listener).not.toHaveBeenCalled();
     });
 
-    it('intercepte POST /api/trips et crée un trajet via DemoDB', async () => {
-        window.fetch = vi.fn();
+    it.each([
+        '/api/auth/signout',
+        '/api/qr/t/checkout',
+        '/api/stats/csv',
+        '/api/stats/expenses/pdf',
+        '/api/bugs/report',
+    ])('laisse passer l\'exemption %s', async (path) => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
-        mockedDemoDB.createTrip.mockReturnValue({ id: 'trip-1' } as never);
-        setupFetchInterceptor();
-
-        const res = await window.fetch('/api/trips', { method: 'POST', body: JSON.stringify({ vehicleId: 'VL001' }) });
-        expect(mockedDemoDB.createTrip).toHaveBeenCalledWith({ vehicleId: 'VL001' });
-        const body = await res.json();
-        expect(body.id).toBe('trip-1');
+        await fetch(path, { method: 'POST' });
+        expect(realFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('mocke un succès générique pour une route de mutation non gérée (anti-fuite de données)', async () => {
-        window.fetch = vi.fn();
+    it('ne simule rien sur une page QR', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
-        setupFetchInterceptor();
-
-        const res = await window.fetch('/api/some/unhandled/route', { method: 'POST', body: '{}' });
-        const body = await res.json();
-        expect(body).toEqual({ success: true, message: 'Mocked successful mutation' });
-    });
-
-    it('retourne une erreur 500 propre si DemoDB lève une exception', async () => {
-        window.fetch = vi.fn();
-        localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
-        mockedDemoDB.updateVehicle.mockImplementation(() => { throw new Error('Véhicule non trouvé'); });
-        setupFetchInterceptor();
-
-        const res = await window.fetch('/api/vehicles/VL001', { method: 'PATCH', body: JSON.stringify({ mileage: 1 }) });
-        expect(res.status).toBe(500);
-        const body = await res.json();
-        expect(body.error).toBe('Véhicule non trouvé');
+        window.history.pushState({}, '', '/qr/abc');
+        await fetch('/api/trips', { method: 'POST' });
+        expect(realFetch).toHaveBeenCalledTimes(1);
     });
 });
