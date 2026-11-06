@@ -22,6 +22,7 @@ function makeVehicle(overrides: Partial<DashboardVehicle> = {}): DashboardVehicl
         connection: null,
         fuelType: 'Essence',
         transmission: 'Manuelle',
+        photoUpdatedAt: null,
         trips: [],
         ...overrides,
     };

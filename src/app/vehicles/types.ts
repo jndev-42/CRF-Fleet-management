@@ -34,6 +34,8 @@ export interface DashboardVehicle {
     transmission: string | null;
     ulId?: string | null;
     ulName?: string | null;
+    /** Date de dépôt de la photo, `null` sans photo : versionne l'URL de la vignette (`vehiclePhotoUrl`). */
+    photoUpdatedAt: string | null;
     /** Vue DT uniquement : disponibilité calculée par le serveur sur la fenêtre demandée. */
     availability?: DtAvailability;
     trips: {

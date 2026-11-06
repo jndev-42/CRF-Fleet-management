@@ -17,6 +17,15 @@ describe('VehiclePhoto', () => {
         expect(screen.queryByRole('dialog')).toBeNull();
     });
 
+    it('la vignette se charge en différé, pas la photo agrandie', () => {
+        const { container } = render(<VehiclePhoto src={SRC} vehicleName="VL1" />);
+        const thumbnail = container.querySelector('img');
+        expect(thumbnail?.getAttribute('loading')).toBe('lazy');
+        expect(thumbnail?.getAttribute('decoding')).toBe('async');
+        openLightbox();
+        expect(screen.getByAltText('Véhicule VL1').getAttribute('loading')).toBeNull();
+    });
+
     it('un clic agrandit le même fichier et bloque le défilement', () => {
         render(<VehiclePhoto src={SRC} vehicleName="VL1" />);
         openLightbox();

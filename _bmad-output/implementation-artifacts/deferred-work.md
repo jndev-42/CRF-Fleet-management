@@ -159,6 +159,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-vehicle-documents.md`
   summary: Documenter dans `CLAUDE.md` que la base démo n'a pas la table `VehicleDocument` avant la recopie de 23h59, et la migrer si besoin avec `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` de la démo.
   evidence: `db` route les requêtes démo vers leur base et `listVehicleDocuments` y lève : les fiches véhicule répondent 500 en mode démo jusqu'à la recopie. Fichier de contexte agent, donc reporté.
+- source_spec: `_bmad-output/implementation-artifacts/spec-photo-vehicule-dashboard.md`
+  summary: En Vue DT, cliquer sur la carte d'un véhicule d'une autre UL mène à « Véhicule non trouvé » ; `src/app/vehicles/AGENTS.md` ne signale pas cette réserve.
+  evidence: `useVehicleDetail` appelle `GET /api/vehicles/[id]`, qui répond 404 hors UL malgré `?dtView=true` ; comportement antérieur à la vignette, lu dans le code et non rejoué.
+- source_spec: `_bmad-output/implementation-artifacts/spec-photo-vehicule-dashboard.md`
+  summary: Aucun test automatisé ne couvre en navigateur le clic sur la vignette, le recalage du contenu, les hauteurs égales et le débordement sur téléphone.
+  evidence: jsdom n'applique ni CSS ni mise en page ; `e2e/` tourne hors CI, sans données photo.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-securite-et-recopie-demo-manuelle.md`
   summary: Prévenir les SUPER_ADMIN quand une recopie de la base démo échoue ou est sautée.

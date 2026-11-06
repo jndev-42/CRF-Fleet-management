@@ -309,7 +309,7 @@ html[data-season="vendanges-montmartre"] .breakdown-card {
 }
 
 html[data-season="vendanges-montmartre"] .detail-card:nth-child(3n + 2),
-html[data-season="vendanges-montmartre"] .vehicle-card:nth-child(3n + 2),
+html[data-season="vendanges-montmartre"] .vehicle-card-slot:nth-child(3n + 2) .vehicle-card,
 html[data-season="vendanges-montmartre"] .kpi-card:nth-child(3n + 2),
 html[data-season="vendanges-montmartre"] .chart-card:nth-child(3n + 2),
 html[data-season="vendanges-montmartre"] .stat-card:nth-child(3n + 2),
@@ -318,7 +318,7 @@ html[data-season="vendanges-montmartre"] .breakdown-card:nth-child(3n + 2) {
 }
 
 html[data-season="vendanges-montmartre"] .detail-card:nth-child(3n),
-html[data-season="vendanges-montmartre"] .vehicle-card:nth-child(3n),
+html[data-season="vendanges-montmartre"] .vehicle-card-slot:nth-child(3n) .vehicle-card,
 html[data-season="vendanges-montmartre"] .kpi-card:nth-child(3n),
 html[data-season="vendanges-montmartre"] .chart-card:nth-child(3n),
 html[data-season="vendanges-montmartre"] .stat-card:nth-child(3n),
@@ -326,7 +326,7 @@ html[data-season="vendanges-montmartre"] .breakdown-card:nth-child(3n) {
     box-shadow: 3px 3px 0 var(--vm-pink);
 }
 
-html[data-season="vendanges-montmartre"] .vehicle-card:hover {
+html[data-season="vendanges-montmartre"] .vehicle-card-slot:hover .vehicle-card {
     border-color: var(--vm-ink);
     box-shadow: 5px 5px 0 var(--vm-cyan);
 }

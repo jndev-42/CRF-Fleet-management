@@ -1,6 +1,6 @@
 # Changelog
 
-## [5.45.0] — 6 novembre 2026
+## [5.46.0] — 6 novembre 2026
 
 ### ✨ Nouveautés
 
@@ -18,6 +18,19 @@
 ### 🐛 Corrections
 
 - **Aperçus de photos** — les aperçus sont libérés de la mémoire dès qu'ils ne servent plus, ce qui évite de ralentir le navigateur après de nombreuses photos. Un fichier qui n'est pas une image n'est plus jamais affiché comme une image.
+
+## [5.45.0] — 6 novembre 2026
+
+### ✨ Nouveautés
+
+- **Reconnaître un véhicule d'un coup d'œil sur le tableau de bord** — la photo du véhicule s'affiche à gauche de son nom sur chaque carte. Un clic sur la photo l'agrandit en plein écran.
+- **Les photos aussi en Vue DT** — les responsables de DT voient la photo des véhicules de toutes les unités locales de leur DT, sans pouvoir la modifier.
+
+## [5.44.1] — 6 novembre 2026
+
+### 🐛 Corrections
+
+- **Consignes de déclaration d'incident** — l'écran « Consignes incident » affiche désormais le texte définitif en français à la place du texte provisoire : numéros d'urgence cliquables (15, 18, 17, 112), conduite à tenir après un accident (sécuriser, secourir, prévenir Onyx au 01 84 83 28 00, constat amiable, photos), rappel pour les flashs radar et infractions, et délai de déclaration de 24 heures.
 
 ## [5.44.0] — 6 novembre 2026
 

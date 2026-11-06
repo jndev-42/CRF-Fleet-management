@@ -2,7 +2,7 @@
  * Photo d'un véhicule.
  *
  *   POST   — dépôt ou remplacement (multipart, champ `file`) — gestionnaire de l'UL
- *   GET    — lecture — même UL
+ *   GET    — lecture — même UL, ou rôle DT sur une UL de sa DT (vignettes de la Vue DT)
  *   DELETE — retrait — gestionnaire de l'UL
  *
  * ⚠️ `[id]` est le NOM du véhicule, comme pour `/api/vehicles/[id]`.
@@ -15,7 +15,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { db } from '@/lib/db';
-import { canManageVehicles, isQrBlocked } from '@/lib/roles';
+import { canManageVehicles, hasDTRole, isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { MAX_PHOTO_SIZE, PHOTO_INVALID_ERROR, PHOTO_TOO_LARGE_ERROR } from '@/lib/vehiclePhoto';
@@ -36,6 +36,21 @@ async function findVehicleByName(name: string) {
     return res.rows[0] ?? null;
 }
 
+/**
+ * Les deux UL partagent-elles une DT ? L'égalité SQL écarte déjà un `dtCode` NULL ;
+ * une chaîne vide vaut aussi « pas de DT », comme dans la Vue DT de `GET /api/vehicles`.
+ */
+async function shareDt(sessionUlId: unknown, vehicleUlId: unknown): Promise<boolean> {
+    if (typeof sessionUlId !== 'string' || typeof vehicleUlId !== 'string') return false;
+    const res = await db.execute({
+        sql: `SELECT 1 FROM "UniteLocale" a
+              JOIN "UniteLocale" b ON b.dtCode = a.dtCode
+              WHERE a.id = ? AND b.id = ? AND a.dtCode <> ''`,
+        args: [sessionUlId, vehicleUlId],
+    });
+    return res.rows.length > 0;
+}
+
 export async function GET(
     _request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -51,10 +66,18 @@ export async function GET(
 
         const { id } = await params;
         const vehicle = await findVehicleByName(id);
+        if (!vehicle) {
+            return NextResponse.json(NOT_FOUND, { status: 404 });
+        }
 
         // Même cloisonnement que GET /api/vehicles/[id] : un véhicule d'une autre
-        // UL est indiscernable d'un véhicule inexistant.
-        if (!vehicle || isOutsideUl(session.user.roles || [], session.user.ulId, vehicle.ulId)) {
+        // UL est indiscernable d'un véhicule inexistant. Seule exception, propre à
+        // cette lecture : le rôle DT voit les photos de sa DT (Vue DT, lecture seule).
+        const roles = session.user.roles || [];
+        if (
+            isOutsideUl(roles, session.user.ulId, vehicle.ulId)
+            && !(hasDTRole(roles) && await shareDt(session.user.ulId, vehicle.ulId))
+        ) {
             return NextResponse.json(NOT_FOUND, { status: 404 });
         }
 
