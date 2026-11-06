@@ -1,3 +1,5 @@
+import type { VehicleDocumentMeta } from '@/lib/vehicleDocuments/types';
+
 export interface Trip {
     id: string;
     /** FK to User.id — the primary driver */
@@ -89,12 +91,8 @@ export interface Vehicle {
     revisionKmInterval: number | null;
     /** Intervalle en années entre deux révisions */
     revisionYearInterval: number | null;
-    /** Nom d'origine du guide de vérification PDF — `null` si le véhicule n'en a pas */
-    guideFileName?: string | null;
-    /** Taille du guide en octets */
-    guideSize?: number | null;
-    /** Date ISO du dernier dépôt du guide */
-    guideUpdatedAt?: string | null;
+    /** Documents PDF liés au véhicule (métadonnées seulement) — vide s'il n'y en a pas */
+    documents?: VehicleDocumentMeta[];
     /** Date ISO du dernier dépôt de la photo — `null` si le véhicule n'en a pas */
     photoUpdatedAt?: string | null;
     ulId?: string | null;

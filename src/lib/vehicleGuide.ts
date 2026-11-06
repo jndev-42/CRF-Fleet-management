@@ -11,7 +11,7 @@ export const MAX_GUIDE_SIZE = 4 * 1024 * 1024;
 
 /** Longueur maximale du nom conservé, extension comprise. */
 const MAX_FILE_NAME_LENGTH = 150;
-const DEFAULT_FILE_NAME = 'guide-verification.pdf';
+const DEFAULT_FILE_NAME = 'document.pdf';
 
 export const GUIDE_NOT_PDF_ERROR = 'Le fichier doit être un PDF.';
 export const GUIDE_TOO_LARGE_ERROR = 'Le fichier est trop volumineux (4 Mo maximum).';

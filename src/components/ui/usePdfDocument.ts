@@ -1,7 +1,7 @@
 import { RefObject, useEffect, useState } from 'react';
 import type { PDFDocumentLoadingTask, PDFDocumentProxy, RenderTask } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
-const LOAD_ERROR = 'Impossible de charger le guide.';
+const LOAD_ERROR = 'Impossible de charger le document.';
 
 /**
  * Charge un PDF avec pdf.js, importé dynamiquement : la page qui affiche la
@@ -18,11 +18,11 @@ const LOAD_ERROR = 'Impossible de charger le guide.';
  * fichier lui-même par requêtes `Range` : seules les pages affichées sont
  * téléchargées, jamais le fichier entier.
  */
-export interface GuidePdfOptions {
+export interface PdfDocumentOptions {
     rangeUrl?: string;
 }
 
-export function useGuidePdf(src: string, { rangeUrl }: GuidePdfOptions = {}) {
+export function usePdfDocument(src: string, { rangeUrl }: PdfDocumentOptions = {}) {
     const [doc, setDoc] = useState<PDFDocumentProxy | null>(null);
     const [error, setError] = useState<string | null>(null);
 
@@ -82,7 +82,7 @@ export interface ElementSize {
  *   lire une page paysage téléphone tourné — même quand l'appli est verrouillée
  *   en portrait (manifeste PWA).
  */
-export function useGuidePageRender(
+export function usePdfPageRender(
     doc: PDFDocumentProxy | null,
     pageNumber: number,
     size: ElementSize,

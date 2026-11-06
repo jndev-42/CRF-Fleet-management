@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { canManageVehicles } from '@/lib/roles';
 import { recalcVehicleStatus } from '@/lib/vehicleStatusRecalc';
 import { withAudit } from '@/lib/audit/log';
+import { listVehicleDocuments, deleteVehicleDocuments } from '@/lib/vehicleDocuments/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -142,10 +143,8 @@ export async function GET(
             firstRegistrationDate: row.firstRegistrationDate as string | null,
             revisionKmInterval: row.revisionKmInterval as number | null,
             revisionYearInterval: row.revisionYearInterval as number | null,
-            // Métadonnées du guide de vérification — jamais la clé R2, servie par /guide.
-            guideFileName: row.guideR2Key ? row.guideFileName as string | null : null,
-            guideSize: row.guideR2Key ? row.guideSize as number | null : null,
-            guideUpdatedAt: row.guideR2Key ? row.guideUpdatedAt as string | null : null,
+            // Documents liés — métadonnées seulement, jamais la clé R2 (servie par /documents/[documentId]).
+            documents: await listVehicleDocuments(row.id as string),
             // Version de la photo — jamais la clé R2, servie par /photo.
             photoUpdatedAt: row.photoR2Key ? row.photoUpdatedAt as string | null : null,
             createdAt: new Date(row.createdAt as string),
@@ -364,7 +363,7 @@ async function deleteHandler(
 
         // Find the vehicle by name first to get its UUID
         const vehicleResult = await db.execute({
-            sql: `SELECT id, ulId, guideR2Key, photoR2Key FROM Vehicle WHERE name = ?`,
+            sql: `SELECT id, ulId, photoR2Key FROM Vehicle WHERE name = ?`,
             args: [id]
         });
 
@@ -407,13 +406,12 @@ async function deleteHandler(
             args: [realId]
         });
 
-        // Guide de vérification : après la suppression en base, best-effort (un orphelin R2 est inoffensif).
-        const guideKey = vehicleResult.rows[0].guideR2Key as string | null;
-        if (guideKey) {
-            const { deleteObject } = await import('@/lib/r2');
-            await deleteObject(guideKey).catch((e: unknown) =>
-                console.error(`[vehicle-guide] suppression du guide ${guideKey} impossible :`, e instanceof Error ? e.message : String(e)));
-        }
+        // Documents liés : lignes puis objets R2, après la suppression du véhicule
+        // (un échec R2 est journalisé, un orphelin est inoffensif).
+        // Le véhicule est déjà supprimé : une erreur ici ne doit ni répondre 500 ni
+        // sauter le nettoyage de la photo.
+        await deleteVehicleDocuments(realId as string).catch((e: unknown) =>
+            console.error(`[vehicle-document] nettoyage des documents du véhicule ${String(realId)} impossible :`, e instanceof Error ? e.message : String(e)));
 
         // Photo : même règle.
         const photoKey = vehicleResult.rows[0].photoR2Key as string | null;

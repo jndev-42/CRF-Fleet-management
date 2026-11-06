@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useUL } from '@/lib/contexts/ULContext';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
-import VehicleGuideField, { applyGuideChange, GuideChange } from '@/components/vehicle/VehicleGuideField';
+import VehicleDocumentsField, { applyDocumentChanges, DocumentChanges, NO_DOCUMENT_CHANGES } from '@/components/vehicle/VehicleDocumentsField';
 import VehiclePhotoField, { applyPhotoChange, PhotoChange } from '@/components/vehicle/VehiclePhotoField';
 
 interface AddVehicleModalProps {
@@ -33,16 +33,16 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
         revisionKmInterval: '',
         revisionYearInterval: '',
     });
-    const [guide, setGuide] = useState<GuideChange>({ kind: 'keep' });
+    const [documents, setDocuments] = useState<DocumentChanges>(NO_DOCUMENT_CHANGES);
     const [photo, setPhoto] = useState<PhotoChange>({ kind: 'keep' });
     const [submitting, setSubmitting] = useState(false);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
 
     useEffect(() => {
         if (!isOpen) return;
-        // La modale reste montée entre deux ouvertures : un guide ou une photo choisis
+        // La modale reste montée entre deux ouvertures : des documents ou une photo choisis
         // pour une création précédente ne doivent jamais partir sur le véhicule suivant.
-        setGuide({ kind: 'keep' });
+        setDocuments(NO_DOCUMENT_CHANGES);
         setPhoto({ kind: 'keep' });
         fetch('/api/ul')
             .then(r => { if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`); return r.json(); })
@@ -102,14 +102,14 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                 }),
             });
             if (res.ok) {
-                // Le guide et la photo partent dans des requêtes dédiées, une fois le
+                // Les documents et la photo partent dans des requêtes dédiées, une fois le
                 // véhicule créé : leur échec ne doit pas annuler la création.
-                if (guide.kind === 'replace' || photo.kind === 'replace') {
+                if (documents.add.length > 0 || photo.kind === 'replace') {
                     const created = await res.json().catch(() => null) as { name?: string } | null;
                     const vehicleName = created?.name || form.name;
-                    const guideError = await applyGuideChange(vehicleName, guide);
-                    if (guideError) {
-                        alert(`Véhicule créé, guide non enregistré : ${guideError}\nVous pouvez le joindre à nouveau depuis la modification du véhicule.`);
+                    const documentsError = await applyDocumentChanges(vehicleName, documents);
+                    if (documentsError) {
+                        alert(`Véhicule créé, document(s) non enregistré(s) :\n${documentsError}\nVous pouvez les joindre à nouveau depuis la modification du véhicule.`);
                     }
                     const photoError = await applyPhotoChange(vehicleName, photo);
                     if (photoError) {
@@ -370,10 +370,10 @@ export default function AddVehicleModal({ isOpen, onClose, onSuccess }: AddVehic
                                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                             />
                         </div>
-                        <VehicleGuideField
-                            currentFileName={null}
-                            value={guide}
-                            onChange={setGuide}
+                        <VehicleDocumentsField
+                            documents={[]}
+                            value={documents}
+                            onChange={setDocuments}
                             disabled={submitting}
                         />
                         <VehiclePhotoField

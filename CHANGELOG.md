@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.44.0] — 6 novembre 2026
+
+### ✨ Nouveautés
+
+- **Plusieurs documents par véhicule** — le « guide de vérification » devient « Documents liés au véhicule » : les gestionnaires peuvent joindre plusieurs PDF (carte grise, procédures, etc.) depuis les fenêtres de création et de modification, en sélectionnant plusieurs fichiers d'un coup, et en retirer un sans toucher aux autres.
+- **Chaque document se lit ou se télécharge séparément** — la page du véhicule et la page ouverte en scannant son QR code listent chaque document avec son nom, sa taille et sa date, avec les boutons « Lire » et « Télécharger ».
+- **Pas de limite sur le nombre de documents** — chaque fichier est limité à 4 Mo, mais le total par véhicule ne l'est pas.
+
+### 🔧 Modifications
+
+- Si un fichier est refusé (trop lourd ou qui n'est pas un PDF), les autres sont tout de même enregistrés et le message indique précisément quel fichier pose problème.
+- Les guides de vérification déjà enregistrés sont conservés : ils apparaissent comme premiers documents du véhicule.
+- La liseuse PDF n'emploie plus le mot « guide » dans ses textes (« Télécharger le document », « Chargement du document »).
+
 ## [5.43.0] — 6 novembre 2026
 
 ### ✨ Nouveautés

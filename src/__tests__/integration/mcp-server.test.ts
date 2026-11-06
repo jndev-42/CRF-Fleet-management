@@ -280,7 +280,7 @@ describe('api_request', () => {
     it('réponse binaire : résumée (type, taille), jamais transmise', async () => {
         fetchSpy.mockImplementationOnce(async () => new Response(new Uint8Array([37, 80, 68, 70, 1, 2, 3]), { headers: { 'content-type': 'application/pdf' } }));
         const { token } = await createMcpToken({ userId: 'u-admin', name: 'Claude', scope: 'read', validityDays: 90 });
-        const { text } = await callTool(token, 'api_request', { method: 'GET', path: '/api/vehicles/VL186/guide' });
+        const { text } = await callTool(token, 'api_request', { method: 'GET', path: '/api/vehicles/VL186/documents/d1' });
         expect(text).toContain('application/pdf');
         expect(text).toContain('7 octets');
         expect(text).not.toContain('%PDF');

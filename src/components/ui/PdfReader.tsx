@@ -4,11 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Download, RotateCw, X } from 'lucide-react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
-import { useElementSize, useGuidePageRender, useGuidePdf } from './useGuidePdf';
-import styles from './VehicleGuideReader.module.css';
+import { useElementSize, usePdfPageRender, usePdfDocument } from './usePdfDocument';
+import styles from './PdfReader.module.css';
 
-interface VehicleGuideReaderProps {
-    /** URL de lecture du guide (`inline`). Le téléchargement ajoute `?download=1`. */
+interface PdfReaderProps {
+    /** URL de lecture du document (`inline`). Le téléchargement ajoute `?download=1`. */
     src?: string;
     /**
      * URL directe d'un gros PDF : pdf.js le lit par requêtes `Range` (seules les
@@ -26,7 +26,10 @@ interface VehicleGuideReaderProps {
 /** Distance minimale (px) pour qu'un glissé tourne la page. */
 const SWIPE_THRESHOLD = 50;
 
-/** Préférence d'affichage pivoté, mémorisée sur l'appareil (confort, jamais critique). */
+/**
+ * Préférence d'affichage pivoté, mémorisée sur l'appareil (confort, jamais critique).
+ * Clé historique conservée : la renommer ferait perdre le réglage des utilisateurs.
+ */
 const ROTATED_STORAGE_KEY = 'vehicleGuideReader.rotated';
 
 function readRotatedPreference(): boolean {
@@ -46,21 +49,21 @@ function writeRotatedPreference(rotated: boolean) {
 }
 
 /**
- * Liseuse plein écran du guide de vérification : une page à la fois, ajustée à
+ * Liseuse PDF plein écran : une page à la fois, ajustée à
  * la largeur. Navigation par boutons, flèches du clavier ou glissé sur mobile ;
  * fermeture par bouton ou Échap.
  *
  * « Pivoter » affiche la page tournée de 90° pour la lire téléphone en paysage :
  * l'appli installée est verrouillée en portrait, l'écran ne bascule donc pas seul.
  */
-export default function VehicleGuideReader({
+export default function PdfReader({
     src = '',
     rangeUrl,
     initialPage = 1,
-    label = 'Guide de vérification',
+    label = 'Document',
     fileName,
     onClose,
-}: VehicleGuideReaderProps) {
+}: PdfReaderProps) {
     useEscapeKey(onClose);
 
     const viewportRef = useRef<HTMLDivElement>(null);
@@ -70,12 +73,12 @@ export default function VehicleGuideReader({
     const [requestedPage, setRequestedPage] = useState(Math.max(1, Math.floor(initialPage)));
     const [rotated, setRotated] = useState(readRotatedPreference);
 
-    const { doc, error, setError } = useGuidePdf(src, { rangeUrl });
+    const { doc, error, setError } = usePdfDocument(src, { rangeUrl });
     const size = useElementSize(viewportRef);
     const pageCount = doc?.numPages ?? 0;
     // Une page demandée au-delà de la fin (ouverture sur un n° trop grand) est ramenée à la dernière.
     const pageNumber = pageCount > 0 ? Math.min(requestedPage, pageCount) : requestedPage;
-    useGuidePageRender(doc, pageNumber, size, rotated, canvasRef, setError);
+    usePdfPageRender(doc, pageNumber, size, rotated, canvasRef, setError);
 
     function toggleRotated() {
         setRotated(r => {
@@ -147,7 +150,7 @@ export default function VehicleGuideReader({
                     <RotateCw size={20} />
                 </button>
                 {!rangeUrl && (
-                    <a href={downloadHref} download={fileName} aria-label="Télécharger le guide" className={styles.iconButton}>
+                    <a href={downloadHref} download={fileName} aria-label="Télécharger le document" className={styles.iconButton}>
                         <Download size={20} />
                     </a>
                 )}
@@ -163,7 +166,7 @@ export default function VehicleGuideReader({
                 onTouchEnd={handleTouchEnd}
             >
                 {error && <div role="alert" className={styles.message}>{error}</div>}
-                {!error && !doc && <div role="status" aria-live="polite" className={styles.message}>Chargement du guide…</div>}
+                {!error && !doc && <div role="status" aria-live="polite" className={styles.message}>Chargement du document…</div>}
                 <canvas
                     ref={canvasRef}
                     className={styles.canvas}

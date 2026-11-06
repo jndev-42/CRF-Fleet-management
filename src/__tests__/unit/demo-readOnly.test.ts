@@ -45,8 +45,8 @@ describe('demo readOnly', () => {
             ['/api/drive/upload', 'POST'],
             ['/api/referentiel/upload', 'POST'],
             ['/api/referentiel/process', 'POST'],
-            ['/api/vehicles/VL%20186/guide', 'POST'],
-            ['/api/vehicles/x/guide', 'DELETE'],
+            ['/api/vehicles/VL%20186/documents', 'POST'],
+            ['/api/vehicles/x/documents/d1', 'DELETE'],
             ['/api/vehicles/VL%20186/photo', 'POST'],
             ['/api/vehicles/x/photo', 'DELETE'],
             ['/api/vehicles/x/connection', 'PUT'],
@@ -57,14 +57,16 @@ describe('demo readOnly', () => {
         ]) expect(isDemoExternalWrite(p, m), `${m} ${p}`).toBe(true);
         for (const [p, m] of [
             ['/api/drive/upload', 'GET'],
-            ['/api/vehicles/x/guide', 'PATCH'],
-            ['/api/vehicles/x/guide', 'GET'],
+            ['/api/vehicles/x/documents', 'GET'],
+            ['/api/vehicles/x/documents', 'DELETE'],
+            ['/api/vehicles/x/documents/d1', 'GET'],
+            ['/api/vehicles/x/documents/d1', 'POST'],
             ['/api/vehicles/x/photo', 'GET'],
             ['/api/vehicles/x/photo/extra', 'POST'],
             ['/api/vehicles/x/reservations', 'POST'],
             ['/api/trips', 'POST'],
             ['/api/expenses', 'POST'],
-            ['/api/vehicles/x/guide/extra', 'POST'],
+            ['/api/vehicles/x/documents/d1/extra', 'DELETE'],
         ]) expect(isDemoExternalWrite(p, m), `${m} ${p}`).toBe(false);
     });
 

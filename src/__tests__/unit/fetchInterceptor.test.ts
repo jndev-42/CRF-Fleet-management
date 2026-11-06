@@ -60,7 +60,7 @@ describe('fetchInterceptor (démo : base partagée, routes externes simulées)',
     it('simule aussi les URL absolues et les Request', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
         await fetch('http://localhost/api/vehicles/x/connection', { method: 'PUT' });
-        await fetch(new Request('http://localhost/api/vehicles/x/guide', { method: 'DELETE' }));
+        await fetch(new Request('http://localhost/api/vehicles/x/documents/d1', { method: 'DELETE' }));
         expect(realFetch).not.toHaveBeenCalled();
     });
 

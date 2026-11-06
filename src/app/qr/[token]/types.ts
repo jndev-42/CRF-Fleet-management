@@ -1,3 +1,5 @@
+import type { VehicleDocumentMeta } from '@/lib/vehicleDocuments/types';
+
 export interface ActiveTrip {
     id: string;
     vehicleId: string;
@@ -33,10 +35,8 @@ export interface QRVehicle {
      */
     connection: { status: string } | null;
     maxFuelCapacity: number | null;
-    /** Guide de vérification PDF — `null` si le véhicule n'en a pas. */
-    guideFileName?: string | null;
-    guideSize?: number | null;
-    guideUpdatedAt?: string | null;
+    /** Documents PDF liés au véhicule (métadonnées seulement) — vide s'il n'y en a pas. */
+    documents?: VehicleDocumentMeta[];
     /** Date ISO du dernier dépôt de la photo — `null` si le véhicule n'en a pas. */
     photoUpdatedAt?: string | null;
     activeTrip: ActiveTrip | null;
