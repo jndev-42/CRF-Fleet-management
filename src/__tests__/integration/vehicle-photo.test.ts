@@ -74,6 +74,13 @@ const SUPER_ADMIN = { user: { id: 'u-sa', email: 'sa@test.com', roles: ['SUPER_A
 const VOLUNTEER = { user: { id: 'u-chvl', email: 'chvl@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } };
 const VOLUNTEER_OTHER_UL = { user: { id: 'u-chvl-17', email: 'chvl17@test.com', roles: ['CHVL'], ulId: 'ul-paris-17' } };
 const INACTIVE = { user: { id: 'u-inactif', email: 'inactif@test.com', roles: ['INACTIF'], ulId: 'ul-paris-18' } };
+const DT_OTHER_UL = { user: { id: 'u-dt-17', email: 'dt17@test.com', roles: ['DT'], ulId: 'ul-paris-17' } };
+
+const seedUl = (id: string, dtCode: string | null) => db.execute({
+    sql: `INSERT INTO "UniteLocale" (id, name, slug, dtCode) VALUES (?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET dtCode = excluded.dtCode`,
+    args: [id, id, id, dtCode],
+});
 
 const solid = (width: number, height: number) =>
     sharp({ create: { width, height, channels: 3, background: { r: 200, g: 30, b: 30 } } });
@@ -363,6 +370,69 @@ describe('GET /api/vehicles/[id]/photo', () => {
     });
 });
 
+describe('GET /api/vehicles/[id]/photo — rôle DT (Vue DT)', () => {
+    /** UL du véhicule, UL de la session : dtCode de chacune, puis photo déposée. */
+    async function arrange(vehicleDt: string | null, sessionDt: string | null, session: unknown = DT_OTHER_UL) {
+        await seedUl('ul-paris-18', vehicleDt);
+        await seedUl('ul-paris-17', sessionDt);
+        await seedPhoto(session);
+    }
+
+    it('200 pour une autre UL de sa DT', async () => {
+        await arrange('DT75', 'DT75');
+        const res = await getPhoto(photoRequest(), params());
+        expect(res.status).toBe(200);
+        expect(res.headers.get('Cache-Control')).toBe('private, max-age=86400');
+    });
+
+    it.each([
+        ['une autre DT', 'DT92', 'DT75'],
+        ['une UL sans dtCode', null, 'DT75'],
+        ['une session sans dtCode', 'DT75', null],
+        ['deux UL sans dtCode', null, null],
+        ['deux dtCode vides', '', ''],
+    ])('404 identique à « non trouvé » pour %s', async (_label, vehicleDt, sessionDt) => {
+        await arrange(vehicleDt, sessionDt);
+        const res = await getPhoto(photoRequest(), params());
+        expect(res.status).toBe(404);
+        const unknown = await getPhoto(photoRequest(), params('INCONNU'));
+        expect(await res.json()).toEqual(await unknown.json());
+    });
+
+    it('404 si le véhicule n\'a pas d\'UL', async () => {
+        await arrange('DT75', 'DT75');
+        await db.execute({ sql: `UPDATE Vehicle SET ulId = NULL WHERE id = ?`, args: [VEHICLE_ID] });
+        expect((await getPhoto(photoRequest(), params())).status).toBe(404);
+    });
+
+    it('404 pour un rôle non DT de la même DT', async () => {
+        await arrange('DT75', 'DT75', VOLUNTEER_OTHER_UL);
+        expect((await getPhoto(photoRequest(), params())).status).toBe(404);
+    });
+
+    it('403 pour un DT inactif de la même DT', async () => {
+        await arrange('DT75', 'DT75', { user: { ...DT_OTHER_UL.user, roles: ['DT', 'INACTIF'] } });
+        expect((await getPhoto(photoRequest(), params())).status).toBe(403);
+    });
+
+    it('la lecture de sa propre UL ne dépend pas de la DT', async () => {
+        await arrange(null, null, { user: { ...DT_OTHER_UL.user, ulId: 'ul-paris-18' } });
+        expect((await getPhoto(photoRequest(), params())).status).toBe(200);
+    });
+
+    it("l'élargissement ne touche ni le dépôt, ni le retrait, ni la fiche du véhicule", async () => {
+        await arrange('DT75', 'DT75');
+        expect((await postPhoto(uploadRequest(JPEG), params())).status).toBe(403);
+        expect((await deletePhoto(photoRequest(), params())).status).toBe(403);
+        expect((await getVehicle(new Request('http://localhost/api/vehicles/x'), params())).status).toBe(404);
+
+        asSession({ user: { ...ADMIN_OTHER_UL.user, roles: ['ADMIN', 'DT'] } });
+        expect((await postPhoto(uploadRequest(JPEG), params())).status).toBe(403);
+        expect((await deletePhoto(photoRequest(), params())).status).toBe(403);
+        expect((await photoRow()).photoR2Key).toBe(KEY_1);
+    });
+});
+
 describe('DELETE /api/vehicles/[id]/photo', () => {
     it('401 sans session', async () => {
         await seedPhoto(null);
@@ -486,14 +556,43 @@ describe("Exposition dans l'API : photoUpdatedAt, jamais une clé R2", () => {
         expect(text).not.toContain('vehicle-photos/');
     });
 
-    it('GET /api/vehicles ne porte ni la clé ni aucune donnée de vignette', async () => {
+    it('GET /api/vehicles expose la version, jamais la clé', async () => {
         await seedPhoto();
         const res = await getVehicles(new Request('http://localhost/api/vehicles'));
         const text = await res.text();
-        expect(JSON.parse(text)).toHaveLength(1);
+        const list = JSON.parse(text);
+        expect(list).toHaveLength(1);
+        expect(list[0].photoUpdatedAt).toBe((await photoRow()).photoUpdatedAt);
         expect(text).not.toContain('vehicle-photos/');
         expect(text).not.toContain('photoR2Key');
-        expect(text).not.toContain('photoUpdatedAt');
+    });
+
+    it('GET /api/vehicles renvoie null sans photo', async () => {
+        asSession(VOLUNTEER);
+        const res = await getVehicles(new Request('http://localhost/api/vehicles'));
+        expect((await res.json())[0].photoUpdatedAt).toBeNull();
+    });
+
+    it('GET /api/vehicles : un remplacement change la version', async () => {
+        await seedPhoto();
+        const list = async () => (await (await getVehicles(new Request('http://localhost/api/vehicles'))).json())[0].photoUpdatedAt;
+        const before = await list();
+        await new Promise(r => setTimeout(r, 2));
+        expect((await postPhoto(uploadRequest(JPEG), params())).status).toBe(200);
+        expect(await list()).not.toBe(before);
+    });
+
+    it('GET /api/vehicles?view=dt expose la version pour les autres UL de la DT, jamais la clé', async () => {
+        await seedUl('ul-paris-18', 'DT75');
+        await seedUl('ul-paris-17', 'DT75');
+        await seedPhoto(DT_OTHER_UL);
+        const res = await getVehicles(new Request('http://localhost/api/vehicles?view=dt'));
+        const text = await res.text();
+        const list = JSON.parse(text);
+        expect(list).toHaveLength(1);
+        expect(list[0].photoUpdatedAt).toBe((await photoRow()).photoUpdatedAt);
+        expect(text).not.toContain('vehicle-photos/');
+        expect(text).not.toContain('photoR2Key');
     });
 
     it('PATCH /api/vehicles/[id]/metrics — mise à jour et absence de changement', async () => {

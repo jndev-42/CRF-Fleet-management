@@ -14,7 +14,7 @@ function vehicle(overrides: Partial<DashboardVehicle> = {}): DashboardVehicle {
     return {
         id: 'v1', name: 'VSAV 1', type: 'VPSP', plate: 'AA-111-AA', status: 'AVAILABLE', hasActiveMaintenance: false,
         parkingSpot: null, fuelLevel: 50, mileage: 1000, hasDSA: false, notes: null, vin: null,
-        connection: null, fuelType: null, transmission: null, ulName: 'Paris 18', trips: [],
+        connection: null, fuelType: null, transmission: null, ulName: 'Paris 18', photoUpdatedAt: null, trips: [],
         ...overrides,
     };
 }
@@ -80,6 +80,63 @@ describe('VehicleCard — Vue UL inchangée', () => {
         expect(screen.queryByLabelText('Statut : Réservé')).toBeNull();
         expect(screen.queryByRole('list', { name: 'Réservations sur la période' })).toBeNull();
         expect(screen.queryByText('UL Paris 18')).toBeNull();
+    });
+});
+
+describe('VehicleCard — vignette', () => {
+    const UPDATED_AT = '2026-11-06T10:00:00.000Z';
+    const THUMBNAIL = 'Agrandir la photo du véhicule VSAV 1';
+
+    function renderCard(overrides: Partial<DashboardVehicle> = {}, isDtView = false) {
+        return render(<VehicleCard vehicle={vehicle(overrides)} isDtView={isDtView} renaultData={undefined} isFirst />);
+    }
+
+    it('sans photo : ni vignette ni emplacement, la carte reste un lien', () => {
+        const { container } = renderCard();
+        expect(screen.queryByRole('button')).toBeNull();
+        expect(container.querySelector('.vehicle-card-photo')).toBeNull();
+        expect(container.querySelector('img')).toBeNull();
+        expect(container.querySelector('a.vehicle-card')?.getAttribute('href')).toBe('/vehicles/VSAV 1');
+    });
+
+    it('avec photo : URL versionnée et encodée', () => {
+        const { container } = renderCard({ photoUpdatedAt: UPDATED_AT });
+        expect(container.querySelector('img')?.getAttribute('src'))
+            .toBe(`/api/vehicles/VSAV%201/photo?v=${encodeURIComponent(UPDATED_AT)}`);
+    });
+
+    it('la vignette vit hors du lien, le lien ne contient aucun bouton', () => {
+        const { container } = renderCard({ photoUpdatedAt: UPDATED_AT });
+        const thumbnail = screen.getByRole('button', { name: THUMBNAIL });
+        const link = container.querySelector('a.vehicle-card') as HTMLElement;
+        expect(thumbnail.closest('a')).toBeNull();
+        expect(link.querySelector('button')).toBeNull();
+        expect(thumbnail.closest('.vehicle-card-slot')).toBe(link.parentElement);
+    });
+
+    it('un clic sur la vignette ouvre le plein écran sans atteindre le lien, la fermeture non plus', () => {
+        const { container } = renderCard({ photoUpdatedAt: UPDATED_AT });
+        const onLinkClick = vi.fn((e: Event) => e.preventDefault());
+        container.querySelector('a.vehicle-card')?.addEventListener('click', onLinkClick);
+
+        fireEvent.click(screen.getByRole('button', { name: THUMBNAIL }));
+        expect(screen.getByRole('dialog', { name: 'Photo du véhicule VSAV 1' })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Fermer' }));
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(onLinkClick).not.toHaveBeenCalled();
+    });
+
+    it("image en échec : plus aucun bouton, ce qui retire le décalage du contenu (`:has`)", () => {
+        const { container } = renderCard({ photoUpdatedAt: UPDATED_AT });
+        fireEvent.error(container.querySelector('img') as HTMLImageElement);
+        expect(container.querySelector('.vehicle-card-photo button')).toBeNull();
+        expect(container.querySelector('a.vehicle-card')).toBeTruthy();
+    });
+
+    it('Vue DT : même vignette, lien de la Vue DT conservé', () => {
+        const { container } = renderCard({ photoUpdatedAt: UPDATED_AT, availability: availability({}) }, true);
+        expect(screen.getByRole('button', { name: THUMBNAIL })).toBeTruthy();
+        expect(container.querySelector('a.vehicle-card')?.getAttribute('href')).toBe('/vehicles/VSAV 1?dtView=true');
     });
 });
 

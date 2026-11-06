@@ -500,7 +500,20 @@ body {
   gap: 16px;
 }
 
+/* Enfant direct de la grille : porte le survol, pour que le lien et la vignette, frères, bougent ensemble. */
+.vehicle-card-slot {
+  position: relative;
+  min-width: 0;
+  container: vehicle-card-slot / inline-size;
+  transition: transform var(--transition-base);
+}
+
+.vehicle-card-slot:hover {
+  transform: translateY(-3px);
+}
+
 .vehicle-card {
+  height: 100%;
   background: var(--bg-card);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
@@ -512,9 +525,8 @@ body {
   display: block;
 }
 
-.vehicle-card:hover {
+.vehicle-card-slot:hover .vehicle-card {
   border-color: var(--border-hover);
-  transform: translateY(-3px);
   box-shadow: var(--shadow-lg);
   background: var(--bg-card-hover);
 }
@@ -524,6 +536,52 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+
+.vehicle-card-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.vehicle-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 55%;
+}
+
+/* Vignette (56 px) alignée sur le padding de la carte, bordure comprise ; au-dessus du lien,
+   que les thèmes saisonniers positionnent aussi. */
+.vehicle-card-photo {
+  position: absolute;
+  top: 25px;
+  left: 25px;
+  z-index: 1;
+}
+
+/* `:has(button)` : `VehiclePhoto` ne rend plus rien si l'image échoue, le contenu se recale. */
+.vehicle-card-slot:has(.vehicle-card-photo button) .vehicle-card-header {
+  min-height: 56px;
+  padding-left: 68px;
+}
+
+/* Carte étroite : à côté de la vignette, il ne reste plus la place pour le nom ET les badges. */
+@container vehicle-card-slot (max-width: 420px) {
+  .vehicle-card-slot:has(.vehicle-card-photo button) .vehicle-card-header {
+    flex-wrap: wrap;
+  }
+
+  .vehicle-card-slot:has(.vehicle-card-photo button) .vehicle-card-identity {
+    flex-basis: 100%;
+  }
+
+  .vehicle-card-slot:has(.vehicle-card-photo button) .vehicle-card-badges {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    max-width: 100%;
+  }
 }
 
 .vehicle-icon {

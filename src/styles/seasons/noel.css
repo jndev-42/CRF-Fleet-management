@@ -285,7 +285,7 @@ html[data-season="noel"] .breakdown-card {
 }
 
 html[data-season="noel"] .detail-card:nth-child(even),
-html[data-season="noel"] .vehicle-card:nth-child(even),
+html[data-season="noel"] .vehicle-card-slot:nth-child(even) .vehicle-card,
 html[data-season="noel"] .kpi-card:nth-child(even),
 html[data-season="noel"] .chart-card:nth-child(even),
 html[data-season="noel"] .breakdown-card:nth-child(even) {
@@ -293,12 +293,12 @@ html[data-season="noel"] .breakdown-card:nth-child(even) {
 }
 
 /* Survol : on garde le bandeau et l'ombre portée d'origine (`--shadow-lg`). */
-html[data-season="noel"] .vehicle-card:hover {
+html[data-season="noel"] .vehicle-card-slot:hover .vehicle-card {
     border-color: var(--nl-gold);
     box-shadow: inset 0 3px 0 #2f7a3e, var(--shadow-lg);
 }
 
-html[data-season="noel"] .vehicle-card:nth-child(even):hover {
+html[data-season="noel"] .vehicle-card-slot:nth-child(even):hover .vehicle-card {
     box-shadow: inset 0 3px 0 var(--nl-gold), var(--shadow-lg);
 }
 
