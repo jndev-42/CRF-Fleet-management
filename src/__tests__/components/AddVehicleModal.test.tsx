@@ -140,7 +140,7 @@ describe('AddVehicleModal', () => {
         await waitFor(() => expect(window.alert).toHaveBeenCalledWith('Immatriculation déjà utilisée'));
     });
 
-    it('envoie le guide PDF après la création, sous le nom du véhicule créé', async () => {
+    it('envoie les documents PDF après la création, sous le nom du véhicule créé', async () => {
         const fetchMock = mockFetch(async (input, init) => {
             const url = getUrl(input);
             if (url === '/api/vehicles' && init?.method === 'POST') {
@@ -152,21 +152,21 @@ describe('AddVehicleModal', () => {
         render(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={onSuccess} />);
         await waitFor(() => expect(fieldSelect('Lieu de stationnement habituel *').value).toBe('Place A-1'));
         fillRequiredFields();
-        fireEvent.change(screen.getByLabelText('Guide de vérification (PDF, 4 Mo max) — Optionnel'), {
+        fireEvent.change(screen.getByLabelText('Documents liés au véhicule (PDF, 4 Mo max chacun) — Optionnel'), {
             target: { files: [new File(['%PDF-1.7'], 'VPSP 182.pdf', { type: 'application/pdf' })] },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Créer le véhicule' }));
 
         await waitFor(() => expect(onSuccess).toHaveBeenCalled());
         const urls = fetchMock.mock.calls.filter(c => (c[1] as RequestInit)?.method === 'POST').map(c => getUrl(c[0]));
-        expect(urls).toEqual(['/api/vehicles', '/api/vehicles/VL999/guide']);
+        expect(urls).toEqual(['/api/vehicles', '/api/vehicles/VL999/documents']);
         expect(window.alert).not.toHaveBeenCalled();
     });
 
-    it('conserve le véhicule créé si le guide est refusé, et le signale', async () => {
+    it('conserve le véhicule créé si un document est refusé, et le signale', async () => {
         mockFetch(async (input, init) => {
             const url = getUrl(input);
-            if (url.endsWith('/guide')) {
+            if (url.endsWith('/documents')) {
                 return new Response(JSON.stringify({ error: 'Le fichier doit être un PDF.' }), { status: 400 });
             }
             return defaultFetchHandler(input, init);
@@ -175,32 +175,32 @@ describe('AddVehicleModal', () => {
         render(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={onSuccess} />);
         await waitFor(() => expect(fieldSelect('Lieu de stationnement habituel *').value).toBe('Place A-1'));
         fillRequiredFields();
-        fireEvent.change(screen.getByLabelText('Guide de vérification (PDF, 4 Mo max) — Optionnel'), {
+        fireEvent.change(screen.getByLabelText('Documents liés au véhicule (PDF, 4 Mo max chacun) — Optionnel'), {
             target: { files: [new File(['x'], 'faux.pdf', { type: 'application/pdf' })] },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Créer le véhicule' }));
 
         await waitFor(() => expect(onSuccess).toHaveBeenCalled());
-        expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('Véhicule créé, guide non enregistré : Le fichier doit être un PDF.'));
+        expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('Véhicule créé, document(s) non enregistré(s) :\nfaux.pdf : Le fichier doit être un PDF.'));
     });
 
-    it("n'envoie pas le guide d'une création précédente après fermeture puis réouverture", async () => {
+    it("n'envoie pas les documents d'une création précédente après fermeture puis réouverture", async () => {
         const fetchMock = mockFetch();
         const onSuccess = vi.fn();
         const { rerender } = render(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={onSuccess} />);
         await waitFor(() => expect(fieldSelect('Lieu de stationnement habituel *').value).toBe('Place A-1'));
-        fireEvent.change(screen.getByLabelText('Guide de vérification (PDF, 4 Mo max) — Optionnel'), {
+        fireEvent.change(screen.getByLabelText('Documents liés au véhicule (PDF, 4 Mo max chacun) — Optionnel'), {
             target: { files: [new File(['%PDF-1.7'], 'VPSP 182.pdf', { type: 'application/pdf' })] },
         });
 
         rerender(<AddVehicleModal isOpen={false} onClose={vi.fn()} onSuccess={onSuccess} />);
         rerender(<AddVehicleModal isOpen onClose={vi.fn()} onSuccess={onSuccess} />);
-        await waitFor(() => expect(screen.getByTestId('guide-status').textContent).toContain('Aucun guide joint'));
+        await waitFor(() => expect(screen.getByTestId('documents-status').textContent).toContain('Aucun document joint'));
 
         fillRequiredFields();
         fireEvent.click(screen.getByRole('button', { name: 'Créer le véhicule' }));
         await waitFor(() => expect(onSuccess).toHaveBeenCalled());
-        expect(fetchMock.mock.calls.some(c => getUrl(c[0]).endsWith('/guide'))).toBe(false);
+        expect(fetchMock.mock.calls.some(c => getUrl(c[0]).endsWith('/documents'))).toBe(false);
     });
 
     describe('photo', () => {

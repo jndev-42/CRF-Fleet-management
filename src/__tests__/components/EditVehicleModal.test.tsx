@@ -220,7 +220,7 @@ describe('EditVehicleModal Component', () => {
         });
     });
 
-    it('retire le guide après la modification, sous le nouveau nom du véhicule', async () => {
+    it('retire un document après la modification, sous le nouveau nom du véhicule', async () => {
         const calls: Array<{ url: string; method: string }> = [];
         mockFetch(async (input: string | URL | Request, init?: RequestInit) => {
             const urlStr = getUrl(input);
@@ -238,29 +238,29 @@ describe('EditVehicleModal Component', () => {
                 isOpen={true}
                 onClose={vi.fn()}
                 onSuccess={handleSuccess}
-                vehicle={{ ...mockVehicle, guideFileName: 'VPSP 182.pdf' }}
+                vehicle={{ ...mockVehicle, documents: [{ id: 'doc-1', fileName: 'VPSP 182.pdf', size: 1024, createdAt: '2026-10-01T10:00:00.000Z' }] }}
             />
         );
 
         const nameInput = await screen.findByDisplayValue('VL186');
         fireEvent.change(nameInput, { target: { value: 'VL186-MOD' } });
-        expect(screen.getByTestId('guide-status').textContent).toContain('VPSP 182.pdf');
-        fireEvent.click(screen.getByRole('button', { name: /Retirer/ }));
+        expect(screen.getByTestId('documents-status').textContent).toContain('VPSP 182.pdf');
+        fireEvent.click(screen.getByRole('button', { name: 'Retirer VPSP 182.pdf' }));
         fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
 
         await waitFor(() => expect(handleSuccess).toHaveBeenCalled());
         const writes = calls.filter(c => c.method !== 'GET');
         expect(writes).toEqual([
             { url: '/api/vehicles/VL186', method: 'PATCH' },
-            { url: '/api/vehicles/VL186-MOD/guide', method: 'DELETE' },
+            { url: '/api/vehicles/VL186-MOD/documents/doc-1', method: 'DELETE' },
         ]);
     });
 
-    it("signale l'échec du guide sans annuler la modification", async () => {
+    it("signale l'échec d'un document sans annuler la modification", async () => {
         const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
         mockFetch(async (input: string | URL | Request) => {
             const urlStr = getUrl(input);
-            if (urlStr.endsWith('/guide')) {
+            if (urlStr.endsWith('/documents')) {
                 return new Response(JSON.stringify({ error: 'Le fichier est trop volumineux (4 Mo maximum).' }), { status: 413 });
             }
             if (urlStr.includes('/api/ul')) {
@@ -273,13 +273,13 @@ describe('EditVehicleModal Component', () => {
         render(<EditVehicleModal isOpen={true} onClose={vi.fn()} onSuccess={handleSuccess} vehicle={mockVehicle} />);
 
         await screen.findByDisplayValue('VL186');
-        fireEvent.change(screen.getByLabelText('Guide de vérification (PDF, 4 Mo max) — Optionnel'), {
+        fireEvent.change(screen.getByLabelText('Documents liés au véhicule (PDF, 4 Mo max chacun) — Optionnel'), {
             target: { files: [new File(['%PDF-1.7'], 'guide.pdf', { type: 'application/pdf' })] },
         });
         fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }));
 
         await waitFor(() => expect(handleSuccess).toHaveBeenCalled());
-        expect(alertSpy).toHaveBeenCalledWith('Véhicule modifié, guide non enregistré : Le fichier est trop volumineux (4 Mo maximum).');
+        expect(alertSpy).toHaveBeenCalledWith('Véhicule modifié, problème sur les documents :\nguide.pdf : Le fichier est trop volumineux (4 Mo maximum).');
     });
 
     it('retire la photo après la modification, sous le nouveau nom du véhicule', async () => {

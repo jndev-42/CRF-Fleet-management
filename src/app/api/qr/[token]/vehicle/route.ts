@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { listVehicleDocuments } from '@/lib/vehicleDocuments/server';
 
 /**
  * GET /api/qr/[token]/vehicle
@@ -114,11 +115,9 @@ export async function GET(
             maxFuelCapacity: row.maxFuelCapacity as number | null,
             maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
             ulId: row.ulId as string,
-            // Métadonnées du guide seulement : le binaire passe par /api/qr/[token]/guide,
-            // la clé R2 n'est jamais exposée.
-            guideFileName: row.guideR2Key ? row.guideFileName as string | null : null,
-            guideSize: row.guideR2Key ? row.guideSize as number | null : null,
-            guideUpdatedAt: row.guideR2Key ? row.guideUpdatedAt as string | null : null,
+            // Métadonnées des documents seulement : le binaire passe par
+            // /api/qr/[token]/documents/[documentId], la clé R2 n'est jamais exposée.
+            documents: await listVehicleDocuments(row.id as string),
             // Version de la photo seulement : le binaire passe par /api/qr/[token]/photo.
             photoUpdatedAt: row.photoR2Key ? row.photoUpdatedAt as string | null : null,
             activeTrip,

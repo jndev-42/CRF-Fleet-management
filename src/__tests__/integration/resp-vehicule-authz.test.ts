@@ -1,3 +1,6 @@
+// @vitest-environment node
+// Environnement node : le POST des documents lit un `multipart/form-data` via
+// `Request.formData()` (undici), que les `File`/`FormData` de jsdom ne savent pas construire.
 /**
  * Tests d'intégration — rôle RESP_VEHICULE (responsable véhicule).
  *
@@ -47,7 +50,8 @@ import { POST as postInventory } from '@/app/api/inventory/route';
 import { GET as getMissions } from '@/app/api/missions/route';
 import { POST as postVehicle } from '@/app/api/vehicles/route';
 import { DELETE as deleteVehicle } from '@/app/api/vehicles/[id]/route';
-import { DELETE as deleteGuide } from '@/app/api/vehicles/[id]/guide/route';
+import { POST as postDocument } from '@/app/api/vehicles/[id]/documents/route';
+import { DELETE as deleteDocument } from '@/app/api/vehicles/[id]/documents/[documentId]/route';
 import { DELETE as deletePhoto } from '@/app/api/vehicles/[id]/photo/route';
 import { POST as postMaintenance } from '@/app/api/vehicles/[id]/maintenance/route';
 import { POST as postMaintenanceEvent } from '@/app/api/vehicles/[id]/maintenance-events/route';
@@ -299,7 +303,12 @@ describe('gardes canManageVehicles — pas de 403 pour RESP_VEHICULE dans son UL
     const cases: [string, () => Promise<Response>][] = [
         ['POST /api/vehicles', () => postVehicle(jsonRequest('http://localhost/api/vehicles', 'POST', { name: 'VL999', type: 'VL', plate: 'ZZ-999-ZZ' }))],
         ['DELETE /api/vehicles/[id]', () => deleteVehicle(new Request('http://localhost/api/vehicles/VL186', { method: 'DELETE' }), byId('VL186'))],
-        ['DELETE /api/vehicles/[id]/guide', () => deleteGuide(new Request('http://localhost/api/vehicles/VL186/guide', { method: 'DELETE' }), byId('VL186'))],
+        ['POST /api/vehicles/[id]/documents', () => {
+            const formData = new FormData();
+            formData.append('file', new File([new Uint8Array(Buffer.from('%PDF-1.7\n%%EOF\n'))], 'doc.pdf', { type: 'application/pdf' }));
+            return postDocument(new Request('http://localhost/api/vehicles/VL186/documents', { method: 'POST', body: formData }), byId('VL186'));
+        }],
+        ['DELETE /api/vehicles/[id]/documents/[documentId]', () => deleteDocument(new Request('http://localhost/api/vehicles/VL186/documents/d1', { method: 'DELETE' }), { params: Promise.resolve({ id: 'VL186', documentId: 'd1' }) })],
         ['DELETE /api/vehicles/[id]/photo', () => deletePhoto(new Request('http://localhost/api/vehicles/VL186/photo', { method: 'DELETE' }), byId('VL186'))],
         ['POST /api/vehicles/[id]/maintenance', () => postMaintenance(jsonRequest('http://localhost/api/vehicles/VL186/maintenance', 'POST', {}), byId('VL186'))],
         ['POST /api/vehicles/[id]/maintenance-events', () => postMaintenanceEvent(jsonRequest('http://localhost/api/vehicles/VL001/maintenance-events', 'POST', {}), byId('VL001'))],

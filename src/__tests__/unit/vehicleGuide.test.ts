@@ -60,7 +60,7 @@ describe('sanitizeGuideFileName', () => {
 
     it('ajoute l\'extension et fournit un nom par défaut', () => {
         expect(sanitizeGuideFileName('guide')).toBe('guide.pdf');
-        expect(sanitizeGuideFileName('')).toBe('guide-verification.pdf');
+        expect(sanitizeGuideFileName('')).toBe('document.pdf');
     });
 
     it('borne la longueur à 150 caractères, extension comprise', () => {
@@ -74,7 +74,7 @@ describe('sanitizeGuideFileName', () => {
 
     it("reconnaît l'extension sans tenir compte de la casse", () => {
         expect(sanitizeGuideFileName('Guide.PDF')).toBe('Guide.PDF');
-        expect(sanitizeGuideFileName('.PDF')).toBe('guide-verification.pdf');
+        expect(sanitizeGuideFileName('.PDF')).toBe('document.pdf');
     });
 });
 

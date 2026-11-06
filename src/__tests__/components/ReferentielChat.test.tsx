@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const mockUseSession = vi.fn();
 vi.mock('next-auth/react', () => ({ useSession: () => mockUseSession() }));
 
-vi.mock('@/components/vehicle/VehicleGuideReader', () => ({
+vi.mock('@/components/ui/PdfReader', () => ({
     default: (props: { rangeUrl?: string; initialPage?: number; fileName: string; onClose: () => void }) => (
         <div data-testid="reader" data-url={props.rangeUrl} data-page={props.initialPage}>
             {props.fileName}

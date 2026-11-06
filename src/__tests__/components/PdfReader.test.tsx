@@ -24,7 +24,7 @@ vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({
     getDocument,
 }));
 
-import VehicleGuideReader from '@/components/vehicle/VehicleGuideReader';
+import PdfReader from '@/components/ui/PdfReader';
 
 beforeEach(() => {
     vi.spyOn(global, 'fetch').mockResolvedValue(new Response(new Uint8Array([0x25, 0x50, 0x44, 0x46]), { status: 200 }));
@@ -40,29 +40,29 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe('VehicleGuideReader', () => {
+describe('PdfReader', () => {
     it('affiche la première page et le compteur n / N', async () => {
-        render(<VehicleGuideReader src="/api/vehicles/VL1/guide" fileName="VPSP 182.pdf" onClose={vi.fn()} />);
-        expect(screen.getByRole('dialog', { name: 'Guide de vérification : VPSP 182.pdf' })).toBeTruthy();
+        render(<PdfReader src="/api/vehicles/VL1/documents/d1" fileName="VPSP 182.pdf" onClose={vi.fn()} />);
+        expect(screen.getByRole('dialog', { name: 'Document : VPSP 182.pdf' })).toBeTruthy();
         expect(await screen.findByText('1 / 7')).toBeTruthy();
         await waitFor(() => expect(getPage).toHaveBeenCalledWith(1));
-        expect(global.fetch).toHaveBeenCalledWith('/api/vehicles/VL1/guide');
+        expect(global.fetch).toHaveBeenCalledWith('/api/vehicles/VL1/documents/d1');
     });
 
     it('lit une URL directe par Range (sans fetch du fichier) et s\'ouvre à la page demandée', async () => {
         getDocument.mockClear();
-        render(<VehicleGuideReader rangeUrl="https://r2.test/g.pdf?sig=1" initialPage={5} label="Référentiel secourisme" fileName="guide.pdf" onClose={vi.fn()} />);
+        render(<PdfReader rangeUrl="https://r2.test/g.pdf?sig=1" initialPage={5} label="Référentiel secourisme" fileName="guide.pdf" onClose={vi.fn()} />);
         expect(screen.getByRole('dialog', { name: 'Référentiel secourisme : guide.pdf' })).toBeTruthy();
         expect(await screen.findByText('5 / 7')).toBeTruthy();
         await waitFor(() => expect(getPage).toHaveBeenCalledWith(5));
         expect(global.fetch).not.toHaveBeenCalled();
         expect(getDocument).toHaveBeenCalledWith({ url: 'https://r2.test/g.pdf?sig=1', disableAutoFetch: true, disableStream: true });
         // Une URL signée ne se télécharge pas avec « ?download=1 » : le bouton est masqué.
-        expect(screen.queryByRole('link', { name: 'Télécharger le guide' })).toBeNull();
+        expect(screen.queryByRole('link', { name: 'Télécharger le document' })).toBeNull();
     });
 
     it('ramène une page demandée au-delà de la fin à la dernière page', async () => {
-        render(<VehicleGuideReader rangeUrl="https://r2.test/g.pdf" initialPage={99} fileName="guide.pdf" onClose={vi.fn()} />);
+        render(<PdfReader rangeUrl="https://r2.test/g.pdf" initialPage={99} fileName="guide.pdf" onClose={vi.fn()} />);
         expect(await screen.findByText('7 / 7')).toBeTruthy();
         await waitFor(() => expect(getPage).toHaveBeenCalledWith(7));
         fireEvent.click(screen.getByRole('button', { name: 'Page précédente' }));
@@ -70,7 +70,7 @@ describe('VehicleGuideReader', () => {
     });
 
     it('navigue avec les boutons et les flèches du clavier, dans les bornes', async () => {
-        render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        render(<PdfReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
         await screen.findByText('1 / 7');
 
         expect((screen.getByRole('button', { name: 'Page précédente' }) as HTMLButtonElement).disabled).toBe(true);
@@ -85,7 +85,7 @@ describe('VehicleGuideReader', () => {
     });
 
     it('tourne la page au glissé horizontal', async () => {
-        render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        render(<PdfReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
         await screen.findByText('1 / 7');
         const canvas = document.querySelector('canvas')!;
         const viewport = canvas.parentElement!;
@@ -95,7 +95,7 @@ describe('VehicleGuideReader', () => {
     });
 
     it('ignore un pincement, un défilement vertical ou diagonal, et une page zoomée', async () => {
-        render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        render(<PdfReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
         await screen.findByText('1 / 7');
         const viewport = document.querySelector('canvas')!.parentElement!;
 
@@ -120,7 +120,7 @@ describe('VehicleGuideReader', () => {
     });
 
     it('pivote la page en paysage, ajustée pour tenir entière, et mémorise le choix', async () => {
-        const { unmount } = render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        const { unmount } = render(<PdfReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
         await waitFor(() => expect(renderPage).toHaveBeenCalled());
         expect(lastViewport().rotation).toBe(0);
 
@@ -139,13 +139,13 @@ describe('VehicleGuideReader', () => {
         expect(window.localStorage.getItem('vehicleGuideReader.rotated')).toBe('1');
 
         unmount();
-        render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        render(<PdfReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
         expect(screen.getByRole('button', { name: 'Afficher en portrait' })).toBeTruthy();
     });
 
     it('page pivotée : tourne la page au glissé le long de la hauteur de l\'écran', async () => {
         window.localStorage.setItem('vehicleGuideReader.rotated', '1');
-        render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        render(<PdfReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
         await screen.findByText('1 / 7');
         const viewport = screen.getByRole('dialog').querySelector('canvas')!.parentElement!;
 
@@ -166,21 +166,21 @@ describe('VehicleGuideReader', () => {
 
     it('se ferme par le bouton ou par Échap', async () => {
         const onClose = vi.fn();
-        render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={onClose} />);
+        render(<PdfReader src="/g" fileName="g.pdf" onClose={onClose} />);
         fireEvent.click(screen.getByRole('button', { name: 'Fermer' }));
         fireEvent.keyDown(window, { key: 'Escape' });
         expect(onClose).toHaveBeenCalledTimes(2);
     });
 
-    it('affiche le message du serveur si le guide est inaccessible', async () => {
-        vi.mocked(global.fetch).mockResolvedValue(new Response(JSON.stringify({ error: 'Aucun guide de vérification pour ce véhicule' }), { status: 404 }));
-        render(<VehicleGuideReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
-        expect((await screen.findByRole('alert')).textContent).toBe('Aucun guide de vérification pour ce véhicule');
+    it('affiche le message du serveur si le document est inaccessible', async () => {
+        vi.mocked(global.fetch).mockResolvedValue(new Response(JSON.stringify({ error: 'Document non trouvé' }), { status: 404 }));
+        render(<PdfReader src="/g" fileName="g.pdf" onClose={vi.fn()} />);
+        expect((await screen.findByRole('alert')).textContent).toBe('Document non trouvé');
     });
 
     it('propose le téléchargement sous le nom d\'origine', () => {
-        render(<VehicleGuideReader src="/api/qr/tok/guide" fileName="VPSP 182.pdf" onClose={vi.fn()} />);
-        const link = screen.getByRole('link', { name: 'Télécharger le guide' });
-        expect(link.getAttribute('href')).toBe('/api/qr/tok/guide?download=1');
+        render(<PdfReader src="/api/qr/tok/documents/d1" fileName="VPSP 182.pdf" onClose={vi.fn()} />);
+        const link = screen.getByRole('link', { name: 'Télécharger le document' });
+        expect(link.getAttribute('href')).toBe('/api/qr/tok/documents/d1?download=1');
     });
 });

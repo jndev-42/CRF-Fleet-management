@@ -1,5 +1,5 @@
 /**
- * Tests RTL — page `/qr/[token]` : carte « Guide de vérification » du parcours QR.
+ * Tests RTL — page `/qr/[token]` : carte « Documents liés au véhicule » du parcours QR.
  */
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -36,9 +36,10 @@ const VEHICLE = {
     connection: null,
     maxFuelCapacity: null,
     activeTrip: null,
-    guideFileName: 'VPSP 182.pdf',
-    guideSize: 1_400_995,
-    guideUpdatedAt: '2026-10-01T10:00:00.000Z',
+    documents: [
+        { id: 'doc-1', fileName: 'VPSP 182.pdf', size: 1_400_995, createdAt: '2026-10-01T10:00:00.000Z' },
+        { id: 'doc-2', fileName: 'Carte grise.pdf', size: 52_000, createdAt: '2026-10-02T10:00:00.000Z' },
+    ],
 };
 
 function mockVehicle(overrides: Record<string, unknown> = {}) {
@@ -50,23 +51,24 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-describe('QRVehiclePage — guide de vérification', () => {
-    it('affiche la carte guide quand le véhicule en a un, avec un téléchargement par la route QR', async () => {
+describe('QRVehiclePage — documents liés', () => {
+    it('affiche un document par ligne, chacun téléchargeable par la route QR', async () => {
         mockVehicle();
         render(<QRVehiclePage />);
 
-        expect(await screen.findByText('Guide de vérification')).toBeTruthy();
+        expect(await screen.findByText('Documents liés au véhicule')).toBeTruthy();
         expect(screen.getByText('VPSP 182.pdf')).toBeTruthy();
-        const link = screen.getByRole('link', { name: /Télécharger/ });
-        expect(link.getAttribute('href')).toBe('/api/qr/tok-182/guide?download=1');
+        expect(screen.getByText('Carte grise.pdf')).toBeTruthy();
+        const link = screen.getByRole('link', { name: 'Télécharger Carte grise.pdf' });
+        expect(link.getAttribute('href')).toBe('/api/qr/tok-182/documents/doc-2?download=1');
     });
 
-    it("n'affiche pas la carte quand le véhicule n'a pas de guide", async () => {
-        mockVehicle({ guideFileName: null, guideSize: null, guideUpdatedAt: null });
+    it("n'affiche pas la carte quand le véhicule n'a aucun document", async () => {
+        mockVehicle({ documents: [] });
         render(<QRVehiclePage />);
 
         expect(await screen.findByText('VPSP 182')).toBeTruthy();
-        expect(screen.queryByText('Guide de vérification')).toBeNull();
+        expect(screen.queryByText('Documents liés au véhicule')).toBeNull();
     });
 });
 

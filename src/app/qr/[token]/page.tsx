@@ -8,7 +8,7 @@ import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal
 import CheckOutForm from './CheckOutForm';
 import CheckInForm from './CheckInForm';
 import VehicleInfoCard from './VehicleInfoCard';
-import VehicleGuideCard from '@/components/vehicle/VehicleGuideCard';
+import VehicleDocumentsCard from '@/components/vehicle/VehicleDocumentsCard';
 import QRActions from './QRActions';
 import { useLicenseBlocked } from './useLicenseBlocked';
 import { vehiclePhotoUrl } from '@/lib/vehiclePhoto';
@@ -181,12 +181,10 @@ export default function QRVehiclePage() {
                             photoSrc={vehiclePhotoUrl(`/api/qr/${encodeURIComponent(token)}/photo`, vehicle.photoUpdatedAt)}
                         />
 
-                        {step === 'view' && vehicle.guideFileName && (
-                            <VehicleGuideCard
-                                src={`/api/qr/${encodeURIComponent(token)}/guide`}
-                                fileName={vehicle.guideFileName}
-                                size={vehicle.guideSize}
-                                updatedAt={vehicle.guideUpdatedAt}
+                        {step === 'view' && !!vehicle.documents?.length && (
+                            <VehicleDocumentsCard
+                                documents={vehicle.documents}
+                                documentUrl={(documentId) => `/api/qr/${encodeURIComponent(token)}/documents/${encodeURIComponent(documentId)}`}
                             />
                         )}
 

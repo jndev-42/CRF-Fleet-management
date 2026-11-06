@@ -12,7 +12,7 @@ import VehicleDetailBanners from './VehicleDetailBanners';
 import VehicleDetailGrid from './VehicleDetailGrid';
 import TripHistoryList from './TripHistoryList';
 import VehicleNotes from '@/components/vehicle/VehicleNotes';
-import VehicleGuideCard from '@/components/vehicle/VehicleGuideCard';
+import VehicleDocumentsCard from '@/components/vehicle/VehicleDocumentsCard';
 import CheckOutModal from '@/components/vehicle/modals/CheckOutModal';
 import CheckInModal from '@/components/vehicle/modals/CheckInModal';
 import DeleteConfirmationModal from '@/components/vehicle/modals/DeleteConfirmationModal';
@@ -269,12 +269,10 @@ function VehicleDetailPageContent() {
                     onShowDesinfHistory={() => setShowDesinfHistoryModal(true)}
                 />
 
-                {vehicle.guideFileName && (
-                    <VehicleGuideCard
-                        src={`/api/vehicles/${encodeURIComponent(vehicle.name)}/guide`}
-                        fileName={vehicle.guideFileName}
-                        size={vehicle.guideSize}
-                        updatedAt={vehicle.guideUpdatedAt}
+                {!!vehicle.documents?.length && (
+                    <VehicleDocumentsCard
+                        documents={vehicle.documents}
+                        documentUrl={(documentId) => `/api/vehicles/${encodeURIComponent(vehicle.name)}/documents/${encodeURIComponent(documentId)}`}
                     />
                 )}
 

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import { useUL } from '@/lib/contexts/ULContext';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
-import VehicleGuideField, { applyGuideChange, GuideChange } from '@/components/vehicle/VehicleGuideField';
+import VehicleDocumentsField, { applyDocumentChanges, DocumentChanges, NO_DOCUMENT_CHANGES } from '@/components/vehicle/VehicleDocumentsField';
 import VehiclePhotoField, { applyPhotoChange, PhotoChange } from '@/components/vehicle/VehiclePhotoField';
 import { vehiclePhotoUrl } from '@/lib/vehiclePhoto';
 
@@ -36,7 +36,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
         revisionKmInterval: vehicle.revisionKmInterval ? String(vehicle.revisionKmInterval) : '',
         revisionYearInterval: vehicle.revisionYearInterval ? String(vehicle.revisionYearInterval) : '',
     });
-    const [guide, setGuide] = useState<GuideChange>({ kind: 'keep' });
+    const [documents, setDocuments] = useState<DocumentChanges>(NO_DOCUMENT_CHANGES);
     const [photo, setPhoto] = useState<PhotoChange>({ kind: 'keep' });
     const [submitting, setSubmitting] = useState(false);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
@@ -46,7 +46,7 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
         if (!isOpen) return;
 
         setErrorMsg(null);
-        setGuide({ kind: 'keep' });
+        setDocuments(NO_DOCUMENT_CHANGES);
         setPhoto({ kind: 'keep' });
 
         // Fetch parking spots from active UL
@@ -131,9 +131,9 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
             const data = await res.json();
             if (res.ok) {
                 // Après la modification seulement, et sous le nom éventuellement renommé.
-                const guideError = await applyGuideChange(payload.name, guide);
-                if (guideError) {
-                    alert(`Véhicule modifié, guide non enregistré : ${guideError}`);
+                const documentsError = await applyDocumentChanges(payload.name, documents);
+                if (documentsError) {
+                    alert(`Véhicule modifié, problème sur les documents :\n${documentsError}`);
                 }
                 const photoError = await applyPhotoChange(payload.name, photo);
                 if (photoError) {
@@ -394,10 +394,10 @@ export default function EditVehicleModal({ isOpen, onClose, onSuccess, vehicle }
                                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                             />
                         </div>
-                        <VehicleGuideField
-                            currentFileName={vehicle.guideFileName ?? null}
-                            value={guide}
-                            onChange={setGuide}
+                        <VehicleDocumentsField
+                            documents={vehicle.documents ?? []}
+                            value={documents}
+                            onChange={setDocuments}
                             disabled={submitting}
                         />
                         <VehiclePhotoField

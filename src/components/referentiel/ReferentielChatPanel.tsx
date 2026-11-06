@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { BookOpen, Send, X } from 'lucide-react';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 import { splitHighlight } from '@/lib/referentiel/highlight';
-import VehicleGuideReader from '@/components/vehicle/VehicleGuideReader';
+import PdfReader from '@/components/ui/PdfReader';
 import styles from './ReferentielChatPanel.module.css';
 
 export const REFERENTIEL_DISCLAIMER = 'Extraits du référentiel — ne remplace ni la formation ni la régulation (15)';
@@ -186,7 +186,7 @@ export default function ReferentielChatPanel({ onClose }: ReferentielChatPanelPr
             </section>
 
             {reader && (
-                <VehicleGuideReader
+                <PdfReader
                     rangeUrl={reader.url}
                     initialPage={reader.page}
                     label="Référentiel secourisme"

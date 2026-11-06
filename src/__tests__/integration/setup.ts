@@ -18,6 +18,7 @@ import { MCP_TOKEN_DDL, MCP_TOKEN_INDEXES } from '@/lib/mcp/schema';
 import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '@/lib/themes/schema';
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '@/lib/push/schema';
 import { SCHEDULED_ALERT_DDL } from '@/lib/alerts/schema';
+import { VEHICLE_DOCUMENT_DDL, VEHICLE_DOCUMENT_INDEX_DDL } from '@/lib/vehicleDocuments/schema';
 import { MISSION_REPORT_EDITS_DDL, MISSION_REPORT_EDITS_INDEX_DDL } from '@/lib/missions/edits-schema';
 
 const tmpDir = mkdtempSync(join(tmpdir(), 'martine-test-'));
@@ -410,6 +411,8 @@ async function createTables() {
   await db.execute(PUSH_SUBSCRIPTION_DDL);
   await db.execute(PUSH_SUBSCRIPTION_USER_INDEX_DDL);
   await db.execute(SCHEDULED_ALERT_DDL);
+  await db.execute(VEHICLE_DOCUMENT_DDL);
+  await db.execute(VEHICLE_DOCUMENT_INDEX_DDL);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
     id TEXT PRIMARY KEY,
@@ -610,6 +613,7 @@ async function createTables() {
 
 async function truncateTables() {
   await db.execute(`DELETE FROM "ScheduledAlert"`);
+  await db.execute(`DELETE FROM "VehicleDocument"`);
   await db.execute(`DELETE FROM "PushSubscription"`);
   await db.execute(`DELETE FROM "AuditLog"`);
   await db.execute(`DELETE FROM "McpToken"`);

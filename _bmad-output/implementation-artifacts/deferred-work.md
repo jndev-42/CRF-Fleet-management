@@ -153,3 +153,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-photo-vehicule.md`
   summary: Le script `scripts/add-vehicle-photo.ts` n'est exécuté par aucun test (dry-run, `--apply`, seconde exécution).
   evidence: Une colonne retirée de `COLUMNS` passerait inaperçue et `POST /photo` répondrait 500 en prod ; même lacune que `add-vehicle-guide.ts`, atténuée par la lecture du dry-run.
+- source_spec: `_bmad-output/implementation-artifacts/spec-vehicle-documents.md`
+  summary: Rendre obligatoire dans `CLAUDE.md` la relance de `scripts/add-vehicle-documents.ts --apply` juste après le déploiement de la v5.44.0, au lieu de « relançable ».
+  evidence: Plus aucune route ne lit `Vehicle.guide*` : un guide déposé après la dernière exécution disparaît de l'interface. Fichier de contexte agent, donc reporté.
+- source_spec: `_bmad-output/implementation-artifacts/spec-vehicle-documents.md`
+  summary: Documenter dans `CLAUDE.md` que la base démo n'a pas la table `VehicleDocument` avant la recopie de 23h59, et la migrer si besoin avec `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` de la démo.
+  evidence: `db` route les requêtes démo vers leur base et `listVehicleDocuments` y lève : les fiches véhicule répondent 500 en mode démo jusqu'à la recopie. Fichier de contexte agent, donc reporté.
