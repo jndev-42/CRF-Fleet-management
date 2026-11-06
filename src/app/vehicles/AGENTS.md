@@ -35,6 +35,10 @@ The fuel gauge has two branches: with live Renault data it shows battery `%` for
 
 Note the duplication: `statusLabels`, `statusClass`, and `getFuelClass` are re-declared locally here even though identical exports exist in `./[id]/utils.ts`. If you touch either copy, consider consolidating on the `[id]/utils` export that `components/vehicle/` already imports.
 
+**Vignette photo (`VehicleCard.tsx`).** Si `photoUpdatedAt` est renseigné, la carte affiche `VehiclePhoto`, en vue UL comme en Vue DT : un clic l'agrandit, le reste de la carte ouvre la page du véhicule. La vignette est la **sœur** de `a.vehicle-card` (pas de `<button>` dans un `<a>`), posée dessus en absolu dans `.vehicle-card-slot` ; le décalage du contenu dépend de `:has(.vehicle-card-photo button)`, donc disparaît si l'image échoue. L'enfant direct de `.vehicle-grid` est désormais `.vehicle-card-slot` : c'est lui qui porte le survol et les `:nth-child` des thèmes saisonniers (`src/styles/seasons/`).
+
+**Accès DT à la photo.** `GET /api/vehicles/[id]/photo` sert aussi le rôle DT pour une UL de sa DT (même `dtCode` non vide), en lecture seule. Cet élargissement ne vaut ni pour `POST`/`DELETE` de la photo, ni pour `GET /api/vehicles/[id]`.
+
 `data-tour` attributes (`stats`, `filters`, `vehicle-card`, `fuel-bar`) drive the onboarding tour — the `fuel-bar` marker is attached only to the first filtered card. Don't drop them when refactoring the markup.
 
 ## Dependencies

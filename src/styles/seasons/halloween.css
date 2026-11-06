@@ -314,7 +314,7 @@ html[data-season="halloween"] .breakdown-card {
 }
 
 html[data-season="halloween"] .detail-card:nth-child(3n + 2),
-html[data-season="halloween"] .vehicle-card:nth-child(3n + 2),
+html[data-season="halloween"] .vehicle-card-slot:nth-child(3n + 2) .vehicle-card,
 html[data-season="halloween"] .kpi-card:nth-child(3n + 2),
 html[data-season="halloween"] .chart-card:nth-child(3n + 2),
 html[data-season="halloween"] .stat-card:nth-child(3n + 2),
@@ -323,7 +323,7 @@ html[data-season="halloween"] .breakdown-card:nth-child(3n + 2) {
 }
 
 html[data-season="halloween"] .detail-card:nth-child(3n),
-html[data-season="halloween"] .vehicle-card:nth-child(3n),
+html[data-season="halloween"] .vehicle-card-slot:nth-child(3n) .vehicle-card,
 html[data-season="halloween"] .kpi-card:nth-child(3n),
 html[data-season="halloween"] .chart-card:nth-child(3n),
 html[data-season="halloween"] .stat-card:nth-child(3n),
@@ -331,7 +331,7 @@ html[data-season="halloween"] .breakdown-card:nth-child(3n) {
     box-shadow: 3px 3px 0 var(--hw-violet);
 }
 
-html[data-season="halloween"] .vehicle-card:hover {
+html[data-season="halloween"] .vehicle-card-slot:hover .vehicle-card {
     border-color: var(--hw-ink);
     box-shadow: 5px 5px 0 var(--hw-slime);
 }

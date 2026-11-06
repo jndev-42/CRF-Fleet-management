@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.45.0] — 6 novembre 2026
+
+### ✨ Nouveautés
+
+- **Reconnaître un véhicule d'un coup d'œil sur le tableau de bord** — la photo du véhicule s'affiche à gauche de son nom sur chaque carte. Un clic sur la photo l'agrandit en plein écran.
+- **Les photos aussi en Vue DT** — les responsables de DT voient la photo des véhicules de toutes les unités locales de leur DT, sans pouvoir la modifier.
+
 ## [5.44.1] — 6 novembre 2026
 
 ### 🐛 Corrections

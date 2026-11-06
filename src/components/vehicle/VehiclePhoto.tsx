@@ -44,7 +44,7 @@ export default function VehiclePhoto({ src, vehicleName }: VehiclePhotoProps) {
                 aria-label={`Agrandir la photo du véhicule ${vehicleName}`}
             >
                 {/* eslint-disable-next-line @next/next/no-img-element -- image privée servie par l'API */}
-                <img src={src} alt="" onError={handleError} />
+                <img loading="lazy" decoding="async" src={src} alt="" onError={handleError} />
             </button>
             {open && <PhotoLightbox src={src} vehicleName={vehicleName} onClose={close} onError={handleError} />}
         </>

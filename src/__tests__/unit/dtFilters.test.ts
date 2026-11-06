@@ -12,7 +12,7 @@ function vehicle(id: string, type: string, status: DtAvailabilityStatus): Dashbo
     return {
         id, name: id, type, plate: id, status: 'AVAILABLE', hasActiveMaintenance: false,
         parkingSpot: null, fuelLevel: 50, mileage: 0, hasDSA: false, notes: null, vin: null,
-        connection: null, fuelType: null, transmission: null, trips: [],
+        connection: null, fuelType: null, transmission: null, photoUpdatedAt: null, trips: [],
         availability: { status, missionSince: null, reservations: [] },
     };
 }

@@ -247,6 +247,8 @@ export async function GET(request: Request) {
                     maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
                     ulId: row.ulId as string | null,
                     ulName: row.ulName as string | null,
+                    // Version de la photo (vignette de la carte) ; `photoR2Key` ne sort jamais de l'API.
+                    photoUpdatedAt: (row.photoUpdatedAt as string | null) ?? null,
                     // Vue DT : renvoyée pour des véhicules d'autres ULs. Ce n'est pas une fuite de
                     // credential, mais `canManage` ne doit jamais en être dérivé (rôles + ulId seuls).
                     connection: row.connection_status ? {
