@@ -247,6 +247,17 @@ describe('ReservationFormModal — soumission simple', () => {
 });
 
 describe('ReservationFormModal — récurrence', () => {
+    // RecurrencePanel borne la 1re occurrence à « demain » (min) : on fige la date
+    // avant les dates en dur du test, sinon la validation du formulaire bloque
+    // la soumission dès que le calendrier les dépasse. Seul Date est simulé.
+    beforeEach(() => {
+        vi.useFakeTimers({ toFake: ['Date'] });
+        vi.setSystemTime(new Date('2026-10-15T09:00:00'));
+    });
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     function enableRecurrence() {
         fireEvent.click(screen.getByRole('switch', { name: /Réservation récurrente/ }));
     }
