@@ -79,7 +79,8 @@ describe('McpTokensTab', () => {
         mockApi();
         render(<McpTokensTab isSuperAdmin showToast={showToast} />);
         expect(await screen.findByText('Propriétaire')).toBeTruthy();
-        expect(screen.getAllByText('Admin CRF').length).toBeGreaterThan(0);
+        // L'en-tête s'affiche dès le premier rendu, les lignes seulement une fois les jetons chargés.
+        expect((await screen.findAllByText('Admin CRF')).length).toBeGreaterThan(0);
     });
 
     it('crée un jeton (nom, portée, validité) et ne l’affiche qu’une fois', async () => {
