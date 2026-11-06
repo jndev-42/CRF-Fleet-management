@@ -28,6 +28,10 @@ The QR stock landing page. Mobile-first, outside the app shell, reached by scann
 - `PendingMovement` carries `key` and `itemName`, which are **purely client-side**. The route's Zod schema is `.strict()`: it **rejects** unknown keys rather than stripping them, so posting the cart as-is returns 400 on every submission. The projection lives in `CartSummary.submit()` — keep it there and keep its comment.
 - No test tier would catch this on its own: the RTL test mocks `fetch` (it never exercises Zod), and the integration tests build their own conforming body. AC-I6′ asserts the exact key set of the posted body, and the E2E spec is the only end-to-end proof.
 
+**Pagination and search are server-side:**
+- `GET .../stock?q=&offset=&limit=` returns `{ stock, items, total, hasMore }` (30 per page, max 100). `q` matches name and category, case- and accent-insensitive, across the WHOLE stock — never filter the partially loaded list client-side.
+- Batches are loaded only for the page's items. The page appends pages through an `IntersectionObserver` sentinel; the search input is debounced (300 ms) and stale responses are aborted. The cart lives apart from the list, so it survives searches and page loads.
+
 **Errors are inline, never `alert()`:**
 - The page is used standing in front of a cupboard, phone in hand; a native dialog hides the cart and is hostile there. AC-I8 spies on `window.alert` and requires it never fires.
 
@@ -35,7 +39,7 @@ The QR stock landing page. Mobile-first, outside the app shell, reached by scann
 - Nothing is persisted until "Valider". The warning banner is required (AC-I10) — a volunteer who loses twenty movements to a locked screen will not come back to the feature.
 - The 25-movement cap is a **mirror** of the server's Zod bound, not an independent rule. If one moves, move both: `MAX_MOVEMENTS` in `types.ts` and `.max(25)` in the route (AC-I11).
 
-**Testing note:** mock `useRouter` with a **stable** object. `fetchStock` is a `useCallback` depending on it, and a fresh object per render re-runs the loading effect in a loop — a test artifact, since the real Next router is stable.
+**Testing note:** mock `useRouter` with a **stable** object. `fetchPage` is a `useCallback` depending on it, and a fresh object per render re-runs the loading effect in a loop — a test artifact, since the real Next router is stable.
 
 ## Dependencies
 

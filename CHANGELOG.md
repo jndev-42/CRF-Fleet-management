@@ -1,6 +1,6 @@
 # Changelog
 
-## [5.40.0] — 5 novembre 2026
+## [5.41.0] — 6 novembre 2026
 
 ### ✨ Nouveautés
 
@@ -15,6 +15,13 @@
 
 - Le bouton « Réinitialiser » du bandeau démo disparaît : il n'y a plus de données fictives à remettre à zéro.
 - Les exports (CSV et PDF des statistiques) restent utilisables en mode démo.
+
+## [5.40.0] — 6 novembre 2026
+
+### ✨ Nouveautés
+
+- **Recherche dans l'inventaire par QR Code** — une barre de recherche en haut de la liste permet de retrouver un article par son nom ou sa catégorie, sans tenir compte des majuscules ni des accents. La recherche porte sur tout le stock, même sur les articles pas encore affichés.
+- **Liste chargée au fil du défilement** — les articles s'affichent par lots de 30 et la suite se charge automatiquement en arrivant en bas de la liste, ce qui accélère l'ouverture de la page sur les gros stocks. En cas d'échec d'un chargement, un bouton « Réessayer » apparaît sans perdre les articles déjà affichés.
 
 ## [5.39.0] — 1er novembre 2026
 

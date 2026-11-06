@@ -17,6 +17,9 @@ export interface QRStockItem {
 export interface QRStock {
     stock: { id: string; name: string };
     items: QRStockItem[];
+    /** Nombre d'articles correspondant à la recherche (toutes pages confondues). */
+    total: number;
+    hasMore: boolean;
 }
 
 /**
