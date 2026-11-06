@@ -18,8 +18,10 @@ function pathnameOf(url: string): string {
 }
 
 /**
- * En mode démo, les lectures passent vers la vraie API ; les écritures `/api/`
- * (hors exemptions et hors pages QR) sont simulées : aucun appel réseau.
+ * En mode démo, les requêtes passent vers l'API, qui les sert depuis la base démo ;
+ * seules les écritures à effet externe (`DEMO_EXTERNAL_WRITE_ROUTES` : Drive, R2,
+ * Renault, Web Push) sont simulées, sans appel réseau. Hors pages QR.
+ * L'activation n'est proposée que si la base démo est configurée.
  * Installation idempotente.
  */
 export function setupFetchInterceptor() {
@@ -43,7 +45,7 @@ export function setupFetchInterceptor() {
         const method = init?.method ?? (typeof input === 'object' && 'method' in input ? input.method : 'GET');
 
         const pathname = pathnameOf(url);
-        if (!isDemoBlockedRequest(pathname, method)) return originalFetch(input, init);
+        if (!isDemoBlockedRequest(pathname, method, true)) return originalFetch(input, init);
 
         if (!isDemoSilentApi(pathname)) window.dispatchEvent(new CustomEvent(DEMO_SIMULATED_EVENT));
         return new Response(JSON.stringify({ success: true, simulated: true }), {

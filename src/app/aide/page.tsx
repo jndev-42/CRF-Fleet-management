@@ -19,7 +19,7 @@ interface UL {
 
 export default function AidePage() {
     const router = useRouter();
-    const { isDemoMode, toggleDemoMode } = useDemoMode();
+    const { isDemoMode, isDemoAvailable, toggleDemoMode } = useDemoMode();
     const { activeUL } = useUL();
     const [uls, setUls] = useState<UL[]>([]);
     const [loading, setLoading] = useState(true);
@@ -75,14 +75,15 @@ export default function AidePage() {
                 </button>
             </div>
 
-            {/* Mode Démo */}
+            {/* Mode Démo : proposé seulement si la base démo est configurée */}
+            {(isDemoAvailable || isDemoMode) && (
             <div className="detail-card" style={{ marginBottom: 24, padding: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, border: isDemoMode ? '1px solid #ff9800' : '1px solid var(--border-primary)' }}>
                 <div>
                     <h2 className="section-title" style={{ fontSize: 16, marginBottom: 4 }}>🛠️ Mode Démo</h2>
                     <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: 0 }}>
                         {isDemoMode 
-                            ? "Vous êtes en mode démo : vos vraies données, en lecture seule. Vos actions sont simulées." 
-                            : "Explorez l'application avec vos vraies données, sans rien pouvoir modifier : vos actions sont simulées."}
+                            ? "Vous êtes en mode démo. Base de démonstration partagée, remise à zéro chaque nuit à partir des vraies données. Vos actions sont réellement enregistrées dans la démo, jamais dans la base réelle."
+                            : "Entraînez-vous sur une base de démonstration partagée, remise à zéro chaque nuit à partir des vraies données. Vos actions sont réellement enregistrées dans la démo, jamais dans la base réelle."}
                     </p>
                 </div>
                 <button
@@ -93,6 +94,7 @@ export default function AidePage() {
                     <span style={{ fontSize: '16px' }}>{isDemoMode ? '🚫' : '🧪'}</span> {isDemoMode ? 'Quitter le mode démo' : 'Activer le mode démo'}
                 </button>
             </div>
+            )}
 
             <div className="detail-card" style={{ marginBottom: 24, padding: '20px' }}>
                 <h2 className="section-title" style={{ marginBottom: 16, borderBottom: '1px solid var(--border-primary)', paddingBottom: 8 }}>

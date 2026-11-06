@@ -5,7 +5,7 @@
  *     Creates all tables + inserts dev fixture data (4 users, 4 vehicles, etc.)
  *
  *   prod-clone mode (--prod-datas): connects to Turso prod via @libsql/client,
- *     reads all tables, and inserts rows into the container sqld.
+ *     and copies it into the container sqld (src/lib/demo/cloneDatabase.ts).
  *     Requires TURSO_DATABASE_URL (libsql://...) and TURSO_AUTH_TOKEN in .env.local.
  *
  * NOTE: This script intentionally targets http://localhost:8080 (container sqld),
@@ -20,7 +20,7 @@ import { createClient } from '@libsql/client';
 import { config } from 'dotenv';
 import { spawnSync } from 'child_process';
 import path from 'path';
-import { isFtsShadowTable, REFERENTIEL_FTS_DDL, REFERENTIEL_FTS_TABLE, REFERENTIEL_REBUILD_SQL } from '../src/lib/referentiel/schema';
+import { cloneDatabase } from '../src/lib/demo/cloneDatabase';
 
 const CONTAINER_DB_URL = 'http://localhost:8080';
 
@@ -62,135 +62,16 @@ async function prodCloneMode(): Promise<void> {
   const prod = createClient({ url: prodUrl, authToken: prodToken ?? '' });
   const local = createClient({ url: CONTAINER_DB_URL });
 
-  // Enumerate all user tables + their schema SQL from prod up front
-  const tablesResult = await prod.execute(
-    `SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
-  );
-  // L'index FTS5 du référentiel et ses tables fantômes ne se clonent pas ligne à
-  // ligne (`CREATE TABLE` ne sait pas les recréer) : on les ignore ici et on
-  // reconstruit l'index à partir des pages clonées en fin de copie.
-  const tableDefs = tablesResult.rows
-    .map((r) => ({
-      name: r.name as string,
-      sql: r.sql as string | null,
-    }))
-    .filter((t) => !isFtsShadowTable(t.name));
-  console.log(`[dev-db-init] Found ${tableDefs.length} tables: ${tableDefs.map((t) => t.name).join(', ')}`);
-
-  // sqld's HTTP/Hrana bridge does not appear to honor `PRAGMA foreign_keys =
-  // OFF`, even when issued inside the same transaction (verified: FK checks
-  // still fire, and fire against tables that don't exist yet — SQLite then
-  // reports "no such table" rather than a constraint error). So instead of
-  // relying on disabling FK enforcement, row inserts must run in dependency
-  // order (parents before children). Build that order from each table's
-  // REFERENCES clauses.
-  const tableNames = new Set(tableDefs.map((t) => t.name));
-  const dependsOn = new Map<string, Set<string>>();
-  for (const { name, sql } of tableDefs) {
-    const deps = new Set<string>();
-    if (sql) {
-      for (const m of sql.matchAll(/REFERENCES\s+"([A-Za-z0-9_]+)"/g)) {
-        const dep = m[1];
-        if (dep !== name && tableNames.has(dep)) deps.add(dep);
-      }
-    }
-    dependsOn.set(name, deps);
-  }
-  const insertOrder: string[] = [];
-  const visited = new Set<string>();
-  const visiting = new Set<string>();
-  function visit(name: string): void {
-    if (visited.has(name)) return;
-    if (visiting.has(name)) return; // cycle — break it, order among the cycle no longer matters much
-    visiting.add(name);
-    for (const dep of dependsOn.get(name) ?? []) visit(dep);
-    visiting.delete(name);
-    visited.add(name);
-    insertOrder.push(name);
-  }
-  for (const { name } of tableDefs) visit(name);
-
-  // Row reads from prod are paginated rather than one unbounded `SELECT *`.
-  // Originally a workaround: @libsql/client 0.5.6 (node-fetch transport) never
-  // completed an HTTP response above ~64 KB. The client now uses native fetch
-  // (≥ 0.6) and handles large responses, but small pages still bound memory
-  // and keep the per-statement payloads modest on wide tables.
-  const PAGE_SIZE = 20;
-
-  const schemaByName = new Map(tableDefs.map((t) => [t.name, t.sql]));
-
-  const tx = await local.transaction('write');
-  try {
-    // Phase 1a: drop existing local tables in reverse dependency order
-    // (children before parents). sqld enforces FK checks on DROP TABLE
-    // itself (unlike vanilla SQLite) — dropping a parent while a child
-    // table still holds rows referencing it fails with a FOREIGN KEY
-    // constraint error, so children must be gone first. Drop is needed so a
-    // stale local table (older/fewer columns from a prior seed run or prior
-    // clone) doesn't linger and break the row copy below with "no column
-    // named X".
-    await tx.execute(`DROP TABLE IF EXISTS "${REFERENTIEL_FTS_TABLE}"`);
-    for (const table of [...insertOrder].reverse()) {
-      await tx.execute(`DROP TABLE IF EXISTS "${table}"`);
-    }
-
-    // Phase 1b: recreate every table's schema from prod, parents first (not
-    // strictly required for CREATE, but keeps this symmetric with the drop).
-    for (const table of insertOrder) {
-      const sql = schemaByName.get(table);
-      if (!sql) {
-        console.log(`[dev-db-init]   ${table}: no schema found, skipping`);
-        continue;
-      }
-      await tx.execute(sql.replace(/^CREATE TABLE\b/, 'CREATE TABLE IF NOT EXISTS'));
-    }
-
-    // Phase 2: copy rows in dependency order so a child row's FK target
-    // already has its parent row inserted.
-    for (const table of insertOrder) {
-      if (!schemaByName.get(table)) continue;
-
-      let insertSql: string | undefined;
-      let totalRows = 0;
-      for (let offset = 0; ; offset += PAGE_SIZE) {
-        const page = await prod.execute(
-          `SELECT * FROM "${table}" ORDER BY rowid LIMIT ${PAGE_SIZE} OFFSET ${offset}`
-        );
-        if (page.rows.length === 0) break;
-
-        if (!insertSql) {
-          const cols = page.columns;
-          const placeholders = cols.map(() => '?').join(', ');
-          insertSql = `INSERT OR REPLACE INTO "${table}" (${cols.map((c) => `"${c}"`).join(', ')}) VALUES (${placeholders})`;
-        }
-        for (const row of page.rows) {
-          const args = page.columns.map((col) => row[col] ?? null);
-          await tx.execute({ sql: insertSql, args });
-        }
-        totalRows += page.rows.length;
-
-        if (page.rows.length < PAGE_SIZE) break;
-      }
-
-      if (totalRows === 0) {
-        console.log(`[dev-db-init]   ${table}: empty`);
-      } else {
-        console.log(`[dev-db-init]   ${table}: ${totalRows} rows cloned`);
-      }
-    }
-
-    // Index FTS5 du référentiel : recréé puis reconstruit depuis les pages clonées.
-    if (tableNames.has('ReferentielPage')) {
-      await tx.execute(REFERENTIEL_FTS_DDL);
-      await tx.execute(REFERENTIEL_REBUILD_SQL);
-      console.log('[dev-db-init]   ReferentielFts: index rebuilt');
-    }
-
-    await tx.commit();
-  } catch (e) {
-    await tx.rollback();
-    throw e;
-  }
+  // Cœur partagé avec la recopie nocturne prod → démo : lectures paginées
+  // (SELECT seuls) sur la prod, cible supprimée puis recréée parents d'abord,
+  // index FTS5 du référentiel reconstruit en fin de copie.
+  const summary = await cloneDatabase(prod, local, {
+    pageSize: 20,
+    // Base locale du développeur : tout est recopié, comme avant (la démo, elle, exclut les secrets).
+    schemaOnlyTables: [],
+    log: (message) => console.log(`[dev-db-init]   ${message}`),
+  });
+  console.log(`[dev-db-init] ${summary.tables} tables, ${summary.rows} rows in ${summary.durationMs} ms`);
 
   console.log('[dev-db-init] Prod clone complete.');
 }

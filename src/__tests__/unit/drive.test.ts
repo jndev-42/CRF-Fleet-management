@@ -35,6 +35,17 @@ describe('deleteDriveFolder', () => {
         expect(mockDelete).not.toHaveBeenCalled();
     });
 
+    it("ne supprime rien en mode démo (dossiers partagés avec la prod)", async () => {
+        vi.doMock('@/lib/demo/server', () => ({ isDemoRequest: async () => true }));
+        try {
+            const { deleteDriveFolder } = await import('@/lib/drive');
+            expect(await deleteDriveFolder('folder-1')).toBe(true);
+            expect(mockDelete).not.toHaveBeenCalled();
+        } finally {
+            vi.doUnmock('@/lib/demo/server');
+        }
+    });
+
     it('supprime le dossier et retourne true (happy path)', async () => {
         mockDelete.mockResolvedValue({});
         const { deleteDriveFolder } = await import('@/lib/drive');

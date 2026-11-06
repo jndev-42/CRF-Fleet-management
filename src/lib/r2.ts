@@ -18,6 +18,31 @@ import { AwsClient } from 'aws4fetch';
 export class R2Error extends Error {}
 export class R2ConfigError extends R2Error {}
 
+/** Requête démo ? Import paresseux : ce module reste chargeable hors Next (scripts). */
+async function isDemoRequestLazy(): Promise<boolean> {
+    const { isDemoRequest } = await import('@/lib/demo/server');
+    return isDemoRequest();
+}
+
+/**
+ * Mode démo : les clés sont transparentes pour l'appelant, mais toute écriture
+ * (et suppression) va sous `demo/<clé>` ; une lecture cherche `demo/<clé>` puis
+ * retombe sur la vraie clé, en lecture seule. Le préfixe est vidé chaque nuit
+ * (`purgeDemoObjects`, cron de 23h59) avec la recopie de la base démo.
+ */
+export const DEMO_KEY_PREFIX = 'demo/';
+
+export function demoKey(key: string): string {
+    return key.startsWith(DEMO_KEY_PREFIX) ? key : `${DEMO_KEY_PREFIX}${key}`;
+}
+
+/** Lecture démo : `demo/<clé>` d'abord, puis la vraie clé si absente (`null`/`false`). */
+async function readWithDemoFallback<T>(key: string, read: (k: string) => Promise<T>, missing: T): Promise<T> {
+    if (!(await isDemoRequestLazy())) return read(key);
+    const fromDemo = await read(demoKey(key));
+    return fromDemo !== missing ? fromDemo : read(key);
+}
+
 let cachedClient: AwsClient | null = null;
 let cachedBucketUrl: string | null = null;
 
@@ -130,6 +155,8 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
  * Écrit un objet. Ne renvoie jamais de détail d'identification dans ses erreurs.
  */
 export async function putObject(key: string, body: Buffer, contentType = 'application/pdf'): Promise<void> {
+    // Mode démo : écriture sous `demo/`, jamais sur une vraie clé.
+    if (await isDemoRequestLazy()) key = demoKey(key);
     const { client, bucketUrl } = config();
     await withRetry(`PUT ${key}`, async () => {
         const res = await client.fetch(`${bucketUrl}/${key}`, {
@@ -143,6 +170,10 @@ export async function putObject(key: string, body: Buffer, contentType = 'applic
 
 /** Lit un objet. `null` si absent (404) ; lève sur toute autre erreur. */
 export async function getObject(key: string): Promise<Buffer | null> {
+    return readWithDemoFallback(key, rawGetObject, null);
+}
+
+async function rawGetObject(key: string): Promise<Buffer | null> {
     const { client, bucketUrl } = config();
     return withRetry(`GET ${key}`, async () => {
         const res = await client.fetch(`${bucketUrl}/${key}`, { method: 'GET' });
@@ -154,6 +185,10 @@ export async function getObject(key: string): Promise<Buffer | null> {
 
 /** Teste l'existence d'un objet. */
 export async function headObject(key: string): Promise<boolean> {
+    return readWithDemoFallback(key, rawHeadObject, false);
+}
+
+async function rawHeadObject(key: string): Promise<boolean> {
     const { client, bucketUrl } = config();
     return withRetry(`HEAD ${key}`, async () => {
         const res = await client.fetch(`${bucketUrl}/${key}`, { method: 'HEAD' });
@@ -169,6 +204,12 @@ export async function headObject(key: string): Promise<boolean> {
  * un objet déjà absent ne doit jamais faire échouer la suppression.
  */
 export async function deleteObject(key: string): Promise<void> {
+    // Mode démo : seule la copie `demo/<clé>` peut être supprimée, jamais la vraie clé.
+    if (await isDemoRequestLazy()) key = demoKey(key);
+    await rawDeleteObject(key);
+}
+
+async function rawDeleteObject(key: string): Promise<void> {
     const { client, bucketUrl } = config();
     await withRetry(`DELETE ${key}`, async () => {
         const res = await client.fetch(`${bucketUrl}/${key}`, { method: 'DELETE' });
@@ -202,6 +243,11 @@ export function buildReferentielKey(attempt: string): string {
  * L'URL expire au bout de `expiresSec` secondes.
  */
 export async function presignUrl(key: string, method: 'GET' | 'PUT' | 'HEAD', expiresSec: number): Promise<string> {
+    // Mode démo : pas d'URL d'écriture vers le bucket de production (la lecture reste permise).
+    if (await isDemoRequestLazy()) {
+        if (method === 'PUT') throw new R2Error('Envoi de fichier indisponible en mode démo');
+        if (await rawHeadObject(demoKey(key))) key = demoKey(key);
+    }
     const { client, bucketUrl } = config();
     const url = new URL(`${bucketUrl}/${key}`);
     url.searchParams.set('X-Amz-Expires', String(expiresSec));
@@ -211,6 +257,10 @@ export async function presignUrl(key: string, method: 'GET' | 'PUT' | 'HEAD', ex
 
 /** Taille d'un objet en octets (HEAD). `null` si absent. */
 export async function getObjectSize(key: string): Promise<number | null> {
+    return readWithDemoFallback(key, rawGetObjectSize, null);
+}
+
+async function rawGetObjectSize(key: string): Promise<number | null> {
     const { client, bucketUrl } = config();
     return withRetry(`HEAD ${key}`, async () => {
         const res = await client.fetch(`${bucketUrl}/${key}`, { method: 'HEAD' });
@@ -224,6 +274,10 @@ export async function getObjectSize(key: string): Promise<number | null> {
 
 /** Lit les octets `start`..`end` (inclus) d'un objet (requête `Range`). `null` si absent. */
 export async function getObjectRange(key: string, start: number, end: number): Promise<Uint8Array | null> {
+    return readWithDemoFallback(key, (k) => rawGetObjectRange(k, start, end), null);
+}
+
+async function rawGetObjectRange(key: string, start: number, end: number): Promise<Uint8Array | null> {
     const { client, bucketUrl } = config();
     return withRetry(`GET ${key} [${start}-${end}]`, async () => {
         const res = await client.fetch(`${bucketUrl}/${key}`, {
@@ -234,4 +288,48 @@ export async function getObjectRange(key: string, start: number, end: number): P
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return new Uint8Array(await res.arrayBuffer());
     });
+}
+
+function decodeXml(value: string): string {
+    return value
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+}
+
+/** Liste une page de clés sous `prefix` (ListObjectsV2). */
+async function listKeys(prefix: string, continuationToken?: string): Promise<{ keys: string[]; next?: string }> {
+    const { client, bucketUrl } = config();
+    const url = new URL(bucketUrl);
+    url.searchParams.set('list-type', '2');
+    url.searchParams.set('prefix', prefix);
+    if (continuationToken) url.searchParams.set('continuation-token', continuationToken);
+    return withRetry(`LIST ${prefix}`, async () => {
+        const res = await client.fetch(url.toString(), { method: 'GET' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const xml = await res.text();
+        const keys = [...xml.matchAll(/<Key>([\s\S]*?)<\/Key>/g)].map((m) => decodeXml(m[1]));
+        const truncated = /<IsTruncated>true<\/IsTruncated>/.test(xml);
+        const next = xml.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/)?.[1];
+        return { keys, next: truncated && next ? decodeXml(next) : undefined };
+    });
+}
+
+/**
+ * Supprime tous les objets écrits en mode démo (préfixe `demo/`), page par page.
+ * Ne touche jamais une clé hors de ce préfixe. Renvoie le nombre d'objets supprimés.
+ * Appelée par le cron de 23h59 (hors requête démo), avec la recopie de la base démo.
+ */
+export async function purgeDemoObjects(): Promise<number> {
+    let deleted = 0;
+    let token: string | undefined;
+    do {
+        const page = await listKeys(DEMO_KEY_PREFIX, token);
+        for (const key of page.keys) {
+            if (!key.startsWith(DEMO_KEY_PREFIX)) continue;
+            await rawDeleteObject(key);
+            deleted++;
+        }
+        token = page.next;
+    } while (token);
+    return deleted;
 }

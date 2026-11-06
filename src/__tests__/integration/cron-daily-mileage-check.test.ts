@@ -14,10 +14,24 @@
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 
+// Base démo : `null` (non configurée) sauf dans les tests de recopie.
+const demo = vi.hoisted(() => ({ db: null as unknown }));
+// `db` (aiguillé) et `prodDb` sont des objets DISTINCTS, sur la même base de test :
+// la recopie doit recevoir `prodDb`, jamais le client aiguillé.
 vi.mock('@/lib/db', async () => {
     const { db } = await import('./setup');
-    return { db };
+    const routed = {
+        execute: ((...args: Parameters<typeof db.execute>) => db.execute(...args)) as typeof db.execute,
+        batch: ((...args: Parameters<typeof db.batch>) => db.batch(...args)) as typeof db.batch,
+        transaction: ((...args: Parameters<typeof db.transaction>) => db.transaction(...args)) as typeof db.transaction,
+    };
+    return { db: routed, prodDb: db, get demoDb() { return demo.db; } };
 });
+vi.mock('@/lib/demo/cloneDatabase', () => ({ cloneDatabase: vi.fn() }));
+vi.mock('@/lib/r2', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/lib/r2')>()),
+    purgeDemoObjects: vi.fn(async () => 0),
+}));
 // Mock partiel : BrandAuthError / BrandTransientError restent les vraies
 // classes, la classification des erreurs par vehicle-connection en dépend.
 vi.mock('@/lib/renault', async (importOriginal) => ({
@@ -34,6 +48,9 @@ import { GET } from '@/app/api/cron/daily-mileage-check/route';
 import { BrandAuthError, BrandTransientError, fetchRenaultVehicleData, type RenaultVehicleData } from '@/lib/renault';
 import { encryptSecret } from '@/lib/crypto';
 import { sendPushNotification } from '@/lib/push';
+import { cloneDatabase } from '@/lib/demo/cloneDatabase';
+import { purgeDemoObjects } from '@/lib/r2';
+import { db as routedDb, prodDb } from '@/lib/db';
 import { db, seedVehicle, seedUser, seedRoles, seedUserRole, seedUserUL, seedUniteLocale } from './setup';
 
 const mockedFetch = vi.mocked(fetchRenaultVehicleData);
@@ -323,5 +340,107 @@ describe('GET /api/cron/daily-mileage-check', () => {
         expect(sendPushNotification).toHaveBeenCalledWith(expect.objectContaining({
             roles: ['ADMIN', 'RESP_VEHICULE'],
         }));
+    });
+
+    describe('recopie prod → démo', () => {
+        const mockedClone = vi.mocked(cloneDatabase);
+        const demoClient = { name: 'demo' };
+
+        const mockedPurge = vi.mocked(purgeDemoObjects);
+
+        beforeEach(() => {
+            delete process.env.CRON_SECRET;
+            mockedClone.mockReset();
+            mockedPurge.mockReset();
+            mockedPurge.mockResolvedValue(0);
+        });
+        afterEach(() => {
+            demo.db = null;
+        });
+
+        it("ne recopie rien quand la base démo n'est pas configurée", async () => {
+            const res = await GET(makeRequest());
+            expect(res.status).toBe(200);
+            expect(mockedClone).not.toHaveBeenCalled();
+            expect(mockedPurge).not.toHaveBeenCalled();
+        });
+
+        it('vide les fichiers R2 de démo après la recopie', async () => {
+            demo.db = demoClient;
+            const order: string[] = [];
+            mockedClone.mockImplementation(async () => { order.push('clone'); return { tables: 0, rows: 0, durationMs: 0 }; });
+            mockedPurge.mockImplementation(async () => { order.push('purge'); return 3; });
+            const res = await GET(makeRequest());
+            expect(res.status).toBe(200);
+            expect(order).toEqual(['clone', 'purge']);
+        });
+
+        it("un échec de purge R2 (ou de recopie) ne change pas la réponse, et l'autre étape a lieu", async () => {
+            demo.db = demoClient;
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            mockedClone.mockRejectedValue(new Error('Turso indisponible'));
+            mockedPurge.mockRejectedValue(new Error('R2 indisponible'));
+            const res = await GET(makeRequest());
+            expect(res.status).toBe(200);
+            expect(await res.json()).toEqual({ message: 'Aucun admin configuré pour recevoir des alertes.' });
+            expect(mockedPurge).toHaveBeenCalledTimes(1);
+            expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[demo] purge'), 'R2 indisponible');
+            errorSpy.mockRestore();
+        });
+
+        it('recopie la prod dans la démo APRÈS le contrôle kilométrique', async () => {
+            demo.db = demoClient;
+            const past = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+            await seedVehicle({ id: 'VL001', name: 'VL186', vin: null });
+            await db.execute({
+                sql: `INSERT INTO Reservation (id, vehicleId, userEmail, userName, startTime, endTime, status) VALUES (?,?,?,?,?,?,?)`,
+                args: ['res-expired', 'VL001', 'user@test.com', 'User', past, past, 'VALIDATED'],
+            });
+            let reservationsAtClone = -1;
+            mockedClone.mockImplementation(async () => {
+                const r = await db.execute({ sql: `SELECT COUNT(*) AS n FROM Reservation WHERE id = ?`, args: ['res-expired'] });
+                reservationsAtClone = Number(r.rows[0].n);
+                return { tables: 1, rows: 1, durationMs: 1 };
+            });
+
+            const res = await GET(makeRequest());
+            expect(res.status).toBe(200);
+            expect(mockedClone).toHaveBeenCalledTimes(1);
+            const [source, target] = mockedClone.mock.calls[0];
+            expect(source).toBe(prodDb);
+            expect(source).not.toBe(routedDb);
+            expect(target).toBe(demoClient);
+            // Le contrôle (suppression des réservations expirées) a déjà eu lieu.
+            expect(reservationsAtClone).toBe(0);
+        });
+
+        it("refuse la recopie quand l'URL démo désigne la prod (elle supprimerait toutes ses tables)", async () => {
+            demo.db = demoClient;
+            vi.stubEnv('TURSO_DATABASE_URL', 'libsql://crf-prod.turso.io');
+            vi.stubEnv('TURSO_DEMO_DATABASE_URL', 'https://crf-prod.turso.io');
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            try {
+                const res = await GET(makeRequest());
+                expect(res.status).toBe(200);
+                expect(mockedClone).not.toHaveBeenCalled();
+                expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('recopie refusée'));
+            } finally {
+                errorSpy.mockRestore();
+                vi.unstubAllEnvs();
+            }
+        });
+
+        it("un échec de recopie est journalisé sans changer la réponse", async () => {
+            demo.db = demoClient;
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            mockedClone.mockRejectedValue(new Error('Turso indisponible'));
+
+            const res = await GET(makeRequest());
+            expect(res.status).toBe(200);
+            // Réponse du contrôle inchangée (ici : aucun admin configuré).
+            expect(await res.json()).toEqual({ message: 'Aucun admin configuré pour recevoir des alertes.' });
+            expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('[demo] recopie'), 'Turso indisponible');
+            errorSpy.mockRestore();
+        });
     });
 });

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import webpush from 'web-push';
 import { db } from '@/lib/db';
+import { isDemoRequest } from '@/lib/demo/server';
 import { getErrorMessage } from '@/lib/utils/error';
 
 /** Durée pendant laquelle le service push conserve un message pour un appareil hors ligne. */
@@ -187,8 +188,12 @@ function truncateForPush(body: string): string {
  * Envoie le payload à tous les appareils abonnés des utilisateurs ciblés.
  * Retourne `true` tant que la phase in-app a réussi : les erreurs d'envoi sont loggées,
  * seuls les abonnements expirés (404/410) sont purgés.
+ * En mode démo, rien n'est envoyé : la base démo recopie les abonnements réels, un push
+ * atteindrait de vrais appareils. La notification in-app (en base démo) suffit.
  */
 async function deliverWebPush(userIds: string[], payload: PushPayload): Promise<boolean> {
+    if (await isDemoRequest()) return true;
+
     const publicKey = process.env.VAPID_PUBLIC_KEY;
     const privateKey = process.env.VAPID_PRIVATE_KEY;
     const subject = process.env.VAPID_SUBJECT;

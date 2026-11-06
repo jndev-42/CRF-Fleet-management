@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.41.0] — 6 novembre 2026
+
+### ✨ Nouveautés
+
+- **Mode démo pour s'entraîner pour de vrai** — en mode démo, vos actions sont désormais réellement enregistrées dans une base de démonstration : vous pouvez réserver un véhicule, voir apparaître la réservation, la valider, déclarer un emprunt, etc., et suivre tout le parcours à l'écran.
+- **Base de démonstration partagée** — tous les utilisateurs en mode démo travaillent sur la même base, remise à zéro chaque nuit à partir des vraies données. Rien de ce qui est fait en démo n'atteint jamais la base réelle.
+
+### 🔧 Modifications
+
+- En mode démo, les notifications restent visibles dans la cloche de l'application, mais aucune notification push ni aucun e-mail n'est envoyé.
+- Seules les actions qui touchent un service extérieur restent simulées en démo (envoi de photos, guide de vérification, connexion et actualisation d'un véhicule connecté, import du référentiel, abonnement aux notifications) : le message « Action simulée » ne s'affiche plus que pour elles.
+- Le mode démo n'est proposé dans la page Aide que lorsque la base de démonstration est disponible.
+
+### 🔒 Sécurité
+
+- En mode démo, aucune suppression de photos ou de documents partagés avec les vraies données n'est effectuée.
+- En mode démo, les notes de frais peuvent être créées, signées et validées jusqu'au bout : leurs documents sont rangés dans un espace de démonstration séparé, vidé chaque nuit, et jamais mélangés aux documents réels. Aucune connexion n'est faite aux véhicules connectés, et les identifiants constructeur, jetons d'accès IA et abonnements aux notifications ne sont jamais recopiés dans la base de démonstration.
+- Ouvrir une page QR dans un autre onglet ne fait plus sortir de la démo les onglets restés en mode démo, et les pages QR utilisent toujours les vraies données.
+- Pendant la remise à zéro nocturne (ou si elle échoue), le mode démo est temporairement indisponible plutôt que d'afficher une base incomplète.
+
 ## [5.40.0] — 5 novembre 2026
 
 ### ✨ Nouveautés

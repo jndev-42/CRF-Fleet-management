@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { Session } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 
@@ -14,12 +14,13 @@ vi.mock('next-auth', () => {
     };
 });
 
-// Mock DB
+// Mock DB — deux clients DISTINCTS : `src/auth.ts` lit l'identité (utilisateur, rôles,
+// UL) dans `prodDb`, toujours la prod. Le `db` aiguillé (démo possible) ne doit jamais servir.
 const mockExecute = vi.fn();
+const routedExecute = vi.hoisted(() => vi.fn(async (_arg?: unknown) => { void _arg; throw new Error('db aiguillé utilisé par auth.ts'); }));
 vi.mock('@/lib/db', () => ({
-    db: {
-        execute: (arg: { sql: string; args?: unknown[] }) => mockExecute(arg),
-    },
+    db: { execute: (arg: unknown) => routedExecute(arg) },
+    prodDb: { execute: (arg: { sql: string; args?: unknown[] }) => mockExecute(arg) },
 }));
 
 // Journal d'audit : mocké pour ne pas consommer les réponses DB ordonnées ci-dessous.
@@ -62,6 +63,12 @@ async function callSession(args: { session: Session; token: JWT }): Promise<Sess
 }
 
 describe('NextAuth Callbacks — Impersonation', () => {
+    afterEach(() => {
+        // Identité toujours lue en prod : le client aiguillé n'est jamais appelé.
+        expect(routedExecute).not.toHaveBeenCalled();
+        routedExecute.mockClear();
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -86,6 +93,33 @@ describe('NextAuth Callbacks — Impersonation', () => {
             expect(result.email).toBe('user@croix-rouge.fr');
             expect(result.userId).toBe('user-id-1');
             expect(result.roles).toContain('CHVL');
+
+            // Utilisateur, UL et rôles : tous lus via `prodDb`.
+            const sqls = mockExecute.mock.calls.map(([arg]) => (arg as { sql: string }).sql);
+            expect(sqls.some((sql) => /FROM\s+"?User"?\b/.test(sql))).toBe(true);
+            expect(sqls.some((sql) => sql.includes('UserUL'))).toBe(true);
+            expect(sqls.some((sql) => sql.includes('UserRole'))).toBe(true);
+        });
+
+        it('compte dev : id utilisateur et UL lus via prodDb, rôles depuis le JWT', async () => {
+            mockExecute
+                .mockResolvedValueOnce({ rows: [{ id: 'dev-user-1' }] })
+                .mockResolvedValueOnce({
+                    rows: [{ id: 'ul-1', name: 'UL Test', slug: 'ul-test', dtCode: null, is_home: 1, roles: null }],
+                });
+
+            const result = await callJwt({
+                token: { originalEmail: 'admin@dev.local', devRoles: ['ADMIN'] },
+            });
+
+            expect(result.userId).toBe('dev-user-1');
+            expect(result.roles).toEqual(['ADMIN']);
+            expect(result.availableULs).toEqual([
+                expect.objectContaining({ id: 'ul-1', isHome: true }),
+            ]);
+            expect(result.ulId).toBe('ul-1');
+            const sqls = mockExecute.mock.calls.map(([arg]) => (arg as { sql: string }).sql);
+            expect(sqls.some((sql) => sql.includes('UserUL'))).toBe(true);
         });
 
         it('should allow jeannoel.durand@croix-rouge.fr to impersonate another user and switch active ulId', async () => {

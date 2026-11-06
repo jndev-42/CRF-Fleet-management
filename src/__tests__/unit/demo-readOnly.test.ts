@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
+    isDemoExternalWrite,
+    isDemoDbConfigured,
+    isDemoDbSameAsProd,
+    isDemoEligibleApi,
     isDemoExemptApi,
     isDemoWriteMethod,
     isQrPage,
@@ -36,10 +40,71 @@ describe('demo readOnly', () => {
         expect(isApiPath('/apix')).toBe(false);
     });
 
-    it('isDemoBlockedRequest', () => {
-        expect(isDemoBlockedRequest('/api/trips', 'POST')).toBe(true);
-        expect(isDemoBlockedRequest('/api/trips', 'GET')).toBe(false);
-        expect(isDemoBlockedRequest('/api/stats/csv', 'POST')).toBe(false);
-        expect(isDemoBlockedRequest('/vehicles', 'POST')).toBe(false);
+    it('isDemoExternalWrite : seules les routes à effet externe', () => {
+        for (const [p, m] of [
+            ['/api/drive/upload', 'POST'],
+            ['/api/referentiel/upload', 'POST'],
+            ['/api/referentiel/process', 'POST'],
+            ['/api/vehicles/VL%20186/guide', 'POST'],
+            ['/api/vehicles/x/guide', 'DELETE'],
+            ['/api/vehicles/x/connection', 'PUT'],
+            ['/api/vehicles/x/connection', 'DELETE'],
+            ['/api/trips/t1/refresh-renault', 'POST'],
+            ['/api/push/subscriptions', 'POST'],
+            ['/api/push/subscriptions/', 'DELETE'],
+        ]) expect(isDemoExternalWrite(p, m), `${m} ${p}`).toBe(true);
+        for (const [p, m] of [
+            ['/api/drive/upload', 'GET'],
+            ['/api/vehicles/x/guide', 'PATCH'],
+            ['/api/vehicles/x/guide', 'GET'],
+            ['/api/vehicles/x/reservations', 'POST'],
+            ['/api/trips', 'POST'],
+            ['/api/expenses', 'POST'],
+            ['/api/vehicles/x/guide/extra', 'POST'],
+        ]) expect(isDemoExternalWrite(p, m), `${m} ${p}`).toBe(false);
+    });
+
+    it('isDemoBlockedRequest — base démo configurée : routes externes seulement', () => {
+        expect(isDemoBlockedRequest('/api/trips', 'POST', true)).toBe(false);
+        expect(isDemoBlockedRequest('/api/drive/upload', 'POST', true)).toBe(true);
+        expect(isDemoBlockedRequest('/api/drive/upload', 'GET', true)).toBe(false);
+        expect(isDemoBlockedRequest('/vehicles', 'POST', true)).toBe(false);
+    });
+
+    it('isDemoBlockedRequest — base démo absente : toute écriture non exemptée', () => {
+        expect(isDemoBlockedRequest('/api/trips', 'POST', false)).toBe(true);
+        expect(isDemoBlockedRequest('/api/drive/upload', 'POST', false)).toBe(true);
+        expect(isDemoBlockedRequest('/api/trips', 'GET', false)).toBe(false);
+        expect(isDemoBlockedRequest('/api/stats/csv', 'POST', false)).toBe(false);
+        expect(isDemoBlockedRequest('/vehicles', 'POST', false)).toBe(false);
+    });
+
+    describe('isDemoDbConfigured', () => {
+        afterEach(() => vi.unstubAllEnvs());
+
+        it('vrai seulement si TURSO_DEMO_DATABASE_URL est renseignée', () => {
+            vi.stubEnv('TURSO_DEMO_DATABASE_URL', '');
+            expect(isDemoDbConfigured()).toBe(false);
+            vi.stubEnv('TURSO_DEMO_DATABASE_URL', '   ');
+            expect(isDemoDbConfigured()).toBe(false);
+            vi.stubEnv('TURSO_DEMO_DATABASE_URL', 'libsql://crf-demo.turso.io');
+            expect(isDemoDbConfigured()).toBe(true);
+        });
+
+        it('faux (et signalé) quand l\'URL démo désigne la prod', () => {
+            vi.stubEnv('TURSO_DATABASE_URL', 'libsql://crf-prod.turso.io');
+            vi.stubEnv('TURSO_DEMO_DATABASE_URL', ' https://crf-prod.turso.io ');
+            expect(isDemoDbSameAsProd()).toBe(true);
+            expect(isDemoDbConfigured()).toBe(false);
+            vi.stubEnv('TURSO_DEMO_DATABASE_URL', 'libsql://crf-demo.turso.io');
+            expect(isDemoDbSameAsProd()).toBe(false);
+        });
+    });
+
+    it('isDemoEligibleApi : jamais les API QR publiques ni l\'authentification', () => {
+        for (const p of ['/api/vehicles', '/api/trips/1', '/api/qrcode', '/api/authz']) expect(isDemoEligibleApi(p), p).toBe(true);
+        for (const p of ['/api/qr/t', '/api/qr', '/api/qr-ul/t/x', '/api/qr-stock/t', '/api/qr-uniforms/t', '/api/auth/session', '/vehicles']) {
+            expect(isDemoEligibleApi(p), p).toBe(false);
+        }
     });
 });
