@@ -46,6 +46,12 @@ export interface RelocationMove {
     to: string;
     /** La révision a été (ou serait) copiée ; false si la cible existait déjà. */
     copied: boolean;
+    /**
+     * Révision intermédiaire du journal jamais écrite sur R2 (scellements
+     * enchaînés en mémoire, backfill) : repointée vers la révision courante, qui
+     * contient toutes les signatures précédentes.
+     */
+    missing?: boolean;
 }
 
 export type RelocationStatus = 'moved' | 'unchanged' | 'skipped' | 'error';
@@ -118,19 +124,28 @@ export async function relocateReport(
 
     try {
         // 1. Copie des révisions vers leur nouvelle clé (jamais d'écrasement).
+        // La clé courante passe en premier (premier élément du Set) : une révision
+        // intermédiaire absente peut ainsi être repointée vers sa nouvelle clé.
+        const currentTarget = mapping.get(row.r2Key)!;
         for (const [from, to] of mapping) {
             if (from === to) continue;
             if (await deps.head(to)) {
                 result.moves.push({ from, to, copied: false });
                 continue;
             }
-            if (opts.apply) {
-                const buf = await deps.get(from);
-                if (!buf) return { ...result, status: 'error', reason: `objet source absent : ${from}` };
-                await deps.put(to, buf);
-            } else if (!(await deps.head(from))) {
-                return { ...result, status: 'error', reason: `objet source absent : ${from}` };
+            const buf = opts.apply ? await deps.get(from) : null;
+            const exists = opts.apply ? buf !== null : await deps.head(from);
+            if (!exists) {
+                // Seul le PDF courant fait foi : son absence est une erreur. Une
+                // révision intermédiaire du journal peut n'avoir jamais été écrite
+                // (seul le dernier buffer d'une suite de scellements l'est) : le PDF
+                // courant la contient, on y repointe l'entrée.
+                if (from === row.r2Key) return { ...result, status: 'error', reason: `objet source absent : ${from}` };
+                mapping.set(from, currentTarget);
+                result.moves.push({ from, to: currentTarget, copied: false, missing: true });
+                continue;
             }
+            if (buf) await deps.put(to, buf);
             result.moves.push({ from, to, copied: true });
         }
 

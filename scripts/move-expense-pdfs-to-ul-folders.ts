@@ -99,7 +99,11 @@ async function main(): Promise<void> {
             case 'unchanged':
                 stats[result.status]++;
                 console.log(`  ${result.status === 'moved' ? '→' : '='} ${verb}${id} ${result.status === 'moved' ? 'à ranger' : 'déjà rangée'} → ${result.publishedKey}`);
-                for (const m of result.moves) console.log(`      ${m.from} → ${m.to}${m.copied ? '' : ' (cible déjà présente)'}`);
+                for (const m of result.moves) {
+                    const note = m.missing ? ' (révision intermédiaire jamais écrite : repointée vers la courante)'
+                        : m.copied ? '' : ' (cible déjà présente)';
+                    console.log(`      ${m.from} → ${m.to}${note}`);
+                }
                 for (const d of result.deleted) console.log(`      ${APPLY ? 'supprimé' : 'à supprimer'} : ${d}`);
                 break;
             case 'skipped':

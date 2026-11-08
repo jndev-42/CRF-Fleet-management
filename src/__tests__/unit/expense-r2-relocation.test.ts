@@ -194,3 +194,43 @@ describe('relocateReport', () => {
         expect(deps.put).not.toHaveBeenCalled();
     });
 });
+
+describe('relocateReport — révision intermédiaire jamais écrite', () => {
+    // Cas réel (backfill, signature combinée) : seul le dernier buffer est écrit
+    // sur R2, le journal cite aussi les clés intermédiaires.
+    const raw = journal('rep-1/v1-aaa.pdf', 'rep-1/v2-bbb.pdf');
+    const row = { id: 'rep-1', segment: 'paris-18', r2Key: 'rep-1/v2-bbb.pdf', signatureRevisions: raw };
+
+    it('dry-run : pas d\'erreur, l\'entrée absente est repointée vers la courante', async () => {
+        const { deps } = makeDeps({ 'rep-1/v2-bbb.pdf': 'two' });
+        const res = await relocateReport(row, deps, { apply: false, deleteOld: false });
+        expect(res.status).toBe('moved');
+        expect(res.moves).toEqual(expect.arrayContaining([
+            { from: 'rep-1/v1-aaa.pdf', to: 'ndf-revisions/paris-18/rep-1-v2-bbb.pdf', copied: false, missing: true },
+        ]));
+        expect(deps.put).not.toHaveBeenCalled();
+    });
+
+    it('apply : journal repointé vers la révision courante rangée, puis idempotent', async () => {
+        const { store, deps } = makeDeps({ 'rep-1/v2-bbb.pdf': 'two' });
+        const res = await relocateReport(row, deps, { apply: true, deleteOld: false });
+        expect(res.status).toBe('moved');
+        const call = vi.mocked(deps.execute).mock.calls[0][0];
+        expect(call.args[0]).toBe('ndf-revisions/paris-18/rep-1-v2-bbb.pdf');
+        const next = call.args[1] as string;
+        expect(JSON.parse(next).map((r: { r2Key: string }) => r.r2Key)).toEqual([
+            'ndf-revisions/paris-18/rep-1-v2-bbb.pdf', 'ndf-revisions/paris-18/rep-1-v2-bbb.pdf',
+        ]);
+        expect(store.get('ndf/paris-18/rep-1.pdf')?.toString()).toBe('two');
+
+        const again = await relocateReport({ ...row, r2Key: call.args[0] as string, signatureRevisions: next }, deps, { apply: true, deleteOld: false });
+        expect(again.status).toBe('unchanged');
+    });
+
+    it('le PDF courant absent reste une erreur', async () => {
+        const { deps } = makeDeps({ 'rep-1/v1-aaa.pdf': 'one' });
+        const res = await relocateReport(row, deps, { apply: true, deleteOld: false });
+        expect(res.status).toBe('error');
+        expect(deps.execute).not.toHaveBeenCalled();
+    });
+});
