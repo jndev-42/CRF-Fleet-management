@@ -704,7 +704,9 @@ async function deleteHandler(
         const id = resolvedParams.id;
 
         const result = await db.execute({
-            sql: `SELECT userId, status FROM "ExpenseReport" WHERE id = ?`,
+            sql: `SELECT er.userId, er.status, er.r2Key, er.ulId, ul.slug AS ulSlug
+                  FROM "ExpenseReport" er LEFT JOIN "UniteLocale" ul ON ul.id = er.ulId
+                  WHERE er.id = ?`,
             args: [id],
         });
         const report = result.rows[0];
@@ -730,6 +732,18 @@ async function deleteHandler(
             sql: `DELETE FROM "ExpenseReport" WHERE id = ?`,
             args: [id],
         });
+
+        // Une note scellée a une copie publiée (`ndf/{UL}/{id}.pdf`) que la synchro
+        // Drive suit : on la retire, sinon Drive garde une note supprimée. Les
+        // révisions, elles, restent. Best-effort : la note est déjà supprimée.
+        if (report.r2Key) {
+            try {
+                const { deleteObject, buildExpensePublishedKey, expenseUlSegment } = await import('@/lib/r2');
+                await deleteObject(buildExpensePublishedKey(expenseUlSegment(report.ulSlug, String(report.ulId ?? '')), id));
+            } catch (e: unknown) {
+                console.error('[DELETE /api/expenses/:id] copie publiée non supprimée :', e instanceof Error ? e.message : String(e));
+            }
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

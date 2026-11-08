@@ -62,7 +62,7 @@ async function main(): Promise<void> {
     const { db } = await import('../src/lib/db');
     const { generateExpensePdf, countItems } = await import('../src/lib/expenses/pdf');
     const { sealPdf, decodeSignatureImage, assertSigningCertConfigured } = await import('../src/lib/pdf/signature');
-    const { putObject, buildExpenseKey, newAttemptId, assertR2Configured } = await import('../src/lib/r2');
+    const { putObject, buildExpenseKey, buildExpensePublishedKey, expenseUlSegment, newAttemptId, assertR2Configured } = await import('../src/lib/r2');
     // Disposition de l'ANCIEN circuit (v1) : rectangles et champs dédiés, figés,
     // indépendants des retouches de la disposition v2.
     const {
@@ -129,8 +129,9 @@ async function main(): Promise<void> {
 
     for (const idCourant of ids) {
         const ligne = await db.execute({
-            sql: `SELECT er.*, u.name AS userName FROM "ExpenseReport" er
-                  LEFT JOIN "User" u ON u.id = er.userId WHERE er.id = ?`,
+            sql: `SELECT er.*, u.name AS userName, ul.slug AS ulSlug FROM "ExpenseReport" er
+                  LEFT JOIN "User" u ON u.id = er.userId
+                  LEFT JOIN "UniteLocale" ul ON ul.id = er.ulId WHERE er.id = ?`,
             args: [idCourant],
         });
         const row = ligne.rows[0];
@@ -186,6 +187,7 @@ async function main(): Promise<void> {
             );
             const revisions: unknown[] = [];
             let key = '';
+            const ulSegment = expenseUlSegment(row.ulSlug, String(row.ulId ?? ''));
 
             const seal = async (
                 step: 1 | 2 | 3, role: string, reason: string,
@@ -200,7 +202,7 @@ async function main(): Promise<void> {
                     ...(rect && image && !tooLong ? { appearancePng: image } : {}),
                     ...(step === 1 ? { docMdpLevel: 2 as const } : {}),
                 });
-                key = buildExpenseKey(id, step, newAttemptId());
+                key = buildExpenseKey(ulSegment, id, step, newAttemptId());
                 revisions.push({
                     step, signerId: null, signerName: name, role,
                     signedAt: now.toISOString(), businessDate, backfilled: true, r2Key: key,
@@ -232,6 +234,12 @@ async function main(): Promise<void> {
                 sql: `UPDATE "ExpenseReport" SET r2Key = ?, signatureRevisions = ?, updatedAt = ? WHERE id = ?`,
                 args: [key, JSON.stringify(revisions), new Date().toISOString(), id],
             });
+            // Copie publiée (suivie par la synchro Drive), après la base, best-effort.
+            try {
+                await putObject(buildExpensePublishedKey(ulSegment, id), buf);
+            } catch (e: unknown) {
+                console.error(`  ! ${id} : copie publiée non écrite (${e instanceof Error ? e.message : String(e)})`);
+            }
 
             stats.sealed++;
             console.log(`  + ${id} [${status}] ${revisions.length} signature(s) → ${key}${tooLong ? ' (sans widget)' : ''}`);

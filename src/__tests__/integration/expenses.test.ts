@@ -12,7 +12,9 @@ vi.mock('@/lib/r2', () => ({
     getObject: vi.fn(async () => Buffer.from('%PDF-1.3 scelle')),
     headObject: vi.fn(async () => true),
     deleteObject: vi.fn(async () => undefined),
-    buildExpenseKey: (id: string, rev: number, att: string) => `${id}/v${rev}-${att}.pdf`,
+    expenseUlSegment: (slug: unknown, ulId: string) => (typeof slug === 'string' && slug) || ulId,
+    buildExpenseKey: (seg: string, id: string, rev: number, att: string) => `ndf-revisions/${seg}/${id}-v${rev}-${att}.pdf`,
+    buildExpensePublishedKey: (seg: string, id: string) => `ndf/${seg}/${id}.pdf`,
     buildExpenseStagingKey: (stagingId: string, name: string) => `expenses-staging/${stagingId}/${name}`,
     newAttemptId: () => 'testatt',
     R2Error: class R2Error extends Error {},
@@ -29,11 +31,12 @@ vi.mock('@/lib/expenses/sealing', () => {
             // Chaque buffer prolonge le précédent, comme un vrai incremental update :
             // `persistSealed` le vérifie pour une suite de scellements.
             buffer: Buffer.from(`%PDF-1.3 scelle${'-x'.repeat(step)}`),
-            key: `${reportId}/v${step}-testatt.pdf`,
+            key: `ndf-revisions/ul-paris-18/${reportId}-v${step}-testatt.pdf`,
+            publishedKey: `ndf/ul-paris-18/${reportId}.pdf`,
             revision: {
                 step, signerId: signer.id, signerName: signer.name, role,
                 signedAt: new Date().toISOString(), businessDate: null,
-                r2Key: `${reportId}/v${step}-testatt.pdf`,
+                r2Key: `ndf-revisions/ul-paris-18/${reportId}-v${step}-testatt.pdf`,
             },
             ...(columns ? { columns } : {}),
         });
@@ -62,7 +65,7 @@ const SIG = { mode: 'draw', image: 'data:image/png;base64,iVBORw0KGgo=', name: '
 
 import { auth } from '@/auth';
 import { GET as getList, POST as createReport } from '@/app/api/expenses/route';
-import { GET as getReport, PATCH as updateReport } from '@/app/api/expenses/[id]/route';
+import { GET as getReport, PATCH as updateReport, DELETE as deleteReport } from '@/app/api/expenses/[id]/route';
 import { seedRoles, seedUser, seedUserRole, seedExpenseBudget, seedExpenseBudgetFixtures, EXPENSE_BUDGET_FIXTURES, db } from './setup';
 
 const mockedAuth = vi.mocked(auth);
@@ -273,6 +276,45 @@ describe('Expense Report integration tests', () => {
             });
             expect(notifs.rows.length).toBeGreaterThanOrEqual(1);
             expect(notifs.rows[0].title).toContain('Note de frais à valider');
+        });
+    });
+
+    describe('DELETE /api/expenses/[id] — copie publiée', () => {
+        it('un SUPER_ADMIN qui supprime une note scellée retire sa copie publiée ndf/<slug>/<id>.pdf, pas les révisions', async () => {
+            const { deleteObject } = await import('@/lib/r2');
+            vi.mocked(deleteObject).mockClear();
+            await db.execute(`INSERT OR IGNORE INTO "UniteLocale" (id, name, slug) VALUES ('ul-slug', 'UL Slug', 'mon-slug')`);
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund, r2Key)
+                      VALUES ('exp-del', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 50.0, '[]', 'ul-slug', 1, 'ndf-revisions/mon-slug/exp-del-v1-a.pdf')`,
+                args: [],
+            });
+            mockedAuth.mockResolvedValue({ user: { id: 'user-president', roles: ['SUPER_ADMIN'], ulId: 'ul-paris-18' } } as never);
+
+            const res = await deleteReport(
+                new Request('http://localhost/api/expenses/exp-del', { method: 'DELETE' }),
+                { params: Promise.resolve({ id: 'exp-del' }) },
+            );
+            expect(res.status).toBe(200);
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledTimes(1);
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('ndf/mon-slug/exp-del.pdf');
+        });
+
+        it('un brouillon (sans r2Key) ne déclenche aucune suppression R2', async () => {
+            const { deleteObject } = await import('@/lib/r2');
+            vi.mocked(deleteObject).mockClear();
+            await db.execute({
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund)
+                      VALUES ('exp-del-b', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 50.0, '[]', 'ul-paris-18', 1)`,
+                args: [],
+            });
+            mockedAuth.mockResolvedValue({ user: { id: 'user-standard', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } } as never);
+            const res = await deleteReport(
+                new Request('http://localhost/api/expenses/exp-del-b', { method: 'DELETE' }),
+                { params: Promise.resolve({ id: 'exp-del-b' }) },
+            );
+            expect(res.status).toBe(200);
+            expect(vi.mocked(deleteObject)).not.toHaveBeenCalled();
         });
     });
 
@@ -1291,12 +1333,12 @@ describe('Expense Report integration tests', () => {
             expect(revisions.slice(1).map((v: { step: number }) => v.step)).toEqual([2, 4]);
             expect(revisions.slice(1).every((v: { signerId: string }) => v.signerId === 'user-president')).toBe(true);
             // Une seule écriture R2 : le dernier buffer, qui contient le précédent.
-            expect(r.r2Key).toBe('exp-c/v4-testatt.pdf');
+            expect(r.r2Key).toBe('ndf-revisions/ul-paris-18/exp-c-v4-testatt.pdf');
 
             // La révision président est posée sur le buffer RESPO, en mémoire.
             const { sealPresident } = await import('@/lib/expenses/sealing');
             expect(vi.mocked(sealPresident)).toHaveBeenLastCalledWith(
-                'exp-c', expect.anything(), expect.objectContaining({ after: expect.objectContaining({ key: 'exp-c/v2-testatt.pdf' }) }));
+                'exp-c', expect.anything(), expect.objectContaining({ after: expect.objectContaining({ key: 'ndf-revisions/ul-paris-18/exp-c-v2-testatt.pdf' }) }));
         });
 
         it('le SUPER_ADMIN valide les deux étapes d\'un coup, quelle que soit son UL active', async () => {

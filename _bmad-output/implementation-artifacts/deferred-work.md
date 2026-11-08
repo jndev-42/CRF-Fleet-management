@@ -175,3 +175,11 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-securite-et-recopie-demo-manuelle.md`
   summary: Vérifier Drive avec les versions montées de ses bibliothèques.
   evidence: Non vérifié : les tests mockent `googleapis`. À trancher par une action Drive réelle sur preview.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ndf-r2-dossier-ul.md`
+  summary: Réconcilier automatiquement (cron quotidien) la copie publiée `ndf/{UL}/{id}.pdf` avec la révision courante quand son écriture post-commit a échoué.
+  evidence: l'écriture est best-effort ; après un échec à la dernière étape (paiement), Drive reste périmé jusqu'à une relance manuelle de `move-expense-pdfs-to-ul-folders.ts`.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-ndf-r2-dossier-ul.md`
+  summary: Tester le câblage CLI de `scripts/move-expense-pdfs-to-ul-folders.ts` (slug passé en segment, code de sortie) et la copie publiée de `backfill-signed-pdfs.ts`.
+  evidence: seule la logique `relocateReport` est testée ; un alias SQL erroné rangerait sous l'ulId sans qu'aucun test n'échoue.
