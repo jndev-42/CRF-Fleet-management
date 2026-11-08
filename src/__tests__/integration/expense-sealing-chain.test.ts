@@ -24,7 +24,9 @@ vi.mock('@/lib/db', async () => {
 vi.mock('@/lib/r2', () => ({
     getObject: vi.fn(async (key: string) => store.get(key) ?? null),
     putObject: vi.fn(async (key: string, buf: Buffer) => { store.set(key, buf); }),
-    buildExpenseKey: (id: string, rev: number, att: string) => `${id}/v${rev}-${att}.pdf`,
+    expenseUlSegment: (slug: unknown, ulId: string) => (typeof slug === 'string' && slug) || ulId,
+    buildExpenseKey: (seg: string, id: string, rev: number, att: string) => `ndf-revisions/${seg}/${id}-v${rev}-${att}.pdf`,
+    buildExpensePublishedKey: (seg: string, id: string) => `ndf/${seg}/${id}.pdf`,
     newAttemptId: () => `a${++attempt}`,
 }));
 
@@ -36,7 +38,7 @@ import {
     sealStep1, sealStep2, sealStep3, sealPresident, composePresidentAppearance,
     CURRENT_WORKFLOW_VERSION, RevisionMismatchError,
 } from '@/lib/expenses/sealing';
-import { persistSealed, PersistSealError } from '@/lib/expenses/persist-seal';
+import { persistSealed, PersistSealError, ConcurrentTransitionError } from '@/lib/expenses/persist-seal';
 import { verifySignatures } from '@/lib/pdf/verify';
 import { sealPdf } from '@/lib/pdf/signature';
 import { addSignatureFields } from '@/lib/pdf/fields';
@@ -173,6 +175,58 @@ describe('circuit RESPO puis président', () => {
         expect(paid.allValid).toBe(true);
     }, 90_000);
 
+    it('le segment UL est le slug (pas l\'id) : clés exactes et copie publiée écrite par persistSealed', async () => {
+        await db.execute({
+            sql: `INSERT OR REPLACE INTO "UniteLocale" (id, name, slug, stampImage) VALUES ('ul-id-xyz', 'UL Slug', 'mon-slug', ?)`,
+            args: [stampPng],
+        });
+        await db.execute({
+            sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund, missionName, missionDate)
+                  VALUES ('n-slug', 'u-dem', '2026-10-20T10:00:00Z', 'brouillon', 'DLUS', 25, ?, 'ul-id-xyz', 1, 'Maraude', '2026-10-19')`,
+            args: [JSON.stringify([{ label: 'Péage', amount: 25 }])],
+        });
+        const seal = await sealStep1('n-slug', demandeur());
+        expect(seal.key).toBe('ndf-revisions/mon-slug/n-slug-v1-a' + attempt + '.pdf');
+        expect(seal.publishedKey).toBe('ndf/mon-slug/n-slug.pdf');
+
+        vi.mocked(putObject).mockClear();
+        await persistSealed({ reportId: 'n-slug', seal, expectedStatus: 'brouillon', nextStatus: 'soumis' });
+        expect(vi.mocked(putObject)).toHaveBeenCalledWith('ndf/mon-slug/n-slug.pdf', seal.buffer);
+        expect(store.get('ndf/mon-slug/n-slug.pdf')).toEqual(seal.buffer);
+    }, 60_000);
+
+    it('une transition concurrente rejetée n\'écrit pas la copie publiée', async () => {
+        await seedDraft('n-conc');
+        const seal = await sealStep1('n-conc', demandeur());
+        vi.mocked(putObject).mockClear();
+        await expect(persistSealed({ reportId: 'n-conc', seal, expectedStatus: 'soumis', nextStatus: 'en_attente_paiement' }))
+            .rejects.toBeInstanceOf(ConcurrentTransitionError);
+        expect(vi.mocked(putObject).mock.calls.map(c => c[0])).not.toContain(seal.publishedKey);
+        expect(store.has(seal.publishedKey)).toBe(false);
+    }, 60_000);
+
+    it('une copie publiée en échec ne fait pas échouer la transition', async () => {
+        await seedDraft('n-pub');
+        const seal = await sealStep1('n-pub', demandeur());
+        vi.mocked(putObject).mockClear();
+        vi.mocked(putObject).mockImplementation(async (key: string, buf: Buffer) => {
+            if (key.startsWith('ndf/')) throw new Error('R2 indisponible');
+            store.set(key, buf);
+        });
+        const errSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        try {
+            await expect(persistSealed({ reportId: 'n-pub', seal, expectedStatus: 'brouillon', nextStatus: 'soumis' }))
+                .resolves.toBeUndefined();
+            expect(errSpy).toHaveBeenCalled();
+        } finally {
+            vi.mocked(putObject).mockImplementation(async (key: string, buf: Buffer) => { store.set(key, buf); });
+            errSpy.mockRestore();
+        }
+        const row = (await db.execute({ sql: 'SELECT status, r2Key FROM "ExpenseReport" WHERE id = ?', args: ['n-pub'] })).rows[0];
+        expect(row.status).toBe('soumis');
+        expect(row.r2Key).toBe(seal.key);
+    }, 60_000);
+
     it('signature combinée du président : deux révisions, une seule écriture R2, 3 signatures valides', async () => {
         await seedDraft('n-4');
         await submit('n-4');
@@ -185,8 +239,12 @@ describe('circuit RESPO puis président', () => {
             expectedStatus: 'soumis', nextStatus: 'en_attente_paiement',
         });
 
-        expect(vi.mocked(putObject)).toHaveBeenCalledTimes(1);
-        expect(vi.mocked(putObject)).toHaveBeenCalledWith(presSeal.key, presSeal.buffer);
+        // Révision versionnée + copie publiée à clé fixe, toutes deux avec le dernier buffer.
+        expect(vi.mocked(putObject)).toHaveBeenCalledTimes(2);
+        expect(vi.mocked(putObject)).toHaveBeenNthCalledWith(1, presSeal.key, presSeal.buffer);
+        expect(vi.mocked(putObject)).toHaveBeenNthCalledWith(2, presSeal.publishedKey, presSeal.buffer);
+        expect(presSeal.key).toMatch(/^ndf-revisions\/[^/]+\/n-4-v4-/);
+        expect(presSeal.publishedKey).toMatch(/^ndf\/[^/]+\/n-4\.pdf$/);
 
         const log = await revisions('n-4');
         expect(log.map(r => r.step)).toEqual([1, 2, 4]);

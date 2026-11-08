@@ -4,6 +4,7 @@
  * ORDRE IMPOSÉ, et il compte :
  *   1. `PUT R2` sur une clé NEUVE — ne peut rien détruire, puisqu'elle n'existait pas
  *   2. `db.transaction('write')` — statut, `r2Key` et journal des révisions
+ *   3. copie publiée `ndf/{UL}/{id}.pdf` (clé fixe), best-effort, après le commit
  *
  * Si le PUT échoue : la base est intacte, l'opération est rejouable telle quelle.
  * Si la transaction échoue : l'objet R2 reste orphelin, inoffensif et ignoré —
@@ -113,5 +114,15 @@ export async function persistSealed(opts: PersistOptions): Promise<void> {
     } catch (e: unknown) {
         try { await tx.rollback(); } catch { /* déjà terminée */ }
         throw e;
+    }
+
+    // 3. Copie publiée (`ndf/{UL}/{id}.pdf`, clé fixe suivie par la synchro Drive),
+    // APRÈS le commit et en best-effort : la base fait foi, la transition est déjà
+    // validée. Un échec est journalisé ; le prochain scellement ou la migration
+    // la réécrit.
+    try {
+        await putObject(last.publishedKey, last.buffer);
+    } catch (e: unknown) {
+        console.error(`Copie publiée non écrite (${last.publishedKey}) :`, e instanceof Error ? e.message : String(e));
     }
 }

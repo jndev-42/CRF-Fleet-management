@@ -79,17 +79,38 @@ function config(): { client: AwsClient; bucketUrl: string } {
 }
 
 /**
- * Clé R2 d'une révision de PDF.
+ * Segment de dossier d'une UL dans les clés R2 des notes de frais : le slug
+ * assaini, ou à défaut l'identifiant de l'UL assaini (UL introuvable, slug vide).
+ */
+export function expenseUlSegment(slug: unknown, ulId: string): string {
+    const clean = (v: string) => v.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fromSlug = typeof slug === 'string' ? clean(slug.trim()) : '';
+    return fromSlug || clean(String(ulId ?? '')) || '_';
+}
+
+/**
+ * Clé R2 d'une révision de PDF, rangée sous `ndf-revisions/{UL}/`.
  *
  * Les clés sont VERSIONNÉES et jamais écrasées : `attempt` (dérivé d'un UUID)
  * rend la clé unique même si deux validations concurrentes calculent le même
  * numéro de révision. Un objet orphelin après échec est inoffensif ; une révision
  * écrasée serait irrécupérable.
  */
-export function buildExpenseKey(reportId: string, revision: number, attempt: string): string {
+export function buildExpenseKey(ulSegment: string, reportId: string, revision: number, attempt: string): string {
     if (!reportId) throw new R2Error('reportId requis pour construire une clé R2');
+    if (!ulSegment) throw new R2Error('ulSegment requis pour construire une clé R2');
     const safeAttempt = attempt.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'x';
-    return `${reportId}/v${revision}-${safeAttempt}.pdf`;
+    return `ndf-revisions/${ulSegment}/${reportId}-v${revision}-${safeAttempt}.pdf`;
+}
+
+/**
+ * Clé R2 FIXE de la copie publiée d'une note : `ndf/{UL}/{reportId}.pdf`.
+ * Écrasée à chaque scellement ; c'est elle que la synchro Drive suit.
+ */
+export function buildExpensePublishedKey(ulSegment: string, reportId: string): string {
+    if (!reportId) throw new R2Error('reportId requis pour construire une clé R2');
+    if (!ulSegment) throw new R2Error('ulSegment requis pour construire une clé R2');
+    return `ndf/${ulSegment}/${reportId}.pdf`;
 }
 
 /** Suffixe unique pour une tentative de scellement. */

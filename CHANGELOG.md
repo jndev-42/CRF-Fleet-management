@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.47.0] — 8 novembre 2026
+
+### ✨ Nouveautés
+
+- **Notes de frais classées par unité locale** — le PDF signé de chaque note est désormais déposé dans le dossier de son unité locale, sous un nom unique (une seule copie par note). Cette copie est mise à jour à chaque nouvelle signature, ce qui permet à la synchronisation vers Google Drive de ranger chaque note au bon endroit et de la tenir à jour.
+
 ## [5.46.1] — 6 novembre 2026
 
 ### 🔧 Modifications

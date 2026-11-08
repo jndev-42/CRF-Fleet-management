@@ -21,19 +21,20 @@ function setEnv(): void {
 describe('buildExpenseKey', () => {
     beforeEach(setEnv);
 
-    it('produit une clé versionnée et unique par tentative', async () => {
+    it('range la révision sous ndf-revisions/<UL>/, versionnée et unique par tentative', async () => {
         const { buildExpenseKey } = await import('@/lib/r2');
-        expect(buildExpenseKey('rep-1', 2, 'abc123')).toBe('rep-1/v2-abc123.pdf');
+        expect(buildExpenseKey('paris-18', 'rep-1', 2, 'abc123')).toBe('ndf-revisions/paris-18/rep-1-v2-abc123.pdf');
     });
 
     it('assainit le suffixe de tentative', async () => {
         const { buildExpenseKey } = await import('@/lib/r2');
-        expect(buildExpenseKey('rep-1', 1, '../../etc/passwd')).toBe('rep-1/v1-etcpassw.pdf');
+        expect(buildExpenseKey('paris-18', 'rep-1', 1, '../../etc/passwd')).toBe('ndf-revisions/paris-18/rep-1-v1-etcpassw.pdf');
     });
 
-    it('refuse un reportId vide', async () => {
+    it('refuse un reportId ou un segment vide', async () => {
         const { buildExpenseKey, R2Error } = await import('@/lib/r2');
-        expect(() => buildExpenseKey('', 1, 'x')).toThrow(R2Error);
+        expect(() => buildExpenseKey('paris-18', '', 1, 'x')).toThrow(R2Error);
+        expect(() => buildExpenseKey('', 'rep-1', 1, 'x')).toThrow(R2Error);
     });
 
     it('génère des suffixes distincts — deux scellements concurrents ne peuvent pas s\'écraser', async () => {
@@ -359,5 +360,29 @@ describe('purgeDemoObjects', () => {
         const { purgeDemoObjects } = await import('@/lib/r2');
         expect(await purgeDemoObjects()).toBe(0);
         expect(bucket.objects.size).toBe(1);
+    });
+});
+
+describe('expenseUlSegment', () => {
+    it('assainit le slug', async () => {
+        const { expenseUlSegment } = await import('@/lib/r2');
+        expect(expenseUlSegment('paris-18', 'ul-1')).toBe('paris-18');
+        expect(expenseUlSegment('a/b c..d', 'ul-1')).toBe('a_b_c__d');
+    });
+
+    it('retombe sur l\'ulId assaini si le slug est absent ou vide', async () => {
+        const { expenseUlSegment } = await import('@/lib/r2');
+        expect(expenseUlSegment(null, 'ul/1')).toBe('ul_1');
+        expect(expenseUlSegment(undefined, 'ul-1')).toBe('ul-1');
+        expect(expenseUlSegment('  ', 'ul-1')).toBe('ul-1');
+    });
+});
+
+describe('buildExpensePublishedKey', () => {
+    it('produit la clé fixe ndf/<UL>/<id>.pdf', async () => {
+        const { buildExpensePublishedKey, R2Error } = await import('@/lib/r2');
+        expect(buildExpensePublishedKey('paris-18', 'rep-1')).toBe('ndf/paris-18/rep-1.pdf');
+        expect(() => buildExpensePublishedKey('paris-18', '')).toThrow(R2Error);
+        expect(() => buildExpensePublishedKey('', 'rep-1')).toThrow(R2Error);
     });
 });

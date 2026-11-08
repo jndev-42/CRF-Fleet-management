@@ -17,7 +17,7 @@
  */
 
 import { db } from '@/lib/db';
-import { getObject, buildExpenseKey, newAttemptId } from '@/lib/r2';
+import { getObject, buildExpenseKey, buildExpensePublishedKey, expenseUlSegment, newAttemptId } from '@/lib/r2';
 import { sealPdf, decodeSignatureImage } from '@/lib/pdf/signature';
 import { countRevisions } from '@/lib/pdf/incremental';
 import { countPages } from '@/lib/pdf/verify';
@@ -50,6 +50,8 @@ export interface SealResult {
     buffer: Buffer;
     /** Clé R2 NEUVE où écrire ce buffer. */
     key: string;
+    /** Clé FIXE de la copie publiée (`ndf/{UL}/{id}.pdf`), écrite après le commit. */
+    publishedKey: string;
     /** Entrée à ajouter au journal `signatureRevisions`. */
     revision: SignatureRevision;
     /**
@@ -124,9 +126,10 @@ function assertRevisionCount(pdf: Buffer, expected: number): void {
 
 async function loadReport(reportId: string) {
     const res = await db.execute({
-        sql: `SELECT id, ulId, items, r2Key, signatureRevisions, status, submittedAt, validatedAt,
-                     respoValidatedAt, paidAt
-              FROM "ExpenseReport" WHERE id = ?`,
+        sql: `SELECT er.id, er.ulId, er.items, er.r2Key, er.signatureRevisions, er.status, er.submittedAt,
+                     er.validatedAt, er.respoValidatedAt, er.paidAt, ul.slug AS ulSlug
+              FROM "ExpenseReport" er LEFT JOIN "UniteLocale" ul ON ul.id = er.ulId
+              WHERE er.id = ?`,
         args: [reportId],
     });
     if (!res.rows[0]) throw new SealingError('Note de frais non trouvée');
@@ -233,10 +236,12 @@ export async function sealStep1(
         docMdpLevel: 2,
     });
 
-    const key = buildExpenseKey(reportId, 1, newAttemptId());
+    const ulSegment = expenseUlSegment(row.ulSlug, String(row.ulId ?? ''));
+    const key = buildExpenseKey(ulSegment, reportId, 1, newAttemptId());
     return {
         buffer: sealed,
         key,
+        publishedKey: buildExpensePublishedKey(ulSegment, reportId),
         revision: {
             step: 1,
             signerId: signer.id,
@@ -297,10 +302,12 @@ export async function sealStep2(
         appearancePng: image,
     });
 
-    const key = buildExpenseKey(reportId, 2, newAttemptId());
+    const ulSegment = expenseUlSegment(row.ulSlug, String(row.ulId ?? ''));
+    const key = buildExpenseKey(ulSegment, reportId, 2, newAttemptId());
     return {
         buffer: sealed,
         key,
+        publishedKey: buildExpensePublishedKey(ulSegment, reportId),
         revision: {
             step: 2,
             signerId: signer.id,
@@ -441,10 +448,12 @@ export async function sealPresident(
         appearancePng: appearance,
     });
 
-    const key = buildExpenseKey(reportId, 4, newAttemptId());
+    const ulSegment = expenseUlSegment(row.ulSlug, String(row.ulId ?? ''));
+    const key = buildExpenseKey(ulSegment, reportId, 4, newAttemptId());
     return {
         buffer: sealed,
         key,
+        publishedKey: buildExpensePublishedKey(ulSegment, reportId),
         revision: {
             step: 4,
             signerId: signer.id,
@@ -479,10 +488,12 @@ export async function sealStep3(
         // Pas d'appearancePng : le champ est de surface nulle, rien n'est rendu.
     });
 
-    const key = buildExpenseKey(reportId, 3, newAttemptId());
+    const ulSegment = expenseUlSegment(row.ulSlug, String(row.ulId ?? ''));
+    const key = buildExpenseKey(ulSegment, reportId, 3, newAttemptId());
     return {
         buffer: sealed,
         key,
+        publishedKey: buildExpensePublishedKey(ulSegment, reportId),
         revision: {
             step: 3,
             signerId: signer.id,
