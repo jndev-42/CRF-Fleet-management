@@ -199,3 +199,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-images-r2-par-ul.md`
   summary: Balayer les préfixes R2 médias jamais rattachés (envoi abandonné, 400 après envoi, échec partiel d'un lot) au-delà d'un délai, par exemple dans le cron quotidien.
   evidence: les fichiers sont écrits avant l'enregistrement ; aucun chemin ne nettoie un préfixe non rattaché.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-r2-objets-par-ul.md`
+  summary: Inclure `expenses-staging/` dans ce balayage : justificatifs déposés puis refusés ou abandonnés (brouillon jamais soumis, clé non référencée).
+  evidence: le script de rangement ignore volontairement les objets non référencés ; aucun TTL sur le dépôt transitoire.

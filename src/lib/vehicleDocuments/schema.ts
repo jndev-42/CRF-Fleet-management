@@ -2,7 +2,8 @@
  * DDL des documents liés à un véhicule — partagé par la migration prod, la base de
  * dev et les tests d'intégration, pour que les trois ne divergent jamais.
  *
- * Une ligne par PDF, binaire dans R2 (préfixe `vehicle-guides/`, historique), jamais
+ * Une ligne par PDF, binaire dans R2 (`vehicle-documents/{UL}/{nom du véhicule}/…`,
+ * anciennement `vehicle-guides/{vehicleId}/…`), jamais
  * en base. `r2Key` est unique : la reprise des guides existants s'appuie dessus pour
  * rester idempotente.
  */

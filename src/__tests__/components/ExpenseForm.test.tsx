@@ -214,6 +214,84 @@ describe('ExpenseForm', () => {
         expect(body.receiptKeys).toEqual(['expenses-staging/staging-1/ticket.jpg']);
     });
 
+    it('brouillon repris : le dépôt transmet l\'id de la note (rangement sous son UL)', async () => {
+        const fetchMock = mockFetch(async (input) => {
+            if (getUrl(input) === '/api/expenses/upload') {
+                return new Response(JSON.stringify({ success: true, stagingId: 's', keys: ['expenses-staging/ul/s/new.jpg'] }), { status: 200 });
+            }
+            return new Response(JSON.stringify({ success: true }), { status: 200 });
+        });
+        const { container } = await renderForm({
+            initialData: {
+                id: 'expense-42', missionName: 'Maraude Nord', missionDate: '2026-03-12', requestRefund: true,
+                noReceiptDeclaration: false, pendingReceiptKeys: [], items: [{ label: 'Péage', amount: 20, budgetId: 'b-repas' }],
+            },
+        });
+
+        const fileInput = container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+        fireEvent.change(fileInput, { target: { files: [new File(['x'], 'ticket.jpg', { type: 'image/jpeg' })] } });
+        await screen.findByAltText('Aperçu');
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+
+        await vi.waitFor(() => expect(fetchMock.mock.calls.some(c => (c[1] as RequestInit)?.method === 'PATCH')).toBe(true));
+        const uploadCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/expenses/upload');
+        expect(((uploadCall![1] as RequestInit).body as FormData).get('reportId')).toBe('expense-42');
+    });
+
+    it('justificatifs refusés (400) : retirés de l\'état, non renvoyés au nouvel essai', async () => {
+        let patchCount = 0;
+        const fetchMock = mockFetch(async (_input, init) => {
+            if (init?.method === 'PATCH' && patchCount++ === 0) {
+                return new Response(JSON.stringify({ error: 'Certains justificatifs ne sont plus valides', rejectedReceiptKeys: ['expenses-staging/s1/refuse.jpg'] }), { status: 400 });
+            }
+            return new Response(JSON.stringify({ success: true }), { status: 200 });
+        });
+        await renderForm({
+            initialData: {
+                id: 'expense-1', missionName: 'Maraude Nord', missionDate: '2026-03-12', requestRefund: true,
+                noReceiptDeclaration: false,
+                pendingReceiptKeys: ['expenses-staging/s1/garde.jpg', 'expenses-staging/s1/refuse.jpg'],
+                items: [{ label: 'Péage', amount: 20, budgetId: 'b-repas' }],
+            },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+        expect(await screen.findByText(/Certains justificatifs ne sont plus valides/)).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+        await vi.waitFor(() => expect(patchCount).toBe(2));
+        const patches = fetchMock.mock.calls.filter(c => (c[1] as RequestInit)?.method === 'PATCH');
+        expect(JSON.parse((patches[1][1] as RequestInit).body as string).receiptKeys).toEqual(['expenses-staging/s1/garde.jpg']);
+    });
+
+    it('nouvelle note : justificatifs refusés (400) retirés de l\'état, non renvoyés au nouvel essai', async () => {
+        let postCount = 0;
+        const fetchMock = mockFetch(async (input, init) => {
+            const url = getUrl(input);
+            if (url === '/api/expenses/upload') {
+                return new Response(JSON.stringify({ success: true, stagingId: 's', keys: ['expenses-staging/ul/s/garde.jpg', 'expenses-staging/ul/s/refuse.jpg'] }), { status: 200 });
+            }
+            if (url === '/api/expenses' && init?.method === 'POST' && postCount++ === 0) {
+                return new Response(JSON.stringify({ error: '1 justificatif a été refusé : ajoutez-le de nouveau puis réessayez.', rejectedReceiptKeys: ['expenses-staging/ul/s/refuse.jpg'] }), { status: 400 });
+            }
+            return new Response(JSON.stringify({ id: 'expense-1' }), { status: 200 });
+        });
+        const { container } = await renderForm();
+
+        fillMission();
+        fillItem();
+        const fileInput = container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+        fireEvent.change(fileInput, { target: { files: [new File(['x'], 'ticket.jpg', { type: 'image/jpeg' })] } });
+        await screen.findByAltText('Aperçu');
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+        expect(await screen.findByText(/1 justificatif a été refusé/)).toBeTruthy();
+
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer Brouillon/ }));
+        await vi.waitFor(() => expect(postCount).toBe(2));
+        const posts = fetchMock.mock.calls.filter(c => getUrl(c[0]) === '/api/expenses' && (c[1] as RequestInit)?.method === 'POST');
+        expect(JSON.parse((posts[1][1] as RequestInit).body as string).receiptKeys).toEqual(['expenses-staging/ul/s/garde.jpg']);
+    });
+
     it('affiche une erreur si le dépôt des justificatifs échoue (413)', async () => {
         mockFetch(async (input) => {
             const url = getUrl(input);

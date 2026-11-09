@@ -150,8 +150,8 @@ describe('buildExpenseStagingKey', () => {
 
     it('produit une clé sous le préfixe de dépôt transitoire', async () => {
         const { buildExpenseStagingKey } = await import('@/lib/r2');
-        const key = buildExpenseStagingKey('staging-1', 'facture.pdf');
-        expect(key).toMatch(/^expenses-staging\/staging-1\/[0-9a-f-]{36}-facture\.pdf$/);
+        const key = buildExpenseStagingKey('paris-18', '0f8fad5b-d9cb-469f-a165-70867728950e', 'facture.pdf');
+        expect(key).toMatch(/^expenses-staging\/paris-18\/0f8fad5b-d9cb-469f-a165-70867728950e\/[0-9a-f-]{36}-facture\.pdf$/);
     });
 
     it('assainit un nom de fichier hostile', async () => {
@@ -159,22 +159,22 @@ describe('buildExpenseStagingKey', () => {
         // n'y a aucune sémantique de traversée. Ce qui compte est l'absence de
         // séparateurs et d'espaces, qui casseraient l'URL signée.
         const { buildExpenseStagingKey } = await import('@/lib/r2');
-        const key = buildExpenseStagingKey('staging-1', '../../etc/passwd; rm -rf');
+        const key = buildExpenseStagingKey('paris-18', '0f8fad5b-d9cb-469f-a165-70867728950e', '../../etc/passwd; rm -rf');
         expect(key).not.toContain(' ');
         expect(key).not.toContain(';');
-        // Un seul « / » avant le nom assaini (staging-1/), aucun introduit par le nom lui-même.
-        expect(key.split('/')).toHaveLength(3);
+        // UL/stagingId/ avant le nom assaini, aucun « / » introduit par le nom lui-même.
+        expect(key.split('/')).toHaveLength(4);
     });
 
     it('refuse un stagingId vide', async () => {
         const { buildExpenseStagingKey, R2Error } = await import('@/lib/r2');
-        expect(() => buildExpenseStagingKey('', 'x.jpg')).toThrow(R2Error);
+        expect(() => buildExpenseStagingKey('paris-18', '', 'x.jpg')).toThrow(R2Error);
     });
 
     it('deux appels produisent des clés distinctes — pas de collision entre justificatifs', async () => {
         const { buildExpenseStagingKey } = await import('@/lib/r2');
-        const a = buildExpenseStagingKey('staging-1', 'photo.jpg');
-        const b = buildExpenseStagingKey('staging-1', 'photo.jpg');
+        const a = buildExpenseStagingKey('paris-18', '0f8fad5b-d9cb-469f-a165-70867728950e', 'photo.jpg');
+        const b = buildExpenseStagingKey('paris-18', '0f8fad5b-d9cb-469f-a165-70867728950e', 'photo.jpg');
         expect(a).not.toBe(b);
     });
 });

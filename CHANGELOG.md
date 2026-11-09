@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.49.0] — 9 novembre 2026
+
+### 🔒 Sécurité
+
+- Une note de frais n'accepte plus que les justificatifs que vous avez vous-même déposés pour cette note : un justificatif déposé par quelqu'un d'autre, ou provenant d'une autre unité locale, est refusé sans être ni lu ni supprimé. Les justificatifs déjà enregistrés dans un brouillon sont vérifiés de la même façon.
+
+### 🔧 Modifications
+
+- Lorsqu'un justificatif est refusé, le message indique combien l'ont été : il suffit de les ajouter de nouveau puis de réessayer.
+- Vos brouillons existants restent modifiables et soumettables, y compris lorsque vous modifiez un brouillon d'une autre unité locale que celle où vous êtes connecté.
+- La photo et les documents d'un véhicule ne peuvent plus être déposés tant que ce véhicule n'est rattaché à aucune unité locale.
+
 ## [5.48.0] — 8 novembre 2026
 
 ### ✨ Nouveautés

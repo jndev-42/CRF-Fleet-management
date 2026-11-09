@@ -210,6 +210,16 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
         executeSave('soumis', sigData, funcTitle);
     };
 
+    /**
+     * Justificatifs refusés par le serveur (400) : retirés de l'état, sinon ils
+     * seraient renvoyés à chaque essai et l'utilisateur ne pourrait pas redéposer.
+     */
+    const dropRejectedReceiptKeys = (errData: { rejectedReceiptKeys?: unknown }) => {
+        const rejected = errData.rejectedReceiptKeys;
+        if (!Array.isArray(rejected) || rejected.length === 0) return;
+        setReceiptKeys(prev => prev.filter(key => !rejected.includes(key)));
+    };
+
     const executeSave = async (
         submitStatus: 'brouillon' | 'soumis',
         sigData: SignatureData | null,
@@ -227,6 +237,8 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
                 photos.forEach(file => {
                     fd.append('files', file);
                 });
+                // Note existante : ses justificatifs sont rangés sous SON UL, pas l'UL active.
+                if (initialData) fd.append('reportId', initialData.id);
 
                 const uploadRes = await fetch('/api/expenses/upload', {
                     method: 'POST',
@@ -275,6 +287,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
 
                 if (!response.ok) {
                     const errData = await response.json();
+                    dropRejectedReceiptKeys(errData);
                     throw new Error(errData.error || 'Erreur lors de la mise à jour de la note de frais.');
                 }
             } else {
@@ -304,6 +317,7 @@ export default function ExpenseForm({ onClose, onSuccess, initialData }: Expense
 
                 if (!response.ok) {
                     const errData = await response.json();
+                    dropRejectedReceiptKeys(errData);
                     throw new Error(errData.error || 'Erreur lors de la création de la note de frais.');
                 }
             }

@@ -66,15 +66,15 @@ describe('omitVehicleR2Keys', () => {
 });
 
 describe('buildVehiclePhotoKey', () => {
-    it('construit une clé versionnée sous vehicle-photos/', () => {
-        expect(buildVehiclePhotoKey('veh-182', 'ab12cd34')).toBe('vehicle-photos/veh-182/ab12cd34.jpg');
+    it('construit une clé versionnée sous vehicle-photos/<UL>/<nom du véhicule>/', () => {
+        expect(buildVehiclePhotoKey('paris-18', 'VPSP 182', 'ab12cd34')).toBe('vehicle-photos/paris-18/vpsp-182/ab12cd34.jpg');
     });
 
     it('neutralise les caractères de chemin', () => {
-        expect(buildVehiclePhotoKey('../x', 'a/b')).toBe('vehicle-photos/___x/ab.jpg');
+        expect(buildVehiclePhotoKey('paris-18', '../x', 'a/b')).toBe('vehicle-photos/paris-18/x/ab.jpg');
     });
 
-    it('exige un identifiant de véhicule', () => {
-        expect(() => buildVehiclePhotoKey('', 'a')).toThrow();
+    it('exige un segment UL', () => {
+        expect(() => buildVehiclePhotoKey('', 'VPSP 182', 'a')).toThrow();
     });
 });

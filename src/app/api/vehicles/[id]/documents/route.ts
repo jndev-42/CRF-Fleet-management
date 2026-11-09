@@ -9,7 +9,8 @@
  *
  * ⚠️ `[id]` est le NOM du véhicule, comme pour `/api/vehicles/[id]`.
  *
- * Le binaire vit dans R2 (préfixe `vehicle-guides/`), jamais en base. Ordre
+ * Le binaire vit dans R2 (`vehicle-documents/{UL}/{nom du véhicule}/…`, ancien
+ * préfixe `vehicle-guides/` avant rangement), jamais en base. Ordre
  * d'écriture : R2 puis base ; en cas d'échec base, l'objet est nettoyé.
  */
 
@@ -48,7 +49,7 @@ async function postHandler(
 
         const { id } = await params;
         const vehicleRes = await db.execute({
-            sql: `SELECT id, ulId FROM Vehicle WHERE name = ?`,
+            sql: `SELECT id, name, ulId FROM Vehicle WHERE name = ?`,
             args: [id],
         });
         const vehicle = vehicleRes.rows[0];
@@ -57,6 +58,12 @@ async function postHandler(
         }
         if (isOutsideUl(session.user.roles || [], session.user.ulId, vehicle.ulId)) {
             return forbiddenResponse();
+        }
+
+        // Sans UL, l'objet ne pourrait être rangé sous aucun dossier d'UL (le script de
+        // rangement saute aussi ces véhicules).
+        if (!vehicle.ulId || vehicle.ulId === 'default') {
+            return NextResponse.json({ error: "Ce véhicule n'est rattaché à aucune unité locale : dépôt de document impossible." }, { status: 400 });
         }
 
         let formData: FormData;
@@ -87,7 +94,9 @@ async function postHandler(
 
         const vehicleId = vehicle.id as string;
         const documentId = crypto.randomUUID();
-        const key = buildVehicleGuideKey(vehicleId, newAttemptId());
+        const { ulSegmentOf } = await import('@/lib/media/server');
+        const ulSegment = await ulSegmentOf(String(vehicle.ulId ?? ''));
+        const key = buildVehicleGuideKey(ulSegment, vehicle.name, newAttemptId());
         const fileName = sanitizeGuideFileName(file.name);
         const createdAt = new Date().toISOString();
 

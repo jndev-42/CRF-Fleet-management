@@ -16,6 +16,9 @@ vi.mock('@/lib/r2', async () => ({
             buildLegacyExpensePublishedKey: actual.buildLegacyExpensePublishedKey,
             expensePublishedFolder: actual.expensePublishedFolder,
             isExpensePublishedKeyOf: actual.isExpensePublishedKeyOf,
+            // Clés de justificatifs : vraies fonctions pures.
+            parseExpenseStagingKey: actual.parseExpenseStagingKey,
+            buildExpenseStagingKey: actual.buildExpenseStagingKey,
         };
     })()),
     putObject: vi.fn(async () => undefined),
@@ -25,7 +28,6 @@ vi.mock('@/lib/r2', async () => ({
     listObjects: vi.fn(async () => [] as string[]),
     expenseUlSegment: (slug: unknown, ulId: string) => (typeof slug === 'string' && slug) || ulId,
     buildExpenseKey: (seg: string, id: string, rev: number, att: string) => `ndf-revisions/${seg}/${id}-v${rev}-${att}.pdf`,
-    buildExpenseStagingKey: (stagingId: string, name: string) => `expenses-staging/${stagingId}/${name}`,
     newAttemptId: () => 'testatt',
     R2Error: class R2Error extends Error {},
     R2ConfigError: class R2ConfigError extends Error {},
@@ -76,9 +78,19 @@ const SIG = { mode: 'draw', image: 'data:image/png;base64,iVBORw0KGgo=', name: '
 import { auth } from '@/auth';
 import { GET as getList, POST as createReport } from '@/app/api/expenses/route';
 import { GET as getReport, PATCH as updateReport, DELETE as deleteReport } from '@/app/api/expenses/[id]/route';
+import { POST as uploadReceipts } from '@/app/api/expenses/upload/route';
+import { issueStagingId, isStagingIdSignedFor } from '@/lib/expenses/receipt-keys';
 import { seedRoles, seedUser, seedUserRole, seedExpenseBudget, seedExpenseBudgetFixtures, EXPENSE_BUDGET_FIXTURES, db } from './setup';
 
 const mockedAuth = vi.mocked(auth);
+
+// Les identifiants de dépôt sont signés avec AUTH_SECRET (lu à l'appel).
+process.env.AUTH_SECRET ||= 'secret-de-test-expenses';
+const SID_STD = issueStagingId('user-standard');
+const SID_PRES = issueStagingId('user-president');
+const SID_OTHER = issueStagingId('user-other');
+/** Clé de dépôt nouvelle forme, telle que `POST /api/expenses/upload` la produit. */
+const stagedKey = (sid: string, name: string, ul = 'ul-paris-18') => `expenses-staging/${ul}/${sid}/${name}`;
 
 /** Budget actif de référence de `ul-paris-18` — chaque ligne de dépense doit en porter un. */
 const BUDGET_18 = EXPENSE_BUDGET_FIXTURES['ul-paris-18'];
@@ -530,12 +542,12 @@ describe('Expense Report integration tests', () => {
             await db.execute({
                 sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, pendingReceiptKeys)
                       VALUES ('exp-recus', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0, '[]', 'ul-paris-18', ?)`,
-                args: [JSON.stringify(['expenses-staging/s1/a.jpg'])],
+                args: [JSON.stringify([stagedKey(SID_STD, 'a.jpg')])],
             });
             const res = await getReport(new Request('http://localhost/api/expenses/exp-recus'), { params: Promise.resolve({ id: 'exp-recus' }) });
             expect(res.status).toBe(200);
             const body = await res.json();
-            expect(body.pendingReceiptKeys).toEqual(['expenses-staging/s1/a.jpg']);
+            expect(body.pendingReceiptKeys).toEqual([stagedKey(SID_STD, 'a.jpg')]);
         });
 
         it('retombe sur un tableau vide si le journal de justificatifs est corrompu', async () => {
@@ -687,7 +699,7 @@ describe('Expense Report integration tests', () => {
                 status: 'brouillon',
                 missionName: 'Maraude Nord',
                 missionDate: '2026-03-12',
-                receiptKeys: ['expenses-staging/s1/a.jpg', 'expenses-staging/s1/b.pdf'],
+                receiptKeys: [stagedKey(SID_STD, 'a.jpg'), stagedKey(SID_STD, 'b.pdf')],
                 items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
             });
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
@@ -697,14 +709,14 @@ describe('Expense Report integration tests', () => {
                 sql: 'SELECT pendingReceiptKeys FROM "ExpenseReport" WHERE id = ?', args: ['exp-draft'],
             })).rows[0];
             expect(JSON.parse(row.pendingReceiptKeys as string)).toEqual([
-                'expenses-staging/s1/a.jpg', 'expenses-staging/s1/b.pdf',
+                stagedKey(SID_STD, 'a.jpg'), stagedKey(SID_STD, 'b.pdf'),
             ]);
         });
 
         it('intègre les justificatifs au scellement puis nettoie le dépôt transitoire', async () => {
             await db.execute({
                 sql: `UPDATE "ExpenseReport" SET pendingReceiptKeys = ? WHERE id = 'exp-draft'`,
-                args: [JSON.stringify(['expenses-staging/s1/a.jpg'])],
+                args: [JSON.stringify([stagedKey(SID_STD, 'a.jpg')])],
             });
 
             const { sealStep1, resolvePendingReceipts } = await import('@/lib/expenses/sealing');
@@ -720,12 +732,12 @@ describe('Expense Report integration tests', () => {
             const res = await updateReport(req, { params: Promise.resolve({ id: 'exp-draft' }) });
             expect(res.status).toBe(200);
 
-            expect(vi.mocked(resolvePendingReceipts)).toHaveBeenCalledWith(['expenses-staging/s1/a.jpg']);
+            expect(vi.mocked(resolvePendingReceipts)).toHaveBeenCalledWith([stagedKey(SID_STD, 'a.jpg')]);
             expect(vi.mocked(sealStep1)).toHaveBeenCalledWith(
                 'exp-draft', expect.anything(), expect.any(Date),
                 [{ buffer: expect.anything(), mime: 'image/jpeg' }]
             );
-            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('expenses-staging/s1/a.jpg');
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith(stagedKey(SID_STD, 'a.jpg'));
 
             const row = (await db.execute({
                 sql: 'SELECT pendingReceiptKeys FROM "ExpenseReport" WHERE id = ?', args: ['exp-draft'],
@@ -863,14 +875,14 @@ describe('Expense Report integration tests', () => {
                 body: JSON.stringify({
                     status: 'soumis', missionName: 'M', missionDate: '2026-08-20',
                     requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
-                    receiptKeys: ['expenses-staging/s1/ticket.jpg', 'expenses-staging/s1/facture.pdf'],
+                    receiptKeys: [stagedKey(SID_PRES, 'ticket.jpg'), stagedKey(SID_PRES, 'facture.pdf')],
                     items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }],
                 }),
             });
             const { id } = await (await createReport(req)).json();
 
             expect(vi.mocked(resolvePendingReceipts)).toHaveBeenCalledWith([
-                'expenses-staging/s1/ticket.jpg', 'expenses-staging/s1/facture.pdf',
+                stagedKey(SID_PRES, 'ticket.jpg'), stagedKey(SID_PRES, 'facture.pdf'),
             ]);
             expect(vi.mocked(sealStep1)).toHaveBeenCalledWith(
                 id, expect.anything(), expect.any(Date),
@@ -879,8 +891,8 @@ describe('Expense Report integration tests', () => {
                     { buffer: expect.anything(), mime: 'application/pdf' },
                 ]
             );
-            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('expenses-staging/s1/ticket.jpg');
-            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('expenses-staging/s1/facture.pdf');
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith(stagedKey(SID_PRES, 'ticket.jpg'));
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith(stagedKey(SID_PRES, 'facture.pdf'));
 
             const row = (await db.execute({
                 sql: 'SELECT pendingReceiptKeys FROM "ExpenseReport" WHERE id = ?', args: [id],
@@ -1566,6 +1578,211 @@ describe('Expense Report integration tests', () => {
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', email: 'president@test.com', roles: ['SUPER_ADMIN', 'PRESIDENT'], ulId: 'ul-paris-18' } } as never);
             const res = await createReport(makePostRequest(body));
             expect(res.status).toBe(201);
+        });
+    });
+
+    describe('Clés de justificatifs (receiptKeys)', () => {
+        const OWN = stagedKey(SID_STD, 'ticket.jpg');
+        const LEGACY = 'expenses-staging/0f8fad5b-d9cb-469f-a165-70867728950e/ancien.jpg';
+        const LEGACY_NON_UUID = 'expenses-staging/s1/ancien.jpg';
+        const STANDARD = { user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } };
+        /** Clés refusées pour toute note de `user-standard` dans `ul-paris-18`, stockées ou non. */
+        const FORGED = [
+            'ndf-revisions/ul-paris-18/rep-1-v1-abc.pdf',
+            'referentiels/guide.pdf',
+            `expenses-staging/ul-paris-18/${SID_STD}/../../ndf/x.pdf`,
+        ];
+        /** Clés de dépôt bien formées, mais d'une autre UL, d'un autre déposant ou non signées. */
+        const FOREIGN = [
+            stagedKey(SID_STD, 'autre-ul.jpg', 'ul-paris-17'),
+            stagedKey(SID_OTHER, 'autre-utilisateur.jpg'),
+            'expenses-staging/ul-paris-18/0f8fad5b-d9cb-469f-a165-70867728950e/non-signe.jpg',
+            LEGACY,
+        ];
+        const draft = (receiptKeys?: string[], action: 'update' | 'submit' = 'update') => makePatchRequest({
+            action, status: 'brouillon', missionName: 'M', missionDate: '2026-03-12',
+            ...(receiptKeys ? { receiptKeys } : {}),
+            ...(action === 'submit' ? { userSignature: SIG } : {}),
+            items: [{ label: 'Repas', amount: 20, budgetId: BUDGET_18 }],
+        });
+        const storedKeys = async () => JSON.parse(String((await db.execute({
+            sql: 'SELECT pendingReceiptKeys FROM "ExpenseReport" WHERE id = ?', args: ['exp-keys'],
+        })).rows[0].pendingReceiptKeys));
+        const seedDraft = (keys: string[], ulId = 'ul-paris-18') => db.execute({
+            sql: `INSERT OR REPLACE INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund, pendingReceiptKeys)
+                  VALUES ('exp-keys', 'user-standard', '2026-07-19T10:00:00Z', 'brouillon', 'DLUS', 20.0, '[]', ?, 1, ?)`,
+            args: [ulId, JSON.stringify(keys)],
+        });
+
+        async function clearR2Spies() {
+            const { resolvePendingReceipts, sealStep1 } = await import('@/lib/expenses/sealing');
+            const { deleteObject, getObject, putObject } = await import('@/lib/r2');
+            for (const fn of [resolvePendingReceipts, sealStep1, deleteObject, getObject, putObject]) vi.mocked(fn).mockClear();
+            return { resolvePendingReceipts, sealStep1, deleteObject, getObject, putObject };
+        }
+
+        beforeEach(async () => {
+            await seedDraft([OWN]);
+            mockedAuth.mockResolvedValue(STANDARD as never);
+        });
+
+        it.each([...FORGED, ...FOREIGN])('POST : 400 pour %s, rien lu ni supprimé ni créé', async (key) => {
+            const spies = await clearR2Spies();
+            const before = (await db.execute('SELECT COUNT(*) AS n FROM "ExpenseReport"')).rows[0].n;
+            const res = await createReport(makePostRequest({
+                status: 'soumis', requestRefund: true, noReceiptDeclaration: false, userSignature: SIG,
+                receiptKeys: [OWN, key], items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }],
+            }));
+            expect(res.status).toBe(400);
+            expect((await res.json()).rejectedReceiptKeys).toEqual([key]);
+            expect(spies.resolvePendingReceipts).not.toHaveBeenCalled();
+            expect(spies.getObject).not.toHaveBeenCalled();
+            expect(spies.deleteObject).not.toHaveBeenCalled();
+            expect((await db.execute('SELECT COUNT(*) AS n FROM "ExpenseReport"')).rows[0].n).toBe(before);
+        });
+
+        it("POST : accepte une clé déposée par l'utilisateur pour l'UL de la note", async () => {
+            const res = await createReport(makePostRequest({
+                status: 'brouillon', requestRefund: true, noReceiptDeclaration: false,
+                receiptKeys: [OWN], items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }],
+            }));
+            expect(res.status).toBe(201);
+        });
+
+        it.each([...FORGED, ...FOREIGN])('PATCH : 400 pour %s (non stockée), brouillon inchangé, rien supprimé', async (key) => {
+            const spies = await clearR2Spies();
+            const res = await updateReport(draft([OWN, key], 'submit'), { params: Promise.resolve({ id: 'exp-keys' }) });
+            expect(res.status).toBe(400);
+            expect((await res.json()).rejectedReceiptKeys).toEqual([key]);
+            expect(spies.resolvePendingReceipts).not.toHaveBeenCalled();
+            expect(spies.deleteObject).not.toHaveBeenCalled();
+            expect(await storedKeys()).toEqual([OWN]);
+        });
+
+        it.each([LEGACY, LEGACY_NON_UUID])('PATCH : une ancienne clé déjà stockée dans CETTE note reste acceptée (%s)', async (legacy) => {
+            await seedDraft([OWN, legacy]);
+            const res = await updateReport(draft([OWN, legacy]), { params: Promise.resolve({ id: 'exp-keys' }) });
+            expect(res.status).toBe(200);
+            expect(await storedKeys()).toEqual([OWN, legacy]);
+        });
+
+        it.each(FORGED)('PATCH sans receiptKeys : clé stockée forgée → 400, ni lue, ni scellée, ni supprimée (%s)', async (key) => {
+            await seedDraft([OWN, key]);
+            const spies = await clearR2Spies();
+            const res = await updateReport(draft(undefined, 'submit'), { params: Promise.resolve({ id: 'exp-keys' }) });
+            expect(res.status).toBe(400);
+            expect((await res.json()).rejectedReceiptKeys).toEqual([key]);
+            expect(spies.resolvePendingReceipts).not.toHaveBeenCalled();
+            expect(spies.sealStep1).not.toHaveBeenCalled();
+            expect(spies.deleteObject).not.toHaveBeenCalled();
+            const row = (await db.execute({ sql: 'SELECT status FROM "ExpenseReport" WHERE id = ?', args: ['exp-keys'] })).rows[0];
+            expect(row.status).toBe('brouillon');
+        });
+
+        it('PATCH : formulaire ouvert avant le rangement — ancienne clé remplacée par la clé rangée stockée', async () => {
+            const relocated = 'expenses-staging/ul-paris-18/0f8fad5b-d9cb-469f-a165-70867728950e/ancien.jpg';
+            await seedDraft([OWN, relocated]);
+            const spies = await clearR2Spies();
+            const res = await updateReport(draft([OWN, LEGACY], 'submit'), { params: Promise.resolve({ id: 'exp-keys' }) });
+            expect(res.status).toBe(200);
+            // Lu et scellé sous sa clé rangée, jamais sous l'ancienne.
+            expect(spies.resolvePendingReceipts).toHaveBeenCalledWith([OWN, relocated]);
+            expect(spies.deleteObject).not.toHaveBeenCalledWith(LEGACY);
+        });
+
+        it('POST et PATCH : le message indique le nombre de justificatifs refusés', async () => {
+            const res = await updateReport(draft([OWN, ...FORGED]), { params: Promise.resolve({ id: 'exp-keys' }) });
+            expect(res.status).toBe(400);
+            expect((await res.json()).error).toBe(`${FORGED.length} justificatifs ont été refusés : ajoutez-les de nouveau puis réessayez.`);
+        });
+
+        it("PATCH : la clé est jugée sur l'UL de la note, pas sur celle de la session", async () => {
+            mockedAuth.mockResolvedValue({ user: { ...STANDARD.user, ulId: 'ul-paris-17' } } as never);
+            const own17 = stagedKey(SID_STD, 'x.jpg', 'ul-paris-17');
+            expect((await updateReport(draft([own17]), { params: Promise.resolve({ id: 'exp-keys' }) })).status).toBe(400);
+            expect((await updateReport(draft([OWN]), { params: Promise.resolve({ id: 'exp-keys' }) })).status).toBe(200);
+        });
+    });
+
+    describe('POST /api/expenses/upload — UL de la note et identifiant de dépôt signé', () => {
+        const STANDARD = { user: { id: 'user-standard', email: 'secouriste@test.com', roles: ['SECOURISTE'], ulId: 'ul-paris-18' } };
+        const uploadPdf = (fields: Record<string, string> = {}) => {
+            const fd = new FormData();
+            fd.append('files', new File([new Uint8Array(Buffer.from('%PDF-1.7 ticket'))], 'facture.pdf', { type: 'application/pdf' }));
+            for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+            // Environnement jsdom : le FormData de jsdom ne passe pas par le corps d'un
+            // Request (undici) ; le formulaire est servi tel quel.
+            const req = new Request('http://localhost/api/expenses/upload', { method: 'POST' });
+            Object.defineProperty(req, 'formData', { value: async () => fd });
+            return uploadReceipts(req);
+        };
+        const seedDraft = (id: string, userId: string, ulId: string, status = 'brouillon') => db.execute({
+            sql: `INSERT OR REPLACE INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund)
+                  VALUES (?, ?, '2026-07-19T10:00:00Z', ?, 'DLUS', 20.0, '[]', ?, 1)`,
+            args: [id, userId, status, ulId],
+        });
+
+        beforeEach(() => mockedAuth.mockResolvedValue(STANDARD as never));
+
+        it('401 sans session', async () => {
+            mockedAuth.mockResolvedValue(null as never);
+            expect((await uploadPdf()).status).toBe(401);
+        });
+
+        it("404 pour une note inconnue, 403 pour la note d'autrui ou une note soumise — rien n'est écrit", async () => {
+            const { putObject } = await import('@/lib/r2');
+            vi.mocked(putObject).mockClear();
+            await seedDraft('exp-autrui', 'user-other', 'ul-paris-18');
+            await seedDraft('exp-soumise', 'user-standard', 'ul-paris-18', 'soumis');
+            expect((await uploadPdf({ reportId: 'inconnue' })).status).toBe(404);
+            expect((await uploadPdf({ reportId: 'exp-autrui' })).status).toBe(403);
+            expect((await uploadPdf({ reportId: 'exp-soumise' })).status).toBe(403);
+            expect(vi.mocked(putObject)).not.toHaveBeenCalled();
+        });
+
+        it('ignore un stagingId client non signé pour le déposant', async () => {
+            const res = await uploadPdf({ stagingId: SID_OTHER });
+            const data = await res.json();
+            expect(res.status).toBe(200);
+            expect(data.stagingId).not.toBe(SID_OTHER);
+            expect(isStagingIdSignedFor(data.stagingId, 'user-standard')).toBe(true);
+            // Un identifiant signé pour lui est repris.
+            const again = await (await uploadPdf({ stagingId: data.stagingId })).json();
+            expect(again.stagingId).toBe(data.stagingId);
+        });
+
+        it('slug ≠ id, de bout en bout : dépôt sous le slug de la NOTE puis PATCH et POST acceptés', async () => {
+            await db.execute(`UPDATE "UniteLocale" SET slug = 'paris-xvii' WHERE id = 'ul-paris-17'`);
+            await db.execute(`UPDATE "UniteLocale" SET slug = 'paris-xviii' WHERE id = 'ul-paris-18'`);
+            try {
+                // Brouillon de l'UL 17 édité depuis l'UL active 18 : rangé sous l'UL de la note.
+                await seedDraft('exp-17', 'user-standard', 'ul-paris-17');
+                const up = await (await uploadPdf({ reportId: 'exp-17' })).json();
+                expect(up.keys[0]).toMatch(new RegExp(`^expenses-staging/paris-xvii/${up.stagingId}/[0-9a-f-]{36}-facture\\.pdf$`));
+                const patch = await updateReport(makePatchRequest({
+                    action: 'update', status: 'brouillon', missionName: 'M', missionDate: '2026-03-12', receiptKeys: up.keys,
+                }), { params: Promise.resolve({ id: 'exp-17' }) });
+                expect(patch.status).toBe(200);
+
+                // Nouvelle note : UL active de la session.
+                const fresh = await (await uploadPdf()).json();
+                expect(fresh.keys[0].startsWith(`expenses-staging/paris-xviii/${fresh.stagingId}/`)).toBe(true);
+                const post = await createReport(makePostRequest({
+                    status: 'brouillon', requestRefund: true, noReceiptDeclaration: false,
+                    receiptKeys: fresh.keys, items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }],
+                }));
+                expect(post.status).toBe(201);
+
+                // La clé de l'UL 17 n'est pas acceptée pour une note de l'UL 18.
+                const cross = await createReport(makePostRequest({
+                    status: 'brouillon', requestRefund: true, noReceiptDeclaration: false,
+                    receiptKeys: up.keys, items: [{ label: 'Péage', amount: 10, budgetId: BUDGET_18 }],
+                }));
+                expect(cross.status).toBe(400);
+            } finally {
+                await db.execute(`UPDATE "UniteLocale" SET slug = 'ul-paris-17' WHERE id = 'ul-paris-17'`);
+                await db.execute(`UPDATE "UniteLocale" SET slug = 'ul-paris-18' WHERE id = 'ul-paris-18'`);
+            }
         });
     });
 });

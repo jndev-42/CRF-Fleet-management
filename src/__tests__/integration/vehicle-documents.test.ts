@@ -26,14 +26,20 @@ vi.mock('@/lib/vehicleStatusRecalc', () => ({
 // Le stockage en mémoire permet de vérifier ce qui est écrit, lu et supprimé.
 const bucket = new Map<string, Buffer>();
 let attemptCounter = 0;
-vi.mock('@/lib/r2', () => ({
+vi.mock('@/lib/r2', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/r2')>('@/lib/r2');
+    return {
     putObject: vi.fn(async (key: string, body: Buffer) => { bucket.set(key, body); }),
     getObject: vi.fn(async (key: string) => bucket.get(key) ?? null),
     deleteObject: vi.fn(async (key: string) => { bucket.delete(key); }),
-    buildVehicleGuideKey: (vehicleId: string, attempt: string) => `vehicle-guides/${vehicleId}/${attempt}.pdf`,
+    // Constructeurs de clés : vraies fonctions pures (rangement par UL et par nom de véhicule).
+    expenseUlSegment: actual.expenseUlSegment,
+    buildVehiclePhotoKey: actual.buildVehiclePhotoKey,
+    buildVehicleGuideKey: actual.buildVehicleGuideKey,
     newAttemptId: () => `att${++attemptCounter}`,
     R2Error: class R2Error extends Error {},
-}));
+    };
+});
 
 import { auth } from '@/auth';
 import { deleteObject, putObject } from '@/lib/r2';
@@ -188,11 +194,11 @@ describe('POST /api/vehicles/[id]/documents', () => {
         const rows = await documentRows();
         expect(rows).toHaveLength(1);
         expect(rows[0].id).toBe(body.document.id);
-        expect(rows[0].r2Key).toBe('vehicle-guides/veh-182/att1.pdf');
+        expect(rows[0].r2Key).toBe('vehicle-documents/ul-paris-18/vpsp-182/att1.pdf');
         expect(rows[0].fileName).toBe('VPSP 182.pdf');
         expect(Number(rows[0].size)).toBe(PDF.length);
         expect(rows[0].createdAt).toBeTruthy();
-        expect(bucket.get('vehicle-guides/veh-182/att1.pdf')?.equals(PDF)).toBe(true);
+        expect(bucket.get('vehicle-documents/ul-paris-18/vpsp-182/att1.pdf')?.equals(PDF)).toBe(true);
     });
 
     it("trois dépôts successifs donnent trois documents, sans remplacer les précédents", async () => {
@@ -221,7 +227,7 @@ describe('POST /api/vehicles/[id]/documents', () => {
             const res = await postDocument(uploadRequest(PDF), params());
             expect(res.status).toBe(500);
             expect(bucket.size).toBe(0);
-            expect(deleteObject).toHaveBeenCalledWith('vehicle-guides/veh-182/att1.pdf');
+            expect(deleteObject).toHaveBeenCalledWith('vehicle-documents/ul-paris-18/vpsp-182/att1.pdf');
         } finally {
             await db.execute(`ALTER TABLE VehicleDocument_tmp RENAME TO VehicleDocument`);
             errorSpy.mockRestore();
@@ -355,7 +361,7 @@ describe('DELETE /api/vehicles/[id]/documents/[documentId]', () => {
         const rows = await documentRows();
         expect(rows.map(r => r.id)).toEqual([secondId]);
         expect(bucket.size).toBe(1);
-        expect(bucket.has('vehicle-guides/veh-182/att2.pdf')).toBe(true);
+        expect(bucket.has('vehicle-documents/ul-paris-18/vpsp-182/att2.pdf')).toBe(true);
     });
 
     it("un échec de suppression R2 est journalisé mais n'est pas une erreur", async () => {
@@ -373,7 +379,7 @@ describe('DELETE /api/vehicles/[id]/documents/[documentId]', () => {
     it("retrait d'un ancien guide repris — les colonnes guide* sont remises à NULL", async () => {
         await db.execute({
             sql: `UPDATE Vehicle SET guideR2Key = ?, guideFileName = 'un.pdf', guideSize = 10, guideUpdatedAt = 'x' WHERE id = 'veh-182'`,
-            args: ['vehicle-guides/veh-182/att1.pdf'],
+            args: ['vehicle-documents/ul-paris-18/vpsp-182/att1.pdf'],
         });
         asSession(ADMIN);
         const res = await deleteDocument(docRequest('', 'DELETE'), docParams(docId));
@@ -389,12 +395,12 @@ describe('DELETE /api/vehicles/[id]/documents/[documentId]', () => {
     it('retirer un autre document laisse les colonnes guide* intactes', async () => {
         await db.execute({
             sql: `UPDATE Vehicle SET guideR2Key = ?, guideFileName = 'un.pdf' WHERE id = 'veh-182'`,
-            args: ['vehicle-guides/veh-182/att1.pdf'],
+            args: ['vehicle-documents/ul-paris-18/vpsp-182/att1.pdf'],
         });
         asSession(ADMIN);
         await deleteDocument(docRequest('', 'DELETE'), docParams(secondId));
         const row = (await db.execute(`SELECT guideR2Key FROM Vehicle WHERE id = 'veh-182'`)).rows[0];
-        expect(row.guideR2Key).toBe('vehicle-guides/veh-182/att1.pdf');
+        expect(row.guideR2Key).toBe('vehicle-documents/ul-paris-18/vpsp-182/att1.pdf');
     });
 });
 
@@ -521,9 +527,9 @@ describe('DELETE /api/vehicles/[id] — nettoyage des documents', () => {
         expect(res.status).toBe(200);
         expect(bucket.size).toBe(0);
         expect(await documentRows()).toHaveLength(0);
-        expect(deleteObject).toHaveBeenCalledWith('vehicle-guides/veh-182/att1.pdf');
-        expect(deleteObject).toHaveBeenCalledWith('vehicle-guides/veh-182/att2.pdf');
-        expect(deleteObject).toHaveBeenCalledWith('vehicle-guides/veh-182/att3.pdf');
+        expect(deleteObject).toHaveBeenCalledWith('vehicle-documents/ul-paris-18/vpsp-182/att1.pdf');
+        expect(deleteObject).toHaveBeenCalledWith('vehicle-documents/ul-paris-18/vpsp-182/att2.pdf');
+        expect(deleteObject).toHaveBeenCalledWith('vehicle-documents/ul-paris-18/vpsp-182/att3.pdf');
     });
 
     it("ne touche pas aux documents d'un autre véhicule", async () => {
@@ -582,5 +588,37 @@ describe('DELETE /api/vehicles/[id] — nettoyage des documents', () => {
         const res = await deleteVehicle(deleteRequest(), params());
         expect(res.status).toBe(200);
         expect(deleteObject).not.toHaveBeenCalled();
+    });
+});
+
+describe('POST /api/vehicles/[id]/documents — rangement par UL', () => {
+    const SLUG_VEHICLE = 'VSAV 1';
+    const slugUpload = () => {
+        const formData = new FormData();
+        formData.append('file', new File([new Uint8Array(PDF)], 'Guide.pdf', { type: 'application/pdf' }));
+        return new Request(`http://localhost/api/vehicles/${encodeURIComponent(SLUG_VEHICLE)}/documents`, { method: 'POST', body: formData });
+    };
+
+    it("slug ≠ id : la clé porte le slug de l'UL et le nom assaini du véhicule ; supprimée avec le véhicule", async () => {
+        await db.execute(`INSERT OR REPLACE INTO "UniteLocale" (id, name, slug) VALUES ('ul-uuid-900', 'Paris XVIII', 'paris-xviii')`);
+        await seedVehicle({ id: 'veh-900', name: SLUG_VEHICLE, type: 'VSAV', qrToken: 'qr-900', ulId: 'ul-uuid-900' });
+        asSession(SUPER_ADMIN);
+        expect((await postDocument(slugUpload(), params(SLUG_VEHICLE))).status).toBe(201);
+        const [row] = await documentRows('veh-900');
+        expect(row.r2Key).toBe('vehicle-documents/paris-xviii/vsav-1/att1.pdf');
+        expect(bucket.has(row.r2Key as string)).toBe(true);
+
+        const res = await deleteVehicle(new Request('http://localhost/api/vehicles/x', { method: 'DELETE' }), params(SLUG_VEHICLE));
+        expect(res.status).toBe(200);
+        expect(bucket.has(row.r2Key as string)).toBe(false);
+    });
+
+    it.each([null, 'default'])("400 si le véhicule n'a pas d'UL (%s), rien n'est écrit", async (ulId) => {
+        await seedVehicle({ id: 'veh-901', name: SLUG_VEHICLE, type: 'VSAV', qrToken: 'qr-901', ulId });
+        asSession(SUPER_ADMIN);
+        const res = await postDocument(slugUpload(), params(SLUG_VEHICLE));
+        expect(res.status).toBe(400);
+        expect(putObject).not.toHaveBeenCalled();
+        expect(await documentRows('veh-901')).toHaveLength(0);
     });
 });
