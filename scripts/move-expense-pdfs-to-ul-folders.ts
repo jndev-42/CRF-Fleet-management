@@ -6,7 +6,7 @@
  * `signatureRevisions[].r2Key`, puis écrit la copie publiée
  * `ndf/{slug UL}/{demandeur}-{horodatage}-{id4}/note-de-frais.pdf` (celle que la
  * synchro Drive suit, `R2_PREFIX = ndf/` ; horodatage = `createdAt` de la note,
- * `id4` = 4 premiers caractères alphanumériques de son id).
+ * `id4` = 4 caractères hexadécimaux de l'empreinte SHA-256 de son id, `expenseIdSuffix`).
  *
  * À LANCER APRÈS le déploiement de la v5.47.0 (le code courant écrit déjà dans les
  * nouveaux dossiers ; ce script rattrape les notes existantes), et de nouveau

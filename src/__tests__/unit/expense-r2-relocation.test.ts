@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, it, expect, vi } from 'vitest';
 import { relocateReport, relocatedRevisionKey, type RelocationDeps } from '@/lib/expenses/r2-relocation';
+import { expenseIdSuffix } from '@/lib/r2';
 
 function makeDeps(initial: Record<string, string>, rowsAffected = 1) {
     const store = new Map<string, Buffer>(Object.entries(initial).map(([k, v]) => [k, Buffer.from(v)]));
@@ -17,7 +18,9 @@ function makeDeps(initial: Record<string, string>, rowsAffected = 1) {
 
 /** Dossier publié `{demandeur}-{horodatage}-{id4}` (Jean Dupont, note `rep-1` du 08/11/2026 14:30:00). */
 const CREATED = '2026-11-08T13:30:00.000Z';
-const PF = 'jean-dupont-20261108-143000-rep1';
+/** Suffixe de la note `rep-1` : empreinte de son id (`expenseIdSuffix`). */
+const ID4 = expenseIdSuffix('rep-1');
+const PF = `jean-dupont-20261108-143000-${ID4}`;
 const PUB = `ndf/paris-18/${PF}/note-de-frais.pdf`;
 const PUB_NOUVEAU = `ndf/nouveau/${PF}/note-de-frais.pdf`;
 
@@ -250,7 +253,7 @@ describe('relocateReport — copie publiée par dossier demandeur-horodatage', (
         const { store, deps } = makeDeps({ [k]: 'one', 'ndf/paris-18/rep-1.pdf': 'one' });
         const res = await relocateReport(row, deps, { apply: true, deleteOld: false });
         expect(res.status).toBe('moved');
-        expect(res.publishedKey).toBe('ndf/paris-18/jean-dupont-20261108-143000-rep1/note-de-frais.pdf');
+        expect(res.publishedKey).toBe(`ndf/paris-18/jean-dupont-20261108-143000-${ID4}/note-de-frais.pdf`);
         expect(store.get(PUB)?.toString()).toBe('one');
         expect(store.has('ndf/paris-18/rep-1.pdf')).toBe(true);
         expect(deps.execute).not.toHaveBeenCalled();
@@ -286,7 +289,7 @@ describe('relocateReport — copie publiée par dossier demandeur-horodatage', (
 describe('relocateReport — demandeur renommé', () => {
     const k = 'ndf-revisions/paris-18/rep-1-v1-aaa.pdf';
     const row = { id: 'rep-1', segment: 'paris-18', publishedFolder: PF, createdAt: CREATED, r2Key: k, signatureRevisions: journal(k) };
-    const OLD_NAME = 'ndf/paris-18/jean-martin-20261108-143000-rep1/note-de-frais.pdf';
+    const OLD_NAME = `ndf/paris-18/jean-martin-20261108-143000-${ID4}/note-de-frais.pdf`;
     const OTHER_NOTE = 'ndf/paris-18/jean-martin-20261108-143000-zz99/note-de-frais.pdf';
 
     it('--delete-old supprime la copie sous l\'ancien nom (même suffixe), jamais celle d\'une autre note', async () => {

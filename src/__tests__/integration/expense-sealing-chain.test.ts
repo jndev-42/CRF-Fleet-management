@@ -26,6 +26,7 @@ vi.mock('@/lib/r2', async () => {
     return {
     buildExpensePublishedKey: actual.buildExpensePublishedKey,
     expensePublishedFolder: actual.expensePublishedFolder,
+    expenseIdSuffix: actual.expenseIdSuffix,
     getObject: vi.fn(async (key: string) => store.get(key) ?? null),
     putObject: vi.fn(async (key: string, buf: Buffer) => { store.set(key, buf); }),
     expenseUlSegment: (slug: unknown, ulId: string) => (typeof slug === 'string' && slug) || ulId,
@@ -37,7 +38,7 @@ vi.mock('@/lib/r2', async () => {
 import sharp from 'sharp';
 import { installTestCert } from '../fixtures/signing-cert';
 import { db, seedUser } from './setup';
-import { putObject } from '@/lib/r2';
+import { expenseIdSuffix, putObject } from '@/lib/r2';
 import {
     sealStep1, sealStep2, sealStep3, sealPresident, composePresidentAppearance,
     CURRENT_WORKFLOW_VERSION, RevisionMismatchError,
@@ -190,7 +191,7 @@ describe('circuit RESPO puis président', () => {
             args: [JSON.stringify([{ label: 'Péage', amount: 25 }])],
         });
         // Dossier publié : nom du créateur + `createdAt` (Paris), stable entre signatures.
-        const PUBLISHED = 'ndf/mon-slug/jean-demandeur-20261108-143000-nslu/note-de-frais.pdf';
+        const PUBLISHED = `ndf/mon-slug/jean-demandeur-20261108-143000-${expenseIdSuffix('n-slug')}/note-de-frais.pdf`;
         const seal = await sealStep1('n-slug', demandeur());
         expect(seal.key).toBe('ndf-revisions/mon-slug/n-slug-v1-a' + attempt + '.pdf');
         expect(seal.publishedKey).toBe(PUBLISHED);
@@ -250,7 +251,7 @@ describe('circuit RESPO puis président', () => {
         expect(vi.mocked(putObject)).toHaveBeenNthCalledWith(1, presSeal.key, presSeal.buffer);
         expect(vi.mocked(putObject)).toHaveBeenNthCalledWith(2, presSeal.publishedKey, presSeal.buffer);
         expect(presSeal.key).toMatch(/^ndf-revisions\/[^/]+\/n-4-v4-/);
-        expect(presSeal.publishedKey).toMatch(/^ndf\/[^/]+\/jean-demandeur-\d{8}-\d{6}-n4\/note-de-frais\.pdf$/);
+        expect(presSeal.publishedKey).toMatch(new RegExp(`^ndf/[^/]+/jean-demandeur-\\d{8}-\\d{6}-${expenseIdSuffix('n-4')}/note-de-frais\\.pdf$`));
         // Même dossier publié à chaque étape (createdAt de la note, pas l'heure du scellement).
         expect(respoSeal.publishedKey).toBe(presSeal.publishedKey);
         expect((await sealStep1('n-4', demandeur())).publishedKey).toBe(presSeal.publishedKey);

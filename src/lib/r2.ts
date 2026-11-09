@@ -15,6 +15,7 @@
  * peu actif. Risque assumé et documenté.
  */
 
+import { createHash } from 'node:crypto';
 import { AwsClient } from 'aws4fetch';
 import { parisTimestamp, parseMediaFolderRef, sanitizeName, validateMediaKey } from '@/lib/media/refs';
 
@@ -119,12 +120,14 @@ export function parseDbDate(value: unknown): Date | null {
 }
 
 /**
- * Suffixe d'id d'une note dans son dossier publié : ses 4 premiers caractères
- * alphanumériques, en minuscules (`0000` à défaut). Distingue deux homonymes
- * créés à la même seconde et repère les copies périmées d'une même note.
+ * Suffixe d'id d'une note dans son dossier publié : 4 caractères hexadécimaux de
+ * l'empreinte SHA-256 de son id. Distingue deux homonymes créés à la même seconde
+ * et repère les copies périmées d'une même note. Une empreinte, et non les premiers
+ * caractères de l'id : des ids à préfixe commun (`preview-exp-…`) donneraient sinon
+ * le même suffixe, donc la même clé publiée, et les notes s'écraseraient.
  */
 export function expenseIdSuffix(reportId: string): string {
-    return String(reportId ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toLowerCase() || '0000';
+    return createHash('sha256').update(String(reportId ?? '')).digest('hex').slice(0, 4);
 }
 
 /** Horodatage du dossier publié : `AAAAMMJJ-HHmmss` (Paris) de `createdAt`, ou `sans-date`. */
@@ -135,8 +138,8 @@ function expenseFolderStamp(createdAt: unknown): string {
 
 /**
  * Dossier de la copie publiée d'une note : `{demandeur}-{AAAAMMJJ-HHmmss}-{id4}`
- * (nom du créateur assaini, `createdAt` de la note en heure de Paris, 4 premiers
- * caractères alphanumériques de l'id). Stable entre signatures ; recalculé à
+ * (nom du créateur assaini, `createdAt` de la note en heure de Paris, `id4` =
+ * `expenseIdSuffix` : 4 caractères hexadécimaux de sha256(id)). Stable entre signatures ; recalculé à
  * chaque scellement (pas de déplacement si le nom change : le rangement et la
  * suppression retrouvent l'ancienne copie par `{horodatage}-{id4}`).
  */

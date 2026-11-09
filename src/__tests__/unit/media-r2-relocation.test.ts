@@ -323,7 +323,7 @@ describe('revue 1 — type, segments, références', () => {
         const key = `expenses-staging/${SID}/u-a.jpg`;
         await client.execute({ sql: `INSERT INTO "ExpenseReport" VALUES ('e1', 'ul-uuid-1', 'brouillon', ?, NULL)`, args: [JSON.stringify([key])] });
         // Même clé, écrite `\/` : `json_each` la reconnaît, une recherche de sous-chaîne non.
-        await client.execute({ sql: `INSERT INTO "ExpenseReport" VALUES ('e2', 'ul-uuid-1', 'soumis', ?, NULL)`, args: [`["${key.replace(/\//g, '\\/')}"]`] });
+        await client.execute({ sql: `INSERT INTO "ExpenseReport" VALUES ('e2', 'ul-uuid-1', 'soumis', ?, NULL)`, args: [JSON.stringify([key]).split('/').join('\\/')] });
         const { store, objects } = fakeStore({ [key]: 'a' });
         const run = await runR2Relocation({ db, store, apply: true, deleteOld: true, log: silent });
         expect(run.stats.moved).toBe(1);

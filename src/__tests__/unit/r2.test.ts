@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 
 const SECRET = 'SUPER-SECRET-KEY-DO-NOT-LEAK';
 
@@ -398,15 +399,17 @@ describe('buildExpensePublishedKey', () => {
 
 describe('expensePublishedFolder', () => {
     const ID = 'ab-12cd-ef34';
+    /** Suffixe attendu : 4 caractères hexadécimaux de sha256(id). */
+    const S = createHash('sha256').update(ID).digest('hex').slice(0, 4);
 
     it('Jean Dupont, note créée le 08/11/2026 14:30:00 (Paris) → jean-dupont-20261108-143000-{id4}', async () => {
         const { expensePublishedFolder } = await import('@/lib/r2');
-        expect(expensePublishedFolder('Jean Dupont', '2026-11-08T13:30:00.000Z', ID)).toBe('jean-dupont-20261108-143000-ab12');
+        expect(expensePublishedFolder('Jean Dupont', '2026-11-08T13:30:00.000Z', ID)).toBe(`jean-dupont-20261108-143000-${S}`);
     });
 
     it('lit CURRENT_TIMESTAMP (UTC sans fuseau) et assainit le nom', async () => {
         const { expensePublishedFolder } = await import('@/lib/r2');
-        expect(expensePublishedFolder('Éloïse  O\'Brien', '2026-07-01 08:05:09', ID)).toBe('eloise-o-brien-20260701-100509-ab12');
+        expect(expensePublishedFolder('Éloïse  O\'Brien', '2026-07-01 08:05:09', ID)).toBe(`eloise-o-brien-20260701-100509-${S}`);
     });
 
     it('stable : même note, même dossier à chaque scellement', async () => {
@@ -421,29 +424,39 @@ describe('expensePublishedFolder', () => {
         expect(expensePublishedFolder('Jean Dupont', at, 'aaaa-1')).not.toBe(expensePublishedFolder('Jean Dupont', at, 'bbbb-2'));
     });
 
-    it('replis : nom absent → sans-nom ; date illisible → sans-date ; id sans alphanumérique → 0000', async () => {
-        const { expensePublishedFolder } = await import('@/lib/r2');
-        expect(expensePublishedFolder(null, '2026-11-08T13:30:00.000Z', ID)).toBe('sans-nom-20261108-143000-ab12');
-        expect(expensePublishedFolder('Jean', 'pas une date', ID)).toBe('jean-sans-date-ab12');
-        expect(expensePublishedFolder('Jean', '2026-11-08T13:30:00.000Z', '--')).toBe('jean-20261108-143000-0000');
+    it('replis : nom absent → sans-nom ; date illisible → sans-date ; id sans alphanumérique → empreinte quand même', async () => {
+        const { expensePublishedFolder, expenseIdSuffix } = await import('@/lib/r2');
+        expect(expensePublishedFolder(null, '2026-11-08T13:30:00.000Z', ID)).toBe(`sans-nom-20261108-143000-${S}`);
+        expect(expensePublishedFolder('Jean', 'pas une date', ID)).toBe(`jean-sans-date-${S}`);
+        expect(expenseIdSuffix('--')).toMatch(/^[0-9a-f]{4}$/);
+        expect(expensePublishedFolder('Jean', '2026-11-08T13:30:00.000Z', '--')).toBe(`jean-20261108-143000-${expenseIdSuffix('--')}`);
+    });
+
+    it('ids à préfixe commun (seed preview) : suffixes distincts, dossiers distincts', async () => {
+        const { expensePublishedFolder, expenseIdSuffix } = await import('@/lib/r2');
+        expect(expenseIdSuffix('preview-exp-paid')).not.toBe(expenseIdSuffix('preview-exp-rejected'));
+        const at = '2026-11-08T13:30:00.000Z';
+        expect(expensePublishedFolder('Jean', at, 'preview-exp-paid')).not.toBe(expensePublishedFolder('Jean', at, 'preview-exp-rejected'));
     });
 });
 
 describe('isExpensePublishedKeyOf', () => {
     const at = '2026-11-08T13:30:00.000Z';
+    /** Suffixe de la note `ab12-x` : 4 caractères hexadécimaux de sha256(id). */
+    const S = createHash('sha256').update('ab12-x').digest('hex').slice(0, 4);
 
     it('reconnaît la copie de la note sous n\'importe quel nom de demandeur', async () => {
         const { isExpensePublishedKeyOf } = await import('@/lib/r2');
-        expect(isExpensePublishedKeyOf('ndf/paris-18/jean-dupont-20261108-143000-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(true);
-        expect(isExpensePublishedKeyOf('ndf/paris-18/ancien-nom-20261108-143000-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(true);
+        expect(isExpensePublishedKeyOf(`ndf/paris-18/jean-dupont-20261108-143000-${S}/note-de-frais.pdf`, 'paris-18', at, 'ab12-x')).toBe(true);
+        expect(isExpensePublishedKeyOf(`ndf/paris-18/ancien-nom-20261108-143000-${S}/note-de-frais.pdf`, 'paris-18', at, 'ab12-x')).toBe(true);
     });
 
     it('écarte une autre note (id, horodatage, UL, forme)', async () => {
         const { isExpensePublishedKeyOf } = await import('@/lib/r2');
         expect(isExpensePublishedKeyOf('ndf/paris-18/jean-20261108-143000-zz99/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
-        expect(isExpensePublishedKeyOf('ndf/paris-18/jean-20261108-143001-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
-        expect(isExpensePublishedKeyOf('ndf/lyon-3/jean-20261108-143000-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
-        expect(isExpensePublishedKeyOf('ndf/paris-18/a/b-20261108-143000-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
+        expect(isExpensePublishedKeyOf(`ndf/paris-18/jean-20261108-143001-${S}/note-de-frais.pdf`, 'paris-18', at, 'ab12-x')).toBe(false);
+        expect(isExpensePublishedKeyOf(`ndf/lyon-3/jean-20261108-143000-${S}/note-de-frais.pdf`, 'paris-18', at, 'ab12-x')).toBe(false);
+        expect(isExpensePublishedKeyOf(`ndf/paris-18/a/b-20261108-143000-${S}/note-de-frais.pdf`, 'paris-18', at, 'ab12-x')).toBe(false);
         expect(isExpensePublishedKeyOf('ndf/paris-18/ab12-x.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
     });
 });
