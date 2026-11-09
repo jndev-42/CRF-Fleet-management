@@ -38,14 +38,20 @@ vi.mock('@/lib/vehicleStatusRecalc', async (importOriginal) => ({
 // vérifier ce qui est écrit, lu et supprimé.
 const bucket = new Map<string, Buffer>();
 let attemptCounter = 0;
-vi.mock('@/lib/r2', () => ({
+vi.mock('@/lib/r2', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/r2')>('@/lib/r2');
+    return {
     putObject: vi.fn(async (key: string, body: Buffer) => { bucket.set(key, body); }),
     getObject: vi.fn(async (key: string) => bucket.get(key) ?? null),
     deleteObject: vi.fn(async (key: string) => { bucket.delete(key); }),
-    buildVehiclePhotoKey: (vehicleId: string, attempt: string) => `vehicle-photos/${vehicleId}/${attempt}.jpg`,
+    // Constructeurs de clés : vraies fonctions pures (rangement par UL et par nom de véhicule).
+    expenseUlSegment: actual.expenseUlSegment,
+    buildVehiclePhotoKey: actual.buildVehiclePhotoKey,
+    buildVehicleGuideKey: actual.buildVehicleGuideKey,
     newAttemptId: () => `att${++attemptCounter}`,
     R2Error: class R2Error extends Error {},
-}));
+    };
+});
 
 import { auth } from '@/auth';
 import { deleteObject, putObject } from '@/lib/r2';
@@ -63,8 +69,8 @@ const mockedAuth = vi.mocked(auth);
 
 const VEHICLE = 'VPSP 182';
 const VEHICLE_ID = 'veh-182';
-const KEY_1 = `vehicle-photos/${VEHICLE_ID}/att1.jpg`;
-const KEY_2 = `vehicle-photos/${VEHICLE_ID}/att2.jpg`;
+const KEY_1 = 'vehicle-photos/ul-paris-18/vpsp-182/att1.jpg';
+const KEY_2 = 'vehicle-photos/ul-paris-18/vpsp-182/att2.jpg';
 const INVALID_FORMAT = 'La photo doit être au format JPEG, PNG ou WebP.';
 
 const ADMIN = { user: { id: 'u-admin', email: 'admin@test.com', roles: ['ADMIN'], ulId: 'ul-paris-18' } };
@@ -680,5 +686,36 @@ describe('DELETE /api/vehicles/[id] — nettoyage de la photo', () => {
         asSession(ADMIN);
         expect((await deleteVehicle(deleteRequest(), params())).status).toBe(200);
         expect(deleteObject).not.toHaveBeenCalled();
+    });
+});
+
+describe('POST /api/vehicles/[id]/photo — rangement par UL', () => {
+    const SLUG_VEHICLE = 'VSAV 1';
+    const slugUpload = () => {
+        const formData = new FormData();
+        formData.append('file', new File([new Uint8Array(JPEG)], 'photo.jpg', { type: 'image/jpeg' }));
+        return new Request(`http://localhost/api/vehicles/${encodeURIComponent(SLUG_VEHICLE)}/photo`, { method: 'POST', body: formData });
+    };
+
+    it("slug ≠ id : la clé porte le slug de l'UL et le nom assaini du véhicule ; supprimée avec le véhicule", async () => {
+        await db.execute(`INSERT OR REPLACE INTO "UniteLocale" (id, name, slug) VALUES ('ul-uuid-900', 'Paris XVIII', 'paris-xviii')`);
+        await seedVehicle({ id: 'veh-900', name: SLUG_VEHICLE, type: 'VSAV', qrToken: 'qr-900', ulId: 'ul-uuid-900' });
+        asSession(SUPER_ADMIN);
+        expect((await postPhoto(slugUpload(), params(SLUG_VEHICLE))).status).toBe(200);
+        const key = (await db.execute(`SELECT photoR2Key FROM Vehicle WHERE id = 'veh-900'`)).rows[0].photoR2Key as string;
+        expect(key).toBe('vehicle-photos/paris-xviii/vsav-1/att1.jpg');
+        expect(bucket.has(key)).toBe(true);
+
+        const res = await deleteVehicle(new Request('http://localhost/api/vehicles/x', { method: 'DELETE' }), params(SLUG_VEHICLE));
+        expect(res.status).toBe(200);
+        expect(bucket.has(key)).toBe(false);
+    });
+
+    it.each([null, 'default'])("400 si le véhicule n'a pas d'UL (%s), rien n'est écrit", async (ulId) => {
+        await seedVehicle({ id: 'veh-901', name: SLUG_VEHICLE, type: 'VSAV', qrToken: 'qr-901', ulId });
+        asSession(SUPER_ADMIN);
+        const res = await postPhoto(slugUpload(), params(SLUG_VEHICLE));
+        expect(res.status).toBe(400);
+        expect(putObject).not.toHaveBeenCalled();
     });
 });

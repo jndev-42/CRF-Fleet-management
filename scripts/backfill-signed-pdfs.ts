@@ -62,7 +62,7 @@ async function main(): Promise<void> {
     const { db } = await import('../src/lib/db');
     const { generateExpensePdf, countItems } = await import('../src/lib/expenses/pdf');
     const { sealPdf, decodeSignatureImage, assertSigningCertConfigured } = await import('../src/lib/pdf/signature');
-    const { putObject, buildExpenseKey, buildExpensePublishedKey, expenseUlSegment, newAttemptId, assertR2Configured } = await import('../src/lib/r2');
+    const { putObject, buildExpenseKey, buildExpensePublishedKey, expensePublishedFolder, expenseUlSegment, newAttemptId, assertR2Configured } = await import('../src/lib/r2');
     // Disposition de l'ANCIEN circuit (v1) : rectangles et champs dédiés, figés,
     // indépendants des retouches de la disposition v2.
     const {
@@ -236,7 +236,7 @@ async function main(): Promise<void> {
             });
             // Copie publiée (suivie par la synchro Drive), après la base, best-effort.
             try {
-                await putObject(buildExpensePublishedKey(ulSegment, id), buf);
+                await putObject(buildExpensePublishedKey(ulSegment, expensePublishedFolder(row.userName, row.createdAt, id)), buf);
             } catch (e: unknown) {
                 console.error(`  ! ${id} : copie publiée non écrite (${e instanceof Error ? e.message : String(e)})`);
             }

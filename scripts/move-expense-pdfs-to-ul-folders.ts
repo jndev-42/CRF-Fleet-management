@@ -4,10 +4,16 @@
  * Pour chaque note scellée : copie ses révisions sous
  * `ndf-revisions/{slug UL}/{id}-v{n}-{attempt}.pdf`, repointe `r2Key` et
  * `signatureRevisions[].r2Key`, puis écrit la copie publiée
- * `ndf/{slug UL}/{id}.pdf` (celle que la synchro Drive suit, `R2_PREFIX = ndf/`).
+ * `ndf/{slug UL}/{demandeur}-{horodatage}-{id4}/note-de-frais.pdf` (celle que la
+ * synchro Drive suit, `R2_PREFIX = ndf/` ; horodatage = `createdAt` de la note,
+ * `id4` = 4 caractères hexadécimaux de l'empreinte SHA-256 de son id, `expenseIdSuffix`).
  *
  * À LANCER APRÈS le déploiement de la v5.47.0 (le code courant écrit déjà dans les
- * nouveaux dossiers ; ce script rattrape les notes existantes).
+ * nouveaux dossiers ; ce script rattrape les notes existantes), et de nouveau
+ * APRÈS celui de la v5.48.0 : les copies publiées `ndf/{slug UL}/{id}.pdf` sont
+ * réécrites sous leur dossier `{demandeur}-{horodatage}-{id4}/`. Avec `--delete-old`,
+ * toute autre copie publiée de la note est supprimée : ancienne forme `{id}.pdf`, et
+ * copie écrite sous un ancien nom de demandeur (repérée par `{horodatage}-{id4}`).
  *
  * Idempotent : une note déjà rangée n'est pas recopiée (sa copie publiée est
  * simplement réécrite, contenu identique ⇒ ETag identique) ; un slug renommé est
@@ -45,8 +51,18 @@ async function main(): Promise<void> {
         process.exit(1);
     }
 
+    // Sans R2_BUCKET explicite, src/lib/r2.ts retomberait sur le bucket de PRODUCTION.
+    const { requireExplicitR2Bucket } = await import('../src/lib/media/script-env');
+    let bucket: string;
+    try {
+        bucket = requireExplicitR2Bucket();
+    } catch (e: unknown) {
+        console.error(e instanceof Error ? e.message : String(e));
+        process.exit(1);
+    }
+
     const { db } = await import('../src/lib/db');
-    const { getObject, putObject, headObject, deleteObject, expenseUlSegment, assertR2Configured } = await import('../src/lib/r2');
+    const { getObject, putObject, headObject, deleteObject, listObjects, expenseUlSegment, expensePublishedFolder, assertR2Configured } = await import('../src/lib/r2');
     const { relocateReport } = await import('../src/lib/expenses/r2-relocation');
 
     assertR2Configured();
@@ -54,6 +70,7 @@ async function main(): Promise<void> {
     console.log(APPLY ? '=== DÉPLACEMENT — EXÉCUTION RÉELLE ===' : '=== DÉPLACEMENT — DRY-RUN (aucune écriture) ===');
     console.log(`Environnement : ${envFile}`);
     console.log(`Base cible    : ${(process.env.TURSO_DATABASE_URL || '').replace(/^libsql:\/\//, '').split('.')[0]}`);
+    console.log(`Bucket R2     : ${bucket}`);
     if (DELETE_OLD) console.log('Anciennes clés : SUPPRIMÉES après chaque UPDATE réussi');
 
     // ⚠️ Jamais de `SELECT *` sur toutes les notes (signatures base64 : le client
@@ -68,6 +85,7 @@ async function main(): Promise<void> {
         put: (key: string, body: Buffer) => putObject(key, body),
         head: headObject,
         delete: deleteObject,
+        list: listObjects,
         execute: async (stmt: { sql: string; args: (string | null)[] }) => {
             const res = await db.execute(stmt);
             return { rowsAffected: res.rowsAffected };
@@ -79,8 +97,10 @@ async function main(): Promise<void> {
 
     for (const id of ids) {
         const res = await db.execute({
-            sql: `SELECT er.id, er.ulId, er.r2Key, er.signatureRevisions, ul.slug AS ulSlug
-                  FROM "ExpenseReport" er LEFT JOIN "UniteLocale" ul ON ul.id = er.ulId WHERE er.id = ?`,
+            sql: `SELECT er.id, er.ulId, er.r2Key, er.signatureRevisions, er.createdAt, ul.slug AS ulSlug,
+                         u.name AS requesterName
+                  FROM "ExpenseReport" er LEFT JOIN "UniteLocale" ul ON ul.id = er.ulId
+                  LEFT JOIN "User" u ON u.id = er.userId WHERE er.id = ?`,
             args: [id],
         });
         const row = res.rows[0];
@@ -89,6 +109,8 @@ async function main(): Promise<void> {
         const result = await relocateReport({
             id,
             segment: expenseUlSegment(row.ulSlug, String(row.ulId ?? '')),
+            publishedFolder: expensePublishedFolder(row.requesterName, row.createdAt, id),
+            createdAt: row.createdAt == null ? null : String(row.createdAt),
             r2Key: (row.r2Key as string) || null,
             signatureRevisions: row.signatureRevisions == null ? null : String(row.signatureRevisions),
         }, deps, { apply: APPLY, deleteOld: DELETE_OLD });

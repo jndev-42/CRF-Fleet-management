@@ -1,6 +1,7 @@
 import type { Session } from 'next-auth';
 import { db } from '@/lib/db';
 import { isSuperAdmin } from '@/lib/roles';
+import { validateMediaKey } from '@/lib/media/refs';
 import { canViewExpense } from '@/lib/expenses/workflow';
 import { canReadMissionReport, resolveSessionUserId, withAuthorHomeUl, type MissionReportAccessInfo } from '@/lib/missions/access';
 
@@ -12,11 +13,14 @@ type DriveFolderOwner =
     | { kind: 'mission'; reports: MissionReportAccessInfo[] };
 
 /**
- * Retrouve à quel Trip/IncidentReport/ExpenseReport/compte rendu de mission appartient un driveFolderId.
+ * Retrouve à quel Trip/IncidentReport/ExpenseReport/compte rendu de mission appartient
+ * une référence de dossier : id Drive (ancien stockage) ou préfixe R2
+ * (`{type}/{UL}/{dossier}`, voir `src/lib/media/refs.ts`) — les colonnes portent
+ * l'un ou l'autre, la recherche est la même.
  * Retourne null si le dossier n'est référencé par aucun enregistrement connu
  * (ex: brouillon en cours de création, pas encore rattaché à un enregistrement).
  */
-export async function resolveDriveFolderOwner(folderId: string): Promise<DriveFolderOwner | null> {
+export async function resolveFolderOwner(folderId: string): Promise<DriveFolderOwner | null> {
     const tripRes = await db.execute({
         sql: `SELECT v.ulId as ulId FROM Trip t JOIN Vehicle v ON v.id = t.vehicleId WHERE t.driveFolderId = ?`,
         args: [folderId],
@@ -82,7 +86,7 @@ export async function canAccessDriveFolder(session: Session, folderId: string): 
     const roles = session.user.roles || [];
     if (isSuperAdmin(roles)) return true;
 
-    const owner = await resolveDriveFolderOwner(folderId);
+    const owner = await resolveFolderOwner(folderId);
     if (!owner) return false;
 
     if (owner.kind === 'mission') {
@@ -116,4 +120,24 @@ export async function canAccessDriveFile(session: Session, fileId: string): Prom
     });
     if (missionRes.rows.length === 0) return false;
     return canReadAnyMissionReport(session, missionRes.rows.map(toMissionAccessInfo));
+}
+
+/** Ancien nom, conservé pour les appelants Drive (lecture seule). */
+export const resolveDriveFolderOwner = resolveFolderOwner;
+
+/** Accès à un dossier, id Drive ou préfixe R2 : mêmes règles. */
+export const canAccessFolder = canAccessDriveFolder;
+
+/**
+ * Accès à un fichier média R2 par sa clé. La clé est d'abord validée (pas de
+ * `..`, type connu, forme attendue) ; puis :
+ * - rapport de mission signé (`mission-report-photo/…`) : appariement EXACT sur
+ *   `mission_reports.signed_report_drive_id` ;
+ * - autres types : appariement de la colonne sur les 3 premiers segments de la clé.
+ */
+export async function canAccessMediaKey(session: Session, key: string): Promise<boolean> {
+    const parsed = validateMediaKey(key);
+    if (!parsed) return false;
+    if (parsed.type === 'mission-report-photo') return canAccessDriveFile(session, key);
+    return canAccessDriveFolder(session, parsed.folderRef);
 }

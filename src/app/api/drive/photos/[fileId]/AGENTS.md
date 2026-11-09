@@ -4,6 +4,8 @@
 # [fileId]
 
 ## Purpose
+**Lecture seule, transition (v5.48.0).** Ne sert plus qu'aux fichiers encore référencés par un id Drive. Une clé R2 (contenant `/`) passe par `/api/media/file?key=` ; le client choisit avec `mediaFileUrl` (`@/lib/imageCompression`).
+
 Secure proxy to stream/download a specific file from Google Drive. Fetches MIME type and name from Drive metadata, then streams the file bytes with appropriate `Content-Type` and `Content-Disposition` headers. Acts as an authentication boundary — only logged-in users can access Drive files.
 
 ## Key Files

@@ -17,6 +17,7 @@ import MissionPhotosModal from '@/components/missions/MissionPhotosModal';
 import MissionEditHistory, { type MissionEdit } from '@/components/missions/MissionEditHistory';
 import { isAdminOrAbove } from '@/lib/roles';
 import SignedReportLightbox from '@/components/missions/SignedReportLightbox';
+import { mediaFileUrl } from '@/lib/imageCompression';
 import styles from './mission-detail.module.css';
 
 interface SupplyEntry {
@@ -338,7 +339,7 @@ export default function MissionDetailPage() {
                         ) : (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
-                                src={`/api/drive/photos/${report.signed_report_drive_id}`}
+                                src={mediaFileUrl(report.signed_report_drive_id)}
                                 alt="Rapport de mission signé"
                                 onError={() => setSignedReportIsPdf(true)}
                                 style={{

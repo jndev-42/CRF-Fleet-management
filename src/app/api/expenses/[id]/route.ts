@@ -11,6 +11,7 @@ import {
     type ValidationStage,
 } from '@/lib/expenses/workflow';
 import { withAudit } from '@/lib/audit/log';
+import { normalizeReceiptKeys, parseStoredReceiptKeys, receiptKeysError } from '@/lib/expenses/receipt-keys';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -222,13 +223,7 @@ export async function GET(
             requestRefund: row.requestRefund === 1,
             noReceiptDeclaration: row.noReceiptDeclaration === 1,
             driveFolderId: row.driveFolderId,
-            pendingReceiptKeys: (() => {
-                if (typeof row.pendingReceiptKeys !== 'string' || !row.pendingReceiptKeys.trim()) return [];
-                try {
-                    const parsed = JSON.parse(row.pendingReceiptKeys);
-                    return Array.isArray(parsed) ? parsed : [];
-                } catch { return []; }
-            })(),
+            pendingReceiptKeys: parseStoredReceiptKeys(row.pendingReceiptKeys),
             total: Number(row.total),
             items: parsedItems,
             ulId: row.ulId,
@@ -533,6 +528,27 @@ async function patchHandler(
                 return NextResponse.json({ error: 'Seules les notes de frais au statut brouillon peuvent être modifiées.' }, { status: 400 });
             }
 
+            // Justificatifs — clés envoyées OU clés déjà stockées, validées avant toute
+            // lecture : une clé arbitraire serait lue, intégrée au PDF puis SUPPRIMÉE.
+            const storedReceiptKeys = parseStoredReceiptKeys(report.pendingReceiptKeys);
+            // Une ancienne clé envoyée par un formulaire ouvert avant le rangement est
+            // remplacée par sa forme rangée déjà stockée (`normalizeReceiptKeys`).
+            let finalReceiptKeys = receiptKeys !== undefined ? receiptKeys : storedReceiptKeys;
+            if (finalReceiptKeys.length) {
+                const { ulSegmentOf } = await import('@/lib/media/server');
+                const normalized = normalizeReceiptKeys(finalReceiptKeys, {
+                    ulSegment: await ulSegmentOf((report.ulId as string) || 'ul-paris-18'),
+                    ownerId: String(report.userId),
+                    storedKeys: storedReceiptKeys,
+                });
+                if (normalized.rejected.length) {
+                    return NextResponse.json({
+                        error: receiptKeysError(normalized.rejected.length), rejectedReceiptKeys: normalized.rejected,
+                    }, { status: 400 });
+                }
+                finalReceiptKeys = normalized.keys;
+            }
+
             // Validation référentielle des budgets — uniquement si des lignes sont
             // fournies, et TOUJOURS sur l'UL de la note, jamais celle de la session.
             if (items) {
@@ -560,13 +576,6 @@ async function patchHandler(
                 : null;
             const finalRequestRefund = requestRefund !== undefined ? (requestRefund ? 1 : 0) : report.requestRefund;
             const finalNoReceipt = noReceiptDeclaration !== undefined ? (noReceiptDeclaration ? 1 : 0) : report.noReceiptDeclaration;
-            const finalReceiptKeys = receiptKeys !== undefined ? receiptKeys : (() => {
-                if (typeof report.pendingReceiptKeys !== 'string' || !report.pendingReceiptKeys.trim()) return [];
-                try {
-                    const parsed = JSON.parse(report.pendingReceiptKeys);
-                    return Array.isArray(parsed) ? parsed : [];
-                } catch { return []; }
-            })();
 
             const userSigStr = typeof userSignature === 'object' && userSignature !== null
                 ? JSON.stringify(userSignature)
@@ -704,8 +713,10 @@ async function deleteHandler(
         const id = resolvedParams.id;
 
         const result = await db.execute({
-            sql: `SELECT er.userId, er.status, er.r2Key, er.ulId, ul.slug AS ulSlug
+            sql: `SELECT er.userId, er.status, er.r2Key, er.ulId, er.createdAt, ul.slug AS ulSlug,
+                         u.name AS requesterName
                   FROM "ExpenseReport" er LEFT JOIN "UniteLocale" ul ON ul.id = er.ulId
+                  LEFT JOIN "User" u ON u.id = er.userId
                   WHERE er.id = ?`,
             args: [id],
         });
@@ -733,15 +744,35 @@ async function deleteHandler(
             args: [id],
         });
 
-        // Une note scellée a une copie publiée (`ndf/{UL}/{id}.pdf`) que la synchro
-        // Drive suit : on la retire, sinon Drive garde une note supprimée. Les
+        // Une note scellée a une copie publiée (`ndf/{UL}/{demandeur}-{horodatage}/note-de-frais.pdf`)
+        // que la synchro Drive suit : on la retire, sinon Drive garde une note supprimée.
+        // L'ancienne forme (`ndf/{UL}/{id}.pdf`, note pas encore rangée) aussi. Les
         // révisions, elles, restent. Best-effort : la note est déjà supprimée.
+        // Une copie écrite sous un ancien nom de demandeur est retrouvée par son
+        // suffixe `{horodatage}-{id4}` (liste de `ndf/{UL}/`).
         if (report.r2Key) {
+            const {
+                deleteObject, listObjects, buildExpensePublishedKey, buildLegacyExpensePublishedKey,
+                expensePublishedFolder, expenseUlSegment, isExpensePublishedKeyOf,
+            } = await import('@/lib/r2');
+            const ulSegment = expenseUlSegment(report.ulSlug, String(report.ulId ?? ''));
+            const keys = new Set<string>([
+                buildExpensePublishedKey(ulSegment, expensePublishedFolder(report.requesterName, report.createdAt, id)),
+                buildLegacyExpensePublishedKey(ulSegment, id),
+            ]);
             try {
-                const { deleteObject, buildExpensePublishedKey, expenseUlSegment } = await import('@/lib/r2');
-                await deleteObject(buildExpensePublishedKey(expenseUlSegment(report.ulSlug, String(report.ulId ?? '')), id));
+                for (const key of await listObjects(`ndf/${ulSegment}/`)) {
+                    if (isExpensePublishedKeyOf(key, ulSegment, report.createdAt, id)) keys.add(key);
+                }
             } catch (e: unknown) {
-                console.error('[DELETE /api/expenses/:id] copie publiée non supprimée :', e instanceof Error ? e.message : String(e));
+                console.error('[DELETE /api/expenses/:id] liste des copies publiées impossible :', e instanceof Error ? e.message : String(e));
+            }
+            for (const key of keys) {
+                try {
+                    await deleteObject(key);
+                } catch (e: unknown) {
+                    console.error(`[DELETE /api/expenses/:id] copie publiée ${key} non supprimée :`, e instanceof Error ? e.message : String(e));
+                }
             }
         }
 

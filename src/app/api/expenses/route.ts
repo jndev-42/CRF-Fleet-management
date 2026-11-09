@@ -11,6 +11,7 @@ import {
 } from '@/lib/roles';
 import { workflowVersionOf } from '@/lib/expenses/workflow';
 import { withAudit } from '@/lib/audit/log';
+import { normalizeReceiptKeys, receiptKeysError } from '@/lib/expenses/receipt-keys';
 
 // Crypto, Buffer et rendu PDF : le runtime Edge ne convient pas.
 export const runtime = 'nodejs';
@@ -271,6 +272,21 @@ async function postHandler(request: Request) {
         const userSigStr = typeof data.userSignature === 'object' && data.userSignature !== null
             ? JSON.stringify(data.userSignature)
             : (data.userSignature || null);
+
+        // Justificatifs : uniquement des clés déposées par l'utilisateur pour l'UL de la
+        // note (aucune ancienne clé pour une nouvelle note). Une clé arbitraire serait
+        // lue, intégrée au PDF puis SUPPRIMÉE au scellement.
+        if (data.receiptKeys.length) {
+            const { ulSegmentOf } = await import('@/lib/media/server');
+            const { rejected } = normalizeReceiptKeys(data.receiptKeys, {
+                ulSegment: await ulSegmentOf(ulId),
+                ownerId: session.user.id,
+                storedKeys: [],
+            });
+            if (rejected.length) {
+                return NextResponse.json({ error: receiptKeysError(rejected.length), rejectedReceiptKeys: rejected }, { status: 400 });
+            }
+        }
 
         // Validation référentielle des budgets, sur l'UL de la note (ici celle de
         // la session, puisque la note est créée maintenant).

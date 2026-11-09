@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import IncidentGuidelines from '@/components/vehicle/IncidentGuidelines';
 import VehicleInteractiveSVG from '@/components/vehicle/VehicleInteractiveSVG';
 import PhotoPicker from '@/components/ui/PhotoPicker';
-import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { uploadMediaSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 
 interface IncidentReportModalProps {
@@ -191,15 +191,14 @@ export default function IncidentReportModal({
             let driveFolderId = null;
             if ((photosDamages.length > 0 || photosReport.length > 0) && isFinal) {
                 const allPhotos = [...photosDamages, ...photosReport];
-                const uploadResult = await uploadFilesToDriveSafely({
+                const uploadResult = await uploadMediaSafely({
                     files: allPhotos,
-                    vehicleName: vehicle.name,
-                    date: commonData.occurredAt,
-                    stage: `incident-${reportId.substring(0, 8)}`,
+                    type: 'incident-photos',
+                    vehicleId: vehicle.id,
                 });
 
                 if (uploadResult.success) {
-                    driveFolderId = uploadResult.subfolderId || uploadResult.folderId;
+                    driveFolderId = uploadResult.folderId;
                 } else {
                     setError(uploadResult.error || 'Erreur lors de l\'upload des photos d\'incident.');
                     setSubmitting(false);

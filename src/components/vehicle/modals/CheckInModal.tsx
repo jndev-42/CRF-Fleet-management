@@ -8,7 +8,7 @@ import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
-import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { uploadMediaSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 import MileageAnomalyModal from '@/components/ui/MileageAnomalyModal';
 import {
@@ -209,19 +209,13 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
             // L'upload a pu avoir lieu avant un 400 : on ne le rejoue pas.
             if (photos.length > 0 && !uploadedFolderIdRef.current) {
-                const checkOutDate = new Date(trip.checkOutAt);
-                const year = checkOutDate.getFullYear();
-                const month = String(checkOutDate.getMonth() + 1).padStart(2, '0');
-                const day = String(checkOutDate.getDate()).padStart(2, '0');
-                const hours = String(checkOutDate.getHours()).padStart(2, '0');
-                const minutes = String(checkOutDate.getMinutes()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
-
-                const uploadResult = await uploadFilesToDriveSafely({
+                // Sous le dossier de l'emprunt (`{préfixe}/rendu/`) s'il existe.
+                const uploadResult = await uploadMediaSafely({
                     files: photos,
-                    vehicleName: vehicle.name,
-                    date: dateStr,
+                    type: 'trip-photos',
+                    vehicleId: vehicle.id,
                     stage: 'rendu',
+                    tripId: trip.id,
                     existingFolderId: trip.driveFolderId || null,
                 });
 

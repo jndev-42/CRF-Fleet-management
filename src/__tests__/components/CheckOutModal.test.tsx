@@ -6,7 +6,7 @@ import type { Vehicle } from '@/app/vehicles/[id]/types';
 vi.mock('@/lib/imageCompression', () => ({
     compressImage: vi.fn((f: File) => Promise.resolve(f)),
     compressImages: vi.fn((files: File[]) => Promise.resolve(files)),
-    uploadFilesToDriveSafely: vi.fn().mockResolvedValue({ success: true, folderId: 'folder-1' }),
+    uploadMediaSafely: vi.fn().mockResolvedValue({ success: true, folderId: 'folder-1' }),
 }));
 
 const mockVehicle: Vehicle = {
@@ -216,6 +216,27 @@ describe('CheckOutModal', () => {
         const body = JSON.parse((postCall![1] as RequestInit).body as string);
         expect(body.vehicleId).toBe('VL001');
         expect(body.missionType).toBe('DPS');
+    });
+
+    it('envoie les photos d\'emprunt vers R2 (type, véhicule, étape) et enregistre le préfixe', async () => {
+        const { uploadMediaSafely } = await import('@/lib/imageCompression');
+        const ref = 'trip-photos/paris-18/vl186-20261108-143000-a1b2';
+        vi.mocked(uploadMediaSafely).mockResolvedValueOnce({ success: true, folderId: ref, fileIds: [] });
+        const fetchMock = mockFetch();
+        const onSuccess = vi.fn();
+
+        const { container } = render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={onSuccess} />);
+        await screen.findByDisplayValue('Jean Dupont');
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        fireEvent.change(input, { target: { files: [new File(['x'], 'p.jpg', { type: 'image/jpeg' })] } });
+        await waitFor(() => expect(container.querySelectorAll('img').length).toBeGreaterThan(0));
+
+        fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+
+        expect(vi.mocked(uploadMediaSafely).mock.calls.at(-1)?.[0]).toMatchObject({ type: 'trip-photos', vehicleId: 'VL001', stage: 'emprunt' });
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]).includes('/api/trips') && (c[1] as RequestInit)?.method === 'POST');
+        expect(JSON.parse((postCall![1] as RequestInit).body as string).driveFolderId).toBe(ref);
     });
 
     it('propose le type de mission « Entraînement » et l\'envoie tel quel', async () => {

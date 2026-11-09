@@ -486,6 +486,55 @@ describe('POST /api/missions', () => {
         expect(mRes.rows[0].drive_folder_id).toBeNull();
     });
 
+    describe('références R2 (liaison référence ↔ compte rendu)', () => {
+        const comRef = 'mission-com-photos/paris-18/poste-secours-test-20261108-143000-a1b2';
+        const signedKey = 'mission-report-photo/paris-18/poste-secours-test-20261108-143000-c3d4/0a1b2c3d-rapport.pdf';
+
+        it('201 : préfixe et clé de l\'UL du compte rendu', async () => {
+            // @ts-expect-error — partial session for test
+            mockedAuth.mockResolvedValue(adminSession);
+            const res = await postCreate(makePostRequest({ ...validPayload, drive_folder_id: comRef, signed_report_drive_id: signedKey }));
+            expect(res.status).toBe(201);
+        });
+
+        it('400 : référence d\'une autre UL', async () => {
+            // @ts-expect-error — partial session for test
+            mockedAuth.mockResolvedValue(adminSession);
+            const res = await postCreate(makePostRequest({ ...validPayload, drive_folder_id: 'mission-com-photos/lyon/x-20261108-143000-a1b2' }));
+            expect(res.status).toBe(400);
+        });
+
+        it('201 : référence de l\'UL de rattachement de l\'auteur (repli de l\'envoi)', async () => {
+            await db.execute(`INSERT OR REPLACE INTO "UserUL" (userId, ulId, is_home) VALUES ('user-admin', 'ul-lyon', 1)`);
+            // @ts-expect-error — partial session for test
+            mockedAuth.mockResolvedValue(adminSession);
+            const res = await postCreate(makePostRequest({ ...validPayload, drive_folder_id: 'mission-com-photos/lyon/x-20261108-143000-a1b2' }));
+            expect(res.status).toBe(201);
+        });
+
+        it('400 : référence déjà portée par un autre compte rendu (préfixe ou id Drive)', async () => {
+            // @ts-expect-error — partial session for test
+            mockedAuth.mockResolvedValue(adminSession);
+            expect((await postCreate(makePostRequest({ ...validPayload, drive_folder_id: comRef }))).status).toBe(201);
+            expect((await postCreate(makePostRequest({ ...validPayload, drive_folder_id: comRef }))).status).toBe(400);
+            expect((await postCreate(makePostRequest({ ...validPayload, drive_folder_id: 'drive-partage' }))).status).toBe(201);
+            expect((await postCreate(makePostRequest({ ...validPayload, drive_folder_id: 'drive-partage' }))).status).toBe(400);
+        });
+
+        it('400 : clé forgée ou du mauvais type', async () => {
+            // @ts-expect-error — partial session for test
+            mockedAuth.mockResolvedValue(adminSession);
+            for (const body of [
+                { drive_folder_id: 'trip-photos/paris-18/x' },
+                { drive_folder_id: 'mission-com-photos/../x' },
+                { signed_report_drive_id: comRef },
+                { signed_report_drive_id: 'mission-com-photos/paris-18/x/0a1b2c3d-a.jpg' },
+            ]) {
+                expect((await postCreate(makePostRequest({ ...validPayload, ...body }))).status, JSON.stringify(body)).toBe(400);
+            }
+        });
+    });
+
     it('returns 201 and persists mission_comment when provided', async () => {
         // @ts-expect-error — partial session for test
         mockedAuth.mockResolvedValue(adminSession);

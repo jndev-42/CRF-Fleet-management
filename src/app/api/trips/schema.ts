@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isAcceptableMediaRef } from '@/lib/media/refs';
 import { MISSION_TYPES } from '@/lib/mission-types';
 
 /**
@@ -22,7 +23,7 @@ export const checkOutSchema = z.object({
     dsaChecked: z.boolean(),
     commentsOut: z.string().optional(),
     secondDriverId: z.string().optional().nullable(),
-    driveFolderId: z.string().optional(),
+    driveFolderId: z.string().max(512).refine(v => isAcceptableMediaRef(v, 'trip-photos'), 'Dossier de photos invalide').optional(),
     checklistOut: z.record(z.string(), z.boolean()).optional(),
     dataIncorrect: z.boolean().optional(),
     correctedMileage: z.number().int().min(0).optional(),

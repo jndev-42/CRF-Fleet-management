@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isAcceptableMediaRef } from '@/lib/media/refs';
 
 export const checkInSchema = z.object({
     mileageIn: z.number().min(0).optional(),
@@ -9,7 +10,7 @@ export const checkInSchema = z.object({
     incident: z.string().optional(),
     commentsIn: z.string().optional(),
     parkingPhoto: z.string().optional(),
-    driveFolderId: z.string().optional(),
+    driveFolderId: z.string().max(512).refine(v => isAcceptableMediaRef(v, 'trip-photos'), 'Dossier de photos invalide').optional(),
     checklistIn: z.record(z.string(), z.boolean()).optional(),
     desinfResponsable: z.string().optional(),
     desinfLotNumber: z.string().optional(),

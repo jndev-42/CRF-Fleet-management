@@ -17,7 +17,7 @@ import Step8Photos from './steps/Step8Photos';
 import Step9Comment from './steps/Step9Comment';
 import styles from './MissionWizard.module.css';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
-import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { uploadMediaSafely } from '@/lib/imageCompression';
 import {
     clearDraft,
     loadDraft,
@@ -99,9 +99,6 @@ interface WizardDraft {
 function initialFormFor(lockedUlId?: string): MissionFormData {
     return lockedUlId ? { ...INITIAL_FORM, selected_ul_id: lockedUlId } : INITIAL_FORM;
 }
-
-const MISSION_COMM_FOLDER_ID = '19ILEUHsq2pLZDwEeJDnhQcumFM9ztDJ3';
-const SIGNED_REPORTS_FOLDER_ID = '1UQ0TxOLUCmL09m6evy1Ofoeuo2RaD2ki';
 
 interface MissionWizardProps {
     currentUserId?: string;
@@ -385,12 +382,11 @@ export default function MissionWizard({
         // Upload the signed report (mandatory for DPS/PAPS)
         let signedReportDriveId: string | null = null;
         if (showReportStep && signedReportFile) {
-            const uploadResult = await uploadFilesToDriveSafely({
+            const uploadResult = await uploadMediaSafely({
                 files: [signedReportFile],
-                missionName: formData.mission_name,
-                date: formData.mission_date,
-                rootFolderId: SIGNED_REPORTS_FOLDER_ID,
-                allowPdf: true,
+                type: 'mission-report-photo',
+                ulId: formData.selected_ul_id,
+                name: formData.mission_name,
             });
 
             if (!uploadResult.success) {
@@ -404,11 +400,11 @@ export default function MissionWizard({
         // Upload communication photos to Drive if any were selected
         let driveFolderId: string | null = null;
         if (photos.length > 0) {
-            const uploadResult = await uploadFilesToDriveSafely({
+            const uploadResult = await uploadMediaSafely({
                 files: photos,
-                missionName: formData.mission_name,
-                date: formData.mission_date,
-                rootFolderId: MISSION_COMM_FOLDER_ID,
+                type: 'mission-com-photos',
+                ulId: formData.selected_ul_id,
+                name: formData.mission_name,
             });
 
             if (!uploadResult.success) {

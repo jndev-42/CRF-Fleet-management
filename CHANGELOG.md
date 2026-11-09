@@ -1,5 +1,35 @@
 # Changelog
 
+## [5.49.0] — 9 novembre 2026
+
+### 🔒 Sécurité
+
+- Une note de frais n'accepte plus que les justificatifs que vous avez vous-même déposés pour cette note : un justificatif déposé par quelqu'un d'autre, ou provenant d'une autre unité locale, est refusé sans être ni lu ni supprimé. Les justificatifs déjà enregistrés dans un brouillon sont vérifiés de la même façon.
+
+### 🔧 Modifications
+
+- Lorsqu'un justificatif est refusé, le message indique combien l'ont été : il suffit de les ajouter de nouveau puis de réessayer.
+- Vos brouillons existants restent modifiables et soumettables, y compris lorsque vous modifiez un brouillon d'une autre unité locale que celle où vous êtes connecté.
+- La photo et les documents d'un véhicule ne peuvent plus être déposés tant que ce véhicule n'est rattaché à aucune unité locale.
+
+## [5.48.0] — 8 novembre 2026
+
+### ✨ Nouveautés
+
+- **Photos rangées par unité locale** — les photos prises à l'emprunt et au rendu d'un véhicule, celles d'une déclaration d'incident, les photos de communication d'une mission et le rapport de mission signé sont désormais rangés par unité locale, dans un dossier dont le nom indique clairement le véhicule ou la mission, la date et l'heure. Elles s'affichent comme avant dans l'historique du véhicule, sur la fiche de la mission et dans le PDF d'incident.
+- **Anciennes photos reprises** — les photos et rapports signés enregistrés avant cette version sont repris dans le nouveau rangement ; ils restent visibles pendant toute la transition. Un véhicule emprunté avant la mise à jour et rendu après garde ses photos d'emprunt, reprises avec celles du rendu.
+- **Notes de frais : un dossier lisible par note** — la copie de chaque note de frais signée est rangée dans un dossier au nom du demandeur, daté du jour de création de la note, ce qui rend chaque note facile à retrouver. Le dossier ne change pas d'une signature à l'autre, et deux homonymes n'écrasent jamais la note l'un de l'autre.
+
+### 🔧 Modifications
+
+- En mode démo, les photos d'emprunt, de rendu, d'incident et de mission sont réellement enregistrées (dans l'espace de démonstration, effacé chaque nuit) au lieu d'être simulées.
+- Supprimer un incident, un compte rendu de mission ou un véhicule supprime aussi ses photos (et le rapport signé), sauf si elles servent encore ailleurs.
+- Les photos d'une mission sont rangées sous votre unité locale lorsque vous n'êtes pas membre de l'unité choisie.
+
+### 🔒 Sécurité
+
+- Les photos d'un trajet, d'un incident ou d'une mission ne peuvent être rattachées qu'à un enregistrement de la même unité locale, et jamais à deux enregistrements à la fois.
+
 ## [5.47.0] — 8 novembre 2026
 
 ### ✨ Nouveautés

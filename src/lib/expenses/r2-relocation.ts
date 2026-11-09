@@ -9,12 +9,16 @@
  *     `ndf-revisions/{segment UL}/` (jamais d'écrasement : une cible déjà
  *     présente n'est pas recopiée) ;
  *   - la base est repointée par un UPDATE gardé (concurrence) ;
- *   - la copie publiée `ndf/{segment UL}/{id}.pdf` est réécrite depuis la
- *     révision courante (contenu identique ⇒ ETag identique ⇒ Drive ne bouge pas) ;
- *   - avec `deleteOld`, les anciennes clés déplacées sont supprimées APRÈS l'UPDATE.
+ *   - la copie publiée `ndf/{segment UL}/{demandeur}-{horodatage}/note-de-frais.pdf`
+ *     est réécrite depuis la révision courante (contenu identique ⇒ ETag identique
+ *     ⇒ Drive ne bouge pas) ;
+ *   - avec `deleteOld`, les anciennes clés déplacées sont supprimées APRÈS l'UPDATE,
+ *     ainsi que les copies publiées périmées : ancienne forme `ndf/{UL}/{id}.pdf`
+ *     (dossier courant et anciens dossiers UL) et copie publiée laissée dans
+ *     l'ancien dossier d'un slug renommé.
  */
 
-import { buildExpensePublishedKey } from '@/lib/r2';
+import { buildExpensePublishedKey, buildLegacyExpensePublishedKey, isExpensePublishedKeyOf } from '@/lib/r2';
 
 const REVISIONS_PREFIX = 'ndf-revisions/';
 
@@ -23,6 +27,10 @@ export interface RelocationRow {
     id: string;
     /** Segment UL déjà assaini (voir `expenseUlSegment`). */
     segment: string;
+    /** Dossier publié `{demandeur}-{horodatage}-{id4}` (voir `expensePublishedFolder`). */
+    publishedFolder: string;
+    /** `createdAt` brut de la note : repère ses copies publiées sous un ancien nom de demandeur. */
+    createdAt?: string | null;
     r2Key: string | null;
     /** Colonne brute `signatureRevisions` (JSON), ou null. */
     signatureRevisions: string | null;
@@ -33,6 +41,8 @@ export interface RelocationDeps {
     put(key: string, body: Buffer): Promise<void>;
     head(key: string): Promise<boolean>;
     delete(key: string): Promise<void>;
+    /** Clés sous un préfixe : copies publiées périmées (ancien nom de demandeur). */
+    list?(prefix: string): Promise<string[]>;
     execute(stmt: { sql: string; args: (string | null)[] }): Promise<{ rowsAffected: number }>;
 }
 
@@ -150,9 +160,11 @@ export async function relocateReport(
         }
 
         const newCurrent = mapping.get(row.r2Key)!;
-        const publishedKey = buildExpensePublishedKey(row.segment, row.id);
+        const publishedKey = buildExpensePublishedKey(row.segment, row.publishedFolder);
         result.publishedKey = publishedKey;
         const changed = mapping.size > 0 && [...mapping].some(([f, t]) => f !== t);
+        // Copie publiée pas encore à sa clé (ancienne forme `{id}.pdf`) : à écrire.
+        const needsPublish = !(await deps.head(publishedKey));
 
         // Dossier(s) UL d'origine différents du dossier courant (slug renommé).
         const staleFolders = new Set<string>();
@@ -176,16 +188,29 @@ export async function relocateReport(
                 const legacy = `${row.id}/${t.slice(prefix.length)}`;
                 if (!targets.has(legacy) && !out.has(legacy) && await deps.head(legacy)) out.add(legacy);
             }
+            const stalePublished = new Set<string>([buildLegacyExpensePublishedKey(row.segment, row.id)]);
             for (const folder of staleFolders) {
-                const stalePublished = buildExpensePublishedKey(folder, row.id);
-                if (stalePublished !== publishedKey && await deps.head(stalePublished)) out.add(stalePublished);
+                stalePublished.add(buildLegacyExpensePublishedKey(folder, row.id));
+                stalePublished.add(buildExpensePublishedKey(folder, row.publishedFolder));
+            }
+            // Copies de CETTE note sous un autre nom de demandeur (renommé) : même
+            // suffixe `{horodatage}-{id4}`, dans le dossier courant et les anciens.
+            if (deps.list) {
+                for (const folder of [row.segment, ...staleFolders]) {
+                    for (const key of await deps.list(`ndf/${folder}/`)) {
+                        if (isExpensePublishedKeyOf(key, folder, row.createdAt ?? null, row.id)) stalePublished.add(key);
+                    }
+                }
+            }
+            for (const key of stalePublished) {
+                if (key !== publishedKey && !out.has(key) && await deps.head(key)) out.add(key);
             }
             return [...out];
         };
 
         if (!opts.apply) {
             if (opts.deleteOld) result.deleted = await collectDeletions();
-            result.status = changed ? 'moved' : 'unchanged';
+            result.status = changed || needsPublish ? 'moved' : 'unchanged';
             return result;
         }
 
@@ -213,6 +238,7 @@ export async function relocateReport(
         const current = await deps.get(newCurrent);
         if (!current) return { ...result, status: 'error', reason: `révision courante absente : ${newCurrent}` };
         await deps.put(publishedKey, current);
+        if (needsPublish) result.status = 'moved';
 
         // 4. Nettoyage, seulement après un UPDATE réussi.
         if (opts.deleteOld) {

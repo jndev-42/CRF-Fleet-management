@@ -11,9 +11,9 @@ UI for mission reports ("comptes rendus de mission"): the multi-step submission 
 |------|-------------|
 | `MissionWizard.tsx` | The wizard shell — owns `MissionFormData` (including the two intervention-breakdown maps), the flat `supplies` map, the signed-report file, the photo list, step index, validation, and submission. Exports the `MissionFormData` interface consumed by every step. |
 | `MissionWizard.module.css` | Styles for the wizard **and all of `steps/`** — progress bar, step content, toggles, radio groups, error box, nav. |
-| `MissionPhotosModal.tsx` | Lightbox-style modal listing a mission's Drive photos from `folderId`. |
+| `MissionPhotosModal.tsx` | Lightbox-style modal listing a mission's photos from `folderId` (R2 prefix `mission-com-photos/…`, or legacy Drive id). |
 | `MissionPhotosSection.tsx` | Inline (non-modal) photo grid for the same data, with per-photo download links. **Currently unreferenced** — no importer in `src/`. |
-| `SignedReportLightbox.tsx` | Fullscreen viewer for the signed report at `/api/drive/photos/{driveId}`; renders an `<img>` and falls back to an `<iframe>` on the image's `onError` (i.e. when the file is a PDF). |
+| `SignedReportLightbox.tsx` | Fullscreen viewer for the signed report (`mediaFileUrl` : `/api/media/file?key=` for an R2 key, legacy `/api/drive/photos/{driveId}` otherwise); renders an `<img>` and falls back to an `<iframe>` on the image's `onError` (i.e. when the file is a PDF). |
 
 ## Subdirectories
 | Directory | Purpose |
@@ -36,27 +36,27 @@ Adding a step means adding its label to `activeSteps`, a `validateStep` branch k
 
 **All step state is lifted into `MissionWizard`.** Steps are pure controlled panels receiving `data` + `onChange(patch)` (or `supplies` + `onSupplyChange`). Validation is centralized in `validateStep(s)`; the signed report is mandatory when its step is active.
 
-**Submission order matters** (`handleSubmit`): the flat `supplies` map is expanded into `{ category, item_name, quantity_used }[]` by splitting keys on the `CATEGORY__item` convention; the two breakdown maps are expanded into `{ category, quantity }[]` keeping only entries `> 0`, and are forced to `[]` when `victim_count === 0` (the API rejects a non-empty breakdown at 0). Then the signed report uploads to Drive, then the communication photos, and only if both succeed does `POST /api/missions` run with `drive_folder_id` and `signed_report_drive_id`. An upload failure aborts before the POST so no orphan mission row is created. Both uploads go through `uploadFilesToDriveSafely` from `@/lib/imageCompression` (the signed report passes `allowPdf: true`).
+**Submission order matters** (`handleSubmit`): the flat `supplies` map is expanded into `{ category, item_name, quantity_used }[]` by splitting keys on the `CATEGORY__item` convention; the two breakdown maps are expanded into `{ category, quantity }[]` keeping only entries `> 0`, and are forced to `[]` when `victim_count === 0` (the API rejects a non-empty breakdown at 0). Then the signed report uploads to R2 (`type: 'mission-report-photo'`), then the communication photos (`type: 'mission-com-photos'`), and only if both succeed does `POST /api/missions` run with `drive_folder_id` (the R2 prefix) and `signed_report_drive_id` (the signed report key, `fileIds[0]`). An upload failure aborts before the POST so no orphan mission row is created. Both uploads go through `uploadMediaSafely` from `@/lib/imageCompression` (`POST /api/media/upload`, with `ulId` and `name`); a PDF is accepted for `mission-report-photo` only, decided by the server from the type.
 
 Because the payload is built as `{ ...formData, … }`, the array forms **must** be listed after the spread — `formData` still holds the two maps under the same keys, and the server expects arrays.
 
 **The breakdown invariant is enforced twice.** `validateStep('Répartition interventions')` blocks `Suivant` with an inline French message when either grid's sum differs from `victim_count`; the API repeats the check in a Zod `superRefine` (400). Keep both — the client check is UX, the server check is the contract.
 
-Two Drive root folder IDs are hard-coded constants at the top of `MissionWizard.tsx` (`MISSION_COMM_FOLDER_ID`, `SIGNED_REPORTS_FOLDER_ID`).
+Uploads go to R2 through `uploadMediaSafely` (`POST /api/media/upload`): photos as `type: 'mission-com-photos'`, the signed report as `type: 'mission-report-photo'`, both with `ulId: selected_ul_id` and `name: mission_name` — the server keeps the UL only if the user belongs to it (else their home UL, then their session UL) and builds the folder `{type}/{UL}/{mission}-{horodatage}-{xxxx}`. No Drive folder id is hard-coded any more.
 
 **Easter egg, not a feature:** on success the `MarineApprovedOverlay` animation is shown *only* when `formData.selected_ul_id === 'ul-paris-18'` — the UL of the **poste chosen at step 1**, not the submitter's active UL (the `currentUserUlId` prop was removed). Every other selection calls `onSuccess(id)` immediately. Keep both paths.
 
-Both photo components proxy Drive images through `/api/drive/photos/{id}` and therefore use `<img>` with an `eslint-disable-next-line @next/next/no-img-element` comment — required, since `next/image` can't handle these proxy URLs.
+Both photo components load images through `mediaListUrl` / `mediaFileUrl` (`/api/media/*` for R2 references, legacy `/api/drive/photos/*` for Drive ids) and therefore use `<img>` with an `eslint-disable-next-line @next/next/no-img-element` comment — required, since `next/image` can't handle these proxy URLs.
 
 ## Dependencies
 
 ### Internal
 - `POST /api/missions` — mission report creation (default `submitEndpoint`)
 - `POST /api/qr-ul/[token]/mission-report` — creation from a scanned UL QR code (locked-UL mode)
-- `GET /api/drive/photos?folderId=…&flat=true` — photo listing; `GET /api/drive/photos/{id}` — image/PDF proxy
+- `GET /api/media/photos?folderId=…&flat=true` / `GET /api/media/file?key=…` (R2) — legacy `GET /api/drive/photos*` for Drive ids
 - `@/lib/mission-supplies` — `SUPPLY_CATEGORIES`, `SupplyCategory`
 - `@/lib/mission-interventions` — the two category lists and their French labels (shared with the detail page)
-- `@/lib/imageCompression` — `uploadFilesToDriveSafely`
+- `@/lib/imageCompression` — `uploadMediaSafely`, `mediaFileUrl`, `mediaListUrl`
 - `@/components/ui/MarineApprovedOverlay` — success animation
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

@@ -4,6 +4,8 @@
 # Photos
 
 ## Purpose
+**Lecture seule, transition (v5.48.0).** Ne sert plus qu'aux références encore Drive (justificatifs de notes de frais, photos non migrées). Une référence R2 (contenant `/`) passe par `/api/media/photos` ; le client choisit avec `mediaListUrl` (`@/lib/imageCompression`).
+
 List media files (images and PDFs) from a Drive folder. Supports two modes: hierarchical (subfolder-based, for trip vehicle photos with emprunt/rendu stages) and flat (direct files, for expense receipts and mission photos).
 
 ## Key Files

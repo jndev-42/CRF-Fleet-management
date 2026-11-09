@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isAcceptableMediaRef } from '@/lib/media/refs';
 import { db } from '@/lib/db';
 import { INTERVENTION_MODE_CATEGORIES, INTERVENTION_NATURE_CATEGORIES } from '@/lib/mission-interventions';
 
@@ -169,8 +170,8 @@ export const createMissionReportSchema = missionReportContentSchema.extend({
     /** Rattachement du poste — exactement un des deux est renseigné (cf. superRefine). */
     selected_ul_id: z.string().min(1).nullable().optional(),
     selected_dt_code: z.string().min(1).nullable().optional(),
-    drive_folder_id: z.string().nullable().optional(),
-    signed_report_drive_id: z.string().nullable().optional(),
+    drive_folder_id: z.string().max(512).refine(v => isAcceptableMediaRef(v, 'mission-com-photos'), 'Dossier de photos invalide').nullable().optional(),
+    signed_report_drive_id: z.string().max(512).refine(v => isAcceptableMediaRef(v, 'mission-report-photo', 'file'), 'Rapport signé invalide').nullable().optional(),
 }).superRefine((data, ctx) => {
     refineMissionReportContent(data, ctx);
     // Invariant du rattachement : exactement un des deux champs. Une UL ET une DT
@@ -222,6 +223,8 @@ export async function insertMissionReport(
     data: CreateMissionReportInput,
     userEmail: string | null | undefined,
     sessionUserId?: string | null,
+    /** UL de la session : dernier repli de l'envoi des photos (`POST /api/media/upload`). */
+    sessionUlId?: string | null,
 ): Promise<InsertMissionReportResult> {
     // Le rattachement vient du client : vérifier qu'il désigne une vraie UL /
     // une DT réellement portée par une UL. Sans ce contrôle, un `ulId` inventé
@@ -268,6 +271,22 @@ export async function insertMissionReport(
 
     const ulId = data.selected_ul_id ?? null;
     const dtCode = ulId ? null : (data.selected_dt_code ?? null);
+
+    // Photos et rapport signé : rangés sous l'UL du compte rendu, ou sous l'UL de
+    // rattachement de l'auteur, ou à défaut sous l'UL de la session (replis de
+    // l'envoi pour une UL dont il n'est pas membre, ou un rapport DT), et rattachés
+    // à aucun autre enregistrement.
+    {
+        const { assertRefBindable, homeUlOf } = await import('@/lib/media/server');
+        const ulIds = [ulId, await homeUlOf(submittedBy), sessionUlId && sessionUlId !== 'default' ? sessionUlId : null];
+        for (const [ref, type, kind] of [
+            [data.drive_folder_id, 'mission-com-photos', 'folder'],
+            [data.signed_report_drive_id, 'mission-report-photo', 'file'],
+        ] as const) {
+            const bindError = await assertRefBindable(ref, { type, kind, table: 'mission_reports', rowId: null, ulIds });
+            if (bindError) return { ok: false, status: 400, error: bindError };
+        }
+    }
     const tx = await db.transaction('write');
     try {
         await tx.execute({

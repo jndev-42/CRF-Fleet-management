@@ -30,7 +30,7 @@ Conditional sections — do not render them unconditionally:
 - Supplies section only when `Object.keys(report.supplies).length > 0`.
 - Intervention-breakdown section only when `victim_count > 0` **and** at least one breakdown map is non-empty. Reports filed before the feature carry `victim_count > 0` with no detail rows: they must show the total alone, with no section and no error — hence the `report.interventions?.mode ?? {}` guard rather than a bare access. Inside the section, `InterventionCard` returns `null` for an empty grid, so a half-filled legacy row cannot render an empty table.
 
-**PDF-vs-image detection is a deliberate hack:** the signed report renders as `<img src="/api/drive/photos/{id}">` and its `onError` handler flips `signedReportIsPdf` to `true`, swapping in a `FileText` placeholder. There is no MIME check — the failed image load *is* the detection. The `<img>` carries an `@next/next/no-img-element` disable because the URL is a dynamic Drive proxy.
+**PDF-vs-image detection is a deliberate hack:** the signed report renders as `<img src={mediaFileUrl(...)}>` (R2 key or legacy Drive id) and its `onError` handler flips `signedReportIsPdf` to `true`, swapping in a `FileText` placeholder. There is no MIME check — the failed image load *is* the detection. The `<img>` carries an `@next/next/no-img-element` disable because the URL is a dynamic proxy.
 
 `boolLabel(val)` renders `null` as `—`, otherwise `Oui`/`Non`. Use it for any new tri-state field instead of a ternary.
 
@@ -43,6 +43,6 @@ Supplies arrive as `Record<category, SupplyEntry[]>` and are labelled via `SUPPL
 - `@/lib/mission-supplies` — `SUPPLIES_BY_CATEGORY`, `MISSION_TYPE_LABELS`, `TEAM_DYNAMICS_LABELS`, `SupplyCategory`
 - `@/lib/mission-interventions` — the two category arrays and their label maps
 - `GET /api/missions/{id}`, `DELETE /api/missions/{id}`
-- `GET /api/drive/photos/{driveId}` — signed-report image proxy
+- `GET /api/media/file?key=…` (R2) or legacy `GET /api/drive/photos/{driveId}` — signed-report proxy
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

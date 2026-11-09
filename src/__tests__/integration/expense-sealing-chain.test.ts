@@ -21,19 +21,24 @@ vi.mock('@/lib/db', async () => {
     const { db } = await import('./setup');
     return { db };
 });
-vi.mock('@/lib/r2', () => ({
+vi.mock('@/lib/r2', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/r2')>('@/lib/r2');
+    return {
+    buildExpensePublishedKey: actual.buildExpensePublishedKey,
+    expensePublishedFolder: actual.expensePublishedFolder,
+    expenseIdSuffix: actual.expenseIdSuffix,
     getObject: vi.fn(async (key: string) => store.get(key) ?? null),
     putObject: vi.fn(async (key: string, buf: Buffer) => { store.set(key, buf); }),
     expenseUlSegment: (slug: unknown, ulId: string) => (typeof slug === 'string' && slug) || ulId,
     buildExpenseKey: (seg: string, id: string, rev: number, att: string) => `ndf-revisions/${seg}/${id}-v${rev}-${att}.pdf`,
-    buildExpensePublishedKey: (seg: string, id: string) => `ndf/${seg}/${id}.pdf`,
     newAttemptId: () => `a${++attempt}`,
-}));
+    };
+});
 
 import sharp from 'sharp';
 import { installTestCert } from '../fixtures/signing-cert';
 import { db, seedUser } from './setup';
-import { putObject } from '@/lib/r2';
+import { expenseIdSuffix, putObject } from '@/lib/r2';
 import {
     sealStep1, sealStep2, sealStep3, sealPresident, composePresidentAppearance,
     CURRENT_WORKFLOW_VERSION, RevisionMismatchError,
@@ -181,18 +186,20 @@ describe('circuit RESPO puis président', () => {
             args: [stampPng],
         });
         await db.execute({
-            sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund, missionName, missionDate)
-                  VALUES ('n-slug', 'u-dem', '2026-10-20T10:00:00Z', 'brouillon', 'DLUS', 25, ?, 'ul-id-xyz', 1, 'Maraude', '2026-10-19')`,
+            sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, imputation, total, items, ulId, requestRefund, missionName, missionDate, createdAt)
+                  VALUES ('n-slug', 'u-dem', '2026-10-20T10:00:00Z', 'brouillon', 'DLUS', 25, ?, 'ul-id-xyz', 1, 'Maraude', '2026-10-19', '2026-11-08T13:30:00.000Z')`,
             args: [JSON.stringify([{ label: 'Péage', amount: 25 }])],
         });
+        // Dossier publié : nom du créateur + `createdAt` (Paris), stable entre signatures.
+        const PUBLISHED = `ndf/mon-slug/jean-demandeur-20261108-143000-${expenseIdSuffix('n-slug')}/note-de-frais.pdf`;
         const seal = await sealStep1('n-slug', demandeur());
         expect(seal.key).toBe('ndf-revisions/mon-slug/n-slug-v1-a' + attempt + '.pdf');
-        expect(seal.publishedKey).toBe('ndf/mon-slug/n-slug.pdf');
+        expect(seal.publishedKey).toBe(PUBLISHED);
 
         vi.mocked(putObject).mockClear();
         await persistSealed({ reportId: 'n-slug', seal, expectedStatus: 'brouillon', nextStatus: 'soumis' });
-        expect(vi.mocked(putObject)).toHaveBeenCalledWith('ndf/mon-slug/n-slug.pdf', seal.buffer);
-        expect(store.get('ndf/mon-slug/n-slug.pdf')).toEqual(seal.buffer);
+        expect(vi.mocked(putObject)).toHaveBeenCalledWith(PUBLISHED, seal.buffer);
+        expect(store.get(PUBLISHED)).toEqual(seal.buffer);
     }, 60_000);
 
     it('une transition concurrente rejetée n\'écrit pas la copie publiée', async () => {
@@ -244,7 +251,10 @@ describe('circuit RESPO puis président', () => {
         expect(vi.mocked(putObject)).toHaveBeenNthCalledWith(1, presSeal.key, presSeal.buffer);
         expect(vi.mocked(putObject)).toHaveBeenNthCalledWith(2, presSeal.publishedKey, presSeal.buffer);
         expect(presSeal.key).toMatch(/^ndf-revisions\/[^/]+\/n-4-v4-/);
-        expect(presSeal.publishedKey).toMatch(/^ndf\/[^/]+\/n-4\.pdf$/);
+        expect(presSeal.publishedKey).toMatch(new RegExp(`^ndf/[^/]+/jean-demandeur-\\d{8}-\\d{6}-${expenseIdSuffix('n-4')}/note-de-frais\\.pdf$`));
+        // Même dossier publié à chaque étape (createdAt de la note, pas l'heure du scellement).
+        expect(respoSeal.publishedKey).toBe(presSeal.publishedKey);
+        expect((await sealStep1('n-4', demandeur())).publishedKey).toBe(presSeal.publishedKey);
 
         const log = await revisions('n-4');
         expect(log.map(r => r.step)).toEqual([1, 2, 4]);

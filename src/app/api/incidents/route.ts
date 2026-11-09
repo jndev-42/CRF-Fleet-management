@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { isAcceptableMediaRef } from '@/lib/media/refs';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import crypto from 'crypto';
@@ -23,7 +24,7 @@ const incidentSchema = z.object({
     context: z.record(z.string(), z.any()).optional().nullable(),
     description: z.string().optional().nullable(),
     retrospection: z.string().optional().nullable(),
-    driveFolderId: z.string().optional().nullable(),
+    driveFolderId: z.string().max(512).refine(v => isAcceptableMediaRef(v, 'incident-photos'), 'Dossier de photos invalide').optional().nullable(),
 });
 
 async function postHandler(request: Request) {
@@ -42,6 +43,19 @@ async function postHandler(request: Request) {
         const id = crypto.randomUUID();
         const now = new Date().toISOString();
         const data = parsed.data;
+
+        // Dossier de photos : de l'UL du véhicule, rattaché à aucun autre enregistrement.
+        if (data.driveFolderId) {
+            const vehicleRes = await db.execute({ sql: `SELECT ulId FROM Vehicle WHERE id = ?`, args: [data.vehicleId] });
+            const { assertRefBindable } = await import('@/lib/media/server');
+            const bindError = await assertRefBindable(data.driveFolderId, {
+                type: 'incident-photos', table: 'IncidentReport', rowId: null,
+                ulIds: [(vehicleRes.rows[0]?.ulId as string | null) ?? null],
+            });
+            if (bindError) {
+                return NextResponse.json({ error: bindError }, { status: 400 });
+            }
+        }
 
         await db.execute({
             sql: `INSERT INTO "IncidentReport" (

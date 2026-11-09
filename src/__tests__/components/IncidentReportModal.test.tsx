@@ -2,6 +2,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import IncidentReportModal from '@/components/vehicle/modals/IncidentReportModal';
 import type { Vehicle } from '@/app/vehicles/[id]/types';
+import { uploadMediaSafely } from '@/lib/imageCompression';
+
+vi.mock('@/lib/imageCompression', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('@/lib/imageCompression')>()),
+    uploadMediaSafely: vi.fn(),
+}));
 
 // ── Minimal vehicle fixture ───────────────────────────────────────────────────
 
@@ -247,6 +253,34 @@ describe('IncidentReportModal', () => {
         // Coche aussi la case de gravité elle-même (déclenche son onChange).
         fireEvent.click(screen.getByLabelText('Urgence absolue / Grave'));
         expect((screen.getByLabelText('Urgence absolue / Grave') as HTMLInputElement).checked).toBe(true);
+    });
+
+    it('validation finale : photos envoyées vers R2 (type incident, véhicule, sans étape), préfixe enregistré', async () => {
+        const ref = 'incident-photos/paris-18/vl186-20261108-143000-a1b2';
+        vi.mocked(uploadMediaSafely).mockResolvedValue({ success: true, folderId: ref, subfolderId: ref, fileIds: [] });
+        mockFetchSuccess();
+
+        const { container } = render(<IncidentReportModal vehicle={mockVehicle} onClose={vi.fn()} />);
+        fireEvent.click(screen.getByText('Non, déclarer directement'));
+        await waitFor(() => screen.getByText('Accident / Incident de circulation'));
+        fireEvent.click(screen.getByText('Accident / Incident de circulation'));
+        await waitFor(() => screen.getByText('Victime CRF'));
+
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        fireEvent.change(input, { target: { files: [new File(['x'], 'degat.jpg', { type: 'image/jpeg' })] } });
+        await waitFor(() => expect(container.querySelectorAll('img').length).toBeGreaterThan(0));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Valider et Générer PDF' }));
+
+        await waitFor(() => expect(uploadMediaSafely).toHaveBeenCalledTimes(1));
+        const args = vi.mocked(uploadMediaSafely).mock.calls[0][0];
+        expect(args).toMatchObject({ type: 'incident-photos', vehicleId: 'veh-1' });
+        expect(args.stage).toBeUndefined();
+        await waitFor(() => {
+            const patches = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(c => (c[1] as RequestInit)?.method === 'PATCH');
+            expect(JSON.parse((patches.at(-1)![1] as RequestInit).body as string).driveFolderId).toBe(ref);
+        });
     });
 
     it('TYPE_SELECTION affiche les options disponibles', async () => {

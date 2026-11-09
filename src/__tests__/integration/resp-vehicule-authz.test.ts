@@ -25,14 +25,20 @@ vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
     getRenaultVehicleData: vi.fn().mockResolvedValue(null),
     isConnectedInDb: vi.fn().mockResolvedValue(false),
 }));
-vi.mock('@/lib/r2', () => ({
+vi.mock('@/lib/r2', async () => {
+    const actual = await vi.importActual<typeof import('@/lib/r2')>('@/lib/r2');
+    return {
     putObject: vi.fn(async () => {}),
     getObject: vi.fn(async () => null),
     deleteObject: vi.fn(async () => {}),
-    buildVehicleGuideKey: (vehicleId: string, attempt: string) => `vehicle-guides/${vehicleId}/${attempt}.pdf`,
+    // Constructeurs de clés : vraies fonctions pures (rangement par UL et par nom de véhicule).
+    expenseUlSegment: actual.expenseUlSegment,
+    buildVehiclePhotoKey: actual.buildVehiclePhotoKey,
+    buildVehicleGuideKey: actual.buildVehicleGuideKey,
     newAttemptId: () => 'att1',
     R2Error: class R2Error extends Error {},
-}));
+    };
+});
 vi.mock('@/lib/push', () => ({
     sendPushNotification: vi.fn().mockResolvedValue(undefined),
     notifyUsers: vi.fn().mockResolvedValue(undefined),

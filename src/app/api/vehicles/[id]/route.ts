@@ -343,7 +343,7 @@ async function patchHandler(
     }
 }
 
-import { deleteDriveFolder } from '@/lib/drive';
+import { deleteMediaRefIfUnshared } from '@/lib/media/server';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 
 async function deleteHandler(
@@ -390,9 +390,16 @@ async function deleteHandler(
             .map(row => row.driveFolderId as string)
             .filter(Boolean);
 
-        if (foldersToDelete.length > 0) {
-            await Promise.allSettled(foldersToDelete.map(folderId => deleteDriveFolder(folderId)));
-        }
+        // Déclarations d'incident du véhicule : leurs photos partent avec lui (les lignes
+        // relèvent du `ON DELETE CASCADE` du schéma, non appliqué sur la connexion).
+        const incidentsRes = await db.execute({
+            sql: `SELECT id, driveFolderId FROM IncidentReport WHERE vehicleId = ?`,
+            args: [realId]
+        });
+        const incidentIds = incidentsRes.rows.map(row => String(row.id));
+        const incidentFolders = incidentsRes.rows
+            .map(row => row.driveFolderId as string)
+            .filter(Boolean);
 
         // Delete all trips associated with the vehicle first
         await db.execute({
@@ -412,6 +419,13 @@ async function deleteHandler(
         // sauter le nettoyage de la photo.
         await deleteVehicleDocuments(realId as string).catch((e: unknown) =>
             console.error(`[vehicle-document] nettoyage des documents du véhicule ${String(realId)} impossible :`, e instanceof Error ? e.message : String(e)));
+
+        // Photos des trajets et des incidents : après la suppression, en best-effort,
+        // seulement si aucun autre enregistrement (hors incidents de ce véhicule) ne
+        // référence le même dossier.
+        for (const folderId of new Set([...foldersToDelete, ...incidentFolders])) {
+            await deleteMediaRefIfUnshared(folderId, 'folder', [{ table: 'IncidentReport', rowIds: incidentIds }]);
+        }
 
         // Photo : même règle.
         const photoKey = vehicleResult.rows[0].photoR2Key as string | null;

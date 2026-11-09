@@ -1,5 +1,7 @@
 /**
- * Client Cloudflare R2 pour les PDF scellés de notes de frais.
+ * Client Cloudflare R2 : PDF scellés de notes de frais, guides et photos de
+ * véhicule, référentiels, et médias (photos de trajet, d'incident, de mission,
+ * rapport de mission signé — voir `src/lib/media/refs.ts`).
  *
  * S'appuie sur `aws4fetch` (signature SigV4 + `fetch` natif) plutôt que sur
  * `@aws-sdk/client-s3` : le besoin se limite à PUT / GET / HEAD sur des fichiers
@@ -13,7 +15,9 @@
  * peu actif. Risque assumé et documenté.
  */
 
+import { createHash } from 'node:crypto';
 import { AwsClient } from 'aws4fetch';
+import { parisTimestamp, parseMediaFolderRef, sanitizeName, validateMediaKey } from '@/lib/media/refs';
 
 export class R2Error extends Error {}
 export class R2ConfigError extends R2Error {}
@@ -104,10 +108,71 @@ export function buildExpenseKey(ulSegment: string, reportId: string, revision: n
 }
 
 /**
- * Clé R2 FIXE de la copie publiée d'une note : `ndf/{UL}/{reportId}.pdf`.
+ * Date SQL (`CURRENT_TIMESTAMP`, UTC sans fuseau) ou ISO → `Date` ; `null` si illisible.
+ */
+export function parseDbDate(value: unknown): Date | null {
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    if (typeof value !== 'string' || !value.trim()) return null;
+    const v = value.trim();
+    const iso = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(v) ? `${v.replace(' ', 'T')}Z` : v;
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Suffixe d'id d'une note dans son dossier publié : 4 caractères hexadécimaux de
+ * l'empreinte SHA-256 de son id. Distingue deux homonymes créés à la même seconde
+ * et repère les copies périmées d'une même note. Une empreinte, et non les premiers
+ * caractères de l'id : des ids à préfixe commun (`preview-exp-…`) donneraient sinon
+ * le même suffixe, donc la même clé publiée, et les notes s'écraseraient.
+ */
+export function expenseIdSuffix(reportId: string): string {
+    return createHash('sha256').update(String(reportId ?? '')).digest('hex').slice(0, 4);
+}
+
+/** Horodatage du dossier publié : `AAAAMMJJ-HHmmss` (Paris) de `createdAt`, ou `sans-date`. */
+function expenseFolderStamp(createdAt: unknown): string {
+    const date = parseDbDate(createdAt);
+    return date ? parisTimestamp(date) : 'sans-date';
+}
+
+/**
+ * Dossier de la copie publiée d'une note : `{demandeur}-{AAAAMMJJ-HHmmss}-{id4}`
+ * (nom du créateur assaini, `createdAt` de la note en heure de Paris, `id4` =
+ * `expenseIdSuffix` : 4 caractères hexadécimaux de sha256(id)). Stable entre signatures ; recalculé à
+ * chaque scellement (pas de déplacement si le nom change : le rangement et la
+ * suppression retrouvent l'ancienne copie par `{horodatage}-{id4}`).
+ */
+export function expensePublishedFolder(requesterName: unknown, createdAt: unknown, reportId: string): string {
+    return `${sanitizeName(requesterName)}-${expenseFolderStamp(createdAt)}-${expenseIdSuffix(reportId)}`;
+}
+
+/**
+ * Copie publiée de CETTE note, quel que soit le nom de demandeur au moment de son
+ * écriture : `ndf/{UL}/{…}-{horodatage}-{id4}/note-de-frais.pdf`.
+ */
+export function isExpensePublishedKeyOf(key: string, ulSegment: string, createdAt: unknown, reportId: string): boolean {
+    const prefix = `ndf/${ulSegment}/`;
+    const suffix = `-${expenseFolderStamp(createdAt)}-${expenseIdSuffix(reportId)}/note-de-frais.pdf`;
+    if (!key.startsWith(prefix) || !key.endsWith(suffix)) return false;
+    const folder = key.slice(prefix.length, key.length - '/note-de-frais.pdf'.length);
+    return !folder.includes('/') && folder.length > suffix.length - '/note-de-frais.pdf'.length;
+}
+
+/**
+ * Clé R2 de la copie publiée d'une note :
+ * `ndf/{UL}/{demandeur}-{horodatage}/note-de-frais.pdf`.
  * Écrasée à chaque scellement ; c'est elle que la synchro Drive suit.
  */
-export function buildExpensePublishedKey(ulSegment: string, reportId: string): string {
+export function buildExpensePublishedKey(ulSegment: string, folderName: string): string {
+    if (!folderName) throw new R2Error('folderName requis pour construire une clé R2');
+    if (!ulSegment) throw new R2Error('ulSegment requis pour construire une clé R2');
+    if (folderName.includes('/') || folderName.includes('..')) throw new R2Error('folderName invalide');
+    return `ndf/${ulSegment}/${folderName}/note-de-frais.pdf`;
+}
+
+/** Ancienne clé de la copie publiée (`ndf/{UL}/{reportId}.pdf`), avant la v5.48.0. */
+export function buildLegacyExpensePublishedKey(ulSegment: string, reportId: string): string {
     if (!reportId) throw new R2Error('reportId requis pour construire une clé R2');
     if (!ulSegment) throw new R2Error('ulSegment requis pour construire une clé R2');
     return `ndf/${ulSegment}/${reportId}.pdf`;
@@ -118,39 +183,99 @@ export function newAttemptId(): string {
     return crypto.randomUUID().replace(/-/g, '').slice(0, 8);
 }
 
+/** Préfixes R2 rangés par UL (`{préfixe}/{segment UL}/…`). */
+export const EXPENSE_STAGING_PREFIX = 'expenses-staging';
+export const VEHICLE_PHOTO_PREFIX = 'vehicle-photos';
+export const VEHICLE_DOCUMENT_PREFIX = 'vehicle-documents';
+/** Ancien préfixe des documents de véhicule (`vehicle-guides/{vehicleId}/…`), avant la v5.49.0. */
+export const LEGACY_VEHICLE_GUIDE_PREFIX = 'vehicle-guides';
+
+const UL_SEGMENT_RE = /^[A-Za-z0-9_][A-Za-z0-9_-]*$/;
+/** Identifiant de dépôt : signé (`{nonce}-{sig}`) depuis la v5.49.0, UUID ou autre avant. */
+const STAGING_ID_RE = /^[A-Za-z0-9_-]+$/;
+const STAGING_FILE_RE = /^[A-Za-z0-9._-]+$/;
+
+/** Segment `.` ou `..` : jamais accepté dans une clé (un nom de fichier contenant `..` l'est). */
+export function hasDotSegment(key: string): boolean {
+    return key.split('/').some((part) => part === '.' || part === '..');
+}
+
+function assertUlSegment(ulSegment: string, what: string): void {
+    if (!ulSegment || !UL_SEGMENT_RE.test(ulSegment)) throw new R2Error(`ulSegment invalide pour construire une clé ${what}`);
+}
+
 /**
- * Clé R2 d'un justificatif en attente de scellement.
+ * Clé R2 d'un justificatif en attente de scellement :
+ * `expenses-staging/{UL}/{stagingId}/{uuid}-{nom}` (`stagingId` émis et signé par
+ * `issueStagingId`, `src/lib/expenses/receipt-keys.ts`).
  *
  * Stockage TRANSITOIRE : ces fichiers vivent le temps qu'un brouillon soit
  * complété, puis sont intégrés comme pages du PDF au premier scellement et
  * supprimés — jamais référencés depuis une note soumise.
  */
-export function buildExpenseStagingKey(stagingId: string, filename: string): string {
-    if (!stagingId) throw new R2Error('stagingId requis pour construire une clé de dépôt R2');
+export function buildExpenseStagingKey(ulSegment: string, stagingId: string, filename: string): string {
+    assertUlSegment(ulSegment, 'de dépôt R2');
+    if (!stagingId || !STAGING_ID_RE.test(stagingId)) throw new R2Error('stagingId invalide pour construire une clé de dépôt R2');
     const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80) || 'fichier';
-    return `expenses-staging/${stagingId}/${crypto.randomUUID()}-${safeName}`;
+    return `${EXPENSE_STAGING_PREFIX}/${ulSegment}/${stagingId}/${crypto.randomUUID()}-${safeName}`;
 }
 
 /**
- * Clé R2 du guide de vérification d'un véhicule.
+ * Découpe une clé de justificatif en attente : nouvelle forme
+ * `expenses-staging/{UL}/{stagingId}/{fichier}`, ou ancienne forme
+ * `expenses-staging/{stagingId}/{fichier}` (avant la v5.49.0 : `ulSegment: null`).
+ * `null` pour toute autre clé (autre préfixe, segment `.`/`..`, segment invalide).
+ * Ne dit rien de la signature du `stagingId` (`rejectedReceiptKeys`).
+ */
+export function parseExpenseStagingKey(key: unknown): { ulSegment: string | null; stagingId: string; file: string } | null {
+    if (typeof key !== 'string' || hasDotSegment(key)) return null;
+    const parts = key.split('/');
+    if (parts[0] !== EXPENSE_STAGING_PREFIX) return null;
+    const file = parts[parts.length - 1];
+    if (!STAGING_FILE_RE.test(file)) return null;
+    if (parts.length === 3 && STAGING_ID_RE.test(parts[1])) {
+        return { ulSegment: null, stagingId: parts[1], file };
+    }
+    if (parts.length === 4 && UL_SEGMENT_RE.test(parts[1]) && STAGING_ID_RE.test(parts[2])) {
+        return { ulSegment: parts[1], stagingId: parts[2], file };
+    }
+    return null;
+}
+
+/** Clé de dépôt nouvelle forme, rangée sous `ulSegment` (signature non vérifiée ici). */
+export function isExpenseStagingKey(key: unknown, ulSegment: string): boolean {
+    const parsed = parseExpenseStagingKey(key);
+    return !!parsed && parsed.ulSegment !== null && parsed.ulSegment === ulSegment;
+}
+
+function safeAttemptOf(attempt: string): string {
+    return attempt.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'x';
+}
+
+/** Dossier d'un véhicule sous un préfixe : `{préfixe}/{UL}/{nom du véhicule assaini}`. */
+export function vehicleMediaFolder(prefix: string, ulSegment: string, vehicleName: unknown): string {
+    assertUlSegment(ulSegment, 'de véhicule R2');
+    return `${prefix}/${ulSegment}/${sanitizeName(vehicleName)}`;
+}
+
+/**
+ * Clé R2 d'un document PDF de véhicule :
+ * `vehicle-documents/{UL}/{nom du véhicule}/{tentative}.pdf`.
  *
  * VERSIONNÉE comme les PDF scellés : un remplacement écrit une nouvelle clé, la
  * base bascule dessus, puis seulement l'ancien objet est supprimé. Une lecture
  * concurrente ne tombe donc jamais sur un objet à moitié remplacé.
  */
-export function buildVehicleGuideKey(vehicleId: string, attempt: string): string {
-    if (!vehicleId) throw new R2Error('vehicleId requis pour construire une clé de guide R2');
-    const safeVehicleId = vehicleId.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const safeAttempt = attempt.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'x';
-    return `vehicle-guides/${safeVehicleId}/${safeAttempt}.pdf`;
+export function buildVehicleGuideKey(ulSegment: string, vehicleName: unknown, attempt: string): string {
+    return `${vehicleMediaFolder(VEHICLE_DOCUMENT_PREFIX, ulSegment, vehicleName)}/${safeAttemptOf(attempt)}.pdf`;
 }
 
-/** Clé R2 de la photo d'un véhicule, VERSIONNÉE comme celle du guide. */
-export function buildVehiclePhotoKey(vehicleId: string, attempt: string): string {
-    if (!vehicleId) throw new R2Error('vehicleId requis pour construire une clé de photo R2');
-    const safeVehicleId = vehicleId.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const safeAttempt = attempt.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8) || 'x';
-    return `vehicle-photos/${safeVehicleId}/${safeAttempt}.jpg`;
+/**
+ * Clé R2 de la photo d'un véhicule, VERSIONNÉE comme celle des documents :
+ * `vehicle-photos/{UL}/{nom du véhicule}/{tentative}.jpg`.
+ */
+export function buildVehiclePhotoKey(ulSegment: string, vehicleName: unknown, attempt: string): string {
+    return `${vehicleMediaFolder(VEHICLE_PHOTO_PREFIX, ulSegment, vehicleName)}/${safeAttemptOf(attempt)}.jpg`;
 }
 
 const MAX_ATTEMPTS = 3;
@@ -341,6 +466,59 @@ async function listKeys(prefix: string, continuationToken?: string): Promise<{ k
         const next = xml.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/)?.[1];
         return { keys, next: truncated && next ? decodeXml(next) : undefined };
     });
+}
+
+async function listAllKeys(prefix: string): Promise<string[]> {
+    const keys: string[] = [];
+    let token: string | undefined;
+    do {
+        const page = await listKeys(prefix, token);
+        keys.push(...page.keys);
+        token = page.next;
+    } while (token);
+    return keys;
+}
+
+/**
+ * Liste toutes les clés sous `prefix` (toutes les pages).
+ *
+ * Mode démo : réunit les objets écrits en démo (`demo/<prefix>…`, rendus sans le
+ * préfixe `demo/`, donc transparents pour l'appelant) et les vrais objets, sans
+ * doublon — la lecture d'une clé retombe ensuite d'elle-même sur la bonne copie.
+ */
+export async function listObjects(prefix: string): Promise<string[]> {
+    if (!prefix) throw new R2Error('prefix requis pour lister des objets R2');
+    if (!(await isDemoRequestLazy())) return listAllKeys(prefix);
+    const fromDemo = (await listAllKeys(demoKey(prefix))).map((k) => k.slice(DEMO_KEY_PREFIX.length));
+    const real = await listAllKeys(prefix);
+    return [...new Set([...fromDemo, ...real])];
+}
+
+/**
+ * Supprime tous les objets d'un dossier média (`prefix` + `/`). Seul un préfixe
+ * de dossier COMPLET est accepté (`{type}/{UL}/{dossier}`, `parseMediaFolderRef`) :
+ * ni `trip-photos/paris-18` (toute une UL), ni une clé de fichier. Le `/` final est
+ * imposé : `a/b/c` n'emporte jamais `a/b/cd/…`. Mode démo : seuls les objets sous
+ * `demo/` sont supprimés, jamais les vrais. Renvoie le nombre d'objets supprimés.
+ */
+export async function deletePrefix(prefix: string): Promise<number> {
+    if (!parseMediaFolderRef(prefix)) throw new R2Error('Préfixe R2 refusé : un dossier média complet est attendu');
+    const listed = `${prefix}/`;
+    const target = (await isDemoRequestLazy()) ? demoKey(listed) : listed;
+    const keys = await listAllKeys(target);
+    let deleted = 0;
+    for (const key of keys) {
+        if (!key.startsWith(target)) continue;
+        await rawDeleteObject(key);
+        deleted++;
+    }
+    return deleted;
+}
+
+/** Supprime un fichier média par sa clé validée (rapport de mission signé). */
+export async function deleteMediaKey(key: string): Promise<void> {
+    if (!validateMediaKey(key)) throw new R2Error('Clé média invalide');
+    await deleteObject(key);
 }
 
 /**

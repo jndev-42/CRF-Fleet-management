@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { mediaFileUrl, mediaListUrl } from '@/lib/imageCompression';
 
 interface PhotoViewerProps {
     driveFolderId: string;
@@ -18,7 +19,7 @@ export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps
     useEffect(() => {
         async function fetchPhotos() {
             try {
-                const res = await fetch(`/api/drive/photos?folderId=${driveFolderId}`);
+                const res = await fetch(mediaListUrl(driveFolderId));
                 if (!res.ok) {
                     if (res.status === 401 || res.status === 403) {
                         throw new Error('Permissions expirées. Veuillez vous reconnecter.');
@@ -46,13 +47,13 @@ export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps
                         <div
                             key={photo.id}
                             style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-primary)', background: '#000', height: 150, cursor: 'pointer' }}
-                            onClick={() => setActivePhoto(`/api/drive/photos/${photo.id}`)}
+                            onClick={() => setActivePhoto(mediaFileUrl(photo.id))}
                         >
                             {/* eslint-disable-next-line @next/next/no-img-element -- images are
                                 served through a dynamic proxy API route; next/image cannot
                                 statically optimize these URLs */}
                             <img
-                                src={`/api/drive/photos/${photo.id}`}
+                                src={mediaFileUrl(photo.id)}
                                 alt={photo.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                 loading="lazy"
@@ -76,7 +77,7 @@ export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps
                         {loading && (
                             <div className="loading-container" style={{ padding: 40 }}>
                                 <div className="loading-spinner" />
-                                <div style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: 14 }}>Chargement des photos depuis Google Drive...</div>
+                                <div style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: 14 }}>Chargement des photos...</div>
                             </div>
                         )}
                         {error && (

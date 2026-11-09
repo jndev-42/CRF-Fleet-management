@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { mediaFileUrl, mediaListUrl } from '@/lib/imageCompression';
 
 interface PhotoEntry {
     id: string;
@@ -18,7 +19,7 @@ export default function MissionPhotosSection({ folderId }: MissionPhotosSectionP
     useEffect(() => {
         async function fetchPhotos() {
             try {
-                const res = await fetch(`/api/drive/photos?folderId=${encodeURIComponent(folderId)}&flat=true`);
+                const res = await fetch(mediaListUrl(folderId, { flat: true }));
                 if (res.ok) {
                     const data = await res.json();
                     setPhotos(data.photos ?? []);
@@ -77,7 +78,7 @@ export default function MissionPhotosSection({ folderId }: MissionPhotosSectionP
             {photos.map(photo => (
                 <a
                     key={photo.id}
-                    href={`/api/drive/photos/${photo.id}`}
+                    href={mediaFileUrl(photo.id)}
                     target="_blank"
                     rel="noopener noreferrer"
                     title={photo.name}
@@ -85,7 +86,7 @@ export default function MissionPhotosSection({ folderId }: MissionPhotosSectionP
                 >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                        src={`/api/drive/photos/${photo.id}`}
+                        src={mediaFileUrl(photo.id)}
                         alt={photo.name}
                         style={{
                             width: '100%',

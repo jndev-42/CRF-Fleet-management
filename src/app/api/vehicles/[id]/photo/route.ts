@@ -7,7 +7,7 @@
  *
  * ⚠️ `[id]` est le NOM du véhicule, comme pour `/api/vehicles/[id]`.
  *
- * Le binaire vit dans R2 (préfixe `vehicle-photos/`), jamais en base. Les clés sont
+ * Le binaire vit dans R2 (`vehicle-photos/{UL}/{nom du véhicule}/…`), jamais en base. Les clés sont
  * versionnées : un remplacement écrit un nouvel objet, bascule la base, puis
  * supprime l'ancien.
  */
@@ -30,7 +30,7 @@ const NOT_FOUND = { error: 'Véhicule non trouvé' };
 
 async function findVehicleByName(name: string) {
     const res = await db.execute({
-        sql: `SELECT id, ulId, photoR2Key FROM Vehicle WHERE name = ?`,
+        sql: `SELECT id, name, ulId, photoR2Key FROM Vehicle WHERE name = ?`,
         args: [name],
     });
     return res.rows[0] ?? null;
@@ -110,6 +110,12 @@ async function postHandler(
             return forbiddenResponse();
         }
 
+        // Sans UL, l'objet ne pourrait être rangé sous aucun dossier d'UL (le script de
+        // rangement saute aussi ces véhicules).
+        if (!vehicle.ulId || vehicle.ulId === 'default') {
+            return NextResponse.json({ error: "Ce véhicule n'est rattaché à aucune unité locale : dépôt de photo impossible." }, { status: 400 });
+        }
+
         let formData: FormData;
         try {
             formData = await request.formData();
@@ -134,7 +140,9 @@ async function postHandler(
 
         const vehicleId = vehicle.id as string;
         const previousKey = (vehicle.photoR2Key as string | null) || null;
-        const key = buildVehiclePhotoKey(vehicleId, newAttemptId());
+        const { ulSegmentOf } = await import('@/lib/media/server');
+        const ulSegment = await ulSegmentOf(String(vehicle.ulId ?? ''));
+        const key = buildVehiclePhotoKey(ulSegment, vehicle.name, newAttemptId());
         const photoUpdatedAt = new Date().toISOString();
 
         await putObject(key, body, 'image/jpeg');
