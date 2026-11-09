@@ -8,6 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createClient, type Client } from '@libsql/client';
 import {
+    legacyKeyOf,
     readRelocationRows,
     relocateRow,
     relocatedStagingKey,
@@ -339,5 +340,73 @@ describe('revue 1 — type, segments, références', () => {
         const run = await runR2Relocation({ db, store, apply: true, deleteOld: true, log: silent });
         expect(run.stats).toMatchObject({ moved: 1, failed: 0 });
         expect(objects.has(key)).toBe(false);
+    });
+});
+
+describe('--delete-old en passe séparée (après un --apply sans --delete-old)', () => {
+    async function seedApplied() {
+        await client.execute(`INSERT INTO Vehicle VALUES ('v1', 'VSAV 1', 'ul-uuid-1', 'vehicle-photos/v1/p1.jpg', 'vehicle-guides/v1/g1.pdf')`);
+        await client.execute(`INSERT INTO VehicleDocument VALUES ('d1', 'v1', 'vehicle-guides/v1/g1.pdf', 'g.pdf', 1, 'x')`);
+        await client.execute({
+            sql: `INSERT INTO "ExpenseReport" VALUES ('e1', 'ul-uuid-1', 'brouillon', ?, NULL)`,
+            args: [JSON.stringify([`expenses-staging/${SID}/u-a.jpg`])],
+        });
+        const fake = fakeStore({
+            'vehicle-photos/v1/p1.jpg': 'photo', 'vehicle-guides/v1/g1.pdf': '%PDF-g', [`expenses-staging/${SID}/u-a.jpg`]: 'a',
+        });
+        await runR2Relocation({ db, store: fake.store, apply: true, deleteOld: false, log: silent });
+        vi.mocked(fake.store.delete).mockClear();
+        return fake;
+    }
+
+    it('supprime les anciens objets restés derrière, base inchangée ; le dry-run les liste', async () => {
+        const { store, objects } = await seedApplied();
+        const info = vi.fn();
+        const plan = await runR2Relocation({ db, store, apply: false, deleteOld: true, log: { ...silent, info } });
+        expect(store.delete).not.toHaveBeenCalled();
+        const out = info.mock.calls.map((c) => c[0]).join('\n');
+        for (const k of ['vehicle-photos/v1/p1.jpg', 'vehicle-guides/v1/g1.pdf', `expenses-staging/${SID}/u-a.jpg`]) {
+            expect(out).toContain(`à supprimer : ${k}`);
+        }
+        expect(plan.stats.unchanged).toBe(3);
+
+        const run = await runR2Relocation({ db, store, apply: true, deleteOld: true, log: silent });
+        expect(run.stats).toMatchObject({ unchanged: 3, deleted: 3, failed: 0 });
+        expect(run.exitCode).toBe(0);
+        expect(objects.has('vehicle-photos/v1/p1.jpg')).toBe(false);
+        expect(objects.has('vehicle-guides/v1/g1.pdf')).toBe(false);
+        expect(objects.has(`expenses-staging/${SID}/u-a.jpg`)).toBe(false);
+        expect(objects.has('vehicle-photos/paris-18/vsav-1/p1.jpg')).toBe(true);
+        expect(objects.has('vehicle-documents/paris-18/vsav-1/g1.pdf')).toBe(true);
+        expect(objects.has(`expenses-staging/paris-18/${SID}/u-a.jpg`)).toBe(true);
+        expect((await one(`SELECT photoR2Key FROM Vehicle`)).photoR2Key).toBe('vehicle-photos/paris-18/vsav-1/p1.jpg');
+    });
+
+    it('ancienne clé encore référencée ailleurs : conservée', async () => {
+        const { store, objects } = await seedApplied();
+        await client.execute({
+            sql: `INSERT INTO "ExpenseReport" VALUES ('e2', 'ul-uuid-1', 'soumis', ?, NULL)`,
+            args: [JSON.stringify([`expenses-staging/${SID}/u-a.jpg`])],
+        });
+        const run = await runR2Relocation({ db, store, apply: true, deleteOld: true, log: silent });
+        expect(objects.has(`expenses-staging/${SID}/u-a.jpg`)).toBe(true);
+        expect(store.delete).not.toHaveBeenCalledWith(`expenses-staging/${SID}/u-a.jpg`);
+        expect(run.stats.failed).toBe(0);
+    });
+
+    it('rien à supprimer (anciens objets déjà absents) : aucun appel de suppression', async () => {
+        const { store, objects } = await seedApplied();
+        for (const k of ['vehicle-photos/v1/p1.jpg', 'vehicle-guides/v1/g1.pdf', `expenses-staging/${SID}/u-a.jpg`]) objects.delete(k);
+        const run = await runR2Relocation({ db, store, apply: true, deleteOld: true, log: silent });
+        expect(store.delete).not.toHaveBeenCalled();
+        expect(run.stats).toMatchObject({ unchanged: 3, deleted: 0 });
+    });
+
+    it('legacyKeyOf : reconstruit l\'ancienne clé d\'une clé rangée, null sinon', () => {
+        expect(legacyKeyOf({ kind: 'vehicle-photo', vehicleId: 'v1' }, 'vehicle-photos/paris-18/vsav-1/a.jpg')).toBe('vehicle-photos/v1/a.jpg');
+        expect(legacyKeyOf({ kind: 'vehicle-document', vehicleId: 'v/1' }, 'vehicle-documents/paris-18/vsav-1/a.pdf')).toBe('vehicle-guides/v_1/a.pdf');
+        expect(legacyKeyOf({ kind: 'expense-staging' }, `expenses-staging/paris-18/${SID}/f.jpg`)).toBe(`expenses-staging/${SID}/f.jpg`);
+        expect(legacyKeyOf({ kind: 'vehicle-photo', vehicleId: 'v1' }, 'vehicle-photos/v1/a.jpg')).toBeNull();
+        expect(legacyKeyOf({ kind: 'expense-staging' }, `expenses-staging/${SID}/f.jpg`)).toBeNull();
     });
 });

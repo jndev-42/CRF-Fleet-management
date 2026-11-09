@@ -91,7 +91,8 @@ export interface RelocationJournalEntry {
 
 export type RelocationResult =
     | { status: 'moved' | 'planned'; moves: KeyMove[]; guideRepointed: boolean; deleted: string[]; warnings: string[] }
-    | { status: 'unchanged' }
+    /** Déjà rangée ; `deleted` : anciennes clés supprimées (ou à supprimer) par une passe `--delete-old` séparée. */
+    | { status: 'unchanged'; deleted?: string[]; warnings?: string[] }
     | { status: 'skipped'; reason: string; moves?: KeyMove[] }
     | { status: 'error'; reason: string };
 
@@ -241,7 +242,10 @@ export async function relocateRow(
         const plan = planMoves(row);
         if ('reason' in plan) return { status: 'skipped', reason: plan.reason };
         const { moves } = plan;
-        if (moves.length === 0) return { status: 'unchanged' };
+        if (moves.length === 0) {
+            if (!opts.deleteOld) return { status: 'unchanged' };
+            return { status: 'unchanged', ...(await deleteLegacyLeftovers(row, plan.keys, deps, opts.apply)) };
+        }
 
         // Sources présentes ? Une seule absente : ligne sautée, base intacte.
         for (const m of moves) {
@@ -327,6 +331,53 @@ export async function relocateRow(
     }
 }
 
+/**
+ * Ancienne clé (avant rangement) d'une clé déjà rangée, reconstruite à partir de
+ * la clé courante : `vehicle-photos/{vehicleId}/{f}`, `vehicle-guides/{vehicleId}/{f}`
+ * ou `expenses-staging/{stagingId}/{f}`. `null` si la clé n'est pas sous sa forme rangée.
+ */
+export function legacyKeyOf(row: Pick<RelocationRow, 'kind' | 'vehicleId'>, key: string): string | null {
+    if (row.kind === 'expense-staging') {
+        const parsed = parseExpenseStagingKey(key);
+        return parsed?.ulSegment ? `${EXPENSE_STAGING_PREFIX}/${parsed.stagingId}/${parsed.file}` : null;
+    }
+    const parts = key.split('/');
+    const prefix = row.kind === 'vehicle-photo' ? VEHICLE_PHOTO_PREFIX : VEHICLE_DOCUMENT_PREFIX;
+    if (!row.vehicleId || parts.length !== 4 || parts[0] !== prefix || hasDotSegment(key)) return null;
+    // Même assainissement que les anciens constructeurs de clés.
+    const safeVehicleId = row.vehicleId.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const legacyPrefix = row.kind === 'vehicle-photo' ? VEHICLE_PHOTO_PREFIX : LEGACY_VEHICLE_GUIDE_PREFIX;
+    return `${legacyPrefix}/${safeVehicleId}/${parts[3]}`;
+}
+
+/**
+ * Passe `--delete-old` séparée, après un `--apply` : la ligne est déjà repointée,
+ * l'ancienne clé n'est plus en base mais l'objet est resté. Supprime chaque ancienne
+ * clé qui existe encore et que plus rien ne référence (dry-run : la liste seulement).
+ */
+async function deleteLegacyLeftovers(
+    row: RelocationRow, keys: string[], deps: { db: RelocationDb; store: RelocationStore }, apply: boolean,
+): Promise<{ deleted: string[]; warnings: string[] }> {
+    const deleted: string[] = [];
+    const warnings: string[] = [];
+    for (const key of keys) {
+        const legacy = legacyKeyOf(row, key);
+        if (!legacy || legacy === key || !(await deps.store.head(legacy))) continue;
+        if (await isReferenced(deps.db, legacy)) {
+            warnings.push(`${legacy} encore référencée ailleurs : conservée`);
+            continue;
+        }
+        if (!apply) { deleted.push(legacy); continue; }
+        try {
+            await deps.store.delete(legacy);
+            deleted.push(legacy);
+        } catch (e: unknown) {
+            warnings.push(`suppression de ${legacy} impossible : ${e instanceof Error ? e.message : String(e)}`);
+        }
+    }
+    return { deleted, warnings };
+}
+
 /** Supprime les copies écrites par ce passage, sauf si une autre ligne les référence déjà. */
 async function cleanup(db: RelocationDb, store: RelocationStore, written: string[]): Promise<void> {
     for (const key of written) {
@@ -391,6 +442,16 @@ export async function runR2Relocation(opts: {
         switch (result.status) {
             case 'unchanged':
                 stats.unchanged++;
+                if (result.deleted?.length || result.warnings?.length) {
+                    log.info(`  = ${label} déjà rangée — anciennes clés restantes :`);
+                    for (const d of result.deleted ?? []) log.info(`      ${apply ? 'supprimé' : 'à supprimer'} : ${d}`);
+                    for (const w of result.warnings ?? []) log.warn(`      ! ${w}`);
+                    if (apply) stats.deleted += result.deleted?.length ?? 0;
+                    if (apply && result.warnings?.some((w) => w.startsWith('suppression'))) {
+                        stats.failed++;
+                        failures.push(`${label} : ancienne clé non supprimée`);
+                    }
+                }
                 break;
             case 'planned':
             case 'moved': {

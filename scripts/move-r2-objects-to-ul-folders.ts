@@ -64,6 +64,16 @@ async function main(): Promise<void> {
         process.exit(1);
     }
 
+    // Sans R2_BUCKET explicite, src/lib/r2.ts retomberait sur le bucket de PRODUCTION.
+    const { requireExplicitR2Bucket } = await import('../src/lib/media/script-env');
+    let bucket: string;
+    try {
+        bucket = requireExplicitR2Bucket();
+    } catch (e: unknown) {
+        console.error(e instanceof Error ? e.message : String(e));
+        process.exit(1);
+    }
+
     const { db } = await import('../src/lib/db');
     const { getObject, putObject, headObject, deleteObject, assertR2Configured } = await import('../src/lib/r2');
     const { runR2Relocation } = await import('../src/lib/media/r2-relocation');
@@ -73,6 +83,7 @@ async function main(): Promise<void> {
     console.log(APPLY ? '=== RANGEMENT R2 PAR UL — EXÉCUTION RÉELLE ===' : '=== RANGEMENT R2 PAR UL — DRY-RUN (aucune écriture) ===');
     console.log(`Environnement : ${envFile}`);
     console.log(`Base cible    : ${(process.env.TURSO_DATABASE_URL || '').replace(/^libsql:\/\//, '').split('.')[0]}`);
+    console.log(`Bucket R2     : ${bucket}`);
     if (DELETE_OLD) console.log('Anciennes clés : SUPPRIMÉES après chaque UPDATE réussi');
 
     let journalFile: string | null = null;
