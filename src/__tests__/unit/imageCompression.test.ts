@@ -67,12 +67,14 @@ describe('imageCompression utility', () => {
         vi.unstubAllGlobals();
     });
 
-    it('mediaFileUrl / mediaListUrl : R2 ou ancien proxy Drive selon la référence', async () => {
+    it('mediaFileUrl / mediaListUrl : R2, ou null pour une référence non R2 (id Drive résiduel)', async () => {
         const { mediaFileUrl, mediaListUrl } = await import('@/lib/imageCompression');
         const ref = 'incident-photos/paris-18/vsav-1-20261108-143000-a1b2';
         expect(mediaFileUrl(`${ref}/0a1b2c3d-x.jpg`)).toBe(`/api/media/file?key=${encodeURIComponent(`${ref}/0a1b2c3d-x.jpg`)}`);
-        expect(mediaFileUrl('1XyZdriveFile')).toBe('/api/drive/photos/1XyZdriveFile');
+        expect(mediaFileUrl('1XyZdriveFile')).toBeNull();
+        expect(mediaFileUrl(null)).toBeNull();
         expect(mediaListUrl(ref, { flat: true })).toBe(`/api/media/photos?folderId=${encodeURIComponent(ref)}&flat=true`);
-        expect(mediaListUrl('1AbCdriveFolder')).toBe('/api/drive/photos?folderId=1AbCdriveFolder');
+        expect(mediaListUrl('1AbCdriveFolder')).toBeNull();
+        expect(mediaListUrl('mock-folder')).toBeNull();
     });
 });

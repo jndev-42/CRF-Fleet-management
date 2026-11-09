@@ -1,6 +1,6 @@
 /**
  * GET /api/media/photos?folderId=<préfixe R2>[&flat=true] — liste les fichiers d'un
- * dossier média R2, sous les mêmes formes que l'ancien `/api/drive/photos` :
+ * dossier média R2 :
  *   - par défaut (trajet) : `{ emprunt: [{ id, name }], rendu: [{ id, name }] }` ;
  *   - `flat=true` (incident, mission) : `{ photos: [{ id, name, mimeType }] }`.
  * `id` est la clé R2, à passer à `/api/media/file?key=`.
@@ -10,7 +10,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { canAccessFolder } from '@/lib/driveAuth';
+import { canAccessFolder } from '@/lib/media/access';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { parseMediaFolderRef } from '@/lib/media/refs';

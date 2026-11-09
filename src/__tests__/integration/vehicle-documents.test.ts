@@ -17,7 +17,6 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/drive', () => ({ deleteDriveFolder: vi.fn() }));
 vi.mock('@/lib/vehicleStatusRecalc', () => ({
     recalcVehicleStatus: vi.fn(async (_id: string, opts: { currentStatus: string }) => opts.currentStatus),
 }));

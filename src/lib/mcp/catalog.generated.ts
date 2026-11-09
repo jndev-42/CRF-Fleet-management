@@ -16,8 +16,6 @@ export const MCP_API_CATALOG: readonly CatalogRoute[] = [
     { path: "/api/changelog", methods: ['GET'] },
     { path: "/api/checklist/[itemId]", methods: ['PATCH', 'DELETE'] },
     { path: "/api/demo/status", methods: ['GET'] },
-    { path: "/api/drive/photos", methods: ['GET'] },
-    { path: "/api/drive/photos/[fileId]", methods: ['GET'] },
     { path: "/api/expense-budgets", methods: ['GET', 'POST'] },
     { path: "/api/expense-budgets/[id]", methods: ['PATCH', 'DELETE'] },
     { path: "/api/expenses", methods: ['GET', 'POST'] },

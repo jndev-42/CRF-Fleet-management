@@ -4,7 +4,7 @@
 # vehicles/[id]
 
 ## Purpose
-Vehicle-specific endpoints: fetch full details (including trip history, active maintenance, and advanced fields), update vehicle metadata, and delete a vehicle (cascades to trips and Drive folders). `[id]` is the **vehicle name** (not UUID). Touches `Vehicle`, `Trip`, `User`, `VehicleMaintenance` tables; coordinates with Google Drive for folder deletion.
+Vehicle-specific endpoints: fetch full details (including trip history, active maintenance, and advanced fields), update vehicle metadata, and delete a vehicle (cascades to trips and their R2 photos). `[id]` is the **vehicle name** (not UUID). Touches `Vehicle`, `Trip`, `User`, `VehicleMaintenance` tables
 
 ## Key Files
 | File | Description |
@@ -33,7 +33,7 @@ Vehicle-specific endpoints: fetch full details (including trip history, active m
 
 **PATCH /api/vehicles/[id]** — ADMIN only. Updates optional fields (name, plate, status, fuel, mileage, DSA, desinfTracking, etc.). Validates unique name/plate across other vehicles. If `hasDSA` changes, adds/removes DSA checkout checklist item. Returns updated vehicle (or message if no changes).
 
-**DELETE /api/vehicles/[id]** — ADMIN only. Deletes vehicle, all its trips, and associated Google Drive folders (non-blocking). Resolves vehicle name to UUID first. Returns `{ success: true }` or 404 if vehicle not found.
+**DELETE /api/vehicles/[id]** — ADMIN only. Deletes vehicle, all its trips, and their R2 photos (`deleteMediaRefIfUnshared`, non-blocking). Resolves vehicle name to UUID first. Returns `{ success: true }` or 404 if vehicle not found.
 
 **Key business rules:**
 - `[id]` is vehicle name, not UUID (user-friendly URL)
@@ -41,13 +41,13 @@ Vehicle-specific endpoints: fetch full details (including trip history, active m
 - Effective status synced: active maintenance + status ≠ IN_USE ⇒ MAINTENANCE
 - DSA checklist item ID: `dsa-checkout-{vehicleUuid}`
 - Trip response includes driver names, email, mission type, checkin/checkout times, parking photos, Renault data validation status, desinfection fields
-- Cascading delete: Drive folders cleaned up via `deleteDriveFolder()` (Promise.allSettled for non-blocking)
+- Cascading delete: R2 photos cleaned up via `deleteMediaRefIfUnshared()` (`@/lib/media/server`, best-effort ; a non-R2 reference has nothing to delete)
 
 ## Dependencies
 
 ### Internal
 - `@/lib/db` — parameterized SQL, transaction support
-- `@/lib/drive` — `deleteDriveFolder()` for Drive cleanup
+- `@/lib/media/server` — `deleteMediaRefIfUnshared()` for R2 cleanup
 - `@/lib/roles` — `canManageVehicles`
 - `@/auth` — NextAuth v5 session
 

@@ -10,8 +10,6 @@ import ExpensesHeader from './ExpensesHeader';
 import ExpensesFilters from './ExpensesFilters';
 import ExpensesTable from './ExpensesTable';
 import ExpenseDetailSidebar from './ExpenseDetailSidebar';
-import JustificatifsModal from './JustificatifsModal';
-import PhotoLightbox from './PhotoLightbox';
 import { useExpenseReports } from './useExpenseReports';
 import { signingActionFor, canCreateExpense } from './utils';
 import type { ExpenseReport } from './types';
@@ -23,12 +21,8 @@ export default function ExpensesPage() {
     const [isCreating, setIsCreating] = useState(false);
     const [editingReport, setEditingReport] = useState<ExpenseReport | null>(null);
     const [selectedReport, setSelectedReport] = useState<ExpenseReport | null>(null);
-    const [photos, setPhotos] = useState<{ id: string; name: string; mimeType?: string }[]>([]);
-    const [photosLoading, setPhotosLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
-    const [isJustificatifsModalOpen, setIsJustificatifsModalOpen] = useState(false);
     const [isBudgetsModalOpen, setIsBudgetsModalOpen] = useState(false);
-    const [activeLightboxImage, setActiveLightboxImage] = useState<string | null>(null);
     /**
      * Contexte de signature unifié pour les trois actions signées.
      *
@@ -69,28 +63,6 @@ export default function ExpensesPage() {
             router.push('/login');
         }
     }, [status, router]);
-
-    // Fetch photos for selected report — annule la requête précédente pour éviter
-    // qu'une réponse tardive n'écrase les photos du rapport nouvellement sélectionné.
-    useEffect(() => {
-        if (selectedReport?.driveFolderId) {
-            setPhotosLoading(true);
-            setPhotos([]);
-            const controller = new AbortController();
-            fetch(`/api/drive/photos?folderId=${selectedReport.driveFolderId}&flat=true`, { signal: controller.signal })
-                .then(res => { if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`); return res.json(); })
-                .then(data => {
-                    if (data.photos) {
-                        setPhotos(data.photos);
-                    }
-                })
-                .catch(err => { if (err.name !== 'AbortError') console.error('Failed to fetch photos', err); })
-                .finally(() => setPhotosLoading(false));
-            return () => controller.abort();
-        } else {
-            setPhotos([]);
-        }
-    }, [selectedReport]);
 
     /** Signature à l'étape RESPO par un RESPO — le libellé de la modale en dépend. */
     const signsAsRespo = (report: ExpenseReport) => {
@@ -304,8 +276,6 @@ export default function ExpensesPage() {
                             canPay={canPay}
                             currentUserId={session?.user?.id}
                             actionLoading={actionLoading}
-                            photos={photos}
-                            photosLoading={photosLoading}
                             onClose={() => setSelectedReport(null)}
                             onOpenValidate={openValidateModal}
                             onReject={handleReject}
@@ -316,7 +286,6 @@ export default function ExpensesPage() {
                                 setEditingReport(report);
                                 setIsCreating(true);
                             }}
-                            onViewAllPhotos={() => setIsJustificatifsModalOpen(true)}
                         />
                     )}
                 </div>
@@ -349,23 +318,9 @@ export default function ExpensesPage() {
                 />
             )}
 
-            {/* Modale d'affichage des justificatifs (photos & PDF) */}
-            {isJustificatifsModalOpen && selectedReport && (
-                <JustificatifsModal
-                    photos={photos}
-                    onClose={() => setIsJustificatifsModalOpen(false)}
-                    onImageClick={setActiveLightboxImage}
-                />
-            )}
-
             {/* Modale de gestion des budgets analytiques de l'UL */}
             {isBudgetsModalOpen && (
                 <ExpenseBudgetsModal onClose={() => setIsBudgetsModalOpen(false)} />
-            )}
-
-            {/* Lightbox photo en plein écran */}
-            {activeLightboxImage && (
-                <PhotoLightbox imageUrl={activeLightboxImage} onClose={() => setActiveLightboxImage(null)} />
             )}
         </div>
     );

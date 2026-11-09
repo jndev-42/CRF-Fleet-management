@@ -33,10 +33,6 @@ vi.mock('@/lib/push', () => ({
   notifyRoles: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock('@/lib/drive', () => ({
-  deleteDriveFolder: vi.fn().mockResolvedValue(undefined),
-}));
-
 import { POST } from '@/app/api/trips/route';
 import { PATCH } from '@/app/api/trips/[id]/checkin/route';
 import { DELETE } from '@/app/api/trips/[id]/route';

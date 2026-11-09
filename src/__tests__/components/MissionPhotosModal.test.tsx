@@ -2,7 +2,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import MissionPhotosModal from '@/components/missions/MissionPhotosModal';
 
-const photos = [{ id: 'p1', name: 'photo1.jpg' }, { id: 'p2', name: 'photo2.jpg' }];
+const REF = 'mission-com-photos/paris-18/maraude-20261108-143000-a1b2';
+const photos = [{ id: `${REF}/0a1b2c3d-photo1.jpg`, name: 'photo1.jpg' }, { id: `${REF}/0a1b2c3d-photo2.jpg`, name: 'photo2.jpg' }];
 
 beforeEach(() => {
     vi.restoreAllMocks();
@@ -13,11 +14,11 @@ afterEach(() => {
 });
 
 describe('MissionPhotosModal', () => {
-    it('interroge le bon dossier Drive', async () => {
-        const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ photos: [] }), { status: 200 }));
-        vi.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
-        render(<MissionPhotosModal folderId="folder-1" onClose={vi.fn()} />);
-        await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/drive/photos?folderId=folder-1&flat=true'));
+    it('id Drive résiduel : aucune photo, aucun appel réseau', async () => {
+        const fetchSpy = vi.spyOn(global, 'fetch');
+        render(<MissionPhotosModal folderId="1AbCdriveFolder" onClose={vi.fn()} />);
+        expect(await screen.findByText('Aucune photo disponible.')).toBeTruthy();
+        expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it('dossier R2 : interroge /api/media/photos et affiche les fichiers via /api/media/file', async () => {
@@ -33,7 +34,7 @@ describe('MissionPhotosModal', () => {
 
     it('affiche les photos (happy path)', async () => {
         vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ photos }), { status: 200 }));
-        render(<MissionPhotosModal folderId="folder-1" onClose={vi.fn()} />);
+        render(<MissionPhotosModal folderId={REF} onClose={vi.fn()} />);
 
         const images = await screen.findAllByRole('img');
         expect(images).toHaveLength(2);
@@ -42,13 +43,13 @@ describe('MissionPhotosModal', () => {
 
     it('affiche un état vide sans photo', async () => {
         vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ photos: [] }), { status: 200 }));
-        render(<MissionPhotosModal folderId="folder-1" onClose={vi.fn()} />);
+        render(<MissionPhotosModal folderId={REF} onClose={vi.fn()} />);
         expect(await screen.findByText('Aucune photo disponible.')).toBeTruthy();
     });
 
     it('ne casse pas le rendu si la requête échoue', async () => {
         vi.spyOn(global, 'fetch').mockResolvedValue(new Response('', { status: 500 }));
-        render(<MissionPhotosModal folderId="folder-1" onClose={vi.fn()} />);
+        render(<MissionPhotosModal folderId={REF} onClose={vi.fn()} />);
         expect(await screen.findByText('Aucune photo disponible.')).toBeTruthy();
     });
 });

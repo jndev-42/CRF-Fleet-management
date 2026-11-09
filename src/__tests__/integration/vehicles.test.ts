@@ -31,7 +31,6 @@ vi.mock('@/lib/db', async () => {
   return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/drive', () => ({ deleteDriveFolder: vi.fn() }));
 
 import { POST } from '@/app/api/vehicles/route';
 import { GET, PATCH } from '@/app/api/vehicles/[id]/route';

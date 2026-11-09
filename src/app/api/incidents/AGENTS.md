@@ -28,14 +28,14 @@ Incident report creation. POST endpoint only — creates new incident records (a
   - `status` (optional, default 'DRAFT'): 'DRAFT' or 'SUBMITTED'
   - `occurredAt`, `location` (optional): ISO timestamp, location string
   - Multiple JSON object fields: `flashDetails`, `accidentDetails`, `damages`, `victims`, `actions`, `context` (flex schema for structured data)
-  - `description`, `retrospection`, `driveFolderId` (optional — R2 prefix `incident-photos/{UL du véhicule}/…` from `POST /api/media/upload`, or a legacy Drive id; 400 if it belongs to another UL or is already referenced by another record, see `assertRefBindable` in `@/lib/media/server`)
+  - `description`, `retrospection`, `driveFolderId` (optional — R2 prefix `incident-photos/{UL du véhicule}/…` from `POST /api/media/upload`, or a residual non-R2 value; 400 if it belongs to another UL or is already referenced by another record, see `assertRefBindable` in `@/lib/media/server`)
 - DB: Inserts into IncidentReport with userId from session, ISO timestamp for createdAt/updatedAt
 - Returns: `{ success: true, id }` with newly created report UUID
 - Error: 400 on Zod validation, 401 if not logged in, 500 on DB error
 
 **DB tables:** IncidentReport
 
-**Side effects:** submission notification only. `DELETE /api/incidents/[id]` also deletes the photos (R2 prefix or Drive folder), best-effort, if no other record references them.
+**Side effects:** submission notification only. `DELETE /api/incidents/[id]` also deletes the photos (R2 prefix), best-effort, if no other record references them.
 
 ## Dependencies
 

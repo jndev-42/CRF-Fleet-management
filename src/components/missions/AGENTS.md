@@ -11,9 +11,8 @@ UI for mission reports ("comptes rendus de mission"): the multi-step submission 
 |------|-------------|
 | `MissionWizard.tsx` | The wizard shell — owns `MissionFormData` (including the two intervention-breakdown maps), the flat `supplies` map, the signed-report file, the photo list, step index, validation, and submission. Exports the `MissionFormData` interface consumed by every step. |
 | `MissionWizard.module.css` | Styles for the wizard **and all of `steps/`** — progress bar, step content, toggles, radio groups, error box, nav. |
-| `MissionPhotosModal.tsx` | Lightbox-style modal listing a mission's photos from `folderId` (R2 prefix `mission-com-photos/…`, or legacy Drive id). |
-| `MissionPhotosSection.tsx` | Inline (non-modal) photo grid for the same data, with per-photo download links. **Currently unreferenced** — no importer in `src/`. |
-| `SignedReportLightbox.tsx` | Fullscreen viewer for the signed report (`mediaFileUrl` : `/api/media/file?key=` for an R2 key, legacy `/api/drive/photos/{driveId}` otherwise); renders an `<img>` and falls back to an `<iframe>` on the image's `onError` (i.e. when the file is a PDF). |
+| `MissionPhotosModal.tsx` | Lightbox-style modal listing a mission's photos from `folderId` (R2 prefix `mission-com-photos/…` ; a non-R2 reference — residual Drive id — shows no photo and makes no request). |
+| `SignedReportLightbox.tsx` | Fullscreen viewer for the signed report (`mediaFileUrl` : `/api/media/file?key=` for an R2 key ; renders nothing for a non-R2 reference); renders an `<img>` and falls back to an `<iframe>` on the image's `onError` (i.e. when the file is a PDF). |
 
 ## Subdirectories
 | Directory | Purpose |
@@ -46,14 +45,14 @@ Uploads go to R2 through `uploadMediaSafely` (`POST /api/media/upload`): photos 
 
 **Easter egg, not a feature:** on success the `MarineApprovedOverlay` animation is shown *only* when `formData.selected_ul_id === 'ul-paris-18'` — the UL of the **poste chosen at step 1**, not the submitter's active UL (the `currentUserUlId` prop was removed). Every other selection calls `onSuccess(id)` immediately. Keep both paths.
 
-Both photo components load images through `mediaListUrl` / `mediaFileUrl` (`/api/media/*` for R2 references, legacy `/api/drive/photos/*` for Drive ids) and therefore use `<img>` with an `eslint-disable-next-line @next/next/no-img-element` comment — required, since `next/image` can't handle these proxy URLs.
+Both photo components load images through `mediaListUrl` / `mediaFileUrl` (`/api/media/*` ; both return `null` for a non-R2 reference, which then shows no photo) and therefore use `<img>` with an `eslint-disable-next-line @next/next/no-img-element` comment — required, since `next/image` can't handle these proxy URLs.
 
 ## Dependencies
 
 ### Internal
 - `POST /api/missions` — mission report creation (default `submitEndpoint`)
 - `POST /api/qr-ul/[token]/mission-report` — creation from a scanned UL QR code (locked-UL mode)
-- `GET /api/media/photos?folderId=…&flat=true` / `GET /api/media/file?key=…` (R2) — legacy `GET /api/drive/photos*` for Drive ids
+- `GET /api/media/photos?folderId=…&flat=true` / `GET /api/media/file?key=…` (R2)
 - `@/lib/mission-supplies` — `SUPPLY_CATEGORIES`, `SupplyCategory`
 - `@/lib/mission-interventions` — the two category lists and their French labels (shared with the detail page)
 - `@/lib/imageCompression` — `uploadMediaSafely`, `mediaFileUrl`, `mediaListUrl`

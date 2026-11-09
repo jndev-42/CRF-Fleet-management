@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.50.0] — 9 novembre 2026
+
+### 🔒 Sécurité
+
+- Un compte inactif ne peut plus consulter les photos des trajets, des incidents et des comptes rendus de mission, ni les rapports de mission signés.
+
+### 🔧 Modifications
+
+- Google Drive n'est plus utilisé : toutes les photos (emprunt, rendu, incident, mission) et les rapports de mission signés sont lus depuis le nouveau stockage.
+- Dans le détail d'une note de frais, le panneau des anciens justificatifs Google Drive, devenu vide, disparaît.
+- Si un trajet, un incident ou un compte rendu pointe encore vers un ancien dossier Google Drive, aucune photo n'est affichée et aucune erreur n'apparaît. Le rendu d'un tel trajet range ses photos dans un nouveau dossier, et sa suppression se fait normalement.
+
 ## [5.49.0] — 9 novembre 2026
 
 ### 🔒 Sécurité

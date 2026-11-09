@@ -1,8 +1,7 @@
 /**
  * Références des médias (photos, rapport de mission signé) stockés sur R2.
  *
- * Module PUR (aucun import Node ni réseau) : partagé par le navigateur, les routes
- * et le script de migration depuis Google Drive.
+ * Module PUR (aucun import Node ni réseau) : partagé par le navigateur et les routes.
  *
  * Arborescence : `{type}/{segment UL}/{dossier lisible}/…`
  *   - `trip-photos/{UL}/{véhicule}-{horodatage}-{xxxx}/emprunt|rendu/{fichier}`
@@ -13,9 +12,8 @@
  * Les colonnes existantes (`Trip.driveFolderId`, `IncidentReport.driveFolderId`,
  * `mission_reports.drive_folder_id`) reçoivent le PRÉFIXE du dossier (3 segments,
  * sans `/` final) ; `mission_reports.signed_report_drive_id` reçoit la clé
- * complète du fichier. Une référence R2 contient toujours `/`, un id Drive jamais :
- * c'est ce qui permet de lire les anciennes références via le proxy Drive pendant
- * la transition.
+ * complète du fichier. Une référence R2 contient toujours `/` : une valeur sans `/`
+ * (id Drive résiduel, `mock-…`) ne désigne aucun fichier.
  */
 
 export const MEDIA_TYPES = ['trip-photos', 'incident-photos', 'mission-com-photos', 'mission-report-photo'] as const;
@@ -244,7 +242,8 @@ export function toMediaUlSegment(segment: string): string {
 }
 
 /**
- * Valeur de colonne acceptable pour un type : un id Drive (aucun `/`, transition)
+ * Valeur de colonne acceptable pour un type : une valeur sans `/` (id Drive résiduel,
+ * qui ne désigne aucun fichier)
  * ou une référence R2 de ce type — préfixe de dossier, ou clé de fichier pour
  * `mission-report-photo` (`kind: 'file'`).
  */

@@ -44,13 +44,11 @@ Sorting and pagination are **entirely client-side** (`useMemo` over the fetched 
 
 Two loading flags: `loading` (initial, full-page message) and `tableLoading` (refetch, dims the table to `opacity: 0.6` instead of unmounting it). Per-row busy state is the single `actionLoading` holding a report id.
 
-Receipts come from `GET /api/drive/photos?folderId=...&flat=true`, refetched whenever `selectedReport` changes. PDFs are detected by `mimeType === 'application/pdf'` **or** a `.pdf` filename suffix and get a `FileText` placeholder card; images are clickable into a full-screen lightbox. Both use `<img>`/`<a>` with `@next/next/no-img-element` disables because the Drive proxy URLs are dynamic.
-
 The create/edit form replaces the whole list view (`isCreating` toggles between `ExpenseForm` and the grid) rather than opening a modal. `editingReport` is passed as `initialData`.
 
 Errors use `alert()` for action failures and `console.error` for fetch failures — consistent with the parent convention.
 
-**On the ~150-line convention:** this file is roughly eight times over it. If you make a substantial change, extract the fetch/scope logic into a hook and the table, sidebar, and receipts modal into components rather than growing it further.
+**On the ~150-line convention:** this file is roughly eight times over it. If you make a substantial change, extract the fetch/scope logic into a hook and the table and sidebar into components rather than growing it further.
 
 ## Dependencies
 
@@ -58,7 +56,6 @@ Errors use `alert()` for action failures and `console.error` for fetch failures 
 - `@/components/expenses/ExpenseForm` — create/edit form (owns `POST`/`PUT`)
 - `@/components/expenses/ElectronicSignatureModal` — validator signature capture, exports `SignatureData`
 - `GET /api/expenses?scope=my|ul&includeProcessed=`, `PATCH /api/expenses/{id}`, `DELETE /api/expenses/{id}`, `GET /api/expenses/{id}/pdf`
-- `GET /api/drive/photos?folderId=&flat=true` and `GET /api/drive/photos/{id}` — receipts
 - Global CSS: `expenses-container`, `expenses-grid`, `expense-scope-tabs`, `expense-scope-btn`, `modal-overlay`, `modal`
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

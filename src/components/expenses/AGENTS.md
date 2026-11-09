@@ -29,7 +29,7 @@ Expense report ("note de frais") UI: the create/edit form, the electronic signat
 ## Dependencies
 
 ### Internal
-- `POST /api/expenses/upload` — receipt upload to Drive, returns `{ folderId }`
+- `POST /api/expenses/upload` — receipt upload to R2
 - `POST /api/expenses` — create; `PATCH /api/expenses/[id]` — update/submit (`{ action: 'submit' | 'update', status, ... }`)
 - `GET /api/expenses/[id]/pdf` — server route that renders `ExpensePdfDocument`
 - `@/components/ui/PhotoPicker` — receipt selection; `next-auth/react` `useSession` for signer identity

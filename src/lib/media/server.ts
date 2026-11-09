@@ -1,7 +1,8 @@
 /**
- * Médias côté serveur : segment UL, liste et suppression d'un dossier, qu'il soit
- * sur R2 (préfixe, voir `refs.ts`) ou encore sur Google Drive (id, transition), et
- * liaison d'une référence à son enregistrement.
+ * Médias côté serveur : segment UL, liste et suppression d'un dossier R2 (préfixe,
+ * voir `refs.ts`), et liaison d'une référence à son enregistrement. Une référence
+ * qui n'est pas une référence R2 (id Drive résiduel, `mock-…`) ne désigne aucun
+ * fichier : rien à lister ni à supprimer.
  */
 
 import { db } from '@/lib/db';
@@ -40,7 +41,7 @@ export async function listMediaFiles(folderRef: string): Promise<(MediaFileEntry
     });
 }
 
-/** Colonnes qui portent une référence média (id Drive, préfixe ou clé R2). */
+/** Colonnes qui portent une référence média (préfixe ou clé R2). */
 export const MEDIA_REF_COLUMNS = [
     { table: 'Trip', column: 'driveFolderId' },
     { table: 'IncidentReport', column: 'driveFolderId' },
@@ -72,25 +73,22 @@ export async function isMediaRefReferenced(ref: string, exclude: MediaRefExclusi
 }
 
 /**
- * Supprime un dossier média : préfixe R2 COMPLET (tous ses objets) ou dossier Drive.
- * Ne lève jamais : un échec, ou une référence R2 qui n'est pas un dossier complet,
- * est journalisé (la suppression métier est maintenue, un orphelin est inoffensif).
+ * Supprime un dossier média : préfixe R2 COMPLET (tous ses objets). Une référence
+ * non R2 (id Drive résiduel) ne désigne aucun fichier : rien à faire. Ne lève
+ * jamais : un échec, ou une référence R2 qui n'est pas un dossier complet, est
+ * journalisé (la suppression métier est maintenue, un orphelin est inoffensif).
  * Renvoie `true` si le nettoyage a réussi.
  */
 export async function deleteMediaFolder(ref: string | null | undefined): Promise<boolean> {
-    if (!ref) return true;
+    if (!ref || !isR2Ref(ref)) return true;
     try {
-        if (isR2Ref(ref)) {
-            if (!parseMediaFolderRef(ref)) {
-                console.error(`[media] suppression refusée : ${ref} n'est pas un dossier média complet`);
-                return false;
-            }
-            const { deletePrefix } = await import('@/lib/r2');
-            await deletePrefix(ref);
-            return true;
+        if (!parseMediaFolderRef(ref)) {
+            console.error(`[media] suppression refusée : ${ref} n'est pas un dossier média complet`);
+            return false;
         }
-        const { deleteDriveFolder } = await import('@/lib/drive');
-        return await deleteDriveFolder(ref);
+        const { deletePrefix } = await import('@/lib/r2');
+        await deletePrefix(ref);
+        return true;
     } catch (e: unknown) {
         console.error(`[media] suppression du dossier ${ref} impossible :`, getErrorMessage(e));
         return false;
@@ -98,19 +96,15 @@ export async function deleteMediaFolder(ref: string | null | undefined): Promise
 }
 
 /**
- * Supprime un fichier média : clé R2 (rapport signé) ou fichier Drive. Ne lève jamais.
+ * Supprime un fichier média : clé R2 (rapport signé). Une référence non R2 ne
+ * désigne aucun fichier : rien à faire. Ne lève jamais.
  */
 export async function deleteMediaFile(ref: string | null | undefined): Promise<boolean> {
-    if (!ref) return true;
+    if (!ref || !isR2Ref(ref)) return true;
     try {
-        if (isR2Ref(ref)) {
-            const { deleteMediaKey } = await import('@/lib/r2');
-            await deleteMediaKey(ref);
-            return true;
-        }
-        // `files.delete` vaut pour un fichier comme pour un dossier Drive.
-        const { deleteDriveFolder } = await import('@/lib/drive');
-        return await deleteDriveFolder(ref);
+        const { deleteMediaKey } = await import('@/lib/r2');
+        await deleteMediaKey(ref);
+        return true;
     } catch (e: unknown) {
         console.error(`[media] suppression du fichier ${ref} impossible :`, getErrorMessage(e));
         return false;
@@ -139,7 +133,8 @@ export async function deleteMediaRefIfUnshared(
 
 /**
  * Une référence peut-elle être écrite sur cet enregistrement ?
- *   - id Drive (transition) : seulement s'il n'est pas déjà porté par un AUTRE enregistrement ;
+ *   - référence non R2 (id Drive résiduel) : seulement si elle n'est pas déjà portée par un
+ *     AUTRE enregistrement (elle ne désigne aucun fichier) ;
  *   - référence R2 : du bon type et de la bonne forme (dossier, ou clé pour le rapport
  *     signé), segment UL égal à celui d'une des UL de l'enregistrement, et portée par
  *     aucun AUTRE enregistrement.

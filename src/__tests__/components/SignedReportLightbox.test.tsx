@@ -2,11 +2,17 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import SignedReportLightbox from '@/components/missions/SignedReportLightbox';
 
+const KEY = 'mission-report-photo/paris-18/dps-20261108-143000-a1b2/0a1b2c3d-rapport.jpg';
+
 describe('SignedReportLightbox', () => {
     it('affiche l\'image du rapport signé par défaut (happy path)', () => {
-        render(<SignedReportLightbox driveId="drive-1" onClose={vi.fn()} />);
+        render(<SignedReportLightbox driveId={KEY} onClose={vi.fn()} />);
         expect(screen.getByAltText('Rapport de mission signé')).toBeTruthy();
-        expect((screen.getByAltText('Rapport de mission signé') as HTMLImageElement).src).toContain('/api/drive/photos/drive-1');
+    });
+
+    it('id Drive résiduel : rien n\'est affiché', () => {
+        const { container } = render(<SignedReportLightbox driveId="1XyZdriveFile" onClose={vi.fn()} />);
+        expect(container.firstChild).toBeNull();
     });
 
     it('rapport signé sur R2 : lu via /api/media/file', () => {
@@ -17,7 +23,7 @@ describe('SignedReportLightbox', () => {
     });
 
     it('bascule sur un iframe PDF si l\'image échoue à charger', () => {
-        render(<SignedReportLightbox driveId="drive-1" onClose={vi.fn()} />);
+        render(<SignedReportLightbox driveId={KEY} onClose={vi.fn()} />);
         fireEvent.error(screen.getByAltText('Rapport de mission signé'));
 
         expect(screen.getByTitle('Rapport signé (PDF)')).toBeTruthy();
@@ -26,21 +32,21 @@ describe('SignedReportLightbox', () => {
 
     it('appelle onClose au clic sur le fond', () => {
         const onClose = vi.fn();
-        const { container } = render(<SignedReportLightbox driveId="drive-1" onClose={onClose} />);
+        const { container } = render(<SignedReportLightbox driveId={KEY} onClose={onClose} />);
         fireEvent.click(container.firstChild as Element);
         expect(onClose).toHaveBeenCalled();
     });
 
     it('appelle onClose au clic sur le bouton de fermeture', () => {
         const onClose = vi.fn();
-        render(<SignedReportLightbox driveId="drive-1" onClose={onClose} />);
+        render(<SignedReportLightbox driveId={KEY} onClose={onClose} />);
         fireEvent.click(screen.getByRole('button', { name: 'Fermer' }));
         expect(onClose).toHaveBeenCalled();
     });
 
     it('ne propage pas le clic sur l\'image au fond', () => {
         const onClose = vi.fn();
-        render(<SignedReportLightbox driveId="drive-1" onClose={onClose} />);
+        render(<SignedReportLightbox driveId={KEY} onClose={onClose} />);
         fireEvent.click(screen.getByAltText('Rapport de mission signé'));
         expect(onClose).not.toHaveBeenCalled();
     });

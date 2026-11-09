@@ -40,7 +40,7 @@ import { GET as getExpenses } from '@/app/api/expenses/route';
 import { GET as getExpense, PATCH as patchExpense } from '@/app/api/expenses/[id]/route';
 import { GET as getExpenseStats } from '@/app/api/stats/expenses/route';
 import { POST as postTrip } from '@/app/api/trips/route';
-import { canAccessDriveFolder } from '@/lib/driveAuth';
+import { canAccessFolder } from '@/lib/media/access';
 import { getBorrowEligibility } from '@/lib/vehicleBorrowEligibility';
 import { db, seedUser, seedRoles, seedVehicle, seedUniteLocale, seedExpenseReport } from './setup';
 
@@ -131,29 +131,26 @@ describe('Un compte INACTIF n\'exerce aucune autorisation d\'API', () => {
         });
     });
 
-    describe('Justificatifs Drive — canAccessDriveFolder', () => {
-        it('refuse le dossier d\'autrui à un PRESIDENT inactif', async () => {
-            await seedExpenseReport({ id: 'exp-drive', userId: 'user-autre', ulId: UL, status: 'soumis' });
-            // `seedExpenseReport` n'expose pas driveFolderId : sans cette écriture,
-            // resolveDriveFolderOwner ne trouve rien et rend `false` quoi qu'il arrive —
-            // le test passerait pour la mauvaise raison.
+    describe('Photos de mission — canAccessFolder', () => {
+        it('refuse le dossier d\'un compte rendu à un CADRE inactif de l\'UL', async () => {
+            const folder = 'mission-com-photos/paris-18/dps-20261108-143000-a1b2';
             await db.execute({
-                sql: 'UPDATE "ExpenseReport" SET driveFolderId = ? WHERE id = ?',
-                args: ['folder-xyz', 'exp-drive'],
+                sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, ulId, drive_folder_id)
+                      VALUES ('mr-inactif', 'user-autre', '2026-10-01T10:00:00Z', 'DPS', 'DPS', '2026-10-01', 'Paris', '[]', ?, ?)`,
+                args: [UL, folder],
             });
 
-            const autorise = await canAccessDriveFolder(
-                asSession({ id: 'user-bloque', email: 'bloque@test.com', roles: ['PRESIDENT', 'INACTIF'], ulId: UL }),
-                'folder-xyz',
+            const autorise = await canAccessFolder(
+                asSession({ id: 'user-bloque', email: 'bloque@test.com', roles: ['CADRE', 'INACTIF'], ulId: UL }),
+                folder,
             );
-
             expect(autorise).toBe(false);
 
-            // Contre-preuve : le même dossier est bien accessible au PRESIDENT actif.
+            // Contre-preuve : le même dossier est bien accessible au CADRE actif.
             // Sans elle, un `false` dû à un dossier introuvable passerait pour un refus.
-            const autoriseActif = await canAccessDriveFolder(
-                asSession({ id: 'user-actif', email: 'actif@test.com', roles: ['PRESIDENT'], ulId: UL }),
-                'folder-xyz',
+            const autoriseActif = await canAccessFolder(
+                asSession({ id: 'user-actif', email: 'actif@test.com', roles: ['CADRE'], ulId: UL }),
+                folder,
             );
             expect(autoriseActif).toBe(true);
         });

@@ -4,7 +4,7 @@
 # PDF
 
 ## Purpose
-Generate PDF export of an incident report. Assembles incident data including vehicle/user info, all JSON detail fields (parsed), photos (R2 prefix `incident-photos/…`, or a legacy Drive folder), and renders via `@react-pdf/renderer` into a downloadable PDF.
+Generate PDF export of an incident report. Assembles incident data including vehicle/user info, all JSON detail fields (parsed), photos (R2 prefix `incident-photos/…`), and renders via `@react-pdf/renderer` into a downloadable PDF.
 
 ## Key Files
 | File | Description |
@@ -21,10 +21,7 @@ Generate PDF export of an incident report. Assembles incident data including veh
 - Fetches full incident from DB including vehicle name/plate and user metadata
 - Auto-parses all JSON fields from DB strings
 - Formats `occurredAt` ISO timestamp to French date format: "DD/MM/YYYY à HH:MM"
-- Photos when `driveFolderId` is set: an R2 prefix (contains `/`) is listed with `listMediaFiles` and each image read with `getObject`; otherwise the legacy Drive folder is read:
-  - Supports both direct images and legacy subfolder structure (looks for 'incident-*' subfolders)
-  - Embeds all photos as base64 data URIs in PDF
-  - Gracefully skips missing images (non-fatal)
+- Photos when `driveFolderId` is an R2 prefix (contains `/`): listed with `listMediaFiles`, each image read with `getObject` and embedded as a base64 data URI; missing images are skipped (non-fatal). Any other value (residual Drive id) means no photo, no storage call.
 - Embeds CRF logo resized to 96x96px as base64 data URI
 - Renders React PDF component with all report fields, vehicle, user, timestamp
 - Auth via `canViewIncident()` from `@/lib/incidentAccess` — the SAME boundary as `GET /api/incidents/[id]`. Any member of the vehicle's UL downloads a SUBMITTED report; the author keeps their own report, admins see everything, another user's DRAFT is refused. This route was historically MORE permissive than the detail route in one direction and less in another — keep them on the shared predicate, do not recode inline
@@ -39,15 +36,15 @@ Generate PDF export of an incident report. Assembles incident data including veh
 
 **DB tables:** IncidentReport, Vehicle, User
 
-**Photos:** optional; R2 first, legacy Drive read-only fallback; missing folder or images are skipped.
+**Photos:** optional; R2 only — a non-R2 reference (residual Drive id) has no photo; missing folder or images are skipped.
 
-**Dependencies:** `sharp` (logo resize), `@react-pdf/renderer`, R2 (`@/lib/r2`), Google Drive API (legacy)
+**Dependencies:** `sharp` (logo resize), `@react-pdf/renderer`, R2 (`@/lib/r2`)
 
 ## Dependencies
 
 ### Internal
 - `@/lib/db` — Fetch incident with full metadata
-- `@/lib/media/server` — `listMediaFiles` (R2 prefix) ; `@/lib/drive` — legacy Drive folder
+- `@/lib/media/server` — `listMediaFiles` (R2 prefix)
 - `@/auth` — Login check
 - `@/lib/incidentAccess` — `canViewIncident()` (shared read boundary)
 - `@/components/incident/IncidentPdfDocument` — React PDF component

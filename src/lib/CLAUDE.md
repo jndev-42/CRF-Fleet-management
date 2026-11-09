@@ -86,10 +86,6 @@ const { sendPushNotification } = await import('@/lib/push');
 ```
 Also create a `Notification` DB row alongside every push so the in-app bell shows it.
 
-## drive.ts
-**Lecture seule, transition.** Plus aucune écriture sur Drive depuis la v5.48.0 : photos de trajet / incident / mission et rapport signé vont sur R2 (`media/refs.ts` pour les clés, `media/server.ts` pour liste et suppression, routes `/api/media/*`). Drive ne sert plus qu'à lire les références pas encore migrées (`scripts/migrate-drive-images-to-r2.ts`) et les justificatifs de notes de frais, et à supprimer un ancien dossier (`deleteMediaFolder` choisit R2 ou Drive : une référence R2 contient `/`, un id Drive jamais).
-Quota errors are non-fatal — log and continue.
-
 ## stats-trips.ts / stats-expenses.ts
 Split by domain: trip stats (`buildTripWhere`, `fetchStatsData`) vs expense-report stats (`fetchExpenseStatsData`).
 Filtering/aggregation helpers live here and are unit-tested.

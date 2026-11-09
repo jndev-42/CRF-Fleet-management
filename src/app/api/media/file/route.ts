@@ -8,7 +8,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
-import { canAccessMediaKey } from '@/lib/driveAuth';
+import { canAccessMediaKey } from '@/lib/media/access';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { getErrorMessage } from '@/lib/utils/error';
 import { displayNameOfKey, mimeTypeOfKey, validateMediaKey } from '@/lib/media/refs';

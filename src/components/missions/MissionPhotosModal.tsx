@@ -22,8 +22,14 @@ export default function MissionPhotosModal({ folderId, onClose }: MissionPhotosM
 
     useEffect(() => {
         async function fetchPhotos() {
+            const listUrl = mediaListUrl(folderId, { flat: true });
+            // Référence non R2 (id Drive résiduel) : aucune photo, aucun appel.
+            if (!listUrl) {
+                setLoading(false);
+                return;
+            }
             try {
-                const res = await fetch(mediaListUrl(folderId, { flat: true }));
+                const res = await fetch(listUrl);
                 if (res.ok) {
                     const data = await res.json();
                     setPhotos(data.photos ?? []);
@@ -81,10 +87,13 @@ export default function MissionPhotosModal({ folderId, onClose }: MissionPhotosM
 
                     {!loading && photos.length > 0 && (
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
-                            {photos.map(photo => (
+                            {photos.map(photo => {
+                                const url = mediaFileUrl(photo.id);
+                                if (!url) return null;
+                                return (
                                 <a
                                     key={photo.id}
-                                    href={mediaFileUrl(photo.id)}
+                                    href={url}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     title={photo.name}
@@ -92,7 +101,7 @@ export default function MissionPhotosModal({ folderId, onClose }: MissionPhotosM
                                 >
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img
-                                        src={mediaFileUrl(photo.id)}
+                                        src={url}
                                         alt={photo.name}
                                         style={{
                                             width: '100%',
@@ -105,7 +114,8 @@ export default function MissionPhotosModal({ folderId, onClose }: MissionPhotosM
                                         }}
                                     />
                                 </a>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>

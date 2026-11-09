@@ -34,7 +34,7 @@ A Next.js fleet-management application for the Croix-Rouge française (CRF): veh
 `npm run test` (Vitest) must pass; every new feature ships with tests (see `src/__tests__/AGENTS.md`). `npm run lint` must produce 0 errors and 0 warnings (enforced by a pre-commit hook).
 
 ### Common Patterns
-CSS Modules per component + global CSS variables (`app/globals.css`), `next-themes` for dark/light. See `src/lib/AGENTS.md` for singleton services (db, renault, drive, email, onesignal).
+CSS Modules per component + global CSS variables (`app/globals.css`), `next-themes` for dark/light. See `src/lib/AGENTS.md` for singleton services (db, renault, r2, push).
 
 ## Dependencies
 
@@ -42,9 +42,8 @@ CSS Modules per component + global CSS variables (`app/globals.css`), `next-them
 - Next.js 16 (App Router), React 19, TypeScript
 - Turso (libSQL/SQLite cloud) via `@libsql/client`
 - NextAuth v5 — auth
-- `googleapis` — Google Drive integration
 - `@remscodes/renault-api` — Renault Connect telemetry
-- `react-onesignal` — push notifications
+- `web-push` — native Web Push notifications (VAPID)
 - `@react-pdf/renderer` — PDF export
 
 ### External services

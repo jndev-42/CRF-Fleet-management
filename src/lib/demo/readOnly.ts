@@ -32,7 +32,7 @@ const EXEMPT_API_PATHS = [
 ] as const;
 
 /**
- * Écritures hors base (Google Drive, R2, API Renault, abonnement Web Push) :
+ * Écritures hors base (R2, API Renault, abonnement Web Push) :
  * simulées par l'intercepteur et refusées (403) par le proxy en démo.
  * Toute nouvelle route qui écrit hors base doit rejoindre cette liste.
  * Exception : `/api/media/upload` n'y figure pas — en démo, `r2.ts` range ses

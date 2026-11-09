@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const deletePrefix = vi.fn();
 const listObjects = vi.fn();
-const deleteDriveFolder = vi.fn();
 const deleteMediaKey = vi.fn();
 
 const slug = { value: 'paris-18' as string | null };
@@ -16,14 +15,12 @@ vi.mock('@/lib/r2', () => ({
     listObjects: (...a: unknown[]) => listObjects(...a),
     expenseUlSegment: (slug: unknown, ulId: string) => (typeof slug === 'string' && slug) || ulId,
 }));
-vi.mock('@/lib/drive', () => ({ deleteDriveFolder: (...a: unknown[]) => deleteDriveFolder(...a) }));
 
 import { deleteMediaFile, deleteMediaFolder, deleteMediaRefIfUnshared, listMediaFiles, ulSegmentOf } from '@/lib/media/server';
 
 beforeEach(() => {
     deletePrefix.mockReset();
     listObjects.mockReset();
-    deleteDriveFolder.mockReset();
     deleteMediaKey.mockReset();
     slug.value = 'paris-18';
 });
@@ -33,14 +30,13 @@ describe('deleteMediaFolder', () => {
         deletePrefix.mockResolvedValue(3);
         expect(await deleteMediaFolder('trip-photos/paris-18/x')).toBe(true);
         expect(deletePrefix).toHaveBeenCalledWith('trip-photos/paris-18/x');
-        expect(deleteDriveFolder).not.toHaveBeenCalled();
     });
 
-    it('id Drive : ancien dossier supprimé sur Drive', async () => {
-        deleteDriveFolder.mockResolvedValue(true);
+    it('référence non R2 (id Drive résiduel, mock-…) : rien à supprimer, aucun appel', async () => {
         expect(await deleteMediaFolder('1AbCdrive')).toBe(true);
-        expect(deleteDriveFolder).toHaveBeenCalledWith('1AbCdrive');
+        expect(await deleteMediaFolder('mock-folder-123')).toBe(true);
         expect(deletePrefix).not.toHaveBeenCalled();
+        expect(deleteMediaKey).not.toHaveBeenCalled();
     });
 
     it('échec : journalisé, ne lève jamais', async () => {
@@ -83,12 +79,13 @@ describe('listMediaFiles / ulSegmentOf', () => {
 });
 
 describe('deleteMediaFile / deleteMediaRefIfUnshared', () => {
-    it('rapport signé R2 : clé supprimée ; id Drive : fichier Drive supprimé', async () => {
-        deleteDriveFolder.mockResolvedValue(true);
+    it('rapport signé R2 : clé supprimée ; id Drive résiduel : rien à supprimer', async () => {
         expect(await deleteMediaFile('mission-report-photo/paris-18/x/0a1b2c3d-r.pdf')).toBe(true);
         expect(deleteMediaKey).toHaveBeenCalledWith('mission-report-photo/paris-18/x/0a1b2c3d-r.pdf');
+        deleteMediaKey.mockClear();
         expect(await deleteMediaFile('1AbCdrive')).toBe(true);
-        expect(deleteDriveFolder).toHaveBeenCalledWith('1AbCdrive');
+        expect(deleteMediaKey).not.toHaveBeenCalled();
+        expect(deletePrefix).not.toHaveBeenCalled();
     });
 
     it('non partagée : supprimée (dossier ou fichier selon le type)', async () => {

@@ -11,7 +11,7 @@ Shared React UI components used across pages, plus feature-specific component su
 |------|-------------|
 | `Navbar.tsx` | Main app navigation |
 | `NotificationBell.tsx` | In-app notification dropdown |
-| `PhotoViewer.tsx` | Lightbox for Drive-hosted photos |
+| `PhotoViewer.tsx` | Lightbox for a trip's photos (R2 prefix ; a non-R2 reference shows no photo, no request) |
 | `ThemeProvider.tsx` / `ThemeToggle.tsx` | Dark/light theme (next-themes) |
 | `PushProvider.tsx` | Web Push bootstrap (service worker `/sw.js`, subscription, opt-in banner) and `usePush()` |
 | `BugReportButton.tsx` / `BugReportModal.tsx` | In-app bug reporting |

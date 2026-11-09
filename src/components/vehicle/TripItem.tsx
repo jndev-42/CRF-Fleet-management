@@ -2,6 +2,7 @@ import React from 'react';
 import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import { formatDate } from '@/app/vehicles/[id]/utils';
 import { canManageVehicles } from '@/lib/roles';
+import { isR2Ref } from '@/lib/media/refs';
 
 interface TripItemProps {
     trip: Trip;
@@ -207,7 +208,8 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                 </div>
             )}
 
-            {trip.driveFolderId && (
+            {/* Référence non R2 (id Drive résiduel) : aucune photo. */}
+            {isR2Ref(trip.driveFolderId) && (
                 <div style={{ marginTop: 12 }}>
                     <button
                         className="btn btn-secondary"
