@@ -1,5 +1,5 @@
 /**
- * Tests d'intégration — src/lib/driveAuth.ts (resolveDriveFolderOwner, canAccessDriveFolder).
+ * Tests d'intégration — src/lib/media/access.ts (resolveFolderOwner, canAccessFolder, canAccessSignedReport, canAccessMediaKey).
  * DB réelle (pas de mock), pas de session NextAuth réelle nécessaire (Session passée en argument direct).
  */
 import { describe, it, expect, vi } from 'vitest';
@@ -10,8 +10,16 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 
-import { resolveDriveFolderOwner, resolveFolderOwner, canAccessDriveFolder, canAccessDriveFile, canAccessFolder, canAccessMediaKey } from '@/lib/driveAuth';
+import { resolveFolderOwner, canAccessFolder, canAccessSignedReport, canAccessMediaKey } from '@/lib/media/access';
 import { db, seedVehicle, seedUser, seedTrip, seedIncident, seedExpenseReport } from './setup';
+
+const TRIP_REF = 'trip-photos/paris-18/vl186-20261101-100000-a1b2';
+const INCIDENT_REF = 'incident-photos/paris-18/vl186-20261101-100000-a1b2';
+const EXPENSE_REF = 'trip-photos/paris-18/ndf-20261101-100000-a1b2';
+const MISSION_REF = 'mission-com-photos/paris-18/dps-20261001-100000-a1b2';
+const SIGNED_KEY = 'mission-report-photo/paris-18/dps-20261001-100000-c3d4/0a1b2c3d-rapport.pdf';
+const UNKNOWN_REF = 'trip-photos/paris-18/inconnu-20261101-100000-ffff';
+const UNKNOWN_KEY = 'mission-report-photo/paris-18/inconnu-20261001-100000-ffff/0a1b2c3d-x.pdf';
 
 function makeSession(overrides: Partial<Session['user']> = {}): Session {
     return {
@@ -20,9 +28,9 @@ function makeSession(overrides: Partial<Session['user']> = {}): Session {
     } as Session;
 }
 
-describe('resolveDriveFolderOwner', () => {
+describe('resolveFolderOwner', () => {
     it('retourne null pour un dossier inconnu', async () => {
-        const owner = await resolveDriveFolderOwner('unknown-folder');
+        const owner = await resolveFolderOwner(UNKNOWN_REF);
         expect(owner).toBeNull();
     });
 
@@ -30,9 +38,9 @@ describe('resolveDriveFolderOwner', () => {
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
         await seedUser({ id: 'user-1', email: 'driver@test.com' });
         await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-1' });
-        await db.execute({ sql: `UPDATE Trip SET driveFolderId = ? WHERE id = ?`, args: ['folder-trip', 'trip-1'] });
+        await db.execute({ sql: `UPDATE Trip SET driveFolderId = ? WHERE id = ?`, args: [TRIP_REF, 'trip-1'] });
 
-        const owner = await resolveDriveFolderOwner('folder-trip');
+        const owner = await resolveFolderOwner(TRIP_REF);
         expect(owner).toEqual({ kind: 'trip', ulId: 'ul-paris-18' });
     });
 
@@ -40,30 +48,30 @@ describe('resolveDriveFolderOwner', () => {
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
         await seedUser({ id: 'user-1', email: 'reporter@test.com' });
         await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1' });
-        await db.execute({ sql: `UPDATE "IncidentReport" SET driveFolderId = ? WHERE id = ?`, args: ['folder-incident', 'incident-1'] });
+        await db.execute({ sql: `UPDATE "IncidentReport" SET driveFolderId = ? WHERE id = ?`, args: [INCIDENT_REF, 'incident-1'] });
 
-        const owner = await resolveDriveFolderOwner('folder-incident');
+        const owner = await resolveFolderOwner(INCIDENT_REF);
         expect(owner).toEqual({ kind: 'incident', ulId: 'ul-paris-18' });
     });
 
-    it('résout un dossier de ExpenseReport', async () => {
+    it('une note de frais n\'est jamais propriétaire d\'un dossier média', async () => {
         await seedUser({ id: 'user-1', email: 'owner@test.com' });
         await seedExpenseReport({ id: 'expense-1', userId: 'user-1', ulId: 'ul-paris-18', status: 'soumis' });
-        await db.execute({ sql: `UPDATE "ExpenseReport" SET driveFolderId = ? WHERE id = ?`, args: ['folder-expense', 'expense-1'] });
+        await db.execute({ sql: `UPDATE "ExpenseReport" SET driveFolderId = ? WHERE id = ?`, args: [EXPENSE_REF, 'expense-1'] });
 
-        const owner = await resolveDriveFolderOwner('folder-expense');
-        expect(owner).toEqual({ kind: 'expense', ulId: 'ul-paris-18', userId: 'user-1', status: 'soumis' });
+        expect(await resolveFolderOwner(EXPENSE_REF)).toBeNull();
+        expect(await canAccessFolder(makeSession({ id: 'user-1' }), EXPENSE_REF)).toBe(false);
     });
 });
 
-describe('canAccessDriveFolder', () => {
+describe('canAccessFolder', () => {
     it('refuse par défaut si le dossier n\'est rattaché à aucun enregistrement', async () => {
-        const allowed = await canAccessDriveFolder(makeSession(), 'unknown-folder');
+        const allowed = await canAccessFolder(makeSession(), UNKNOWN_REF);
         expect(allowed).toBe(false);
     });
 
     it('autorise un SUPER_ADMIN sans vérification', async () => {
-        const allowed = await canAccessDriveFolder(makeSession({ roles: ['SUPER_ADMIN'], ulId: 'ul-lyon-3' }), 'unknown-folder');
+        const allowed = await canAccessFolder(makeSession({ roles: ['SUPER_ADMIN'], ulId: 'ul-lyon-3' }), UNKNOWN_REF);
         expect(allowed).toBe(true);
     });
 
@@ -71,9 +79,9 @@ describe('canAccessDriveFolder', () => {
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
         await seedUser({ id: 'user-1', email: 'driver@test.com' });
         await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-1' });
-        await db.execute({ sql: `UPDATE Trip SET driveFolderId = ? WHERE id = ?`, args: ['folder-trip', 'trip-1'] });
+        await db.execute({ sql: `UPDATE Trip SET driveFolderId = ? WHERE id = ?`, args: [TRIP_REF, 'trip-1'] });
 
-        const allowed = await canAccessDriveFolder(makeSession({ ulId: 'ul-paris-18' }), 'folder-trip');
+        const allowed = await canAccessFolder(makeSession({ ulId: 'ul-paris-18' }), TRIP_REF);
         expect(allowed).toBe(true);
     });
 
@@ -81,46 +89,33 @@ describe('canAccessDriveFolder', () => {
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
         await seedUser({ id: 'user-1', email: 'driver@test.com' });
         await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-1' });
-        await db.execute({ sql: `UPDATE Trip SET driveFolderId = ? WHERE id = ?`, args: ['folder-trip', 'trip-1'] });
+        await db.execute({ sql: `UPDATE Trip SET driveFolderId = ? WHERE id = ?`, args: [TRIP_REF, 'trip-1'] });
 
-        const allowed = await canAccessDriveFolder(makeSession({ ulId: 'ul-lyon-3' }), 'folder-trip');
+        const allowed = await canAccessFolder(makeSession({ ulId: 'ul-lyon-3' }), TRIP_REF);
         expect(allowed).toBe(false);
     });
 
-    it('autorise le propriétaire d\'une note de frais', async () => {
-        await seedUser({ id: 'user-1', email: 'owner@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', ulId: 'ul-paris-18', status: 'soumis' });
-        await db.execute({ sql: `UPDATE "ExpenseReport" SET driveFolderId = ? WHERE id = ?`, args: ['folder-expense', 'expense-1'] });
+    it('refuse un compte INACTIF de la même UL (trajet, incident, compte rendu, rapport signé)', async () => {
+        await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
+        await seedUser({ id: 'user-1', email: 'driver@test.com' });
+        await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-1' });
+        await db.execute({ sql: `UPDATE Trip SET driveFolderId = ? WHERE id = ?`, args: [TRIP_REF, 'trip-1'] });
+        await seedIncident({ id: 'incident-1', vehicleId: 'VL001', userId: 'user-1' });
+        await db.execute({ sql: `UPDATE "IncidentReport" SET driveFolderId = ? WHERE id = ?`, args: [INCIDENT_REF, 'incident-1'] });
+        await seedMissionReport({ id: 'mr-inactif', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: MISSION_REF, signedId: SIGNED_KEY });
 
-        const allowed = await canAccessDriveFolder(makeSession({ id: 'user-1', ulId: 'ul-lyon-3' }), 'folder-expense');
-        expect(allowed).toBe(true);
-    });
-
-    it('autorise le trésorier pour une note en attente de paiement', async () => {
-        await seedUser({ id: 'user-1', email: 'owner@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', ulId: 'ul-paris-18', status: 'en_attente_paiement' });
-        await db.execute({ sql: `UPDATE "ExpenseReport" SET driveFolderId = ? WHERE id = ?`, args: ['folder-expense', 'expense-1'] });
-
-        const allowed = await canAccessDriveFolder(makeSession({ id: 'user-2', roles: ['TRESORIER'] }), 'folder-expense');
-        expect(allowed).toBe(true);
-    });
-
-    it('autorise le RESPO de l\'UL de la note, refuse celui d\'une autre UL', async () => {
-        await seedUser({ id: 'user-1', email: 'owner@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', ulId: 'ul-paris-18', status: 'soumis' });
-        await db.execute({ sql: `UPDATE "ExpenseReport" SET driveFolderId = ? WHERE id = ?`, args: ['folder-expense', 'expense-1'] });
-
-        expect(await canAccessDriveFolder(makeSession({ id: 'user-2', roles: ['RESPO'], ulId: 'ul-paris-18' }), 'folder-expense')).toBe(true);
-        expect(await canAccessDriveFolder(makeSession({ id: 'user-2', roles: ['RESPO'], ulId: 'ul-lyon-3' }), 'folder-expense')).toBe(false);
-    });
-
-    it('refuse un autre utilisateur non-manager/trésorier pour une note de frais', async () => {
-        await seedUser({ id: 'user-1', email: 'owner@test.com' });
-        await seedExpenseReport({ id: 'expense-1', userId: 'user-1', ulId: 'ul-paris-18', status: 'soumis' });
-        await db.execute({ sql: `UPDATE "ExpenseReport" SET driveFolderId = ? WHERE id = ?`, args: ['folder-expense', 'expense-1'] });
-
-        const allowed = await canAccessDriveFolder(makeSession({ id: 'user-2', roles: ['CHVL'] }), 'folder-expense');
-        expect(allowed).toBe(false);
+        const inactive = makeSession({ ulId: 'ul-paris-18', roles: ['CADRE', 'INACTIF'] });
+        expect(await canAccessFolder(inactive, TRIP_REF)).toBe(false);
+        expect(await canAccessFolder(inactive, INCIDENT_REF)).toBe(false);
+        expect(await canAccessFolder(inactive, MISSION_REF)).toBe(false);
+        expect(await canAccessSignedReport(inactive, SIGNED_KEY)).toBe(false);
+        expect(await canAccessMediaKey(inactive, `${TRIP_REF}/emprunt/0a1b2c3d-photo.jpg`)).toBe(false);
+        // Témoins : le même compte sans INACTIF lit chacun de ces fichiers (le refus vient bien d'INACTIF).
+        const active = makeSession({ ulId: 'ul-paris-18', roles: ['CADRE'] });
+        expect(await canAccessFolder(active, TRIP_REF)).toBe(true);
+        expect(await canAccessFolder(active, INCIDENT_REF)).toBe(true);
+        expect(await canAccessFolder(active, MISSION_REF)).toBe(true);
+        expect(await canAccessSignedReport(active, SIGNED_KEY)).toBe(true);
     });
 });
 
@@ -132,52 +127,52 @@ async function seedMissionReport(opts: { id: string; submittedBy: string; ulId: 
     });
 }
 
-describe('Drive — comptes rendus de mission', () => {
+describe('Comptes rendus de mission', () => {
     it('résout le dossier photos d\'un compte rendu', async () => {
-        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: 'folder-mission' });
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: MISSION_REF });
 
-        const owner = await resolveDriveFolderOwner('folder-mission');
+        const owner = await resolveFolderOwner(MISSION_REF);
         expect(owner).toEqual({ kind: 'mission', reports: [{ ulId: 'ul-paris-18', submittedBy: 'author-1' }] });
     });
 
     it('autorise un responsable lecture seule de la même UL (dossier et rapport signé)', async () => {
-        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: 'folder-mission', signedId: 'file-signed' });
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: MISSION_REF, signedId: SIGNED_KEY });
         const session = makeSession({ id: 'reader-1', email: 'reader@test.com', roles: ['CADRE'], ulId: 'ul-paris-18' });
 
-        expect(await canAccessDriveFolder(session, 'folder-mission')).toBe(true);
-        expect(await canAccessDriveFile(session, 'file-signed')).toBe(true);
+        expect(await canAccessFolder(session, MISSION_REF)).toBe(true);
+        expect(await canAccessSignedReport(session, SIGNED_KEY)).toBe(true);
     });
 
     it('autorise un ADMIN de la même UL', async () => {
-        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', signedId: 'file-signed' });
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', signedId: SIGNED_KEY });
 
-        expect(await canAccessDriveFile(makeSession({ id: 'admin-1', email: 'admin@test.com', roles: ['ADMIN'] }), 'file-signed')).toBe(true);
+        expect(await canAccessSignedReport(makeSession({ id: 'admin-1', email: 'admin@test.com', roles: ['ADMIN'] }), SIGNED_KEY)).toBe(true);
     });
 
     it('autorise l\'auteur, même hors UL', async () => {
         await seedUser({ id: 'author-1', email: 'author@test.com' });
-        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: null, signedId: 'file-signed' });
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: null, signedId: SIGNED_KEY });
 
         const session = makeSession({ id: 'author-1', email: 'author@test.com', roles: ['CI/RPAPS'], ulId: 'ul-lyon-3' });
-        expect(await canAccessDriveFile(session, 'file-signed')).toBe(true);
+        expect(await canAccessSignedReport(session, SIGNED_KEY)).toBe(true);
     });
 
     it('refuse un responsable d\'une autre UL', async () => {
-        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: 'folder-mission', signedId: 'file-signed' });
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', folderId: MISSION_REF, signedId: SIGNED_KEY });
         const session = makeSession({ id: 'reader-1', email: 'reader@test.com', roles: ['CADRE'], ulId: 'ul-lyon-3' });
 
-        expect(await canAccessDriveFolder(session, 'folder-mission')).toBe(false);
-        expect(await canAccessDriveFile(session, 'file-signed')).toBe(false);
+        expect(await canAccessFolder(session, MISSION_REF)).toBe(false);
+        expect(await canAccessSignedReport(session, SIGNED_KEY)).toBe(false);
     });
 
     it('refuse un simple utilisateur de la même UL qui n\'est pas l\'auteur', async () => {
-        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', signedId: 'file-signed' });
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', signedId: SIGNED_KEY });
 
-        expect(await canAccessDriveFile(makeSession({ id: 'user-2', email: 'u2@test.com', roles: ['CHVL'] }), 'file-signed')).toBe(false);
+        expect(await canAccessSignedReport(makeSession({ id: 'user-2', email: 'u2@test.com', roles: ['CHVL'] }), SIGNED_KEY)).toBe(false);
     });
 
     it('refuse un fichier qui n\'est le rapport signé d\'aucun compte rendu', async () => {
-        expect(await canAccessDriveFile(makeSession({ roles: ['ADMIN'] }), 'unknown-file')).toBe(false);
+        expect(await canAccessSignedReport(makeSession({ roles: ['ADMIN'] }), UNKNOWN_KEY)).toBe(false);
     });
 });
 
@@ -191,7 +186,7 @@ describe('Références R2 (préfixe et clé)', () => {
         await db.execute({ sql: `UPDATE Trip SET driveFolderId = ? WHERE id = ?`, args: [tripRef, 'trip-1'] });
     }
 
-    it('resolveFolderOwner : même résolution pour un préfixe R2 que pour un id Drive', async () => {
+    it('resolveFolderOwner : résolution d\'un préfixe R2', async () => {
         await seedTripWithRef();
         expect(await resolveFolderOwner(tripRef)).toEqual({ kind: 'trip', ulId: 'ul-paris-18' });
         expect(await canAccessFolder(makeSession({ ulId: 'ul-paris-18' }), tripRef)).toBe(true);

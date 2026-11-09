@@ -16,7 +16,6 @@ One directory per resource; see each resource's own `AGENTS.md` for endpoint-spe
 | `changelog/` | App changelog feed |
 | `checklist/` | Vehicle checklist items |
 | `cron/` | Vercel cron-triggered jobs |
-| `drive/` | Google Drive photo upload/listing proxy |
 | `expenses/` | Expense reports |
 | `incidents/` | Incident reports |
 | `inventory/` | Stock/inventory management |

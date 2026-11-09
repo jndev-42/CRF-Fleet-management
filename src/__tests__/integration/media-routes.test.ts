@@ -13,22 +13,6 @@ vi.mock('@/lib/db', async () => {
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
 
-// Dossier Drive d'un trajet emprunté avant la bascule (lecture seule).
-const driveFake = {
-    items: {} as Record<string, { id: string; name: string; mimeType: string; parent?: string }>,
-    unreadable: [] as string[],
-};
-vi.mock('@/lib/media/drive-source', () => ({
-    createDriveSource: () => ({
-        get: async (id: string) => driveFake.items[id] ?? null,
-        list: async (folderId: string) => Object.values(driveFake.items).filter((i) => i.parent === folderId),
-        download: async (id: string) => {
-            if (driveFake.unreadable.includes(id)) throw new Error('403');
-            return Buffer.from(`drive-${id}`);
-        },
-        trash: async () => { throw new Error("jamais à l'envoi"); },
-    }),
-}));
 vi.mock('@/lib/r2', async (importOriginal) => {
     const actual = await importOriginal<typeof import('@/lib/r2')>();
     return {
@@ -69,8 +53,6 @@ function upload(fields: Record<string, string>, files: File[] = [new File(['jpeg
 beforeEach(async () => {
     vi.clearAllMocks();
     bucket.clear();
-    driveFake.items = {};
-    driveFake.unreadable = [];
     await seedUniteLocale({ id: 'ul-paris-18', name: 'Paris 18', slug: 'paris-18' });
     await seedUniteLocale({ id: 'ul-lyon-3', name: 'Lyon 3', slug: 'lyon-3' });
     await seedVehicle({ id: 'veh-1', name: 'VSAV 1', ulId: 'ul-paris-18' });
@@ -319,20 +301,14 @@ describe('POST /api/media/upload — droits d\'envoi inter-UL (revue 1)', () => 
     });
 });
 
-describe('POST /api/media/upload — rendu d\'un trajet emprunté avant la bascule (id Drive)', () => {
+describe('POST /api/media/upload — rendu d\'un trajet à id Drive résiduel', () => {
     beforeEach(async () => {
         await seedUser({ id: 'user-1', email: 'user@test.com' });
         await seedTrip({ id: 'trip-d', vehicleId: 'veh-1', driverId: 'user-1' });
         await db.execute({ sql: `UPDATE Trip SET driveFolderId = 'drv-folder' WHERE id = 'trip-d'`, args: [] });
-        driveFake.items = {
-            'drv-folder': { id: 'drv-folder', name: 'VSAV 1-2026-11-01', mimeType: 'application/vnd.google-apps.folder' },
-            'drv-emp': { id: 'drv-emp', name: 'emprunt', mimeType: 'application/vnd.google-apps.folder', parent: 'drv-folder' },
-            'p1': { id: 'p1', name: 'avant.jpg', mimeType: 'image/jpeg', parent: 'drv-emp' },
-            'p2': { id: 'p2', name: 'avant2.jpg', mimeType: 'image/jpeg', parent: 'drv-emp' },
-        };
     });
 
-    it('photos d\'emprunt copiées sous {préfixe}/emprunt/, rendu sous {préfixe}/rendu/', async () => {
+    it('nouveau préfixe R2 : seules les photos du rendu y sont écrites', async () => {
         mockedAuth.mockResolvedValue(session());
         const res = await upload({ type: 'trip-photos', tripId: 'trip-d', stage: 'rendu', existingFolderId: 'drv-folder' },
             [new File(['r1'], 'r1.jpg', { type: 'image/jpeg' }), new File(['r2'], 'r2.jpg', { type: 'image/jpeg' })]);
@@ -340,25 +316,16 @@ describe('POST /api/media/upload — rendu d\'un trajet emprunté avant la bascu
         const body = await res.json();
         expect(body.folderId).toMatch(/^trip-photos\/paris-18\/vsav-1-/);
         const keys = [...bucket.keys()];
-        expect(keys.filter((k) => k.startsWith(`${body.folderId}/emprunt/`))).toHaveLength(2);
-        expect(keys.filter((k) => k.startsWith(`${body.folderId}/rendu/`))).toHaveLength(2);
-        expect(bucket.get(keys.find((k) => k.endsWith('-avant.jpg')) as string)?.body.toString()).toBe('drive-p1');
+        expect(keys).toHaveLength(2);
+        expect(keys.every((k) => k.startsWith(`${body.folderId}/rendu/`))).toBe(true);
     });
 
-    it('copie Drive en échec → 502, rien n\'est écrit', async () => {
-        driveFake.unreadable = ['p2'];
+    it('sans existingFolderId : l\'id Drive du trajet est ignoré, nouveau préfixe', async () => {
         mockedAuth.mockResolvedValue(session());
-        const res = await upload({ type: 'trip-photos', tripId: 'trip-d', stage: 'rendu', existingFolderId: 'drv-folder' });
-        expect(res.status).toBe(502);
-        expect(bucket.size).toBe(0);
-    });
-
-    it('un id Drive qui n\'est pas celui du trajet n\'est jamais copié', async () => {
-        driveFake.items['autre'] = { id: 'autre', name: 'x', mimeType: 'application/vnd.google-apps.folder' };
-        mockedAuth.mockResolvedValue(session());
-        const res = await upload({ type: 'trip-photos', tripId: 'trip-d', stage: 'rendu', existingFolderId: 'autre' });
+        const res = await upload({ type: 'trip-photos', tripId: 'trip-d', stage: 'rendu' });
         expect(res.status).toBe(200);
-        expect([...bucket.keys()].every((k) => k.includes('/rendu/'))).toBe(true);
+        const body = await res.json();
+        expect(body.folderId).toMatch(/^trip-photos\/paris-18\/vsav-1-/);
     });
 });
 

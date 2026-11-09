@@ -8,7 +8,6 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/drive', () => ({ deleteDriveFolder: vi.fn().mockResolvedValue(undefined) }));
 
 import { DELETE } from '@/app/api/vehicles/[id]/trips/route';
 import { auth } from '@/auth';

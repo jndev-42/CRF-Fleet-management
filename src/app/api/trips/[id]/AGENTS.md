@@ -25,7 +25,7 @@ Container for individual trip operations by trip ID. Supports deletion, checkin/
 - **DELETE /api/trips/[id]:** Delete a trip (authenticated, ADMIN-only)
   - Fetches trip record to get vehicleId, checkInAt, driveFolderId, missionType
   - Silently succeeds if trip not found
-  - Deletes drive folder via Google Drive if driveFolderId set (non-blocking failure)
+  - Deletes the R2 photos if driveFolderId is an R2 prefix not shared with another record (non-blocking failure ; a residual Drive id has nothing to delete)
   - In transaction: deletes Trip record, resets Vehicle status to AVAILABLE (if trip was active/checkInAt is NULL), recomputes vehicle desinfection dates if trip was completed Désinfection mission
   - Returns `{ success: true }`
   - No response body validation error cases — all errors return 500
@@ -37,7 +37,7 @@ Container for individual trip operations by trip ID. Supports deletion, checkin/
 
 ### Internal
 - `@/lib/db` — Trip, Vehicle queries and transactions
-- `@/lib/drive` — `deleteDriveFolder()` function
+- `@/lib/media/server` — `deleteMediaRefIfUnshared()`
 - `@/lib/roles` — `canManageVehicles()` check
 
 <!-- MANUAL: Any manually added notes below this line are preserved on regeneration -->

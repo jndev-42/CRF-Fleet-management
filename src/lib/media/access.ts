@@ -1,26 +1,23 @@
 import type { Session } from 'next-auth';
 import { db } from '@/lib/db';
-import { isSuperAdmin } from '@/lib/roles';
+import { isQrBlocked, isSuperAdmin } from '@/lib/roles';
 import { validateMediaKey } from '@/lib/media/refs';
-import { canViewExpense } from '@/lib/expenses/workflow';
 import { canReadMissionReport, resolveSessionUserId, withAuthorHomeUl, type MissionReportAccessInfo } from '@/lib/missions/access';
 
-type DriveFolderOwner =
+type FolderOwner =
     | { kind: 'trip' | 'incident'; ulId: string }
-    | { kind: 'expense'; ulId: string; userId: string; status: string }
     // Plusieurs rapports peuvent partager un dossier : l'upload réutilise le
     // dossier « <nom de mission>-<date> » s'il existe déjà.
     | { kind: 'mission'; reports: MissionReportAccessInfo[] };
 
 /**
- * Retrouve à quel Trip/IncidentReport/ExpenseReport/compte rendu de mission appartient
- * une référence de dossier : id Drive (ancien stockage) ou préfixe R2
- * (`{type}/{UL}/{dossier}`, voir `src/lib/media/refs.ts`) — les colonnes portent
- * l'un ou l'autre, la recherche est la même.
+ * Retrouve à quel Trip/IncidentReport/compte rendu de mission appartient
+ * une référence de dossier, préfixe R2 (`{type}/{UL}/{dossier}`, voir
+ * `src/lib/media/refs.ts`).
  * Retourne null si le dossier n'est référencé par aucun enregistrement connu
  * (ex: brouillon en cours de création, pas encore rattaché à un enregistrement).
  */
-export async function resolveFolderOwner(folderId: string): Promise<DriveFolderOwner | null> {
+export async function resolveFolderOwner(folderId: string): Promise<FolderOwner | null> {
     const tripRes = await db.execute({
         sql: `SELECT v.ulId as ulId FROM Trip t JOIN Vehicle v ON v.id = t.vehicleId WHERE t.driveFolderId = ?`,
         args: [folderId],
@@ -35,20 +32,6 @@ export async function resolveFolderOwner(folderId: string): Promise<DriveFolderO
     });
     if (incidentRes.rows[0]?.ulId) {
         return { kind: 'incident', ulId: incidentRes.rows[0].ulId as string };
-    }
-
-    const expenseRes = await db.execute({
-        sql: `SELECT ulId, userId, status FROM "ExpenseReport" WHERE driveFolderId = ?`,
-        args: [folderId],
-    });
-    const expenseRow = expenseRes.rows[0];
-    if (expenseRow) {
-        return {
-            kind: 'expense',
-            ulId: expenseRow.ulId as string,
-            userId: expenseRow.userId as string,
-            status: expenseRow.status as string,
-        };
     }
 
     const missionRes = await db.execute({
@@ -78,12 +61,14 @@ async function canReadAnyMissionReport(session: Session, reports: MissionReportA
 
 /**
  * Vérifie que l'utilisateur courant a le droit d'accéder (lecture ou écriture)
- * à un driveFolderId donné. Refuse par défaut si le dossier n'est rattaché à
+ * à un dossier média (préfixe R2) donné. Refuse par défaut si le dossier n'est rattaché à
  * aucun enregistrement connu (les appelants doivent gérer séparément le cas
  * "création d'un nouveau brouillon", où aucune vérification n'est possible).
  */
-export async function canAccessDriveFolder(session: Session, folderId: string): Promise<boolean> {
+export async function canAccessFolder(session: Session, folderId: string): Promise<boolean> {
     const roles = session.user.roles || [];
+    // INACTIF bloque toute autorisation, y compris la lecture des photos de son UL.
+    if (isQrBlocked(roles)) return false;
     if (isSuperAdmin(roles)) return true;
 
     const owner = await resolveFolderOwner(folderId);
@@ -94,24 +79,16 @@ export async function canAccessDriveFolder(session: Session, folderId: string): 
         return canReadAnyMissionReport(session, owner.reports);
     }
 
-    if (owner.kind === 'expense') {
-        // Note de frais : même règle que expenses/[id]/route.ts — qui lit la note voit ses justificatifs.
-        return canViewExpense(
-            { id: session.user.id, roles, ulId: session.user.ulId },
-            { userId: owner.userId, status: owner.status, ulId: owner.ulId },
-        );
-    }
-
     return session.user.ulId === owner.ulId;
 }
 
 /**
- * Vérifie l'accès à un fichier Drive référencé directement par son id (et non
- * via son dossier). Cas du rapport de mission signé : seul son `fileId` est
- * stocké (`signed_report_drive_id`), son dossier parent ne l'est pas.
+ * Vérifie l'accès au rapport de mission signé, référencé directement par sa clé
+ * (et non via son dossier) : seule sa clé est stockée (`signed_report_drive_id`).
  */
-export async function canAccessDriveFile(session: Session, fileId: string): Promise<boolean> {
+export async function canAccessSignedReport(session: Session, fileId: string): Promise<boolean> {
     const roles = session.user.roles || [];
+    if (isQrBlocked(roles)) return false;
     if (isSuperAdmin(roles)) return true;
 
     const missionRes = await db.execute({
@@ -121,12 +98,6 @@ export async function canAccessDriveFile(session: Session, fileId: string): Prom
     if (missionRes.rows.length === 0) return false;
     return canReadAnyMissionReport(session, missionRes.rows.map(toMissionAccessInfo));
 }
-
-/** Ancien nom, conservé pour les appelants Drive (lecture seule). */
-export const resolveDriveFolderOwner = resolveFolderOwner;
-
-/** Accès à un dossier, id Drive ou préfixe R2 : mêmes règles. */
-export const canAccessFolder = canAccessDriveFolder;
 
 /**
  * Accès à un fichier média R2 par sa clé. La clé est d'abord validée (pas de
@@ -138,6 +109,6 @@ export const canAccessFolder = canAccessDriveFolder;
 export async function canAccessMediaKey(session: Session, key: string): Promise<boolean> {
     const parsed = validateMediaKey(key);
     if (!parsed) return false;
-    if (parsed.type === 'mission-report-photo') return canAccessDriveFile(session, key);
-    return canAccessDriveFolder(session, parsed.folderRef);
+    if (parsed.type === 'mission-report-photo') return canAccessSignedReport(session, key);
+    return canAccessFolder(session, parsed.folderRef);
 }

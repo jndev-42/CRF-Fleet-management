@@ -17,10 +17,6 @@ vi.mock('@/auth', () => ({
     auth: vi.fn(),
 }));
 
-vi.mock('@/lib/drive', () => ({
-    deleteDriveFolder: vi.fn().mockResolvedValue(undefined),
-}));
-
 import { GET, POST } from '@/app/api/vehicles/[id]/maintenance/route';
 import { DELETE } from '@/app/api/vehicles/[id]/maintenance/[recordId]/route';
 import { auth } from '@/auth';

@@ -4,7 +4,7 @@
 # vehicles/[id]/trips
 
 ## Purpose
-Clears trip history for a vehicle. Admin only. Deletes all trips associated with the vehicle and removes their associated Google Drive folders (non-blocking). Used to reset a vehicle's history. Touches `Trip` table; coordinates with Google Drive API.
+Clears trip history for a vehicle. Admin only. Deletes all trips associated with the vehicle and removes their R2 photos (non-blocking). Used to reset a vehicle's history. Touches `Trip` table.
 
 ## Key Files
 | File | Description |
@@ -14,12 +14,12 @@ Clears trip history for a vehicle. Admin only. Deletes all trips associated with
 ## For AI Agents
 
 ### Working In This Directory
-**DELETE /api/vehicles/[id]/trips** — ADMIN only. Deletes all trips for this vehicle. Before deletion, fetches all `driveFolderId` values and calls `deleteDriveFolder()` for each (non-blocking via Promise.allSettled). Also updates vehicle status: if status = IN_USE, sets to AVAILABLE. Uses transaction for consistency. Returns `{ success: true }`.
+**DELETE /api/vehicles/[id]/trips** — ADMIN only. Deletes all trips for this vehicle. Before deletion, fetches all `driveFolderId` values and calls `deleteMediaRefIfUnshared()` for each (non-blocking via Promise.allSettled). Also updates vehicle status: if status = IN_USE, sets to AVAILABLE. Uses transaction for consistency. Returns `{ success: true }`.
 
 **Key business rules:**
 - `[id]` is vehicle UUID (not name in this route)
-- Drive folder deletion non-blocking; failures logged but don't fail request
-- Only trips with `driveFolderId` values trigger Drive cleanup
+- Photo deletion non-blocking; failures logged but don't fail request
+- Only trips whose `driveFolderId` is an R2 prefix trigger a cleanup (a residual Drive id has nothing to delete)
 - Vehicle status reset: IN_USE → AVAILABLE (no change if already different)
 - All trips permanently deleted; non-recoverable
 
@@ -27,7 +27,7 @@ Clears trip history for a vehicle. Admin only. Deletes all trips associated with
 
 ### Internal
 - `@/lib/db` — `Trip`, `Vehicle` tables (transaction)
-- `@/lib/drive` — `deleteDriveFolder()` for Google Drive cleanup
+- `@/lib/media/server` — `deleteMediaRefIfUnshared()` for R2 cleanup
 - `@/lib/roles` — `canManageVehicles`
 - `@/auth` — NextAuth v5 session
 

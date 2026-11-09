@@ -19,7 +19,6 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/drive', () => ({ deleteDriveFolder: vi.fn() }));
 vi.mock('@/lib/push', () => ({
     sendPushNotification: vi.fn().mockResolvedValue(undefined),
     notifyRoles: vi.fn().mockResolvedValue(undefined),

@@ -18,6 +18,7 @@ import MissionEditHistory, { type MissionEdit } from '@/components/missions/Miss
 import { isAdminOrAbove } from '@/lib/roles';
 import SignedReportLightbox from '@/components/missions/SignedReportLightbox';
 import { mediaFileUrl } from '@/lib/imageCompression';
+import { isR2Ref } from '@/lib/media/refs';
 import styles from './mission-detail.module.css';
 
 interface SupplyEntry {
@@ -178,6 +179,8 @@ export default function MissionDetailPage() {
         && (Object.keys(interventionModes).length > 0 || Object.keys(interventionNatures).length > 0);
     // Rattachement du rapport : UL réelle ou entité DT — jamais les deux.
     const attachmentLabel = report.ulName ? `UL ${report.ulName}` : report.dtCode;
+    // Référence non R2 (id Drive résiduel) : ni carte ni visionneuse.
+    const signedReportUrl = mediaFileUrl(report.signed_report_drive_id);
 
     return (
         <main id="main-content" className="page-container">
@@ -190,7 +193,7 @@ export default function MissionDetailPage() {
                     <h1 className="page-title">{report.mission_name}</h1>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    {report.drive_folder_id && (
+                    {isR2Ref(report.drive_folder_id) && (
                         <button
                             className="btn btn-secondary"
                             onClick={() => setPhotosOpen(true)}
@@ -320,7 +323,7 @@ export default function MissionDetailPage() {
                 )}
 
                 {/* Rapport signé */}
-                {report.signed_report_drive_id && (
+                {signedReportUrl && (
                     <div
                         className="card"
                         style={{ cursor: 'pointer' }}
@@ -339,7 +342,7 @@ export default function MissionDetailPage() {
                         ) : (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
-                                src={mediaFileUrl(report.signed_report_drive_id)}
+                                src={signedReportUrl}
                                 alt="Rapport de mission signé"
                                 onError={() => setSignedReportIsPdf(true)}
                                 style={{
@@ -428,10 +431,10 @@ export default function MissionDetailPage() {
             </div>
             )}
 
-            {photosOpen && report.drive_folder_id && (
+            {photosOpen && isR2Ref(report.drive_folder_id) && (
                 <MissionPhotosModal folderId={report.drive_folder_id} onClose={() => setPhotosOpen(false)} />
             )}
-            {signedReportOpen && report.signed_report_drive_id && (
+            {signedReportOpen && signedReportUrl && report.signed_report_drive_id && (
                 <SignedReportLightbox driveId={report.signed_report_drive_id} onClose={() => setSignedReportOpen(false)} />
             )}
         </main>

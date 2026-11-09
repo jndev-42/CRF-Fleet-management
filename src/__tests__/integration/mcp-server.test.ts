@@ -22,7 +22,6 @@ vi.mock('next/server', async (importOriginal) => ({
     ...(await importOriginal<typeof import('next/server')>()),
     after: vi.fn((task: () => Promise<void>) => { afterTasks.push(task); }),
 }));
-vi.mock('@/lib/drive', () => ({ deleteDriveFolder: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@/lib/push', () => ({
     sendPushNotification: vi.fn().mockResolvedValue(undefined),
     notifyRoles: vi.fn().mockResolvedValue(undefined),

@@ -12,6 +12,8 @@ interface SignedReportLightboxProps {
 export default function SignedReportLightbox({ driveId, onClose }: SignedReportLightboxProps) {
     const [isPdf, setIsPdf] = useState(false);
     const url = mediaFileUrl(driveId);
+    // Référence non R2 (id Drive résiduel) : rien à afficher.
+    if (!url) return null;
 
     return (
         <div

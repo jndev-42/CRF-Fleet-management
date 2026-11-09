@@ -4,13 +4,13 @@
  *
  *   - 400 sur une référence forgée, d'une autre UL ou déjà portée par un autre
  *     enregistrement : POST /api/trips, PATCH check-in, POST / PATCH /api/incidents ;
- *   - check-in : un ancien id Drive est remplacé par le préfixe R2 reçu, un préfixe R2
+ *   - check-in : un id Drive résiduel est remplacé par le préfixe R2 reçu, un préfixe R2
  *     en place est conservé ;
  *   - suppression d'un trajet, des trajets d'un véhicule, d'un véhicule (trajets et
  *     incidents), d'un incident, d'un compte rendu : fichiers supprimés s'ils ne sont
- *     pas partagés ;
- *   - PDF d'incident : photos lues depuis le préfixe R2.
- * Base réelle ; R2 remplacé par un bucket en mémoire ; Drive, push et télémétrie mockés.
+ *     pas partagés ; un id Drive résiduel ne désigne aucun fichier (aucun appel) ;
+ *   - PDF d'incident : photos lues depuis le préfixe R2, aucune pour un id Drive résiduel.
+ * Base réelle ; R2 remplacé par un bucket en mémoire ; push et télémétrie mockés.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -21,10 +21,6 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/drive', () => ({
-    deleteDriveFolder: vi.fn(async () => true),
-    getDriveClient: vi.fn(() => { throw new Error('Drive indisponible en test'); }),
-}));
 vi.mock('@/lib/push', () => ({
     sendPushNotification: vi.fn().mockResolvedValue(undefined),
     notifyRoles: vi.fn().mockResolvedValue(undefined),
@@ -72,8 +68,7 @@ import { PATCH as PATCH_INCIDENT, DELETE as DELETE_INCIDENT } from '@/app/api/in
 import { GET as INCIDENT_PDF } from '@/app/api/incidents/[id]/pdf/route';
 import { DELETE as DELETE_MISSION } from '@/app/api/missions/[id]/route';
 import { auth } from '@/auth';
-import { deleteDriveFolder } from '@/lib/drive';
-import { deletePrefix } from '@/lib/r2';
+import { deleteMediaKey, deletePrefix, listObjects } from '@/lib/r2';
 import { db, seedVehicle, seedUser, seedTrip, seedIncident, seedUniteLocale } from './setup';
 
 const mockedAuth = vi.mocked(auth);
@@ -148,7 +143,7 @@ describe('PATCH /api/trips/[id]/checkin — dossier de photos', () => {
         mockedAuth.mockResolvedValue(driver as never);
     });
 
-    it('rendu d\'un trajet Drive : l\'id Drive est REMPLACÉ par le préfixe R2 reçu', async () => {
+    it('rendu d\'un trajet à id Drive résiduel : l\'id Drive est REMPLACÉ par le préfixe R2 reçu', async () => {
         await db.execute(`UPDATE Trip SET driveFolderId = 'drive-ancien' WHERE id = 'trip-1'`);
         const res = await checkin(PARIS_TRIP);
         expect(res.status).toBe(200);
@@ -258,12 +253,38 @@ describe('Suppressions — fichiers supprimés s\'ils ne sont pas partagés', ()
         expect(vi.mocked(deletePrefix)).not.toHaveBeenCalled();
     });
 
-    it('DELETE /api/trips/[id] : ancien id Drive → dossier Drive supprimé', async () => {
+    it('DELETE /api/trips/[id] : id Drive résiduel → trajet supprimé, aucun appel de stockage', async () => {
         await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', checkInAt: '2026-11-01T10:00:00Z' });
-        await db.execute(`UPDATE Trip SET driveFolderId = 'drive-1' WHERE id = 'trip-1'`);
+        await db.execute(`UPDATE Trip SET driveFolderId = '1AbCdrive' WHERE id = 'trip-1'`);
         mockedAuth.mockResolvedValue(admin as never);
-        await DELETE_TRIP(new Request('http://localhost/api/trips/trip-1', { method: 'DELETE' }), ctx('trip-1'));
-        expect(vi.mocked(deleteDriveFolder)).toHaveBeenCalledWith('drive-1');
+        expect((await DELETE_TRIP(new Request('http://localhost/api/trips/trip-1', { method: 'DELETE' }), ctx('trip-1'))).status).toBe(200);
+        expect((await db.execute(`SELECT 1 FROM Trip WHERE id = 'trip-1'`)).rows).toHaveLength(0);
+        expect(vi.mocked(deletePrefix)).not.toHaveBeenCalled();
+        expect(vi.mocked(deleteMediaKey)).not.toHaveBeenCalled();
+    });
+
+    it('DELETE /api/vehicles/[id] : ids Drive résiduels (trajet, incident) → véhicule supprimé, aucun appel', async () => {
+        await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-driver', checkInAt: '2026-11-01T10:00:00Z' });
+        await db.execute(`UPDATE Trip SET driveFolderId = '1AbCdrive' WHERE id = 'trip-1'`);
+        await seedIncident({ id: 'inc-1', vehicleId: 'VL001', userId: 'user-driver' });
+        await db.execute(`UPDATE IncidentReport SET driveFolderId = '1XyZdrive' WHERE id = 'inc-1'`);
+        mockedAuth.mockResolvedValue(admin as never);
+        expect((await DELETE_VEHICLE(new Request('http://localhost/api/vehicles/VL186', { method: 'DELETE' }), ctx('VL186'))).status).toBe(200);
+        expect((await db.execute(`SELECT 1 FROM Vehicle WHERE id = 'VL001'`)).rows).toHaveLength(0);
+        expect(vi.mocked(deletePrefix)).not.toHaveBeenCalled();
+    });
+
+    it('DELETE /api/missions/[id] : ids Drive résiduels → compte rendu supprimé, aucun appel', async () => {
+        await db.execute({
+            sql: `INSERT INTO "mission_reports" (id, submitted_by, submitted_at, mission_type, mission_name, mission_date, location, volunteers, ulId, drive_folder_id, signed_report_drive_id)
+                  VALUES ('mr-d', 'admin-id', '2026-10-01T10:00:00Z', 'DPS', 'DPS', '2026-10-01', 'Paris', '[]', 'ul-paris-18', '1AbCdrive', '1XyZdriveFile')`,
+            args: [],
+        });
+        mockedAuth.mockResolvedValue(admin as never);
+        expect((await DELETE_MISSION(new Request('http://localhost/api/missions/mr-d', { method: 'DELETE' }), ctx('mr-d'))).status).toBe(200);
+        expect((await db.execute(`SELECT 1 FROM "mission_reports" WHERE id = 'mr-d'`)).rows).toHaveLength(0);
+        expect(vi.mocked(deletePrefix)).not.toHaveBeenCalled();
+        expect(vi.mocked(deleteMediaKey)).not.toHaveBeenCalled();
     });
 
     it('DELETE /api/vehicles/[id]/trips : préfixes des trajets supprimés', async () => {
@@ -294,10 +315,11 @@ describe('Suppressions — fichiers supprimés s\'ils ne sont pas partagés', ()
         mockedAuth.mockResolvedValue(driver as never);
         expect((await DELETE_INCIDENT(new Request('http://localhost/api/incidents/inc-1', { method: 'DELETE' }), ctx('inc-1'))).status).toBe(200);
         expect(vi.mocked(deletePrefix)).toHaveBeenCalledWith(PARIS_INC);
-        await DELETE_INCIDENT(new Request('http://localhost/api/incidents/inc-2', { method: 'DELETE' }), ctx('inc-2'));
-        expect(vi.mocked(deleteDriveFolder)).not.toHaveBeenCalled();
-        await DELETE_INCIDENT(new Request('http://localhost/api/incidents/inc-3', { method: 'DELETE' }), ctx('inc-3'));
-        expect(vi.mocked(deleteDriveFolder)).toHaveBeenCalledWith('drive-partage');
+        // Id Drive résiduel (partagé ou non) : enregistrements supprimés, aucun appel de stockage.
+        vi.mocked(deletePrefix).mockClear();
+        expect((await DELETE_INCIDENT(new Request('http://localhost/api/incidents/inc-2', { method: 'DELETE' }), ctx('inc-2'))).status).toBe(200);
+        expect((await DELETE_INCIDENT(new Request('http://localhost/api/incidents/inc-3', { method: 'DELETE' }), ctx('inc-3'))).status).toBe(200);
+        expect(vi.mocked(deletePrefix)).not.toHaveBeenCalled();
     });
 
     it('DELETE /api/missions/[id] : photos (préfixe) et rapport signé (clé) supprimés', async () => {
@@ -330,5 +352,15 @@ describe('GET /api/incidents/[id]/pdf — photos R2', () => {
             `data:image/jpeg;base64,${Buffer.from('0a1b2c3d-a.jpg').toString('base64')}`,
             `data:image/png;base64,${Buffer.from('0a1b2c3d-b.png').toString('base64')}`,
         ]);
+    });
+
+    it('id Drive résiduel : PDF généré sans photo, aucun appel de stockage', async () => {
+        await seedIncident({ id: 'inc-1', vehicleId: 'VL001', userId: 'user-driver', status: 'SUBMITTED' });
+        await db.execute(`UPDATE IncidentReport SET driveFolderId = '1AbCdrive' WHERE id = 'inc-1'`);
+        mockedAuth.mockResolvedValue(driver as never);
+        const res = await INCIDENT_PDF(new Request('http://localhost/api/incidents/inc-1/pdf'), ctx('inc-1'));
+        expect(res.status).toBe(200);
+        expect(renderedPhotos[0]).toEqual([]);
+        expect(vi.mocked(listObjects)).not.toHaveBeenCalled();
     });
 });

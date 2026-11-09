@@ -19,7 +19,6 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
-vi.mock('@/lib/drive', () => ({ deleteDriveFolder: vi.fn() }));
 vi.mock('@/lib/vehicle-connection', async (importOriginal) => ({
     ...(await importOriginal<typeof import('@/lib/vehicle-connection')>()),
     getRenaultVehicleData: vi.fn().mockResolvedValue(null),

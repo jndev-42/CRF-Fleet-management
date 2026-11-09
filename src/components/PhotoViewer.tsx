@@ -18,8 +18,14 @@ export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps
 
     useEffect(() => {
         async function fetchPhotos() {
+            const listUrl = mediaListUrl(driveFolderId);
+            // Référence non R2 (id Drive résiduel) : aucune photo, aucun appel.
+            if (!listUrl) {
+                setLoading(false);
+                return;
+            }
             try {
-                const res = await fetch(mediaListUrl(driveFolderId));
+                const res = await fetch(listUrl);
                 if (!res.ok) {
                     if (res.status === 401 || res.status === 403) {
                         throw new Error('Permissions expirées. Veuillez vous reconnecter.');
@@ -43,23 +49,27 @@ export default function PhotoViewer({ driveFolderId, onClose }: PhotoViewerProps
             <div style={{ marginBottom: 24 }}>
                 <h3 style={{ marginBottom: 16 }}>{title} ({list.length})</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 16 }}>
-                    {list.map(photo => (
+                    {list.map(photo => {
+                        const url = mediaFileUrl(photo.id);
+                        if (!url) return null;
+                        return (
                         <div
                             key={photo.id}
                             style={{ borderRadius: 'var(--radius-sm)', overflow: 'hidden', border: '1px solid var(--border-primary)', background: '#000', height: 150, cursor: 'pointer' }}
-                            onClick={() => setActivePhoto(mediaFileUrl(photo.id))}
+                            onClick={() => setActivePhoto(url)}
                         >
                             {/* eslint-disable-next-line @next/next/no-img-element -- images are
                                 served through a dynamic proxy API route; next/image cannot
                                 statically optimize these URLs */}
                             <img
-                                src={mediaFileUrl(photo.id)}
+                                src={url}
                                 alt={photo.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                                 loading="lazy"
                             />
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         );

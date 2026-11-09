@@ -34,10 +34,6 @@ export function validateLabel(action: { combined: boolean }): string {
     return action.combined ? 'Signer pour le responsable et valider' : 'Valider';
 }
 
-export function isPdfItem(item: { name: string; mimeType?: string }) {
-    return item.mimeType === 'application/pdf' || item.name.toLowerCase().endsWith('.pdf');
-}
-
 export function formatDate(isoString: string) {
     try {
         return new Date(isoString).toLocaleDateString('fr-FR', {

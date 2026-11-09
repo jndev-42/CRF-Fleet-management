@@ -17,7 +17,7 @@ const authProxy = NextAuth(authConfig).auth;
 
 /**
  * Pages : authentification NextAuth inchangée.
- * API : en mode démo (cookie), les écritures à effet externe (Drive, R2, Renault,
+ * API : en mode démo (cookie), les écritures à effet externe (R2, Renault,
  * Web Push) sont refusées (403) ; les autres vont à la base démo (`src/lib/db.ts`).
  * Base démo non configurée : toute écriture non exemptée est refusée (garde-fou).
  * Les requêtes démo transmises reçoivent l'en-tête `x-crf-demo: 1` (lu par

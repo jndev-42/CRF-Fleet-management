@@ -23,7 +23,6 @@ vi.mock('@/lib/push', () => ({
     notifyRoles: vi.fn().mockResolvedValue(undefined),
     notifyUsers: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock('@/lib/drive', () => ({ deleteDriveFolder: vi.fn().mockResolvedValue(undefined) }));
 // Espions : `fetchStatsData` garde son vrai comportement ; le rendu PDF est court-circuité
 // pour pouvoir lire les props transmises au document.
 vi.mock('@/lib/stats-trips', async (importOriginal) => {

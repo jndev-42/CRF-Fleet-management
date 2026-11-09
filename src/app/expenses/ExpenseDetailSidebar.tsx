@@ -1,5 +1,4 @@
 import { X, XCircle, AlertCircle, Check, DollarSign, Send, Trash, Edit, Download, Info } from 'lucide-react';
-import ExpensePhotosPanel from './ExpensePhotosPanel';
 import { formatDate, getStatusBadge, signingActionFor, validateLabel } from './utils';
 import { workflowVersionOf } from '@/lib/expenses/workflow';
 import { formatIsoDayFr } from '@/lib/utils/date';
@@ -12,8 +11,6 @@ interface ExpenseDetailSidebarProps {
     canPay: boolean;
     currentUserId: string | undefined;
     actionLoading: string | null;
-    photos: { id: string; name: string; mimeType?: string }[];
-    photosLoading: boolean;
     onClose: () => void;
     onOpenValidate: (report: ExpenseReport) => void;
     onReject: (id: string) => void;
@@ -21,7 +18,6 @@ interface ExpenseDetailSidebarProps {
     onSubmitDraft: (id: string) => void;
     onDelete: (id: string) => void;
     onEditDraft: (report: ExpenseReport) => void;
-    onViewAllPhotos: () => void;
 }
 
 export default function ExpenseDetailSidebar({
@@ -30,8 +26,6 @@ export default function ExpenseDetailSidebar({
     canPay,
     currentUserId,
     actionLoading,
-    photos,
-    photosLoading,
     onClose,
     onOpenValidate,
     onReject,
@@ -39,7 +33,6 @@ export default function ExpenseDetailSidebar({
     onSubmitDraft,
     onDelete,
     onEditDraft,
-    onViewAllPhotos,
 }: ExpenseDetailSidebarProps) {
     const signing = signingActionFor(report, userRoles, currentUserId);
     const isV2 = workflowVersionOf(report.workflowVersion) === 2;
@@ -268,11 +261,6 @@ export default function ExpenseDetailSidebar({
                     </div>
                 )}
             </div>
-
-            {/* Photos gallery */}
-            {report.driveFolderId && (
-                <ExpensePhotosPanel photos={photos} photosLoading={photosLoading} onViewAll={onViewAllPhotos} />
-            )}
 
             {/* Sidebar PDF Download Button */}
             {report.status !== 'brouillon' && (

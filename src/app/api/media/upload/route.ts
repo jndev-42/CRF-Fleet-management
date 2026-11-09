@@ -7,7 +7,8 @@
  * `tripId` (rendu d'un trajet), `ulId` (mission), `name` (nom de la mission ; ignoré
  * pour un véhicule, dont le nom est relu en base), `stage` (`emprunt` | `rendu`,
  * trajet seulement), `existingFolderId` (préfixe déjà créé : rendu d'un trajet, lot
- * suivant d'un envoi ; ou id Drive d'un trajet emprunté avant la bascule).
+ * suivant d'un envoi). Une référence non R2 (id Drive résiduel) est ignorée : un
+ * nouveau préfixe est créé.
  *
  * Le dossier est TOUJOURS construit côté serveur : `{type}/{slug UL}/{nom}-{horodatage}-{xxxx}`.
  * Le client ne fournit jamais de clé.
@@ -21,9 +22,8 @@
  *   - mission : l'`ulId` envoyé n'est retenu que si l'utilisateur en est membre (ou
  *     SUPER_ADMIN) ; sinon son UL de rattachement, à défaut celle de la session.
  *
- * Trajet emprunté avant la bascule (colonne = id Drive) : au premier envoi de rendu,
- * les photos du dossier Drive sont copiées dans le nouveau préfixe (`…/emprunt/`) ;
- * le check-in remplace ensuite l'id Drive par ce préfixe. Copie en échec → 502.
+ * Trajet dont la colonne porte un id Drive résiduel : le rendu ouvre un nouveau
+ * préfixe R2, que le check-in enregistre à la place de l'id Drive.
  *
  * Réponse : `{ success, folderId, subfolderId, fileIds }` — `folderId` est le préfixe
  * à enregistrer en base, `fileIds` les clés des fichiers écrits.
@@ -35,7 +35,7 @@ import { auth } from '@/auth';
 import { db } from '@/lib/db';
 import { canManageVehicles, isChvlDriver, isChvpspDriver, isQrBlocked, isSuperAdmin } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
-import { resolveFolderOwner } from '@/lib/driveAuth';
+import { resolveFolderOwner } from '@/lib/media/access';
 import { resolveSessionUserId } from '@/lib/missions/access';
 import { getErrorMessage } from '@/lib/utils/error';
 import { withAudit } from '@/lib/audit/log';
@@ -55,8 +55,6 @@ import {
 import { homeUlOf, isUlMember, ulSegmentOf } from '@/lib/media/server';
 
 export const runtime = 'nodejs';
-// Rendu d'un trajet emprunté avant la bascule : la copie du dossier Drive s'ajoute à l'envoi.
-export const maxDuration = 60;
 
 const MAX_FILE_SIZE = 4.2 * 1024 * 1024; // 4.2 Mo par fichier (corps Serverless limité à ~4.5 Mo)
 const MAX_TOTAL_SIZE = 4.2 * 1024 * 1024; // 4.2 Mo par requête
@@ -228,13 +226,13 @@ async function postHandler(request: Request) {
 
         // Dossier : réutilisé (rendu d'un trajet, lot suivant) ou créé.
         let folderRef: string | null = null;
-        let copyFromDrive: string | null = null;
         // Rendu d'un trajet : son préfixe R2 s'il en a un, quel que soit le dossier
-        // envoyé (un id Drive périmé ouvrirait un préfixe que le check-in ignore) ;
-        // sans dossier fourni, celui du trajet.
+        // envoyé. Une référence non R2 (id Drive résiduel, `mock-…`), envoyée ou portée
+        // par le trajet, est ignorée : un nouveau préfixe est créé.
         const tripR2 = tripCtx && isR2Ref(tripCtx.driveFolderId) ? tripCtx.driveFolderId : null;
-        const existing = tripR2 ?? data.existingFolderId ?? tripCtx?.driveFolderId ?? undefined;
-        if (existing && isR2Ref(existing)) {
+        const sentR2 = isR2Ref(data.existingFolderId) ? data.existingFolderId : null;
+        const existing = tripR2 ?? sentR2;
+        if (existing) {
             const existingParts = parseMediaFolderRef(existing);
             if (!existingParts || existingParts.type !== data.type) {
                 return badRequest('Dossier existant invalide.');
@@ -258,24 +256,9 @@ async function postHandler(request: Request) {
                 }
             }
             folderRef = existing;
-        } else if (existing && tripCtx && tripCtx.driveFolderId === existing && !existing.startsWith('mock-')) {
-            // Trajet emprunté avant la bascule : les photos d'emprunt suivent sur R2.
-            copyFromDrive = existing;
         }
         if (!folderRef) {
             folderRef = buildMediaFolderRef(data.type, ulSegment, readableSegment(folderName, new Date()));
-        }
-
-        if (copyFromDrive) {
-            try {
-                await copyDriveTripFolder(copyFromDrive, folderRef);
-            } catch (e: unknown) {
-                console.error('[POST /api/media/upload] copie des photos Drive impossible :', getErrorMessage(e));
-                return NextResponse.json(
-                    { error: "Impossible de reprendre les photos de l'emprunt. Réessayez dans un instant." },
-                    { status: 502 },
-                );
-            }
         }
 
         const { putObject } = await import('@/lib/r2');
@@ -297,26 +280,6 @@ async function postHandler(request: Request) {
         console.error('[POST /api/media/upload]', getErrorMessage(error));
         return NextResponse.json({ error: "Erreur lors de l'envoi des fichiers." }, { status: 500 });
     }
-}
-
-/**
- * Copie le dossier Drive d'un trajet (`emprunt/`, `rendu/`) sous `folderRef` — même
- * logique que la migration. Dossier Drive introuvable : rien à reprendre. Tout ou
- * rien : un fichier illisible annule la copie et lève.
- */
-async function copyDriveTripFolder(driveId: string, folderRef: string): Promise<void> {
-    const { collectDriveSources, copyDriveSources, planDriveFiles } = await import('@/lib/media/drive-migration');
-    const { createDriveSource } = await import('@/lib/media/drive-source');
-    const { putObject, deleteObject } = await import('@/lib/r2');
-    const drive = createDriveSource();
-    const root = await drive.get(driveId);
-    if (!root) return;
-    const { sources } = await collectDriveSources('trip', root, drive);
-    const planned = planDriveFiles(sources, folderRef, false);
-    await copyDriveSources(sources, planned, {
-        drive,
-        r2: { put: (key, body, contentType) => putObject(key, body, contentType), delete: deleteObject },
-    });
 }
 
 export const POST = withAudit(postHandler, { action: "Envoi d'une photo", entityType: 'photo' });

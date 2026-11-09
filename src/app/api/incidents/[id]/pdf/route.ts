@@ -6,7 +6,6 @@ import { createElement, type JSXElementConstructor, type ReactElement } from 're
 import IncidentPdfDocument from '@/components/incident/IncidentPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
-import { getDriveClient } from '@/lib/drive';
 import { isR2Ref } from '@/lib/media/refs';
 import { listMediaFiles } from '@/lib/media/server';
 import { canViewIncident, type IncidentViewer } from '@/lib/incidentAccess';
@@ -53,7 +52,7 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
     .toBuffer();
   const logoSrc = `data:image/png;base64,${logoPng.toString('base64')}`;
 
-  // Photos : préfixe R2 (`incident-photos/…`), sinon ancien dossier Drive (transition).
+  // Photos : préfixe R2 (`incident-photos/…`) ; une référence non R2 (id Drive résiduel) n'en a aucune.
   const photos: string[] = [];
   if (isR2Ref(report.driveFolderId)) {
     try {
@@ -65,52 +64,6 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
                 if (buffer) photos.push(`data:${file.mimeType};base64,${buffer.toString('base64')}`);
             } catch (imgErr) {
                 console.error(`Failed to fetch image ${file.id} for PDF:`, imgErr);
-            }
-        }
-    } catch (photoErr) {
-        console.error('Error fetching photos for PDF:', photoErr);
-    }
-  } else if (report.driveFolderId) {
-    try {
-        const drive = getDriveClient();
-
-        // Check if report.driveFolderId contains folders or images
-        const childrenRes = await drive.files.list({
-            q: `'${report.driveFolderId}' in parents and trashed=false`,
-            fields: 'files(id, name, mimeType)',
-        });
-        const children = childrenRes.data.files || [];
-        
-        let imageFiles = children.filter(f => f.mimeType?.includes('image/'));
-        const subfolders = children.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
-
-        if (subfolders.length > 0) {
-            // Legacy case: it's a parent folder, find the 'incident' folders
-            for (const folder of subfolders) {
-                if (folder.name?.startsWith('incident')) {
-                    const filesRes = await drive.files.list({
-                        q: `'${folder.id}' in parents and mimeType contains 'image/' and trashed=false`,
-                        fields: 'files(id, mimeType)',
-                    });
-                    const files = filesRes.data.files || [];
-                    imageFiles = imageFiles.concat(files);
-                }
-            }
-        }
-
-        for (const file of imageFiles) {
-            if (file.id) {
-                try {
-                    const imgRes = await drive.files.get(
-                        { fileId: file.id, alt: 'media' },
-                        { responseType: 'arraybuffer' }
-                    );
-                    const buffer = Buffer.from(imgRes.data as ArrayBuffer);
-                    const base64 = buffer.toString('base64');
-                    photos.push(`data:${file.mimeType || 'image/jpeg'};base64,${base64}`);
-                } catch (imgErr) {
-                    console.error(`Failed to fetch image ${file.id} for PDF:`, imgErr);
-                }
             }
         }
     } catch (photoErr) {

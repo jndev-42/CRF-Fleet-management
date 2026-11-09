@@ -249,19 +249,19 @@ export async function uploadMediaSafely(params: UploadMediaParams): Promise<Uplo
 }
 
 /**
- * URL d'affichage d'un fichier : `/api/media/file` pour une clé R2, l'ancien proxy
- * Drive (lecture seule) pour un id Drive — référence non encore migrée. Une clé R2
- * contient toujours `/`, un id Drive jamais.
+ * URL d'affichage d'un fichier R2 (`/api/media/file`), ou `null` si la référence
+ * n'est pas une clé R2 (id Drive résiduel, `mock-…`) : aucun fichier à afficher.
  */
-export function mediaFileUrl(id: string): string {
-    return isR2Ref(id)
-        ? `/api/media/file?key=${encodeURIComponent(id)}`
-        : `/api/drive/photos/${encodeURIComponent(id)}`;
+export function mediaFileUrl(id: string | null | undefined): string | null {
+    return isR2Ref(id) ? `/api/media/file?key=${encodeURIComponent(id)}` : null;
 }
 
-/** URL de liste des fichiers d'un dossier, R2 ou Drive (mêmes formes de réponse). */
-export function mediaListUrl(ref: string, opts: { flat?: boolean } = {}): string {
-    const base = isR2Ref(ref) ? '/api/media/photos' : '/api/drive/photos';
-    return `${base}?folderId=${encodeURIComponent(ref)}${opts.flat ? '&flat=true' : ''}`;
+/**
+ * URL de liste des fichiers d'un dossier R2, ou `null` si la référence n'est pas
+ * un préfixe R2 (id Drive résiduel, `mock-…`) : aucun fichier, aucun appel réseau.
+ */
+export function mediaListUrl(ref: string | null | undefined, opts: { flat?: boolean } = {}): string | null {
+    if (!isR2Ref(ref)) return null;
+    return `/api/media/photos?folderId=${encodeURIComponent(ref)}${opts.flat ? '&flat=true' : ''}`;
 }
 

@@ -29,8 +29,6 @@ function renderSidebar(report: ExpenseReport, userRoles: string[], currentUserId
             canPay={false}
             currentUserId={currentUserId}
             actionLoading={null}
-            photos={[]}
-            photosLoading={false}
             onClose={vi.fn()}
             onOpenValidate={onOpenValidate}
             onReject={onReject}
@@ -38,7 +36,6 @@ function renderSidebar(report: ExpenseReport, userRoles: string[], currentUserId
             onSubmitDraft={vi.fn()}
             onDelete={vi.fn()}
             onEditDraft={vi.fn()}
-            onViewAllPhotos={vi.fn()}
         />
     );
     return { onOpenValidate, onReject };

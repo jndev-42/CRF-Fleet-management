@@ -200,6 +200,31 @@ describe('Fiche /missions/[id]', () => {
     });
 });
 
+describe('Fiche /missions/[id] — photos et rapport signé', () => {
+    const folder = 'mission-com-photos/paris-18/dps-20260315-100000-a1b2';
+    const signed = 'mission-report-photo/paris-18/dps-20260315-100000-c3d4/0a1b2c3d-rapport.jpg';
+
+    it('références R2 : bouton Photos et rapport signé lu via /api/media/file', async () => {
+        mockSession(['CADRE']);
+        mockFetchJson(detail({ drive_folder_id: folder, signed_report_drive_id: signed }));
+        render(<MissionDetailPage />);
+        await screen.findByText('Informations mission');
+        expect(screen.getByRole('button', { name: 'Voir les photos de communication' })).toBeTruthy();
+        const img = screen.getByAltText('Rapport de mission signé') as HTMLImageElement;
+        expect(img.src).toContain(`/api/media/file?key=${encodeURIComponent(signed)}`);
+    });
+
+    it('ids Drive résiduels : ni bouton Photos ni rapport signé', async () => {
+        mockSession(['CADRE']);
+        mockFetchJson(detail({ drive_folder_id: '1AbCdriveFolder', signed_report_drive_id: '1XyZdriveFile' }));
+        render(<MissionDetailPage />);
+        await screen.findByText('Informations mission');
+        expect(screen.queryByRole('button', { name: 'Voir les photos de communication' })).toBeNull();
+        expect(screen.queryByAltText('Rapport de mission signé')).toBeNull();
+        expect(screen.queryByText('Rapport signé')).toBeNull();
+    });
+});
+
 describe('Fiche /missions/[id] — bouton Supprimer', () => {
     it.each([
         [['ADMIN'], true],
@@ -322,7 +347,7 @@ describe('MissionWizard — mode édition', () => {
         expect(patchCall?.[0]).toBe('/api/missions/r1');
         const body = JSON.parse((patchCall![1] as RequestInit).body as string);
         expect(body).toMatchObject({ mission_name: 'M', volunteer_accident: false, volunteer_accident_details: null });
-        expect(fetchSpy.mock.calls.some(([url]) => String(url).includes('/api/drive'))).toBe(false);
+        expect(fetchSpy.mock.calls.some(([url]) => String(url).includes('/api/media/upload'))).toBe(false);
     });
 
     it('accident = Oui sans description : bloqué à l\'étape Incidents', () => {

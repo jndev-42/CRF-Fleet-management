@@ -58,5 +58,5 @@ spike/
 .bmad-loop/policy.toml
 _bmad/render/
 
-# Journaux de migration Drive → R2 (scripts/migrate-drive-images-to-r2.ts)
+# Journaux des scripts de migration
 scripts/out/

@@ -1,6 +1,6 @@
 /**
- * Garde des scripts de migration R2 (`scripts/migrate-drive-images-to-r2.ts`,
- * `scripts/move-expense-pdfs-to-ul-folders.ts`, `scripts/move-r2-objects-to-ul-folders.ts`).
+ * Garde des scripts de migration R2 (`scripts/move-expense-pdfs-to-ul-folders.ts`,
+ * `scripts/move-r2-objects-to-ul-folders.ts`).
  *
  * `src/lib/r2.ts` retombe sur le bucket de PRODUCTION (`expenses-reports`) quand
  * `R2_BUCKET` est absent : un script lancé avec un fichier d'env de preview
