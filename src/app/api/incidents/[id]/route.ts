@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { z } from 'zod';
+import { isAcceptableMediaRef } from '@/lib/media/refs';
 import { canManageVehicles } from '@/lib/roles';
 import {
     canRevealIncidentAuthor,
@@ -26,7 +27,7 @@ const updateIncidentSchema = z.object({
     context: z.record(z.string(), z.any()).optional().nullable(),
     description: z.string().optional().nullable(),
     retrospection: z.string().optional().nullable(),
-    driveFolderId: z.string().optional().nullable(),
+    driveFolderId: z.string().max(512).refine(v => isAcceptableMediaRef(v, 'incident-photos'), 'Dossier de photos invalide').optional().nullable(),
 });
 
 export async function GET(
@@ -122,7 +123,7 @@ async function patchHandler(
 
         // Check ownership or admin
         const check = await db.execute({
-            sql: `SELECT ir.userId, ir.status, v.ulId AS vehicleUlId
+            sql: `SELECT ir.userId, ir.status, ir.driveFolderId, v.ulId AS vehicleUlId
                   FROM IncidentReport ir
                   LEFT JOIN Vehicle v ON v.id = ir.vehicleId
                   WHERE ir.id = ?`,
@@ -147,6 +148,18 @@ async function patchHandler(
         // Un incident soumis ne repasse pas en brouillon (sinon une nouvelle soumission re-notifierait les Responsables)
         if (data.status === 'DRAFT' && check.rows[0].status === 'SUBMITTED') {
             return NextResponse.json({ error: 'Un incident déjà soumis ne peut pas repasser en brouillon.' }, { status: 409 });
+        }
+
+        // Dossier de photos : de l'UL du véhicule, rattaché à aucun autre enregistrement.
+        if (data.driveFolderId) {
+            const { assertRefBindable } = await import('@/lib/media/server');
+            const bindError = await assertRefBindable(data.driveFolderId, {
+                type: 'incident-photos', table: 'IncidentReport', rowId: id,
+                ulIds: [(check.rows[0].vehicleUlId as string | null) ?? null],
+            });
+            if (bindError) {
+                return NextResponse.json({ error: bindError }, { status: 400 });
+            }
         }
 
         // Build dynamic update
@@ -175,6 +188,14 @@ async function patchHandler(
             sql: `UPDATE "IncidentReport" SET ${updates.join(', ')} WHERE id = ?`,
             args,
         });
+
+        // Dossier de photos remplacé : l'ancien est supprimé (best-effort) s'il n'est
+        // plus référencé nulle part.
+        const previousFolder = (check.rows[0].driveFolderId as string | null) || null;
+        if ('driveFolderId' in data && previousFolder && previousFolder !== (data.driveFolderId || null)) {
+            const { deleteMediaRefIfUnshared } = await import('@/lib/media/server');
+            await deleteMediaRefIfUnshared(previousFolder, 'folder');
+        }
 
         // Passage DRAFT -> SUBMITTED : les Responsables sont prévenus, une seule fois
         if (data.status === 'SUBMITTED' && check.rows[0].status !== 'SUBMITTED') {
@@ -233,10 +254,16 @@ async function deleteHandler(
             return forbiddenResponse();
         }
 
+        const folderRes = await db.execute({ sql: `SELECT driveFolderId FROM IncidentReport WHERE id = ?`, args: [id] });
+
         await db.execute({
             sql: `DELETE FROM IncidentReport WHERE id = ?`,
             args: [id],
         });
+
+        // Photos : supprimées après la déclaration, en best-effort, si non partagées.
+        const { deleteMediaRefIfUnshared } = await import('@/lib/media/server');
+        await deleteMediaRefIfUnshared(folderRes.rows[0]?.driveFolderId as string | null, 'folder');
 
         return NextResponse.json({ success: true });
     } catch (error) {

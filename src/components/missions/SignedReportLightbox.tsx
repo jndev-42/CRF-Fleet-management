@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { mediaFileUrl } from '@/lib/imageCompression';
 import { X } from 'lucide-react';
 
 interface SignedReportLightboxProps {
@@ -10,7 +11,7 @@ interface SignedReportLightboxProps {
 
 export default function SignedReportLightbox({ driveId, onClose }: SignedReportLightboxProps) {
     const [isPdf, setIsPdf] = useState(false);
-    const url = `/api/drive/photos/${driveId}`;
+    const url = mediaFileUrl(driveId);
 
     return (
         <div

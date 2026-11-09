@@ -15,6 +15,8 @@ import {
 } from '@/lib/utils/mileageAnomaly';
 import { withAudit } from '@/lib/audit/log';
 import { omitVehicleR2Keys } from '@/lib/vehiclePhoto';
+import { isR2Ref } from '@/lib/media/refs';
+import { assertRefBindable } from '@/lib/media/server';
 // Increase duration limits for Vercel Serverless Functions
 export const maxDuration = 30; // 30 seconds max duration
 
@@ -72,6 +74,22 @@ async function patchHandler(
 
         if (!isAdmin && !isFirstDriver && !isSecondDriver) {
             return forbiddenResponse("Vous n'êtes pas autorisé à rendre ce véhicule. Seul l'emprunteur ou un administrateur peut le faire.");
+        }
+
+        // Dossier de photos : un préfixe R2 déjà en place est conservé ; un ancien id
+        // Drive est REMPLACÉ par le préfixe R2 reçu (l'envoi du rendu y a recopié les
+        // photos d'emprunt). La référence reçue doit être de l'UL du véhicule et n'être
+        // portée par aucun autre enregistrement.
+        const currentFolder = (trip.driveFolderId as string | null) || null;
+        let nextDriveFolderId = currentFolder || data.driveFolderId || null;
+        if (data.driveFolderId && data.driveFolderId !== currentFolder && (!currentFolder || !isR2Ref(currentFolder))) {
+            const bindError = await assertRefBindable(data.driveFolderId, {
+                type: 'trip-photos', table: 'Trip', rowId: id, ulIds: [trip.vehicleUlId as string | null],
+            });
+            if (bindError) {
+                return NextResponse.json({ error: bindError }, { status: 400 });
+            }
+            nextDriveFolderId = currentFolder && !isR2Ref(data.driveFolderId) ? currentFolder : data.driveFolderId;
         }
 
         const vehicleResult = await db.execute({
@@ -201,7 +219,7 @@ async function patchHandler(
                     data.incident || null,
                     data.commentsIn || null,
                     data.parkingPhoto || null,
-                    trip.driveFolderId || data.driveFolderId || null,
+                    nextDriveFolderId,
                     data.checklistIn ? JSON.stringify(data.checklistIn) : null,
                     renaultDataValidated,
                     renaultDataValidated !== null ? timestamp : null,

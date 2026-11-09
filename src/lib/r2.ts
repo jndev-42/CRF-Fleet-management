@@ -1,5 +1,7 @@
 /**
- * Client Cloudflare R2 pour les PDF scellés de notes de frais.
+ * Client Cloudflare R2 : PDF scellés de notes de frais, guides et photos de
+ * véhicule, référentiels, et médias (photos de trajet, d'incident, de mission,
+ * rapport de mission signé — voir `src/lib/media/refs.ts`).
  *
  * S'appuie sur `aws4fetch` (signature SigV4 + `fetch` natif) plutôt que sur
  * `@aws-sdk/client-s3` : le besoin se limite à PUT / GET / HEAD sur des fichiers
@@ -14,6 +16,7 @@
  */
 
 import { AwsClient } from 'aws4fetch';
+import { parisTimestamp, parseMediaFolderRef, sanitizeName, validateMediaKey } from '@/lib/media/refs';
 
 export class R2Error extends Error {}
 export class R2ConfigError extends R2Error {}
@@ -104,10 +107,69 @@ export function buildExpenseKey(ulSegment: string, reportId: string, revision: n
 }
 
 /**
- * Clé R2 FIXE de la copie publiée d'une note : `ndf/{UL}/{reportId}.pdf`.
+ * Date SQL (`CURRENT_TIMESTAMP`, UTC sans fuseau) ou ISO → `Date` ; `null` si illisible.
+ */
+export function parseDbDate(value: unknown): Date | null {
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    if (typeof value !== 'string' || !value.trim()) return null;
+    const v = value.trim();
+    const iso = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(v) ? `${v.replace(' ', 'T')}Z` : v;
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Suffixe d'id d'une note dans son dossier publié : ses 4 premiers caractères
+ * alphanumériques, en minuscules (`0000` à défaut). Distingue deux homonymes
+ * créés à la même seconde et repère les copies périmées d'une même note.
+ */
+export function expenseIdSuffix(reportId: string): string {
+    return String(reportId ?? '').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toLowerCase() || '0000';
+}
+
+/** Horodatage du dossier publié : `AAAAMMJJ-HHmmss` (Paris) de `createdAt`, ou `sans-date`. */
+function expenseFolderStamp(createdAt: unknown): string {
+    const date = parseDbDate(createdAt);
+    return date ? parisTimestamp(date) : 'sans-date';
+}
+
+/**
+ * Dossier de la copie publiée d'une note : `{demandeur}-{AAAAMMJJ-HHmmss}-{id4}`
+ * (nom du créateur assaini, `createdAt` de la note en heure de Paris, 4 premiers
+ * caractères alphanumériques de l'id). Stable entre signatures ; recalculé à
+ * chaque scellement (pas de déplacement si le nom change : le rangement et la
+ * suppression retrouvent l'ancienne copie par `{horodatage}-{id4}`).
+ */
+export function expensePublishedFolder(requesterName: unknown, createdAt: unknown, reportId: string): string {
+    return `${sanitizeName(requesterName)}-${expenseFolderStamp(createdAt)}-${expenseIdSuffix(reportId)}`;
+}
+
+/**
+ * Copie publiée de CETTE note, quel que soit le nom de demandeur au moment de son
+ * écriture : `ndf/{UL}/{…}-{horodatage}-{id4}/note-de-frais.pdf`.
+ */
+export function isExpensePublishedKeyOf(key: string, ulSegment: string, createdAt: unknown, reportId: string): boolean {
+    const prefix = `ndf/${ulSegment}/`;
+    const suffix = `-${expenseFolderStamp(createdAt)}-${expenseIdSuffix(reportId)}/note-de-frais.pdf`;
+    if (!key.startsWith(prefix) || !key.endsWith(suffix)) return false;
+    const folder = key.slice(prefix.length, key.length - '/note-de-frais.pdf'.length);
+    return !folder.includes('/') && folder.length > suffix.length - '/note-de-frais.pdf'.length;
+}
+
+/**
+ * Clé R2 de la copie publiée d'une note :
+ * `ndf/{UL}/{demandeur}-{horodatage}/note-de-frais.pdf`.
  * Écrasée à chaque scellement ; c'est elle que la synchro Drive suit.
  */
-export function buildExpensePublishedKey(ulSegment: string, reportId: string): string {
+export function buildExpensePublishedKey(ulSegment: string, folderName: string): string {
+    if (!folderName) throw new R2Error('folderName requis pour construire une clé R2');
+    if (!ulSegment) throw new R2Error('ulSegment requis pour construire une clé R2');
+    if (folderName.includes('/') || folderName.includes('..')) throw new R2Error('folderName invalide');
+    return `ndf/${ulSegment}/${folderName}/note-de-frais.pdf`;
+}
+
+/** Ancienne clé de la copie publiée (`ndf/{UL}/{reportId}.pdf`), avant la v5.48.0. */
+export function buildLegacyExpensePublishedKey(ulSegment: string, reportId: string): string {
     if (!reportId) throw new R2Error('reportId requis pour construire une clé R2');
     if (!ulSegment) throw new R2Error('ulSegment requis pour construire une clé R2');
     return `ndf/${ulSegment}/${reportId}.pdf`;
@@ -341,6 +403,59 @@ async function listKeys(prefix: string, continuationToken?: string): Promise<{ k
         const next = xml.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/)?.[1];
         return { keys, next: truncated && next ? decodeXml(next) : undefined };
     });
+}
+
+async function listAllKeys(prefix: string): Promise<string[]> {
+    const keys: string[] = [];
+    let token: string | undefined;
+    do {
+        const page = await listKeys(prefix, token);
+        keys.push(...page.keys);
+        token = page.next;
+    } while (token);
+    return keys;
+}
+
+/**
+ * Liste toutes les clés sous `prefix` (toutes les pages).
+ *
+ * Mode démo : réunit les objets écrits en démo (`demo/<prefix>…`, rendus sans le
+ * préfixe `demo/`, donc transparents pour l'appelant) et les vrais objets, sans
+ * doublon — la lecture d'une clé retombe ensuite d'elle-même sur la bonne copie.
+ */
+export async function listObjects(prefix: string): Promise<string[]> {
+    if (!prefix) throw new R2Error('prefix requis pour lister des objets R2');
+    if (!(await isDemoRequestLazy())) return listAllKeys(prefix);
+    const fromDemo = (await listAllKeys(demoKey(prefix))).map((k) => k.slice(DEMO_KEY_PREFIX.length));
+    const real = await listAllKeys(prefix);
+    return [...new Set([...fromDemo, ...real])];
+}
+
+/**
+ * Supprime tous les objets d'un dossier média (`prefix` + `/`). Seul un préfixe
+ * de dossier COMPLET est accepté (`{type}/{UL}/{dossier}`, `parseMediaFolderRef`) :
+ * ni `trip-photos/paris-18` (toute une UL), ni une clé de fichier. Le `/` final est
+ * imposé : `a/b/c` n'emporte jamais `a/b/cd/…`. Mode démo : seuls les objets sous
+ * `demo/` sont supprimés, jamais les vrais. Renvoie le nombre d'objets supprimés.
+ */
+export async function deletePrefix(prefix: string): Promise<number> {
+    if (!parseMediaFolderRef(prefix)) throw new R2Error('Préfixe R2 refusé : un dossier média complet est attendu');
+    const listed = `${prefix}/`;
+    const target = (await isDemoRequestLazy()) ? demoKey(listed) : listed;
+    const keys = await listAllKeys(target);
+    let deleted = 0;
+    for (const key of keys) {
+        if (!key.startsWith(target)) continue;
+        await rawDeleteObject(key);
+        deleted++;
+    }
+    return deleted;
+}
+
+/** Supprime un fichier média par sa clé validée (rapport de mission signé). */
+export async function deleteMediaKey(key: string): Promise<void> {
+    if (!validateMediaKey(key)) throw new R2Error('Clé média invalide');
+    await deleteObject(key);
 }
 
 /**

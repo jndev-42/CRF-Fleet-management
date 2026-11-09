@@ -42,7 +42,6 @@ describe('demo readOnly', () => {
 
     it('isDemoExternalWrite : seules les routes à effet externe', () => {
         for (const [p, m] of [
-            ['/api/drive/upload', 'POST'],
             ['/api/referentiel/upload', 'POST'],
             ['/api/referentiel/process', 'POST'],
             ['/api/vehicles/VL%20186/documents', 'POST'],
@@ -56,7 +55,8 @@ describe('demo readOnly', () => {
             ['/api/push/subscriptions/', 'DELETE'],
         ]) expect(isDemoExternalWrite(p, m), `${m} ${p}`).toBe(true);
         for (const [p, m] of [
-            ['/api/drive/upload', 'GET'],
+            ['/api/referentiel/upload', 'GET'],
+            ['/api/media/upload', 'POST'], // photos : R2 sous demo/, pas simulé
             ['/api/vehicles/x/documents', 'GET'],
             ['/api/vehicles/x/documents', 'DELETE'],
             ['/api/vehicles/x/documents/d1', 'GET'],
@@ -72,14 +72,14 @@ describe('demo readOnly', () => {
 
     it('isDemoBlockedRequest — base démo configurée : routes externes seulement', () => {
         expect(isDemoBlockedRequest('/api/trips', 'POST', true)).toBe(false);
-        expect(isDemoBlockedRequest('/api/drive/upload', 'POST', true)).toBe(true);
-        expect(isDemoBlockedRequest('/api/drive/upload', 'GET', true)).toBe(false);
+        expect(isDemoBlockedRequest('/api/referentiel/upload', 'POST', true)).toBe(true);
+        expect(isDemoBlockedRequest('/api/referentiel/upload', 'GET', true)).toBe(false);
         expect(isDemoBlockedRequest('/vehicles', 'POST', true)).toBe(false);
     });
 
     it('isDemoBlockedRequest — base démo absente : toute écriture non exemptée', () => {
         expect(isDemoBlockedRequest('/api/trips', 'POST', false)).toBe(true);
-        expect(isDemoBlockedRequest('/api/drive/upload', 'POST', false)).toBe(true);
+        expect(isDemoBlockedRequest('/api/referentiel/upload', 'POST', false)).toBe(true);
         expect(isDemoBlockedRequest('/api/trips', 'GET', false)).toBe(false);
         expect(isDemoBlockedRequest('/api/stats/csv', 'POST', false)).toBe(false);
         expect(isDemoBlockedRequest('/vehicles', 'POST', false)).toBe(false);

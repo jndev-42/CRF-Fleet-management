@@ -379,10 +379,139 @@ describe('expenseUlSegment', () => {
 });
 
 describe('buildExpensePublishedKey', () => {
-    it('produit la clé fixe ndf/<UL>/<id>.pdf', async () => {
+    it('produit ndf/<UL>/<demandeur>-<horodatage>/note-de-frais.pdf', async () => {
         const { buildExpensePublishedKey, R2Error } = await import('@/lib/r2');
-        expect(buildExpensePublishedKey('paris-18', 'rep-1')).toBe('ndf/paris-18/rep-1.pdf');
+        expect(buildExpensePublishedKey('paris-18', 'jean-dupont-20261108-143000'))
+            .toBe('ndf/paris-18/jean-dupont-20261108-143000/note-de-frais.pdf');
         expect(() => buildExpensePublishedKey('paris-18', '')).toThrow(R2Error);
-        expect(() => buildExpensePublishedKey('', 'rep-1')).toThrow(R2Error);
+        expect(() => buildExpensePublishedKey('', 'x')).toThrow(R2Error);
+        expect(() => buildExpensePublishedKey('paris-18', '../x')).toThrow(R2Error);
+        expect(() => buildExpensePublishedKey('paris-18', 'a/b')).toThrow(R2Error);
+    });
+
+    it('ancienne forme ndf/<UL>/<id>.pdf conservée pour le rangement et la suppression', async () => {
+        const { buildLegacyExpensePublishedKey, R2Error } = await import('@/lib/r2');
+        expect(buildLegacyExpensePublishedKey('paris-18', 'rep-1')).toBe('ndf/paris-18/rep-1.pdf');
+        expect(() => buildLegacyExpensePublishedKey('paris-18', '')).toThrow(R2Error);
+    });
+});
+
+describe('expensePublishedFolder', () => {
+    const ID = 'ab-12cd-ef34';
+
+    it('Jean Dupont, note créée le 08/11/2026 14:30:00 (Paris) → jean-dupont-20261108-143000-{id4}', async () => {
+        const { expensePublishedFolder } = await import('@/lib/r2');
+        expect(expensePublishedFolder('Jean Dupont', '2026-11-08T13:30:00.000Z', ID)).toBe('jean-dupont-20261108-143000-ab12');
+    });
+
+    it('lit CURRENT_TIMESTAMP (UTC sans fuseau) et assainit le nom', async () => {
+        const { expensePublishedFolder } = await import('@/lib/r2');
+        expect(expensePublishedFolder('Éloïse  O\'Brien', '2026-07-01 08:05:09', ID)).toBe('eloise-o-brien-20260701-100509-ab12');
+    });
+
+    it('stable : même note, même dossier à chaque scellement', async () => {
+        const { expensePublishedFolder } = await import('@/lib/r2');
+        const a = expensePublishedFolder('Jean Dupont', '2026-11-08T13:30:00.000Z', ID);
+        expect(expensePublishedFolder('Jean Dupont', '2026-11-08T13:30:00.000Z', ID)).toBe(a);
+    });
+
+    it('homonymes créés à la même seconde : deux dossiers distincts', async () => {
+        const { expensePublishedFolder } = await import('@/lib/r2');
+        const at = '2026-11-08T13:30:00.000Z';
+        expect(expensePublishedFolder('Jean Dupont', at, 'aaaa-1')).not.toBe(expensePublishedFolder('Jean Dupont', at, 'bbbb-2'));
+    });
+
+    it('replis : nom absent → sans-nom ; date illisible → sans-date ; id sans alphanumérique → 0000', async () => {
+        const { expensePublishedFolder } = await import('@/lib/r2');
+        expect(expensePublishedFolder(null, '2026-11-08T13:30:00.000Z', ID)).toBe('sans-nom-20261108-143000-ab12');
+        expect(expensePublishedFolder('Jean', 'pas une date', ID)).toBe('jean-sans-date-ab12');
+        expect(expensePublishedFolder('Jean', '2026-11-08T13:30:00.000Z', '--')).toBe('jean-20261108-143000-0000');
+    });
+});
+
+describe('isExpensePublishedKeyOf', () => {
+    const at = '2026-11-08T13:30:00.000Z';
+
+    it('reconnaît la copie de la note sous n\'importe quel nom de demandeur', async () => {
+        const { isExpensePublishedKeyOf } = await import('@/lib/r2');
+        expect(isExpensePublishedKeyOf('ndf/paris-18/jean-dupont-20261108-143000-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(true);
+        expect(isExpensePublishedKeyOf('ndf/paris-18/ancien-nom-20261108-143000-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(true);
+    });
+
+    it('écarte une autre note (id, horodatage, UL, forme)', async () => {
+        const { isExpensePublishedKeyOf } = await import('@/lib/r2');
+        expect(isExpensePublishedKeyOf('ndf/paris-18/jean-20261108-143000-zz99/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
+        expect(isExpensePublishedKeyOf('ndf/paris-18/jean-20261108-143001-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
+        expect(isExpensePublishedKeyOf('ndf/lyon-3/jean-20261108-143000-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
+        expect(isExpensePublishedKeyOf('ndf/paris-18/a/b-20261108-143000-ab12/note-de-frais.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
+        expect(isExpensePublishedKeyOf('ndf/paris-18/ab12-x.pdf', 'paris-18', at, 'ab12-x')).toBe(false);
+    });
+});
+
+describe('listObjects / deletePrefix', () => {
+    afterEach(() => {
+        vi.doUnmock('@/lib/demo/server');
+        vi.unstubAllGlobals();
+    });
+
+    function setup(demo: boolean) {
+        vi.resetModules();
+        setEnv();
+        vi.doMock('@/lib/demo/server', () => ({ isDemoRequest: async () => demo }));
+    }
+
+    it('listObjects : toutes les pages sous le préfixe', async () => {
+        setup(false);
+        fakeBucket({
+            'trip-photos/p/a/emprunt/1.jpg': '1', 'trip-photos/p/a/rendu/2.jpg': '2', 'trip-photos/p/a/rendu/3.jpg': '3',
+            'trip-photos/p/ab/emprunt/4.jpg': '4',
+        }, { pageSize: 2 });
+        const { listObjects } = await import('@/lib/r2');
+        expect((await listObjects('trip-photos/p/a/')).sort()).toEqual([
+            'trip-photos/p/a/emprunt/1.jpg', 'trip-photos/p/a/rendu/2.jpg', 'trip-photos/p/a/rendu/3.jpg',
+        ]);
+    });
+
+    it('listObjects en démo : objets démo (sans préfixe demo/) et vrais objets, sans doublon', async () => {
+        setup(true);
+        fakeBucket({ 'demo/x/y/1.jpg': 'D', 'x/y/1.jpg': 'P', 'x/y/2.jpg': 'P' });
+        const { listObjects } = await import('@/lib/r2');
+        expect((await listObjects('x/y/')).sort()).toEqual(['x/y/1.jpg', 'x/y/2.jpg']);
+    });
+
+    it('deletePrefix : supprime le dossier, jamais un dossier voisin au même début de nom', async () => {
+        setup(false);
+        const bucket = fakeBucket({ 'trip-photos/p/a/emprunt/1.jpg': '1', 'trip-photos/p/a/rendu/2.jpg': '2', 'trip-photos/p/ab/emprunt/3.jpg': '3' });
+        const { deletePrefix } = await import('@/lib/r2');
+        expect(await deletePrefix('trip-photos/p/a')).toBe(2);
+        expect([...bucket.objects.keys()]).toEqual(['trip-photos/p/ab/emprunt/3.jpg']);
+    });
+
+    it('deletePrefix en démo : seuls les objets sous demo/ partent', async () => {
+        setup(true);
+        const bucket = fakeBucket({ 'demo/incident-photos/p/a/1.jpg': 'D', 'incident-photos/p/a/1.jpg': 'P' });
+        const { deletePrefix } = await import('@/lib/r2');
+        expect(await deletePrefix('incident-photos/p/a')).toBe(1);
+        expect([...bucket.objects.keys()]).toEqual(['incident-photos/p/a/1.jpg']);
+    });
+
+    it('deletePrefix refuse tout ce qui n\'est pas un dossier média complet, sans rien supprimer', async () => {
+        setup(false);
+        const bucket = fakeBucket({ 'trip-photos/paris-18/a/emprunt/1.jpg': '1' });
+        const { deletePrefix, R2Error } = await import('@/lib/r2');
+        for (const p of ['', 'trip-photos/', 'trip-photos/paris-18', 'trip-photos/paris-18/', 'trip-photos/paris-18/a/emprunt', 'ndf/paris-18/x', 'trip-photos/../x']) {
+            await expect(deletePrefix(p), p).rejects.toThrow(R2Error);
+        }
+        expect(bucket.objects.size).toBe(1);
+    });
+
+    it('deleteMediaKey : clé validée seulement', async () => {
+        setup(false);
+        const key = 'mission-report-photo/paris-18/dps-x/0a1b2c3d-r.pdf';
+        const bucket = fakeBucket({ [key]: 'PDF', 'ndf/paris-18/x/note-de-frais.pdf': 'N' });
+        const { deleteMediaKey, R2Error } = await import('@/lib/r2');
+        await deleteMediaKey(key);
+        await expect(deleteMediaKey('ndf/paris-18/x/note-de-frais.pdf')).rejects.toThrow(R2Error);
+        expect([...bucket.objects.keys()]).toEqual(['ndf/paris-18/x/note-de-frais.pdf']);
     });
 });

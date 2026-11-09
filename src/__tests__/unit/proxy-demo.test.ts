@@ -60,12 +60,12 @@ describe('proxy — base démo configurée', () => {
         ['/api/users/x', 'PATCH'],
         ['/api/trips/t1', 'DELETE'],
         ['/api/expenses/upload', 'POST'], // justificatifs : R2 sous demo/
+        ['/api/media/upload', 'POST'], // photos : R2 sous demo/
     ])('laisse passer %s (%s) vers la base démo', (p, m) => {
         expect((run(req(p, m, true)) as Response).status).toBe(200);
     });
 
     it.each([
-        ['/api/drive/upload', 'POST'],
         ['/api/referentiel/upload', 'POST'],
         ['/api/referentiel/process', 'POST'],
         ['/api/vehicles/x/documents', 'POST'],
@@ -83,7 +83,7 @@ describe('proxy — base démo configurée', () => {
     });
 
     it('laisse passer une route externe sans cookie', () => {
-        expect((run(req('/api/drive/upload', 'POST')) as Response).status).toBe(200);
+        expect((run(req('/api/referentiel/upload', 'POST')) as Response).status).toBe(200);
         expect((run(req('/api/demo/refresh', 'POST')) as Response).status).toBe(200);
     });
 });

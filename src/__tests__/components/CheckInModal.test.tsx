@@ -1,13 +1,13 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import CheckInModal from '@/components/vehicle/modals/CheckInModal';
-import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { uploadMediaSafely } from '@/lib/imageCompression';
 import type { Vehicle, Trip } from '@/app/vehicles/[id]/types';
 
 vi.mock('@/lib/imageCompression', () => ({
     compressImage: vi.fn((f: File) => Promise.resolve(f)),
     compressImages: vi.fn((files: File[]) => Promise.resolve(files)),
-    uploadFilesToDriveSafely: vi.fn().mockResolvedValue({ success: true, folderId: 'folder-1' }),
+    uploadMediaSafely: vi.fn().mockResolvedValue({ success: true, folderId: 'folder-1' }),
 }));
 
 const mockVehicle: Vehicle = {
@@ -318,7 +318,7 @@ describe('CheckInModal', () => {
             fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
 
             await screen.findByText('⚠️ Kilométrage inhabituel');
-            expect(uploadFilesToDriveSafely).not.toHaveBeenCalled();
+            expect(uploadMediaSafely).not.toHaveBeenCalled();
         });
 
         it('ne ré-uploade pas les photos lors du rejeu après un 400 serveur', async () => {
@@ -362,11 +362,42 @@ describe('CheckInModal', () => {
             fireEvent.click(screen.getByRole('button', { name: 'Confirmer quand même' }));
 
             await waitFor(() => expect(patchCount).toBe(2));
-            expect(uploadFilesToDriveSafely).toHaveBeenCalledTimes(1);
+            expect(uploadMediaSafely).toHaveBeenCalledTimes(1);
+            // Rangement R2 : photos de rendu du trajet, véhicule résolu côté serveur.
+            expect(vi.mocked(uploadMediaSafely).mock.calls[0][0]).toMatchObject({ type: 'trip-photos', stage: 'rendu' });
 
             const patchCalls = fetchMock.mock.calls.filter(c => (c[1] as RequestInit)?.method === 'PATCH');
             const secondBody = JSON.parse((patchCalls[1][1] as RequestInit).body as string);
             expect(secondBody.confirmMileageAnomaly).toBe(true);
+        });
+
+        it('rendu d\'un trajet encore sur Drive : envoi avec tripId et le dossier du trajet, préfixe R2 renvoyé au check-in', async () => {
+            const ref = 'trip-photos/paris-18/vl186-20261108-143000-a1b2';
+            vi.mocked(uploadMediaSafely).mockClear();
+            vi.mocked(uploadMediaSafely).mockResolvedValueOnce({ success: true, folderId: ref, fileIds: [] });
+            const fetchMock = mockFetch(async (input, init) => {
+                if (getUrl(input).includes('/checkin') && init?.method === 'PATCH') {
+                    return new Response(JSON.stringify({ success: true }), { status: 200 });
+                }
+                return defaultFetchHandler(input, init);
+            });
+            const onSuccess = vi.fn();
+            const { container } = render(
+                <CheckInModal vehicle={mockVehicle} trip={{ ...mockTrip, driveFolderId: 'drive-x' }} onClose={vi.fn()} onSuccess={onSuccess} />
+            );
+
+            await screen.findByDisplayValue('12000');
+            pickPhoto(container);
+            await waitFor(() => expect(container.querySelectorAll('img').length).toBeGreaterThan(0));
+            fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '12100' } });
+            fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+            await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+            expect(vi.mocked(uploadMediaSafely).mock.calls[0][0]).toMatchObject({
+                type: 'trip-photos', stage: 'rendu', tripId: 'trip-1', existingFolderId: 'drive-x', vehicleId: mockVehicle.id,
+            });
+            const patch = fetchMock.mock.calls.find(c => (c[1] as RequestInit)?.method === 'PATCH');
+            expect(JSON.parse((patch![1] as RequestInit).body as string).driveFolderId).toBe(ref);
         });
 
         it('réarme la confirmation après correction du kilométrage (garde anti-boucle non collant)', async () => {
@@ -415,7 +446,7 @@ describe('CheckInModal', () => {
         it('ré-uploade les photos si le jeu de photos change après un 400', async () => {
             // Le compteur du module mocké n'est pas remis à zéro par restoreAllMocks :
             // sans ce clear, l'assertion s'appuierait sur les appels des tests précédents.
-            vi.mocked(uploadFilesToDriveSafely).mockClear();
+            vi.mocked(uploadMediaSafely).mockClear();
             let patchCount = 0;
             mockFetch(async (input, init) => {
                 const url = getUrl(input);
@@ -453,7 +484,7 @@ describe('CheckInModal', () => {
             fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
 
             await screen.findByText('⚠️ Kilométrage inhabituel');
-            expect(uploadFilesToDriveSafely).toHaveBeenCalledTimes(1);
+            expect(uploadMediaSafely).toHaveBeenCalledTimes(1);
 
             fireEvent.click(screen.getByRole('button', { name: 'Corriger' }));
             await waitFor(() => expect(screen.queryByText('⚠️ Kilométrage inhabituel')).toBeNull());
@@ -466,7 +497,7 @@ describe('CheckInModal', () => {
             fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
 
             await waitFor(() => expect(patchCount).toBe(2));
-            expect(uploadFilesToDriveSafely).toHaveBeenCalledTimes(2);
+            expect(uploadMediaSafely).toHaveBeenCalledTimes(2);
         });
     });
 

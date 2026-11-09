@@ -1,3 +1,5 @@
+import { isR2Ref, type MediaType, type TripStage } from '@/lib/media/refs';
+
 /**
  * Utilitaire de compression d'images et d'envoi par lots (batches) côté client.
  *
@@ -108,30 +110,42 @@ export async function compressImages(files: File[]): Promise<File[]> {
 /** Limite de sécurité par requête HTTP (3.5 Mo) pour rester sous le cap Serverless Vercel (4.5 Mo) */
 const MAX_BATCH_BYTES = 3.5 * 1024 * 1024;
 
-export interface UploadDriveParams {
+const UPLOAD_ENDPOINT = '/api/media/upload';
+
+export interface UploadMediaParams {
     files: File[];
-    vehicleName?: string | null;
-    date: string;
-    stage?: string | null;
+    /** Rangement R2 : `trip-photos` | `incident-photos` | `mission-com-photos` | `mission-report-photo`. */
+    type: MediaType;
+    /** Trajet, incident : véhicule dont l'UL et le nom servent au rangement. */
+    vehicleId?: string | null;
+    /** Rendu : trajet visé (droits du conducteur, quelle que soit l'UL ; dossier du trajet). */
+    tripId?: string | null;
+    /** Mission : UL du compte rendu (repli serveur sur l'UL de la session). */
+    ulId?: string | null;
+    /** Mission : nom du dossier lisible. */
+    name?: string | null;
+    /** Trajet : `emprunt` | `rendu`. */
+    stage?: TripStage | null;
+    /** Préfixe déjà créé (rendu d'un trajet). */
     existingFolderId?: string | null;
-    missionName?: string | null;
-    rootFolderId?: string | null;
-    allowPdf?: boolean;
 }
 
-export interface UploadDriveResult {
+export interface UploadMediaResult {
     success: boolean;
+    /** Préfixe R2 du dossier, à enregistrer en base. */
     folderId: string;
     subfolderId?: string;
+    /** Clés R2 des fichiers écrits. */
     fileIds: string[];
     error?: string;
 }
 
 /**
- * Envoie un ensemble de fichiers vers /api/drive/upload.
- * Compresse automatiquement les images et découpe en requêtes < 3.5 Mo pour éviter FUNCTION_PAYLOAD_TOO_LARGE.
+ * Envoie un ensemble de fichiers vers /api/media/upload (stockage R2).
+ * Compresse automatiquement les images et découpe en requêtes < 3.5 Mo pour éviter
+ * FUNCTION_PAYLOAD_TOO_LARGE ; les lots suivants réutilisent le dossier créé par le premier.
  */
-export async function uploadFilesToDriveSafely(params: UploadDriveParams): Promise<UploadDriveResult> {
+export async function uploadMediaSafely(params: UploadMediaParams): Promise<UploadMediaResult> {
     if (!params.files || params.files.length === 0) {
         return {
             success: true,
@@ -167,37 +181,27 @@ export async function uploadFilesToDriveSafely(params: UploadDriveParams): Promi
     const allFileIds: string[] = [];
 
     // 3. Envoi séquentiel des lots
-    for (let i = 0; i < batches.length; i++) {
-        const batchFiles = batches[i];
+    for (const batchFiles of batches) {
         const fd = new FormData();
 
-        fd.append('date', params.date);
-        if (params.vehicleName) fd.append('vehicleName', params.vehicleName);
+        fd.append('type', params.type);
+        if (params.vehicleId) fd.append('vehicleId', params.vehicleId);
+        if (params.tripId) fd.append('tripId', params.tripId);
+        if (params.ulId) fd.append('ulId', params.ulId);
+        if (params.name) fd.append('name', params.name);
         if (params.stage) fd.append('stage', params.stage);
-        if (params.missionName) fd.append('missionName', params.missionName);
-        if (params.rootFolderId) fd.append('rootFolderId', params.rootFolderId);
-        if (params.allowPdf) fd.append('allowPdf', 'true');
-
-        if (parentFolderId) {
-            fd.append('existingFolderId', parentFolderId);
-        }
+        if (parentFolderId) fd.append('existingFolderId', parentFolderId);
 
         batchFiles.forEach(f => fd.append('files', f));
 
         let res: Response;
         try {
-            res = await fetch('/api/drive/upload', {
-                method: 'POST',
-                body: fd,
-            });
+            res = await fetch(UPLOAD_ENDPOINT, { method: 'POST', body: fd });
         } catch {
             // Reconnexion réseau mobile ou transition rapide depuis l'appareil photo : pause de 400ms et retry
             await new Promise(r => setTimeout(r, 400));
             try {
-                res = await fetch('/api/drive/upload', {
-                    method: 'POST',
-                    body: fd,
-                });
+                res = await fetch(UPLOAD_ENDPOINT, { method: 'POST', body: fd });
             } catch {
                 return {
                     success: false,
@@ -243,3 +247,21 @@ export async function uploadFilesToDriveSafely(params: UploadDriveParams): Promi
         fileIds: allFileIds,
     };
 }
+
+/**
+ * URL d'affichage d'un fichier : `/api/media/file` pour une clé R2, l'ancien proxy
+ * Drive (lecture seule) pour un id Drive — référence non encore migrée. Une clé R2
+ * contient toujours `/`, un id Drive jamais.
+ */
+export function mediaFileUrl(id: string): string {
+    return isR2Ref(id)
+        ? `/api/media/file?key=${encodeURIComponent(id)}`
+        : `/api/drive/photos/${encodeURIComponent(id)}`;
+}
+
+/** URL de liste des fichiers d'un dossier, R2 ou Drive (mêmes formes de réponse). */
+export function mediaListUrl(ref: string, opts: { flat?: boolean } = {}): string {
+    const base = isR2Ref(ref) ? '/api/media/photos' : '/api/drive/photos';
+    return `${base}?folderId=${encodeURIComponent(ref)}${opts.flat ? '&flat=true' : ''}`;
+}
+

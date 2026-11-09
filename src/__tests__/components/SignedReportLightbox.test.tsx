@@ -9,6 +9,13 @@ describe('SignedReportLightbox', () => {
         expect((screen.getByAltText('Rapport de mission signé') as HTMLImageElement).src).toContain('/api/drive/photos/drive-1');
     });
 
+    it('rapport signé sur R2 : lu via /api/media/file', () => {
+        const key = 'mission-report-photo/paris-18/dps-20261108-143000-a1b2/0a1b2c3d-rapport.pdf';
+        render(<SignedReportLightbox driveId={key} onClose={vi.fn()} />);
+        expect((screen.getByAltText('Rapport de mission signé') as HTMLImageElement).src)
+            .toContain(`/api/media/file?key=${encodeURIComponent(key)}`);
+    });
+
     it('bascule sur un iframe PDF si l\'image échoue à charger', () => {
         render(<SignedReportLightbox driveId="drive-1" onClose={vi.fn()} />);
         fireEvent.error(screen.getByAltText('Rapport de mission signé'));

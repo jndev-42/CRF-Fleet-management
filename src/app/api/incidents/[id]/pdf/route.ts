@@ -7,6 +7,8 @@ import IncidentPdfDocument from '@/components/incident/IncidentPdfDocument';
 import path from 'path';
 import sharp from 'sharp';
 import { getDriveClient } from '@/lib/drive';
+import { isR2Ref } from '@/lib/media/refs';
+import { listMediaFiles } from '@/lib/media/server';
 import { canViewIncident, type IncidentViewer } from '@/lib/incidentAccess';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 
@@ -51,9 +53,24 @@ async function generateIncidentPdf(reportId: string): Promise<Buffer> {
     .toBuffer();
   const logoSrc = `data:image/png;base64,${logoPng.toString('base64')}`;
 
-  // Fetch photos from Drive if driveFolderId exists
+  // Photos : préfixe R2 (`incident-photos/…`), sinon ancien dossier Drive (transition).
   const photos: string[] = [];
-  if (report.driveFolderId) {
+  if (isR2Ref(report.driveFolderId)) {
+    try {
+        const { getObject } = await import('@/lib/r2');
+        const files = (await listMediaFiles(report.driveFolderId)).filter(f => f.mimeType.startsWith('image/'));
+        for (const file of files) {
+            try {
+                const buffer = await getObject(file.id);
+                if (buffer) photos.push(`data:${file.mimeType};base64,${buffer.toString('base64')}`);
+            } catch (imgErr) {
+                console.error(`Failed to fetch image ${file.id} for PDF:`, imgErr);
+            }
+        }
+    } catch (photoErr) {
+        console.error('Error fetching photos for PDF:', photoErr);
+    }
+  } else if (report.driveFolderId) {
     try {
         const drive = getDriveClient();
 

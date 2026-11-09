@@ -61,7 +61,7 @@ async function postHandler(
             selected_dt_code: null,
         });
 
-        const result = await insertMissionReport(data, session.user.email, session.user.id);
+        const result = await insertMissionReport(data, session.user.email, session.user.id, session.user.ulId);
         if (!result.ok) {
             return result.status === 401
                 ? unauthorizedResponse(result.error)

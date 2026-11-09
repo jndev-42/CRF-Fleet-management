@@ -11,6 +11,7 @@ import { withAudit } from '@/lib/audit/log';
 import { secondDriverError } from '@/lib/eligibleDrivers';
 import { applyCheckoutCorrection, readCheckoutBaseline, sendCheckoutAlerts } from '@/lib/checkout';
 import { omitVehicleR2Keys } from '@/lib/vehiclePhoto';
+import { assertRefBindable } from '@/lib/media/server';
 
 async function postHandler(request: Request) {
     try {
@@ -169,6 +170,14 @@ async function postHandler(request: Request) {
             if (licenseMessage) {
                 return forbiddenResponse(licenseMessage);
             }
+        }
+
+        // Dossier de photos d'emprunt : de l'UL du véhicule, rattaché à aucun autre enregistrement.
+        const bindError = await assertRefBindable(data.driveFolderId, {
+            type: 'trip-photos', table: 'Trip', rowId: null, ulIds: [vehicle.ulId as string | null],
+        });
+        if (bindError) {
+            return NextResponse.json({ error: bindError }, { status: 400 });
         }
 
         // Créer le trip et mettre à jour le véhicule en transaction

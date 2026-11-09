@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { deleteDriveFolder } from '@/lib/drive';
+import { deleteMediaRefIfUnshared } from '@/lib/media/server';
 import { canManageVehicles } from '@/lib/roles';
 import { forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
@@ -36,15 +36,6 @@ async function deleteHandler(
         // Cloisonnement UL : rien n'est supprimé sur un trajet d'une autre UL.
         if (isOutsideUl(roles, session?.user?.ulId, trip.vehicleUlId)) {
             return NextResponse.json({ error: 'Trajet non trouvé' }, { status: 404 });
-        }
-
-        if (trip.driveFolderId) {
-            // Do not block deletion if drive folder fails to delete (e.g. already deleted manually)
-            try {
-                await deleteDriveFolder(trip.driveFolderId as string);
-            } catch (err) {
-                console.error("Failed to delete drive folder, continuing:", err);
-            }
         }
 
         const tx = await db.transaction('write');
@@ -96,6 +87,11 @@ async function deleteHandler(
             await tx.rollback();
             throw txError;
         }
+
+        // Photos : après la suppression, en best-effort (un échec est journalisé, la
+        // suppression du trajet est maintenue), seulement si aucun autre enregistrement
+        // ne référence le même dossier.
+        await deleteMediaRefIfUnshared(trip.driveFolderId as string | null, 'folder');
 
         return NextResponse.json({ success: true });
     } catch (error) {

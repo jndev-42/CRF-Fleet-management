@@ -17,7 +17,7 @@
  */
 
 import { db } from '@/lib/db';
-import { getObject, buildExpenseKey, buildExpensePublishedKey, expenseUlSegment, newAttemptId } from '@/lib/r2';
+import { getObject, buildExpenseKey, buildExpensePublishedKey, expensePublishedFolder, expenseUlSegment, newAttemptId } from '@/lib/r2';
 import { sealPdf, decodeSignatureImage } from '@/lib/pdf/signature';
 import { countRevisions } from '@/lib/pdf/incremental';
 import { countPages } from '@/lib/pdf/verify';
@@ -127,8 +127,10 @@ function assertRevisionCount(pdf: Buffer, expected: number): void {
 async function loadReport(reportId: string) {
     const res = await db.execute({
         sql: `SELECT er.id, er.ulId, er.items, er.r2Key, er.signatureRevisions, er.status, er.submittedAt,
-                     er.validatedAt, er.respoValidatedAt, er.paidAt, ul.slug AS ulSlug
+                     er.validatedAt, er.respoValidatedAt, er.paidAt, er.createdAt, ul.slug AS ulSlug,
+                     u.name AS requesterName
               FROM "ExpenseReport" er LEFT JOIN "UniteLocale" ul ON ul.id = er.ulId
+              LEFT JOIN "User" u ON u.id = er.userId
               WHERE er.id = ?`,
         args: [reportId],
     });
@@ -241,7 +243,7 @@ export async function sealStep1(
     return {
         buffer: sealed,
         key,
-        publishedKey: buildExpensePublishedKey(ulSegment, reportId),
+        publishedKey: buildExpensePublishedKey(ulSegment, expensePublishedFolder(row.requesterName, row.createdAt, reportId)),
         revision: {
             step: 1,
             signerId: signer.id,
@@ -307,7 +309,7 @@ export async function sealStep2(
     return {
         buffer: sealed,
         key,
-        publishedKey: buildExpensePublishedKey(ulSegment, reportId),
+        publishedKey: buildExpensePublishedKey(ulSegment, expensePublishedFolder(row.requesterName, row.createdAt, reportId)),
         revision: {
             step: 2,
             signerId: signer.id,
@@ -453,7 +455,7 @@ export async function sealPresident(
     return {
         buffer: sealed,
         key,
-        publishedKey: buildExpensePublishedKey(ulSegment, reportId),
+        publishedKey: buildExpensePublishedKey(ulSegment, expensePublishedFolder(row.requesterName, row.createdAt, reportId)),
         revision: {
             step: 4,
             signerId: signer.id,
@@ -493,7 +495,7 @@ export async function sealStep3(
     return {
         buffer: sealed,
         key,
-        publishedKey: buildExpensePublishedKey(ulSegment, reportId),
+        publishedKey: buildExpensePublishedKey(ulSegment, expensePublishedFolder(row.requesterName, row.createdAt, reportId)),
         revision: {
             step: 3,
             signerId: signer.id,

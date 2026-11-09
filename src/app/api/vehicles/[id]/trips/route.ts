@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
-import { deleteDriveFolder } from '@/lib/drive';
+import { deleteMediaRefIfUnshared } from '@/lib/media/server';
 import { canManageVehicles } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
@@ -42,10 +42,6 @@ async function deleteHandler(
             .map(row => row.driveFolderId as string)
             .filter(Boolean);
 
-        if (foldersToDelete.length > 0) {
-            await Promise.allSettled(foldersToDelete.map(folderId => deleteDriveFolder(folderId)));
-        }
-
         const tx = await db.transaction('write');
         try {
             await tx.execute({
@@ -62,6 +58,11 @@ async function deleteHandler(
         } catch (txError) {
             await tx.rollback();
             throw txError;
+        }
+
+        // Photos : après la suppression des trajets, en best-effort, si non partagées.
+        for (const folderId of new Set(foldersToDelete)) {
+            await deleteMediaRefIfUnshared(folderId, 'folder');
         }
 
         return NextResponse.json({ success: true });

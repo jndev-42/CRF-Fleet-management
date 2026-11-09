@@ -269,7 +269,7 @@ async function deleteHandler(_request: Request, { params }: RouteContext) {
         const { id } = await params;
 
         const existing = await db.execute({
-            sql: `SELECT id FROM "mission_reports" WHERE id = ?`,
+            sql: `SELECT id, drive_folder_id, signed_report_drive_id FROM "mission_reports" WHERE id = ?`,
             args: [id],
         });
 
@@ -284,6 +284,13 @@ async function deleteHandler(_request: Request, { params }: RouteContext) {
             { sql: `DELETE FROM "mission_report_edits" WHERE report_id = ?`, args: [id] },
             { sql: `DELETE FROM "mission_reports" WHERE id = ?`, args: [id] },
         ], 'write');
+
+        // Photos et rapport signé : supprimés après le compte rendu, en best-effort,
+        // seulement si aucun autre enregistrement ne les référence (dossier Drive
+        // partagé entre comptes rendus).
+        const { deleteMediaRefIfUnshared } = await import('@/lib/media/server');
+        await deleteMediaRefIfUnshared(existing.rows[0].drive_folder_id as string | null, 'folder');
+        await deleteMediaRefIfUnshared(existing.rows[0].signed_report_drive_id as string | null, 'file');
 
         return NextResponse.json({ success: true });
     } catch (error) {

@@ -10,7 +10,7 @@ vi.mock('@/lib/db', async () => {
     return { db };
 });
 
-import { resolveDriveFolderOwner, canAccessDriveFolder, canAccessDriveFile } from '@/lib/driveAuth';
+import { resolveDriveFolderOwner, resolveFolderOwner, canAccessDriveFolder, canAccessDriveFile, canAccessFolder, canAccessMediaKey } from '@/lib/driveAuth';
 import { db, seedVehicle, seedUser, seedTrip, seedIncident, seedExpenseReport } from './setup';
 
 function makeSession(overrides: Partial<Session['user']> = {}): Session {
@@ -178,5 +178,46 @@ describe('Drive — comptes rendus de mission', () => {
 
     it('refuse un fichier qui n\'est le rapport signé d\'aucun compte rendu', async () => {
         expect(await canAccessDriveFile(makeSession({ roles: ['ADMIN'] }), 'unknown-file')).toBe(false);
+    });
+});
+
+describe('Références R2 (préfixe et clé)', () => {
+    const tripRef = 'trip-photos/paris-18/vl186-20261108-143000-a1b2';
+
+    async function seedTripWithRef() {
+        await seedVehicle({ id: 'VL001', name: 'VL186', ulId: 'ul-paris-18' });
+        await seedUser({ id: 'user-1', email: 'driver@test.com' });
+        await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-1' });
+        await db.execute({ sql: `UPDATE Trip SET driveFolderId = ? WHERE id = ?`, args: [tripRef, 'trip-1'] });
+    }
+
+    it('resolveFolderOwner : même résolution pour un préfixe R2 que pour un id Drive', async () => {
+        await seedTripWithRef();
+        expect(await resolveFolderOwner(tripRef)).toEqual({ kind: 'trip', ulId: 'ul-paris-18' });
+        expect(await canAccessFolder(makeSession({ ulId: 'ul-paris-18' }), tripRef)).toBe(true);
+        expect(await canAccessFolder(makeSession({ ulId: 'ul-lyon-3' }), tripRef)).toBe(false);
+    });
+
+    it('canAccessMediaKey : appariement sur les 3 premiers segments de la clé', async () => {
+        await seedTripWithRef();
+        expect(await canAccessMediaKey(makeSession(), `${tripRef}/emprunt/0a1b2c3d-x.jpg`)).toBe(true);
+        expect(await canAccessMediaKey(makeSession({ ulId: 'ul-lyon-3' }), `${tripRef}/emprunt/0a1b2c3d-x.jpg`)).toBe(false);
+        expect(await canAccessMediaKey(makeSession(), 'trip-photos/paris-18/autre-dossier/emprunt/0a1b2c3d-x.jpg')).toBe(false);
+    });
+
+    it('canAccessMediaKey : clé forgée refusée, même pour un SUPER_ADMIN', async () => {
+        const superAdmin = makeSession({ roles: ['SUPER_ADMIN'] });
+        expect(await canAccessMediaKey(superAdmin, '../x')).toBe(false);
+        expect(await canAccessMediaKey(superAdmin, 'ndf/paris-18/x/note-de-frais.pdf')).toBe(false);
+        expect(await canAccessMediaKey(superAdmin, `${tripRef}/emprunt/0a1b2c3d-x.jpg`)).toBe(true);
+    });
+
+    it('rapport signé : appariement sur la clé EXACTE', async () => {
+        const key = 'mission-report-photo/paris-18/dps-20261108-143000-a1b2/0a1b2c3d-rapport.pdf';
+        await seedMissionReport({ id: 'mr-1', submittedBy: 'author-1', ulId: 'ul-paris-18', signedId: key });
+        const reader = makeSession({ id: 'reader-1', email: 'reader@test.com', roles: ['CADRE'], ulId: 'ul-paris-18' });
+
+        expect(await canAccessMediaKey(reader, key)).toBe(true);
+        expect(await canAccessMediaKey(reader, 'mission-report-photo/paris-18/dps-20261108-143000-a1b2/ffffffff-autre.pdf')).toBe(false);
     });
 });

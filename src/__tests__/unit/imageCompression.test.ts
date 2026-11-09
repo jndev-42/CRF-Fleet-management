@@ -17,33 +17,62 @@ describe('imageCompression utility', () => {
         expect(results[1]).toBe(pdf2);
     });
 
-    it('transmits stage and vehicleName when existingFolderId is present', async () => {
+    it('uploadMediaSafely : envoie type, véhicule, étape et dossier existant vers /api/media/upload', async () => {
+        const ref = 'trip-photos/paris-18/vsav-1-20261108-143000-a1b2';
         const fetchMock = vi.fn().mockResolvedValue({
             ok: true,
-            json: async () => ({ success: true, folderId: 'existing-123', subfolderId: 'sub-456', fileIds: ['f-1'] }),
+            json: async () => ({ success: true, folderId: ref, subfolderId: `${ref}/rendu`, fileIds: [`${ref}/rendu/0a1b2c3d-photo.pdf`] }),
         });
         vi.stubGlobal('fetch', fetchMock);
 
-        const { uploadFilesToDriveSafely } = await import('@/lib/imageCompression');
+        const { uploadMediaSafely } = await import('@/lib/imageCompression');
         const file = new File(['test'], 'photo.pdf', { type: 'application/pdf' });
 
-        await uploadFilesToDriveSafely({
+        const result = await uploadMediaSafely({
             files: [file],
-            vehicleName: 'VSAV 01',
-            date: '2026-08-10_21-12',
+            type: 'trip-photos',
+            vehicleId: 'veh-1',
             stage: 'rendu',
-            existingFolderId: 'existing-123',
+            existingFolderId: ref,
         });
 
         expect(fetchMock).toHaveBeenCalledTimes(1);
-        const options = fetchMock.mock.calls[0][1];
-        const body = options.body as FormData;
-
+        expect(fetchMock.mock.calls[0][0]).toBe('/api/media/upload');
+        const body = fetchMock.mock.calls[0][1].body as FormData;
+        expect(body.get('type')).toBe('trip-photos');
+        expect(body.get('vehicleId')).toBe('veh-1');
         expect(body.get('stage')).toBe('rendu');
-        expect(body.get('vehicleName')).toBe('VSAV 01');
-        expect(body.get('date')).toBe('2026-08-10_21-12');
-        expect(body.get('existingFolderId')).toBe('existing-123');
+        expect(body.get('existingFolderId')).toBe(ref);
+        expect(result).toEqual({ success: true, folderId: ref, subfolderId: `${ref}/rendu`, fileIds: [`${ref}/rendu/0a1b2c3d-photo.pdf`] });
 
         vi.unstubAllGlobals();
+    });
+
+    it('uploadMediaSafely : renvoie l\'erreur du serveur', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 403, json: async () => ({ error: 'Interdit' }) }));
+        const { uploadMediaSafely } = await import('@/lib/imageCompression');
+        const result = await uploadMediaSafely({ files: [new File(['x'], 'a.jpg', { type: 'image/jpeg' })], type: 'incident-photos', vehicleId: 'veh-1' });
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('Interdit');
+        vi.unstubAllGlobals();
+    });
+
+    it('uploadMediaSafely : sans fichier, aucun appel réseau', async () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+        const { uploadMediaSafely } = await import('@/lib/imageCompression');
+        const result = await uploadMediaSafely({ files: [], type: 'mission-com-photos', name: 'Maraude' });
+        expect(result).toEqual({ success: true, folderId: '', subfolderId: undefined, fileIds: [] });
+        expect(fetchMock).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
+    });
+
+    it('mediaFileUrl / mediaListUrl : R2 ou ancien proxy Drive selon la référence', async () => {
+        const { mediaFileUrl, mediaListUrl } = await import('@/lib/imageCompression');
+        const ref = 'incident-photos/paris-18/vsav-1-20261108-143000-a1b2';
+        expect(mediaFileUrl(`${ref}/0a1b2c3d-x.jpg`)).toBe(`/api/media/file?key=${encodeURIComponent(`${ref}/0a1b2c3d-x.jpg`)}`);
+        expect(mediaFileUrl('1XyZdriveFile')).toBe('/api/drive/photos/1XyZdriveFile');
+        expect(mediaListUrl(ref, { flat: true })).toBe(`/api/media/photos?folderId=${encodeURIComponent(ref)}&flat=true`);
+        expect(mediaListUrl('1AbCdriveFolder')).toBe('/api/drive/photos?folderId=1AbCdriveFolder');
     });
 });

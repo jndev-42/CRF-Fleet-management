@@ -11,14 +11,14 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/imageCompression', () => ({
     compressImage: vi.fn((f: File) => Promise.resolve(f)),
     compressImages: vi.fn((files: File[]) => Promise.resolve(files)),
-    uploadFilesToDriveSafely: vi.fn().mockResolvedValue({ success: true, folderId: 'folder-1', fileIds: ['file-1'] }),
+    uploadMediaSafely: vi.fn().mockResolvedValue({ success: true, folderId: 'folder-1', fileIds: ['file-1'] }),
 }));
 
 import MissionWizard from '@/components/missions/MissionWizard';
-import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { uploadMediaSafely } from '@/lib/imageCompression';
 import { missionDraftKey } from '@/lib/missionDraft';
 
-const mockedUpload = vi.mocked(uploadFilesToDriveSafely);
+const mockedUpload = vi.mocked(uploadMediaSafely);
 
 /** Liste UL renvoyée par GET /api/ul — porte deux DT distinctes pour vérifier la
  *  dérivation des entrées DT synthétiques de l'étape 1. */
@@ -169,6 +169,62 @@ describe('MissionWizard', () => {
         expect(body.location).toBe('Local UL 18');
         expect(body.selected_ul_id).toBe('ul-lyon-3');
         expect(body.selected_dt_code).toBeNull();
+    });
+
+    it('envoie les photos vers R2 (type, UL, nom de mission) et enregistre le préfixe', async () => {
+        const ref = 'mission-com-photos/lyon-3/poste-secours-test-20261108-143000-a1b2';
+        mockedUpload.mockResolvedValue({ success: true, folderId: ref, fileIds: [`${ref}/0a1b2c3d-p.jpg`] });
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'mission-1' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        const { container } = render(<MissionWizard onSuccess={onSuccess} />);
+        await goToLastStep();
+        const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+        await act(async () => {
+            fireEvent.change(input, { target: { files: [new File(['x'], 'p.jpg', { type: 'image/jpeg' })] } });
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre (1 photo)' }));
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-1'));
+
+        expect(mockedUpload).toHaveBeenCalledTimes(1);
+        expect(mockedUpload.mock.calls[0][0]).toMatchObject({ type: 'mission-com-photos', ulId: 'ul-lyon-3', name: 'Poste Secours Test' });
+        expect(mockedUpload.mock.calls[0][0]).not.toHaveProperty('rootFolderId');
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/missions' && (c[1] as RequestInit)?.method === 'POST');
+        expect(JSON.parse((postCall![1] as RequestInit).body as string).drive_folder_id).toBe(ref);
+    });
+
+    it('DPS : le rapport signé part vers R2 (mission-report-photo, UL, nom) et sa clé est envoyée au POST', async () => {
+        const signedKey = 'mission-report-photo/lyon-3/poste-secours-test-20261108-143000-c3d4/0a1b2c3d-rapport.pdf';
+        mockedUpload.mockResolvedValue({ success: true, folderId: 'mission-report-photo/lyon-3/poste-secours-test-20261108-143000-c3d4', fileIds: [signedKey] });
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'mission-dps' }), { status: 200 }));
+        const onSuccess = vi.fn();
+
+        const { container } = render(<MissionWizard onSuccess={onSuccess} />);
+        await chooseAttachment();
+        fireEvent.click(screen.getByRole('radio', { name: 'DPS' }));
+        fillStep1();
+        for (let i = 0; i < 15 && !screen.queryByRole('heading', { name: /— Rapport signé/ }); i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        expect(screen.getByRole('heading', { name: /— Rapport signé/ })).toBeTruthy();
+        await act(async () => {
+            fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+                target: { files: [new File(['%PDF'], 'rapport.pdf', { type: 'application/pdf' })] },
+            });
+        });
+        await screen.findByRole('button', { name: 'Supprimer le fichier' });
+        for (let i = 0; i < 15 && screen.queryByRole('button', { name: 'Suivant' }); i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-dps'));
+
+        const signedCall = mockedUpload.mock.calls.find(c => c[0].type === 'mission-report-photo');
+        expect(signedCall?.[0]).toMatchObject({ type: 'mission-report-photo', ulId: 'ul-lyon-3', name: 'Poste Secours Test' });
+        expect(signedCall?.[0].files[0].name).toBe('rapport.pdf');
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/missions' && (c[1] as RequestInit)?.method === 'POST');
+        expect(JSON.parse((postCall![1] as RequestInit).body as string).signed_report_drive_id).toBe(signedKey);
     });
 
     it('soumet un rattachement DT sans UL quand une entrée DT est choisie', async () => {

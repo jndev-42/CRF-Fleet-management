@@ -7,7 +7,7 @@ import DataCorrectionFields from '@/components/vehicle/DataCorrectionFields';
 import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
-import { uploadFilesToDriveSafely } from '@/lib/imageCompression';
+import { uploadMediaSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 import { missionTypesForVehicle, missionTypeLabel } from '@/lib/mission-types';
 import { submitWithMileageDecreaseConfirm } from '@/components/vehicle/submitWithMileageDecreaseConfirm';
@@ -148,18 +148,12 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         try {
             let driveFolderId: string | undefined = undefined;
             if (photos.length > 0) {
-                const now = new Date();
-                const year = now.getFullYear();
-                const month = String(now.getMonth() + 1).padStart(2, '0');
-                const day = String(now.getDate()).padStart(2, '0');
-                const hours = String(now.getHours()).padStart(2, '0');
-                const minutes = String(now.getMinutes()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}_${hours}-${minutes}`;
-
-                const uploadResult = await uploadFilesToDriveSafely({
+                // Dossier R2 `trip-photos/{UL}/{véhicule}-{horodatage}-{xxxx}/emprunt/`,
+                // construit par le serveur à partir du véhicule.
+                const uploadResult = await uploadMediaSafely({
                     files: photos,
-                    vehicleName: vehicle.name,
-                    date: dateStr,
+                    type: 'trip-photos',
+                    vehicleId: vehicle.id,
                     stage: 'emprunt',
                 });
 

@@ -24,6 +24,26 @@ describe('PhotoViewer', () => {
         expect(screen.getByText('Au retour (1)')).toBeTruthy();
     });
 
+    it('dossier R2 : liste via /api/media/photos et images via /api/media/file', async () => {
+        const ref = 'trip-photos/paris-18/vl186-20261108-143000-a1b2';
+        const key = `${ref}/emprunt/0a1b2c3d-depart.jpg`;
+        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(
+            new Response(JSON.stringify({ emprunt: [{ id: key, name: 'depart.jpg' }], rendu: [] }), { status: 200 }));
+        render(<PhotoViewer driveFolderId={ref} onClose={vi.fn()} />);
+
+        expect(await screen.findByText('Avant départ (1)')).toBeTruthy();
+        expect(fetchSpy).toHaveBeenCalledWith(`/api/media/photos?folderId=${encodeURIComponent(ref)}`);
+        expect((screen.getByAltText('depart.jpg') as HTMLImageElement).src).toContain(`/api/media/file?key=${encodeURIComponent(key)}`);
+    });
+
+    it('ancien dossier Drive : liste et images via le proxy Drive', async () => {
+        const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify(photos), { status: 200 }));
+        render(<PhotoViewer driveFolderId="folder-1" onClose={vi.fn()} />);
+        await screen.findByText('Avant départ (1)');
+        expect(fetchSpy).toHaveBeenCalledWith('/api/drive/photos?folderId=folder-1');
+        expect((screen.getByAltText('depart1.jpg') as HTMLImageElement).src).toContain('/api/drive/photos/p1');
+    });
+
     it('affiche un état vide sans photo', async () => {
         vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ emprunt: [], rendu: [] }), { status: 200 }));
         render(<PhotoViewer driveFolderId="folder-1" onClose={vi.fn()} />);

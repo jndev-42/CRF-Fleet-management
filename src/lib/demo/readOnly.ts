@@ -35,9 +35,10 @@ const EXEMPT_API_PATHS = [
  * Écritures hors base (Google Drive, R2, API Renault, abonnement Web Push) :
  * simulées par l'intercepteur et refusées (403) par le proxy en démo.
  * Toute nouvelle route qui écrit hors base doit rejoindre cette liste.
+ * Exception : `/api/media/upload` n'y figure pas — en démo, `r2.ts` range ses
+ * écritures sous `demo/` (purgé chaque nuit), jamais sur une vraie clé.
  */
 export const DEMO_EXTERNAL_WRITE_ROUTES: readonly { pattern: RegExp; methods?: readonly string[] }[] = [
-    { pattern: /^\/api\/drive\/upload$/ },
     { pattern: /^\/api\/referentiel\/upload$/ },
     { pattern: /^\/api\/referentiel\/process$/ },
     { pattern: /^\/api\/vehicles\/[^/]+\/documents$/, methods: ['POST'] },

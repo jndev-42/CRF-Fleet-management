@@ -7,14 +7,24 @@ vi.mock('@/lib/db', async () => {
 vi.mock('@/auth', () => ({ auth: vi.fn() }));
 
 // R2 est un service externe : toujours mocké (règle src/__tests__/CLAUDE.md).
-vi.mock('@/lib/r2', () => ({
+vi.mock('@/lib/r2', async () => ({
+    ...(await (async () => {
+        // Clés de la copie publiée : vraies fonctions pures (dossier demandeur-horodatage).
+        const actual = await vi.importActual<typeof import('@/lib/r2')>('@/lib/r2');
+        return {
+            buildExpensePublishedKey: actual.buildExpensePublishedKey,
+            buildLegacyExpensePublishedKey: actual.buildLegacyExpensePublishedKey,
+            expensePublishedFolder: actual.expensePublishedFolder,
+            isExpensePublishedKeyOf: actual.isExpensePublishedKeyOf,
+        };
+    })()),
     putObject: vi.fn(async () => undefined),
     getObject: vi.fn(async () => Buffer.from('%PDF-1.3 scelle')),
     headObject: vi.fn(async () => true),
     deleteObject: vi.fn(async () => undefined),
+    listObjects: vi.fn(async () => [] as string[]),
     expenseUlSegment: (slug: unknown, ulId: string) => (typeof slug === 'string' && slug) || ulId,
     buildExpenseKey: (seg: string, id: string, rev: number, att: string) => `ndf-revisions/${seg}/${id}-v${rev}-${att}.pdf`,
-    buildExpensePublishedKey: (seg: string, id: string) => `ndf/${seg}/${id}.pdf`,
     buildExpenseStagingKey: (stagingId: string, name: string) => `expenses-staging/${stagingId}/${name}`,
     newAttemptId: () => 'testatt',
     R2Error: class R2Error extends Error {},
@@ -280,13 +290,18 @@ describe('Expense Report integration tests', () => {
     });
 
     describe('DELETE /api/expenses/[id] — copie publiée', () => {
-        it('un SUPER_ADMIN qui supprime une note scellée retire sa copie publiée ndf/<slug>/<id>.pdf, pas les révisions', async () => {
-            const { deleteObject } = await import('@/lib/r2');
+        it('un SUPER_ADMIN qui supprime une note scellée retire sa copie publiée (nouvelle et ancienne clé), pas les révisions', async () => {
+            const { deleteObject, listObjects } = await import('@/lib/r2');
             vi.mocked(deleteObject).mockClear();
+            // Copie écrite sous un ancien nom du demandeur (même suffixe) et copie d'une autre note.
+            vi.mocked(listObjects).mockResolvedValueOnce([
+                'ndf/mon-slug/ancien-nom-20261108-143000-expd/note-de-frais.pdf',
+                'ndf/mon-slug/autre-20261108-143000-zz99/note-de-frais.pdf',
+            ]);
             await db.execute(`INSERT OR IGNORE INTO "UniteLocale" (id, name, slug) VALUES ('ul-slug', 'UL Slug', 'mon-slug')`);
             await db.execute({
-                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund, r2Key)
-                      VALUES ('exp-del', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 50.0, '[]', 'ul-slug', 1, 'ndf-revisions/mon-slug/exp-del-v1-a.pdf')`,
+                sql: `INSERT INTO "ExpenseReport" (id, userId, submittedAt, status, total, items, ulId, requestRefund, r2Key, createdAt)
+                      VALUES ('exp-del', 'user-standard', '2026-07-19T10:00:00Z', 'soumis', 50.0, '[]', 'ul-slug', 1, 'ndf-revisions/mon-slug/exp-del-v1-a.pdf', '2026-11-08T13:30:00.000Z')`,
                 args: [],
             });
             mockedAuth.mockResolvedValue({ user: { id: 'user-president', roles: ['SUPER_ADMIN'], ulId: 'ul-paris-18' } } as never);
@@ -296,7 +311,10 @@ describe('Expense Report integration tests', () => {
                 { params: Promise.resolve({ id: 'exp-del' }) },
             );
             expect(res.status).toBe(200);
-            expect(vi.mocked(deleteObject)).toHaveBeenCalledTimes(1);
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledTimes(3);
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('ndf/mon-slug/standard-user-20261108-143000-expd/note-de-frais.pdf');
+            expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('ndf/mon-slug/ancien-nom-20261108-143000-expd/note-de-frais.pdf');
+            expect(vi.mocked(deleteObject)).not.toHaveBeenCalledWith('ndf/mon-slug/autre-20261108-143000-zz99/note-de-frais.pdf');
             expect(vi.mocked(deleteObject)).toHaveBeenCalledWith('ndf/mon-slug/exp-del.pdf');
         });
 

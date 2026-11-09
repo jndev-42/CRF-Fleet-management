@@ -183,3 +183,19 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-ndf-r2-dossier-ul.md`
   summary: Tester le câblage CLI de `scripts/move-expense-pdfs-to-ul-folders.ts` (slug passé en segment, code de sortie) et la copie publiée de `backfill-signed-pdfs.ts`.
   evidence: seule la logique `relocateReport` est testée ; un alias SQL erroné rangerait sous l'ulId sans qu'aucun test n'échoue.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-images-r2-par-ul.md`
+  summary: Ranger par UL les objets R2 existants hors UL — `vehicle-photos/{slug}/{nom véhicule}/` (`Vehicle.photoR2Key`), `vehicle-documents/{slug}/{nom véhicule}/` (`Vehicle.guideR2Key`, `VehicleDocument.r2Key`), `expenses-staging/{slug}/` (`ExpenseReport.pendingReceiptKeys`) — constructeurs de clés + script de rangement ; seul `referentiels/` reste hors UL.
+  evidence: découpage choisi par l'utilisateur (spec > 1600 jetons) ; livrable indépendant de la migration Drive → R2 des images.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-images-r2-par-ul.md`
+  summary: Retirer le proxy Drive en lecture seule (`/api/drive/photos/**`, `src/lib/drive.ts`, branches de repli Drive) une fois la migration Drive → R2 appliquée en prod et vérifiée.
+  evidence: le repli n'existe que pour la fenêtre entre déploiement et migration. BLOQUANT : les anciens justificatifs de notes de frais (`ExpenseReport.driveFolderId`) restent sur Drive (hors périmètre par décision utilisateur) — les migrer ou les abandonner avant de retirer le proxy.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-images-r2-par-ul.md`
+  summary: Supprimer les lignes `IncidentReport` d'un véhicule supprimé (le `ON DELETE CASCADE` du schéma n'est pas appliqué sur la connexion) ; leurs photos sont déjà supprimées.
+  evidence: `src/app/api/vehicles/[id]/route.ts` supprime Trip et Vehicle, pas IncidentReport ; les lignes survivantes pointent vers des dossiers supprimés (PDF d'incident sans photos).
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-images-r2-par-ul.md`
+  summary: Balayer les préfixes R2 médias jamais rattachés (envoi abandonné, 400 après envoi, échec partiel d'un lot) au-delà d'un délai, par exemple dans le cron quotidien.
+  evidence: les fichiers sont écrits avant l'enregistrement ; aucun chemin ne nettoie un préfixe non rattaché.

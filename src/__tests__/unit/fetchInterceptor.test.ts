@@ -49,7 +49,7 @@ describe('fetchInterceptor (démo : base partagée, routes externes simulées)',
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
         const listener = vi.fn();
         window.addEventListener(DEMO_SIMULATED_EVENT, listener);
-        const res = await fetch('/api/drive/upload', { method: 'POST', body: '{}' });
+        const res = await fetch('/api/referentiel/upload', { method: 'POST', body: '{}' });
         window.removeEventListener(DEMO_SIMULATED_EVENT, listener);
         expect(realFetch).not.toHaveBeenCalled();
         expect(res.status).toBe(200);
@@ -90,7 +90,7 @@ describe('fetchInterceptor (démo : base partagée, routes externes simulées)',
     it('ne simule rien sur une page QR', async () => {
         localStorage.setItem(IS_DEMO_MODE_KEY, 'true');
         window.history.pushState({}, '', '/qr/abc');
-        await fetch('/api/drive/upload', { method: 'POST' });
+        await fetch('/api/referentiel/upload', { method: 'POST' });
         expect(realFetch).toHaveBeenCalledTimes(1);
     });
 });
