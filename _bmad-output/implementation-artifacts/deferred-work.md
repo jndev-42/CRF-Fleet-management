@@ -203,18 +203,3 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-r2-objets-par-ul.md`
   summary: Inclure `expenses-staging/` dans ce balayage : justificatifs déposés puis refusés ou abandonnés (brouillon jamais soumis, clé non référencée).
   evidence: le script de rangement ignore volontairement les objets non référencés ; aucun TTL sur le dépôt transitoire.
-- source_spec: `_bmad-output/implementation-artifacts/spec-permis-chauffeurs-seulement.md`
-  summary: La gestion des utilisateurs n'affiche « Papiers » que d'après les rôles globaux : un chauffeur dont CHVL/CHVPSP n'est que sur une UL secondaire peut être bloqué sans pouvoir être validé depuis l'interface.
-  evidence: `UsersTable.tsx` lit `user.roles` (UserRole), alors que `holdsDriverRole` lit aussi `UserUL.roles` ; trou déjà présent avec `canBorrowVehicles`.
-- source_spec: `_bmad-output/implementation-artifacts/spec-permis-chauffeurs-seulement.md`
-  summary: `ELIGIBLE_DRIVER_PREDICATE` (2ème conducteur, changement de conducteur) ne lit que `UserRole`, pas `UserUL.roles`.
-  evidence: Divergence avec `holdsDriverRole` ; un chauffeur d'UL secondaire seule n'est pas désignable.
-- source_spec: `_bmad-output/implementation-artifacts/spec-permis-chauffeurs-seulement.md`
-  summary: Script en lecture seule listant, avant déploiement, les ADMIN / SUPER_ADMIN / RESP_VEHICULE sans CHVL/CHVPSP qui perdent l'emprunt.
-  evidence: Leur ajouter CHVL après coup efface leurs papiers validés et relance la grâce.
-- source_spec: `_bmad-output/implementation-artifacts/spec-permis-chauffeurs-seulement.md`
-  summary: Les scripts d'import et de refonte des rôles (`scripts/import_users.ts`, `rework-roles.ts`) écrivent CHVL/CHVPSP sans `applyDriverRoleTransition`.
-  evidence: L'état des papiers des comptes concernés n'est pas initialisé ni effacé par ces scripts.
-- source_spec: `_bmad-output/implementation-artifacts/spec-permis-chauffeurs-seulement.md`
-  summary: AGENTS.md / CLAUDE.md à réaligner sur la règle « chauffeurs seulement » (`api/trips` ordre des gardes, `trips/[id]/second-driver`, `src/lib/CLAUDE.md`, `app/users`, `validate-papers`).
-  evidence: Fichiers de contexte agent encore rédigés selon l'ancienne règle (aucune dispense, tout compte qui emprunte).

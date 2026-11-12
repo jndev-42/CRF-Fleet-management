@@ -114,6 +114,8 @@ context: []
 | 20 | blind | Tests manquants divers (SUPER_ADMIN, INACTIF+CHVL, rollback, unit `isEligibleDriver`) | low | Couvert en intégration ; rejeté. |
 | 21 | verif | `canReserveForSelf` laisse un gestionnaire réserver sans rôle chauffeur | false | Intention : « Modifier les réservations » exclu. |
 
+**Suite (2026-11-12, demande utilisateur) :** les points 12 à 16 sont corrigés au lieu d'être reportés. Décision : un chauffeur d'une UL secondaire l'est forcément dans son UL principale. `holdsDriverRole` ne lit donc plus que `UserRole`, comme `UsersTable` et `ELIGIBLE_DRIVER_PREDICATE`. Ajout de `scripts/list-managers-without-driver-role.ts` (lecture seule, avant déploiement). `import_users.ts` applique la transition. Les AGENTS.md et CLAUDE.md sont réalignés.
+
 ## Verification
 
 **Commands:**

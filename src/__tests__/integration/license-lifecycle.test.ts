@@ -74,10 +74,10 @@ describe('holdsDriverRole', () => {
         expect(await holdsDriverRole(db, 'u2')).toBe(true);
     });
 
-    it('vrai avec CHVL / CHVPSP dans une ligne UserUL.roles seule (CSV)', async () => {
+    it('faux avec CHVL / CHVPSP dans une ligne UserUL.roles seule : seuls les rôles globaux comptent', async () => {
         await seedUser({ id: 'u1', email: 'u1@test.com' });
         await seedUserUL({ userId: 'u1', ulId: UL, roles: ['CADRE', 'CHVPSP'] });
-        expect(await holdsDriverRole(db, 'u1')).toBe(true);
+        expect(await holdsDriverRole(db, 'u1')).toBe(false);
     });
 
     it('présence brute : INACTIF n\'efface pas le rôle chauffeur', async () => {
@@ -85,12 +85,6 @@ describe('holdsDriverRole', () => {
         await seedUserRole('u1', 'CHVL');
         await seedUserRole('u1', 'INACTIF');
         expect(await holdsDriverRole(db, 'u1')).toBe(true);
-    });
-
-    it('comparaison exacte : « chvl » en minuscules ne compte pas comme chauffeur', async () => {
-        await seedUser({ id: 'u1', email: 'u1@test.com' });
-        await seedUserUL({ userId: 'u1', ulId: UL, roles: ['chvl', 'chvpsp'] });
-        expect(await holdsDriverRole(db, 'u1')).toBe(false);
     });
 
     it('ne confond pas un rôle au nom voisin', async () => {
@@ -208,11 +202,12 @@ describe('PUT /api/users/[email]/ul — droits par UL', () => {
 });
 
 describe('PATCH /api/users/[email]/ul — retrait d\'une UL', () => {
-    it('retirer la seule UL qui porte CHVL efface l\'état des papiers', async () => {
+    it('retirer une UL ne change pas le statut chauffeur (rôles globaux) ni l\'état des papiers', async () => {
         await seedUser({ id: 'u1', email: 'u1@test.com', ...VALIDATED });
+        await seedUserRole('u1', 'CHVL');
         await seedUserUL({ userId: 'u1', ulId: UL, isHome: true, roles: ['CHVL'] });
         const res = await PATCH_UL(json('PATCH', { ulId: UL, action: 'remove' }), { params: Promise.resolve({ email: 'u1@test.com' }) });
         expect(res.status).toBe(200);
-        expect(await papers('u1')).toEqual(CLEARED);
+        expect(await papers('u1')).toEqual({ papiers_valides: 1, last_validation: '2026-11-11', start: null });
     });
 });

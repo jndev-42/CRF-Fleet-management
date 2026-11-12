@@ -97,21 +97,10 @@ async function patchHandler(request: Request, { params }: { params: Promise<{ em
         }
 
         if (data.action === 'remove' && data.ulId) {
-            // Retirer une UL retire ses rôles : le compte peut cesser d'être chauffeur.
-            const tx = await db.transaction('write');
-            try {
-                const wasDriver = await holdsDriverRole(tx, userId);
-                await tx.execute({
-                    sql: `DELETE FROM "UserUL" WHERE userId = ? AND ulId = ?`,
-                    args: [userId, data.ulId],
-                });
-                const isDriver = await holdsDriverRole(tx, userId);
-                await applyDriverRoleTransition(tx, userId, wasDriver, isDriver, new Date().toISOString().slice(0, 10));
-                await tx.commit();
-            } catch (e) {
-                await tx.rollback();
-                throw e;
-            }
+            await db.execute({
+                sql: `DELETE FROM "UserUL" WHERE userId = ? AND ulId = ?`,
+                args: [userId, data.ulId],
+            });
         } else if (data.action === 'add' && data.ulId) {
             // Vérifier que l'UL existe
             const ulCheck = await db.execute({ sql: `SELECT id FROM "UniteLocale" WHERE id = ?`, args: [data.ulId] });

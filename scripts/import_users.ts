@@ -3,6 +3,7 @@ import path from 'path';
 import { createClient } from '@libsql/client';
 import crypto from 'crypto';
 import "dotenv/config";
+import { applyDriverRoleTransition } from "../src/lib/licenseLifecycle";
 
 // Helper to format string: remove accents, spaces, hyphens and convert to lowercase
 function formatIdentifier(str: string): string {
@@ -141,6 +142,10 @@ async function main() {
                 console.warn(`Role ${roleName} not found in DB for user ${email}`);
             }
         }
+
+        // Papiers : le délai de grâce ne démarre qu'avec un rôle chauffeur (CHVL / CHVPSP).
+        const isDriver = roles.has('CHVL') || roles.has('CHVPSP');
+        await applyDriverRoleTransition(db, userId, false, isDriver, new Date().toISOString().slice(0, 10));
 
         console.log(`Imported ${email} with roles: ${Array.from(roles).join(', ')}`);
         importedCount++;

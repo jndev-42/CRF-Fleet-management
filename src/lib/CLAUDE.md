@@ -7,6 +7,13 @@ Single exported `db` client. Import it everywhere with `import { db } from '@/li
 (always prod — `src/auth.ts`, crons, demo refresh) and `demoDb` (or `null`) are exported too. See `src/lib/demo/AGENTS.md`.
 Never instantiate another client. Never use template literals in SQL — always `{ sql, args }`.
 
+## licenseStatus.ts / licenseGuard.ts / licenseLifecycle.ts
+Only CHVL and CHVPSP are subject to the driving-papers validation and borrow vehicles (no manager exemption; the QR
+checkout stays open to every active account, papers only checked for a driver). `holdsDriverRole` reads **`UserRole` only**
+(invariant: a driver of a secondary UL is also a driver in their home UL; the `UserUL.roles` CSV is not read). `isLicenseBlocked`
+returns `false` for a non-driver, `true` for an unknown account. Routes that write roles apply `applyDriverRoleTransition`
+inside their transaction (non-driver → driver: grace starts today; driver → non-driver: state cleared).
+
 ## renault.ts
 **Pure fetch client — knows nothing about the domain.** Gigya → Kamereon auth from a
 `ConnectionContext` (declared here, imported by `vehicle-connection.ts` — never the reverse).

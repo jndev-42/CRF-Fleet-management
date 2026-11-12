@@ -4,7 +4,7 @@
 # users/[email]/validate-papers
 
 ## Purpose
-Marks a user's papers as validated (any account that borrows a vehicle — not only drivers), setting `papiers_valides=1`, recording validation date and validator name, and clearing any invalidation-process date. Used when admins approve compliance documentation. Requires `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE) and, outside SUPER_ADMIN, that the target be a member of the actor's active UL. Touches `User` table, reads `UserUL`.
+Marks a user's papers as validated (only CHVL/CHVPSP drivers are subject to the papers; the UI only offers the button for them), setting `papiers_valides=1`, recording validation date and validator name, and clearing any invalidation-process date. Used when admins approve compliance documentation. Requires `canAccessAdminPanel` (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE) and, outside SUPER_ADMIN, that the target be a member of the actor's active UL. Touches `User` table, reads `UserUL`.
 
 ## Key Files
 | File | Description |

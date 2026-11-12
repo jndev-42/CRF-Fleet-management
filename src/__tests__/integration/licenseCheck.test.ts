@@ -83,15 +83,15 @@ describe('GET /api/me/license-check', () => {
         expect(body.blocked).toBe(false);
     });
 
-    it('2c. Chauffeur via une ligne UserUL seule → contrôlé', async () => {
+    it('2c. CHVL porté par une ligne UserUL seule (pas en rôle global) → non requis', async () => {
         await seedUniteLocale({ id: 'ul-paris-18' });
         const user = await seedUser({ id: 'chvl-ul', email: 'chvl-ul@test.com', papiers_valides: 0, start_date_invalidation_process: '2020-01-01' });
         await seedUserUL({ userId: user.id, ulId: 'ul-paris-18', roles: ['CHVL'] });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
         mockedAuth.mockResolvedValue({ user: { id: user.id, email: user.email, roles: ['CHVL'] } } as any);
         const body = await (await GET()).json();
-        expect(body.blocked).toBe(true);
-        expect(body.required).toBe(true);
+        expect(body.required).toBe(false);
+        expect(body.blocked).toBe(false);
     });
 
     it('3. Driver avec papiers valides → validated: true', async () => {

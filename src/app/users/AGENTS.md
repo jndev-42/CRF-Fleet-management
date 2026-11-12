@@ -4,7 +4,7 @@
 # users
 
 ## Purpose
-Administration panel (`/users`) — despite the route name, this is the app's general admin page (`AdminPage`), organised as four tabs: **Utilisateurs** (create/delete users, assign roles, validate driving papers, impersonate), **Menus** (super-admin only, module visibility), **Unités Locales**, and **Bandeaux** (banner messages). It owns the user list state and passes mutation callbacks down to each tab component.
+Administration panel (`/users`) — despite the route name, this is the app's general admin page (`AdminPage`), organised as four tabs: **Utilisateurs** (create/delete users, assign roles, validate driving papers (the Papiers column and button only concern CHVL/CHVPSP accounts), impersonate), **Menus** (super-admin only, module visibility), **Unités Locales**, and **Bandeaux** (banner messages). It owns the user list state and passes mutation callbacks down to each tab component.
 
 ## Key Files
 | File | Description |
@@ -25,7 +25,7 @@ The **Utilisateurs** and **Bandeaux** tabs are visible to all four roles; only M
 
 **Impersonation** goes through NextAuth session `update({ impersonateEmail })` — not an API route — then `router.push('/')` + `router.refresh()`. `session.user.originalEmail` is passed to `UsersTab` so it can show who is really signed in.
 
-Mutations update local state optimistically rather than refetching: `createUser` appends a locally-constructed `User` (with `papiers_valides: 0` and today's `start_date_invalidation_process`) and re-sorts by email; `deleteUser` filters by email; `validatePapers` patches the matching row. If you add a field to the `User` interface, add it to the `createUser` construction too or the new row will be missing it until reload.
+Mutations update local state optimistically rather than refetching: `createUser` appends a locally-constructed `User` (with `papiers_valides: 0` and `start_date_invalidation_process` set to today only when the roles hold CHVL/CHVPSP, else `null` — like the server) and re-sorts by email; `deleteUser` filters by email; `validatePapers` patches the matching row. If you add a field to the `User` interface, add it to the `createUser` construction too or the new row will be missing it until reload.
 
 `validatePapers` dispatches a `license-validated` window `CustomEvent` after success so other mounted components (license banners) can react. Keep that event name.
 

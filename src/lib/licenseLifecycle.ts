@@ -17,28 +17,22 @@ export interface SqlExecutor {
 }
 
 /**
- * `true` si le compte porte CHVL ou CHVPSP dans `UserRole` ou dans une ligne
- * `UserUL.roles` (CSV). Présence brute, INACTIF compris.
+ * `true` si le compte porte CHVL ou CHVPSP dans `UserRole`. Présence brute, INACTIF compris.
+ *
+ * Invariant : `UserRole` porte les rôles de l'UL de rattachement (synchronisés par les
+ * routes users) et un chauffeur d'une UL secondaire l'est aussi dans son UL de
+ * rattachement — la CSV `UserUL.roles` n'est donc pas lue. Même population que
+ * `UsersTable` (`user.roles`) et `ELIGIBLE_DRIVER_PREDICATE`.
  */
 export async function holdsDriverRole(exec: SqlExecutor, userId: string): Promise<boolean> {
-    const global = await exec.execute({
+    const res = await exec.execute({
         sql: `SELECT 1 FROM "UserRole" ur
               JOIN "Role" r ON ur.roleId = r.id
               WHERE ur.userId = ? AND r.name IN ('CHVL', 'CHVPSP')
               LIMIT 1`,
         args: [userId],
     });
-    if (global.rows.length > 0) return true;
-
-    const perUl = await exec.execute({
-        sql: `SELECT 1 FROM "UserUL"
-              WHERE userId = ?
-                AND (instr(',' || REPLACE(COALESCE(roles, ''), ' ', '') || ',', ',CHVL,') > 0
-                  OR instr(',' || REPLACE(COALESCE(roles, ''), ' ', '') || ',', ',CHVPSP,') > 0)
-              LIMIT 1`,
-        args: [userId],
-    });
-    return perUl.rows.length > 0;
+    return res.rows.length > 0;
 }
 
 /**

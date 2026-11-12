@@ -73,11 +73,11 @@ describe('isLicenseBlocked', () => {
         expect(await isLicenseBlocked('u1')).toBe(true);
     });
 
-    it('true pour un chauffeur dont CHVPSP ne vient que de la ligne UserUL', async () => {
+    it('false quand CHVPSP ne vient que de la ligne UserUL : seuls les rôles globaux comptent', async () => {
         await seedUser({ id: 'u1', email: 'u1@test.com', ...BLOCKED });
         await seedUniteLocale({ id: UL });
         await seedUserUL({ userId: 'u1', ulId: UL, roles: ['CHVPSP'] });
-        expect(await isLicenseBlocked('u1')).toBe(true);
+        expect(await isLicenseBlocked('u1')).toBe(false);
     });
 
     it('false pour un compte sans CHVL / CHVPSP, même aux papiers périmés (D1)', async () => {
