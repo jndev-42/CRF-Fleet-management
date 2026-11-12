@@ -50,6 +50,15 @@ export async function listEligibleDrivers(vehicleType: unknown, excludeUserId: s
     }));
 }
 
+/** `true` si ce compte est un chauffeur actif habilité au type du véhicule. */
+export async function isEligibleDriver(vehicleType: unknown, userId: string): Promise<boolean> {
+    const res = await db.execute({
+        sql: `SELECT 1 FROM "User" u WHERE u.id = ? AND ${ELIGIBLE_DRIVER_PREDICATE}`,
+        args: [userId, driverRoleForVehicleType(vehicleType)],
+    });
+    return res.rows.length > 0;
+}
+
 /**
  * Valide le 2ème conducteur d'un emprunt, côté serveur — l'interface ne propose que la
  * liste de `listEligibleDrivers`, mais une requête forgée peut envoyer n'importe quel id.
@@ -63,11 +72,7 @@ export async function secondDriverError(
     if (secondDriverId === driverId) {
         return 'Le 2ème conducteur doit être différent de vous';
     }
-    const res = await db.execute({
-        sql: `SELECT 1 FROM "User" u WHERE u.id = ? AND ${ELIGIBLE_DRIVER_PREDICATE}`,
-        args: [secondDriverId, driverRoleForVehicleType(vehicleType)],
-    });
-    if (res.rows.length === 0) {
+    if (!(await isEligibleDriver(vehicleType, secondDriverId))) {
         return "Le 2ème conducteur doit être un chauffeur actif habilité à ce type de véhicule";
     }
     return null;

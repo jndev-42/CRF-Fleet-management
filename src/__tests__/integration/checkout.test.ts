@@ -77,6 +77,11 @@ const SESSION_UL = 'ul-paris-18';
 const guestSession = { user: { id: 'guest-id', email: 'guest@test.com', roles: ['GUEST'], ulId: SESSION_UL } };
 const driverSession = { user: { id: 'user-driver', email: 'driver@test.com', roles: ['CHVL'], ulId: SESSION_UL } };
 const driverWithNameSession = { user: { id: 'user-driver', email: 'driver@test.com', name: 'Test Driver', roles: ['CHVL'], ulId: SESSION_UL } };
+/** Porte un rôle chauffeur en base (la garde des papiers lit CHVL / CHVPSP dans `UserRole`). */
+async function seedDriverRole(userId: string, role: 'CHVL' | 'CHVPSP') {
+  await seedRoles([role]);
+  await seedUserRole(userId, role);
+}
 const adminSession = { user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN'], ulId: SESSION_UL } };
 
 describe('POST /api/trips (checkout)', () => {
@@ -214,9 +219,10 @@ describe('POST /api/trips (checkout)', () => {
 
     it('autorise un SUPER_ADMIN sur un véhicule hors de son UL', async () => {
       mockedAuth.mockResolvedValue({
-        user: { id: 'user-super', email: 'super@test.com', name: 'Super Admin', roles: ['SUPER_ADMIN'], ulId: 'ul-lyon' },
+        user: { id: 'user-super', email: 'super@test.com', name: 'Super Admin', roles: ['SUPER_ADMIN', 'CHVL'], ulId: 'ul-lyon' },
       } as never);
       await seedUser({ id: 'user-super', email: 'super@test.com', name: 'Super Admin' });
+      await seedDriverRole('user-super', 'CHVL');
       await seedVehicle({ id: 'VL001', status: 'AVAILABLE', ulId: 'ul-paris-18' });
 
       const response = await POST(makeRequest(validCheckOutBody));
@@ -308,11 +314,34 @@ describe('POST /api/trips (checkout)', () => {
     expect(response.status).toBe(400);
   });
 
-  it('allows ADMIN role to checkout any vehicle type', async () => {
-    // @ts-expect-error — partial session object for testing
-    mockedAuth.mockResolvedValue(adminSession);
+  it.each([['ADMIN'], ['SUPER_ADMIN'], ['RESP_VEHICULE']])(
+    'returns 403 for %s without a driver role (no manager exemption)',
+    async (role) => {
+      mockedAuth.mockResolvedValue({ user: { id: 'admin-id', email: 'admin@test.com', roles: [role], ulId: SESSION_UL } } as never);
+      await seedUser({ id: 'admin-id', email: 'admin@test.com', name: 'Admin Test' });
+      await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
+
+      const response = await POST(makeRequest(validCheckOutBody));
+      expect(response.status).toBe(403);
+      expect((await response.json()).error).toMatch(/pas les droits/i);
+      expect((await db.execute(`SELECT id FROM "Trip"`)).rows).toHaveLength(0);
+    },
+  );
+
+  it('returns 403 for an ADMIN holding CHVL only on a VPSP vehicle', async () => {
+    mockedAuth.mockResolvedValue({ user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN', 'CHVL'], ulId: SESSION_UL } } as never);
     await seedUser({ id: 'admin-id', email: 'admin@test.com', name: 'Admin Test' });
-    // Les véhicules VPSP sont normalement réservés aux rôles CHVPSP et ADMIN
+    await seedDriverRole('admin-id', 'CHVL');
+    await seedVehicle({ id: 'VL001', status: 'AVAILABLE', type: 'VPSP' });
+
+    const response = await POST(makeRequest(validCheckOutBody));
+    expect(response.status).toBe(403);
+  });
+
+  it('allows an ADMIN holding CHVPSP to checkout a VPSP vehicle', async () => {
+    mockedAuth.mockResolvedValue({ user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN', 'CHVPSP'], ulId: SESSION_UL } } as never);
+    await seedUser({ id: 'admin-id', email: 'admin@test.com', name: 'Admin Test' });
+    await seedDriverRole('admin-id', 'CHVPSP');
     await seedVehicle({ id: 'VL001', status: 'AVAILABLE', type: 'VPSP' });
 
     const response = await POST(makeRequest(validCheckOutBody));
@@ -350,6 +379,7 @@ describe('POST /api/trips (checkout)', () => {
         last_validation: null,
         start_date_invalidation_process: isoDay(-GRACE_DAYS),
       });
+      await seedDriverRole('user-driver', 'CHVL');
       await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
 
       const response = await POST(makeRequest(validCheckOutBody));
@@ -396,11 +426,11 @@ describe('POST /api/trips (checkout)', () => {
       expect(response.status).toBe(201);
     });
 
-    // Aucune dispense de papiers par rôle : gestionnaires et non-chauffeurs compris.
+    // Un gestionnaire chauffeur (CHVL) est soumis aux papiers comme tout chauffeur.
     it.each([['ADMIN'], ['RESP_VEHICULE'], ['SUPER_ADMIN']])(
-      'returns 403 for %s with blocked papers (no role exemption)',
+      'returns 403 for %s holding CHVL with blocked papers',
       async (role) => {
-        mockedAuth.mockResolvedValue({ user: { id: 'manager-id', email: 'manager@test.com', roles: [role], ulId: SESSION_UL } } as never);
+        mockedAuth.mockResolvedValue({ user: { id: 'manager-id', email: 'manager@test.com', roles: [role, 'CHVL'], ulId: SESSION_UL } } as never);
         await seedUser({
           id: 'manager-id',
           email: 'manager@test.com',
@@ -408,6 +438,7 @@ describe('POST /api/trips (checkout)', () => {
           last_validation: null,
           start_date_invalidation_process: isoDay(-GRACE_DAYS),
         });
+        await seedDriverRole('manager-id', 'CHVL');
         await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
 
         const response = await POST(makeRequest(validCheckOutBody));
@@ -418,7 +449,7 @@ describe('POST /api/trips (checkout)', () => {
       },
     );
 
-    it('returns 403 for an ADMIN without CHVL whose papers were never validated', async () => {
+    it('returns 403 (role) for an ADMIN without CHVL, whatever the state of his papers', async () => {
       mockedAuth.mockResolvedValue(adminSession as never);
       await seedUser({
         id: 'admin-id',
@@ -433,7 +464,7 @@ describe('POST /api/trips (checkout)', () => {
       expect(response.status).toBe(403);
     });
 
-    it('applies the license guard to a non-driver role', async () => {
+    it('refuses a non-driver role on the role guard, before any papers check', async () => {
       mockedAuth.mockResolvedValue(guestSession as never);
       await seedUser({
         id: 'guest-id',
@@ -447,16 +478,16 @@ describe('POST /api/trips (checkout)', () => {
 
       const response = await POST(makeRequest(validCheckOutBody));
       expect(response.status).toBe(403);
-      expect((await response.json()).error).toMatch(/papiers/i);
+      expect((await response.json()).error).toMatch(/pas les droits/i);
     });
 
-    it('keeps the role exemption: an ADMIN with valid papers takes a VPSP without CHVPSP', async () => {
+    it('no longer exempts an ADMIN with valid papers from the CHVPSP role on a VPSP', async () => {
       mockedAuth.mockResolvedValue(adminSession as never);
       await seedUser({ id: 'admin-id', email: 'admin@test.com', papiers_valides: 1, last_validation: isoDay(-10) });
       await seedVehicle({ id: 'VL001', type: 'VPSP', status: 'AVAILABLE' });
 
       const response = await POST(makeRequest(validCheckOutBody));
-      expect(response.status).toBe(201);
+      expect(response.status).toBe(403);
     });
 
     it('returns 403 when the session account has no User row (fail-closed)', async () => {
@@ -714,10 +745,10 @@ describe('POST /api/trips (checkout)', () => {
       expect(response.status).toBe(201);
     });
 
-    it('allows an ADMIN to bypass a third-party VALIDATED reservation', async () => {
-      // @ts-expect-error — partial session object for testing
-      mockedAuth.mockResolvedValue(adminSession);
+    it('allows an ADMIN holding CHVL to bypass a third-party VALIDATED reservation', async () => {
+      mockedAuth.mockResolvedValue({ user: { id: 'admin-id', email: 'admin@test.com', roles: ['ADMIN', 'CHVL'], ulId: SESSION_UL } } as never);
       await seedUser({ id: 'admin-id', email: 'admin@test.com', name: 'Admin Test' });
+      await seedDriverRole('admin-id', 'CHVL');
       await seedVehicle({ id: 'VL001', status: 'AVAILABLE' });
       await seedReservation();
 

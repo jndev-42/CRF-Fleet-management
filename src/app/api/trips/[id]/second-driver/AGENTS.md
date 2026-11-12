@@ -15,7 +15,7 @@ Add or update second driver for a trip. Allows the primary driver or admin to as
 
 ### Working In This Directory
 - **UL scope:** the primary driver keeps access to their own trip; for managers, cross-UL (`isOutsideUl` from `@/lib/apiAuth`, resolved via the vehicle's `ulId`) → **404**, indistinguishable from an unknown id; a session without UL (`'default'`) is refused too; SUPER_ADMIN only escapes it.
-- **Papers guard:** the designated second driver must have valid papers (`isLicenseBlocked`, `@/lib/licenseGuard`, fail-closed) → 403 otherwise.
+- **Eligibility guard** (only for a newly designated second driver): must be an active driver entitled to the vehicle type (`isEligibleDriver`, `@/lib/eligibleDrivers`; vehicle type read in the trip query) → **400** otherwise. Then **papers guard** (`isLicenseBlocked`, `@/lib/licenseGuard`, fail-closed) → **403**.
 - **PATCH /api/trips/[id]/second-driver:** Assign or update second driver
   - Accepts updateSecondDriverSchema: secondDriverId (required, min 1 char)
   - Auth required; authorization: ADMIN or primary driver of the trip
@@ -26,7 +26,7 @@ Add or update second driver for a trip. Allows the primary driver or admin to as
 
 ### Non-obvious Details
 - Primary driver authorization check: `session.user.id === trip.driverId`
-- Allows updating to any valid user; no role validation for second driver
+- A newly designated second driver must be an eligible driver (CHVL for a VL, CHVPSP for a VPSP, not INACTIF/GUEST); the one already in place is not re-checked
 
 ## Dependencies
 

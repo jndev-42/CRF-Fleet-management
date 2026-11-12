@@ -6,21 +6,9 @@
  * matérialise l'invalidation en base) ; cette fonction est **pure** et ne décide
  * que de l'état, afin qu'une prise de véhicule ne déclenche jamais d'écriture.
  *
- * Aucune dispense par rôle : la décision vaut pour tout compte qui prend le volant,
- * gestionnaire compris (cf. `@/lib/licenseGuard`).
+ * Elle ne vaut que pour un chauffeur (CHVL / CHVPSP) : la règle de rôle est portée par
+ * `@/lib/licenseGuard` et `@/lib/licenseLifecycle`.
  */
-import { canManageVehicles, isDriverRole } from '@/lib/roles';
-
-/**
- * Compte qui peut prendre le volant : chauffeur, ou gestionnaire de flotte (dispensé du
- * rôle chauffeur, jamais des papiers). Sert à l'affichage — bandeau, colonne Papiers —
- * pour ne pas relancer des comptes qui n'empruntent jamais (trésorier, président…).
- * La garde serveur, elle, contrôle quiconque emprunte, sans condition de rôle.
- */
-export function canBorrowVehicles(roles: string[]): boolean {
-    return isDriverRole(roles) || canManageVehicles(roles);
-}
-
 /** Délai de grâce entre l'invalidation et le blocage effectif. */
 export const INVALIDATION_GRACE_DAYS = 14;
 

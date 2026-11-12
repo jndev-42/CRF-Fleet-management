@@ -6,6 +6,7 @@ import { auth } from '@/auth';
 import { canManageVehicles } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { isEligibleDriver } from '@/lib/eligibleDrivers';
 import { isLicenseBlocked, OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE } from '@/lib/licenseGuard';
 
 const editCheckOutSchema = z.object({
@@ -95,6 +96,25 @@ async function patchHandler(
             if (secondDriverRes.rows.length === 0) {
                 return NextResponse.json({ error: 'Deuxième conducteur introuvable' }, { status: 400 });
             }
+        }
+
+        // Un conducteur principal nouvellement désigné doit être un chauffeur actif habilité
+        // au type du véhicule (même prédicat que le 2ème conducteur) : plus de dispense pour
+        // les gestionnaires. Un conducteur déjà en place n'est pas recontrôlé.
+        if (data.driverId !== trip.driverId
+            && !(await isEligibleDriver(trip.vehicleType, data.driverId))) {
+            return NextResponse.json(
+                { error: 'Le conducteur doit être un chauffeur actif habilité à ce type de véhicule' },
+                { status: 400 },
+            );
+        }
+
+        if (data.secondDriverId && data.secondDriverId !== trip.secondDriverId
+            && !(await isEligibleDriver(trip.vehicleType, data.secondDriverId))) {
+            return NextResponse.json(
+                { error: 'Le 2ème conducteur doit être un chauffeur actif habilité à ce type de véhicule' },
+                { status: 400 },
+            );
         }
 
         // Garde des papiers sur tout conducteur nouvellement désigné. Un conducteur déjà

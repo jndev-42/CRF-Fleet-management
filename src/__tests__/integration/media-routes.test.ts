@@ -92,6 +92,16 @@ describe('POST /api/media/upload', () => {
         expect(res.status).toBe(400);
     });
 
+    it.each([['ADMIN'], ['RESP_VEHICULE']])('403 pour des photos d\'emprunt d\'un %s sans CHVL/CHVPSP (plus de dispense gestionnaire)', async (role) => {
+        mockedAuth.mockResolvedValue(session({ roles: [role] }));
+        const res = await upload({ type: 'trip-photos', vehicleId: 'veh-1', stage: 'emprunt' });
+        expect(res.status).toBe(403);
+    });
+    it('200 pour des photos d\'emprunt d\'un ADMIN qui porte aussi CHVL', async () => {
+        mockedAuth.mockResolvedValue(session({ roles: ['ADMIN', 'CHVL'] }));
+        const res = await upload({ type: 'trip-photos', vehicleId: 'veh-1', stage: 'emprunt' });
+        expect(res.status).toBe(200);
+    });
     it('400 sans fichier, fichier trop gros, ou type refusé', async () => {
         mockedAuth.mockResolvedValue(session());
         expect((await upload({ type: 'trip-photos', vehicleId: 'veh-1', stage: 'emprunt' }, [])).status).toBe(400);
@@ -147,7 +157,8 @@ describe('POST /api/media/upload', () => {
         const denied = await upload({ type: 'trip-photos', vehicleId: 'veh-1', stage: 'rendu', existingFolderId: first.folderId });
         expect(denied.status).toBe(403);
 
-        mockedAuth.mockResolvedValue(session({ roles: ['SUPER_ADMIN'] }));
+        // Plus de dispense gestionnaire à l'emprunt : le SUPER_ADMIN doit aussi porter CHVL.
+        mockedAuth.mockResolvedValue(session({ roles: ['SUPER_ADMIN', 'CHVL'] }));
         expect((await upload({ type: 'trip-photos', vehicleId: 'veh-1', stage: 'rendu', existingFolderId: first.folderId })).status).toBe(200);
     });
 

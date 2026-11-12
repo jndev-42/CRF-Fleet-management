@@ -11,7 +11,7 @@ vi.mock('@/auth', () => ({ auth: vi.fn() }));
 
 import { PATCH } from '@/app/api/trips/[id]/second-driver/route';
 import { auth } from '@/auth';
-import { db, seedVehicle, seedUser, seedTrip } from './setup';
+import { db, seedVehicle, seedUser, seedTrip, seedRoles, seedUserRole } from './setup';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -72,6 +72,9 @@ describe('PATCH /api/trips/[id]/second-driver', () => {
         await seedVehicle({ id: 'VL001', name: 'VL186' });
         await seedUser({ id: 'user-1', email: 'driver@test.com' });
         await seedUser({ id: 'user-2', email: 'second@test.com' });
+        // Chauffeur actif habilité au type du véhicule (VL).
+        await seedRoles(['CHVL']);
+        await seedUserRole('user-2', 'CHVL');
         await seedTrip({ id: 'trip-1', vehicleId: 'VL001', driverId: 'user-1' });
 
         const res = await PATCH(makeRequest({ secondDriverId: 'user-2' }), { params: Promise.resolve({ id: 'trip-1' }) });

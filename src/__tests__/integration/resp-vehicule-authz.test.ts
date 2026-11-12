@@ -136,8 +136,17 @@ describe('véhicule — PATCH /api/vehicles/[id]', () => {
 describe('trajet — POST /api/trips et PATCH /api/trips/[id]/checkin', () => {
     const checkOutBody = { vehicleId: 'VL001', missionType: 'Logistique', conditionOut: 'BON', dsaChecked: false };
 
-    it('RESP_VEHICULE emprunte un véhicule de son UL sans rôle chauffeur (bypass ADMIN)', async () => {
+    it('RESP_VEHICULE sans rôle chauffeur n\'emprunte pas (plus de dispense de rôle)', async () => {
         asUser(['RESP_VEHICULE']);
+        await seedVehicle({ id: 'VL001', name: 'VL186', ulId: UL, status: 'AVAILABLE', mileage: 10000 });
+
+        const res = await postTrip(jsonRequest('http://localhost/api/trips', 'POST', checkOutBody));
+        expect(res.status).toBe(403);
+        expect((await db.execute(`SELECT id FROM "Trip"`)).rows).toHaveLength(0);
+    });
+
+    it('RESP_VEHICULE + CHVL emprunte un véhicule de son UL', async () => {
+        asUser(['RESP_VEHICULE', 'CHVL']);
         await seedVehicle({ id: 'VL001', name: 'VL186', ulId: UL, status: 'AVAILABLE', mileage: 10000 });
 
         const res = await postTrip(jsonRequest('http://localhost/api/trips', 'POST', checkOutBody));

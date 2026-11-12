@@ -7,10 +7,10 @@ import { withAudit } from '@/lib/audit/log';
 
 /** PATCH /api/users/[email]/validate-papers
  *
- * Marque les papiers d'un utilisateur comme validés (tout compte qui emprunte, pas seulement les chauffeurs).
+ * Marque les papiers d'un utilisateur comme validés (seuls les chauffeurs CHVL / CHVPSP y sont soumis).
  * Accessible via `canAccessAdminPanel` uniquement (SUPER_ADMIN, ADMIN, PRESIDENT, CADRE).
- * Jamais sur soi-même, quel que soit le rôle : aucun rôle n'est dispensé du contrôle
- * des papiers, s'auto-valider le contournerait.
+ * Jamais sur soi-même, quel que soit le rôle : un chauffeur qui s'auto-validerait
+ * contournerait le contrôle des papiers.
  *
  * Cloisonnement UL (hors SUPER_ADMIN) : la cible doit être membre de l'UL active de
  * l'acteur (ligne `UserUL`, de rattachement ou secondaire), ou n'avoir aucune UL. Sinon

@@ -4,7 +4,7 @@
  * Cas couverts :
  *  GET /api/me/license-check
  *   1. 401 sans session
- *   2. Non-chauffeur : contrôlé comme un chauffeur (bloqué hors délai, valide sinon)
+ *   2. Non-chauffeur (admin compris) : { required: false, … blocked: false }, aucune écriture
  *   3. Driver avec papiers valides → validated: true
  *   4. Driver avec papiers invalides (papiers_valides=0) et dans la période de grâce
  *   5. Driver avec papiers invalides et hors délai → blocked: true
@@ -51,37 +51,46 @@ describe('GET /api/me/license-check', () => {
         expect(res.status).toBe(401);
     });
 
-    it('2. Non-chauffeur (ADMIN) aux papiers hors délai → blocked: true (plus de dispense)', async () => {
+    it('2. Non-chauffeur (ADMIN) aux papiers hors délai → non requis, non bloqué, aucune écriture', async () => {
         const pastDate = new Date();
         pastDate.setDate(pastDate.getDate() - 20);
         const user = await seedUser({
             id: 'admin-blocked',
             email: 'admin-blocked@test.com',
-            papiers_valides: 0,
-            start_date_invalidation_process: pastDate.toISOString().slice(0, 10),
+            papiers_valides: 1,
+            last_validation: null,
+            start_date_invalidation_process: null,
         });
+        await seedRoles();
+        await seedUserRole(user.id, 'ADMIN');
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
         mockedAuth.mockResolvedValue({ user: { id: user.id, email: user.email, roles: ['ADMIN'] } } as any);
         const res = await GET();
         expect(res.status).toBe(200);
-        const body = await res.json();
-        expect(body.validated).toBe(false);
-        expect(body.blocked).toBe(true);
+        expect(await res.json()).toEqual({ required: false, validated: false, daysLeft: null, blocked: false });
+
+        const row = (await db.execute({ sql: `SELECT papiers_valides, start_date_invalidation_process FROM "User" WHERE id = ?`, args: [user.id] })).rows[0];
+        expect(Number(row.papiers_valides)).toBe(1);
+        expect(row.start_date_invalidation_process).toBeNull();
     });
 
-    it('2b. Non-chauffeur aux papiers valides → validated: true, blocked: false', async () => {
-        const user = await seedUser({
-            id: 'guest-valid',
-            email: 'guest-valid@test.com',
-            papiers_valides: 1,
-            last_validation: new Date().toISOString().slice(0, 10),
-        });
+    it('2b. Rôles lus en base : une session qui annonce CHVL sans le porter en base → non requis', async () => {
+        const user = await seedUser({ id: 'stale-chvl', email: 'stale-chvl@test.com', papiers_valides: 0, start_date_invalidation_process: '2020-01-01' });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
-        mockedAuth.mockResolvedValue({ user: { id: user.id, email: user.email, roles: ['GUEST'] } } as any);
-        const res = await GET();
-        expect(res.status).toBe(200);
-        const body = await res.json();
-        expect(body.validated).toBe(true);
+        mockedAuth.mockResolvedValue({ user: { id: user.id, email: user.email, roles: ['CHVL'] } } as any);
+        const body = await (await GET()).json();
+        expect(body.required).toBe(false);
+        expect(body.blocked).toBe(false);
+    });
+
+    it('2c. CHVL porté par une ligne UserUL seule (pas en rôle global) → non requis', async () => {
+        await seedUniteLocale({ id: 'ul-paris-18' });
+        const user = await seedUser({ id: 'chvl-ul', email: 'chvl-ul@test.com', papiers_valides: 0, start_date_invalidation_process: '2020-01-01' });
+        await seedUserUL({ userId: user.id, ulId: 'ul-paris-18', roles: ['CHVL'] });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mock session shape
+        mockedAuth.mockResolvedValue({ user: { id: user.id, email: user.email, roles: ['CHVL'] } } as any);
+        const body = await (await GET()).json();
+        expect(body.required).toBe(false);
         expect(body.blocked).toBe(false);
     });
 

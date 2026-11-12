@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import styles from './LicenseBanner.module.css';
-import { canBorrowVehicles } from '@/lib/licenseStatus';
+import { isDriverRole } from '@/lib/roles';
 
 interface LicenseStatus {
+    /** `false` pour un compte qui n'est pas chauffeur (rôles lus en base) : rien à afficher. */
+    required?: boolean;
     validated: boolean;
     daysLeft: number | null;
     blocked: boolean;
@@ -17,9 +19,8 @@ export default function LicenseBanner() {
 
     const roles = (session?.user?.roles || []) as string[];
 
-    // Chauffeurs et gestionnaires de flotte : ces derniers ne sont plus dispensés du
-    // contrôle des papiers. Les comptes qui n'empruntent jamais ne sont pas relancés.
-    const canBorrow = canBorrowVehicles(roles);
+    // Seuls les chauffeurs (CHVL / CHVPSP) sont soumis au contrôle des papiers.
+    const canBorrow = isDriverRole(roles);
 
     useEffect(() => {
         if (status !== 'authenticated' || !canBorrow) return;
@@ -46,7 +47,7 @@ export default function LicenseBanner() {
         };
     }, [status, canBorrow]);
 
-    if (!canBorrow || !licenseStatus || licenseStatus.validated) return null;
+    if (!canBorrow || !licenseStatus || licenseStatus.required === false || licenseStatus.validated) return null;
 
     const { daysLeft, blocked } = licenseStatus;
 

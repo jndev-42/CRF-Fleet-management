@@ -169,7 +169,8 @@ function AdminPageContent() {
             roles,
             papiers_valides: 0,
             last_validation: null,
-            start_date_invalidation_process: today,
+            // Comme le serveur : le délai de grâce ne démarre qu'avec un rôle chauffeur.
+            start_date_invalidation_process: roles.some(r => r === 'CHVL' || r === 'CHVPSP') ? today : null,
             validated_by: null,
             homeUlId: effectiveUlId,
             homeUlName: data.ulName || null
