@@ -8,7 +8,6 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
-    canBorrowVehicles,
     getLicenseStatus,
     INVALIDATION_GRACE_DAYS,
     VALIDATION_VALIDITY_DAYS,
@@ -32,20 +31,6 @@ function row(overrides: Partial<LicenseRow> = {}): LicenseRow {
         ...overrides,
     };
 }
-
-describe('canBorrowVehicles', () => {
-    it('vrai pour les chauffeurs et les gestionnaires de flotte', () => {
-        for (const roles of [['CHVL'], ['CHVPSP'], ['ADMIN'], ['RESP_VEHICULE'], ['SUPER_ADMIN']]) {
-            expect(canBorrowVehicles(roles)).toBe(true);
-        }
-    });
-
-    it('faux pour les comptes qui n\'empruntent jamais, et pour un INACTIF', () => {
-        for (const roles of [['TRESORIER'], ['PRESIDENT'], ['DT'], [], ['CHVL', 'INACTIF']]) {
-            expect(canBorrowVehicles(roles)).toBe(false);
-        }
-    });
-});
 
 describe('getLicenseStatus', () => {
     it('papiers valides et validation récente → non bloqué', () => {

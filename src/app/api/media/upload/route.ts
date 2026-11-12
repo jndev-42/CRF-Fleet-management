@@ -100,9 +100,8 @@ function badRequest(error: string) {
     return NextResponse.json({ error }, { status: 400 });
 }
 
-/** Même règle que `POST /api/trips` : gestionnaire, ou rôle de conduite du type de véhicule. */
+/** Même règle que `POST /api/trips` : rôle de conduite du type de véhicule, sans dispense gestionnaire. */
 function canBorrow(roles: string[], vehicleType: unknown): boolean {
-    if (canManageVehicles(roles)) return true;
     const isVPSP = String(vehicleType || '').toUpperCase().includes('VPSP');
     return isVPSP ? isChvpspDriver(roles) : isChvlDriver(roles);
 }

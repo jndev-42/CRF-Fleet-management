@@ -4,10 +4,10 @@
 # me
 
 ## Purpose
-User-context endpoints for authenticated session. Currently includes the license/papers validity check for every account that can borrow a vehicle (`canBorrowVehicles` in `@/lib/licenseStatus`: drivers CHVL/CHVPSP and fleet managers — no role is exempt from the papers). Planned future use for fetching user profile, settings, and preferences. Requires NextAuth authentication.
+User-context endpoints for authenticated session. Currently includes the license/papers validity check, which only concerns drivers (CHVL / CHVPSP, read from the DB by `holdsDriverRole` in `@/lib/licenseLifecycle`): any other account, admins included, gets `{ required: false, … blocked: false }` with no write. Planned future use for fetching user profile, settings, and preferences. Requires NextAuth authentication.
 
 ## Subdirectories
-- `license-check` — GET endpoint to verify license/papers validity and blocking status of the session account, whatever its roles
+- `license-check` — GET endpoint to verify license/papers validity and blocking status of the session account (drivers only; non-drivers get `required: false`)
 
 ## For AI Agents
 

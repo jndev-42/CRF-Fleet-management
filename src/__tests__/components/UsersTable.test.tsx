@@ -58,11 +58,18 @@ describe('UsersTable', () => {
         expect(screen.queryByRole('button', { name: '🪪 Valider les papiers' })).toBeNull();
     });
 
-    it.each([['ADMIN'], ['RESP_VEHICULE']])('affiche les papiers et la validation pour un %s (gestionnaire qui peut emprunter)', (role) => {
-        const manager = { ...baseUser, roles: [role] };
+    it.each([['ADMIN'], ['RESP_VEHICULE']])('affiche les papiers et la validation pour un %s qui porte aussi CHVL', (role) => {
+        const manager = { ...baseUser, roles: [role, 'CHVL'] };
         render(<UsersTable {...baseProps({ users: [manager] })} />);
         expect(screen.getByText(/Non validés/)).toBeTruthy();
         expect(screen.getByRole('button', { name: '🪪 Valider les papiers' })).toBeTruthy();
+    });
+
+    it.each([['ADMIN'], ['SUPER_ADMIN'], ['RESP_VEHICULE']])('n\'affiche ni papiers ni bouton pour un %s sans rôle chauffeur', (role) => {
+        const manager = { ...baseUser, roles: [role] };
+        render(<UsersTable {...baseProps({ users: [manager] })} />);
+        expect(screen.queryByText(/Non validés/)).toBeNull();
+        expect(screen.queryByRole('button', { name: '🪪 Valider les papiers' })).toBeNull();
     });
 
     it('n\'affiche pas de statut papiers pour un compte qui n\'emprunte jamais', () => {

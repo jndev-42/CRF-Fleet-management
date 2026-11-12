@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.51.0] — 12 novembre 2026
+
+### 🔧 Modifications
+
+- La validation des papiers ne concerne plus que les chauffeurs (CHVL et CHVPSP). Un compte qui n'a aucun de ces deux rôles, administrateur compris, n'a plus de bandeau « Validation des papiers requise » ni de colonne ou de bouton « Papiers » dans la gestion des utilisateurs.
+- Seuls les chauffeurs peuvent emprunter un véhicule : un administrateur ou un responsable véhicule doit avoir le rôle CHVL (véhicule léger) ou CHVPSP (VPSP) pour en prendre un. Ils gardent la possibilité d'emprunter un véhicule réservé par quelqu'un d'autre. L'emprunt par QR code reste ouvert à tous, sans contrôle des papiers pour un compte qui n'est pas chauffeur.
+- Lors de la modification d'un trajet en cours, le nouveau conducteur doit être un chauffeur actif habilité à ce type de véhicule.
+- Ajouter le rôle CHVL ou CHVPSP à un compte efface sa validation des papiers et démarre un nouveau délai de grâce de 14 jours à partir de ce jour. Retirer son dernier rôle chauffeur efface tout état de validation. Ajouter CHVPSP à un chauffeur CHVL ne change rien.
+- Un nouveau compte ne démarre le délai de grâce des papiers que s'il est créé avec un rôle chauffeur.
+
+### 🐛 Corrections
+
+- Un compte qui n'est pas chauffeur ne se voit plus bloquer ni relancer pour des papiers qu'il n'a pas à présenter, et retirer le rôle chauffeur ne laisse plus de délai de grâce ou de blocage orphelin.
+
 ## [5.50.0] — 9 novembre 2026
 
 ### 🔒 Sécurité

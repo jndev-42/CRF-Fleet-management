@@ -227,15 +227,20 @@ async function postHandler(request: Request) {
         const today = now.slice(0, 10);
         let ulName: string | null = null;
 
+        const resolvedRoles = resolveRoles(data.roles);
+        // Seuls CHVL / CHVPSP sont soumis à la validation des papiers : le délai de grâce ne
+        // démarre qu'avec un rôle chauffeur, sinon l'état « effacé » (cf. `@/lib/licenseLifecycle`).
+        // Donnée de rôles (présence brute), pas décision d'accès.
+        const startsAsDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
+
         const tx = await db.transaction('write');
         try {
             await tx.execute({
-                sql: 'INSERT INTO "User" (id, email, name, papiers_valides, start_date_invalidation_process, createdAt) VALUES (?, ?, ?, 0, ?, ?)',
-                args: [userId, data.email, data.name, today, now]
+                sql: 'INSERT INTO "User" (id, email, name, papiers_valides, last_validation, start_date_invalidation_process, createdAt) VALUES (?, ?, ?, 0, NULL, ?, ?)',
+                args: [userId, data.email, data.name, startsAsDriver ? today : null, now]
             });
 
             // Assign initial roles
-            const resolvedRoles = resolveRoles(data.roles);
             for (const roleName of resolvedRoles) {
                 const roleRes = await tx.execute({
                     sql: 'SELECT id FROM "Role" WHERE name = ? OR id = ?',

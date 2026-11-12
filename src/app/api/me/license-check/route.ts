@@ -3,11 +3,13 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { getLicenseStatus, type LicenseRow } from '@/lib/licenseStatus';
+import { holdsDriverRole } from '@/lib/licenseLifecycle';
 
 /** GET /api/me/license-check
  *
- * Vérifie la validité des papiers du compte connecté, quel que soit son rôle :
- * toute personne qui prend le volant est soumise au contrôle, gestionnaire compris.
+ * Vérifie la validité des papiers du compte connecté. Seuls les chauffeurs (CHVL /
+ * CHVPSP, lus en base) y sont soumis : un autre compte, administrateur compris, reçoit
+ * `{ required: false, validated: false, daysLeft: null, blocked: false }` sans écriture.
  *
  * Logique :
  * 1. Si last_validation est NULL ou date d'il y a plus de 6 mois :
@@ -16,7 +18,7 @@ import { getLicenseStatus, type LicenseRow } from '@/lib/licenseStatus';
  * 2. Si papiers_valides = 0 et que today > start_date_invalidation_process + 14 jours :
  *    - L'utilisateur est BLOQUÉ
  *
- * Retourne : { validated: boolean, daysLeft: number | null, blocked: boolean }
+ * Retourne : { required: boolean (true pour un chauffeur, false pour un non-chauffeur), validated, daysLeft, blocked }
  */
 export async function GET() {
     try {
@@ -37,6 +39,10 @@ export async function GET() {
 
         if (userRes.rows.length === 0) {
             return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
+        }
+
+        if (!(await holdsDriverRole(db, userId))) {
+            return NextResponse.json({ required: false, validated: false, daysLeft: null, blocked: false });
         }
 
         const row = userRes.rows[0] as unknown as LicenseRow;
@@ -65,6 +71,7 @@ export async function GET() {
         }
 
         return NextResponse.json({
+            required: true,
             validated: status.validated,
             daysLeft: status.daysLeft,
             blocked: status.blocked,

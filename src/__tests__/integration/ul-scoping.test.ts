@@ -37,7 +37,7 @@ vi.mock('@react-pdf/renderer', async (importOriginal) => ({
 import { auth } from '@/auth';
 import { renderToBuffer } from '@react-pdf/renderer';
 import { fetchStatsData } from '@/lib/stats-trips';
-import { db, seedVehicle, seedUser, seedTrip, seedIncident, seedChecklistItem } from './setup';
+import { db, seedVehicle, seedUser, seedTrip, seedIncident, seedChecklistItem, seedRoles, seedUserRole } from './setup';
 import { GET as getVehicleReservations, POST as postVehicleReservation } from '@/app/api/vehicles/[id]/reservations/route';
 import { DELETE as deleteReservation, PATCH as patchReservation, PUT as putReservation } from '@/app/api/reservations/[id]/route';
 import { DELETE as deleteRecurrence, PATCH as patchRecurrence } from '@/app/api/reservations/recurrence/[groupId]/route';
@@ -97,6 +97,9 @@ beforeEach(async () => {
     await seedUser({ id: 'manager', email: 'manager@test.com', papiers_valides: 1, last_validation: TODAY });
     await seedUser({ id: 'user-driver', email: 'driver@test.com', papiers_valides: 1, last_validation: TODAY });
     await seedUser({ id: 'user-2', email: 'second@test.com', papiers_valides: 1, last_validation: TODAY });
+    // Second conducteur désigné : chauffeur actif habilité au type du véhicule (VL).
+    await seedRoles(['CHVL']);
+    await seedUserRole('user-2', 'CHVL');
 });
 
 interface Case {

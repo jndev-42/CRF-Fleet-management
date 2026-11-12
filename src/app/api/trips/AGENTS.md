@@ -12,7 +12,7 @@ Container directory for trip (vehicle checkout/checkin) lifecycle management. Pr
 ## Key Files
 | File | Description |
 |------|-------------|
-| `route.ts` | POST: create trip (vehicle checkout); roles: based on vehicle type (CHVL, CHVPSP, ADMIN) |
+| `route.ts` | POST: create trip (vehicle checkout); roles: based on vehicle type (CHVPSP for a VPSP, CHVL otherwise — no manager exemption) |
 
 ## For AI Agents
 
@@ -21,8 +21,8 @@ Container directory for trip (vehicle checkout/checkin) lifecycle management. Pr
   - `missionType` : `missionTypeSchema` (`schema.ts`) — uniquement une valeur de `MISSION_TYPES` (`@/lib/mission-types`, source unique des types de mission ; ne jamais repasser en texte libre ni dupliquer la liste) ; sinon 400 « Type de mission inconnu ».
   - Accepts checkOutSchema with: vehicleId, missionType, missionName, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut, secondDriverId, driveFolderId, checklistOut, dataIncorrect, correctedMileage, correctedFuel, confirmMileageDecrease
   - Verifies vehicle exists and is AVAILABLE
-  - Papers guard (`isLicenseBlocked` from `@/lib/licenseGuard`) on the driver **and** the `secondDriverId`, with no role exemption (ADMIN, RESP_VEHICULE, SUPER_ADMIN included) and fail-closed (missing `User` row → 403)
-  - Validates role+vehicle type permissions: managers (`canManageVehicles`) can borrow any — role exemption only, never a papers exemption —, CHVPSP only VPSP vehicles, CHVL only non-VPSP
+  - Role guard first: CHVPSP for a VPSP, CHVL otherwise, **no manager exemption** (ADMIN, RESP_VEHICULE, SUPER_ADMIN without a driver role → 403; only the third-party reservation bypass remains for managers). Then papers guard (`isLicenseBlocked` from `@/lib/licenseGuard`) on the driver **and** the `secondDriverId`, fail-closed (missing `User` row → 403)
+  - Validates role+vehicle type permissions: CHVPSP only VPSP vehicles, CHVL only non-VPSP (CHVL + CHVPSP: both); managers (`canManageVehicles`) get no role exemption, only the third-party reservation bypass
   - Désinfection mission only allowed on VPSP vehicles
   - Fetches live Renault data if the vehicle is connected (`isConnectedInDb(vehicle.id)`); auto-detects mileage and fuel level
   - Allows driver to override with `correctedMileage`/`correctedFuel` for non-connected vehicles (sends push notification to PRESIDENT, RESP_VEHICULE and ADMIN)

@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { isAdminOrAbove, canAssignRole, resolveRoles, isSuperAdmin, ROLES } from '@/lib/roles';
 import { forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { holdsDriverRole, applyDriverRoleTransition } from '@/lib/licenseLifecycle';
 
 const updateRolesSchema = z.object({
     roles: z.array(z.string()),
@@ -64,6 +65,9 @@ async function patchHandler(
                     return forbiddenResponse("Un administrateur local ne peut modifier les rôles globaux d'un utilisateur appartenant à une autre Unité Locale.");
                 }
             }
+
+            // Rôle chauffeur avant toute écriture (pour la transition des papiers).
+            const wasDriver = await holdsDriverRole(tx, userId as string);
 
             // Delete current roles
             await tx.execute({
@@ -141,25 +145,11 @@ async function patchHandler(
                 });
             }
 
-            // Si le nouvel ensemble de rôles contient CHVL ou CHVPSP,
-            // invalider les papiers s'ils n'ont jamais été validés (last_validation NULL).
-            // Manipulation de DONNÉE, pas décision d'accès : on regarde si le nouvel
-            // ensemble de rôles fait de ce compte un conducteur, pour invalider ses
-            // papiers. Un prédicat d'autorisation durci serait faux ici — un compte
-            // bloqué qui redevient conducteur doit quand même voir ses papiers
-            // réinitialisés. La règle ESLint ne vise que les formes `.includes(<rôle>)`
-            // et `=== 'INACTIF'`, d'où l'absence d'exemption explicite sur cette ligne.
-            const isNowDriver = resolvedRoles.some(r => r === 'CHVL' || r === 'CHVPSP');
-            if (isNowDriver) {
-                const today = new Date().toISOString().slice(0, 10);
-                await tx.execute({
-                    sql: `UPDATE "User"
-                          SET papiers_valides = 0,
-                              start_date_invalidation_process = COALESCE(start_date_invalidation_process, ?)
-                          WHERE id = ? AND last_validation IS NULL`,
-                    args: [today, userId],
-                });
-            }
+            // Seuls CHVL / CHVPSP sont soumis à la validation des papiers : devenir chauffeur
+            // démarre le délai de grâce, cesser de l'être efface tout état de validation.
+            // Manipulation de DONNÉE (présence brute des rôles), pas décision d'accès.
+            const isDriver = await holdsDriverRole(tx, userId as string);
+            await applyDriverRoleTransition(tx, userId as string, wasDriver, isDriver, new Date().toISOString().slice(0, 10));
 
             await tx.commit();
             return NextResponse.json({ success: true });

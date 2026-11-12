@@ -32,17 +32,29 @@ describe('isVpspVehicle', () => {
 });
 
 describe('getBorrowEligibility', () => {
-    it('ADMIN bypasse VPSP et réservation tierce', () => {
+    it('ADMIN + CHVPSP bypasse la réservation tierce sur un VPSP', () => {
         const res = getBorrowEligibility(input({
-            userRoles: ['ADMIN'],
+            userRoles: ['ADMIN', 'CHVPSP'],
             vehicleType: 'VPSP',
             isReservedByOther: true,
         }));
         expect(res).toEqual({ canBorrow: true, blockingReason: null });
     });
 
-    it.each([['ADMIN'], ['RESP_VEHICULE'], ['SUPER_ADMIN']])('%s aux papiers bloqués → LICENSE_BLOCKED (aucune dispense)', (role) => {
-        expect(getBorrowEligibility(input({ userRoles: [role], vehicleType: 'VPSP', isReservedByOther: true, licenseBlocked: true })))
+    it.each([['ADMIN'], ['RESP_VEHICULE'], ['SUPER_ADMIN']])('%s sans rôle chauffeur → ROLE_NOT_ALLOWED (aucune dispense de rôle)', (role) => {
+        expect(getBorrowEligibility(input({ userRoles: [role], vehicleType: 'VL' })))
+            .toEqual({ canBorrow: false, blockingReason: 'ROLE_NOT_ALLOWED' });
+        expect(getBorrowEligibility(input({ userRoles: [role], vehicleType: 'VPSP' })))
+            .toEqual({ canBorrow: false, blockingReason: 'ROLE_NOT_ALLOWED' });
+    });
+
+    it('ADMIN + CHVL face à un VPSP → VPSP_REQUIRES_CHVPSP', () => {
+        expect(getBorrowEligibility(input({ userRoles: ['ADMIN', 'CHVL'], vehicleType: 'VPSP' })))
+            .toEqual({ canBorrow: false, blockingReason: 'VPSP_REQUIRES_CHVPSP' });
+    });
+
+    it.each([['ADMIN'], ['RESP_VEHICULE'], ['SUPER_ADMIN']])('%s + CHVPSP aux papiers bloqués → LICENSE_BLOCKED', (role) => {
+        expect(getBorrowEligibility(input({ userRoles: [role, 'CHVPSP'], vehicleType: 'VPSP', isReservedByOther: true, licenseBlocked: true })))
             .toEqual({ canBorrow: false, blockingReason: 'LICENSE_BLOCKED' });
     });
 
@@ -56,9 +68,9 @@ describe('getBorrowEligibility', () => {
             .toEqual({ canBorrow: false, blockingReason: 'VL_REQUIRES_CHVL' });
     });
 
-    it('SUPER_ADMIN pur est autorisé — isAdminOrAbove, comme le serveur', () => {
+    it('SUPER_ADMIN pur est refusé — plus de dispense de rôle, comme le serveur', () => {
         expect(getBorrowEligibility(input({ userRoles: ['SUPER_ADMIN'] })))
-            .toEqual({ canBorrow: true, blockingReason: null });
+            .toEqual({ canBorrow: false, blockingReason: 'ROLE_NOT_ALLOWED' });
     });
 
     it('CHVL + CHVPSP cumulés sont autorisés sur les deux types', () => {
@@ -377,9 +389,10 @@ describe('CADRE et RESP_VEHICULE — emprunt', () => {
         expect(borrow(['CADRE', 'CHVL'], 'VL', true)).toEqual({ canBorrow: false, blockingReason: 'LICENSE_BLOCKED' });
     });
 
-    it('RESP_VEHICULE : dispense de rôle comme un ADMIN (VL, VPSP), jamais de papiers', () => {
-        expect(borrow(['RESP_VEHICULE'], 'VL').canBorrow).toBe(true);
-        expect(borrow(['RESP_VEHICULE'], 'VPSP').canBorrow).toBe(true);
-        expect(borrow(['RESP_VEHICULE'], 'VL', true)).toEqual({ canBorrow: false, blockingReason: 'LICENSE_BLOCKED' });
+    it('RESP_VEHICULE : plus de dispense de rôle, soumis aux papiers dès qu\'il est chauffeur', () => {
+        expect(borrow(['RESP_VEHICULE'], 'VL').canBorrow).toBe(false);
+        expect(borrow(['RESP_VEHICULE'], 'VPSP').canBorrow).toBe(false);
+        expect(borrow(['RESP_VEHICULE', 'CHVL'], 'VL').canBorrow).toBe(true);
+        expect(borrow(['RESP_VEHICULE', 'CHVL'], 'VL', true)).toEqual({ canBorrow: false, blockingReason: 'LICENSE_BLOCKED' });
     });
 });

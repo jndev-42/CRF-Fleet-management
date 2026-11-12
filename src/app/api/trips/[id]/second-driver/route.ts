@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { canManageVehicles } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
+import { isEligibleDriver } from '@/lib/eligibleDrivers';
 import { isLicenseBlocked, OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE } from '@/lib/licenseGuard';
 
 const updateSecondDriverSchema = z.object({
@@ -27,7 +28,7 @@ async function patchHandler(
 
         // Verify if user is admin or is the primary driver for this trip
         const tripRes = await db.execute({
-            sql: `SELECT t.driverId, t.secondDriverId, v.ulId AS vehicleUlId
+            sql: `SELECT t.driverId, t.secondDriverId, v.ulId AS vehicleUlId, v.type AS vehicleType
                   FROM Trip t LEFT JOIN Vehicle v ON v.id = t.vehicleId
                   WHERE t.id = ?`,
             args: [id]
@@ -61,9 +62,18 @@ async function patchHandler(
         }
 
         // Comme `trips/[id]/checkout` : seul un second conducteur nouvellement désigné
-        // est contrôlé, celui déjà en place n'est pas recontrôlé.
-        if (data.secondDriverId !== tripRes.rows[0].secondDriverId && await isLicenseBlocked(data.secondDriverId)) {
-            return forbiddenResponse(OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE);
+        // est contrôlé, celui déjà en place n'est pas recontrôlé. Chauffeur actif habilité
+        // au type du véhicule d'abord (400), puis papiers (403).
+        if (data.secondDriverId !== tripRes.rows[0].secondDriverId) {
+            if (!(await isEligibleDriver(tripRes.rows[0].vehicleType, data.secondDriverId))) {
+                return NextResponse.json(
+                    { error: 'Le 2ème conducteur doit être un chauffeur actif habilité à ce type de véhicule' },
+                    { status: 400 },
+                );
+            }
+            if (await isLicenseBlocked(data.secondDriverId)) {
+                return forbiddenResponse(OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE);
+            }
         }
 
         await db.execute({

@@ -18,7 +18,7 @@ Starts a new trip (checkout) for a vehicle identified by QR token. Validates veh
 **Auth & Access:**
 - Requires: `session?.user` (401), `!isQrBlocked(roles)` (403 — INACTIF is dominant, even combined with active roles).
 - No role check; an account with no role at all can checkout.
-- **Papers are checked** (`isLicenseBlocked` from `@/lib/licenseGuard`, no role exemption, fail-closed when the `User` row is missing) → 403 with the shared message. The QR opens UL and role, never the papers.
+- **Papers are checked** (`isLicenseBlocked` from `@/lib/licenseGuard`: only checked for a driver — an account without CHVL/CHVPSP is never blocked here, the QR checks no role —, fail-closed when the `User` row is missing) → 403 with the shared message. The QR opens UL and role, never the papers.
 
 **Zod Schema (checkOutSchema):**
 - `missionType` (required, `missionTypeSchema` de `@/app/api/trips/schema` : une valeur de `MISSION_TYPES`, `@/lib/mission-types` ; sinon 400 « Type de mission inconnu »). « Désinfection » sur un véhicule non VPSP → 400.

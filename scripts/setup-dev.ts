@@ -982,9 +982,10 @@ async function main() {
 
     const today = new Date().toISOString().slice(0, 10);
     const devUsers = [
-        // Papiers valides : compte qui emprunte dans e2e/checkout-checkin.spec.ts. Plus aucun
-        // rôle n'est dispensé du contrôle des papiers, ADMIN compris.
-        { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL'], papiers_valides: 1, start_date_invalidation_process: null, last_validation: today },
+        // Papiers valides : compte qui emprunte dans e2e/checkout-checkin.spec.ts. Seuls CHVL et
+        // CHVPSP empruntent (aucune dispense pour ADMIN) : les deux rôles lui permettent de
+        // prendre n'importe quel véhicule disponible, VL ou VPSP.
+        { email: 'admin@dev.local', name: 'Admin Dev', roles: ['ADMIN', 'CHVL', 'CHVPSP'], papiers_valides: 1, start_date_invalidation_process: null, last_validation: today },
         { email: 'respo@dev.local', name: 'Respo Dev', roles: ['RESPO', 'CHVL'], papiers_valides: 0, start_date_invalidation_process: today },
         { email: 'cadre@dev.local', name: 'Cadre Dev', roles: ['CADRE', 'CHVL'], papiers_valides: 1, start_date_invalidation_process: null },
         { email: 'respvehicule@dev.local', name: 'Resp. Véhicule Dev', roles: ['RESP_VEHICULE'], papiers_valides: 1, start_date_invalidation_process: null },

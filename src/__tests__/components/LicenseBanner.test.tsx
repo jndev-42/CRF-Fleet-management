@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 describe('LicenseBanner', () => {
-    it.each([['TRESORIER'], ['PRESIDENT'], ['DT']])('ne rend rien et n\'interroge pas l\'API pour un %s (n\'emprunte jamais)', async (role) => {
+    it.each([['TRESORIER'], ['PRESIDENT'], ['DT'], ['ADMIN'], ['SUPER_ADMIN'], ['RESP_VEHICULE']])('ne rend rien et n\'interroge pas l\'API pour un %s sans rôle chauffeur', async (role) => {
         mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: [role] } } });
         const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ validated: false, daysLeft: 0, blocked: true }), { status: 200 }));
 
@@ -25,8 +25,8 @@ describe('LicenseBanner', () => {
         expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it('affiche le blocage à un ADMIN sans rôle chauffeur (aucune dispense de papiers)', async () => {
-        mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: ['ADMIN'] } } });
+    it('affiche le blocage à un ADMIN qui porte aussi CHVL', async () => {
+        mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: ['ADMIN', 'CHVL'] } } });
         const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ validated: false, daysLeft: 0, blocked: true }), { status: 200 }));
 
         render(<LicenseBanner />);
@@ -34,13 +34,13 @@ describe('LicenseBanner', () => {
         expect(fetchSpy).toHaveBeenCalledWith('/api/me/license-check');
     });
 
-    it('affiche le délai restant à un rôle non-conducteur dont les papiers sont invalidés', async () => {
-        mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: ['RESP_VEHICULE'] } } });
-        vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ validated: false, daysLeft: 4, blocked: false }), { status: 200 }));
+    it('ne rend rien quand l\'API répond « non requis » (rôles lus en base)', async () => {
+        mockUseSession.mockReturnValue({ status: 'authenticated', data: { user: { roles: ['CHVL'] } } });
+        vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ required: false, validated: false, daysLeft: null, blocked: false }), { status: 200 }));
 
-        render(<LicenseBanner />);
-        expect(await screen.findByText(/Validation des papiers requise/)).toBeTruthy();
-        expect(screen.getByText(/4 jours/)).toBeTruthy();
+        const { container } = render(<LicenseBanner />);
+        await act(async () => { await Promise.resolve(); });
+        expect(container.firstChild).toBeNull();
     });
 
     it('ne rend rien tant que non authentifié', () => {

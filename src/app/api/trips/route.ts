@@ -96,6 +96,28 @@ async function postHandler(request: Request) {
             return NextResponse.json({ error: 'Ce véhicule est en maintenance' }, { status: 400 });
         }
 
+        const isCHVL = isChvlDriver(roles);
+        const isCHVPSP = isChvpspDriver(roles);
+        const vehicleType = String(vehicle.type || '');
+        const isVPSP = vehicleType.toUpperCase().includes('VPSP');
+
+        // Désinfection n'est disponible que pour les véhicules VPSP (validation véhicule indépendante du rôle)
+        if (data.missionType === 'Désinfection' && !isVPSP) {
+            return NextResponse.json(
+                { error: 'Le type de mission Désinfection est réservé aux véhicules VPSP' },
+                { status: 400 }
+            );
+        }
+
+        // Seuls les chauffeurs empruntent : CHVPSP pour un VPSP, CHVL sinon. Aucune dispense
+        // pour les gestionnaires (admins compris) ; seule la réservation détenue par un tiers
+        // reste dispensée plus bas.
+        const canBorrow = (isCHVPSP && isVPSP) || (isCHVL && !isVPSP);
+
+        if (!canBorrow) {
+            return forbiddenResponse('Vous n\'avez pas les droits pour emprunter ce véhicule');
+        }
+
         // Garde de réservation : un véhicule couvert par une réservation VALIDATED
         // active maintenant n'est empruntable que par son détenteur — ou par un admin.
         //
@@ -117,34 +139,10 @@ async function postHandler(request: Request) {
             return forbiddenResponse('Ce véhicule est réservé par un autre utilisateur');
         }
 
-        const isCHVL = isChvlDriver(roles);
-        const isCHVPSP = isChvpspDriver(roles);
-        const vehicleType = String(vehicle.type || '');
-        const isVPSP = vehicleType.toUpperCase().includes('VPSP');
-
-        // Garde des papiers de conduite, sans dispense par rôle : un gestionnaire qui
-        // prend le volant y est soumis comme un chauffeur. Fermée par défaut (compte
+        // Garde des papiers de conduite, après la garde de rôle : fermée par défaut (compte
         // introuvable → refus) et rejouée en lecture seule, cf. `@/lib/licenseGuard`.
-        // La dispense de *rôle chauffeur* des gestionnaires (`canBorrow`) est conservée.
         if (await isLicenseBlocked(session.user.id)) {
             return forbiddenResponse(LICENSE_BLOCKED_MESSAGE);
-        }
-
-        // Désinfection n'est disponible que pour les véhicules VPSP (validation véhicule indépendante du rôle)
-        if (data.missionType === 'Désinfection' && !isVPSP) {
-            return NextResponse.json(
-                { error: 'Le type de mission Désinfection est réservé aux véhicules VPSP' },
-                { status: 400 }
-            );
-        }
-
-        let canBorrow = false;
-        if (isAdmin) canBorrow = true;
-        else if (isCHVPSP && isVPSP) canBorrow = true;
-        else if (isCHVL && !isVPSP) canBorrow = true;
-
-        if (!canBorrow) {
-            return forbiddenResponse('Vous n\'avez pas les droits pour emprunter ce véhicule');
         }
 
         // Kilométrage/carburant de départ et correction déclarée — règles partagées avec

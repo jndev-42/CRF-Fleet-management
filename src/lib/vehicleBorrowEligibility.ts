@@ -44,15 +44,16 @@ export function isVpspVehicle(vehicleType: string): boolean {
     return vehicleType.toUpperCase().includes('VPSP');
 }
 
-/** Bypass administrateur de l'emprunt. Suit la règle serveur (`canManageVehicles`). */
+/** Dispense de réservation détenue par un tiers. Suit la règle serveur (`canManageVehicles`). */
 function isAdminForBorrow(userRoles: string[]): boolean {
     return canManageVehicles(userRoles);
 }
 
 /**
  * Décision d'autorisation. Ordre RÔLE-first.
- * Le bloc rôle est la transposition exacte de la cascade serveur
- * (`src/app/api/trips/route.ts`) : ADMIN, puis `CHVPSP && VPSP`, puis `CHVL && !VPSP`.
+ * Le bloc rôle est la transposition exacte de la garde serveur
+ * (`src/app/api/trips/route.ts`) : `CHVPSP && VPSP` ou `CHVL && !VPSP`, sans dispense
+ * pour les gestionnaires (admins compris).
  */
 export function getBorrowEligibility(input: BorrowEligibilityInput): {
     canBorrow: boolean;
@@ -73,13 +74,6 @@ export function getBorrowEligibility(input: BorrowEligibilityInput): {
     if (hasActiveMaintenance) return { canBorrow: false, blockingReason: 'MAINTENANCE_ACTIVE' };
     if (vehicleStatus !== 'AVAILABLE') return { canBorrow: false, blockingReason: 'NOT_AVAILABLE' };
 
-    // Gestionnaire : dispense de rôle chauffeur et de réservation, jamais de papiers
-    // (parité `POST /api/trips`, qui contrôle les papiers de tout conducteur).
-    if (isAdminForBorrow(userRoles)) {
-        if (licenseBlocked) return { canBorrow: false, blockingReason: 'LICENSE_BLOCKED' };
-        return { canBorrow: true, blockingReason: null };
-    }
-
     const isCHVL = isChvlDriver(userRoles);
     const isCHVPSP = isChvpspDriver(userRoles);
     const isVpsp = isVpspVehicle(vehicleType);
@@ -92,7 +86,8 @@ export function getBorrowEligibility(input: BorrowEligibilityInput): {
         return { canBorrow: false, blockingReason: 'ROLE_NOT_ALLOWED' };
     }
 
-    if (isReservedByOther) return { canBorrow: false, blockingReason: 'RESERVED_BY_OTHER' };
+    // Un gestionnaire chauffeur reste dispensé de la réservation détenue par un tiers.
+    if (isReservedByOther && !isAdminForBorrow(userRoles)) return { canBorrow: false, blockingReason: 'RESERVED_BY_OTHER' };
     if (licenseBlocked) return { canBorrow: false, blockingReason: 'LICENSE_BLOCKED' };
 
     return { canBorrow: true, blockingReason: null };

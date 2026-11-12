@@ -619,6 +619,8 @@ describe("Exposition dans l'API : photoUpdatedAt, jamais une clé R2", () => {
     it('POST /api/trips — le véhicule renvoyé ne porte aucune clé R2', async () => {
         await seedPhoto();
         await seedGuide();
+        // Plus de dispense de rôle : un gestionnaire n'emprunte qu'avec CHVL / CHVPSP (ici un VPSP).
+        asSession({ user: { ...ADMIN.user, roles: ['ADMIN', 'CHVPSP'] } });
         await seedUser({ id: ADMIN.user.id, email: ADMIN.user.email });
         const res = await postTrip(jsonRequest('POST', {
             vehicleId: VEHICLE_ID,

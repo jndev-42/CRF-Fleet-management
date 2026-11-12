@@ -11,7 +11,14 @@ vi.mock('@/auth', () => ({
 
 import { PATCH } from '@/app/api/trips/[id]/checkout/route';
 import { auth } from '@/auth';
-import { db, seedVehicle, seedTrip, seedUser } from './setup';
+import { db, seedVehicle, seedTrip, seedUser, seedRoles, seedUserRole } from './setup';
+
+/** Le 2ème conducteur désigné doit être un chauffeur actif habilité au type du véhicule. */
+async function seedSecondDriverRoles(userId: string) {
+  await seedRoles(['CHVL', 'CHVPSP']);
+  await seedUserRole(userId, 'CHVL');
+  await seedUserRole(userId, 'CHVPSP');
+}
 
 const mockedAuth = vi.mocked(auth);
 
@@ -102,6 +109,7 @@ describe('PATCH /api/trips/[id]/checkout', () => {
     mockedAuth.mockResolvedValue(adminSession);
     await seedUser({ id: 'user-driver-1', name: 'Conducteur 1', email: 'driver1@test.com' });
     await seedUser({ id: 'user-driver-2', name: 'Conducteur 2', email: 'driver2@test.com' });
+    await seedSecondDriverRoles('user-driver-2');
     await seedVehicle({ id: 'VL001', status: 'IN_USE', mileage: 50000, fuelLevel: 50 });
     await seedTrip({
       id: 'trip-active-1',
@@ -179,6 +187,7 @@ describe('PATCH /api/trips/[id]/checkout', () => {
       mockedAuth.mockResolvedValue(adminSession);
       await seedUser({ id: 'user-driver-1', name: 'Conducteur 1', email: 'driver1@test.com' });
       await seedUser({ id: 'user-driver-2', name: 'Conducteur 2', email: 'driver2@test.com' });
+      await seedSecondDriverRoles('user-driver-2');
       await seedVehicle({ id: 'VLMT', type: vehicleType, status: 'IN_USE', mileage: 50000, fuelLevel: 50 });
       await seedTrip({ id: 'trip-mt', vehicleId: 'VLMT', driverId: 'user-driver-1', checkInAt: null, mileageOut: 50000, fuelOut: 50, missionType });
     }

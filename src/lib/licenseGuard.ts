@@ -3,12 +3,14 @@
  * (`POST /api/trips`, `POST /api/qr/[token]/checkout`) et de désignation d'un
  * conducteur (`PATCH /api/trips/[id]/checkout`, `PATCH /api/trips/[id]/second-driver`).
  *
- * Aucune dispense par rôle : quiconque prend le volant doit avoir des papiers
- * valides, gestionnaire compris. La décision est rejouée en lecture seule via
+ * Seuls les chauffeurs (CHVL / CHVPSP) sont soumis aux papiers : un compte qui n'en porte
+ * aucun n'est jamais bloqué ici (le QR ne contrôle aucun rôle ; dans les routes appli, la
+ * garde de rôle précède celle-ci). La décision est rejouée en lecture seule via
  * `getLicenseStatus` — seule `GET /api/me/license-check` matérialise l'invalidation.
  */
 import { db } from '@/lib/db';
 import { getLicenseStatus, type LicenseRow } from '@/lib/licenseStatus';
+import { holdsDriverRole } from '@/lib/licenseLifecycle';
 
 /** Refus adressé au conducteur connecté. */
 export const LICENSE_BLOCKED_MESSAGE =
@@ -19,8 +21,9 @@ export const OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE =
     "Les papiers de ce conducteur n'ont pas été validés dans les délais — emprunt impossible";
 
 /**
- * `true` si ce compte ne peut pas prendre le volant. Fermé par défaut : un
- * identifiant absent ou sans ligne `User` est considéré comme bloqué.
+ * `true` si les papiers de ce compte l'empêchent de prendre le volant. Fermé par défaut :
+ * un identifiant absent ou sans ligne `User` est considéré comme bloqué. Un compte sans
+ * rôle CHVL / CHVPSP n'est pas soumis aux papiers : `false`.
  */
 export async function isLicenseBlocked(userId: string | null | undefined): Promise<boolean> {
     if (!userId) return true;
@@ -31,6 +34,7 @@ export async function isLicenseBlocked(userId: string | null | undefined): Promi
     });
     const row = res.rows[0] as unknown as LicenseRow | undefined;
     if (!row) return true;
+    if (!(await holdsDriverRole(db, userId))) return false;
     const today = new Date().toISOString().slice(0, 10);
     return getLicenseStatus(row, today).blocked;
 }

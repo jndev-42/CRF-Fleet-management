@@ -109,10 +109,11 @@ const CASES: {
     disabled: boolean;
     title: string;
 }[] = [
-    { name: 'ADMIN, VPSP réservé : dispense de rôle et de réservation', roles: ['ADMIN'], type: 'VPSP', reserved: true, disabled: false, title: ALLOWED },
-    { name: 'ADMIN, VPSP réservé et permis bloqué : bloqué (aucune dispense de papiers)', roles: ['ADMIN'], type: 'VPSP', reserved: true, license: true, disabled: true, title: TITLE_LICENSE },
-    { name: 'ADMIN, VL libre, permis bloqué : bouton bloqué', roles: ['ADMIN'], license: true, disabled: true, title: TITLE_LICENSE },
-    { name: 'RESP_VEHICULE, permis bloqué : bloqué', roles: ['RESP_VEHICULE'], license: true, disabled: true, title: TITLE_LICENSE },
+    { name: 'ADMIN + CHVPSP, VPSP réservé : dispense de réservation', roles: ['ADMIN', 'CHVPSP'], type: 'VPSP', reserved: true, disabled: false, title: ALLOWED },
+    { name: 'ADMIN seul, VL libre : plus de dispense de rôle', roles: ['ADMIN'], disabled: true, title: TITLE_ROLE },
+    { name: 'ADMIN, VPSP réservé et permis bloqué : bloqué (aucune dispense de papiers)', roles: ['ADMIN', 'CHVPSP'], type: 'VPSP', reserved: true, license: true, disabled: true, title: TITLE_LICENSE },
+    { name: 'ADMIN + CHVL, VL libre, permis bloqué : bouton bloqué', roles: ['ADMIN', 'CHVL'], license: true, disabled: true, title: TITLE_LICENSE },
+    { name: 'RESP_VEHICULE + CHVL, permis bloqué : bloqué', roles: ['RESP_VEHICULE', 'CHVL'], license: true, disabled: true, title: TITLE_LICENSE },
     { name: 'CHVPSP pur, VL : refusé (aligné sur POST /api/trips)', roles: ['CHVPSP'], disabled: true, title: TITLE_ROLE },
     { name: 'CHVPSP, VPSP, rien', roles: ['CHVPSP'], type: 'VPSP', disabled: false, title: ALLOWED },
     { name: 'CHVPSP, réservé par un tiers', roles: ['CHVPSP'], reserved: true, disabled: true, title: TITLE_RESERVED },
@@ -123,7 +124,7 @@ const CASES: {
     { name: 'CHVL, VL, permis bloqué', roles: ['CHVL'], license: true, disabled: true, title: TITLE_LICENSE },
     { name: 'CI/RPAPS : aucun rôle conducteur', roles: ['CI/RPAPS'], disabled: true, title: TITLE_ROLE },
     { name: 'GUEST : aucun rôle conducteur', roles: ['GUEST'], disabled: true, title: TITLE_ROLE },
-    { name: 'SUPER_ADMIN pur : autorisé (isAdminOrAbove, comme le serveur)', roles: ['SUPER_ADMIN'], disabled: false, title: ALLOWED },
+    { name: 'SUPER_ADMIN pur : refusé (plus de dispense de rôle, comme le serveur)', roles: ['SUPER_ADMIN'], disabled: true, title: TITLE_ROLE },
     { name: 'CHVL + CHVPSP cumulés, VPSP', roles: ['CHVL', 'CHVPSP'], type: 'VPSP', disabled: false, title: ALLOWED },
     { name: 'CHVL + CHVPSP cumulés, VL', roles: ['CHVL', 'CHVPSP'], disabled: false, title: ALLOWED },
     // Cascades distinctes : `blockingReason` vaut ROLE_NOT_ALLOWED (rôle-first) alors
