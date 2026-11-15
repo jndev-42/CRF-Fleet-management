@@ -3,8 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import LowStockModal from '@/components/inventory/modals/LowStockModal';
 
 const items = [
-    { id: 'i1', name: 'Gants', category: 'Protection', quantity: 2, minStock: 10 },
-    { id: 'i2', name: 'Masques', category: null, quantity: 0, minStock: 5 },
+    { id: 'i1', name: 'Gants', category: 'Protection', quantity: 2, minStock: 10, orderedAt: '2026-11-12 09:00:00' },
+    { id: 'i2', name: 'Masques', category: null, quantity: 0, minStock: 5, orderedAt: null },
 ];
 
 beforeEach(() => {
@@ -61,5 +61,69 @@ describe('LowStockModal', () => {
         fireEvent.click(await screen.findByText('Gants'));
         expect(onClose).toHaveBeenCalled();
         expect(onOpenBatches).toHaveBeenCalledWith('i1', 'Gants');
+    });
+
+    it('lecture seule : badge « Commandé » visible, aucun bouton', async () => {
+        vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ items }), { status: 200 }));
+        render(<LowStockModal onClose={vi.fn()} onOpenBatches={vi.fn()} />);
+
+        expect(await screen.findByText(/Commandé le 12\/11/)).toBeTruthy();
+        expect(screen.queryByRole('button', { name: /Marquer commandé/ })).toBeNull();
+    });
+
+    it('gestionnaire : le bouton bascule via PATCH sans ouvrir les lots', async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(new Response(JSON.stringify({ items }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ orderedAt: '2026-11-15 08:00:00' }), { status: 200 }));
+        vi.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+        const onOpenBatches = vi.fn();
+        render(<LowStockModal canManage onClose={vi.fn()} onOpenBatches={onOpenBatches} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: /Marquer commandé/ }));
+
+        expect(await screen.findAllByText(/Commandé le/)).toHaveLength(2);
+        expect(onOpenBatches).not.toHaveBeenCalled();
+        expect(fetchMock).toHaveBeenLastCalledWith('/api/inventory/low-stock', expect.objectContaining({
+            method: 'PATCH',
+            body: JSON.stringify({ itemId: 'i2', ordered: true }),
+        }));
+    });
+
+    it('annule la mise à jour et affiche l\'erreur si le PATCH échoue', async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(new Response(JSON.stringify({ items }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'Article non trouvé' }), { status: 404 }));
+        vi.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        render(<LowStockModal canManage onClose={vi.fn()} onOpenBatches={vi.fn()} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: /Marquer commandé/ }));
+
+        expect(await screen.findByText('Article non trouvé')).toBeTruthy();
+        expect(screen.getAllByText(/Commandé le/)).toHaveLength(1);
+    });
+
+    it('gestionnaire : retire le repère « commandé » via PATCH ordered:false', async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(new Response(JSON.stringify({ items }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ orderedAt: null }), { status: 200 }));
+        vi.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+        render(<LowStockModal canManage onClose={vi.fn()} onOpenBatches={vi.fn()} />);
+
+        fireEvent.click(await screen.findByRole('button', { name: /Commandé le 12\/11/ }));
+
+        await waitFor(() => expect(screen.queryByText(/Commandé le/)).toBeNull());
+        expect(fetchMock).toHaveBeenLastCalledWith('/api/inventory/low-stock', expect.objectContaining({
+            method: 'PATCH',
+            body: JSON.stringify({ itemId: 'i1', ordered: false }),
+        }));
+    });
+
+    it('affiche le jour à l\'heure de Paris pour un horodatage UTC', async () => {
+        const late = [{ ...items[0], orderedAt: '2026-11-11 23:30:00' }];
+        vi.spyOn(global, 'fetch').mockResolvedValue(new Response(JSON.stringify({ items: late }), { status: 200 }));
+        render(<LowStockModal onClose={vi.fn()} onOpenBatches={vi.fn()} />);
+
+        expect(await screen.findByText(/Commandé le 12\/11/)).toBeTruthy();
     });
 });

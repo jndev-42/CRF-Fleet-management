@@ -203,3 +203,10 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-r2-objets-par-ul.md`
   summary: Inclure `expenses-staging/` dans ce balayage : justificatifs déposés puis refusés ou abandonnés (brouillon jamais soumis, clé non référencée).
   evidence: le script de rangement ignore volontairement les objets non référencés ; aucun TTL sur le dépôt transitoire.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-stock-faible-commande.md`
+  summary: Aucun test de page ne vérifie que `InventoryPage` passe `canManage={canManageInventory(roles)}` à `LowStockModal`.
+  evidence: la page n'a pas d'outillage de test ; si le prop était retiré, les gestionnaires verraient le badge en lecture seule sans qu'aucun test n'échoue.
+- source_spec: `_bmad-output/implementation-artifacts/spec-stock-faible-commande.md`
+  summary: Le schéma `InvItem` de `scripts/setup-dev.ts` ne correspond plus à la prod : il manque `quantity`, `minStock` et désormais `orderedAt`.
+  evidence: `scripts/setup-dev.ts:472` ; une base fraîchement remplie par `npm run dev` ne peut pas servir les routes de l'inventaire.

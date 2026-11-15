@@ -97,3 +97,39 @@
     font-size: 0.85rem;
     min-width: 36px;
 }
+
+.orderCell {
+    padding: 10px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.orderBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.orderBtnActive {
+    background: var(--status-available);
+    border-color: var(--status-available);
+    color: #fff;
+    font-weight: 600;
+}
+
+.orderBadge {
+    cursor: default;
+}
+
+.error {
+    font-size: 0.85rem;
+    color: var(--status-maintenance);
+    margin-bottom: 8px;
+}

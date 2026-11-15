@@ -30,7 +30,7 @@ export const MCP_API_CATALOG: readonly CatalogRoute[] = [
     { path: "/api/inventory/batches", methods: ['GET', 'PATCH', 'DELETE'] },
     { path: "/api/inventory/expiring-soon", methods: ['GET'] },
     { path: "/api/inventory/history", methods: ['GET'] },
-    { path: "/api/inventory/low-stock", methods: ['GET'] },
+    { path: "/api/inventory/low-stock", methods: ['GET', 'PATCH'] },
     { path: "/api/inventory/stocks", methods: ['GET', 'POST', 'PATCH', 'DELETE'] },
     { path: "/api/inventory/stocks/[id]/qr-token", methods: ['GET', 'POST', 'DELETE'] },
     { path: "/api/inventory/stocks/duplicate", methods: ['POST'] },

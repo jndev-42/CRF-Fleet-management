@@ -619,6 +619,7 @@ export default function InventoryPage() {
             {showLowStock && (
                 <LowStockModal
                     stockId={activeStockId}
+                    canManage={isAdmin}
                     onClose={() => setShowLowStock(false)}
                     onOpenBatches={(itemId, itemName) => {
                         setBatchItemId(itemId);

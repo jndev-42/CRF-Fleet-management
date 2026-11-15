@@ -244,6 +244,7 @@ async function createTables() {
     minStock INTEGER,
     notes TEXT,
     ulId TEXT,
+    orderedAt DATETIME,
     createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -900,6 +901,7 @@ export async function seedInvItem(overrides: Partial<{
   minStock: number | null;
   stockId: string | null;
   ulId: string | null;
+  orderedAt: string | null;
 }> = {}) {
   const item = {
     id: 'inv-item-1',
@@ -910,11 +912,12 @@ export async function seedInvItem(overrides: Partial<{
     minStock: null,
     stockId: null,
     ulId: 'ul-paris-18',
+    orderedAt: null as string | null,
     ...overrides,
   };
   await db.execute({
-    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, quantity, notes, minStock, stockId, ulId) VALUES (?,?,?,?,?,?,?,?)`,
-    args: [item.id, item.name, item.category, item.quantity, item.notes, item.minStock, item.stockId, item.ulId],
+    sql: `INSERT OR IGNORE INTO "InvItem" (id, name, category, quantity, notes, minStock, stockId, ulId, orderedAt) VALUES (?,?,?,?,?,?,?,?,?)`,
+    args: [item.id, item.name, item.category, item.quantity, item.notes, item.minStock, item.stockId, item.ulId, item.orderedAt],
   });
   return item;
 }
