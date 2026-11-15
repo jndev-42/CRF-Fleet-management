@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.52.0] — 15 novembre 2026
+
+### ✨ Ajouts
+
+- Dans le récapitulatif « Stock faible » de l'inventaire, chaque article affiche désormais s'il a déjà été commandé, avec la date. Les responsables de l'inventaire (et les administrateurs) peuvent marquer un article « commandé » ou retirer ce repère d'un clic ; les autres utilisateurs le voient en lecture seule. Cela ne modifie ni les quantités, ni les lots, ni l'historique.
+- Le repère « commandé » disparaît automatiquement lors du contrôle quotidien, une fois l'article repassé au-dessus de son stock minimum : une nouvelle baisse repart sans repère.
+
 ## [5.51.0] — 12 novembre 2026
 
 ### 🔧 Modifications

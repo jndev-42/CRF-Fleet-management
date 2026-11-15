@@ -219,4 +219,18 @@ describe('GET /api/cron/daily-alerts', () => {
             await db.execute(SCHEDULED_ALERT_DDL);
         }
     });
+
+    it('efface « commandé » des articles sortis du stock faible, garde les autres', async () => {
+        await seedInvItem({ id: 'io-ok', ulId: 'ul-a', quantity: 20, minStock: 5, orderedAt: '2026-11-01 10:00:00' });
+        await seedInvItem({ id: 'io-nomin', ulId: 'ul-a', quantity: 1, minStock: null, orderedAt: '2026-11-01 10:00:00' });
+        await seedInvItem({ id: 'io-low', ulId: 'ul-a', quantity: 1, minStock: 5, orderedAt: '2026-11-01 10:00:00' });
+
+        await GET(makeRequest());
+
+        const res = await db.execute(`SELECT id, orderedAt FROM "InvItem" WHERE id LIKE 'io-%' ORDER BY id`);
+        const byId = Object.fromEntries(res.rows.map(r => [r.id as string, r.orderedAt]));
+        expect(byId['io-ok']).toBeNull();
+        expect(byId['io-nomin']).toBeNull();
+        expect(byId['io-low']).toBe('2026-11-01 10:00:00');
+    });
 });

@@ -474,11 +474,37 @@ async function main() {
             "stockId"   TEXT REFERENCES "InvStockList"("id") ON DELETE CASCADE,
             "name"      TEXT NOT NULL,
             "category"  TEXT,
-            "unit"      TEXT NOT NULL DEFAULT 'unité',
+            "quantity"  INTEGER NOT NULL DEFAULT 0,
+            "minStock"  INTEGER,
             "notes"     TEXT,
             "ulId"      TEXT,
+            "orderedAt" DATETIME,
             "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Bases de dev créées avant l'alignement sur la prod : colonnes manquantes.
+    const invItemCols = await db.execute('PRAGMA table_info("InvItem")');
+    if (!invItemCols.rows.some(r => r.name === 'quantity')) {
+        await db.execute(`ALTER TABLE "InvItem" ADD COLUMN "quantity" INTEGER NOT NULL DEFAULT 0`);
+    }
+    if (!invItemCols.rows.some(r => r.name === 'minStock')) {
+        await db.execute(`ALTER TABLE "InvItem" ADD COLUMN "minStock" INTEGER`);
+    }
+    if (!invItemCols.rows.some(r => r.name === 'orderedAt')) {
+        await db.execute(`ALTER TABLE "InvItem" ADD COLUMN "orderedAt" DATETIME`);
+    }
+
+    // Historique des mouvements de stock (ajustements, import, QR stock).
+    await db.execute(`
+        CREATE TABLE IF NOT EXISTS "InvStockLog" (
+            "id"        TEXT NOT NULL PRIMARY KEY,
+            "itemId"    TEXT NOT NULL REFERENCES "InvItem"("id") ON DELETE CASCADE,
+            "change"    INTEGER NOT NULL,
+            "userName"  TEXT NOT NULL,
+            "timestamp" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            "note"      TEXT
         )
     `);
 
@@ -1461,6 +1487,67 @@ async function main() {
         console.log('\n📦 Inventaire de démonstration créé');
     } else {
         console.log('\n📦 Inventaire déjà présent, skip');
+    }
+
+    // ── Stock actuel (modèle InvStockList / InvBatch, celui des routes) ──
+    // Indépendant du bloc ci-dessus : rattrape aussi une base de dev existante
+    // dont les articles n'ont ni stock, ni quantité, ni lots.
+    // Réutilise le stock que l'appli a pu créer d'elle-même (getOrCreateDefaultStock),
+    // sinon en crée un : jamais deux stocks par défaut pour la même UL.
+    const existingStock = await db.execute(
+        `SELECT id FROM "InvStockList" WHERE ulId = 'ul-paris-18' ORDER BY isDefault DESC, createdAt ASC LIMIT 1`
+    );
+    const DEV_STOCK_ID = (existingStock.rows[0]?.id as string | undefined) ?? 'stock-paris-18-principal';
+    if (existingStock.rows.length === 0) {
+        await db.execute({
+            sql: `INSERT INTO "InvStockList" (id, name, ulId, isDefault) VALUES (?, 'Stock Principal', 'ul-paris-18', 1)`,
+            args: [DEV_STOCK_ID],
+        });
+    }
+    const isoIn = (days: number) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+    // Quelques articles sous leur minimum (récap « Stock faible »), un déjà commandé,
+    // et des lots proches de la péremption (récap « Périmé bientôt »).
+    const stockSeed: { id: string; minStock: number | null; batches: { qty: number; expiresInDays: number | null }[]; ordered?: boolean }[] = [
+        { id: 'item-couverture',       minStock: 20,   batches: [{ qty: 35, expiresInDays: null }] },
+        { id: 'item-gants',            minStock: 10,   batches: [{ qty: 3, expiresInDays: 400 }], ordered: true },
+        { id: 'item-pansements',       minStock: 50,   batches: [{ qty: 12, expiresInDays: 20 }, { qty: 8, expiresInDays: 300 }] },
+        { id: 'item-masque-o2-adulte', minStock: 6,    batches: [{ qty: 8, expiresInDays: 700 }] },
+        { id: 'item-masque-o2-ped',    minStock: 4,    batches: [] },
+        { id: 'item-dsa',              minStock: null, batches: [{ qty: 2, expiresInDays: null }] },
+        { id: 'item-colliers',         minStock: 3,    batches: [{ qty: 4, expiresInDays: null }] },
+        { id: 'item-aspirateur',       minStock: 2,    batches: [{ qty: 1, expiresInDays: null }] },
+        { id: 'item-serum',            minStock: 10,   batches: [{ qty: 15, expiresInDays: 10 }] },
+        { id: 'item-compresses',       minStock: 30,   batches: [{ qty: 40, expiresInDays: 500 }] },
+        { id: 'item-trousse-vl',       minStock: null, batches: [{ qty: 5, expiresInDays: 200 }] },
+    ];
+    let stockSeeded = 0;
+    for (const s of stockSeed) {
+        const existingBatches = await db.execute({ sql: `SELECT COUNT(*) AS n FROM "InvBatch" WHERE itemId = ?`, args: [s.id] });
+        const item = await db.execute({ sql: `SELECT stockId, minStock FROM "InvItem" WHERE id = ?`, args: [s.id] });
+        // Article absent, ou déjà approvisionné (lots ou minimum présents) : on ne touche à rien.
+        if (item.rows.length === 0 || item.rows[0].minStock !== null || (existingBatches.rows[0].n as number) > 0) continue;
+        const targetStockId = (item.rows[0].stockId as string | null) || DEV_STOCK_ID;
+        const total = s.batches.reduce((sum, b) => sum + b.qty, 0);
+        for (const b of s.batches) {
+            await db.execute({
+                sql: `INSERT INTO "InvBatch" (id, itemId, quantity, expiryDate) VALUES (?, ?, ?, ?)`,
+                args: [crypto.randomUUID(), s.id, b.qty, b.expiresInDays === null ? null : isoIn(b.expiresInDays)],
+            });
+        }
+        if (total > 0) {
+            await db.execute({
+                sql: `INSERT INTO "InvStockLog" (id, itemId, change, userName, note) VALUES (?, ?, ?, 'Admin Dev', 'Stock initial (seed)')`,
+                args: [crypto.randomUUID(), s.id, total],
+            });
+        }
+        await db.execute({
+            sql: `UPDATE "InvItem" SET stockId = ?, quantity = ?, minStock = ?, orderedAt = ${s.ordered ? 'CURRENT_TIMESTAMP' : 'NULL'} WHERE id = ?`,
+            args: [targetStockId, total, s.minStock, s.id],
+        });
+        stockSeeded++;
+    }
+    if (stockSeeded > 0) {
+        console.log(`📦 Stock Principal (ul-paris-18) : ${stockSeeded} articles approvisionnés`);
     // ── Comptes Rendus de Mission de démonstration ────────────────
 
     const missionCount = await db.execute(`SELECT COUNT(*) as n FROM "mission_reports"`);

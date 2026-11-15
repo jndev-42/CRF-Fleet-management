@@ -94,6 +94,14 @@ export async function GET(request: Request) {
         await deleteKeys(stale);
         stale.forEach(key => sentKeys.delete(key));
 
+        // Le repère « commandé » du récap Stock faible n'a de sens que tant que l'article
+        // reste sous son minimum : on l'efface dès qu'il en sort. Sans effet sur les alertes.
+        try {
+            await db.execute(`UPDATE "InvItem" SET orderedAt = NULL WHERE orderedAt IS NOT NULL AND (minStock IS NULL OR quantity >= minStock)`);
+        } catch (e: unknown) {
+            console.error('[daily-alerts] remise à zéro des « commandé » ignorée', getErrorMessage(e));
+        }
+
         const ulRes = await db.execute(`SELECT id, name FROM "UniteLocale"`);
         const ulNames = new Map(ulRes.rows.map(row => [row.id as string, row.name as string]));
 
