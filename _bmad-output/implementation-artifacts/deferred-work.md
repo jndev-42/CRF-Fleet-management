@@ -213,3 +213,7 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-mission-report-pdf-signe.md`
   summary: Vérifier sur une preview Vercel qu'un rapport « signé dans l'appli » se crée (modèle PDF inclus via outputFileTracingIncludes).
   evidence: Les tests lisent le modèle en local ; seul un déploiement prouve que le fichier est embarqué dans les fonctions /api/missions et /api/qr-ul/[token]/mission-report.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-recherche-utilisateurs-filtre-ul.md`
+  summary: Mettre à jour les AGENTS.md de `src/components/ui/` (UserCombobox dépend de `useSession`, accepte `ulIds`) et des routes drivers/desinf-responsables (réponse avec `ulIds`).
+  evidence: Relecture Blind Hunter ; fichiers de contexte agent, hors correctifs automatiques.

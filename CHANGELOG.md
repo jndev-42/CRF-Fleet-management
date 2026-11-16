@@ -1,5 +1,15 @@
 # Changelog
 
+## [5.54.0] — 16 novembre 2026
+
+### ✨ Ajouts
+
+- Tous les champs où l'on choisit une personne (2ème conducteur, chauffeur d'une réservation ou d'un rapport de mission, responsable de désinfection) proposent un sélecteur « Toutes les UL / Mon UL » (dès qu'une unité locale active est sélectionnée) : « Mon UL » ne garde que les personnes rattachées à votre unité locale active, et la recherche par nom ou email s'applique parmi elles. Un message « Aucune personne trouvée » s'affiche quand rien ne correspond.
+
+### 🔧 Modifications
+
+- Le chauffeur d'un rapport de mission et le 2ème conducteur ajouté depuis le trajet en cours utilisent désormais la même liste avec recherche que les autres écrans, à la place d'une liste déroulante simple.
+
 ## [5.53.0] — 16 novembre 2026
 
 ### ✨ Ajouts

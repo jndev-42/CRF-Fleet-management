@@ -9,7 +9,15 @@
  * Chaque test repart d'une base vide grâce au `beforeEach` DROP/CREATE.
  */
 import { createClient } from '@libsql/client';
-import { beforeEach } from 'vitest';
+import { beforeEach, vi } from 'vitest';
+
+// `UserCombobox` lit l'UL active via `useSession` : sans `SessionProvider`, le hook lève.
+// Défaut = session absente (sélecteur « Mon UL » masqué) ; un fichier qui mocke lui-même
+// `next-auth/react` reste prioritaire.
+vi.mock('next-auth/react', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('next-auth/react')>()),
+    useSession: () => ({ data: null, status: 'unauthenticated', update: async () => null }),
+}));
 
 export const db = createClient({ url: 'file::memory:' });
 

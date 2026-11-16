@@ -4,7 +4,19 @@ export interface EligibleDriver {
     id: string;
     name: string | null;
     email: string;
+    /** UL de rattachement (`UserUL`, principal ou secondaire) — alimente le filtre « Mon UL » des sélecteurs. */
+    ulIds: string[];
 }
+
+/** Liste CSV (`GROUP_CONCAT`) → tableau d'ids d'UL. */
+export function parseUlIds(value: unknown): string[] {
+    return String(value ?? '').split(',').map(x => x.trim()).filter(Boolean);
+}
+
+/** Sous-requête SQL des UL d'un compte (`u` = alias de la table User). */
+export const USER_UL_IDS_SQL = `(SELECT GROUP_CONCAT(DISTINCT uu.ulId) FROM "UserUL" uu WHERE uu.userId = u.id
+    AND ',' || COALESCE(uu.roles, '') || ',' NOT LIKE '%,INACTIF,%'
+    AND ',' || COALESCE(uu.roles, '') || ',' NOT LIKE '%,GUEST,%')`;
 
 /** Rôle de conduite requis pour un type de véhicule : CHVPSP pour un VPSP, CHVL sinon
  *  (même règle que `canBorrow` dans `POST /api/trips`). */
@@ -35,7 +47,7 @@ const ELIGIBLE_DRIVER_PREDICATE = `
  */
 export async function listEligibleDrivers(vehicleType: unknown, excludeUserId: string): Promise<EligibleDriver[]> {
     const res = await db.execute({
-        sql: `SELECT u.id, u.name, u.email
+        sql: `SELECT u.id, u.name, u.email, ${USER_UL_IDS_SQL} AS ul_ids
               FROM "User" u
               WHERE ${ELIGIBLE_DRIVER_PREDICATE}
               AND u.id != ?
@@ -47,6 +59,7 @@ export async function listEligibleDrivers(vehicleType: unknown, excludeUserId: s
         id: row.id as string,
         name: (row.name as string | null) ?? null,
         email: row.email as string,
+        ulIds: parseUlIds(row.ul_ids),
     }));
 }
 
@@ -91,7 +104,7 @@ export interface MissionDriver extends EligibleDriver {
  */
 export async function listMissionDrivers(): Promise<MissionDriver[]> {
     const res = await db.execute(`
-        SELECT u.id, u.name, u.email, GROUP_CONCAT(r.name) AS driving_roles
+        SELECT u.id, u.name, u.email, GROUP_CONCAT(r.name) AS driving_roles, ${USER_UL_IDS_SQL} AS ul_ids
         FROM "User" u
         JOIN "UserRole" ur ON ur.userId = u.id
         JOIN "Role" r ON ur.roleId = r.id AND r.name IN ('CHVL', 'CHVPSP')
@@ -107,6 +120,7 @@ export async function listMissionDrivers(): Promise<MissionDriver[]> {
         id: row.id as string,
         name: (row.name as string | null) ?? null,
         email: row.email as string,
+        ulIds: parseUlIds(row.ul_ids),
         roles: String(row.driving_roles ?? '').split(',').filter((r): r is 'CHVL' | 'CHVPSP' => r === 'CHVL' || r === 'CHVPSP'),
     }));
 }

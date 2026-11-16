@@ -1,9 +1,12 @@
 import { db } from '@/lib/db';
+import { parseUlIds, USER_UL_IDS_SQL } from '@/lib/eligibleDrivers';
 
 export interface UlMember {
     id: string;
     name: string | null;
     email: string;
+    /** Toutes les UL de rattachement du compte (pas seulement celle demandée). */
+    ulIds: string[];
 }
 
 /**
@@ -20,7 +23,7 @@ export async function listActiveUlMembers(ulId: unknown): Promise<UlMember[]> {
     if (!ulId || ulId === 'default') return [];
 
     const res = await db.execute({
-        sql: `SELECT DISTINCT u.id, u.name, u.email
+        sql: `SELECT DISTINCT u.id, u.name, u.email, ${USER_UL_IDS_SQL} AS ul_ids
               FROM "User" u
               JOIN "UserUL" uu ON uu.userId = u.id AND uu.ulId = ?
               WHERE ',' || COALESCE(uu.roles, '') || ',' NOT LIKE '%,INACTIF,%'
@@ -38,5 +41,6 @@ export async function listActiveUlMembers(ulId: unknown): Promise<UlMember[]> {
         id: row.id as string,
         name: (row.name as string | null) ?? null,
         email: row.email as string,
+        ulIds: parseUlIds(row.ul_ids),
     }));
 }

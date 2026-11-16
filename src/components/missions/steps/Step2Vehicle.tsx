@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import UserCombobox from '@/components/ui/UserCombobox';
 import { EXTERNAL_VEHICLES } from '@/lib/mission-supplies';
 import type { MissionFormData } from '../MissionWizard';
 import styles from '../MissionWizard.module.css';
@@ -16,6 +18,7 @@ interface Driver {
     name: string | null;
     email: string;
     roles: string[];
+    ulIds?: string[];
 }
 
 /** Sources des listes véhicules / chauffeurs. */
@@ -54,6 +57,8 @@ interface Step2Props {
 
 export default function Step2Vehicle({ data, onChange, currentUserId, currentUserName, endpoints = DEFAULT_CREW_ENDPOINTS, stored }: Step2Props) {
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+    const { data: session } = useSession();
+    const activeUlId = session?.user?.ulId;
     const [drivers, setDrivers] = useState<Driver[]>([]);
     // Primitives en dépendance : un objet `endpoints` recréé à chaque rendu relancerait l'effet.
     const { vehicles: vehiclesEndpoint, drivers: driversEndpoint } = endpoints;
@@ -102,6 +107,17 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
         && !(showCurrentUserOption && currentUserId === stored.driver.id)
         ? stored.driver : null;
 
+    // « Moi » et la valeur enregistrée restent proposés en tête, comme avant ; le
+    // combobox garde l'entrée vide « Non renseigné ».
+    const me = currentUserId ? drivers.find(d => d.id === currentUserId) : undefined;
+    const comboUsers = [
+        ...(storedDriver ? [{ id: storedDriver.id, name: storedDriver.name, email: '' }] : []),
+        ...(showCurrentUserOption && currentUserId
+            ? [{ id: currentUserId, name: `Moi (${currentUserName ?? 'moi'})`, email: me?.email ?? '', ulIds: me?.ulIds ?? (activeUlId && activeUlId !== 'default' ? [activeUlId] : undefined) }]
+            : []),
+        ...visibleDrivers,
+    ];
+
     return (
         <div className={styles.stepContent}>
             <h2 className={styles.stepTitle}>Véhicule et équipage</h2>
@@ -127,21 +143,13 @@ export default function Step2Vehicle({ data, onChange, currentUserId, currentUse
 
             <div className="form-group">
                 <label className="form-label" htmlFor="driver_id">Chauffeur</label>
-                <select
+                <UserCombobox
                     id="driver_id"
-                    className="form-input"
+                    users={comboUsers}
                     value={data.driver_id ?? ''}
-                    onChange={e => onChange({ driver_id: e.target.value || null })}
-                >
-                    <option value="">— Non renseigné —</option>
-                    {storedDriver && <option value={storedDriver.id}>{storedDriver.name}</option>}
-                    {showCurrentUserOption && (
-                        <option value={currentUserId}>Moi ({currentUserName ?? 'moi'})</option>
-                    )}
-                    {visibleDrivers.map(d => (
-                        <option key={d.id} value={d.id}>{d.name ?? d.email}</option>
-                    ))}
-                </select>
+                    onChange={id => onChange({ driver_id: id || null })}
+                    defaultLabel="— Non renseigné —"
+                />
             </div>
 
             <div className="form-group">

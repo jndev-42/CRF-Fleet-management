@@ -6,6 +6,7 @@ import { isAdminOrAbove, canAccessAdminPanel, canManageVehicles, canManageReserv
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 import { isVpspVehicle } from '@/lib/vehicleBorrowEligibility';
+import { parseUlIds, USER_UL_IDS_SQL } from '@/lib/eligibleDrivers';
 
 /** Zod schema for creating a new user */
 const createUserSchema = z.object({
@@ -72,7 +73,8 @@ export async function GET(request: Request) {
                             GROUP_CONCAT(r.name) as roles,
                             home_ul.ulId as homeUlId,
                             home_ul.roles as homeUlRoles,
-                            home_ul_info.name as homeUlName
+                            home_ul_info.name as homeUlName,
+                            ${USER_UL_IDS_SQL} as ulIds
                         FROM "User" u
                         LEFT JOIN "UserRole" ur ON u.id = ur.userId
                         LEFT JOIN "Role" r ON ur.roleId = r.id
@@ -102,7 +104,8 @@ export async function GET(request: Request) {
                         GROUP_CONCAT(r.name) as roles,
                         home_ul.ulId as homeUlId,
                         home_ul.roles as homeUlRoles,
-                        home_ul_info.name as homeUlName
+                        home_ul_info.name as homeUlName,
+                        ${USER_UL_IDS_SQL} as ulIds
                     FROM "User" u
                     LEFT JOIN "UserRole" ur ON u.id = ur.userId
                     LEFT JOIN "Role" r ON ur.roleId = r.id
@@ -137,6 +140,7 @@ export async function GET(request: Request) {
                 roles: combinedRoles,
                 homeUlId: row.homeUlId ?? null,
                 homeUlName: row.homeUlName ?? null,
+                ulIds: parseUlIds(row.ulIds),
             };
         });
 
@@ -166,7 +170,7 @@ async function listMembersOfUl(roleFilter: string[] | null, ulId: string | undef
         : '';
     const res = await db.execute({
         sql: `
-            SELECT u.id, u.name, u.email
+            SELECT u.id, u.name, u.email, ${USER_UL_IDS_SQL} AS ul_ids
             FROM "User" u
             WHERE EXISTS (SELECT 1 FROM "UserUL" uu WHERE uu.userId = u.id AND uu.ulId = ?)
             ${roleClause}
@@ -174,7 +178,7 @@ async function listMembersOfUl(roleFilter: string[] | null, ulId: string | undef
         `,
         args: [ulId, ...(roleFilter ?? [])],
     });
-    return res.rows.map(row => ({ id: row.id, name: row.name, email: row.email }));
+    return res.rows.map(row => ({ id: row.id, name: row.name, email: row.email, ulIds: parseUlIds(row.ul_ids) }));
 }
 
 /** POST /api/users — Admin: create a new user with optional initial roles */

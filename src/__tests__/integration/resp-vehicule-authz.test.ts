@@ -263,7 +263,7 @@ describe('sélecteurs de conducteur — GET /api/users filtré', () => {
         const res = await getUsers(new Request('http://localhost/api/users?vehicleType=VL'));
         expect(res.status).toBe(200);
         const body = await res.json();
-        expect(body.users).toEqual([{ id: 'vl-here', name: 'VL Paris', email: 'a-vl@test.com' }]);
+        expect(body.users).toEqual([{ id: 'vl-here', name: 'VL Paris', email: 'a-vl@test.com', ulIds: [UL] }]);
         expect(body.availableRoles).toBeUndefined();
     });
 
@@ -279,14 +279,14 @@ describe('sélecteurs de conducteur — GET /api/users filtré', () => {
         asUser(['RESP_VEHICULE']);
         const res = await getUsers(new Request(`http://localhost/api/users?vehicleType=${encodeURIComponent('VPSP 4x4')}`));
         expect(res.status).toBe(200);
-        expect((await res.json()).users).toEqual([{ id: 'vpsp-here', name: 'VPSP Paris', email: 'b-vpsp@test.com' }]);
+        expect((await res.json()).users).toEqual([{ id: 'vpsp-here', name: 'VPSP Paris', email: 'b-vpsp@test.com', ulIds: [UL] }]);
     });
 
     it('RESP_VEHICULE avec un type non VPSP (?vehicleType=Utilitaire) → chauffeurs CHVL de son UL', async () => {
         asUser(['RESP_VEHICULE']);
         const res = await getUsers(new Request('http://localhost/api/users?vehicleType=Utilitaire'));
         expect(res.status).toBe(200);
-        expect((await res.json()).users).toEqual([{ id: 'vl-here', name: 'VL Paris', email: 'a-vl@test.com' }]);
+        expect((await res.json()).users).toEqual([{ id: 'vl-here', name: 'VL Paris', email: 'a-vl@test.com', ulIds: [UL] }]);
     });
 
     it('RESP_VEHICULE sans UL de session → liste vide', async () => {
