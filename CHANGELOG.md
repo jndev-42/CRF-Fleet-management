@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.54.1] — 16 novembre 2026
+
+### 🐛 Corrections
+
+- Sélecteurs de personnes : le passage de « Toutes les UL » à « Mon UL » se voit désormais immédiatement. Le bouton actif est mis en évidence, le nombre de personnes affichées s'actualise et la liste revient en haut.
+
 ## [5.54.0] — 16 novembre 2026
 
 ### ✨ Ajouts

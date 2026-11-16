@@ -98,6 +98,19 @@ describe('UserCombobox', () => {
             expect(screen.getByText('Bruno Dupond')).toBeTruthy();
         });
 
+        it('affiche le nombre de personnes et remonte la liste au changement de filtre', () => {
+            render(<UserCombobox users={ulUsers} value="" onChange={vi.fn()} />);
+            open();
+            expect(screen.getByText('4 personnes')).toBeTruthy();
+            const list = screen.getByRole('listbox');
+            list.scrollTop = 120;
+            fireEvent.click(screen.getByRole('button', { name: 'Mon UL' }));
+            expect(screen.getByText('2 personnes')).toBeTruthy();
+            expect(list.scrollTop).toBe(0);
+            fireEvent.change(screen.getByRole('textbox'), { target: { value: 'alice' } });
+            expect(screen.getByText('1 personne')).toBeTruthy();
+        });
+
         it('cumule la recherche et le filtre', () => {
             render(<UserCombobox users={ulUsers} value="" onChange={vi.fn()} />);
             open();

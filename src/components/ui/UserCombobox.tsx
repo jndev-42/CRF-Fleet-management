@@ -40,6 +40,7 @@ export default function UserCombobox({
     const canFilterByUl = !!activeUlId && activeUlId !== 'default';
     const filterByUl = canFilterByUl && myUlOnly;
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const listRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!showDropdown) return;
@@ -67,6 +68,12 @@ export default function UserCombobox({
             u.name?.toLowerCase().includes(userSearch.toLowerCase()) ||
             u.email.toLowerCase().includes(userSearch.toLowerCase()))
     );
+
+    // Change de filtre : la liste repart du haut, sinon le changement passe inaperçu.
+    function selectUlFilter(mine: boolean) {
+        setMyUlOnly(mine);
+        if (listRef.current) listRef.current.scrollTop = 0;
+    }
 
     function handleSelect(id: string) {
         onChange(id);
@@ -105,7 +112,7 @@ export default function UserCombobox({
                                 type="button"
                                 className={`${styles.ulFilterBtn} ${!myUlOnly ? styles.ulFilterBtnActive : ''}`}
                                 aria-pressed={!myUlOnly}
-                                onClick={() => setMyUlOnly(false)}
+                                onClick={() => selectUlFilter(false)}
                             >
                                 Toutes les UL
                             </button>
@@ -113,13 +120,18 @@ export default function UserCombobox({
                                 type="button"
                                 className={`${styles.ulFilterBtn} ${myUlOnly ? styles.ulFilterBtnActive : ''}`}
                                 aria-pressed={myUlOnly}
-                                onClick={() => setMyUlOnly(true)}
+                                onClick={() => selectUlFilter(true)}
                             >
                                 Mon UL
                             </button>
                         </div>
                     )}
-                    <div className={styles.userDropdownList} role="listbox">
+                    {canFilterByUl && (
+                        <div className={styles.ulFilterCount} aria-live="polite">
+                            {filteredUsers.length} {filteredUsers.length > 1 ? 'personnes' : 'personne'}
+                        </div>
+                    )}
+                    <div className={styles.userDropdownList} role="listbox" ref={listRef}>
                         {!hideDefault && (
                             <div
                                 role="option"

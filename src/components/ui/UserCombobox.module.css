@@ -87,9 +87,17 @@
 }
 
 .ulFilterBtnActive {
-    background: var(--bg-hover, var(--bg-primary));
-    color: var(--text-primary);
+    background: var(--crf-red);
+    border-color: var(--crf-red);
+    color: #fff;
     font-weight: 600;
+}
+
+.ulFilterCount {
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .userDropdownEmpty {
