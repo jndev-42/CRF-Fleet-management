@@ -17,7 +17,7 @@ import { GET as GET_MISSION_DRIVERS } from '@/app/api/missions/drivers/route';
 import { GET as GET_QR_UL_DRIVERS } from '@/app/api/qr-ul/[token]/drivers/route';
 import { GET as GET_QR_UL_VEHICLES } from '@/app/api/qr-ul/[token]/vehicles/route';
 import { auth } from '@/auth';
-import { db, seedUniteLocale, seedVehicle, seedUser, seedRoles, seedUserRole } from './setup';
+import { db, seedUniteLocale, seedVehicle, seedUser, seedRoles, seedUserRole, seedUserUL } from './setup';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -53,6 +53,9 @@ describe("Listes de l'étape « Équipage » du rapport de mission", () => {
     await seedUserRole('usr-guest', 'CHVPSP');
     await seedUserRole('usr-guest', 'GUEST');
     await seedUserRole('usr-ci', 'CI/RPAPS');
+    // Alice : UL principale + UL secondaire ; seule la principale alimente le filtre « Mon UL ».
+    await seedUserUL({ userId: 'usr-alice', ulId: 'ul-paris-18', roles: ['CHVL'] });
+    await seedUserUL({ userId: 'usr-alice', ulId: 'ul-lyon', roles: ['CHVL'], isHome: false });
 
     await seedVehicle({ id: 'VL-PARIS', name: 'VL Paris', type: 'VL', ulId: 'ul-paris-18' });
     await seedVehicle({ id: 'VPSP-PARIS', name: 'VPSP Paris', type: 'VPSP', ulId: 'ul-paris-18' });
@@ -60,8 +63,8 @@ describe("Listes de l'étape « Équipage » du rapport de mission", () => {
   });
 
   const EXPECTED_DRIVERS = [
-    { id: 'usr-alice', name: 'Alice', email: 'alice@croix-rouge.fr', roles: ['CHVL'] },
-    { id: 'usr-bruno', name: 'Bruno', email: 'bruno@croix-rouge.fr', roles: expect.arrayContaining(['CHVL', 'CHVPSP']) },
+    { id: 'usr-alice', name: 'Alice', email: 'alice@croix-rouge.fr', ulIds: ['ul-paris-18'], roles: ['CHVL'] },
+    { id: 'usr-bruno', name: 'Bruno', email: 'bruno@croix-rouge.fr', ulIds: [], roles: expect.arrayContaining(['CHVL', 'CHVPSP']) },
   ];
 
   describe('GET /api/missions/drivers', () => {

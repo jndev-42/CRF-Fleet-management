@@ -67,3 +67,41 @@
     background: var(--bg-hover, var(--bg-primary));
     font-weight: 500;
 }
+
+.ulFilter {
+    display: flex;
+    gap: 4px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.ulFilterBtn {
+    flex: 1;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.ulFilterBtnActive {
+    background: var(--crf-red);
+    border-color: var(--crf-red);
+    color: #fff;
+    font-weight: 600;
+}
+
+.ulFilterCount {
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.userDropdownEmpty {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    color: var(--text-tertiary);
+}

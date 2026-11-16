@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { canManageVehicles } from '@/lib/roles';
+import UserCombobox from '@/components/ui/UserCombobox';
 import { formatDate } from './utils';
 import type { Trip } from './types';
 
@@ -7,7 +8,7 @@ interface ActiveTripBannerProps {
     activeTrip: Trip;
     userRoles: string[];
     currentUserEmail: string | null;
-    users: { id: string; name: string; email: string }[];
+    users: { id: string; name: string; email: string; ulIds?: string[] }[];
     canCheckIn: boolean;
     onShowDesinfPre: () => void;
     onEditCheckOut: (trip: Trip) => void;
@@ -29,15 +30,15 @@ export default function ActiveTripBanner({
     showToast,
 }: ActiveTripBannerProps) {
     const [showAddSecondDriver, setShowAddSecondDriver] = useState(false);
-    const [secondDriverEmail, setSecondDriverEmail] = useState('');
+    const [secondDriverId, setSecondDriverId] = useState('');
     const [submittingSecondDriver, setSubmittingSecondDriver] = useState(false);
 
     async function handleAddSecondDriver(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
-        if (!secondDriverEmail) return;
+        if (!secondDriverId) return;
 
         setSubmittingSecondDriver(true);
-        const match = users.find(u => u.email === secondDriverEmail);
+        const match = users.find(u => u.id === secondDriverId);
         if (!match) {
             alert('Utilisateur introuvable');
             setSubmittingSecondDriver(false);
@@ -53,7 +54,7 @@ export default function ActiveTripBanner({
 
             if (res.ok) {
                 setShowAddSecondDriver(false);
-                setSecondDriverEmail('');
+                setSecondDriverId('');
                 onSecondDriverAdded();
                 showToast('2ème conducteur ajouté avec succès !');
             } else {
@@ -119,23 +120,16 @@ export default function ActiveTripBanner({
                             </button>
                         ) : (
                             <form onSubmit={handleAddSecondDriver} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                                <div>
-                                    <input
-                                        list="user-list-inline"
-                                        className="form-input"
-                                        placeholder="Sélectionner un utilisateur..."
-                                        value={secondDriverEmail}
-                                        onChange={(e) => setSecondDriverEmail(e.target.value)}
-                                        style={{ fontSize: 13, padding: '6px 10px', width: '220px' }}
-                                        required
+                                <div style={{ width: 220 }}>
+                                    <UserCombobox
+                                        users={users}
+                                        value={secondDriverId}
+                                        onChange={setSecondDriverId}
+                                        hideDefault
+                                        emptyLabel="Sélectionner un utilisateur..."
                                     />
-                                    <datalist id="user-list-inline">
-                                        {users.map(u => (
-                                            <option key={u.email} value={u.email}>{u.name}</option>
-                                        ))}
-                                    </datalist>
                                 </div>
-                                <button type="submit" className="btn btn-primary" style={{ fontSize: 13, padding: '6px 12px' }} disabled={submittingSecondDriver}>
+                                <button type="submit" className="btn btn-primary" style={{ fontSize: 13, padding: '6px 12px' }} disabled={submittingSecondDriver || !secondDriverId}>
                                     {submittingSecondDriver ? '...' : 'Valider'}
                                 </button>
                                 <button type="button" className="btn btn-secondary" style={{ fontSize: 13, padding: '6px 12px' }} onClick={() => setShowAddSecondDriver(false)}>

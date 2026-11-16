@@ -74,7 +74,7 @@ describe('GET /api/vehicles/[id]/drivers', () => {
     const res = await getDrivers('VL01');
     expect(res.status).toBe(200);
     const { users } = await res.json();
-    expect(users).toEqual([{ id: 'usr-chvl', name: 'Alice CHVL', email: 'chvl@croix-rouge.fr' }]);
+    expect(users).toEqual([{ id: 'usr-chvl', name: 'Alice CHVL', email: 'chvl@croix-rouge.fr', ulIds: [] }]);
   });
 
   it('liste les CHVPSP pour un VPSP', async () => {

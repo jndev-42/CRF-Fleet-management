@@ -91,7 +91,7 @@ describe('QR — 2ème conducteur', () => {
       const res = await getDrivers('tok-vl');
       expect(res.status).toBe(200);
       const { users } = await res.json();
-      expect(users).toEqual([{ id: 'usr-chvl', name: 'Alice CHVL', email: 'chvl@croix-rouge.fr' }]);
+      expect(users).toEqual([{ id: 'usr-chvl', name: 'Alice CHVL', email: 'chvl@croix-rouge.fr', ulIds: [] }]);
     });
 
     it('exclut les comptes portant le rôle hérité GUEST', async () => {

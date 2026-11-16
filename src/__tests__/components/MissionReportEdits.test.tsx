@@ -462,11 +462,10 @@ describe('Step2Vehicle — valeurs enregistrées absentes des listes', () => {
         );
         await waitFor(() => expect(global.fetch).toHaveBeenCalled());
         const vehicle = screen.getByLabelText('Véhicule utilisé') as HTMLSelectElement;
-        const driver = screen.getByLabelText('Chauffeur') as HTMLSelectElement;
         expect(vehicle.value).toBe('v-other-ul');
         expect(vehicle.selectedOptions[0].textContent).toBe('VPSP Paris 4');
-        expect(driver.value).toBe('u-driver');
-        expect(driver.selectedOptions[0].textContent).toBe('Bruno');
+        // Le déclencheur du combobox garde le nom du conducteur enregistré.
+        expect(document.querySelector('[aria-haspopup="listbox"]')?.textContent).toContain('Bruno');
     });
 
     it('après avoir choisi une autre valeur, la valeur enregistrée reste proposée et resélectionnable', async () => {
@@ -486,10 +485,10 @@ describe('Step2Vehicle — valeurs enregistrées absentes des listes', () => {
         );
         await screen.findByText('VL 18 (VL)');
         expect(screen.getByRole('option', { name: 'VPSP Paris 4' })).toBeTruthy();
-        expect(screen.getByRole('option', { name: 'Bruno' })).toBeTruthy();
         fireEvent.change(screen.getByLabelText('Véhicule utilisé'), { target: { value: 'v-other-ul' } });
         expect(onChange).toHaveBeenCalledWith({ vehicle_id: 'v-other-ul', driver_id: null });
-        fireEvent.change(screen.getByLabelText('Chauffeur'), { target: { value: 'u-driver' } });
+        fireEvent.click(document.querySelector('[aria-haspopup="listbox"]') as HTMLElement);
+        fireEvent.click(screen.getByRole('option', { name: 'Bruno' }));
         expect(onChange).toHaveBeenCalledWith({ driver_id: 'u-driver' });
     });
 

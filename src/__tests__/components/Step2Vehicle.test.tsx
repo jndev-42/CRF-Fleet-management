@@ -1,5 +1,10 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+const sessionMock = vi.hoisted(() => ({ ulId: undefined as string | undefined }));
+vi.mock('next-auth/react', () => ({
+    useSession: () => ({ data: sessionMock.ulId ? { user: { ulId: sessionMock.ulId } } : null, status: 'authenticated' }),
+}));
+
 import Step2Vehicle from '@/components/missions/steps/Step2Vehicle';
 import type { MissionFormData } from '@/components/missions/MissionWizard';
 
@@ -27,6 +32,11 @@ function mockFetch() {
     });
 }
 
+/** Ouvre la liste déroulante du chauffeur (UserCombobox). */
+function openDriverList() {
+    fireEvent.click(document.querySelector('[aria-haspopup="listbox"]') as HTMLElement);
+}
+
 beforeEach(() => {
     vi.restoreAllMocks();
 });
@@ -40,13 +50,14 @@ describe('Step2Vehicle', () => {
         mockFetch();
         render(<Step2Vehicle data={baseData} onChange={vi.fn()} />);
         await waitFor(() => expect(screen.getByText('VL186 (VL)')).toBeTruthy());
+        openDriverList();
         expect(screen.getByText('Jean Dupont')).toBeTruthy();
     });
 
     it('lit les chauffeurs via /api/missions/drivers par défaut, jamais via GET /api/users (réservé aux gestionnaires)', async () => {
         const fetchSpy = mockFetch();
         render(<Step2Vehicle data={baseData} onChange={vi.fn()} />);
-        await waitFor(() => expect(screen.getByText('Jean Dupont')).toBeTruthy());
+        await waitFor(() => expect(fetchSpy).toHaveBeenCalledTimes(2));
         const urls = fetchSpy.mock.calls.map(([input]) => String(input));
         expect(urls).toEqual(expect.arrayContaining(['/api/vehicles', '/api/missions/drivers']));
         expect(urls.some(u => u.startsWith('/api/users'))).toBe(false);
@@ -56,6 +67,7 @@ describe('Step2Vehicle', () => {
         const fetchSpy = mockFetch();
         render(<Step2Vehicle data={baseData} onChange={vi.fn()} endpoints={{ vehicles: '/api/qr-ul/tok/vehicles', drivers: '/api/qr-ul/tok/drivers' }} />);
         await waitFor(() => expect(screen.getByText('VL186 (VL)')).toBeTruthy());
+        openDriverList();
         expect(screen.getByText('Jean Dupont')).toBeTruthy();
         const urls = fetchSpy.mock.calls.map(([input]) => String(input));
         expect(urls).toEqual(['/api/qr-ul/tok/vehicles', '/api/qr-ul/tok/drivers']);
@@ -74,6 +86,8 @@ describe('Step2Vehicle', () => {
     it('ne montre que les chauffeurs CHVPSP pour un véhicule VPSP', async () => {
         mockFetch();
         render(<Step2Vehicle data={{ ...baseData, vehicle_id: 'VPSP001' }} onChange={vi.fn()} />);
+        await waitFor(() => expect(screen.getByText('VPSP-1 (VPSP)')).toBeTruthy());
+        openDriverList();
         await waitFor(() => expect(screen.getByText('Marie Curie')).toBeTruthy());
         expect(screen.queryByText('Jean Dupont')).toBeNull();
     });
@@ -95,6 +109,22 @@ describe('Step2Vehicle', () => {
     it('affiche l\'option "Moi" pour l\'utilisateur courant si non-VPSP', async () => {
         mockFetch();
         render(<Step2Vehicle data={baseData} onChange={vi.fn()} currentUserId="u1" currentUserName="Jean Dupont" />);
+        await waitFor(() => expect(fetch).toHaveBeenCalled());
+        openDriverList();
         await waitFor(() => expect(screen.getByText('Moi (Jean Dupont)')).toBeTruthy());
+    });
+
+    it('« Moi » reste proposé sous « Mon UL » pour un utilisateur courant absent des chauffeurs', async () => {
+        sessionMock.ulId = 'ul-a';
+        try {
+            mockFetch();
+            render(<Step2Vehicle data={baseData} onChange={vi.fn()} currentUserId="u-admin" currentUserName="Admin" />);
+            await waitFor(() => expect(fetch).toHaveBeenCalled());
+            openDriverList();
+            fireEvent.click(screen.getByRole('button', { name: 'Mon UL' }));
+            expect(screen.getByRole('option', { name: 'Moi (Admin)' })).toBeTruthy();
+        } finally {
+            sessionMock.ulId = undefined;
+        }
     });
 });
