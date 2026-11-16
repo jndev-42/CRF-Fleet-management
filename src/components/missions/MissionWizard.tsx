@@ -12,7 +12,9 @@ import Step3Supplies from './steps/Step3Supplies';
 import Step4Oxygen from './steps/Step4Oxygen';
 import Step5Team from './steps/Step5Team';
 import Step6Incidents from './steps/Step6Incidents';
-import Step7SignedReport from './steps/Step7SignedReport';
+import Step7SignedReport, { type SignedReportMode } from './steps/Step7SignedReport';
+import type { ReportSignatures } from './steps/SignedReportAppPanel';
+import type { SignatureData } from '@/components/expenses/ElectronicSignatureModal';
 import Step8Photos from './steps/Step8Photos';
 import Step9Comment from './steps/Step9Comment';
 import styles from './MissionWizard.module.css';
@@ -59,6 +61,21 @@ export interface MissionFormData {
     intervention_types: Record<string, number>;
     /** Répartition du total d'interventions par nature clinique — clé = catégorie. */
     intervention_natures: Record<string, number>;
+    /** Horaires « HH:MM » (DPS / PAPS) — chaîne vide = non renseigné. */
+    start_time: string;
+    end_time: string;
+    arrival_time: string;
+    departure_time: string;
+    /** Responsable de la mission (pré-rempli avec le soumetteur) et son téléphone. */
+    mission_lead_name: string;
+    mission_lead_phone: string;
+    /** Rapport signé dans l'appli : observations et organisateur (aussi modifiables en édition). */
+    crf_observations: string;
+    organizer_observations: string;
+    organizer_name: string;
+    organizer_function: string;
+    /** DPS / PAPS : comment le rapport signé est fourni. `null` = rapport existant (édition) ou Réseaux. */
+    signed_report_mode: SignedReportMode | null;
 }
 
 const INITIAL_FORM: MissionFormData = {
@@ -87,6 +104,17 @@ const INITIAL_FORM: MissionFormData = {
     volunteer_accident_details: '',
     intervention_types: {},
     intervention_natures: {},
+    start_time: '',
+    end_time: '',
+    arrival_time: '',
+    departure_time: '',
+    mission_lead_name: '',
+    mission_lead_phone: '',
+    crf_observations: '',
+    organizer_observations: '',
+    organizer_name: '',
+    organizer_function: '',
+    signed_report_mode: 'PHOTO',
 };
 
 /** Partie « texte » du brouillon, gardée dans localStorage (les fichiers vont dans IndexedDB). */
@@ -94,6 +122,10 @@ interface WizardDraft {
     step: number;
     formData: MissionFormData;
     supplies: Record<string, number>;
+}
+
+function toApiSignature(sig: SignatureData) {
+    return { image: sig.image, signed_at: sig.date, name: sig.name, function_title: sig.functionTitle ?? null };
 }
 
 function initialFormFor(lockedUlId?: string): MissionFormData {
@@ -122,9 +154,6 @@ interface MissionWizardProps {
         reportId: string;
         formData: MissionFormData;
         supplies: Record<string, number>;
-        /** Le rapport enregistré a-t-il un rapport signé ? Sans lui, passer en DPS/PAPS
-         *  est bloqué : l'étape « Rapport signé » n'existe pas en édition. */
-        hasSignedReport?: boolean;
         /** Véhicule / conducteur enregistrés, conservés même absents des listes. */
         storedVehicle?: StoredCrewOption | null;
         storedDriver?: StoredCrewOption | null;
@@ -166,6 +195,8 @@ export default function MissionWizard({
     const [supplies, setSupplies] = useState<Record<string, number>>(edit?.supplies ?? restoredDraft?.supplies ?? {});
     const [signedReportFile, setSignedReportFile] = useState<File | null>(null);
     const [photos, setPhotos] = useState<File[]>([]);
+    // Signatures du mode « signé dans l'appli » : jamais gardées dans le brouillon.
+    const [signatures, setSignatures] = useState<ReportSignatures>({ team: null, organizer: null });
     const [draftRestored, setDraftRestored] = useState(restoredDraft !== null);
     // Tant que les fichiers du brouillon n'ont pas été relus, ne pas les écraser
     // avec l'état vide du montage.
@@ -244,6 +275,7 @@ export default function MissionWizard({
         setFormData(initialFormFor(lockedUlId));
         setSupplies({});
         setSignedReportFile(null);
+        setSignatures({ team: null, organizer: null });
         setPhotos([]);
         setStep(1);
         setError(null);
@@ -252,7 +284,14 @@ export default function MissionWizard({
     }
 
     function patchFormData(patch: Partial<MissionFormData>) {
-        setFormData(prev => ({ ...prev, ...patch }));
+        setFormData(prev => {
+            const next = { ...prev, ...patch };
+            // Responsable de la mission : pré-rempli avec le soumetteur au passage en DPS / PAPS, modifiable.
+            if (patch.mission_type && patch.mission_type !== 'RESEAU' && !next.mission_lead_name.trim() && currentUserName) {
+                next.mission_lead_name = currentUserName;
+            }
+            return next;
+        });
     }
 
     function handleSupplyChange(key: string, qty: number) {
@@ -284,13 +323,6 @@ export default function MissionWizard({
             if (!formData.mission_name.trim()) return 'Le nom de la mission est requis.';
             if (!formData.mission_date) return 'La date est requise.';
             if (!formData.location.trim()) return 'Le lieu est requis.';
-            // Seul un PASSAGE en DPS/PAPS est bloqué : un rapport déjà DPS/PAPS sans
-            // rapport signé (antérieur à l'obligation) reste modifiable.
-            const needsSignedReport = (t: string) => t === 'DPS' || t === 'PAPS';
-            if (edit && !edit.hasSignedReport
-                && needsSignedReport(formData.mission_type) && !needsSignedReport(edit.formData.mission_type)) {
-                return 'Ce compte rendu n\'a pas de rapport signé : il ne peut pas passer en DPS ou PAPS, qui en exigent un. Créez un nouveau compte rendu si nécessaire.';
-            }
         }
         if (label === 'Répartition interventions') {
             const modeTotal = breakdownTotal(formData.intervention_types);
@@ -311,7 +343,18 @@ export default function MissionWizard({
             }
         }
         if (label === 'Rapport signé') {
-            if (!signedReportFile) return 'Le rapport signé est obligatoire. Veuillez photographier ou importer le document.';
+            const mode = formData.signed_report_mode;
+            if (mode === 'PHOTO' && !signedReportFile) return 'Le rapport signé est obligatoire. Veuillez photographier ou importer le document.';
+            if (mode === 'APP') {
+                const missing = [
+                    formData.start_time, formData.end_time, formData.arrival_time, formData.departure_time,
+                    formData.mission_lead_name.trim(), formData.mission_lead_phone.trim(),
+                ].some(v => !v);
+                if (missing) return 'Pour signer dans l\u2019appli, renseignez les horaires, le responsable de la mission et son téléphone (étape Général).';
+                if (!formData.organizer_name.trim() || !formData.organizer_function.trim()) return 'Renseignez le nom et la fonction de l\u2019organisateur.';
+                if (!signatures.team) return 'La signature du responsable de l\u2019équipe est requise.';
+                if (!signatures.organizer) return 'La signature de l\u2019organisateur est requise.';
+            }
         }
         return null;
     }
@@ -368,9 +411,27 @@ export default function MissionWizard({
         // Description d'accident : envoyée seulement si l'accident est déclaré.
         const accidentDetails = formData.volunteer_accident ? formData.volunteer_accident_details : null;
 
+        // Champs DPS / PAPS : chaîne vide → null ; tout à null pour Réseaux (ignorés côté serveur).
+        const dps = formData.mission_type !== 'RESEAU';
+        const textOrNull = (v: string) => (dps && v.trim() ? v.trim() : null);
+        const dpsFields = {
+            start_time: textOrNull(formData.start_time),
+            end_time: textOrNull(formData.end_time),
+            arrival_time: textOrNull(formData.arrival_time),
+            departure_time: textOrNull(formData.departure_time),
+            mission_lead_name: textOrNull(formData.mission_lead_name),
+            mission_lead_phone: textOrNull(formData.mission_lead_phone),
+            crf_observations: textOrNull(formData.crf_observations),
+            organizer_observations: textOrNull(formData.organizer_observations),
+            organizer_name: textOrNull(formData.organizer_name),
+            organizer_function: textOrNull(formData.organizer_function),
+        };
+        const mode = showReportStep ? formData.signed_report_mode : null;
+
         if (edit) {
             await submitEdit(edit.reportId, {
                 ...formData,
+                ...dpsFields,
                 volunteer_accident_details: accidentDetails,
                 supplies: suppliesArr,
                 intervention_types: interventionTypesArr,
@@ -379,9 +440,9 @@ export default function MissionWizard({
             return;
         }
 
-        // Upload the signed report (mandatory for DPS/PAPS)
+        // Mode photo : upload du rapport papier signé
         let signedReportDriveId: string | null = null;
-        if (showReportStep && signedReportFile) {
+        if (mode === 'PHOTO' && signedReportFile) {
             const uploadResult = await uploadMediaSafely({
                 files: [signedReportFile],
                 type: 'mission-report-photo',
@@ -421,12 +482,21 @@ export default function MissionWizard({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    ...dpsFields,
                     volunteer_accident_details: accidentDetails,
                     supplies: suppliesArr,
                     intervention_types: interventionTypesArr,
                     intervention_natures: interventionNaturesArr,
                     drive_folder_id: driveFolderId,
                     signed_report_drive_id: signedReportDriveId,
+                    signed_report_mode: mode,
+                    // Le serveur remplit le PDF modèle : seules les signatures voyagent.
+                    app_report: mode === 'APP' && signatures.team && signatures.organizer
+                        ? {
+                            team_signature: toApiSignature(signatures.team),
+                            organizer_signature: toApiSignature(signatures.organizer),
+                        }
+                        : null,
                 }),
             });
 
@@ -567,8 +637,20 @@ export default function MissionWizard({
             {currentStepLabel === 'Oxygène' && <Step4Oxygen supplies={supplies} onSupplyChange={handleSupplyChange} />}
             {currentStepLabel === 'Équipe' && <Step5Team data={formData} onChange={patchFormData} currentUserUlName={currentUserUlName} />}
             {currentStepLabel === 'Incidents' && <Step6Incidents data={formData} onChange={patchFormData} />}
-            {currentStepLabel === 'Rapport signé' && <Step7SignedReport file={signedReportFile} onChange={setSignedReportFile} />}
-            {currentStepLabel === 'Commentaire' && <Step9Comment data={formData} onChange={patchFormData} />}
+            {currentStepLabel === 'Rapport signé' && (
+                <Step7SignedReport
+                    data={formData}
+                    onChange={patchFormData}
+                    file={signedReportFile}
+                    onFileChange={setSignedReportFile}
+                    signatures={signatures}
+                    onSignaturesChange={patch => setSignatures(prev => ({ ...prev, ...patch }))}
+                    signerName={currentUserName ?? ''}
+                />
+            )}
+            {currentStepLabel === 'Commentaire' && (
+                <Step9Comment data={formData} onChange={patchFormData} showReportFields={isEdit && formData.mission_type !== 'RESEAU' && formData.signed_report_mode === 'APP'} />
+            )}
             {currentStepLabel === 'Photos' && <Step8Photos photos={photos} onPhotosChange={setPhotos} uploadError={uploadError} />}
 
             {/* Navigation */}

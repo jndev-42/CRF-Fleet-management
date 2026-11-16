@@ -25,6 +25,10 @@ const nextConfig: NextConfig = {
   // cette inclusion, il manque dans la fonction Vercel et l'indexation du référentiel échoue.
   outputFileTracingIncludes: {
     '/api/referentiel/process': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
+    // PDF modèle du rapport de mission, lu par `fs` (invisible du traçage) : sans cette
+    // inclusion, il manque dans la fonction Vercel et la création d'un rapport signé dans l'appli répond 500.
+    '/api/missions': ['./src/lib/missions/report-template/rapport-mission-dps.pdf'],
+    '/api/qr-ul/[token]/mission-report': ['./src/lib/missions/report-template/rapport-mission-dps.pdf'],
   },
 
   // OpenCV.js (scanner de document) référence fs/path/crypto pour son mode Node : inutiles côté navigateur.

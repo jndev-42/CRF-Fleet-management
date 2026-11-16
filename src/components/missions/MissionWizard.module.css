@@ -400,3 +400,91 @@
 .draftBanner strong {
     color: var(--text-primary);
 }
+
+/* Étape « Rapport signé » : choix du mode (photo / signé dans l'appli / aucun). */
+.modeList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.modeOption {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.9375rem;
+}
+
+.modeOptionActive {
+    border-color: var(--crf-red);
+}
+
+.warningBox {
+    padding: 0.75rem 1rem;
+    background: var(--warning-bg, #fef3c7);
+    color: var(--warning-text, #92400e);
+    border: 1px solid var(--warning-border, #fcd34d);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+/* Sous-parcours « signé dans l'appli ». */
+.appSection {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.appSectionTitle {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.signedCard {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+}
+
+.signedPreview {
+    width: 120px;
+    height: auto;
+    max-height: 60px;
+    object-fit: contain;
+    background: #ffffff;
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+}
+
+.signedMeta {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.signedMeta strong {
+    color: var(--text-primary);
+}
+
+.fieldGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0 1rem;
+}

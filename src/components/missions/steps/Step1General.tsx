@@ -9,6 +9,9 @@ interface Step1Props {
 }
 
 export default function Step1General({ data, onChange }: Step1Props) {
+    const isDps = data.mission_type === 'DPS' || data.mission_type === 'PAPS';
+    // Obligatoires seulement si le rapport est signé dans l'appli ; facultatifs sinon.
+    const star = data.signed_report_mode === 'APP' ? ' *' : '';
     return (
         <div className={styles.stepContent}>
             <h2 className={styles.stepTitle}>Informations générales</h2>
@@ -78,6 +81,54 @@ export default function Step1General({ data, onChange }: Step1Props) {
                     style={{ maxWidth: '8rem' }}
                 />
             </div>
+
+            {isDps && (
+                <>
+                    <div className={styles.fieldGrid}>
+                        {([
+                            ['start_time', 'Heure de début'],
+                            ['end_time', 'Heure de fin'],
+                            ['arrival_time', 'Heure d\u2019arrivée sur place'],
+                            ['departure_time', 'Heure de départ des lieux'],
+                        ] as const).map(([key, label]) => (
+                            <div className="form-group" key={key}>
+                                <label className="form-label" htmlFor={key}>{label}{star}</label>
+                                <input
+                                    id={key}
+                                    type="time"
+                                    className="form-input"
+                                    value={data[key]}
+                                    onChange={e => onChange({ [key]: e.target.value })}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                    <div className={styles.fieldGrid}>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="mission_lead_name">Responsable de la mission{star}</label>
+                            <input
+                                id="mission_lead_name"
+                                type="text"
+                                className="form-input"
+                                maxLength={200}
+                                value={data.mission_lead_name}
+                                onChange={e => onChange({ mission_lead_name: e.target.value })}
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="mission_lead_phone">Téléphone du responsable{star}</label>
+                            <input
+                                id="mission_lead_phone"
+                                type="tel"
+                                className="form-input"
+                                maxLength={30}
+                                value={data.mission_lead_phone}
+                                onChange={e => onChange({ mission_lead_phone: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 }

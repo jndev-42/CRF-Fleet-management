@@ -10,6 +10,8 @@ const baseData: MissionFormData = {
     presence_ul: null, team_dynamics: null, all_found_place: null, member_difficulties: null,
     free_comment: null, mission_comment: null, had_acr: false, had_hemorrhage: false, had_complex_care: false, needs_followup: false, volunteer_accident: false, volunteer_accident_details: '',
     intervention_types: {}, intervention_natures: {},
+    start_time: '', end_time: '', arrival_time: '', departure_time: '', mission_lead_name: '', mission_lead_phone: '',
+    crf_observations: '', organizer_observations: '', organizer_name: '', organizer_function: '', signed_report_mode: 'PHOTO',
 };
 
 const vehicles = [{ id: 'VL001', name: 'VL186', type: 'VL' }, { id: 'VPSP001', name: 'VPSP-1', type: 'VPSP' }];

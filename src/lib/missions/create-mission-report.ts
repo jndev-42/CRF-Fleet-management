@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { isAcceptableMediaRef } from '@/lib/media/refs';
 import { db } from '@/lib/db';
 import { INTERVENTION_MODE_CATEGORIES, INTERVENTION_NATURE_CATEGORIES } from '@/lib/mission-interventions';
+import { buildMediaFileKey, buildMediaFolderRef, readableSegment } from '@/lib/media/refs';
+import { fillMissionReportPdf } from '@/lib/missions/report-pdf';
 
 /**
  * Point d'écriture UNIQUE des comptes rendus de mission.
@@ -43,6 +45,9 @@ const sumQuantities = (entries: { quantity: number }[]) => entries.reduce((acc, 
 const hasDuplicateCategory = (entries: { category: string }[]) =>
     new Set(entries.map(e => e.category)).size !== entries.length;
 
+/** Heure « HH:MM » (24 h). */
+const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, { message: 'Heure invalide (HH:MM)' }).nullable().optional();
+
 /**
  * Contenu d'un rapport, partagé par la création et la modification après envoi.
  *
@@ -79,6 +84,18 @@ export const missionReportContentSchema = z.object({
     intervention_types: z.array(interventionModeEntrySchema).default([]),
     /** Répartition du total par nature clinique — somme = victim_count. */
     intervention_natures: z.array(interventionNatureEntrySchema).default([]),
+    /** Horaires et responsable de la mission (DPS / PAPS ; ignorés pour Réseaux). */
+    start_time: timeSchema,
+    end_time: timeSchema,
+    arrival_time: timeSchema,
+    departure_time: timeSchema,
+    mission_lead_name: z.string().max(200).nullable().optional(),
+    mission_lead_phone: z.string().max(30).nullable().optional(),
+    /** Observations et organisateur du rapport signé dans l'appli (mode APP). */
+    crf_observations: z.string().max(2000).nullable().optional(),
+    organizer_observations: z.string().max(2000).nullable().optional(),
+    organizer_name: z.string().max(200).nullable().optional(),
+    organizer_function: z.string().max(200).nullable().optional(),
 });
 
 type MissionReportContent = z.infer<typeof missionReportContentSchema>;
@@ -166,14 +183,96 @@ export function accidentDetailsToStore(data: Pick<MissionReportContent, 'volunte
     return details || null;
 }
 
+export const SIGNED_REPORT_MODES = ['PHOTO', 'APP', 'NONE'] as const;
+export type SignedReportMode = (typeof SIGNED_REPORT_MODES)[number];
+
+/** Signature saisie dans l'appli : image PNG (data URL, plafonnée) et date ISO. */
+const signatureSchema = z.object({
+    image: z.string().max(500_000).regex(/^data:image\/png;base64,iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/, 'Image de signature invalide'),
+    signed_at: z.string().datetime({ offset: true, message: 'Date de signature invalide' }),
+    name: z.string().trim().min(1, 'Nom du signataire requis').max(200),
+    function_title: z.string().max(200).nullable().optional(),
+});
+
+export type MissionReportSignature = z.infer<typeof signatureSchema>;
+
+const isDpsOrPaps = (type: string) => type === 'DPS' || type === 'PAPS';
+
+/** Mode effectif d'un rapport : `null` pour Réseaux ; sinon le mode envoyé, ou PHOTO déduit de la présence d'un fichier
+ *  (sans mode ni fichier, la validation refuse — le repli NONE n'est jamais atteint). */
+export function effectiveSignedReportMode(
+    data: { mission_type: string; signed_report_mode?: SignedReportMode | null; signed_report_drive_id?: string | null },
+): SignedReportMode | null {
+    if (!isDpsOrPaps(data.mission_type)) return null;
+    return data.signed_report_mode ?? (data.signed_report_drive_id ? 'PHOTO' : 'NONE');
+}
+
+/** Cohérence mode / fichier / signatures / champs requis du mode APP. */
+function refineSignedReport(
+    data: {
+        mission_type: string;
+        signed_report_mode?: SignedReportMode | null;
+        signed_report_drive_id?: string | null;
+        app_report?: unknown;
+    } & Partial<Record<'start_time' | 'end_time' | 'arrival_time' | 'departure_time' | 'mission_lead_name' | 'mission_lead_phone' | 'organizer_name' | 'organizer_function', string | null>>,
+    ctx: z.RefinementCtx,
+) {
+    const mode = effectiveSignedReportMode(data);
+    if (mode === null) return; // Réseaux : mode et champs DPS/PAPS ignorés
+    if (!data.signed_report_mode && !data.signed_report_drive_id) {
+        ctx.addIssue({ code: 'custom', path: ['signed_report_mode'], message: 'Choisissez comment fournir le rapport signé (photo, signé dans l\'appli ou aucun).' });
+        return;
+    }
+    const hasFile = Boolean(data.signed_report_drive_id);
+    const hasApp = Boolean(data.app_report);
+
+    if (mode === 'PHOTO' && !hasFile) {
+        ctx.addIssue({ code: 'custom', path: ['signed_report_drive_id'], message: 'Le rapport signé (photo) est requis.' });
+    }
+    if (mode !== 'PHOTO' && hasFile) {
+        ctx.addIssue({ code: 'custom', path: ['signed_report_drive_id'], message: 'Aucun fichier ne peut être joint avec ce mode de rapport.' });
+    }
+    if (mode === 'APP' && !hasApp) {
+        ctx.addIssue({ code: 'custom', path: ['app_report'], message: 'Les deux signatures sont requises.' });
+    }
+    if (mode !== 'APP' && hasApp) {
+        ctx.addIssue({ code: 'custom', path: ['app_report'], message: 'Les signatures ne s\'appliquent qu\'au mode « signé dans l\'appli ».' });
+    }
+    if (mode === 'APP') {
+        const required: [keyof typeof data, string][] = [
+            ['start_time', 'L\'heure de début est requise.'],
+            ['end_time', 'L\'heure de fin est requise.'],
+            ['arrival_time', 'L\'heure d\'arrivée sur place est requise.'],
+            ['departure_time', 'L\'heure de départ des lieux est requise.'],
+            ['mission_lead_name', 'Le responsable de la mission est requis.'],
+            ['mission_lead_phone', 'Le téléphone du responsable est requis.'],
+            ['organizer_name', 'Le nom de l\'organisateur est requis.'],
+            ['organizer_function', 'La fonction de l\'organisateur est requise.'],
+        ];
+        for (const [key, message] of required) {
+            const value = data[key];
+            if (typeof value !== 'string' || !value.trim()) ctx.addIssue({ code: 'custom', path: [key], message });
+        }
+    }
+}
+
 export const createMissionReportSchema = missionReportContentSchema.extend({
     /** Rattachement du poste — exactement un des deux est renseigné (cf. superRefine). */
     selected_ul_id: z.string().min(1).nullable().optional(),
     selected_dt_code: z.string().min(1).nullable().optional(),
     drive_folder_id: z.string().max(512).refine(v => isAcceptableMediaRef(v, 'mission-com-photos'), 'Dossier de photos invalide').nullable().optional(),
     signed_report_drive_id: z.string().max(512).refine(v => isAcceptableMediaRef(v, 'mission-report-photo', 'file'), 'Rapport signé invalide').nullable().optional(),
+    /** DPS / PAPS : PHOTO (rapport papier photographié), APP (signé dans l'appli, PDF généré
+     *  par le serveur) ou NONE. Absent : PHOTO si un fichier est joint, sinon refusé (400). */
+    signed_report_mode: z.enum(SIGNED_REPORT_MODES).nullable().optional(),
+    /** Mode APP : les deux signatures. Jamais stockées en base — elles n'existent que dans le PDF. */
+    app_report: z.object({
+        team_signature: signatureSchema,
+        organizer_signature: signatureSchema,
+    }).nullable().optional(),
 }).superRefine((data, ctx) => {
     refineMissionReportContent(data, ctx);
+    refineSignedReport(data, ctx);
     // Invariant du rattachement : exactement un des deux champs. Une UL ET une DT
     // rendraient la visibilité ambiguë ; aucune des deux rendrait le rapport
     // invisible dans « Tous les rapports » sans que personne l'ait choisi.
@@ -200,11 +299,47 @@ export const updateMissionReportSchema = missionReportContentSchema.extend({
     volunteer_accident: z.boolean(),
     intervention_types: z.array(interventionModeEntrySchema),
     intervention_natures: z.array(interventionNatureEntrySchema),
-}).required().superRefine(refineMissionReportContent);
+}).required().extend({
+    // Les 10 champs DPS/PAPS restent facultatifs en modification : une clé absente
+    // (client périmé, MCP) conserve la valeur enregistrée, elle ne l'efface pas.
+    start_time: timeSchema,
+    end_time: timeSchema,
+    arrival_time: timeSchema,
+    departure_time: timeSchema,
+    mission_lead_name: z.string().max(200).nullable().optional(),
+    mission_lead_phone: z.string().max(30).nullable().optional(),
+    crf_observations: z.string().max(2000).nullable().optional(),
+    organizer_observations: z.string().max(2000).nullable().optional(),
+    organizer_name: z.string().max(200).nullable().optional(),
+    organizer_function: z.string().max(200).nullable().optional(),
+}).superRefine(refineMissionReportContent);
 
 export type UpdateMissionReportInput = z.infer<typeof updateMissionReportSchema>;
 
 export type CreateMissionReportInput = z.infer<typeof createMissionReportSchema>;
+
+const textOrNull = (v: string | null | undefined): string | null => {
+    const t = (v ?? '').trim();
+    return t ? t : null;
+};
+
+/** Champs DPS/PAPS à stocker : tout à NULL pour Réseaux ; observations et organisateur seulement en mode APP. */
+export function dpsFieldsToStore(data: MissionReportContent, mode: SignedReportMode | null) {
+    const dps = mode !== null;
+    const app = mode === 'APP';
+    return {
+        start_time: dps ? textOrNull(data.start_time) : null,
+        end_time: dps ? textOrNull(data.end_time) : null,
+        arrival_time: dps ? textOrNull(data.arrival_time) : null,
+        departure_time: dps ? textOrNull(data.departure_time) : null,
+        mission_lead_name: dps ? textOrNull(data.mission_lead_name) : null,
+        mission_lead_phone: dps ? textOrNull(data.mission_lead_phone) : null,
+        crf_observations: app ? textOrNull(data.crf_observations) : null,
+        organizer_observations: app ? textOrNull(data.organizer_observations) : null,
+        organizer_name: app ? textOrNull(data.organizer_name) : null,
+        organizer_function: app ? textOrNull(data.organizer_function) : null,
+    };
+}
 
 /** Résultat de l'insertion — l'appelant traduit `status`/`error` en réponse HTTP.
  *  Une exception reste une exception : elle remonte à la route, qui répond 500. */
@@ -287,8 +422,56 @@ export async function insertMissionReport(
             if (bindError) return { ok: false, status: 400, error: bindError };
         }
     }
-    const tx = await db.transaction('write');
+    const mode = effectiveSignedReportMode(data);
+    const dpsFields = dpsFieldsToStore(data, mode);
+
+    // Mode APP : le serveur remplit le PDF modèle à partir des données DÉJÀ validées
+    // (son contenu correspond donc toujours à la ligne insérée), puis l'écrit sur R2
+    // AVANT l'INSERT — un échec R2 lève (500) sans rien insérer. Rangé comme une photo
+    // de rapport signé : `mission-report-photo/<UL>/<mission>-<horodatage>-<xxxx>/<id>-rapport-de-mission.pdf`.
+    let signedReportKey = data.signed_report_drive_id ?? null;
+    if (mode === 'APP' && data.app_report) {
+        const { homeUlOf, ulSegmentOf } = await import('@/lib/media/server');
+        const storageUlId = [ulId, await homeUlOf(submittedBy), sessionUlId]
+            .find((u): u is string => Boolean(u) && u !== 'default');
+        if (!storageUlId) {
+            return { ok: false, status: 400, error: 'Unité locale introuvable pour ranger le rapport.' };
+        }
+        const intervention = (entries: { category: string; quantity: number }[]) => {
+            const out: Record<string, number> = {};
+            for (const e of entries) out[e.category] = e.quantity;
+            return out;
+        };
+        const pdf = await fillMissionReportPdf({
+            mission_name: data.mission_name,
+            location: data.location,
+            ...dpsFields,
+            victim_count: data.victim_count,
+            intervention_types: data.victim_count >= 1 ? intervention(data.intervention_types) : {},
+            intervention_natures: data.victim_count >= 1 ? intervention(data.intervention_natures) : {},
+        }, {
+            team: {
+                image: data.app_report.team_signature.image,
+                signedAt: data.app_report.team_signature.signed_at,
+                name: data.app_report.team_signature.name,
+                functionTitle: data.app_report.team_signature.function_title,
+            },
+            organizer: {
+                image: data.app_report.organizer_signature.image,
+                signedAt: data.app_report.organizer_signature.signed_at,
+                name: data.app_report.organizer_signature.name,
+                functionTitle: data.app_report.organizer_signature.function_title,
+            },
+        });
+        const folderRef = buildMediaFolderRef('mission-report-photo', await ulSegmentOf(storageUlId), readableSegment(data.mission_name, new Date()));
+        signedReportKey = buildMediaFileKey(folderRef, 'rapport-de-mission.pdf');
+        const { putObject } = await import('@/lib/r2');
+        await putObject(signedReportKey, Buffer.from(pdf), 'application/pdf');
+    }
+
+    let tx: Awaited<ReturnType<typeof db.transaction>> | undefined;
     try {
+        tx = await db.transaction('write');
         await tx.execute({
             sql: `INSERT INTO "mission_reports" (
                 id, submitted_by, submitted_at, mission_type, mission_name, mission_date,
@@ -296,8 +479,11 @@ export async function insertMissionReport(
                 presence_ul, team_dynamics, all_found_place, member_difficulties, free_comment,
                 mission_comment, had_acr, had_hemorrhage, had_complex_care, needs_followup,
                 drive_folder_id, signed_report_drive_id, ulId, dt_code,
-                volunteer_accident, volunteer_accident_details
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                volunteer_accident, volunteer_accident_details,
+                signed_report_mode, start_time, end_time, arrival_time, departure_time,
+                mission_lead_name, mission_lead_phone, crf_observations, organizer_observations,
+                organizer_name, organizer_function
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 reportId,
                 submittedBy ?? null,
@@ -322,11 +508,22 @@ export async function insertMissionReport(
                 data.had_complex_care ? 1 : 0,
                 data.needs_followup ? 1 : 0,
                 data.drive_folder_id ?? null,
-                data.signed_report_drive_id ?? null,
+                signedReportKey,
                 ulId,
                 dtCode,
                 data.volunteer_accident ? 1 : 0,
                 accidentDetailsToStore(data),
+                mode,
+                dpsFields.start_time,
+                dpsFields.end_time,
+                dpsFields.arrival_time,
+                dpsFields.departure_time,
+                dpsFields.mission_lead_name,
+                dpsFields.mission_lead_phone,
+                dpsFields.crf_observations,
+                dpsFields.organizer_observations,
+                dpsFields.organizer_name,
+                dpsFields.organizer_function,
             ],
         });
 
@@ -360,7 +557,16 @@ export async function insertMissionReport(
         await tx.commit();
         return { ok: true, id: reportId, submittedBy };
     } catch (e) {
-        await tx.rollback();
+        if (tx) await tx.rollback();
+        // PDF déjà écrit sur R2 mais rapport non inséré : suppression au mieux, pour ne pas laisser d'orphelin.
+        if (mode === 'APP' && signedReportKey) {
+            try {
+                const { deleteObject } = await import('@/lib/r2');
+                await deleteObject(signedReportKey);
+            } catch {
+                // Nettoyage best-effort : l'erreur d'origine prime.
+            }
+        }
         throw e;
     }
 }

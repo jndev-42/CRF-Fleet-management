@@ -45,6 +45,8 @@ const formData: MissionFormData = {
     had_hemorrhage: false, had_complex_care: false, needs_followup: false,
     volunteer_accident: false, volunteer_accident_details: '',
     intervention_types: {}, intervention_natures: {},
+    start_time: '', end_time: '', arrival_time: '', departure_time: '', mission_lead_name: '', mission_lead_phone: '',
+    crf_observations: '', organizer_observations: '', organizer_name: '', organizer_function: '', signed_report_mode: 'PHOTO',
 };
 
 function detail(overrides: Record<string, unknown> = {}) {
@@ -200,6 +202,41 @@ describe('Fiche /missions/[id]', () => {
     });
 });
 
+describe('Fiche /missions/[id] — mode du rapport signé et champs DPS/PAPS', () => {
+    const dpsFields = {
+        start_time: '08:00', end_time: '18:00', arrival_time: '07:30', departure_time: '18:30',
+        mission_lead_name: 'Alice Martin', mission_lead_phone: '0612345678',
+        organizer_name: 'Bob Durand', organizer_function: 'Président',
+        crf_observations: 'RAS équipe', organizer_observations: 'Merci à tous',
+    };
+
+    it('DPS en mode NONE : mode, avertissement, horaires, responsable, organisateur et observations', async () => {
+        mockSession(['CADRE']);
+        mockFetchJson(detail({ mission_type: 'DPS', signed_report_mode: 'NONE', ...dpsFields }));
+        render(<MissionDetailPage />);
+        await screen.findByText('Informations mission');
+        expect(screen.getByText('Aucun rapport fourni')).toBeTruthy();
+        expect(screen.getByText(/L.UL est responsable de l.absence de rapport de mission signé/)).toBeTruthy();
+        expect(screen.getByText('08:00')).toBeTruthy();
+        expect(screen.getByText('18:00')).toBeTruthy();
+        expect(screen.getByText('07:30')).toBeTruthy();
+        expect(screen.getByText('18:30')).toBeTruthy();
+        expect(screen.getByText('Alice Martin — 0612345678')).toBeTruthy();
+        expect(screen.getByText('Bob Durand (Président)')).toBeTruthy();
+        expect(screen.getByText('RAS équipe')).toBeTruthy();
+        expect(screen.getByText('Merci à tous')).toBeTruthy();
+    });
+
+    it('rapport repassé en Réseaux avec un ancien mode : ni libellé de mode ni avertissement', async () => {
+        mockSession(['CADRE']);
+        mockFetchJson(detail({ mission_type: 'RESEAU', signed_report_mode: 'NONE' }));
+        render(<MissionDetailPage />);
+        await screen.findByText('Informations mission');
+        expect(screen.queryByText('Aucun rapport fourni')).toBeNull();
+        expect(screen.queryByText(/responsable de l.absence de rapport/)).toBeNull();
+    });
+});
+
 describe('Fiche /missions/[id] — photos et rapport signé', () => {
     const folder = 'mission-com-photos/paris-18/dps-20260315-100000-a1b2';
     const signed = 'mission-report-photo/paris-18/dps-20260315-100000-c3d4/0a1b2c3d-rapport.jpg';
@@ -330,7 +367,7 @@ describe('MissionWizard — mode édition', () => {
         const onSuccess = vi.fn();
         render(
             <MissionWizard
-                edit={{ reportId: 'r1', formData: { ...formData, mission_type: 'DPS' }, supplies: {}, hasSignedReport: true }}
+                edit={{ reportId: 'r1', formData: { ...formData, mission_type: 'DPS' }, supplies: {} }}
                 onSuccess={onSuccess}
             />,
         );
@@ -354,7 +391,7 @@ describe('MissionWizard — mode édition', () => {
         vi.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve(new Response('{}', { status: 200 })));
         render(
             <MissionWizard
-                edit={{ reportId: 'r1', formData: { ...formData, volunteer_accident: true }, supplies: {}, hasSignedReport: true }}
+                edit={{ reportId: 'r1', formData: { ...formData, volunteer_accident: true }, supplies: {} }}
                 onSuccess={vi.fn()}
             />,
         );
@@ -367,26 +404,29 @@ describe('MissionWizard — mode édition', () => {
     });
 });
 
-describe('MissionWizard — édition sans rapport signé', () => {
-    it('passer de RESEAU à DPS/PAPS est bloqué à l\'étape Général', () => {
+describe('MissionWizard — édition vers DPS / PAPS', () => {
+    it('passer de RESEAU à PAPS est accepté, sans étape Rapport signé, avec champs horaires et responsable', () => {
         vi.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve(new Response('{}', { status: 200 })));
         render(
             <MissionWizard
-                edit={{ reportId: 'r1', formData: { ...formData, mission_type: 'RESEAU' }, supplies: {}, hasSignedReport: false }}
+                edit={{ reportId: 'r1', formData: { ...formData, mission_type: 'RESEAU', signed_report_mode: null }, supplies: {} }}
+                currentUserName="Alice"
                 onSuccess={vi.fn()}
             />,
         );
         fireEvent.click(screen.getByRole('radio', { name: 'PAPS' }));
+        expect((screen.getByLabelText('Responsable de la mission') as HTMLInputElement).value).toBe('Alice');
+        expect(screen.getByLabelText('Heure de début')).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
-        expect(screen.getByRole('alert').textContent).toContain('pas de rapport signé');
-        expect(screen.getByRole('heading', { name: /— Général$/ })).toBeTruthy();
+        expect(screen.queryByRole('alert')).toBeNull();
+        expect(screen.getByRole('heading', { name: /— Équipage$/ })).toBeTruthy();
     });
 
-    it('un rapport déjà DPS sans rapport signé (ancien) reste modifiable', () => {
+    it('un rapport RESEAU reste modifiable', () => {
         vi.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve(new Response('{}', { status: 200 })));
         render(
             <MissionWizard
-                edit={{ reportId: 'r1', formData: { ...formData, mission_type: 'DPS' }, supplies: {}, hasSignedReport: false }}
+                edit={{ reportId: 'r1', formData: { ...formData, mission_type: 'RESEAU', signed_report_mode: null }, supplies: {} }}
                 onSuccess={vi.fn()}
             />,
         );
@@ -395,17 +435,17 @@ describe('MissionWizard — édition sans rapport signé', () => {
         expect(screen.getByRole('heading', { name: /— Équipage$/ })).toBeTruthy();
     });
 
-    it('un rapport RESEAU sans rapport signé reste modifiable', () => {
+    it('DPS : observations et organisateur modifiables à l\'étape Commentaire', () => {
         vi.spyOn(global, 'fetch').mockImplementation(() => Promise.resolve(new Response('{}', { status: 200 })));
         render(
             <MissionWizard
-                edit={{ reportId: 'r1', formData: { ...formData, mission_type: 'RESEAU' }, supplies: {}, hasSignedReport: false }}
+                edit={{ reportId: 'r1', formData: { ...formData, mission_type: 'DPS', signed_report_mode: 'APP' }, supplies: {} }}
                 onSuccess={vi.fn()}
             />,
         );
-        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
-        expect(screen.queryByRole('alert')).toBeNull();
-        expect(screen.getByRole('heading', { name: /— Équipage$/ })).toBeTruthy();
+        for (let i = 0; i < 6; i++) fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        expect(screen.getByLabelText('Observations Croix-Rouge')).toBeTruthy();
+        expect(screen.getByLabelText('Nom de l\u2019organisateur')).toBeTruthy();
     });
 });
 

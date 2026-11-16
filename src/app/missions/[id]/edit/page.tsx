@@ -101,7 +101,7 @@ export default function EditMissionPage() {
                 <h1 className="page-title">Modifier le compte rendu</h1>
             </div>
             <p style={{ margin: '0 0 1rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                Le rattachement, les photos et le rapport signé ne sont pas modifiables.
+                Le rattachement, les photos et le rapport signé (PDF compris) ne sont pas modifiables.
                 Chaque enregistrement est conservé dans l&apos;historique des modifications.
             </p>
 
@@ -112,7 +112,6 @@ export default function EditMissionPage() {
                 edit={{
                     reportId: report.id,
                     ...initial,
-                    hasSignedReport: Boolean(report.signed_report_drive_id),
                     storedVehicle: report.vehicle_id ? { id: report.vehicle_id, name: report.vehicle_name ?? report.vehicle_id } : null,
                     storedDriver: report.driver_id
                         ? { id: report.driver_id, name: report.driver_name ?? report.driver_email ?? report.driver_id }

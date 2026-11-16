@@ -15,8 +15,11 @@ import { accidentDetailsToStore, type UpdateMissionReportInput } from './create-
  *
  * Le contrôle d'accès reste À LA CHARGE DE LA ROUTE (`canEditMissionReport`).
  * Ne touche jamais au rattachement UL/DT, à l'auteur, à la date de soumission,
- * aux photos ni au rapport signé.
+ * aux photos ni au rapport signé : le PDF d'un rapport signé dans l'appli n'est jamais
+ * régénéré. Seul un passage Réseaux → DPS/PAPS pose le mode « aucun rapport » (NONE).
  */
+
+const isDpsOrPaps = (type: string) => type === 'DPS' || type === 'PAPS';
 
 /** Une modification d'un champ, déjà rendue en texte. */
 export interface MissionReportChange {
@@ -49,6 +52,18 @@ export interface MissionReportSnapshot {
     needs_followup: boolean;
     volunteer_accident: boolean;
     volunteer_accident_details: string | null;
+    /** Mode du rapport signé stocké — lu, jamais comparé ni écrit (hors passage Réseaux → DPS/PAPS). */
+    signed_report_mode?: string | null;
+    start_time: string | null;
+    end_time: string | null;
+    arrival_time: string | null;
+    departure_time: string | null;
+    mission_lead_name: string | null;
+    mission_lead_phone: string | null;
+    crf_observations: string | null;
+    organizer_observations: string | null;
+    organizer_name: string | null;
+    organizer_function: string | null;
     /** `${category}__${item_name}` → quantité (> 0 uniquement). */
     supplies: Record<string, number>;
     /** Catégorie → quantité (> 0 uniquement). */
@@ -86,6 +101,16 @@ const SCALAR_FIELDS: { field: keyof MissionReportSnapshot; label: string; kind: 
     { field: 'needs_followup', label: 'Suivi nécessaire', kind: 'bool' },
     { field: 'volunteer_accident', label: 'Accident bénévole', kind: 'bool' },
     { field: 'volunteer_accident_details', label: 'Description de l\'accident', kind: 'text' },
+    { field: 'start_time', label: 'Heure de début', kind: 'text' },
+    { field: 'end_time', label: 'Heure de fin', kind: 'text' },
+    { field: 'arrival_time', label: 'Heure d\'arrivée sur place', kind: 'text' },
+    { field: 'departure_time', label: 'Heure de départ des lieux', kind: 'text' },
+    { field: 'mission_lead_name', label: 'Responsable de la mission', kind: 'text' },
+    { field: 'mission_lead_phone', label: 'Téléphone du responsable', kind: 'text' },
+    { field: 'crf_observations', label: 'Observations Croix-Rouge', kind: 'text' },
+    { field: 'organizer_observations', label: 'Observations organisateur', kind: 'text' },
+    { field: 'organizer_name', label: 'Nom de l\'organisateur', kind: 'text' },
+    { field: 'organizer_function', label: 'Fonction de l\'organisateur', kind: 'text' },
     { field: 'mission_comment', label: 'Commentaire', kind: 'text' },
 ];
 
@@ -185,8 +210,36 @@ export function diffMissionReport(
 
 const nullableBool = (v: unknown): boolean | null => (v === null || v === undefined ? null : Boolean(Number(v)));
 
+const textOrNull = (v: string | null | undefined): string | null => {
+    const t = (v ?? '').trim();
+    return t ? t : null;
+};
+
+type DpsKey = 'start_time' | 'end_time' | 'arrival_time' | 'departure_time' | 'mission_lead_name' | 'mission_lead_phone'
+    | 'crf_observations' | 'organizer_observations' | 'organizer_name' | 'organizer_function';
+
+const REPORT_ONLY_KEYS: DpsKey[] = ['crf_observations', 'organizer_observations', 'organizer_name', 'organizer_function'];
+const DPS_KEYS: DpsKey[] = ['start_time', 'end_time', 'arrival_time', 'departure_time', 'mission_lead_name', 'mission_lead_phone', ...REPORT_ONLY_KEYS];
+
+/**
+ * Champs DPS/PAPS à stocker : tout à NULL pour Réseaux ; observations et organisateur
+ * seulement si le rapport enregistré est signé dans l'appli (comme à la création).
+ * Une clé absente du payload (`undefined`) conserve la valeur enregistrée.
+ */
+function dpsFieldsForUpdate(data: UpdateMissionReportInput, before?: MissionReportSnapshot): Record<DpsKey, string | null> {
+    const dps = data.mission_type !== 'RESEAU';
+    const app = before?.signed_report_mode === 'APP';
+    const out = {} as Record<DpsKey, string | null>;
+    for (const key of DPS_KEYS) {
+        const allowed = dps && (app || !REPORT_ONLY_KEYS.includes(key));
+        const value = data[key];
+        out[key] = !allowed ? null : value === undefined ? (before?.[key] ?? null) : textOrNull(value);
+    }
+    return out;
+}
+
 /** Construit l'état comparable à partir du payload validé (même normalisation que l'écriture). */
-export function snapshotFromInput(data: UpdateMissionReportInput, driverId: string | null): MissionReportSnapshot {
+export function snapshotFromInput(data: UpdateMissionReportInput, driverId: string | null, before?: MissionReportSnapshot): MissionReportSnapshot {
     const supplies: Record<string, number> = {};
     for (const s of data.supplies) {
         if (s.quantity_used > 0) {
@@ -221,6 +274,7 @@ export function snapshotFromInput(data: UpdateMissionReportInput, driverId: stri
         needs_followup: data.needs_followup,
         volunteer_accident: data.volunteer_accident,
         volunteer_accident_details: accidentDetailsToStore(data),
+        ...dpsFieldsForUpdate(data, before),
         supplies,
         // À 0 intervention, aucune répartition n'est stockée (invariant du schéma).
         intervention_types: data.victim_count >= 1 ? toMap(data.intervention_types) : {},
@@ -284,6 +338,17 @@ async function loadSnapshot(exec: Executor, id: string): Promise<MissionReportSn
         needs_followup: Boolean(Number(row.needs_followup)),
         volunteer_accident: Boolean(Number(row.volunteer_accident ?? 0)),
         volunteer_accident_details: (row.volunteer_accident_details as string | null) ?? null,
+        signed_report_mode: (row.signed_report_mode as string | null) ?? null,
+        start_time: (row.start_time as string | null) ?? null,
+        end_time: (row.end_time as string | null) ?? null,
+        arrival_time: (row.arrival_time as string | null) ?? null,
+        departure_time: (row.departure_time as string | null) ?? null,
+        mission_lead_name: (row.mission_lead_name as string | null) ?? null,
+        mission_lead_phone: (row.mission_lead_phone as string | null) ?? null,
+        crf_observations: (row.crf_observations as string | null) ?? null,
+        organizer_observations: (row.organizer_observations as string | null) ?? null,
+        organizer_name: (row.organizer_name as string | null) ?? null,
+        organizer_function: (row.organizer_function as string | null) ?? null,
         supplies,
         intervention_types,
         intervention_natures,
@@ -341,8 +406,6 @@ export async function updateMissionReport(
 ): Promise<UpdateMissionReportResult> {
     const rawDriverId = data.driver_id ?? null;
     const driverId = rawDriverId !== null && rawDriverId === sessionUserId ? editorId : rawDriverId;
-    const after = snapshotFromInput(data, driverId);
-
     const tx = await db.transaction('write');
     try {
         const before = await loadSnapshot(tx, id);
@@ -351,6 +414,7 @@ export async function updateMissionReport(
             return { ok: false, status: 404, error: 'Compte rendu non trouvé' };
         }
 
+        const after = snapshotFromInput(data, driverId, before);
         const names = await resolveNames(tx, [before, after]);
         const changes = diffMissionReport(before, after, names);
         if (changes.length === 0) {
@@ -364,7 +428,9 @@ export async function updateMissionReport(
                 pegass_ok = ?, vehicle_id = ?, driver_id = ?, victim_count = ?, presence_ul = ?,
                 team_dynamics = ?, all_found_place = ?, member_difficulties = ?, free_comment = ?,
                 mission_comment = ?, had_acr = ?, had_hemorrhage = ?, had_complex_care = ?,
-                needs_followup = ?, volunteer_accident = ?, volunteer_accident_details = ?
+                needs_followup = ?, volunteer_accident = ?, volunteer_accident_details = ?,
+                start_time = ?, end_time = ?, arrival_time = ?, departure_time = ?, mission_lead_name = ?, mission_lead_phone = ?, crf_observations = ?, organizer_observations = ?, organizer_name = ?, organizer_function = ?,
+                signed_report_mode = CASE WHEN ? = 1 AND signed_report_mode IS NULL THEN 'NONE' ELSE signed_report_mode END
                 WHERE id = ?`,
             args: [
                 after.mission_type,
@@ -388,6 +454,18 @@ export async function updateMissionReport(
                 after.needs_followup ? 1 : 0,
                 after.volunteer_accident ? 1 : 0,
                 after.volunteer_accident_details,
+                after.start_time,
+                after.end_time,
+                after.arrival_time,
+                after.departure_time,
+                after.mission_lead_name,
+                after.mission_lead_phone,
+                after.crf_observations,
+                after.organizer_observations,
+                after.organizer_name,
+                after.organizer_function,
+                // RESEAU → DPS/PAPS : mode « aucun rapport » (avertissement affiché) tant qu'aucun mode n'est posé.
+                isDpsOrPaps(after.mission_type) && !isDpsOrPaps(before.mission_type) ? 1 : 0,
                 id,
             ],
         });

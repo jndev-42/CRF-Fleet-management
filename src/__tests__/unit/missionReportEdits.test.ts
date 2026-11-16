@@ -42,6 +42,16 @@ function snapshot(overrides: Partial<MissionReportSnapshot> = {}): MissionReport
         needs_followup: false,
         volunteer_accident: false,
         volunteer_accident_details: null,
+        start_time: null,
+        end_time: null,
+        arrival_time: null,
+        departure_time: null,
+        mission_lead_name: null,
+        mission_lead_phone: null,
+        crf_observations: null,
+        organizer_observations: null,
+        organizer_name: null,
+        organizer_function: null,
         supplies: { 'SAC_PRIMAIRE__Compresses': 2 },
         intervention_types: { SOINS: 2 },
         intervention_natures: { PETITS_SOINS: 2 },
@@ -207,6 +217,7 @@ describe('Zod — accident bénévole', () => {
         free_comment: null, mission_comment: null,
         had_acr: false, had_hemorrhage: false, had_complex_care: false, needs_followup: false,
         volunteer_accident: false, volunteer_accident_details: null,
+        start_time: null, end_time: null, arrival_time: null, departure_time: null, mission_lead_name: null, mission_lead_phone: null, crf_observations: null, organizer_observations: null, organizer_name: null, organizer_function: null,
         supplies: [], intervention_types: [], intervention_natures: [],
     };
 
@@ -257,6 +268,33 @@ describe('reportToWizardState', () => {
             supplies: { SAC_PRIMAIRE: [{ item_name: 'Compresses', quantity_used: 2 }, { item_name: 'Compresses', quantity_used: 3 }] },
         });
         expect(supplies).toEqual({ SAC_PRIMAIRE__Compresses: 5 });
+    });
+
+    it('reprend les 10 champs DPS/PAPS et le mode dans le formulaire (vides si absents)', () => {
+        const base = {
+            mission_type: 'DPS', mission_name: 'M', mission_date: '2026-03-15', location: 'L',
+            volunteers: '', pegass_ok: true, vehicle_id: null, driver_id: null, victim_count: 0,
+            presence_ul: null, team_dynamics: null, all_found_place: null, member_difficulties: null,
+            free_comment: null, mission_comment: null, had_acr: false, had_hemorrhage: false,
+            had_complex_care: false, needs_followup: false, supplies: {},
+        };
+        const { formData } = reportToWizardState({
+            ...base,
+            signed_report_mode: 'APP',
+            start_time: '08:00', end_time: '18:00', arrival_time: '07:30', departure_time: '18:30',
+            mission_lead_name: 'Alice', mission_lead_phone: '0612345678',
+            crf_observations: 'RAS', organizer_observations: 'Merci',
+            organizer_name: 'Bob', organizer_function: 'Président',
+        });
+        expect(formData).toMatchObject({
+            signed_report_mode: 'APP',
+            start_time: '08:00', end_time: '18:00', arrival_time: '07:30', departure_time: '18:30',
+            mission_lead_name: 'Alice', mission_lead_phone: '0612345678',
+            crf_observations: 'RAS', organizer_observations: 'Merci',
+            organizer_name: 'Bob', organizer_function: 'Président',
+        });
+        const empty = reportToWizardState(base).formData;
+        expect(empty).toMatchObject({ signed_report_mode: null, start_time: '', organizer_name: '', crf_observations: '' });
     });
 
     it('aplatit les consommables et reprend accident et répartition', () => {

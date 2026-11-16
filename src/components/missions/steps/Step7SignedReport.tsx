@@ -1,103 +1,70 @@
 'use client';
 
-import { FileText } from 'lucide-react';
+import type { MissionFormData } from '../MissionWizard';
 import styles from '../MissionWizard.module.css';
-import PhotoPicker from '@/components/ui/PhotoPicker';
-import { useObjectUrl } from '@/components/ui/useObjectUrl';
+import SignedReportPhotoPanel from './SignedReportPhotoPanel';
+import SignedReportAppPanel, { type ReportSignatures } from './SignedReportAppPanel';
+
+export type SignedReportMode = 'PHOTO' | 'APP' | 'NONE';
+
+export const NO_REPORT_WARNING = 'L’UL est responsable de l’absence de rapport de mission signé';
+
+const MODE_OPTIONS: { value: SignedReportMode; label: string }[] = [
+    { value: 'PHOTO', label: 'Prendre en photo le rapport papier signé' },
+    { value: 'APP', label: 'Signer / faire signer le rapport dans l’appli' },
+    { value: 'NONE', label: 'Ne pas fournir de rapport' },
+];
 
 export interface Step7SignedReportProps {
+    data: MissionFormData;
+    onChange: (patch: Partial<MissionFormData>) => void;
     file: File | null;
-    onChange: (file: File | null) => void;
+    onFileChange: (file: File | null) => void;
+    signatures: ReportSignatures;
+    onSignaturesChange: (patch: Partial<ReportSignatures>) => void;
+    signerName: string;
 }
 
-export default function Step7SignedReport({ file, onChange }: Step7SignedReportProps) {
-    const isImage = file && file.type.startsWith('image/');
-    const previewRef = useObjectUrl(file);
+/** Étape « Rapport signé » (DPS / PAPS) : trois façons de fournir — ou non — le rapport signé. */
+export default function Step7SignedReport({
+    data, onChange, file, onFileChange, signatures, onSignaturesChange, signerName,
+}: Step7SignedReportProps) {
+    const mode = data.signed_report_mode;
 
     return (
         <div className={styles.stepContent}>
             <h2 className={styles.stepTitle}>Rapport signé</h2>
-            <p className={styles.stepSubtitle}>
-                Photographiez ou importez le rapport de mission papier signé par l&apos;organisateur.{' '}
-                <strong>Obligatoire.</strong>
-            </p>
 
-            {!file && (
-                <PhotoPicker
-                    file={file}
-                    onFileChange={onChange}
-                    maxSizeMB={15}
-                    maxTotalSizeMB={150}
-                    accept="image/*,application/pdf"
-                    scanDocument
-                    hint="Formats acceptés : JPEG, PNG, WEBP, PDF · Maximum 15 Mo par fichier"
+            <div className={styles.modeList} role="radiogroup" aria-label="Mode du rapport signé">
+                {MODE_OPTIONS.map(opt => (
+                    <label
+                        key={opt.value}
+                        className={`${styles.modeOption} ${mode === opt.value ? styles.modeOptionActive : ''}`}
+                    >
+                        <input
+                            type="radio"
+                            name="signed_report_mode"
+                            value={opt.value}
+                            checked={mode === opt.value}
+                            onChange={() => onChange({ signed_report_mode: opt.value })}
+                        />
+                        <span>{opt.label}</span>
+                    </label>
+                ))}
+            </div>
+
+            {mode === 'PHOTO' && <SignedReportPhotoPanel file={file} onChange={onFileChange} />}
+            {mode === 'APP' && (
+                <SignedReportAppPanel
+                    data={data}
+                    onChange={onChange}
+                    signatures={signatures}
+                    onSignaturesChange={onSignaturesChange}
+                    signerName={signerName}
                 />
             )}
-
-            {file && (
-                <div style={{ marginTop: '1.25rem' }}>
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '1rem',
-                            padding: '0.75rem',
-                            border: '1px solid var(--border-primary)',
-                            borderRadius: 8,
-                            background: 'var(--bg-secondary)',
-                        }}
-                    >
-                        {isImage ? (
-                            /* eslint-disable-next-line @next/next/no-img-element -- aperçu d'un fichier local (URL blob:) */
-                            <img
-                                ref={previewRef}
-                                alt="Aperçu du rapport signé"
-                                style={{
-                                    width: 80,
-                                    height: 80,
-                                    objectFit: 'cover',
-                                    borderRadius: 6,
-                                    flexShrink: 0,
-                                    border: '1px solid var(--border-primary)',
-                                }}
-                            />
-                        ) : (
-                            <div
-                                style={{
-                                    width: 80,
-                                    height: 80,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    background: 'var(--bg-tertiary)',
-                                    borderRadius: 6,
-                                    flexShrink: 0,
-                                }}
-                            >
-                                <FileText size={36} style={{ color: 'var(--text-secondary)' }} />
-                            </div>
-                        )}
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ margin: 0, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {file.name}
-                            </p>
-                            <p className={styles.fieldHint} style={{ margin: '0.25rem 0 0' }}>
-                                {(file.size / 1024 / 1024).toFixed(2)} Mo
-                            </p>
-                        </div>
-
-                        <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={() => onChange(null)}
-                            aria-label="Supprimer le fichier"
-                            style={{ flexShrink: 0 }}
-                        >
-                            Changer
-                        </button>
-                    </div>
-                </div>
+            {mode === 'NONE' && (
+                <div className={styles.warningBox} role="alert">{NO_REPORT_WARNING}</div>
             )}
         </div>
     );

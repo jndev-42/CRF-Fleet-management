@@ -15,7 +15,7 @@ import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '../src/lib/themes/sch
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '../src/lib/push/schema';
 import { SCHEDULED_ALERT_DDL } from '../src/lib/alerts/schema';
 import { VEHICLE_DOCUMENT_DDL, VEHICLE_DOCUMENT_INDEX_DDL } from '../src/lib/vehicleDocuments/schema';
-import { MISSION_REPORT_ACCIDENT_COLUMNS, MISSION_REPORT_EDITS_DDL, MISSION_REPORT_EDITS_INDEX_DDL } from '../src/lib/missions/edits-schema';
+import { MISSION_REPORT_ACCIDENT_COLUMNS, MISSION_REPORT_EDITS_DDL, MISSION_REPORT_EDITS_INDEX_DDL, MISSION_REPORT_SIGNED_MODE_COLUMNS } from '../src/lib/missions/edits-schema';
 import { menuSettingNeedsRebuild, menuSettingTableDdl, rebuildMenuSettingTable } from '../src/lib/menu-settings-schema';
 
 // DEV_DB_URL allows dev-db-init.ts to target the container sqld (http://localhost:8080).
@@ -705,6 +705,16 @@ async function main() {
     }
     await db.execute(MISSION_REPORT_EDITS_DDL);
     await db.execute(MISSION_REPORT_EDITS_INDEX_DDL);
+
+    // Rapport signé DPS/PAPS (mode, horaires, responsable, observations).
+    // Équivalent local de scripts/add-mission-report-signed-mode.ts.
+    const missionColsSigned = await db.execute('PRAGMA table_info("mission_reports")');
+    for (const col of MISSION_REPORT_SIGNED_MODE_COLUMNS) {
+        if (!missionColsSigned.rows.some(r => r.name === col.name)) {
+            await db.execute(col.ddl);
+            console.log(`  ↳ Migration : colonne mission_reports.${col.name} ajoutée`);
+        }
+    }
 
     // ── Uniformes ─────────────────────────────────────────────────
     // Le disponible d'une taille n'est JAMAIS stocké : il se dérive de
