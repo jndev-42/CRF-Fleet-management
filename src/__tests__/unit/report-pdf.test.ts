@@ -35,6 +35,17 @@ const SIGNATURES = {
 };
 
 async function extractText(bytes: Uint8Array): Promise<string> {
+    // pdfjs-dist utilise Promise.withResolvers, absent de Node 20 (CI) : polyfill limité au test.
+    if (typeof (Promise as { withResolvers?: unknown }).withResolvers !== 'function') {
+        Object.assign(Promise, {
+            withResolvers<T>() {
+                let resolve!: (value: T | PromiseLike<T>) => void;
+                let reject!: (reason?: unknown) => void;
+                const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+                return { promise, resolve, reject };
+            },
+        });
+    }
     const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
     pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
         path.join(process.cwd(), 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.worker.mjs'),
