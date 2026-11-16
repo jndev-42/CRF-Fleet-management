@@ -157,6 +157,17 @@ export async function GET(_request: Request, { params }: RouteContext) {
             volunteer_accident_details: (row.volunteer_accident_details as string | null) ?? null,
             drive_folder_id: (row.drive_folder_id as string | null) ?? null,
             signed_report_drive_id: (row.signed_report_drive_id as string | null) ?? null,
+            signed_report_mode: (row.signed_report_mode as string | null) ?? null,
+            start_time: (row.start_time as string | null) ?? null,
+            end_time: (row.end_time as string | null) ?? null,
+            arrival_time: (row.arrival_time as string | null) ?? null,
+            departure_time: (row.departure_time as string | null) ?? null,
+            mission_lead_name: (row.mission_lead_name as string | null) ?? null,
+            mission_lead_phone: (row.mission_lead_phone as string | null) ?? null,
+            crf_observations: (row.crf_observations as string | null) ?? null,
+            organizer_observations: (row.organizer_observations as string | null) ?? null,
+            organizer_name: (row.organizer_name as string | null) ?? null,
+            organizer_function: (row.organizer_function as string | null) ?? null,
             supplies: suppliesByCategory,
             interventions,
             // Même condition que le PATCH, qui refuse une session sans utilisateur résolu.
@@ -188,7 +199,7 @@ async function patchHandler(request: Request, { params }: RouteContext) {
         const { id } = await params;
 
         const existing = await db.execute({
-            sql: `SELECT id, ulId, dt_code, submitted_by, mission_name, mission_type, signed_report_drive_id FROM "mission_reports" WHERE id = ?`,
+            sql: `SELECT id, ulId, dt_code, submitted_by, mission_name FROM "mission_reports" WHERE id = ?`,
             args: [id],
         });
         if (existing.rows.length === 0) {
@@ -213,16 +224,6 @@ async function patchHandler(request: Request, { params }: RouteContext) {
                 return NextResponse.json({ error: 'Corps de requête invalide' }, { status: 400 });
             }
             throw parseErr;
-        }
-
-        // DPS et PAPS exigent un rapport signé, qui ne se dépose pas en modification :
-        // un rapport sans rapport signé ne peut pas PASSER en DPS/PAPS. Un rapport déjà
-        // DPS/PAPS sans rapport signé (antérieur à l'obligation) reste modifiable.
-        const needsSignedReport = (t: unknown) => t === 'DPS' || t === 'PAPS';
-        if (needsSignedReport(data.mission_type) && !needsSignedReport(row.mission_type) && !row.signed_report_drive_id) {
-            return NextResponse.json({
-                error: 'Ce compte rendu n\'a pas de rapport signé : il ne peut pas passer en DPS ou PAPS, qui en exigent un.',
-            }, { status: 400 });
         }
 
         const result = await updateMissionReport(id, data, userId, session.user.id);

@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.53.0] — 16 novembre 2026
+
+### ✨ Ajouts
+
+- Pour un DPS ou un PAPS, l'étape « Rapport signé » du compte rendu de mission propose désormais trois choix : prendre en photo le rapport papier signé (comme avant), signer le rapport directement dans l'appli, ou ne pas fournir de rapport. Choisir « Ne pas fournir de rapport » affiche l'avertissement « L'UL est responsable de l'absence de rapport de mission signé ».
+- Signé dans l'appli : le rapport de mission officiel « Dispositif Prévisionnel de Secours » est rempli automatiquement avec les informations du compte rendu, les observations Croix-Rouge et organisateur, et les deux signatures datées (responsable de l'équipe, puis organisateur sur le même appareil). Le PDF est rangé avec les autres rapports signés et s'ouvre depuis la fiche du compte rendu.
+- Pour un DPS ou un PAPS, l'étape « Général » demande maintenant les heures de début et de fin, d'arrivée sur place et de départ des lieux, ainsi que le responsable de la mission (pré-rempli avec votre nom) et son téléphone. Ces champs sont facultatifs, sauf si le rapport est signé dans l'appli.
+- La fiche d'un compte rendu affiche le mode du rapport signé, les horaires, le responsable de la mission, l'organisateur et les observations.
+
+### 🔧 Modifications
+
+- Un compte rendu Réseaux peut désormais être modifié en DPS ou PAPS : il est alors enregistré sans rapport signé, avec l'avertissement correspondant. Les horaires, le responsable, les observations et l'organisateur sont modifiables après l'envoi et apparaissent dans l'historique des modifications.
+
 ## [5.52.0] — 15 novembre 2026
 
 ### ✨ Ajouts

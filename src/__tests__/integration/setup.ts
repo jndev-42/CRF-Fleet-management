@@ -589,7 +589,18 @@ async function createTables() {
     "ulId"                  TEXT,
     "dt_code"               TEXT,
     "volunteer_accident"    INTEGER NOT NULL DEFAULT 0,
-    "volunteer_accident_details" TEXT
+    "volunteer_accident_details" TEXT,
+    "signed_report_mode"    TEXT CHECK ("signed_report_mode" IN ('PHOTO', 'APP', 'NONE')),
+    "start_time"            TEXT,
+    "end_time"              TEXT,
+    "arrival_time"          TEXT,
+    "departure_time"        TEXT,
+    "mission_lead_name"     TEXT,
+    "mission_lead_phone"    TEXT,
+    "crf_observations"      TEXT,
+    "organizer_observations" TEXT,
+    "organizer_name"        TEXT,
+    "organizer_function"    TEXT
   )`);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "mission_report_supplies" (

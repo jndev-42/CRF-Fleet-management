@@ -132,4 +132,12 @@ describe('ElectronicSignatureModal', () => {
         expect(apercu.style.borderBottom).not.toContain('var(');
     });
 
+    it('affiche le texte d\'engagement fourni et masque l\'email vide', () => {
+        render(
+            <ElectronicSignatureModal isOpen onClose={vi.fn()} onSign={vi.fn()} signerName="Bob" signerEmail="" roleTitle="Responsable de l'organisation" consentText="Je signe ce rapport de mission." />
+        );
+        expect(screen.getByText('Je signe ce rapport de mission.')).toBeTruthy();
+        expect(screen.queryByText('Email')).toBeNull();
+        expect(screen.queryByText(/état des frais engagés/)).toBeNull();
+    });
 });

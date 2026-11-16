@@ -23,6 +23,17 @@ export interface MissionReportForEdit {
     needs_followup: boolean;
     volunteer_accident?: boolean;
     volunteer_accident_details?: string | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    arrival_time?: string | null;
+    departure_time?: string | null;
+    mission_lead_name?: string | null;
+    mission_lead_phone?: string | null;
+    crf_observations?: string | null;
+    organizer_observations?: string | null;
+    organizer_name?: string | null;
+    organizer_function?: string | null;
+    signed_report_mode?: 'PHOTO' | 'APP' | 'NONE' | null;
     supplies: Record<string, { item_name: string; quantity_used: number }[]>;
     interventions?: { mode: Record<string, number>; nature: Record<string, number> };
 }
@@ -71,6 +82,17 @@ export function reportToWizardState(report: MissionReportForEdit): {
         needs_followup: report.needs_followup,
         volunteer_accident: Boolean(report.volunteer_accident),
         volunteer_accident_details: report.volunteer_accident_details ?? '',
+        start_time: report.start_time ?? '',
+        end_time: report.end_time ?? '',
+        arrival_time: report.arrival_time ?? '',
+        departure_time: report.departure_time ?? '',
+        mission_lead_name: report.mission_lead_name ?? '',
+        mission_lead_phone: report.mission_lead_phone ?? '',
+        crf_observations: report.crf_observations ?? '',
+        organizer_observations: report.organizer_observations ?? '',
+        organizer_name: report.organizer_name ?? '',
+        organizer_function: report.organizer_function ?? '',
+        signed_report_mode: report.signed_report_mode ?? null,
         intervention_types: { ...(report.interventions?.mode ?? {}) },
         intervention_natures: { ...(report.interventions?.nature ?? {}) },
     };

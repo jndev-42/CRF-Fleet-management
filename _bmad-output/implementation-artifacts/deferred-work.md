@@ -210,3 +210,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-stock-faible-commande.md`
   summary: Le schéma `InvItem` de `scripts/setup-dev.ts` ne correspond plus à la prod : il manque `quantity`, `minStock` et désormais `orderedAt`.
   evidence: `scripts/setup-dev.ts:472` ; une base fraîchement remplie par `npm run dev` ne peut pas servir les routes de l'inventaire.
+- source_spec: `_bmad-output/implementation-artifacts/spec-mission-report-pdf-signe.md`
+  summary: Vérifier sur une preview Vercel qu'un rapport « signé dans l'appli » se crée (modèle PDF inclus via outputFileTracingIncludes).
+  evidence: Les tests lisent le modèle en local ; seul un déploiement prouve que le fichier est embarqué dans les fonctions /api/missions et /api/qr-ul/[token]/mission-report.

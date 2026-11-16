@@ -60,6 +60,18 @@ interface MissionDetail {
     volunteer_accident_details: string | null;
     drive_folder_id: string | null;
     signed_report_drive_id: string | null;
+    /** DPS / PAPS : PHOTO, APP ou NONE — `null` pour Réseaux et les rapports antérieurs. */
+    signed_report_mode?: 'PHOTO' | 'APP' | 'NONE' | null;
+    start_time?: string | null;
+    end_time?: string | null;
+    arrival_time?: string | null;
+    departure_time?: string | null;
+    mission_lead_name?: string | null;
+    mission_lead_phone?: string | null;
+    crf_observations?: string | null;
+    organizer_observations?: string | null;
+    organizer_name?: string | null;
+    organizer_function?: string | null;
     /** Name of the UL the report belongs to (mr.ulId) — null if the report is attached to a DT */
     ulName: string | null;
     /** DT code the report belongs to (mr.dt_code) — null if the report is attached to a UL */
@@ -72,6 +84,12 @@ interface MissionDetail {
     /** Historique des modifications, du plus récent au plus ancien. */
     edits?: MissionEdit[];
 }
+
+const SIGNED_REPORT_MODE_LABELS: Record<'PHOTO' | 'APP' | 'NONE', string> = {
+    PHOTO: 'Photo du rapport papier signé',
+    APP: 'Signé dans l\u2019appli (PDF)',
+    NONE: 'Aucun rapport fourni',
+};
 
 type DetailTab = 'report' | 'history';
 
@@ -178,6 +196,8 @@ export default function MissionDetailPage() {
         report.victim_count > 0
         && (Object.keys(interventionModes).length > 0 || Object.keys(interventionNatures).length > 0);
     // Rattachement du rapport : UL réelle ou entité DT — jamais les deux.
+    // Mode du rapport signé : seulement pour DPS / PAPS (un rapport repassé en Réseaux garde l'ancien mode en base).
+    const isDpsOrPaps = report.mission_type === 'DPS' || report.mission_type === 'PAPS';
     const attachmentLabel = report.ulName ? `UL ${report.ulName}` : report.dtCode;
     // Référence non R2 (id Drive résiduel) : ni carte ni visionneuse.
     const signedReportUrl = mediaFileUrl(report.signed_report_drive_id);
@@ -290,7 +310,21 @@ export default function MissionDetailPage() {
                         {report.vehicle_name && <><dt>Véhicule</dt><dd>{report.vehicle_name}</dd></>}
                         {report.driver_name && <><dt>Chauffeur</dt><dd>{report.driver_name}</dd></>}
                         <dt>Bénévoles</dt><dd>{report.volunteers || 'Voir Pegass'}</dd>
+                        {report.start_time && <><dt>Heure de début</dt><dd>{report.start_time}</dd></>}
+                        {report.end_time && <><dt>Heure de fin</dt><dd>{report.end_time}</dd></>}
+                        {report.arrival_time && <><dt>Arrivée sur place</dt><dd>{report.arrival_time}</dd></>}
+                        {report.departure_time && <><dt>Départ des lieux</dt><dd>{report.departure_time}</dd></>}
+                        {report.mission_lead_name && (
+                            <><dt>Responsable de la mission</dt><dd>{report.mission_lead_name}{report.mission_lead_phone ? ` — ${report.mission_lead_phone}` : ''}</dd></>
+                        )}
+                        {report.organizer_name && (
+                            <><dt>Organisateur</dt><dd>{report.organizer_name}{report.organizer_function ? ` (${report.organizer_function})` : ''}</dd></>
+                        )}
+                        {isDpsOrPaps && report.signed_report_mode && <><dt>Rapport signé</dt><dd>{SIGNED_REPORT_MODE_LABELS[report.signed_report_mode]}</dd></>}
                     </dl>
+                    {isDpsOrPaps && report.signed_report_mode === 'NONE' && (
+                        <p className={styles.followupNote}>L&apos;UL est responsable de l&apos;absence de rapport de mission signé.</p>
+                    )}
                 </div>
 
                 {/* Incidents */}
@@ -375,6 +409,20 @@ export default function MissionDetailPage() {
                     <div className="card">
                         <h2 className={styles.cardTitle}>Commentaire</h2>
                         <p style={{ whiteSpace: 'pre-wrap' }}>{report.mission_comment}</p>
+                    </div>
+                )}
+
+                {/* Observations du rapport DPS / PAPS */}
+                {report.crf_observations && (
+                    <div className="card">
+                        <h2 className={styles.cardTitle}>Observations Croix-Rouge</h2>
+                        <p style={{ whiteSpace: 'pre-wrap' }}>{report.crf_observations}</p>
+                    </div>
+                )}
+                {report.organizer_observations && (
+                    <div className="card">
+                        <h2 className={styles.cardTitle}>Observations organisateur</h2>
+                        <p style={{ whiteSpace: 'pre-wrap' }}>{report.organizer_observations}</p>
                     </div>
                 )}
             </div>

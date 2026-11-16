@@ -44,3 +44,22 @@ export const MISSION_REPORT_ACCIDENT_COLUMNS: { name: string; ddl: string }[] = 
 
 /** Ligne `Role` du responsable mission : créée uniquement par la migration (GET /api/users n'écrit plus de rôle), même identifiant que les seeds dev / preview. */
 export const RESP_MISSION_ROLE = { id: 'role-resp_mission', name: 'RESP_MISSION' } as const;
+
+/**
+ * Colonnes du rapport DPS/PAPS (mode du rapport signé, horaires, responsable de la
+ * mission, observations, organisateur) ajoutées à `mission_reports` — partagées par
+ * la migration prod (`scripts/add-mission-report-signed-mode.ts`), la base de dev
+ * et les tests d'intégration. Toutes nullables : NULL pour un rapport Réseaux ou
+ * antérieur à la fonctionnalité (l'affichage existant est inchangé).
+ */
+export const MISSION_REPORT_SIGNED_MODE_COLUMNS: { name: string; ddl: string }[] = [
+    {
+        name: 'signed_report_mode',
+        ddl: `ALTER TABLE "mission_reports" ADD COLUMN "signed_report_mode" TEXT CHECK ("signed_report_mode" IN ('PHOTO', 'APP', 'NONE'))`,
+    },
+    ...['start_time', 'end_time', 'arrival_time', 'departure_time', 'mission_lead_name', 'mission_lead_phone',
+        'crf_observations', 'organizer_observations', 'organizer_name', 'organizer_function'].map(name => ({
+        name,
+        ddl: `ALTER TABLE "mission_reports" ADD COLUMN "${name}" TEXT`,
+    })),
+];

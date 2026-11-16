@@ -14,6 +14,17 @@ vi.mock('@/lib/imageCompression', () => ({
     uploadMediaSafely: vi.fn().mockResolvedValue({ success: true, folderId: 'folder-1', fileIds: ['file-1'] }),
 }));
 
+vi.mock('@/components/expenses/ElectronicSignatureModal', () => ({
+    default: ({ isOpen, onSign, roleTitle, signerName }: {
+        isOpen: boolean; roleTitle: string; signerName: string;
+        onSign: (sig: Record<string, unknown>, fn: string) => void;
+    }) => isOpen ? (
+        <button type="button" onClick={() => onSign({
+            mode: 'typed', image: 'data:image/png;base64,iVBORw0KGgo=', name: signerName, date: '2026-11-16T13:32:00.000Z', hash: 'h', functionTitle: `Fonction ${roleTitle}`,
+        }, `Fonction ${roleTitle}`)}>{`mock-sign ${roleTitle}`}</button>
+    ) : null,
+}));
+
 import MissionWizard from '@/components/missions/MissionWizard';
 import { uploadMediaSafely } from '@/lib/imageCompression';
 import { missionDraftKey } from '@/lib/missionDraft';
@@ -592,5 +603,157 @@ describe('MissionWizard — brouillon (issue #134)', () => {
         );
         expect(screen.getByDisplayValue('Brouillon QR')).toBeTruthy();
         expect(screen.getByText('Lyon 3')).toBeTruthy();
+    });
+});
+
+describe('MissionWizard — modes du rapport signé (DPS / PAPS)', () => {
+    async function goToSignedReportStep(type: 'DPS' | 'PAPS' = 'DPS', props: Partial<React.ComponentProps<typeof MissionWizard>> = {}) {
+        const onSuccess = vi.fn();
+        render(<MissionWizard onSuccess={onSuccess} {...props} />);
+        await chooseAttachment();
+        fireEvent.click(screen.getByRole('radio', { name: type }));
+        fillStep1();
+        for (let i = 0; i < 15 && !screen.queryByRole('heading', { name: /— Rapport signé/ }); i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        expect(screen.getByRole('heading', { name: /— Rapport signé/ })).toBeTruthy();
+        return onSuccess;
+    }
+
+    it('Général : horaires et responsable apparaissent pour DPS/PAPS seulement, responsable pré-rempli', async () => {
+        render(<MissionWizard onSuccess={vi.fn()} currentUserName="Alice Martin" />);
+        await chooseAttachment();
+        expect(screen.queryByLabelText('Heure de début')).toBeNull();
+        fireEvent.click(screen.getByRole('radio', { name: 'PAPS' }));
+        expect(screen.getByLabelText('Heure de début')).toBeTruthy();
+        expect(screen.getByLabelText('Heure de fin')).toBeTruthy();
+        expect(screen.getByLabelText('Heure d’arrivée sur place')).toBeTruthy();
+        expect(screen.getByLabelText('Heure de départ des lieux')).toBeTruthy();
+        expect((screen.getByLabelText('Responsable de la mission') as HTMLInputElement).value).toBe('Alice Martin');
+        expect(screen.getByLabelText('Téléphone du responsable')).toBeTruthy();
+        fireEvent.click(screen.getByRole('radio', { name: 'Réseaux' }));
+        expect(screen.queryByLabelText('Heure de début')).toBeNull();
+    });
+
+    it('propose les trois choix, « photo » par défaut', async () => {
+        await goToSignedReportStep();
+        expect((screen.getByRole('radio', { name: /Prendre en photo/ }) as HTMLInputElement).checked).toBe(true);
+        expect(screen.getByRole('radio', { name: /Signer \/ faire signer/ })).toBeTruthy();
+        expect(screen.getByRole('radio', { name: /Ne pas fournir de rapport/ })).toBeTruthy();
+    });
+
+    it('« Ne pas fournir de rapport » : avertissement, aucune pièce exigée, envoi en mode NONE sans upload', async () => {
+        mockedUpload.mockClear();
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'mission-none' }), { status: 200 }));
+        const onSuccess = await goToSignedReportStep();
+        fireEvent.click(screen.getByRole('radio', { name: /Ne pas fournir de rapport/ }));
+        expect(screen.getByRole('alert').textContent).toContain('L’UL est responsable de l’absence de rapport de mission signé');
+        for (let i = 0; i < 15 && screen.queryByRole('button', { name: 'Suivant' }); i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-none'));
+
+        expect(mockedUpload.mock.calls.some(c => c[0].type === 'mission-report-photo')).toBe(false);
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/missions' && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body).toMatchObject({ signed_report_mode: 'NONE', signed_report_drive_id: null, app_report: null, start_time: null });
+    });
+
+    it('mode APP : bloqué sans horaires ni responsable, puis sans signatures', async () => {
+        await goToSignedReportStep();
+        fireEvent.click(screen.getByRole('radio', { name: /Signer \/ faire signer/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        expect(screen.getByRole('alert').textContent).toContain('horaires');
+    });
+
+    it('mode APP : nom et fonction de l’organisateur puis signatures requis', async () => {
+        render(<MissionWizard onSuccess={vi.fn()} currentUserName="Alice" />);
+        await chooseAttachment();
+        fireEvent.click(screen.getByRole('radio', { name: 'DPS' }));
+        fillStep1();
+        for (const [label, value] of [
+            ['Heure de début', '08:00'], ['Heure de fin', '18:00'],
+            ['Heure d’arrivée sur place', '07:30'], ['Heure de départ des lieux', '18:30'],
+            ['Téléphone du responsable', '0612345678'],
+        ] as const) {
+            fireEvent.change(screen.getByLabelText(label), { target: { value } });
+        }
+        for (let i = 0; i < 15 && !screen.queryByRole('heading', { name: /— Rapport signé/ }); i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        fireEvent.click(screen.getByRole('radio', { name: /Signer \/ faire signer/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        expect(screen.getByRole('alert').textContent).toContain('organisateur');
+
+        fireEvent.change(screen.getByLabelText("Nom de l'organisateur *"), { target: { value: 'Bob' } });
+        fireEvent.change(screen.getByLabelText("Fonction de l'organisateur *"), { target: { value: 'Président' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        expect(screen.getByRole('alert').textContent).toContain('responsable de l’équipe');
+    });
+
+    it('mode APP : envoie signed_report_mode APP et les deux signatures (image, date ISO, nom, fonction), sans upload', async () => {
+        mockedUpload.mockClear();
+        const fetchMock = mockFetch(async () => new Response(JSON.stringify({ id: 'mission-app' }), { status: 200 }));
+        const onSuccess = vi.fn();
+        render(<MissionWizard onSuccess={onSuccess} currentUserName="Alice Martin" />);
+        await chooseAttachment();
+        fireEvent.click(screen.getByRole('radio', { name: 'DPS' }));
+        fillStep1();
+        for (const [label, value] of [
+            ['Heure de début', '08:00'], ['Heure de fin', '18:00'],
+            ['Heure d\u2019arrivée sur place', '07:30'], ['Heure de départ des lieux', '18:30'],
+            ['Téléphone du responsable', '0612345678'],
+        ] as const) {
+            fireEvent.change(screen.getByLabelText(label), { target: { value } });
+        }
+        for (let i = 0; i < 15 && !screen.queryByRole('heading', { name: /— Rapport signé/ }); i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        fireEvent.click(screen.getByRole('radio', { name: /Signer \/ faire signer/ }));
+        fireEvent.click(screen.getByRole('button', { name: /Signer en tant que responsable de l.équipe/ }));
+        fireEvent.click(screen.getByRole('button', { name: /mock-sign Responsable de l.équipe/ }));
+        fireEvent.change(screen.getByLabelText("Nom de l'organisateur *"), { target: { value: 'Bob Durand' } });
+        fireEvent.change(screen.getByLabelText("Fonction de l'organisateur *"), { target: { value: 'Président' } });
+        fireEvent.click(screen.getByRole('button', { name: /Faire signer l.organisateur/ }));
+        fireEvent.click(screen.getByRole('button', { name: /mock-sign Responsable de l.organisation/ }));
+        for (let i = 0; i < 15 && screen.queryByRole('button', { name: 'Suivant' }); i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        fireEvent.click(screen.getByRole('button', { name: 'Soumettre le compte rendu' }));
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith('mission-app'));
+
+        expect(mockedUpload.mock.calls.some(c => c[0].type === 'mission-report-photo')).toBe(false);
+        const postCall = fetchMock.mock.calls.find(c => getUrl(c[0]) === '/api/missions' && (c[1] as RequestInit)?.method === 'POST');
+        const body = JSON.parse((postCall![1] as RequestInit).body as string);
+        expect(body.signed_report_mode).toBe('APP');
+        expect(body.signed_report_drive_id).toBeNull();
+        expect(body.app_report.team_signature).toEqual({
+            image: 'data:image/png;base64,iVBORw0KGgo=', signed_at: '2026-11-16T13:32:00.000Z',
+            name: 'Alice Martin', function_title: "Fonction Responsable de l'équipe",
+        });
+        expect(body.app_report.organizer_signature).toEqual({
+            image: 'data:image/png;base64,iVBORw0KGgo=', signed_at: '2026-11-16T13:32:00.000Z',
+            name: 'Bob Durand', function_title: "Fonction Responsable de l'organisation",
+        });
+    });
+
+    it('changer le nom ou la fonction de l\u2019organisateur annule sa signature', async () => {
+        render(<MissionWizard onSuccess={vi.fn()} currentUserName="Alice" />);
+        await chooseAttachment();
+        fireEvent.click(screen.getByRole('radio', { name: 'DPS' }));
+        fillStep1();
+        for (let i = 0; i < 15 && !screen.queryByRole('heading', { name: /— Rapport signé/ }); i++) {
+            fireEvent.click(screen.getByRole('button', { name: 'Suivant' }));
+        }
+        fireEvent.click(screen.getByRole('radio', { name: /Signer \/ faire signer/ }));
+        fireEvent.change(screen.getByLabelText("Nom de l'organisateur *"), { target: { value: 'Bob' } });
+        fireEvent.change(screen.getByLabelText("Fonction de l'organisateur *"), { target: { value: 'Président' } });
+        fireEvent.click(screen.getByRole('button', { name: /Faire signer l.organisateur/ }));
+        fireEvent.click(screen.getByRole('button', { name: /mock-sign Responsable de l.organisation/ }));
+        expect(screen.getByText('Signé')).toBeTruthy();
+        fireEvent.change(screen.getByLabelText("Fonction de l'organisateur *"), { target: { value: 'Trésorier' } });
+        expect(screen.queryByText('Signé')).toBeNull();
+        expect(screen.getByRole('button', { name: /Faire signer l.organisateur/ })).toBeTruthy();
     });
 });

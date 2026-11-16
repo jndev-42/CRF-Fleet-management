@@ -69,6 +69,7 @@ const basePayload = {
     needs_followup: false,
     volunteer_accident: false,
     volunteer_accident_details: null,
+    start_time: null, end_time: null, arrival_time: null, departure_time: null, mission_lead_name: null, mission_lead_phone: null, crf_observations: null, organizer_observations: null, organizer_name: null, organizer_function: null,
     supplies: [{ category: 'SAC_PRIMAIRE', item_name: 'Compresses', quantity_used: 2 }],
     intervention_types: [{ category: 'SOINS', quantity: 2 }],
     intervention_natures: [{ category: 'PETITS_SOINS', quantity: 2 }],
@@ -172,23 +173,63 @@ describe('PATCH /api/missions/[id]', () => {
         expect(await editsOf(id)).toEqual([]);
     });
 
-    it('DPS / PAPS : passage refusé sans rapport signé ; autorisé avec ; rapport déjà DPS sans rapport signé modifiable', async () => {
+    it('DPS / PAPS : un rapport Réseaux peut y passer (mode NONE) ; un DPS existant garde son mode', async () => {
         const reseau = await createReport();
         asUser(AUTHOR);
-        let res = await patchReport(patchRequest(reseau, { ...basePayload, mission_type: 'DPS' }), ctx(reseau));
-        expect(res.status).toBe(400);
-        expect((await res.json()).error).toContain('rapport signé');
-        expect((await reportRow(reseau)).mission_type).toBe('RESEAU');
-
-        await db.execute({ sql: `UPDATE "mission_reports" SET signed_report_drive_id = 'drive-x' WHERE id = ?`, args: [reseau] });
-        res = await patchReport(patchRequest(reseau, { ...basePayload, mission_type: 'PAPS' }), ctx(reseau));
+        expect((await reportRow(reseau)).signed_report_mode).toBeNull();
+        let res = await patchReport(patchRequest(reseau, { ...basePayload, mission_type: 'DPS', start_time: '08:00', mission_lead_name: 'Alice' }), ctx(reseau));
         expect(res.status).toBe(200);
+        const row = await reportRow(reseau);
+        expect(row.mission_type).toBe('DPS');
+        expect(row.signed_report_mode).toBe('NONE');
+        expect(row.start_time).toBe('08:00');
+        expect(row.mission_lead_name).toBe('Alice');
+        const changes = (await editsOf(reseau))[0].changes.map((c: { field: string }) => c.field);
+        expect(changes).toEqual(expect.arrayContaining(['mission_type', 'start_time', 'mission_lead_name']));
 
-        const legacyDps = await createReport({ mission_type: 'DPS' });
+        const legacyDps = await createReport({ mission_type: 'DPS', signed_report_mode: 'NONE' });
+        await db.execute({ sql: `UPDATE "mission_reports" SET signed_report_mode = NULL WHERE id = ?`, args: [legacyDps] });
         asUser(AUTHOR);
         res = await patchReport(patchRequest(legacyDps, { ...basePayload, mission_type: 'DPS', location: 'Corrigé' }), ctx(legacyDps));
         expect(res.status).toBe(200);
-        expect((await reportRow(legacyDps)).location).toBe('Corrigé');
+        const legacy = await reportRow(legacyDps);
+        expect(legacy.location).toBe('Corrigé');
+        expect(legacy.signed_report_mode).toBeNull();
+    });
+
+    it('PATCH : clés DPS/PAPS absentes → valeurs enregistrées conservées (aucun changement, aucune entrée)', async () => {
+        const id = await createReport({ mission_type: 'DPS', signed_report_mode: 'NONE', start_time: '08:00', mission_lead_name: 'Alice' });
+        asUser(AUTHOR);
+        const stripped: Record<string, unknown> = { ...basePayload, mission_type: 'DPS' };
+        for (const k of ['start_time', 'end_time', 'arrival_time', 'departure_time', 'mission_lead_name', 'mission_lead_phone',
+            'crf_observations', 'organizer_observations', 'organizer_name', 'organizer_function']) delete stripped[k];
+        const res = await patchReport(patchRequest(id, { ...stripped, location: 'Autre lieu' }), ctx(id));
+        expect(res.status).toBe(200);
+        const r = await reportRow(id);
+        expect(r.start_time).toBe('08:00');
+        expect(r.mission_lead_name).toBe('Alice');
+        expect((await editsOf(id))[0].changes.map((c: { field: string }) => c.field)).toEqual(['location']);
+    });
+
+    it('PATCH : observations et organisateur stockés seulement si le rapport enregistré est signé dans l\u2019appli', async () => {
+        const obs = { crf_observations: 'RAS', organizer_observations: 'Merci', organizer_name: 'Bob', organizer_function: 'Président' };
+        const none = await createReport({ mission_type: 'DPS', signed_report_mode: 'NONE' });
+        asUser(AUTHOR);
+        expect((await patchReport(patchRequest(none, { ...basePayload, mission_type: 'DPS', ...obs }), ctx(none))).status).toBe(200);
+        expect(await reportRow(none)).toMatchObject({ crf_observations: null, organizer_name: null });
+
+        const app = await createReport({ mission_type: 'DPS', signed_report_mode: 'NONE' });
+        await db.execute({ sql: `UPDATE "mission_reports" SET signed_report_mode = 'APP' WHERE id = ?`, args: [app] });
+        asUser(AUTHOR);
+        expect((await patchReport(patchRequest(app, { ...basePayload, mission_type: 'DPS', ...obs }), ctx(app))).status).toBe(200);
+        expect(await reportRow(app)).toMatchObject({ crf_observations: 'RAS', organizer_observations: 'Merci', organizer_name: 'Bob', organizer_function: 'Président' });
+    });
+
+    it('PATCH : heure invalide refusée (400)', async () => {
+        const id = await createReport();
+        asUser(AUTHOR);
+        const res = await patchReport(patchRequest(id, { ...basePayload, mission_type: 'DPS', start_time: '25:99' }), ctx(id));
+        expect(res.status).toBe(400);
     });
 
     it('400 : répartition incohérente, rien d\'écrit', async () => {

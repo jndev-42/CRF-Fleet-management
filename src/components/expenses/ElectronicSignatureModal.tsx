@@ -52,7 +52,11 @@ interface ElectronicSignatureModalProps {
      * trésorier qui paie et le valideur qui refuse voyaient donc « valider ».
      */
     actionVerb?: string;
+    /** Texte de la case d'engagement. Par défaut : celui des notes de frais. */
+    consentText?: string;
 }
+
+const DEFAULT_CONSENT_TEXT = 'Je confirme signer électroniquement ce document et certifie l’exactitude de l’état des frais engagés (horodatage numérique cryptographique).';
 
 export default function ElectronicSignatureModal({
     isOpen,
@@ -64,6 +68,7 @@ export default function ElectronicSignatureModal({
     initialFunction = 'Bénévole local',
     loading = false,
     actionVerb,
+    consentText = DEFAULT_CONSENT_TEXT,
 }: ElectronicSignatureModalProps) {
     useEscapeKey(onClose, isOpen);
     const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
@@ -295,10 +300,12 @@ export default function ElectronicSignatureModal({
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Signataire</span>
                             <div style={{ fontWeight: 600, color: 'var(--text-primary, #0f172a)' }}>{signerName}</div>
                         </div>
+                        {signerEmail && (
                         <div>
                             <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Email</span>
                             <div style={{ fontWeight: 600, color: 'var(--text-primary, #0f172a)', wordBreak: 'break-all' }}>{signerEmail}</div>
                         </div>
+                        )}
                     </div>
 
                     {/* Function Input */}
@@ -510,7 +517,7 @@ export default function ElectronicSignatureModal({
                             style={{ marginTop: '2px', cursor: 'pointer' }}
                         />
                         <span>
-                            Je confirme signer électroniquement ce document et certifie l’exactitude de l’état des frais engagés (horodatage numérique cryptographique).
+                            {consentText}
                         </span>
                     </label>
                 </div>
