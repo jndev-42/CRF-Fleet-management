@@ -39,19 +39,19 @@ describe('ulIds des listes de personnes', () => {
         expect(parseUlIds('a, b')).toEqual(['a', 'b']);
     });
 
-    it('listActiveUlMembers expose toutes les UL du membre, pas seulement celle demandée', async () => {
+    it('listActiveUlMembers expose l\'UL principale du membre, pas ses UL secondaires', async () => {
         const members = await listActiveUlMembers('ul-a');
         expect(members).toHaveLength(1);
         expect(members[0].id).toBe('u-1');
-        expect([...members[0].ulIds].sort()).toEqual(['ul-a', 'ul-b']);
+        expect(members[0].ulIds).toEqual(['ul-a']);
     });
 
-    it('listEligibleDrivers expose les UL de chacun ([] sans rattachement)', async () => {
+    it('listEligibleDrivers expose l\'UL principale de chacun ([] sans rattachement)', async () => {
         await seedUser({ id: 'u-3', email: 'three@croix-rouge.fr', name: 'Three' });
         await seedUserRole('u-3', 'CHVL');
         const drivers = await listEligibleDrivers('VL', 'nobody');
         const byId = Object.fromEntries(drivers.map(d => [d.id, d.ulIds.sort()]));
-        expect(byId).toEqual({ 'u-1': ['ul-a', 'ul-b'], 'u-2': ['ul-b'], 'u-3': [] });
+        expect(byId).toEqual({ 'u-1': ['ul-a'], 'u-2': ['ul-b'], 'u-3': [] });
     });
 
     it('GET /api/users (admin) renvoie ulIds, avec et sans filtre de rôle', async () => {
@@ -61,7 +61,7 @@ describe('ulIds des listes de personnes', () => {
             expect(res.status).toBe(200);
             const { users } = await res.json();
             const one = users.find((u: { id: string }) => u.id === 'u-1');
-            expect([...one.ulIds].sort()).toEqual(['ul-a', 'ul-b']);
+            expect(one.ulIds).toEqual(['ul-a']);
         }
     });
 
@@ -71,7 +71,7 @@ describe('ulIds des listes de personnes', () => {
         expect(res.status).toBe(200);
         const { users } = await res.json();
         expect(users.map((u: { id: string }) => u.id)).toEqual(['u-1']);
-        expect([...users[0].ulIds].sort()).toEqual(['ul-a', 'ul-b']);
+        expect(users[0].ulIds).toEqual(['ul-a']);
     });
 
     it("n'expose pas une UL où le compte est INACTIF ou GUEST (UserUL.roles)", async () => {
@@ -83,5 +83,11 @@ describe('ulIds des listes de personnes', () => {
         const byId = Object.fromEntries(drivers.map(d => [d.id, d.ulIds.sort()]));
         expect(byId['u-2']).toEqual(['ul-b']);
         expect(byId['u-4']).toEqual([]);
+    });
+
+    it('un membre secondaire sans rôle (ex. UL principale ailleurs) ne compte pas dans « Mon UL »', async () => {
+        await seedUserUL({ userId: 'u-2', ulId: 'ul-a', roles: [], isHome: false });
+        const drivers = await listEligibleDrivers('VL', 'nobody');
+        expect(drivers.find(d => d.id === 'u-2')?.ulIds).toEqual(['ul-b']);
     });
 });

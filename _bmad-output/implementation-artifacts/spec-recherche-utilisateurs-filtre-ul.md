@@ -15,7 +15,7 @@ context: []
 
 **Problem:** Plusieurs champs de l'appli où l'on choisit une personne (2ème conducteur, chauffeur d'une réservation ou d'un rapport de mission, responsable de désinfection) n'ont pas de recherche (liste déroulante native, datalist) ou listent les chauffeurs de toutes les UL sans moyen de se limiter à la sienne : trouver un nom est laborieux.
 
-**Approach:** Tous ces champs passent par le composant commun `UserCombobox` (qui a déjà une recherche par nom/email) et ce composant gagne un sélecteur « Toutes les UL / Mon UL » qui ne garde que les personnes rattachées (`UserUL`, principal ou secondaire) à l'UL active de la personne connectée (`session.user.ulId`). Les routes qui alimentent ces listes renvoient pour chaque personne la liste de ses UL (`ulIds`).
+**Approach:** Tous ces champs passent par le composant commun `UserCombobox` (qui a déjà une recherche par nom/email) et ce composant gagne un sélecteur « Toutes les UL / Mon UL » qui ne garde que les personnes dont l'UL principale (`UserUL.is_home = 1`) est l'UL active de la personne connectée (`session.user.ulId`). Les routes qui alimentent ces listes renvoient pour chaque personne la liste de ses UL (`ulIds`).
 
 ## Boundaries & Constraints
 
@@ -69,6 +69,8 @@ context: []
 
 ## Spec Change Log
 
+- 16/11/2026 — renégocié par l'humain après test : « Mon UL » ne compte que l'UL principale. Un membre secondaire (ex. UL principale Paris 4, secondaire Paris 18 sans rôle) apparaissait sous « Mon UL » de Paris 18. `USER_UL_IDS_SQL` filtre `is_home = 1` ; `ulIds` a 0 ou 1 élément.
+
 ## Review Triage Log
 
 | # | Constat | Verdict | Preuve / route |
@@ -91,7 +93,7 @@ context: []
 
 ## Design Notes
 
-`ulIds` plutôt que `homeUlId` : un bénévole rattaché à titre secondaire à l'UL fait bien partie de « l'UL de la personne qui recherche ». L'UL de référence est l'UL **active** de la session (celle choisie dans le sélecteur d'UL de la barre), pas toutes les UL de l'utilisateur.
+`ulIds` (tableau) conservé pour ne pas changer le contrat client, mais il ne porte plus que l'UL principale (cf. Spec Change Log). L'UL de référence est l'UL **active** de la session (celle choisie dans le sélecteur d'UL de la barre), pas toutes les UL de l'utilisateur.
 
 ## Verification
 

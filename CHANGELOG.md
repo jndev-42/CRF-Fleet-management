@@ -1,5 +1,11 @@
 # Changelog
 
+## [5.54.2] — 16 novembre 2026
+
+### 🔧 Modifications
+
+- Sélecteurs de personnes : « Mon UL » ne garde plus que les personnes dont c'est l'unité locale principale. Une personne seulement rattachée à titre secondaire à votre UL n'y apparaît plus.
+
 ## [5.54.1] — 16 novembre 2026
 
 ### 🐛 Corrections

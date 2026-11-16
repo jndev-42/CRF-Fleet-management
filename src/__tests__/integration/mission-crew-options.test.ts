@@ -53,7 +53,7 @@ describe("Listes de l'étape « Équipage » du rapport de mission", () => {
     await seedUserRole('usr-guest', 'CHVPSP');
     await seedUserRole('usr-guest', 'GUEST');
     await seedUserRole('usr-ci', 'CI/RPAPS');
-    // Alice : UL principale + UL secondaire (alimente le filtre « Mon UL » des sélecteurs).
+    // Alice : UL principale + UL secondaire ; seule la principale alimente le filtre « Mon UL ».
     await seedUserUL({ userId: 'usr-alice', ulId: 'ul-paris-18', roles: ['CHVL'] });
     await seedUserUL({ userId: 'usr-alice', ulId: 'ul-lyon', roles: ['CHVL'], isHome: false });
 
@@ -63,7 +63,7 @@ describe("Listes de l'étape « Équipage » du rapport de mission", () => {
   });
 
   const EXPECTED_DRIVERS = [
-    { id: 'usr-alice', name: 'Alice', email: 'alice@croix-rouge.fr', ulIds: expect.arrayContaining(['ul-paris-18', 'ul-lyon']), roles: ['CHVL'] },
+    { id: 'usr-alice', name: 'Alice', email: 'alice@croix-rouge.fr', ulIds: ['ul-paris-18'], roles: ['CHVL'] },
     { id: 'usr-bruno', name: 'Bruno', email: 'bruno@croix-rouge.fr', ulIds: [], roles: expect.arrayContaining(['CHVL', 'CHVPSP']) },
   ];
 

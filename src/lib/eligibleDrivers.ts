@@ -4,7 +4,8 @@ export interface EligibleDriver {
     id: string;
     name: string | null;
     email: string;
-    /** UL de rattachement (`UserUL`, principal ou secondaire) — alimente le filtre « Mon UL » des sélecteurs. */
+    /** UL principale (`UserUL.is_home = 1`), 0 ou 1 élément — alimente le filtre « Mon UL » des sélecteurs.
+     *  Les UL secondaires ne comptent pas (décision produit du 16/11/2026). */
     ulIds: string[];
 }
 
@@ -13,8 +14,10 @@ export function parseUlIds(value: unknown): string[] {
     return String(value ?? '').split(',').map(x => x.trim()).filter(Boolean);
 }
 
-/** Sous-requête SQL des UL d'un compte (`u` = alias de la table User). */
+/** Sous-requête SQL de l'UL principale d'un compte (`u` = alias de la table User) : « Mon UL »
+ *  ne garde que les personnes dont c'est l'UL principale, jamais un rattachement secondaire. */
 export const USER_UL_IDS_SQL = `(SELECT GROUP_CONCAT(DISTINCT uu.ulId) FROM "UserUL" uu WHERE uu.userId = u.id
+    AND uu.is_home = 1
     AND ',' || COALESCE(uu.roles, '') || ',' NOT LIKE '%,INACTIF,%'
     AND ',' || COALESCE(uu.roles, '') || ',' NOT LIKE '%,GUEST,%')`;
 

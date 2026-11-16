@@ -85,7 +85,7 @@ describe('UserCombobox', () => {
         beforeEach(() => { sessionMock.ulId = 'ul-a'; });
         afterEach(() => { sessionMock.ulId = undefined; });
 
-        it('ne garde que les personnes de l\'UL active, rattachement secondaire compris', () => {
+        it('ne garde que les personnes dont ulIds contient l\'UL active', () => {
             render(<UserCombobox users={ulUsers} value="" onChange={vi.fn()} />);
             open();
             expect(screen.getAllByRole('option')).toHaveLength(1 + 4);
