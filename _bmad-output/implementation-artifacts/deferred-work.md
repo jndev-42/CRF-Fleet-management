@@ -223,3 +223,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-1-onglet-contacts.md`
   summary: Mettre à jour `src/app/vehicles/AGENTS.md` pour `FleetViewToggle.tsx` et `useFleetTrackingView.ts`.
   evidence: nouveaux fichiers non référencés dans l'AGENTS.md du dossier.
+- source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-2-taches.md`
+  summary: Paginer ou borner côté serveur la liste des tâches terminées (GET /api/fleet-tracking/tasks).
+  evidence: les tâches ne sont jamais purgées ; la route renvoie tout à chaque filtre.
+- source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-2-taches.md`
+  summary: Nettoyer ou signaler les assignés de tâches qui ont perdu l'accès (départ de l'UL, INACTIF, perte de RESP_VEHICULE/ADMIN, compte supprimé).
+  evidence: aucune route utilisateurs/rôles ne touche FleetTaskAssignee ; les assignés existants ne sont pas revalidés.

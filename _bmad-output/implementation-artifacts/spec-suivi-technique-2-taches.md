@@ -2,8 +2,8 @@
 title: 'Suivi technique 2/5 — tâches : tableau à colonnes, assignés, rattachements, pièces jointes'
 type: 'feature'
 created: '2026-11-18'
-status: 'in-progress'
-baseline_commit: '9558d2a0598b821c0c88480a82117361d3e04847'
+status: 'done'
+baseline_commit: 'e22111d812e29d08ac23cb026c883764e0029235'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -74,15 +74,15 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/fleetTracking/schema.ts` -- tables `FleetTask` (dont `dossierId` nullable, `pinned`, `completedAt`), `FleetTaskAssignee` (PK taskId+userId), `FleetTaskLink` (unique taskId+targetType+targetId), `FleetAttachment` (ownerType TASK|DOSSIER, ownerId, ulId, r2Key, fileName, contentType, size, uploadedBy, createdAt) + index ; ajout à `FLEET_TRACKING_DDL`, migration, dev, `setup.ts` (create + truncate).
-- [ ] `src/lib/fleetTracking/tasks.ts` -- schémas Zod, validation des assignés et des rattachements, chargement d'une tâche enrichie (assignés avec nom, rattachements avec libellé, nombre de PJ).
-- [ ] `src/app/api/fleet-tracking/tasks/route.ts` -- GET liste filtrée (vehicle, assignee=me|id, pinned, priority, status, q) ; POST.
-- [ ] `src/app/api/fleet-tracking/tasks/[id]/route.ts` -- GET, PATCH (champs partiels, remplacement des listes assignés/rattachements), DELETE.
-- [ ] `src/app/api/fleet-tracking/tasks/[id]/attachments/route.ts` + `[attachmentId]/route.ts` -- POST upload ; GET contenu (inline pour images/PDF) ; DELETE.
-- [ ] `src/app/api/fleet-tracking/assignees/route.ts` et `link-targets/route.ts` -- responsables assignables de l'UL ; cibles rattachables par type avec recherche (`?type=VEHICLE|CONTACT|INCIDENT|MAINTENANCE&q=`).
-- [ ] `src/components/fleetTracking/` -- `TasksTab` (filtres, bascule Tableau/Liste, colonnes avec glisser-déposer, pastille d'état menu « Déplacer vers… », Terminé replié), `TaskCard`, `TaskModal` (création/édition, état, priorité, échéance, épingle, assignés multiples, rattachements, pièces jointes, suppression avec confirmation) ; ouverture via `?tache=` ; onglet « Tâches » ajouté à `FleetTrackingPanel` et devenu l'onglet par défaut.
-- [ ] Tests -- intégration de chaque route (toutes les lignes de la matrice, 401/403/400) ; composant `TasksTab` (rendu par colonnes, changement d'état par la pastille) et `TaskModal` (assignés, validation).
-- [ ] `npm run mcp:catalog`, CHANGELOG 5.55.0 complété, `AGENTS.md` des nouveaux dossiers.
+- [x] `src/lib/fleetTracking/schema.ts` -- tables `FleetTask` (dont `dossierId` nullable, `pinned`, `completedAt`), `FleetTaskAssignee` (PK taskId+userId), `FleetTaskLink` (unique taskId+targetType+targetId), `FleetAttachment` (ownerType TASK|DOSSIER, ownerId, ulId, r2Key, fileName, contentType, size, uploadedBy, createdAt) + index ; ajout à `FLEET_TRACKING_DDL`, migration, dev, `setup.ts` (create + truncate).
+- [x] `src/lib/fleetTracking/tasks.ts` -- schémas Zod, validation des assignés et des rattachements, chargement d'une tâche enrichie (assignés avec nom, rattachements avec libellé, nombre de PJ).
+- [x] `src/app/api/fleet-tracking/tasks/route.ts` -- GET liste filtrée (vehicle, assignee=me|id, pinned, priority, status, q) ; POST.
+- [x] `src/app/api/fleet-tracking/tasks/[id]/route.ts` -- GET, PATCH (champs partiels, remplacement des listes assignés/rattachements), DELETE.
+- [x] `src/app/api/fleet-tracking/tasks/[id]/attachments/route.ts` + `[attachmentId]/route.ts` -- POST upload ; GET contenu (inline pour images/PDF) ; DELETE.
+- [x] `src/app/api/fleet-tracking/assignees/route.ts` et `link-targets/route.ts` -- responsables assignables de l'UL ; cibles rattachables par type avec recherche (`?type=VEHICLE|CONTACT|INCIDENT|MAINTENANCE&q=`).
+- [x] `src/components/fleetTracking/` -- `TasksTab` (filtres, bascule Tableau/Liste, colonnes avec glisser-déposer, pastille d'état menu « Déplacer vers… », Terminé replié), `TaskCard`, `TaskModal` (création/édition, état, priorité, échéance, épingle, assignés multiples, rattachements, pièces jointes, suppression avec confirmation) ; ouverture via `?tache=` ; onglet « Tâches » ajouté à `FleetTrackingPanel` et devenu l'onglet par défaut.
+- [x] Tests -- intégration de chaque route (toutes les lignes de la matrice, 401/403/400) ; composant `TasksTab` (rendu par colonnes, changement d'état par la pastille) et `TaskModal` (assignés, validation).
+- [x] `npm run mcp:catalog`, CHANGELOG 5.55.0 complété, `AGENTS.md` des nouveaux dossiers.
 
 **Acceptance Criteria:**
 - Given une carte déplacée vers « En attente », when la page est rechargée, then elle y est toujours.
@@ -91,9 +91,50 @@ context:
 
 ## Implementation Notes
 
+- Schéma (`src/lib/fleetTracking/schema.ts`) : `FleetTask` (dont `dossierId` nullable, `pinned`, `completedAt`), `FleetTaskAssignee` (PK taskId+userId), `FleetTaskLink` (UNIQUE taskId+targetType+targetId), `FleetAttachment` (ownerType TASK|DOSSIER) + 5 index ; `FLEET_TRACKING_INDEX_NAMES` dérivé du DDL et utilisé par `scripts/add-fleet-tracking.ts` (qui complète aussi une base passée au seul livrable 1 — testé). Dev via la boucle existante de `setup-dev.ts` ; tests : truncate des 4 tables.
+- `tasks.ts` / `attachments.ts` purs (client-safe) ; `tasksStore.ts` (SQL) et `taskGuards.ts` (validation des cibles, notification) serveur. Pas de clés étrangères : suppression explicite en un lot `write`.
+- Assignables : `listActiveUlMembers(ulId)` puis rôles **dans l'UL** de chaque membre via `computeSessionRoles` (extrait pur de `resolveSessionRoles`, même cascade, INACTIF de la home compris) filtrés par `canManageVehicles`.
+- PATCH : l'interface n'envoie `assigneeIds` / `links` que s'ils ont changé ; les assignés et rattachements déjà présents sur la tâche sont acceptés sans revalidation (le client renvoie les listes complètes ; un contact peut avoir été retiré du partage) ; seuls les nouveaux sont validés. Un rattachement devenu invisible depuis l'UL est renvoyé `missing: true`, sans libellé ni téléphone.
+- Filtre `vehicle` : rattachement direct au véhicule, ou à un de ses incidents / maintenances. `assignee=me` = `session.user.id`.
+- Pièces jointes : taille contrôlée avant lecture puis après (413), type par signature, nom ré-suffixé avec l'extension réelle ; clé `fleet-tracking/<segment UL>/tasks/<taskId>/<attachmentId>.<ext>`. Au plus 20 PJ par tâche (400). Lecture servie avec une CSP `sandbox`. Suppression d'une PJ ou d'une tâche : base d'abord (clés capturées par `RETURNING`), puis R2 au mieux, échec journalisé. Nom : seule une vraie extension finale (pdf/jpg/jpeg/png/webp) est retirée.
+- UI : onglet « Tâches » par défaut (`tabs.ts`), `?tache=` lu par `useFleetTrackingView` (retiré à la fermeture et au changement d'onglet). Tableau/Liste mémorisé en `localStorage` ; création possible depuis chaque colonne ; PJ ajoutables une fois la tâche créée ; fermeture de la modale → rechargement (compteur 📎).
+- Vérification : `npm run lint` 0/0 ; suite complète 5098/5100 — les 2 échecs (`report-pdf.test.ts`) viennent du worker pdfjs introuvable dans les `node_modules` de ce worktree, sans lien avec ce livrable. Non vérifié dans un navigateur.
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+| # | Source | Constat | Verdict | Route / preuve |
+|---|---|---|---|---|
+| 1 | blind / edge / vgap | Suppression R2 avant la base : lignes pointant vers des objets supprimés (409 permanent) | medium | patch — base d'abord (clés via RETURNING), R2 ensuite au mieux |
+| 2 | blind | PATCH à listes complètes : écrasement concurrent des assignés/rattachements | medium | patch — la modale n'envoie les listes que si elles ont changé (dernier écrit gagne sur le reste, accepté) |
+| 3 | blind | Pas de plafond de pièces jointes par tâche | medium | patch — 20 max, 400 au-delà |
+| 4 | blind | PJ servies inline sans CSP sandbox | medium | patch — vérifié : aucun en-tête CSP sur la route GET |
+| 5 | blind / edge | Filtre véhicule limité à 30 véhicules | medium | patch |
+| 6 | blind | `dueTone` rouge pour ≤ 7 j | false | conforme à DESIGN.md (« rouge si dépassée ou ≤ 7 j ») |
+| 7 | blind | Pas de pagination, tâches terminées cumulées | low | defer — volumétrie UL faible aujourd'hui |
+| 8 | blind | Assignés ayant perdu l'accès jamais nettoyés | medium | defer — touche les routes utilisateurs/rôles hors module |
+| 9 | blind / edge | Lien de notification vers une autre UL active → 403 brut | medium | patch — message explicite « tâche d'une autre UL, changer d'unité locale » |
+| 10 | blind | AssigneePicker, LinkPicker, TaskAttachments, TasksToolbar sans tests ; 400 `type`/`status` non testés | medium | patch |
+| 11 | blind / edge | Dépôt pendant un envoi : liste de PJ périmée | low | patch — ignorer si occupé + mise à jour fonctionnelle |
+| 12 | blind | Menu d'état sans flèches ni retour du focus | low | patch |
+| 13 | blind | Version/CHANGELOG non incrémentés | false | 5.55.0 non publiée, livrables d'une même PR |
+| 14 | vgap | PATCH conservant un assigné ayant perdu son rôle non testé | medium | patch |
+| 15 | vgap | Filtre véhicule via maintenance non testé | medium | patch |
+| 16 | vgap | DELETE PJ tolérant l'échec R2 non testé | medium | patch |
+| 17 | vgap | Échec de notification ne faisant pas échouer l'écriture non testé | medium | patch |
+| 18 | vgap | Lien profond via FleetTrackingPanel non testé | medium | patch |
+| 19 | vgap | Assignabilité multi-UL non testée | medium | patch |
+| 20 | vgap / edge | Contact partagé d'une UL supprimée accepté par l'API mais pas proposé | low | patch — même condition partout |
+| 21 | edge | Upload concurrent à la suppression de la tâche | low | rejeté — fenêtre minime, correctif complexe |
+| 22 | edge | PATCH sur tâche supprimée : insertions orphelines | low | patch — garde `WHERE EXISTS` |
+| 23 | edge | Deux déplacements rapides : rollback écrase le plus récent | low | patch — pastille désactivée pendant la requête |
+| 24 | edge | Rechargement en vol renvoyant l'ancien état | low | patch — invalider la requête en vol au déplacement |
+| 25 | edge | Nom de fichier tronqué après un point (« Devis v2.1 ») | low | patch |
+| 26 | edge | Glisser du texte externe interprété comme id | low | patch — type MIME dédié |
+| 27 | edge | `?tache=` pendant une création ouverte | low | patch |
+| 28 | edge | LinkPicker sans message d'erreur | low | patch |
+| 29 | edge | POST 201 avec `task: null` | low | patch |
 
 ## Verification
 

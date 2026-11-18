@@ -72,8 +72,23 @@ export async function resolveSessionRoles(
     ]);
 
     const globalRoles = (globalRes?.rows || []).map(row => row.name as string);
-    const ulRows = ulRes?.rows || [];
+    const ulRows = (ulRes?.rows || []).map(row => ({ ulId: row.ulId, is_home: row.is_home, roles: row.roles }));
+    return computeSessionRoles(globalRoles, ulRows, activeUlId);
+}
 
+/** Ligne `UserUL` utile au calcul des rôles. */
+export interface UserUlRoleRow {
+    ulId: unknown;
+    is_home: unknown;
+    roles: unknown;
+}
+
+/**
+ * Calcul pur des rôles de session à partir des rôles globaux et des lignes `UserUL`
+ * du compte — mêmes règles que `resolveSessionRoles` (qui l'appelle). Sert aussi à
+ * évaluer les rôles d'AUTRES comptes dans une UL donnée (ex. assignés du suivi technique).
+ */
+export function computeSessionRoles(globalRoles: string[], ulRows: UserUlRoleRow[], activeUlId: string | null): string[] {
     const hasActiveUl = !!activeUlId && activeUlId !== 'default';
     const activeRow = hasActiveUl ? ulRows.find(row => row.ulId === activeUlId) : undefined;
     const homeRow = ulRows.find(row => !!row.is_home);

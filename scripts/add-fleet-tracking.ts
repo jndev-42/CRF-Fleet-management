@@ -2,16 +2,19 @@
  * Migration production — module « Suivi technique » de /vehicles.
  *
  *   Crée les tables du module (FLEET_TRACKING_DDL, `src/lib/fleetTracking/schema.ts`) :
- *   pour la v5.55.0, la table FleetContact (annuaire des prestataires de chaque UL,
- *   partageable aux autres UL) et ses index (ulId) et (shared).
+ *   pour la v5.55.0, FleetContact (annuaire des prestataires de chaque UL, partageable
+ *   aux autres UL), FleetTask (tâches), FleetTaskAssignee (assignés), FleetTaskLink
+ *   (rattachements à un véhicule, contact, incident ou maintenance) et FleetAttachment
+ *   (pièces jointes sur R2), avec leurs index.
  *
  * Idempotente : chaque instruction est en `IF NOT EXISTS` ; une base à jour n'est pas
  * réécrite. L'écriture est atomique (un seul lot en transaction d'écriture), puis
  * vérifiée : la sortie vaut 1 si une table manque encore.
  *
- * À exécuter AVANT le déploiement de la v5.55.0 : sans la table, les routes
- * /api/fleet-tracking/contacts* répondent 500 (onglet « Suivi technique › Contacts »
- * inutilisable).
+ * À exécuter AVANT le déploiement de la v5.55.0 : sans les tables, les routes
+ * /api/fleet-tracking/* répondent 500 (onglets « Suivi technique › Contacts » et
+ * « Tâches » inutilisables). Relançable : une base partiellement migrée (FleetContact
+ * seule) reçoit les tables manquantes.
  *
  * Usage :
  *   npx tsx scripts/add-fleet-tracking.ts                          # .env, dry-run
@@ -20,7 +23,7 @@
  */
 import { createClient } from '@libsql/client';
 import dotenv from 'dotenv';
-import { FLEET_CONTACT_INDEXES, FLEET_TRACKING_DDL, FLEET_TRACKING_TABLES } from '../src/lib/fleetTracking/schema';
+import { FLEET_TRACKING_DDL, FLEET_TRACKING_INDEX_NAMES, FLEET_TRACKING_TABLES } from '../src/lib/fleetTracking/schema';
 
 // Cible l'environnement passé en `--env` (défaut : .env).
 const envFile = (() => {
@@ -29,7 +32,7 @@ const envFile = (() => {
 })();
 dotenv.config({ path: envFile });
 
-const INDEX_NAMES = FLEET_CONTACT_INDEXES.map(ddl => /"(idx_[^"]+)"/.exec(ddl)?.[1]).filter((n): n is string => !!n);
+const INDEX_NAMES = FLEET_TRACKING_INDEX_NAMES;
 
 async function missingObjects(db: ReturnType<typeof createClient>): Promise<{ tables: string[]; indexes: string[] }> {
     const res = await db.execute(`SELECT type, name FROM sqlite_master WHERE type IN ('table', 'index')`);

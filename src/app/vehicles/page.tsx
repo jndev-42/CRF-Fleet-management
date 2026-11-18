@@ -121,7 +121,13 @@ function VehiclesPageContent() {
       </div>
 
       {tracking.isTracking ? (
-        <FleetTrackingPanel tab={tracking.tab} onSelectTab={tracking.setTab} ulName={activeUL?.name} />
+        <FleetTrackingPanel
+          tab={tracking.tab}
+          onSelectTab={tracking.setTab}
+          ulName={activeUL?.name}
+          taskId={tracking.taskId}
+          onOpenTask={tracking.setTaskId}
+        />
       ) : (
         <>
           {isDtView && (

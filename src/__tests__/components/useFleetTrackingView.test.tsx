@@ -27,11 +27,11 @@ beforeEach(() => {
 });
 
 describe('useFleetTrackingView', () => {
-    it('passer en suivi écrit vue=suivi&onglet=contacts sans empiler d\'historique', () => {
+    it('passer en suivi écrit vue=suivi&onglet=taches (onglet par défaut) sans empiler d\'historique', () => {
         const { result } = renderHook(() => useFleetTrackingView(true));
         expect(result.current.isTracking).toBe(false);
         act(() => result.current.setTracking(true));
-        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=contacts');
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=taches');
         expect(nav.replace.mock.calls.at(-1)?.[1]).toEqual({ scroll: false });
     });
 
@@ -50,10 +50,36 @@ describe('useFleetTrackingView', () => {
         expect(result.current.isTracking).toBe(false);
     });
 
-    it('un onglet inconnu retombe sur Contacts', () => {
+    it('un onglet inconnu retombe sur Tâches', () => {
         nav.params = new URLSearchParams('vue=suivi&onglet=nimporte');
         const { result } = renderHook(() => useFleetTrackingView(true));
-        expect(result.current.tab).toBe('contacts');
+        expect(result.current.tab).toBe('taches');
+    });
+
+    it('lien de notification : lit la tâche à ouvrir ; la fermer retire `tache` de l\'URL', () => {
+        nav.params = new URLSearchParams('vue=suivi&onglet=taches&tache=t-42');
+        const { result } = renderHook(() => useFleetTrackingView(true));
+        expect(result.current.tab).toBe('taches');
+        expect(result.current.taskId).toBe('t-42');
+        act(() => result.current.setTaskId(null));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=taches');
+    });
+
+    it('ouvrir une tâche l\'écrit dans l\'URL ; changer d\'onglet la retire', () => {
+        nav.params = new URLSearchParams('vue=suivi&onglet=taches');
+        const { result } = renderHook(() => useFleetTrackingView(true));
+        act(() => result.current.setTaskId('t-7'));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=taches&tache=t-7');
+        nav.params = new URLSearchParams('vue=suivi&onglet=taches&tache=t-7');
+        const { result: again } = renderHook(() => useFleetTrackingView(true));
+        act(() => again.current.setTab('contacts'));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=contacts');
+    });
+
+    it('sans droit, `tache` est ignorée', () => {
+        nav.params = new URLSearchParams('vue=suivi&onglet=taches&tache=t-42');
+        const { result } = renderHook(() => useFleetTrackingView(false));
+        expect(result.current.taskId).toBeNull();
     });
 });
 

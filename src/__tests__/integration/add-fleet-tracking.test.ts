@@ -53,13 +53,19 @@ describe('scripts/add-fleet-tracking.ts', () => {
         expect(await objects()).toEqual(before);
     }, 60_000);
 
-    it('--apply : crée FleetContact et ses deux index, puis vérifie', async () => {
+    it('--apply : crée les tables du module et leurs index, puis vérifie', async () => {
         const out = await migrate('--apply');
         expect(out).toContain('✅ Vérification');
         const after = await objects();
         expect(after).toContain('table:FleetContact');
         expect(after).toContain('index:idx_FleetContact_ulId');
         expect(after).toContain('index:idx_FleetContact_shared');
+        for (const t of ['FleetTask', 'FleetTaskAssignee', 'FleetTaskLink', 'FleetAttachment']) {
+            expect(after).toContain(`table:${t}`);
+        }
+        for (const i of ['idx_FleetTask_ulId_status', 'idx_FleetTask_dossierId', 'idx_FleetTaskAssignee_userId', 'idx_FleetTaskLink_target', 'idx_FleetAttachment_owner']) {
+            expect(after).toContain(`index:${i}`);
+        }
     }, 60_000);
 
     it('second --apply : aucune écriture', async () => {
@@ -68,6 +74,17 @@ describe('scripts/add-fleet-tracking.ts', () => {
         const out = await migrate('--apply');
         expect(out).toContain('Rien à faire');
         expect(await objects()).toEqual(before);
+        expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetContact"`)).rows[0].n).toBe(1);
+    }, 60_000);
+
+    it('base du livrable 1 (FleetContact seule) : ajoute les tables des tâches sans toucher aux contacts', async () => {
+        for (const t of ['FleetTask', 'FleetTaskAssignee', 'FleetTaskLink', 'FleetAttachment']) {
+            await db.execute(`DROP TABLE "${t}"`);
+        }
+        const out = await migrate('--apply');
+        expect(out).toContain('table FleetTask : ABSENTE');
+        expect(out).toContain('✅ Vérification');
+        expect(await objects()).toContain('table:FleetAttachment');
         expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetContact"`)).rows[0].n).toBe(1);
     }, 60_000);
 });

@@ -4,7 +4,12 @@
 
 ### ✨ Nouveautés
 
-- Page Véhicules : les responsables véhicule et les administrateurs disposent d'une nouvelle vue « 🔧 Suivi technique », à côté de la vue « 🚗 Flotte ». Elle s'ouvre sur l'onglet « Contacts » ; d'autres onglets suivront.
+- Page Véhicules : les responsables véhicule et les administrateurs disposent d'une nouvelle vue « 🔧 Suivi technique », à côté de la vue « 🚗 Flotte ». Elle s'ouvre sur l'onglet « Tâches », à côté de l'onglet « Contacts » ; d'autres onglets suivront.
+- Tâches : les responsables de l'UL suivent ensemble ce qui doit avancer sur leurs véhicules (devis, références, rendez-vous…). Chaque tâche a un titre, une description, une priorité (« Prioritaire »), une échéance facultative (« Date à fixer » sinon) et un état : À faire, En cours, En attente ou Terminé. Toutes les tâches de l'UL sont visibles et modifiables par tous ses responsables.
+- Tableau à colonnes ou liste : on fait glisser une carte d'une colonne à l'autre pour changer son état, ou, sur téléphone et au clavier, on touche la pastille d'état de la carte pour choisir « Déplacer vers… ». Les tâches terminées restent consultables : au-delà de cinq, la colonne se replie (« Afficher les N autres »).
+- Une tâche peut être attribuée à un ou plusieurs responsables véhicule ou administrateurs de l'UL, rattachée à des véhicules, des contacts (y compris ceux proposés par une autre UL, appelables depuis la tâche), un incident ou une maintenance, et épinglée. Filtres par véhicule, par personne, « Mes tâches », « Épinglées », « Prioritaires » et recherche.
+- Pièces jointes : on joint à une tâche des devis, PDF ou photos (4 Mo au plus par fichier), consultables par les seuls responsables de l'UL ; supprimer la tâche supprime ses pièces jointes.
+- Notification : la personne à qui un autre responsable attribue une tâche reçoit une notification (cloche et push) qui ouvre directement la tâche. S'attribuer soi-même une tâche ne notifie personne.
 - Contacts : chaque unité locale tient son annuaire de prestataires (garages, carrossiers, assureurs, dépanneurs…) avec nom, catégorie, un à cinq téléphones, e-mail, adresse et notes. Recherche par nom, catégorie ou ville, et filtres par catégorie. Les numéros s'appellent d'un simple appui sur téléphone.
 - Un contact peut être partagé aux autres unités locales : elles le retrouvent en lecture seule dans « Prestataires proposés par d'autres UL », avec la mention « Proposé par l'UL … ». Retirer le partage le fait disparaître chez elles.
 - Bouton « Exporter vers le téléphone » : télécharge un fichier de contacts à importer dans le téléphone, avec les contacts de l'UL et ceux proposés par les autres UL (reconnaissables à la mention « UL … » dans leur nom).
