@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import ContactsTab from './ContactsTab';
+import ControlsTab from './ControlsTab';
 import DossiersTab from './DossiersTab';
 import TasksTab from './TasksTab';
 import { FLEET_TRACKING_TABS, FLEET_TRACKING_TAB_LABELS, type FleetTrackingTab } from './tabs';
@@ -22,9 +23,10 @@ interface Props {
 
 /** Vue « Suivi technique » de `/vehicles` : sous-onglets et contenu de l'onglet actif. */
 export default function FleetTrackingPanel({ tab, onSelectTab, ulName, taskId = null, onOpenTask, dossierId = null, onOpenDossier }: Props) {
-    // Relit le badge « Dossiers » après une modification de dossier.
-    const [dossierVersion, setDossierVersion] = useState(0);
-    const openDossiers = useOpenDossierCount(dossierVersion);
+    // Relit les compteurs du panneau (badge « Dossiers »…) après une modification dans un onglet.
+    const [changeVersion, setChangeVersion] = useState(0);
+    const openDossiers = useOpenDossierCount(changeVersion);
+    const bumpVersion = () => setChangeVersion(v => v + 1);
 
     return (
         <section aria-label="Suivi technique">
@@ -53,9 +55,10 @@ export default function FleetTrackingPanel({ tab, onSelectTab, ulName, taskId = 
                     <DossiersTab
                         openDossierId={dossierId}
                         onOpenDossier={onOpenDossier ?? (() => {})}
-                        onChanged={() => setDossierVersion(v => v + 1)}
+                        onChanged={bumpVersion}
                     />
                 )}
+                {tab === 'controles' && <ControlsTab onChanged={bumpVersion} />}
                 {tab === 'contacts' && <ContactsTab ulName={ulName} />}
             </div>
         </section>

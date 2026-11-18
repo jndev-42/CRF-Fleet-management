@@ -635,6 +635,7 @@ async function truncateTables() {
   await db.execute(`DELETE FROM "FleetAttachment"`);
   await db.execute(`DELETE FROM "FleetDossier"`);
   await db.execute(`DELETE FROM "FleetDossierItem"`);
+  await db.execute(`DELETE FROM "FleetControlAppointment"`);
   await db.execute(`DELETE FROM "PushSubscription"`);
   await db.execute(`DELETE FROM "AuditLog"`);
   await db.execute(`DELETE FROM "McpToken"`);

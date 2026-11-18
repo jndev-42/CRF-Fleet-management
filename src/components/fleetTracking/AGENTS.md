@@ -4,12 +4,12 @@
 # Fleet Tracking UI — Suivi technique
 
 ## Purpose
-UI of the "🔧 Suivi technique" view of `/vehicles`, shown instead of the fleet content when the URL carries `?vue=suivi` (hook `src/app/vehicles/useFleetTrackingView.ts`, toggle `src/app/vehicles/FleetViewToggle.tsx`). Only for `canManageVehicles`, never in Vue DT. URL: `?vue=suivi&onglet=taches|dossiers|contacts&tache=<id>&dossier=<id>` (`tache` opens the task modal — notification deep link; `dossier` shows a folder's detail instead of the list).
+UI of the "🔧 Suivi technique" view of `/vehicles`, shown instead of the fleet content when the URL carries `?vue=suivi` (hook `src/app/vehicles/useFleetTrackingView.ts`, toggle `src/app/vehicles/FleetViewToggle.tsx`). Only for `canManageVehicles`, never in Vue DT. URL: `?vue=suivi&onglet=taches|dossiers|controles|contacts&tache=<id>&dossier=<id>` (`tache` opens the task modal — notification deep link; `dossier` shows a folder's detail instead of the list).
 
 ## Key Files
 | File | Description |
 |------|-------------|
-| `tabs.ts` | Sub-tab list and labels (`?onglet=`): `taches` (default), `dossiers`, `contacts` |
+| `tabs.ts` | Sub-tab list and labels (`?onglet=`): `taches` (default), `dossiers`, `controles`, `contacts` |
 | `TasksTab.tsx` | Toolbar, board (4 columns, native pointer drag-and-drop) or list (stacked sections), empty/loading states, task modal (create, or `openTaskId` from the URL) |
 | `TasksToolbar.tsx` | Search, vehicle / assignee selects, « Mes tâches », « Épinglées », « Prioritaires », Tableau/Liste toggle (remembered in `localStorage`), « + Tâche » |
 | `TaskColumn.tsx` | One state column/section; drop target in board mode; « Terminé » collapsed beyond `DONE_COLLAPSE_LIMIT` (« Afficher les N autres ») |
@@ -25,6 +25,10 @@ UI of the "🔧 Suivi technique" view of `/vehicles`, shown instead of the fleet
 | `DossierSelect.tsx` | Folder picker of the task form (open folders; the task's current folder kept even if closed) |
 | `useFleetDossiers.ts` | `useDossierList`, `useOpenDossierCount` (tab badge), `useDossierDetail` (with local `update`), `useOpenDossiers` |
 | `dossiers.module.css` | Folder and vehicle-history styles |
+| `ControlsTab.tsx` / `ControlsTable.tsx` | Screen 5: filters with counts (Toutes, À dater, Sous 30 jours, Dépassées, RDV fixé — from the API `counts`), table of due controls (vehicle, control, due date + remaining km, appointment or « RDV passé le … », state pill) turned into stacked cards ≤ 720 px; « Fixer un RDV » / « Modifier » |
+| `AppointmentModal.tsx` | Appointment date (required, `min`/`max` today → + 5 years), garage among UL + shared contacts, notes ≤ 500, « Créer une tâche » checkbox (replaced by « Tâche liée » when the linked task exists), « Supprimer le rendez-vous » when one exists. On `taskError` it stays open with the message and asks the tab to reload |
+| `useFleetControls.ts` | Fetch `GET /api/fleet-tracking/controls` (`controls`, `counts`, `today`); stale reads (errors included) ignored. `ControlsTab` shows « Rendez-vous enregistré · Tâche créée » and calls `onChanged` (panel counters) |
+| `controls.module.css` | Controls styles (state colours from `--status-*`, always with the written state) |
 | `ContactsTab.tsx` | Search, category filters, UL contacts (editable, share switch), "Prestataires proposés par d'autres UL" (read-only, hidden when empty), `.vcf` export button (disabled when there is nothing to export), "+ Contact" |
 | `ContactCard.tsx` | One contact; without `onEdit` it is read-only (badge « Proposé par l'UL X », lock, no button) |
 | `ContactFormModal.tsx` / `PhoneFields.tsx` | Create / edit / delete form (1–5 phones) |

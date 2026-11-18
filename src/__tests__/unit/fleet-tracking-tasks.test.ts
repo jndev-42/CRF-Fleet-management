@@ -165,9 +165,10 @@ describe('computeSessionRoles — rôles d\'un compte dans une UL', () => {
 
 describe('schema.ts', () => {
     it('déclare les tables et index des tâches', () => {
-        expect(FLEET_TRACKING_TABLES).toEqual(['FleetContact', 'FleetTask', 'FleetTaskAssignee', 'FleetTaskLink', 'FleetAttachment', 'FleetDossier', 'FleetDossierItem']);
+        expect(FLEET_TRACKING_TABLES).toEqual(['FleetContact', 'FleetTask', 'FleetTaskAssignee', 'FleetTaskLink', 'FleetAttachment', 'FleetDossier', 'FleetDossierItem', 'FleetControlAppointment']);
         expect(FLEET_TRACKING_INDEX_NAMES).toContain('idx_FleetContact_ulId');
         expect(FLEET_TRACKING_INDEX_NAMES).toContain('idx_FleetAttachment_owner');
-        expect(FLEET_TRACKING_INDEX_NAMES).toHaveLength(10);
+        expect(FLEET_TRACKING_INDEX_NAMES).toContain('idx_FleetControlAppointment_ulId');
+        expect(FLEET_TRACKING_INDEX_NAMES).toHaveLength(11);
     });
 });

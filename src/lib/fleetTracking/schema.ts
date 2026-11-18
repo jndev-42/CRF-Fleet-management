@@ -4,8 +4,8 @@
  * tests d'intégration, pour que les trois ne divergent jamais.
  *
  * `FLEET_TRACKING_DDL` est exécuté dans l'ordre ; chaque instruction est idempotente
- * (`IF NOT EXISTS`). Les livrables suivants (tâches, dossiers, contrôles) y ajoutent
- * leurs tables.
+ * (`IF NOT EXISTS`). Chaque livrable (contacts, tâches, dossiers, contrôles) y ajoute
+ * ses tables.
  */
 
 export const FLEET_CONTACT_TABLE = 'FleetContact';
@@ -162,6 +162,50 @@ export const FLEET_DOSSIER_INDEXES = [
     `CREATE INDEX IF NOT EXISTS "idx_FleetDossierItem_dossierId" ON "${FLEET_DOSSIER_ITEM_TABLE}" ("dossierId")`,
 ];
 
+// ── Contrôles (livrable 4) ───────────────────────────────────────
+
+export const FLEET_CONTROL_APPOINTMENT_TABLE = 'FleetControlAppointment';
+
+/**
+ * Rendez-vous saisi pour une échéance de contrôle d'un véhicule : un seul par véhicule
+ * et par type (`controlType` CT | REVISION | DESINFECTION). L'échéance elle-même est
+ * calculée depuis les données véhicule, jamais stockée ici. `appointmentDate` :
+ * `YYYY-MM-DD` ; `contactId` : garage (contact de l'UL ou partagé), facultatif ;
+ * `taskId` : tâche créée avec le rendez-vous (une seule ; son échéance suit la date du
+ * rendez-vous), NULL sinon. `ulId` : UL du véhicule à la dernière saisie — la lecture et
+ * la suppression se règlent sur l'UL ACTUELLE du véhicule.
+ */
+export const FLEET_CONTROL_APPOINTMENT_DDL = `CREATE TABLE IF NOT EXISTS "${FLEET_CONTROL_APPOINTMENT_TABLE}" (
+    "id"              TEXT NOT NULL PRIMARY KEY,
+    "ulId"            TEXT NOT NULL,
+    "vehicleId"       TEXT NOT NULL,
+    "controlType"     TEXT NOT NULL,
+    "appointmentDate" TEXT NOT NULL,
+    "contactId"       TEXT,
+    "notes"           TEXT,
+    "taskId"          TEXT,
+    "createdBy"       TEXT,
+    "createdAt"       TEXT NOT NULL,
+    "updatedAt"       TEXT NOT NULL,
+    UNIQUE ("vehicleId", "controlType")
+)`;
+
+export const FLEET_CONTROL_INDEXES = [
+    `CREATE INDEX IF NOT EXISTS "idx_FleetControlAppointment_ulId" ON "${FLEET_CONTROL_APPOINTMENT_TABLE}" ("ulId")`,
+];
+
+/**
+ * Colonnes ajoutées après la création d'une table du module : la migration les ajoute
+ * (`ALTER TABLE … ADD COLUMN`) à une base où la table existe déjà sans elles.
+ */
+export const FLEET_TRACKING_ADDED_COLUMNS: { table: string; column: string; ddl: string }[] = [
+    {
+        table: FLEET_CONTROL_APPOINTMENT_TABLE,
+        column: 'taskId',
+        ddl: `ALTER TABLE "${FLEET_CONTROL_APPOINTMENT_TABLE}" ADD COLUMN "taskId" TEXT`,
+    },
+];
+
 /** Tables du module, dans l'ordre de création (utilisé par la vérification de migration). */
 export const FLEET_TRACKING_TABLES = [
     FLEET_CONTACT_TABLE,
@@ -171,6 +215,7 @@ export const FLEET_TRACKING_TABLES = [
     FLEET_ATTACHMENT_TABLE,
     FLEET_DOSSIER_TABLE,
     FLEET_DOSSIER_ITEM_TABLE,
+    FLEET_CONTROL_APPOINTMENT_TABLE,
 ];
 
 /** Toutes les instructions DDL du module, dans l'ordre d'exécution. */
@@ -185,6 +230,8 @@ export const FLEET_TRACKING_DDL: string[] = [
     FLEET_DOSSIER_DDL,
     FLEET_DOSSIER_ITEM_DDL,
     ...FLEET_DOSSIER_INDEXES,
+    FLEET_CONTROL_APPOINTMENT_DDL,
+    ...FLEET_CONTROL_INDEXES,
 ];
 
 /** Noms des index créés par `FLEET_TRACKING_DDL` (vérification de migration). */

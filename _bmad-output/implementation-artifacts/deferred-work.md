@@ -229,3 +229,12 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-2-taches.md`
   summary: Nettoyer ou signaler les assignés de tâches qui ont perdu l'accès (départ de l'UL, INACTIF, perte de RESP_VEHICULE/ADMIN, compte supprimé).
   evidence: aucune route utilisateurs/rôles ne touche FleetTaskAssignee ; les assignés existants ne sont pas revalidés.
+- source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-4-controles.md`
+  summary: Afficher les révisions suivies uniquement au kilométrage dans l'onglet Contrôles (sans date d'échéance).
+  evidence: `getNextRevision` renvoie la date du jour sans intervalle en années ; ces révisions n'ont aucune ligne.
+- source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-4-controles.md`
+  summary: Lier un rendez-vous de contrôle au cycle d'échéance pour lequel il a été pris (échéance mémorisée, RDV périmé quand elle change).
+  evidence: un contrôle saisi avant la date du RDV fait apparaître le nouveau cycle « RDV fixé ».
+- source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-4-controles.md`
+  summary: Nettoyer les données du suivi technique (RDV, rattachements, dossiers) à la suppression d'un véhicule ou d'un contact.
+  evidence: pas de clé étrangère ni de suppression en cascade ; la route DELETE véhicule ne touche pas aux tables Fleet*.

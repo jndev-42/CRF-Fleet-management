@@ -60,10 +60,10 @@ describe('scripts/add-fleet-tracking.ts', () => {
         expect(after).toContain('table:FleetContact');
         expect(after).toContain('index:idx_FleetContact_ulId');
         expect(after).toContain('index:idx_FleetContact_shared');
-        for (const t of ['FleetTask', 'FleetTaskAssignee', 'FleetTaskLink', 'FleetAttachment', 'FleetDossier', 'FleetDossierItem']) {
+        for (const t of ['FleetTask', 'FleetTaskAssignee', 'FleetTaskLink', 'FleetAttachment', 'FleetDossier', 'FleetDossierItem', 'FleetControlAppointment']) {
             expect(after).toContain(`table:${t}`);
         }
-        for (const i of ['idx_FleetDossier_ulId_status', 'idx_FleetDossier_vehicleId', 'idx_FleetDossierItem_dossierId', 'idx_FleetTask_ulId_status', 'idx_FleetTask_dossierId', 'idx_FleetTaskAssignee_userId', 'idx_FleetTaskLink_target', 'idx_FleetAttachment_owner']) {
+        for (const i of ['idx_FleetDossier_ulId_status', 'idx_FleetDossier_vehicleId', 'idx_FleetDossierItem_dossierId', 'idx_FleetTask_ulId_status', 'idx_FleetTask_dossierId', 'idx_FleetTaskAssignee_userId', 'idx_FleetTaskLink_target', 'idx_FleetAttachment_owner', 'idx_FleetControlAppointment_ulId']) {
             expect(after).toContain(`index:${i}`);
         }
     }, 60_000);
@@ -98,5 +98,30 @@ describe('scripts/add-fleet-tracking.ts', () => {
         expect(after).toContain('table:FleetDossierItem');
         expect(after).toContain('index:idx_FleetDossier_vehicleId');
         expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetTask"`)).rows[0].n).toBe(1);
+    }, 60_000);
+
+    it('base du livrable 3 (sans contrôles) : ajoute FleetControlAppointment sans toucher aux dossiers', async () => {
+        await db.execute(`INSERT INTO "FleetDossier" (id, ulId, vehicleId, title, createdAt, updatedAt) VALUES ('d1', 'ul', 'v', 'X', 't', 't')`);
+        await db.execute(`DROP TABLE "FleetControlAppointment"`);
+        const out = await migrate('--apply');
+        expect(out).toContain('table FleetControlAppointment : ABSENTE');
+        expect(out).toContain('✅ Vérification');
+        const after = await objects();
+        expect(after).toContain('table:FleetControlAppointment');
+        expect(after).toContain('index:idx_FleetControlAppointment_ulId');
+        expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetDossier"`)).rows[0].n).toBe(1);
+    }, 60_000);
+
+    it('table FleetControlAppointment sans taskId : colonne ajoutée, données conservées', async () => {
+        await db.execute(`DROP TABLE "FleetControlAppointment"`);
+        await db.execute(`CREATE TABLE "FleetControlAppointment" (id TEXT PRIMARY KEY, ulId TEXT NOT NULL, vehicleId TEXT NOT NULL, controlType TEXT NOT NULL, appointmentDate TEXT NOT NULL, contactId TEXT, notes TEXT, createdBy TEXT, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL, UNIQUE (vehicleId, controlType))`);
+        await db.execute(`INSERT INTO "FleetControlAppointment" (id, ulId, vehicleId, controlType, appointmentDate, createdAt, updatedAt) VALUES ('a1', 'ul', 'v', 'CT', '2026-12-01', 't', 't')`);
+        expect(await migrate()).toContain('colonne FleetControlAppointment.taskId : ABSENTE');
+        const out = await migrate('--apply');
+        expect(out).toContain('✅ Vérification');
+        const cols = (await db.execute(`PRAGMA table_info("FleetControlAppointment")`)).rows.map(r => String(r.name));
+        expect(cols).toContain('taskId');
+        expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetControlAppointment"`)).rows[0].n).toBe(1);
+        expect(await migrate('--apply')).toContain('Rien à faire');
     }, 60_000);
 });

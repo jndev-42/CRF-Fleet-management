@@ -30,6 +30,9 @@ beforeEach(() => {
         if (url === '/api/fleet-tracking/tasks/t-42') return new Response(JSON.stringify({ task: TASK }), { status: 200 });
         if (url.startsWith('/api/fleet-tracking/assignees')) return new Response(JSON.stringify({ assignees: [] }), { status: 200 });
         if (url.startsWith('/api/fleet-tracking/link-targets')) return new Response(JSON.stringify({ targets: [] }), { status: 200 });
+        if (url.startsWith('/api/fleet-tracking/controls')) {
+            return new Response(JSON.stringify({ today: '2026-11-18', controls: [], counts: { all: 0, to_schedule: 0, soon: 0, overdue: 0, scheduled: 0 } }), { status: 200 });
+        }
         if (url.startsWith('/api/fleet-tracking/dossiers')) return new Response(JSON.stringify({ dossiers: [DOSSIER] }), { status: 200 });
         return new Response(JSON.stringify({ tasks: [TASK] }), { status: 200 });
     }) as unknown as typeof fetch;
@@ -63,5 +66,15 @@ describe('FleetTrackingPanel', () => {
         expect(screen.getByText(/75-188 · Ouvert le 14\/11\/2026 · 2 tâches en cours · 2 pièces manquantes/)).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Ouvrir le dossier Sinistre roue arrière droite' }));
         expect(onOpenDossier).toHaveBeenCalledWith('d-1');
+    });
+
+    it('onglet Contrôles : sélection transmise, contenu affiché quand actif', async () => {
+        const onSelectTab = vi.fn();
+        const { rerender } = render(<FleetTrackingPanel tab="taches" onSelectTab={onSelectTab} />);
+        fireEvent.click(screen.getByRole('tab', { name: 'Contrôles' }));
+        expect(onSelectTab).toHaveBeenCalledWith('controles');
+        rerender(<FleetTrackingPanel tab="controles" onSelectTab={onSelectTab} />);
+        expect(screen.getByRole('tab', { name: 'Contrôles' }).getAttribute('aria-selected')).toBe('true');
+        expect(await screen.findByRole('button', { name: 'Toutes (0)' })).toBeTruthy();
     });
 });
