@@ -57,28 +57,6 @@ export function useDossierList(query: string) {
     return { dossiers, loading, error, refetch };
 }
 
-/** Nombre de dossiers ouverts de l'UL (badge de l'onglet), relu quand `version` change. */
-export function useOpenDossierCount(version: number): number | null {
-    const [count, setCount] = useState<number | null>(null);
-    useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const res = await fetch(`${DOSSIERS_URL}?status=OPEN`, { cache: 'no-store' });
-                if (!res.ok || cancelled) return;
-                const data = await res.json() as { dossiers?: unknown[] };
-                if (!cancelled && Array.isArray(data.dossiers)) setCount(data.dossiers.length);
-            } catch {
-                // Badge facultatif : rien à afficher.
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
-    }, [version]);
-    return count;
-}
-
 export type DossierLoad =
     | { state: 'loading' }
     | { state: 'error'; message: string }

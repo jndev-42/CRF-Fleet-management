@@ -55,6 +55,10 @@ export default function TasksToolbar({ filters, onChange, vehicles, assignees, v
                     onClick={() => set({ priority: filters.priority === 'HIGH' ? '' : 'HIGH' })}>
                     Prioritaires
                 </button>
+                <button type="button" className={`filter-btn${filters.due ? ' active' : ''}`} aria-pressed={filters.due}
+                    onClick={() => set({ due: !filters.due })}>
+                    Échéances à traiter
+                </button>
             </div>
             <div className={styles.toolbarEnd}>
                 <div className={styles.segmented} role="group" aria-label="Affichage">

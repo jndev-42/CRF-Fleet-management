@@ -8,7 +8,7 @@ import { checkTaskTargets, notifyNewAssignees } from '@/lib/fleetTracking/taskGu
 import { createTask, getTaskDetail, listTasks } from '@/lib/fleetTracking/tasksStore';
 
 /**
- * GET /api/fleet-tracking/tasks?vehicle=&assignee=me|<id>&pinned=1&priority=&status=A,B&q=&dossier=<id>|none
+ * GET /api/fleet-tracking/tasks?vehicle=&assignee=me|<id>&pinned=1&priority=&status=A,B&q=&dossier=<id>|none&due=soon
  * Tâches de l'UL de session, enrichies (assignés, rattachements, nombre de PJ).
  * `canManageVehicles`.
  *

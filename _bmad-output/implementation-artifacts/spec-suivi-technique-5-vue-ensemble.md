@@ -2,7 +2,8 @@
 title: 'Suivi technique 5/5 — vue d'ensemble « Le point sur la flotte »'
 type: 'feature'
 created: '2026-11-18'
-status: 'draft'
+status: 'done'
+baseline_commit: '4eaa0d147a4ebd8e99e8dc166a1e5b3ecc4483f5'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
@@ -59,11 +60,11 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `src/lib/fleetTracking/overview.ts` -- agrégation (fonctions pures de tri/sélection testables + chargement SQL pour une UL).
-- [ ] `src/app/api/fleet-tracking/overview/route.ts` -- GET `{ counters, nextActions, nextActionsTotal, priority: { pinned, fallback }, vehicles, tabCounts }`.
-- [ ] `src/components/fleetTracking/OverviewTab.tsx` (+ CSS Module) -- écran 1 ; toast « Annuler » ; onglet par défaut de `FleetTrackingPanel` ; navigation des cartes vers les onglets filtrés (paramètres d'URL déjà gérés par les onglets) ; badges de sous-onglets.
-- [ ] Tests -- unitaires des tris et du repli ; intégration de la route (matrice, 401/403) ; composant `OverviewTab` (compteurs, encart masqué, cocher puis annuler).
-- [ ] `npm run mcp:catalog`, CHANGELOG 5.55.0 finalisé.
+- [x] `src/lib/fleetTracking/overview.ts` -- agrégation (fonctions pures de tri/sélection testables + chargement SQL pour une UL).
+- [x] `src/app/api/fleet-tracking/overview/route.ts` -- GET `{ counters, nextActions, nextActionsTotal, priority: { pinned, fallback }, vehicles, tabCounts }`.
+- [x] `src/components/fleetTracking/OverviewTab.tsx` (+ CSS Module) -- écran 1 ; toast « Annuler » ; onglet par défaut de `FleetTrackingPanel` ; navigation des cartes vers les onglets filtrés (paramètres d'URL déjà gérés par les onglets) ; badges de sous-onglets.
+- [x] Tests -- unitaires des tris et du repli ; intégration de la route (matrice, 401/403) ; composant `OverviewTab` (compteurs, encart masqué, cocher puis annuler).
+- [x] `npm run mcp:catalog`, CHANGELOG 5.55.0 finalisé.
 
 **Acceptance Criteria:**
 - Given une tâche cochée par erreur, when on clique « Annuler » dans le message, then elle retrouve son état précédent.
@@ -71,9 +72,40 @@ context:
 
 ## Implementation Notes
 
+- Découpage : `overview.ts` est **pur** (tris, sélection, compteurs, `buildOverview`, client-safe) et le chargement SQL est dans `overviewStore.ts` (`loadUlOverview`), selon la convention du module (`tasks.ts` / `tasksStore.ts`, `controls.ts` / `controlsStore.ts`). Réutilise `listTasks` (non terminées), `listDossiers` (ouverts) et `loadUlControls` : aucune requête nouvelle hors la liste des véhicules.
+- Tri des prochaines actions : Prioritaire, échéance croissante, sans échéance en dernier, puis la plus ancienne (`createdAt`), puis l'id. Encart : échéance (dossier = la plus proche de ses tâches ouvertes), sans échéance en dernier, puis titre. Repli = première tâche HIGH dans l'ordre des prochaines actions (une HIGH sans date est retenue s'il n'y a qu'elles) ; seulement si aucun épinglé.
+- Compteurs : « Échéances à traiter » = tâches non terminées à échéance ≤ aujourd'hui + 30 j (dépassées comprises) + contrôles `soon` ; « Contrôles à dater » = contrôles `state !== 'SCHEDULED'` (À dater + Dépassée, conformément à la note du livrable 4). Jour de référence : `parisDay()` côté serveur.
+- Véhicules : `Vehicle` n'a pas de colonne de modèle ; le « modèle » affiché est `Vehicle.type` (VL, VPSP…). Le compteur par véhicule ignore un dossier dont le véhicule n'est plus dans l'UL. Tri par indicatif (numérique).
+- Navigation des cartes : il n'existait pas de paramètres d'URL de filtre dans les onglets ; ajout de `?filtre=` et `?vehicule=` dans `useFleetTrackingView` (retirés au changement d'onglet), lus une fois comme état initial : Dossiers ouverts → Dossiers (Ouverts) ; Échéances à traiter → Contrôles « Sous 30 jours » (pas de filtre par échéance dans Tâches) ; Pièces à récupérer → Dossiers avec le nouveau filtre local « Pièces à récupérer » (`missingItemCount > 0`) ; Contrôles à dater → Contrôles « À dater » (critère d'acceptation) — ce filtre n'inclut pas les échéances dépassées comptées par la carte ; véhicule → Dossiers (Ouverts) filtrés sur le véhicule ; « Voir les N tâches » → Tâches.
+- Données : `FleetTrackingPanel` détient `useFleetOverview` (un seul appel pour la vue et les badges Tâches / Dossiers, qui remplace `useOpenDossierCount`, supprimé) et le relit à chaque `onChanged` d'un onglet (`TasksTab` reçoit désormais `onChanged`). Les badges se lisent donc aussi depuis les autres onglets.
+- Cocher / Annuler (`useCompleteWithUndo`) : la ligne est masquée aussitôt, PATCH `DONE`, message « Annuler » 5 s ; « Annuler » PATCH l'état précédent (le `completedAt` est effacé par la route). Échec : la ligne revient avec un message.
+- « Modifier », « + Tâche » et une tâche de l'encart ouvrent `TaskModal` sur place ; « + Nouveau dossier » ouvre `DossierModal` puis le détail du dossier créé. Libellés impersonnels (sous-titre « Véhicules, dossiers et ce qui doit avancer. »).
+- Après revue (coordinateur) : filtre « À dater » des Contrôles = `state !== 'SCHEDULED'` (dépassées comprises), comme le compteur ; « Échéances à traiter » détaillée « N tâches · M contrôles » (tâches → Tâches `?filtre=echeance`, nouveau filtre `due=soon` de `GET /tasks` et bouton « Échéances à traiter » de la barre ; contrôles → « Sous 30 jours ») ; la tâche liée (`appointment.taskId`) d'un contrôle compté n'est pas recomptée côté tâches (elle reste listée par le filtre Tâches) ; `filtre` / `vehicule` retirés de l'URL au premier changement de filtre local (`clearTabFilter`) ; véhicule d'ouverture inconnu retiré une fois la liste reçue (`vehiclesLoaded`) ; message « Annuler » (`UndoToast`) : focus porté sur « Annuler », décompte suspendu au survol ou à un focus de l'utilisateur (le focus automatique ne suspend pas) ; échec de l'annulation : ligne réaffichée, « Impossible d'annuler : la tâche reste terminée. » ; ouverture d'une tâche depuis la vue d'ensemble par `?tache=` sur l'onglet `ensemble` ; dossier créé sans id : modale fermée, vue relue ; pluriels, « Voir la tâche », « Aucune échéance » pour un dossier épinglé, couleur d'échéance et épingle dans l'encart, message d'information effacé après 5 s ou à l'action suivante.
+- Vérification : `npm run lint` 0/0, `tsc --noEmit` propre ; tests unitaires, d'intégration et composants verts. `npm run test` : seuls 2 tests de `report-pdf.test.ts` échouent, pour une raison d'environnement du worktree (worker `pdfjs-dist` introuvable dans `node_modules` du worktree), sans rapport. `npm run build` : compilation, TypeScript et génération des pages réussies, puis arrêt par le contrôle de sécurité de Next.js sur la version installée (`SecurityFatalError`), sans rapport avec ce livrable. Non vérifié dans un navigateur.
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+| # | Source | Constat | Verdict | Route / preuve |
+|---|---|---|---|---|
+| 1 | blind / impl | « Contrôles à dater » compte À dater + Dépassée mais le filtre « À dater » exclut les dépassées | medium | patch — le filtre « À dater » de Contrôles couvre tout contrôle sans RDV futur (dépassés compris) |
+| 2 | blind / edge | « Échéances à traiter » compte des tâches mais n'ouvre que Contrôles | medium | patch — détail « N tâches · M contrôles » cliquable, filtre Tâches « échéance ≤ 30 j » |
+| 3 | blind | Contrôle avec RDV + sa tâche liée comptés deux fois | low | patch — tâche liée à un RDV non recomptée |
+| 4 | blind / edge | Filtre d'ouverture figé dans l'URL après changement local | low | patch — `filtre`/`vehicule` retirés au premier changement local |
+| 5 | blind / edge | Deuxième coche remplace l'annulation précédente ; quitter l'onglet perd l'annulation | low | rejeté — comportement courant des messages d'annulation, correctif complexe |
+| 6 | blind | Message « Annuler » : pas de pause au survol/focus, focus perdu | low | patch — focus sur « Annuler », minuterie suspendue au survol/focus |
+| 7 | blind / edge | Échec du PATCH d'annulation : tâche masquée sans recours | low | patch — réafficher la ligne et un message clair |
+| 8 | blind / edge | `onOpenDossier('')` après création sans id | low | patch |
+| 9 | blind | Agrégat rechargé sur tous les onglets à chaque changement | low | rejeté — volumétrie UL faible |
+| 10 | blind | Véhicules sans filtre d'état | false | même ensemble que la vue flotte et les contrôles (aucun état « retiré » dans `Vehicle`) |
+| 11 | blind | Libellés : « Voir les 1 tâche », pluriels « (s) », « Date à fixer » sur un dossier, encart sans couleur d'échéance, message jamais effacé, `?tache=` non écrit | low | patch |
+| 12 | vgap | Filtre « Pièces à récupérer » non testé avec un dossier sans pièce manquante | medium | patch |
+| 13 | vgap | Ouverture des dossiers filtrés par véhicule non testée | medium | patch |
+| 14 | vgap | `TasksTab.onChanged` non testé | medium | patch |
+| 15 | vgap | Enregistrements des modales de la vue d'ensemble non testés | medium | patch |
+| 16 | edge | `?vehicule=` inconnu : sélection vide mais liste filtrée | low | patch |
+| 17 | edge | Dossiers dont le véhicule a disparu : sommes par véhicule ≠ compteur | low | rejeté — cosmétique, cas rare |
 
 ## Verification
 

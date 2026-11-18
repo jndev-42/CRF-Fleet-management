@@ -1,3 +1,4 @@
+import { addDays, CONTROL_SOON_DAYS, parisDay } from './controls';
 import type { InStatement, Row } from '@libsql/client';
 import { db } from '@/lib/db';
 import { canManageVehicles, ROLE_LABELS, ROLES } from '@/lib/roles';
@@ -401,6 +402,10 @@ export async function listTasks(
         args.push(opts.outsideDossiersOfVehicle);
     }
     if (filters.pinned) where.push('t.pinned = 1');
+    if (filters.due) {
+        where.push(`t.status <> 'DONE' AND t.dueDate IS NOT NULL AND t.dueDate <= ?`);
+        args.push(addDays(parisDay(), CONTROL_SOON_DAYS));
+    }
     if (filters.priority) {
         where.push('t.priority = ?');
         args.push(filters.priority);

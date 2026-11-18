@@ -24,14 +24,22 @@ const EMPTY_MESSAGES: Record<ControlFilter, string> = {
 interface Props {
     /** Un rendez-vous (et éventuellement sa tâche) a été enregistré ou supprimé. */
     onChanged?: () => void;
+    /** Filtre d'ouverture (`?filtre=` : carte « Contrôles à dater » de la vue d'ensemble) ; ignoré s'il est inconnu. */
+    initialFilter?: string | null;
+    /** Premier changement de filtre local : le filtre d'ouverture quitte l'URL. */
+    onFilterChanged?: () => void;
+}
+
+function toFilter(value: string | null | undefined): ControlFilter {
+    return (CONTROL_FILTERS as readonly string[]).includes(value ?? '') ? value as ControlFilter : 'all';
 }
 
 /**
  * Onglet « Contrôles » : échéances CT, révision et désinfection des véhicules de l'UL
  * (calculées depuis les données véhicule), filtrables, avec la saisie d'un rendez-vous.
  */
-export default function ControlsTab({ onChanged }: Props) {
-    const [filter, setFilter] = useState<ControlFilter>('all');
+export default function ControlsTab({ onChanged, initialFilter, onFilterChanged }: Props) {
+    const [filter, setFilter] = useState<ControlFilter>(() => toFilter(initialFilter));
     const [editing, setEditing] = useState<ControlRow | null>(null);
     const [notice, setNotice] = useState<string | null>(null);
     const { controls, counts, today, loading, error, refetch } = useFleetControls();
@@ -53,7 +61,10 @@ export default function ControlsTab({ onChanged }: Props) {
                     {CONTROL_FILTERS.map(f => (
                         <button key={f} type="button" aria-pressed={filter === f}
                             className={`filter-btn${filter === f ? ' active' : ''}`}
-                            onClick={() => setFilter(f)}>
+                            onClick={() => {
+                                setFilter(f);
+                                onFilterChanged?.();
+                            }}>
                             {CONTROL_FILTER_LABELS[f]} ({counts[f]})
                         </button>
                     ))}

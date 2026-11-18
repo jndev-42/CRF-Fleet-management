@@ -240,4 +240,44 @@ describe('TasksTab', () => {
         fireEvent.click(screen.getByRole('button', { name: /Épinglées/ }));
         await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u) === '/api/fleet-tracking/tasks?assignee=me&pinned=1')).toBe(true));
     });
+
+    it('filtre d\'ouverture « echeance » : tâches à échéance demandées ; le retirer prévient l\'onglet', async () => {
+        const onFilterChanged = vi.fn();
+        render(<TasksTab openTaskId={null} onOpenTask={vi.fn()} initialFilter="echeance" onFilterChanged={onFilterChanged} />);
+        await screen.findByRole('article', { name: 'Remplacer les balais' });
+        expect(fetchMock.mock.calls.some(([u]) => String(u) === '/api/fleet-tracking/tasks?due=soon')).toBe(true);
+        const toggle = screen.getByRole('button', { name: 'Échéances à traiter' });
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        expect(onFilterChanged).not.toHaveBeenCalled();
+        fireEvent.click(toggle);
+        expect(onFilterChanged).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(fetchMock.mock.calls.some(([u]) => String(u) === '/api/fleet-tracking/tasks')).toBe(true));
+    });
+
+    it('onChanged : une fois après un déplacement réussi, jamais après un échec', async () => {
+        const onChanged = vi.fn();
+        render(<TasksTab openTaskId={null} onOpenTask={vi.fn()} onChanged={onChanged} />);
+        const card = await screen.findByRole('article', { name: 'Demander un devis carrosserie' });
+        fireEvent.click(within(card).getByRole('button', { name: /État : À faire/ }));
+        fireEvent.click(within(card).getByRole('menuitemradio', { name: /En attente/ }));
+        await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+
+        patchStatus = 500;
+        const other = screen.getByRole('article', { name: 'Remplacer les balais' });
+        fireEvent.click(within(other).getByRole('button', { name: /État : En cours/ }));
+        fireEvent.click(within(other).getByRole('menuitemradio', { name: /Terminé/ }));
+        expect(await screen.findByRole('alert')).toBeTruthy();
+        expect(onChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it('onChanged : une fois après l\'enregistrement de la modale', async () => {
+        const onChanged = vi.fn();
+        render(<TasksTab openTaskId="balais" onOpenTask={vi.fn()} onChanged={onChanged} />);
+        const dialog = await screen.findByRole('dialog', { name: 'Modifier la tâche' });
+        const title = within(dialog).getByLabelText('Titre *') as HTMLInputElement;
+        await waitFor(() => expect(title.value).toBe('Remplacer les balais'));
+        fireEvent.change(title, { target: { value: 'Remplacer les balais avant' } });
+        fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
+        await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    });
 });

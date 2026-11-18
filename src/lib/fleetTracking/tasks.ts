@@ -172,6 +172,8 @@ export const taskFiltersSchema = z.object({
     q: z.string().trim().max(200).optional(),
     /** Identifiant d'un dossier, ou `none` : tâches hors dossier. */
     dossier: z.string().trim().max(100).optional(),
+    /** `soon` : tâches non terminées à échéance ≤ aujourd'hui + 30 j (Europe/Paris), dépassées comprises. */
+    due: z.enum(['soon']).optional(),
 });
 
 export type TaskFilters = z.infer<typeof taskFiltersSchema>;

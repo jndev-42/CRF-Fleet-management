@@ -124,6 +124,8 @@ function VehiclesPageContent() {
         <FleetTrackingPanel
           tab={tracking.tab}
           onSelectTab={tracking.setTab}
+          tabFilter={tracking.tabFilter}
+          onClearTabFilter={tracking.clearTabFilter}
           ulName={activeUL?.name}
           taskId={tracking.taskId}
           onOpenTask={tracking.setTaskId}

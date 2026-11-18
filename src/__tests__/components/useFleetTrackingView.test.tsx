@@ -27,11 +27,11 @@ beforeEach(() => {
 });
 
 describe('useFleetTrackingView', () => {
-    it('passer en suivi écrit vue=suivi&onglet=taches (onglet par défaut) sans empiler d\'historique', () => {
+    it('passer en suivi écrit vue=suivi&onglet=ensemble (onglet par défaut) sans empiler d\'historique', () => {
         const { result } = renderHook(() => useFleetTrackingView(true));
         expect(result.current.isTracking).toBe(false);
         act(() => result.current.setTracking(true));
-        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=taches');
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=ensemble');
         expect(nav.replace.mock.calls.at(-1)?.[1]).toEqual({ scroll: false });
     });
 
@@ -50,10 +50,24 @@ describe('useFleetTrackingView', () => {
         expect(result.current.isTracking).toBe(false);
     });
 
-    it('un onglet inconnu retombe sur Tâches', () => {
+    it('un onglet inconnu retombe sur la Vue d\'ensemble', () => {
         nav.params = new URLSearchParams('vue=suivi&onglet=nimporte');
         const { result } = renderHook(() => useFleetTrackingView(true));
-        expect(result.current.tab).toBe('taches');
+        expect(result.current.tab).toBe('ensemble');
+    });
+
+    it('carte de la vue d\'ensemble : ouvre un onglet filtré ; changer d\'onglet retire le filtre', () => {
+        nav.params = new URLSearchParams('vue=suivi&onglet=ensemble');
+        const { result } = renderHook(() => useFleetTrackingView(true));
+        act(() => result.current.setTab('controles', { filter: 'to_schedule' }));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=controles&filtre=to_schedule');
+        act(() => result.current.setTab('dossiers', { vehicle: 'veh-188' }));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=dossiers&vehicule=veh-188');
+        nav.params = new URLSearchParams('vue=suivi&onglet=dossiers&filtre=pieces&vehicule=veh-188');
+        const { result: again } = renderHook(() => useFleetTrackingView(true));
+        expect(again.current.tabFilter).toEqual({ filter: 'pieces', vehicle: 'veh-188' });
+        act(() => again.current.setTab('contacts'));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=contacts');
     });
 
     it('lien de dossier : lit le dossier à ouvrir ; revenir à la liste retire `dossier`', () => {
@@ -89,6 +103,28 @@ describe('useFleetTrackingView', () => {
         const { result: again } = renderHook(() => useFleetTrackingView(true));
         act(() => again.current.setTab('contacts'));
         expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=contacts');
+    });
+
+    it('retirer le filtre d\'ouverture garde l\'onglet ; sans filtre, rien n\'est écrit', () => {
+        nav.params = new URLSearchParams('vue=suivi&onglet=controles&filtre=to_schedule');
+        const { result } = renderHook(() => useFleetTrackingView(true));
+        act(() => result.current.clearTabFilter());
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=controles');
+        nav.replace.mockReset();
+        nav.params = new URLSearchParams('vue=suivi&onglet=controles');
+        const { result: again } = renderHook(() => useFleetTrackingView(true));
+        act(() => again.current.clearTabFilter());
+        expect(nav.replace).not.toHaveBeenCalled();
+    });
+
+    it('Vue d\'ensemble : ouvrir une tâche l\'écrit sans quitter l\'onglet', () => {
+        nav.params = new URLSearchParams('vue=suivi&onglet=ensemble');
+        const { result } = renderHook(() => useFleetTrackingView(true));
+        act(() => result.current.setTaskId('t-1'));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=ensemble&tache=t-1');
+        nav.params = new URLSearchParams('vue=suivi&onglet=ensemble&tache=t-1');
+        const { result: again } = renderHook(() => useFleetTrackingView(true));
+        expect(again.current.taskId).toBe('t-1');
     });
 
     it('sans droit, `tache` est ignorée', () => {

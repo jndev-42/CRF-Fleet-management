@@ -252,7 +252,9 @@ export function computeControls(
 export function matchesControlFilter(row: ControlRow, filter: ControlFilter): boolean {
     switch (filter) {
         case 'all': return true;
-        case 'to_schedule': return row.state === 'TO_SCHEDULE';
+        // « À dater » : toute échéance sans rendez-vous à venir, dépassées comprises
+        // (même critère que le compteur « Contrôles à dater » de la vue d'ensemble).
+        case 'to_schedule': return row.state !== 'SCHEDULED';
         case 'soon': return row.soon;
         case 'overdue': return row.state === 'OVERDUE';
         case 'scheduled': return row.state === 'SCHEDULED';

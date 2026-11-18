@@ -222,11 +222,13 @@ describe('filtres et effectifs', () => {
     ], [], [appointment({ vehicleId: 'v3', controlType: 'DESINFECTION' })], TODAY);
 
     it('countControls', () => {
-        expect(countControls(rows)).toEqual({ all: 4, to_schedule: 2, soon: 3, overdue: 1, scheduled: 1 });
+        expect(countControls(rows)).toEqual({ all: 4, to_schedule: 3, soon: 3, overdue: 1, scheduled: 1 });
     });
 
     it('matchesControlFilter', () => {
-        expect(rows.filter(r => matchesControlFilter(r, 'to_schedule')).map(r => r.vehicle.name)).toEqual(['75-184', '75-186']);
+        expect(rows.filter(r => matchesControlFilter(r, 'to_schedule')).map(r => r.vehicle.name)).toEqual(['75-182', '75-184', '75-186']);
+        // Dépassée sans rendez-vous : à dater ET dépassée.
+        expect(rows.filter(r => matchesControlFilter(r, 'overdue')).map(r => r.vehicle.name)).toEqual(['75-182']);
         expect(rows.filter(r => matchesControlFilter(r, 'scheduled')).map(r => r.vehicle.name)).toEqual(['75-188']);
     });
 });

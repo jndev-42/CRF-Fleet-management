@@ -78,7 +78,7 @@ describe('ControlsTab', () => {
         render(<ControlsTab />);
         expect((await screen.findAllByText('Désinfection VPSP')).length).toBe(2);
         expect(filter(/^Toutes \(3\)$/).getAttribute('aria-pressed')).toBe('true');
-        expect(filter(/^À dater \(2\)$/)).toBeTruthy();
+        expect(filter(/^À dater \(3\)$/)).toBeTruthy();
         expect(filter(/^Sous 30 jours \(2\)$/)).toBeTruthy();
         expect(filter(/^Dépassées \(1\)$/)).toBeTruthy();
         expect(filter(/^RDV fixé \(0\)$/)).toBeTruthy();
@@ -121,7 +121,7 @@ describe('ControlsTab', () => {
         expect(onChanged).toHaveBeenCalled();
         expect(puts[0]).toEqual({ vehicleId: 'v184', controlType: 'CT', appointmentDate: '2026-11-28', contactId: 'c1', notes: null, createTask: true });
         await waitFor(() => expect(row('v184:CT')).toBeNull());
-        expect(filter(/^À dater \(1\)$/)).toBeTruthy();
+        expect(filter(/^À dater \(2\)$/)).toBeTruthy();
         fireEvent.click(filter(/^RDV fixé/));
         expect(within(row('v184:CT')!).getByText('28/11/2026 · Garage Renault Clichy')).toBeTruthy();
         expect(within(row('v184:CT')!).getByRole('button', { name: /Modifier le rendez-vous/ })).toBeTruthy();

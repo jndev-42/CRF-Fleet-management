@@ -36,6 +36,7 @@ export const MCP_API_CATALOG: readonly CatalogRoute[] = [
     { path: "/api/fleet-tracking/dossiers/[id]/items", methods: ['POST'] },
     { path: "/api/fleet-tracking/dossiers/[id]/items/[itemId]", methods: ['PATCH', 'DELETE'] },
     { path: "/api/fleet-tracking/link-targets", methods: ['GET'] },
+    { path: "/api/fleet-tracking/overview", methods: ['GET'] },
     { path: "/api/fleet-tracking/tasks", methods: ['GET', 'POST'] },
     { path: "/api/fleet-tracking/tasks/[id]", methods: ['GET', 'PATCH', 'DELETE'] },
     { path: "/api/fleet-tracking/tasks/[id]/attachments", methods: ['POST'] },

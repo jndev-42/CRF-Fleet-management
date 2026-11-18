@@ -13,9 +13,11 @@ export interface TaskFilterState {
     assignee: string;
     pinned: boolean;
     priority: '' | TaskPriority;
+    /** Non terminées à échéance ≤ aujourd'hui + 30 j, dépassées comprises (`due=soon`). */
+    due: boolean;
 }
 
-export const EMPTY_TASK_FILTERS: TaskFilterState = { q: '', vehicle: '', assignee: '', pinned: false, priority: '' };
+export const EMPTY_TASK_FILTERS: TaskFilterState = { q: '', vehicle: '', assignee: '', pinned: false, priority: '', due: false };
 
 /** Chaîne de requête des filtres (valeurs vides omises). */
 export function taskFiltersQuery(f: TaskFilterState): string {
@@ -25,6 +27,7 @@ export function taskFiltersQuery(f: TaskFilterState): string {
     if (f.assignee) params.set('assignee', f.assignee);
     if (f.pinned) params.set('pinned', '1');
     if (f.priority) params.set('priority', f.priority);
+    if (f.due) params.set('due', 'soon');
     const qs = params.toString();
     return qs ? `?${qs}` : '';
 }
@@ -135,6 +138,8 @@ export function useFleetTasks(filters: TaskFilterState) {
 export function useTaskOptions() {
     const [assignees, setAssignees] = useState<AssignableManager[]>([]);
     const [vehicles, setVehicles] = useState<LinkTarget[]>([]);
+    /** La liste des véhicules a été reçue (vide comprise). */
+    const [vehiclesLoaded, setVehiclesLoaded] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -146,7 +151,10 @@ export function useTaskOptions() {
                 ]);
                 if (cancelled) return;
                 if (aRes.ok) setAssignees((await aRes.json() as { assignees: AssignableManager[] }).assignees);
-                if (vRes.ok) setVehicles((await vRes.json() as { targets: LinkTarget[] }).targets);
+                if (vRes.ok) {
+                    setVehicles((await vRes.json() as { targets: LinkTarget[] }).targets);
+                    setVehiclesLoaded(true);
+                }
             } catch (e: unknown) {
                 console.error('Chargement des options de tâche :', e);
             }
@@ -157,5 +165,5 @@ export function useTaskOptions() {
         };
     }, []);
 
-    return { assignees, vehicles };
+    return { assignees, vehicles, vehiclesLoaded };
 }

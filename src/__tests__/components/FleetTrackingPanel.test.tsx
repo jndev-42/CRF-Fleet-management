@@ -30,6 +30,14 @@ beforeEach(() => {
         if (url === '/api/fleet-tracking/tasks/t-42') return new Response(JSON.stringify({ task: TASK }), { status: 200 });
         if (url.startsWith('/api/fleet-tracking/assignees')) return new Response(JSON.stringify({ assignees: [] }), { status: 200 });
         if (url.startsWith('/api/fleet-tracking/link-targets')) return new Response(JSON.stringify({ targets: [] }), { status: 200 });
+        if (url.startsWith('/api/fleet-tracking/overview')) {
+            return new Response(JSON.stringify({
+                today: '2026-11-18',
+                counters: { openDossiers: 1, vehicleCount: 1, dueSoon: 0, dueSoonTasks: 0, dueSoonControls: 0, missingItems: 2, controlsToSchedule: 0 },
+                nextActions: [], nextActionsTotal: 3, priority: { pinned: [], fallback: null },
+                vehicles: [], tabCounts: { tasks: 3, dossiers: 1 },
+            }), { status: 200 });
+        }
         if (url.startsWith('/api/fleet-tracking/controls')) {
             return new Response(JSON.stringify({ today: '2026-11-18', controls: [], counts: { all: 0, to_schedule: 0, soon: 0, overdue: 0, scheduled: 0 } }), { status: 200 });
         }
@@ -76,5 +84,54 @@ describe('FleetTrackingPanel', () => {
         rerender(<FleetTrackingPanel tab="controles" onSelectTab={onSelectTab} />);
         expect(screen.getByRole('tab', { name: 'Contrôles' }).getAttribute('aria-selected')).toBe('true');
         expect(await screen.findByRole('button', { name: 'Toutes (0)' })).toBeTruthy();
+    });
+
+    it('Vue d\'ensemble : badges des sous-onglets ; « Contrôles à dater » ouvre Contrôles filtré sur « À dater »', async () => {
+        const onSelectTab = vi.fn();
+        const { rerender } = render(<FleetTrackingPanel tab="ensemble" onSelectTab={onSelectTab} />);
+        expect(screen.getByRole('tab', { name: /Vue d'ensemble/ }).getAttribute('aria-selected')).toBe('true');
+        await waitFor(() => expect(within(screen.getByRole('tab', { name: /Tâches/ })).getByText('3')).toBeTruthy());
+        expect(within(screen.getByRole('tab', { name: /Dossiers/ })).getByText('1')).toBeTruthy();
+        fireEvent.click(await screen.findByRole('button', { name: /^Contrôles à dater : 0/ }));
+        expect(onSelectTab).toHaveBeenCalledWith('controles', { filter: 'to_schedule' });
+        rerender(<FleetTrackingPanel tab="controles" tabFilter={{ filter: 'to_schedule' }} onSelectTab={onSelectTab} />);
+        expect((await screen.findByRole('button', { name: 'À dater (0)' })).getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('onglet Dossiers filtré « Pièces à récupérer » : un dossier complet est masqué, puis réapparaît', async () => {
+        const complete: FleetDossier = { ...DOSSIER, id: 'd-2', title: 'Révision faite', pinned: false, missingItemCount: 0 };
+        const base = global.fetch;
+        global.fetch = vi.fn(async (url: string, init?: RequestInit) => (url.startsWith('/api/fleet-tracking/dossiers')
+            ? new Response(JSON.stringify({ dossiers: [DOSSIER, complete] }), { status: 200 })
+            : base(url, init))) as unknown as typeof fetch;
+        const onClearTabFilter = vi.fn();
+        render(<FleetTrackingPanel tab="dossiers" tabFilter={{ filter: 'pieces' }} onClearTabFilter={onClearTabFilter}
+            onSelectTab={vi.fn()} dossierId={null} onOpenDossier={vi.fn()} />);
+        const toggle = await screen.findByRole('button', { name: 'Pièces à récupérer' });
+        expect(toggle.getAttribute('aria-pressed')).toBe('true');
+        expect(await screen.findByText('Sinistre roue arrière droite')).toBeTruthy();
+        expect(screen.queryByText('Révision faite')).toBeNull();
+        fireEvent.click(toggle);
+        expect(await screen.findByText('Révision faite')).toBeTruthy();
+        expect(onClearTabFilter).toHaveBeenCalled();
+    });
+
+    it('onglet Dossiers filtré sur un véhicule : la lecture des dossiers porte vehicle=veh-a', async () => {
+        const base = global.fetch;
+        const spy = vi.fn(async (url: string, init?: RequestInit) => (url.startsWith('/api/fleet-tracking/link-targets')
+            ? new Response(JSON.stringify({ targets: [{ type: 'VEHICLE', id: 'veh-a', label: '75-188', detail: null }] }), { status: 200 })
+            : base(url, init)));
+        global.fetch = spy as unknown as typeof fetch;
+        render(<FleetTrackingPanel tab="dossiers" tabFilter={{ vehicle: 'veh-a' }} onSelectTab={vi.fn()} dossierId={null} onOpenDossier={vi.fn()} />);
+        await screen.findByText('Sinistre roue arrière droite');
+        expect(spy.mock.calls.some(([u]) => String(u).startsWith('/api/fleet-tracking/dossiers?') && String(u).includes('vehicle=veh-a'))).toBe(true);
+        await waitFor(() => expect((screen.getByLabelText('Véhicule') as HTMLSelectElement).value).toBe('veh-a'));
+    });
+
+    it('véhicule d\'ouverture inconnu de l\'UL : le filtre est retiré une fois la liste reçue', async () => {
+        render(<FleetTrackingPanel tab="dossiers" tabFilter={{ vehicle: 'veh-inconnu' }} onSelectTab={vi.fn()} dossierId={null} onOpenDossier={vi.fn()} />);
+        await screen.findByText('Sinistre roue arrière droite');
+        await waitFor(() => expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0]).not.toContain('vehicle='));
+        expect((screen.getByLabelText('Véhicule') as HTMLSelectElement).value).toBe('');
     });
 });

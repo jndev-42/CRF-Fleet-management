@@ -6,6 +6,7 @@ import { groupTasksByStatus, TASK_STATUSES, todayIso, type FleetTask, type TaskS
 import TaskColumn from './TaskColumn';
 import TaskModal from './TaskModal';
 import TasksToolbar, { type TasksView } from './TasksToolbar';
+import { TASK_DUE_FILTER } from './tabs';
 import { EMPTY_TASK_FILTERS, useFleetTasks, useTaskOptions, type TaskFilterState } from './useFleetTasks';
 import styles from './tasks.module.css';
 
@@ -14,6 +15,12 @@ interface Props {
     openTaskId: string | null;
     /** Ouvre (`id`) ou ferme (`null`) la modale d'une tâche existante ; écrit l'URL. */
     onOpenTask: (taskId: string | null) => void;
+    /** Une tâche a été créée, modifiée, déplacée ou supprimée (badges des sous-onglets). */
+    onChanged?: () => void;
+    /** Filtre d'ouverture (`?filtre=echeance` : carte « Échéances à traiter »). */
+    initialFilter?: string | null;
+    /** Premier changement de filtre local : le filtre d'ouverture quitte l'URL. */
+    onFilterChanged?: () => void;
 }
 
 const VIEW_KEY = 'fleetTracking.tasksView';
@@ -25,8 +32,12 @@ type Creating = null | { status: TaskStatus };
  * Onglet « Tâches » : tableau à colonnes (glisser-déposer au pointeur) ou liste,
  * filtres, changement d'état par la pastille de chaque carte, modale de tâche.
  */
-export default function TasksTab({ openTaskId, onOpenTask }: Props) {
-    const [filters, setFilters] = useState<TaskFilterState>(EMPTY_TASK_FILTERS);
+export default function TasksTab({ openTaskId, onOpenTask, onChanged, initialFilter, onFilterChanged }: Props) {
+    const [filters, setFilterState] = useState<TaskFilterState>(() => ({ ...EMPTY_TASK_FILTERS, due: initialFilter === TASK_DUE_FILTER }));
+    const setFilters = (next: TaskFilterState) => {
+        setFilterState(next);
+        onFilterChanged?.();
+    };
     const [view, setView] = useState<TasksView>('board');
     const [creating, setCreating] = useState<Creating>(null);
     const [actionError, setActionError] = useState<string | null>(null);
@@ -60,10 +71,12 @@ export default function TasksTab({ openTaskId, onOpenTask }: Props) {
     };
 
     const groups = useMemo(() => groupTasksByStatus(tasks), [tasks]);
-    const filtered = filters.q.trim() !== '' || !!filters.vehicle || !!filters.assignee || filters.pinned || !!filters.priority;
+    const filtered = filters.q.trim() !== '' || !!filters.vehicle || !!filters.assignee || filters.pinned || !!filters.priority || filters.due;
 
     const handleMove = async (task: FleetTask, status: TaskStatus) => {
-        setActionError(await moveTask(task, status));
+        const message = await moveTask(task, status);
+        setActionError(message);
+        if (!message) onChanged?.();
     };
     const handleDrop = (taskId: string, status: TaskStatus) => {
         const task = tasks.find(t => t.id === taskId);
@@ -136,6 +149,7 @@ export default function TasksTab({ openTaskId, onOpenTask }: Props) {
                     onSaved={(message) => {
                         setActionError(message ?? null);
                         void refetch();
+                        onChanged?.();
                     }}
                 />
             )}

@@ -129,7 +129,7 @@ describe('GET /controls', () => {
             '75-182:CT:2027-06-01:TO_SCHEDULE',
         ]);
         expect(controls.some(c => c.vehicle.id === 'veh-186' || c.vehicle.id === 'veh-b')).toBe(false);
-        expect(counts).toEqual({ all: 3, to_schedule: 2, soon: 2, overdue: 1, scheduled: 0 });
+        expect(counts).toEqual({ all: 3, to_schedule: 3, soon: 2, overdue: 1, scheduled: 0 });
     });
 
     it('ne lit ni n\'écrit rien dans Vehicle', async () => {
@@ -154,7 +154,7 @@ describe('PUT /controls/appointments', () => {
         const ct = controls.find(c => c.key === 'veh-184:CT');
         expect(ct).toMatchObject({ state: 'SCHEDULED', soon: true });
         expect(ct?.appointment).toMatchObject({ appointmentDate: '2026-11-28', contactName: 'Garage Renault Clichy', notes: 'Apporter la carte grise' });
-        expect(counts.to_schedule).toBe(1);
+        expect(counts.to_schedule).toBe(2);
         expect(counts.scheduled).toBe(1);
         expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetTask"`)).rows[0].n).toBe(0);
     });
