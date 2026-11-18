@@ -10,6 +10,7 @@ vi.mock('next-auth/react', () => ({ useSession: () => ({ data: { user: { id: 'u-
 
 import FleetTrackingPanel from '@/components/fleetTracking/FleetTrackingPanel';
 import type { FleetTaskDetail } from '@/lib/fleetTracking/tasks';
+import type { FleetDossier } from '@/lib/fleetTracking/dossiers';
 
 const TASK: FleetTaskDetail = {
     id: 't-42', title: 'Récupérer la référence du sinistre', description: null, status: 'WAITING', priority: 'HIGH',
@@ -17,11 +18,19 @@ const TASK: FleetTaskDetail = {
     assignees: [], links: [], attachmentCount: 0, attachments: [],
 };
 
+const DOSSIER: FleetDossier = {
+    id: 'd-1', title: 'Sinistre roue arrière droite', description: null, status: 'OPEN', pinned: true,
+    vehicle: { id: 'veh-a', name: '75-188', plate: null, missing: false }, createdByName: null,
+    createdAt: '2026-11-14T10:00:00Z', updatedAt: 't', closedAt: null,
+    taskCount: 2, openTaskCount: 2, itemCount: 4, missingItemCount: 2, attachmentCount: 0,
+};
+
 beforeEach(() => {
     global.fetch = vi.fn(async (url: string) => {
         if (url === '/api/fleet-tracking/tasks/t-42') return new Response(JSON.stringify({ task: TASK }), { status: 200 });
         if (url.startsWith('/api/fleet-tracking/assignees')) return new Response(JSON.stringify({ assignees: [] }), { status: 200 });
         if (url.startsWith('/api/fleet-tracking/link-targets')) return new Response(JSON.stringify({ targets: [] }), { status: 200 });
+        if (url.startsWith('/api/fleet-tracking/dossiers')) return new Response(JSON.stringify({ dossiers: [DOSSIER] }), { status: 200 });
         return new Response(JSON.stringify({ tasks: [TASK] }), { status: 200 });
     }) as unknown as typeof fetch;
 });
@@ -43,5 +52,16 @@ describe('FleetTrackingPanel', () => {
         render(<FleetTrackingPanel tab="taches" onSelectTab={onSelectTab} taskId={null} onOpenTask={vi.fn()} />);
         fireEvent.click(screen.getByRole('tab', { name: 'Contacts' }));
         expect(onSelectTab).toHaveBeenCalledWith('contacts');
+    });
+
+    it('onglet Dossiers : badge du nombre de dossiers ouverts, liste et ouverture d\'un dossier', async () => {
+        const onOpenDossier = vi.fn();
+        render(<FleetTrackingPanel tab="dossiers" onSelectTab={vi.fn()} dossierId={null} onOpenDossier={onOpenDossier} />);
+        const tab = screen.getByRole('tab', { name: /Dossiers/ });
+        await waitFor(() => expect(within(tab).getByText('1')).toBeTruthy());
+        expect(await screen.findByText('Sinistre roue arrière droite')).toBeTruthy();
+        expect(screen.getByText(/75-188 · Ouvert le 14\/11\/2026 · 2 tâches en cours · 2 pièces manquantes/)).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Ouvrir le dossier Sinistre roue arrière droite' }));
+        expect(onOpenDossier).toHaveBeenCalledWith('d-1');
     });
 });

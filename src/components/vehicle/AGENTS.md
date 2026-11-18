@@ -24,6 +24,7 @@ Vehicle detail-page UI: badges, trip/reservation timeline, checklist, maintenanc
 | `RenaultConnectBlock.tsx` | Renault Connect telemetry display |
 | `VehicleConnectionBlock.tsx` | Connexion marque : 3 états (absente / erreur / connectée). `canManage` dérivé des rôles + UL, jamais de la présence de `connection` |
 | `IncidentGuidelines.tsx` | Incident reporting guidance text |
+| `VehicleFleetHistory.tsx` / `useVehicleFleetHistory.ts` / `HistoryTaskItem.tsx` | « Suivi technique » section of the detail page (CAP-13): folders and out-of-folder tasks of the vehicle, newest first, filter Tout / En cours / Clos-terminé, « + Dossier pour ce véhicule ». Renders nothing (and fetches nothing) without `canManageVehicles` or in Vue DT; hidden when the API refuses (403/404) |
 
 ## Subdirectories
 | Directory | Purpose |

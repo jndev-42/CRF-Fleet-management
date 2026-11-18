@@ -18,17 +18,25 @@ import {
     type TaskStatus,
 } from '@/lib/fleetTracking/tasks';
 import AssigneePicker from './AssigneePicker';
+import DossierSelect from './DossierSelect';
 import LinkPicker from './LinkPicker';
 import TaskAttachments from './TaskAttachments';
 import { TASKS_URL } from './useFleetTasks';
 import { readError } from './useFleetContacts';
 import styles from './tasks.module.css';
 
+/** Valeurs initiales d'une création (depuis un dossier). */
+export interface TaskDefaults {
+    dossierId?: string | null;
+    links?: TaskLink[];
+}
+
 interface Props {
     /** `null` : création. */
     task: FleetTaskDetail | null;
     initialStatus: TaskStatus;
     assignees: AssignableManager[];
+    defaults?: TaskDefaults;
     currentUserId: string | null;
     saving: boolean;
     setSaving: (on: boolean) => void;
@@ -44,7 +52,7 @@ function sameKeys(a: string[], b: string[]): boolean {
 }
 
 /** Champs de la tâche : titre, description, état, priorité, échéance, épingle, assignés, rattachements, pièces jointes. */
-export default function TaskForm({ task, initialStatus, assignees, currentUserId, saving, setSaving, onCancel, onDone }: Props) {
+export default function TaskForm({ task, initialStatus, assignees, defaults, currentUserId, saving, setSaving, onCancel, onDone }: Props) {
     const [title, setTitle] = useState(task?.title ?? '');
     const [description, setDescription] = useState(task?.description ?? '');
     const [status, setStatus] = useState<TaskStatus>(task?.status ?? initialStatus);
@@ -52,7 +60,9 @@ export default function TaskForm({ task, initialStatus, assignees, currentUserId
     const [dueDate, setDueDate] = useState(task?.dueDate ?? '');
     const [pinned, setPinned] = useState(task?.pinned ?? false);
     const [people, setPeople] = useState<TaskAssignee[]>(task?.assignees ?? []);
-    const [links, setLinks] = useState<TaskLink[]>(task?.links ?? []);
+    const [links, setLinks] = useState<TaskLink[]>(task?.links ?? defaults?.links ?? []);
+    const initialDossierId = task ? task.dossierId : defaults?.dossierId ?? null;
+    const [dossierId, setDossierId] = useState<string | null>(initialDossierId);
     const [attachments, setAttachments] = useState<TaskAttachment[]>(task?.attachments ?? []);
     const [error, setError] = useState<string | null>(null);
 
@@ -107,6 +117,8 @@ export default function TaskForm({ task, initialStatus, assignees, currentUserId
             pinned,
             ...(assigneesChanged ? { assigneeIds } : {}),
             ...(linksChanged ? { links: linkInputs } : {}),
+            // Dossier envoyé seulement s'il est choisi (création) ou modifié.
+            ...(dossierId !== (task ? initialDossierId : null) ? { dossierId } : {}),
         });
     };
 
@@ -154,6 +166,7 @@ export default function TaskForm({ task, initialStatus, assignees, currentUserId
                         {!dueDate && <span className={styles.hint}>Date à fixer</span>}
                     </div>
                 </div>
+                <DossierSelect value={dossierId} onChange={setDossierId} current={initialDossierId} />
                 <div className="form-group">
                     <span className="form-label">Assignés</span>
                     <AssigneePicker options={assignees} value={people} onChange={setPeople} currentUserId={currentUserId} />

@@ -4,6 +4,8 @@ import { forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 import { ownsResource, parseBody, requireFleetManager, type FleetAccess } from '@/lib/fleetTracking/access';
 import { updateTaskSchema } from '@/lib/fleetTracking/tasks';
+import { checkTaskDossier, withDossierVehicleLink } from '@/lib/fleetTracking/dossierGuards';
+import type { DossierRow } from '@/lib/fleetTracking/dossiersStore';
 import { checkTaskTargets, notifyNewAssignees } from '@/lib/fleetTracking/taskGuards';
 import {
     deleteTask,
@@ -51,7 +53,8 @@ export async function GET(_request: Request, { params }: Context) {
 
 /**
  * PATCH /api/fleet-tracking/tasks/[id]
- * Modification partielle ; `assigneeIds` et `links` remplacent les listes. Toute
+ * Modification partielle ; `assigneeIds` et `links` remplacent les listes ;
+ * `dossierId` (dossier de la même UL, sinon 400 ; `null` détache). Toute
  * transition d'état est permise. Les assignés nouvellement ajoutés sont notifiés.
  */
 async function patchHandler(request: Request, { params }: Context) {
@@ -66,11 +69,22 @@ async function patchHandler(request: Request, { params }: Context) {
         const owned = await loadOwnedTask(access, id);
         if (!owned.ok) return owned.response;
 
+        let newDossier: DossierRow | null = null;
+        if (parsed.data.dossierId !== undefined && parsed.data.dossierId !== owned.row.dossierId) {
+            const dossier = await checkTaskDossier(access.ulId, parsed.data.dossierId);
+            if (!dossier.ok) return dossier.response;
+            newDossier = dossier.dossier;
+        }
+
         const [previousAssignees, previousLinks] = await Promise.all([getTaskAssigneeIds(id), getTaskLinkInputs(id)]);
         const refused = await checkTaskTargets(access.ulId, parsed.data, { assigneeIds: previousAssignees, links: previousLinks });
         if (refused) return refused;
 
-        if (!(await updateTask(id, access.ulId, owned.row, parsed.data))) return NOT_FOUND();
+        // Entrée dans un dossier : la tâche hérite du rattachement au véhicule du dossier.
+        const inherited = newDossier ? await withDossierVehicleLink(access.ulId, newDossier, parsed.data.links ?? previousLinks) : null;
+        const input = inherited ? { ...parsed.data, links: inherited } : parsed.data;
+
+        if (!(await updateTask(id, access.ulId, owned.row, input))) return NOT_FOUND();
 
         if (parsed.data.assigneeIds) {
             const added = [...new Set(parsed.data.assigneeIds)].filter(u => !previousAssignees.includes(u));

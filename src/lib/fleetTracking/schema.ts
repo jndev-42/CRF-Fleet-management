@@ -111,6 +111,57 @@ export const FLEET_TASK_INDEXES = [
     `CREATE INDEX IF NOT EXISTS "idx_FleetAttachment_owner" ON "${FLEET_ATTACHMENT_TABLE}" ("ownerType", "ownerId")`,
 ];
 
+// ── Dossiers (livrable 3) ────────────────────────────────────────
+
+export const FLEET_DOSSIER_TABLE = 'FleetDossier';
+export const FLEET_DOSSIER_ITEM_TABLE = 'FleetDossierItem';
+
+/**
+ * Dossier du suivi technique d'une UL (sinistre, panne…) rattaché à un véhicule de
+ * l'UL. `status` : OPEN | CLOSED ; `closedAt` posé à la clôture, effacé à la
+ * réouverture ; `pinned` : 0/1. Regroupe des tâches (`FleetTask.dossierId`), des
+ * pièces à récupérer et des pièces jointes (`FleetAttachment` ownerType DOSSIER).
+ * Jamais purgé : c'est l'historique technique du véhicule.
+ */
+export const FLEET_DOSSIER_DDL = `CREATE TABLE IF NOT EXISTS "${FLEET_DOSSIER_TABLE}" (
+    "id"          TEXT NOT NULL PRIMARY KEY,
+    "ulId"        TEXT NOT NULL,
+    "vehicleId"   TEXT NOT NULL,
+    "title"       TEXT NOT NULL,
+    "description" TEXT,
+    "status"      TEXT NOT NULL DEFAULT 'OPEN',
+    "pinned"      INTEGER NOT NULL DEFAULT 0,
+    "createdBy"   TEXT,
+    "createdAt"   TEXT NOT NULL,
+    "updatedAt"   TEXT NOT NULL,
+    "closedAt"    TEXT
+)`;
+
+/**
+ * Pièce à récupérer d'un dossier (devis, référence sinistre, facture…). `received`
+ * 0/1 ; `receivedValue` (ex. numéro de sinistre), `attachmentId` (une pièce jointe
+ * du dossier), `receivedAt` et `receivedBy` renseignés à la réception, effacés quand
+ * on la décoche. `position` : ordre d'affichage (ordre d'ajout).
+ */
+export const FLEET_DOSSIER_ITEM_DDL = `CREATE TABLE IF NOT EXISTS "${FLEET_DOSSIER_ITEM_TABLE}" (
+    "id"            TEXT NOT NULL PRIMARY KEY,
+    "dossierId"     TEXT NOT NULL,
+    "label"         TEXT NOT NULL,
+    "received"      INTEGER NOT NULL DEFAULT 0,
+    "receivedValue" TEXT,
+    "attachmentId"  TEXT,
+    "receivedAt"    TEXT,
+    "receivedBy"    TEXT,
+    "position"      INTEGER NOT NULL DEFAULT 0,
+    "createdAt"     TEXT NOT NULL
+)`;
+
+export const FLEET_DOSSIER_INDEXES = [
+    `CREATE INDEX IF NOT EXISTS "idx_FleetDossier_ulId_status" ON "${FLEET_DOSSIER_TABLE}" ("ulId", "status")`,
+    `CREATE INDEX IF NOT EXISTS "idx_FleetDossier_vehicleId" ON "${FLEET_DOSSIER_TABLE}" ("vehicleId")`,
+    `CREATE INDEX IF NOT EXISTS "idx_FleetDossierItem_dossierId" ON "${FLEET_DOSSIER_ITEM_TABLE}" ("dossierId")`,
+];
+
 /** Tables du module, dans l'ordre de création (utilisé par la vérification de migration). */
 export const FLEET_TRACKING_TABLES = [
     FLEET_CONTACT_TABLE,
@@ -118,6 +169,8 @@ export const FLEET_TRACKING_TABLES = [
     FLEET_TASK_ASSIGNEE_TABLE,
     FLEET_TASK_LINK_TABLE,
     FLEET_ATTACHMENT_TABLE,
+    FLEET_DOSSIER_TABLE,
+    FLEET_DOSSIER_ITEM_TABLE,
 ];
 
 /** Toutes les instructions DDL du module, dans l'ordre d'exécution. */
@@ -129,6 +182,9 @@ export const FLEET_TRACKING_DDL: string[] = [
     FLEET_TASK_LINK_DDL,
     FLEET_ATTACHMENT_DDL,
     ...FLEET_TASK_INDEXES,
+    FLEET_DOSSIER_DDL,
+    FLEET_DOSSIER_ITEM_DDL,
+    ...FLEET_DOSSIER_INDEXES,
 ];
 
 /** Noms des index créés par `FLEET_TRACKING_DDL` (vérification de migration). */

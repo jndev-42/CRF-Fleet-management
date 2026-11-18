@@ -5,7 +5,8 @@
  *   pour la v5.55.0, FleetContact (annuaire des prestataires de chaque UL, partageable
  *   aux autres UL), FleetTask (tâches), FleetTaskAssignee (assignés), FleetTaskLink
  *   (rattachements à un véhicule, contact, incident ou maintenance) et FleetAttachment
- *   (pièces jointes sur R2), avec leurs index.
+ *   (pièces jointes sur R2), FleetDossier (dossiers rattachés à un véhicule) et
+ *   FleetDossierItem (pièces à récupérer d'un dossier), avec leurs index.
  *
  * Idempotente : chaque instruction est en `IF NOT EXISTS` ; une base à jour n'est pas
  * réécrite. L'écriture est atomique (un seul lot en transaction d'écriture), puis
@@ -13,8 +14,8 @@
  *
  * À exécuter AVANT le déploiement de la v5.55.0 : sans les tables, les routes
  * /api/fleet-tracking/* répondent 500 (onglets « Suivi technique › Contacts » et
- * « Tâches » inutilisables). Relançable : une base partiellement migrée (FleetContact
- * seule) reçoit les tables manquantes.
+ * « Tâches » / « Dossiers » inutilisables). Relançable : une base partiellement migrée
+ * (FleetContact seule, ou sans les tables des dossiers) reçoit les tables manquantes.
  *
  * Usage :
  *   npx tsx scripts/add-fleet-tracking.ts                          # .env, dry-run

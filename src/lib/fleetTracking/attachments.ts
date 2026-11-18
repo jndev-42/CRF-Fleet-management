@@ -1,5 +1,5 @@
 /**
- * Pièces jointes du suivi technique (tâches, puis dossiers au livrable 3) — règles
+ * Pièces jointes du suivi technique (tâches et dossiers) — règles
  * partagées client / serveur : types acceptés, signature binaire, taille, nom de
  * fichier, clé R2 et en-tête `Content-Disposition`.
  *
@@ -19,9 +19,11 @@ export const ATTACHMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/web
 export const ATTACHMENT_INVALID_ERROR = 'Le fichier doit être un PDF ou une image (JPEG, PNG, WebP).';
 export const ATTACHMENT_TOO_LARGE_ERROR = 'Le fichier est trop volumineux (4 Mo maximum).';
 
-/** Pièces jointes au plus par tâche. */
+/** Pièces jointes au plus par tâche ou par dossier. */
 export const MAX_ATTACHMENTS_PER_TASK = 20;
+export const MAX_ATTACHMENTS_PER_OWNER = MAX_ATTACHMENTS_PER_TASK;
 export const TOO_MANY_ATTACHMENTS_ERROR = `Une tâche compte au plus ${MAX_ATTACHMENTS_PER_TASK} pièces jointes.`;
+export const TOO_MANY_DOSSIER_ATTACHMENTS_ERROR = `Un dossier compte au plus ${MAX_ATTACHMENTS_PER_OWNER} pièces jointes.`;
 
 export interface AttachmentKind {
     contentType: 'application/pdf' | 'image/jpeg' | 'image/png' | 'image/webp';
@@ -93,15 +95,29 @@ export const FLEET_TRACKING_R2_PREFIX = 'fleet-tracking';
 
 const SEGMENT_RE = /^[A-Za-z0-9_][A-Za-z0-9_-]*$/;
 
+/** Dossier R2 de chaque type de propriétaire. */
+const OWNER_FOLDERS: Record<AttachmentOwnerType, string> = { TASK: 'tasks', DOSSIER: 'dossiers' };
+
 /**
- * Clé R2 d'une pièce jointe de tâche :
- * `fleet-tracking/{segment UL}/tasks/{taskId}/{attachmentId}.{ext}`.
+ * Clé R2 d'une pièce jointe :
+ * `fleet-tracking/{segment UL}/{tasks|dossiers}/{ownerId}/{attachmentId}.{ext}`.
  */
-export function buildTaskAttachmentKey(ulSegment: string, taskId: string, attachmentId: string, ext: AttachmentKind['ext']): string {
-    for (const [what, v] of [['segment UL', ulSegment], ['taskId', taskId], ['attachmentId', attachmentId]] as const) {
+export function buildAttachmentKey(
+    ownerType: AttachmentOwnerType,
+    ulSegment: string,
+    ownerId: string,
+    attachmentId: string,
+    ext: AttachmentKind['ext'],
+): string {
+    for (const [what, v] of [['segment UL', ulSegment], ['ownerId', ownerId], ['attachmentId', attachmentId]] as const) {
         if (!v || !SEGMENT_RE.test(v)) throw new Error(`${what} invalide pour construire une clé de pièce jointe`);
     }
-    return `${FLEET_TRACKING_R2_PREFIX}/${ulSegment}/tasks/${taskId}/${attachmentId}.${ext}`;
+    return `${FLEET_TRACKING_R2_PREFIX}/${ulSegment}/${OWNER_FOLDERS[ownerType]}/${ownerId}/${attachmentId}.${ext}`;
+}
+
+/** Clé R2 d'une pièce jointe de tâche : `fleet-tracking/{segment UL}/tasks/{taskId}/{attachmentId}.{ext}`. */
+export function buildTaskAttachmentKey(ulSegment: string, taskId: string, attachmentId: string, ext: AttachmentKind['ext']): string {
+    return buildAttachmentKey('TASK', ulSegment, taskId, attachmentId, ext);
 }
 
 /** Taille lisible en français : « 1,3 Mo », « 850 Ko ». */

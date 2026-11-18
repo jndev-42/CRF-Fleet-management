@@ -127,6 +127,8 @@ function VehiclesPageContent() {
           ulName={activeUL?.name}
           taskId={tracking.taskId}
           onOpenTask={tracking.setTaskId}
+          dossierId={tracking.dossierId}
+          onOpenDossier={tracking.setDossierId}
         />
       ) : (
         <>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import type { AssignableManager, FleetTaskDetail, TaskStatus } from '@/lib/fleetTracking/tasks';
-import TaskForm from './TaskForm';
+import TaskForm, { type TaskDefaults } from './TaskForm';
 import { TASKS_URL } from './useFleetTasks';
 import { readError } from './useFleetContacts';
 import { useModalFocus } from './useModalFocus';
@@ -14,6 +14,8 @@ interface Props {
     taskId: string | null;
     initialStatus: TaskStatus;
     assignees: AssignableManager[];
+    /** Création depuis un dossier : dossier et rattachements pré-remplis. */
+    defaults?: TaskDefaults;
     onClose: () => void;
     /** Enregistrée ou supprimée (`message` : information à afficher) ; la liste est rechargée. */
     onSaved: (message?: string) => void;
@@ -22,7 +24,7 @@ interface Props {
 type Loaded = { state: 'loading' } | { state: 'error'; message: string } | { state: 'ready'; task: FleetTaskDetail | null };
 
 /** Modale de création ou de modification d'une tâche. */
-export default function TaskModal({ taskId, initialStatus, assignees, onClose, onSaved }: Props) {
+export default function TaskModal({ taskId, initialStatus, assignees, defaults, onClose, onSaved }: Props) {
     const [saving, setSaving] = useState(false);
     const requestClose = () => {
         if (!saving) onClose();
@@ -82,6 +84,7 @@ export default function TaskModal({ taskId, initialStatus, assignees, onClose, o
                         task={loaded.task}
                         initialStatus={initialStatus}
                         assignees={assignees}
+                        defaults={defaults}
                         currentUserId={session?.user?.id ?? null}
                         saving={saving}
                         setSaving={setSaving}

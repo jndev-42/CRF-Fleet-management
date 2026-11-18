@@ -6,8 +6,9 @@ import { DEFAULT_FLEET_TRACKING_TAB, FLEET_TRACKING_TABS, type FleetTrackingTab 
 
 /**
  * Bascule « Flotte / Suivi technique » de `/vehicles`, portée par l'URL
- * (`?vue=suivi&onglet=taches&tache=<id>`) : un lien copié ou une notification rouvre
- * le même onglet, et la même tâche. `canUse` faux (rôle insuffisant, Vue DT) : la
+ * (`?vue=suivi&onglet=taches&tache=<id>`, `?vue=suivi&onglet=dossiers&dossier=<id>`) :
+ * un lien copié ou une notification rouvre le même onglet, et la même tâche ou le
+ * même dossier. `canUse` faux (rôle insuffisant, Vue DT) : la
  * vue suivi est ignorée.
  */
 export function useFleetTrackingView(canUse: boolean) {
@@ -21,16 +22,20 @@ export function useFleetTrackingView(canUse: boolean) {
         ? rawTab as FleetTrackingTab
         : DEFAULT_FLEET_TRACKING_TAB;
     const taskId = isTracking && tab === 'taches' ? searchParams.get('tache') || null : null;
+    const dossierId = isTracking && tab === 'dossiers' ? searchParams.get('dossier') || null : null;
 
-    const write = useCallback((next: { tracking: boolean; tab?: FleetTrackingTab; taskId?: string | null }) => {
+    const write = useCallback((next: { tracking: boolean; tab?: FleetTrackingTab; taskId?: string | null; dossierId?: string | null }) => {
         const params = new URLSearchParams(searchParams.toString());
         params.delete('vue');
         params.delete('onglet');
         params.delete('tache');
+        params.delete('dossier');
         if (next.tracking) {
+            const nextTab = next.tab ?? DEFAULT_FLEET_TRACKING_TAB;
             params.set('vue', 'suivi');
-            params.set('onglet', next.tab ?? DEFAULT_FLEET_TRACKING_TAB);
-            if (next.taskId && (next.tab ?? DEFAULT_FLEET_TRACKING_TAB) === 'taches') params.set('tache', next.taskId);
+            params.set('onglet', nextTab);
+            if (next.taskId && nextTab === 'taches') params.set('tache', next.taskId);
+            if (next.dossierId && nextTab === 'dossiers') params.set('dossier', next.dossierId);
         }
         const qs = params.toString();
         router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
@@ -40,6 +45,8 @@ export function useFleetTrackingView(canUse: boolean) {
     const setTab = useCallback((next: FleetTrackingTab) => write({ tracking: true, tab: next }), [write]);
     /** Ouvre (id) ou ferme (`null`) la modale d'une tâche, dans l'URL. */
     const setTaskId = useCallback((id: string | null) => write({ tracking: true, tab: 'taches', taskId: id }), [write]);
+    /** Ouvre (id) ou referme (`null`, retour à la liste) un dossier, dans l'URL. */
+    const setDossierId = useCallback((id: string | null) => write({ tracking: true, tab: 'dossiers', dossierId: id }), [write]);
 
-    return { isTracking, tab, setTracking, setTab, taskId, setTaskId };
+    return { isTracking, tab, setTracking, setTab, taskId, setTaskId, dossierId, setDossierId };
 }

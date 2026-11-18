@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { canManageVehicles, ROLE_LABELS, ROLES } from '@/lib/roles';
 import { computeSessionRoles } from '@/lib/session-roles';
 import { listActiveUlMembers } from '@/lib/ulMembers';
+import type { AttachmentOwnerType } from './attachments';
 import { parsePhones } from './contacts';
 import {
     dedupeLinks,
@@ -386,9 +387,19 @@ export async function getTaskDetail(id: string, ulId: string): Promise<FleetTask
  * Tâches de l'UL selon les filtres. `vehicle` : tâches rattachées au véhicule, ou à
  * un de ses incidents ou maintenances. `assignee=me` : la personne de la session.
  */
-export async function listTasks(ulId: string, filters: TaskFilters, sessionUserId: string | null): Promise<FleetTask[]> {
+export async function listTasks(
+    ulId: string,
+    filters: TaskFilters,
+    sessionUserId: string | null,
+    /** Historique d'un véhicule : tâches hors dossier OU dans le dossier d'un AUTRE véhicule. */
+    opts: { outsideDossiersOfVehicle?: string } = {},
+): Promise<FleetTask[]> {
     const where = ['t.ulId = ?'];
     const args: (string | number)[] = [ulId];
+    if (opts.outsideDossiersOfVehicle) {
+        where.push(`(t.dossierId IS NULL OR NOT EXISTS (SELECT 1 FROM "FleetDossier" d WHERE d.id = t.dossierId AND d.vehicleId = ?))`);
+        args.push(opts.outsideDossiersOfVehicle);
+    }
     if (filters.pinned) where.push('t.pinned = 1');
     if (filters.priority) {
         where.push('t.priority = ?');
@@ -409,6 +420,13 @@ export async function listTasks(ulId: string, filters: TaskFilters, sessionUserI
         if (!userId) return [];
         where.push(`EXISTS (SELECT 1 FROM "FleetTaskAssignee" a WHERE a.taskId = t.id AND a.userId = ?)`);
         args.push(userId);
+    }
+    if (filters.dossier) {
+        if (filters.dossier === 'none') where.push('t.dossierId IS NULL');
+        else {
+            where.push('t.dossierId = ?');
+            args.push(filters.dossier);
+        }
     }
     if (filters.vehicle) {
         where.push(`EXISTS (SELECT 1 FROM "FleetTaskLink" l WHERE l.taskId = t.id AND (
@@ -461,9 +479,9 @@ export async function createTask(ulId: string, input: CreateTaskInput, createdBy
     await db.batch([
         {
             sql: `INSERT INTO "FleetTask" (id, ulId, dossierId, title, description, status, priority, dueDate, pinned, completedAt, createdBy, createdAt, updatedAt)
-                  VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
-                id, ulId, input.title, input.description ?? null, input.status, input.priority,
+                id, ulId, input.dossierId ?? null, input.title, input.description ?? null, input.status, input.priority,
                 input.dueDate ?? null, input.pinned ? 1 : 0, input.status === 'DONE' ? now : null,
                 createdBy, now, now,
             ],
@@ -492,6 +510,7 @@ export async function updateTask(id: string, ulId: string, existing: { status: T
     if (input.priority !== undefined) set('priority', input.priority);
     if (input.dueDate !== undefined) set('dueDate', input.dueDate);
     if (input.pinned !== undefined) set('pinned', input.pinned ? 1 : 0);
+    if (input.dossierId !== undefined) set('dossierId', input.dossierId);
     if (input.status !== undefined) {
         set('status', input.status);
         if (input.status !== 'DONE') set('completedAt', null);
@@ -557,11 +576,16 @@ export async function deleteR2Objects(keys: string[]): Promise<void> {
 // ── Pièces jointes ───────────────────────────────────────────────
 
 export async function listTaskAttachments(taskId: string): Promise<TaskAttachment[]> {
+    return listAttachments('TASK', taskId);
+}
+
+/** Pièces jointes d'une tâche ou d'un dossier, de la plus ancienne à la plus récente. */
+export async function listAttachments(ownerType: AttachmentOwnerType, ownerId: string): Promise<TaskAttachment[]> {
     const res = await db.execute({
         sql: `SELECT a.id, a.fileName, a.contentType, a.size, a.createdAt, u.name AS uploaderName, u.email AS uploaderEmail
               FROM "FleetAttachment" a LEFT JOIN "User" u ON u.id = a.uploadedBy
-              WHERE a.ownerType = 'TASK' AND a.ownerId = ? ORDER BY a.createdAt, a.id`,
-        args: [taskId],
+              WHERE a.ownerType = ? AND a.ownerId = ? ORDER BY a.createdAt, a.id`,
+        args: [ownerType, ownerId],
     });
     return res.rows.map(r => ({
         id: String(r.id),
@@ -597,7 +621,7 @@ export async function getAttachmentRow(id: string): Promise<AttachmentRow | null
 }
 
 export async function insertAttachment(a: {
-    id: string; ownerType: 'TASK' | 'DOSSIER'; ownerId: string; ulId: string; r2Key: string;
+    id: string; ownerType: AttachmentOwnerType; ownerId: string; ulId: string; r2Key: string;
     fileName: string; contentType: string; size: number; uploadedBy: string | null; createdAt: string;
 }): Promise<void> {
     await db.execute({
@@ -609,17 +633,31 @@ export async function insertAttachment(a: {
 
 /**
  * Supprime la ligne d'une pièce jointe, puis son objet R2 au mieux (base d'abord :
- * jamais de ligne pointant vers un objet supprimé). `false` si rien n'a été supprimé.
+ * jamais de ligne pointant vers un objet supprimé). Une pièce à récupérer qui
+ * désignait ce fichier le perd (dans la même transaction). `false` si rien n'a été
+ * supprimé.
  */
 export async function deleteAttachment(id: string, ulId: string): Promise<boolean> {
-    const res = await db.execute({ sql: `DELETE FROM "FleetAttachment" WHERE id = ? AND ulId = ? RETURNING r2Key`, args: [id, ulId] });
+    const [res] = await db.batch([
+        { sql: `DELETE FROM "FleetAttachment" WHERE id = ? AND ulId = ? RETURNING r2Key`, args: [id, ulId] },
+        {
+            sql: `UPDATE "FleetDossierItem" SET attachmentId = NULL
+                  WHERE attachmentId = ? AND NOT EXISTS (SELECT 1 FROM "FleetAttachment" WHERE id = ?)`,
+            args: [id, id],
+        },
+    ], 'write');
     if (res.rows.length === 0) return false;
     await deleteR2Objects(res.rows.map(r => String(r.r2Key)));
     return true;
 }
 
+/** Nombre de pièces jointes d'une tâche ou d'un dossier. */
+export async function countAttachments(ownerType: AttachmentOwnerType, ownerId: string): Promise<number> {
+    const res = await db.execute({ sql: `SELECT COUNT(*) AS n FROM "FleetAttachment" WHERE ownerType = ? AND ownerId = ?`, args: [ownerType, ownerId] });
+    return Number(res.rows[0]?.n ?? 0);
+}
+
 /** Nombre de pièces jointes d'une tâche. */
 export async function countTaskAttachments(taskId: string): Promise<number> {
-    const res = await db.execute({ sql: `SELECT COUNT(*) AS n FROM "FleetAttachment" WHERE ownerType = 'TASK' AND ownerId = ?`, args: [taskId] });
-    return Number(res.rows[0]?.n ?? 0);
+    return countAttachments('TASK', taskId);
 }

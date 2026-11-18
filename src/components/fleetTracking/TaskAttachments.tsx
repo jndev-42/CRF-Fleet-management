@@ -9,19 +9,22 @@ import { readError } from './useFleetContacts';
 import styles from './tasks.module.css';
 
 interface Props {
-    taskId: string;
+    /** Tâche propriétaire (route `/tasks/<id>/attachments`)… */
+    taskId?: string;
+    /** …ou URL de base des pièces jointes d'un autre propriétaire (dossier). */
+    baseUrl?: string;
     attachments: TaskAttachment[];
     /** Mise à jour fonctionnelle : un envoi qui se termine ne repart jamais d'une liste périmée. */
     onChange: Dispatch<SetStateAction<TaskAttachment[]>>;
 }
 
 /**
- * Pièces jointes d'une tâche enregistrée : liste (ouverture dans un nouvel onglet),
+ * Pièces jointes d'une tâche ou d'un dossier enregistré : liste (ouverture dans un nouvel onglet),
  * suppression avec confirmation, dépôt par glisser-déposer ou sélection (PDF ou image,
  * 4 Mo). Chaque action est enregistrée aussitôt, indépendamment du formulaire ;
  * une seule à la fois (un dépôt pendant un envoi est ignoré).
  */
-export default function TaskAttachments({ taskId, attachments, onChange }: Props) {
+export default function TaskAttachments({ taskId, baseUrl, attachments, onChange }: Props) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [dragOver, setDragOver] = useState(false);
@@ -32,7 +35,7 @@ export default function TaskAttachments({ taskId, attachments, onChange }: Props
         busyRef.current = on;
         setBusy(on);
     };
-    const base = `${TASKS_URL}/${encodeURIComponent(taskId)}/attachments`;
+    const base = baseUrl ?? `${TASKS_URL}/${encodeURIComponent(taskId ?? '')}/attachments`;
 
     const upload = async (file: File) => {
         if (busyRef.current) return;

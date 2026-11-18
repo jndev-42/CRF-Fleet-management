@@ -56,6 +56,21 @@ describe('useFleetTrackingView', () => {
         expect(result.current.tab).toBe('taches');
     });
 
+    it('lien de dossier : lit le dossier à ouvrir ; revenir à la liste retire `dossier`', () => {
+        nav.params = new URLSearchParams('vue=suivi&onglet=dossiers&dossier=d-7');
+        const { result } = renderHook(() => useFleetTrackingView(true));
+        expect(result.current.tab).toBe('dossiers');
+        expect(result.current.dossierId).toBe('d-7');
+        expect(result.current.taskId).toBeNull();
+        act(() => result.current.setDossierId(null));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=dossiers');
+        act(() => result.current.setDossierId('d-8'));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=dossiers&dossier=d-8');
+        // Changer d'onglet referme le dossier.
+        act(() => result.current.setTab('taches'));
+        expect(lastUrl()).toBe('/vehicles?vue=suivi&onglet=taches');
+    });
+
     it('lien de notification : lit la tâche à ouvrir ; la fermer retire `tache` de l\'URL', () => {
         nav.params = new URLSearchParams('vue=suivi&onglet=taches&tache=t-42');
         const { result } = renderHook(() => useFleetTrackingView(true));

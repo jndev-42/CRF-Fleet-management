@@ -12,7 +12,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 import { ownsResource, requireFleetManager, type FleetAccess } from '@/lib/fleetTracking/access';
-import { attachmentContentDisposition } from '@/lib/fleetTracking/attachments';
+import { serveAttachment } from '@/lib/fleetTracking/attachmentRoutes';
 import { deleteAttachment, getAttachmentRow } from '@/lib/fleetTracking/tasksStore';
 
 export const runtime = 'nodejs';
@@ -37,26 +37,7 @@ export async function GET(request: Request, { params }: Context) {
         const owned = await loadOwnedAttachment(access, id, attachmentId);
         if (!owned.ok) return owned.response;
 
-        const { getObject } = await import('@/lib/r2');
-        const buffer = await getObject(owned.row.r2Key);
-        if (!buffer) {
-            console.error(`[fleet-tracking] objet R2 introuvable pour la pièce jointe ${attachmentId} : ${owned.row.r2Key}`);
-            return NextResponse.json({ error: 'Le fichier est introuvable. Contactez un administrateur.' }, { status: 409 });
-        }
-        const download = new URL(request.url).searchParams.get('download') === '1';
-        return new NextResponse(new Uint8Array(buffer), {
-            status: 200,
-            headers: {
-                'Content-Type': owned.row.contentType,
-                'Content-Disposition': attachmentContentDisposition(owned.row.fileName, download),
-                'Content-Length': String(buffer.length),
-                'Cache-Control': 'private, no-store',
-                'X-Content-Type-Options': 'nosniff',
-                // Fichier déposé par un utilisateur, servi sur l'origine de l'appli : bac à sable
-                // (aucun script, aucune requête), la visionneuse PDF et les images restent lisibles.
-                'Content-Security-Policy': "sandbox; default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'",
-            },
-        });
+        return await serveAttachment(request, owned.row);
     } catch (e: unknown) {
         console.error('GET /api/fleet-tracking/tasks/[id]/attachments/[attachmentId] error:', getErrorMessage(e));
         return NextResponse.json({ error: 'Erreur lors de la lecture de la pièce jointe.' }, { status: 500 });

@@ -60,10 +60,10 @@ describe('scripts/add-fleet-tracking.ts', () => {
         expect(after).toContain('table:FleetContact');
         expect(after).toContain('index:idx_FleetContact_ulId');
         expect(after).toContain('index:idx_FleetContact_shared');
-        for (const t of ['FleetTask', 'FleetTaskAssignee', 'FleetTaskLink', 'FleetAttachment']) {
+        for (const t of ['FleetTask', 'FleetTaskAssignee', 'FleetTaskLink', 'FleetAttachment', 'FleetDossier', 'FleetDossierItem']) {
             expect(after).toContain(`table:${t}`);
         }
-        for (const i of ['idx_FleetTask_ulId_status', 'idx_FleetTask_dossierId', 'idx_FleetTaskAssignee_userId', 'idx_FleetTaskLink_target', 'idx_FleetAttachment_owner']) {
+        for (const i of ['idx_FleetDossier_ulId_status', 'idx_FleetDossier_vehicleId', 'idx_FleetDossierItem_dossierId', 'idx_FleetTask_ulId_status', 'idx_FleetTask_dossierId', 'idx_FleetTaskAssignee_userId', 'idx_FleetTaskLink_target', 'idx_FleetAttachment_owner']) {
             expect(after).toContain(`index:${i}`);
         }
     }, 60_000);
@@ -86,5 +86,17 @@ describe('scripts/add-fleet-tracking.ts', () => {
         expect(out).toContain('✅ Vérification');
         expect(await objects()).toContain('table:FleetAttachment');
         expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetContact"`)).rows[0].n).toBe(1);
+    }, 60_000);
+
+    it('base du livrable 2 (sans dossiers) : ajoute FleetDossier et FleetDossierItem sans toucher aux tâches', async () => {
+        await db.execute(`INSERT INTO "FleetTask" (id, ulId, title, createdAt, updatedAt) VALUES ('t1', 'ul', 'X', 't', 't')`);
+        for (const t of ['FleetDossier', 'FleetDossierItem']) await db.execute(`DROP TABLE "${t}"`);
+        const out = await migrate('--apply');
+        expect(out).toContain('table FleetDossier : ABSENTE');
+        expect(out).toContain('✅ Vérification');
+        const after = await objects();
+        expect(after).toContain('table:FleetDossierItem');
+        expect(after).toContain('index:idx_FleetDossier_vehicleId');
+        expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetTask"`)).rows[0].n).toBe(1);
     }, 60_000);
 });

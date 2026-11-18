@@ -140,6 +140,8 @@ const taskFields = {
     pinned: z.boolean(),
     assigneeIds: z.array(z.string().trim().min(1).max(100)).max(MAX_TASK_ASSIGNEES, 'Trop d\'assignés'),
     links: z.array(linkSchema).max(MAX_TASK_LINKS, 'Trop de rattachements'),
+    /** Dossier de rattachement (même UL), `null` hors dossier. */
+    dossierId: z.string().trim().min(1).max(100).nullable(),
 };
 
 export const createTaskSchema = z.object({
@@ -149,6 +151,7 @@ export const createTaskSchema = z.object({
     pinned: taskFields.pinned.default(false),
     assigneeIds: taskFields.assigneeIds.default([]),
     links: taskFields.links.default([]),
+    dossierId: taskFields.dossierId.optional(),
 }).strict();
 
 export const updateTaskSchema = z.object(taskFields).partial().strict()
@@ -167,6 +170,8 @@ export const taskFiltersSchema = z.object({
     status: z.string().optional()
         .refine(v => !v || v.split(',').every(s => (TASK_STATUSES as readonly string[]).includes(s)), 'État inconnu'),
     q: z.string().trim().max(200).optional(),
+    /** Identifiant d'un dossier, ou `none` : tâches hors dossier. */
+    dossier: z.string().trim().max(100).optional(),
 });
 
 export type TaskFilters = z.infer<typeof taskFiltersSchema>;
