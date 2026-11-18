@@ -1,5 +1,14 @@
 # Changelog
 
+## [5.55.0] — 18 novembre 2026
+
+### ✨ Nouveautés
+
+- Page Véhicules : les responsables véhicule et les administrateurs disposent d'une nouvelle vue « 🔧 Suivi technique », à côté de la vue « 🚗 Flotte ». Elle s'ouvre sur l'onglet « Contacts » ; d'autres onglets suivront.
+- Contacts : chaque unité locale tient son annuaire de prestataires (garages, carrossiers, assureurs, dépanneurs…) avec nom, catégorie, un à cinq téléphones, e-mail, adresse et notes. Recherche par nom, catégorie ou ville, et filtres par catégorie. Les numéros s'appellent d'un simple appui sur téléphone.
+- Un contact peut être partagé aux autres unités locales : elles le retrouvent en lecture seule dans « Prestataires proposés par d'autres UL », avec la mention « Proposé par l'UL … ». Retirer le partage le fait disparaître chez elles.
+- Bouton « Exporter vers le téléphone » : télécharge un fichier de contacts à importer dans le téléphone, avec les contacts de l'UL et ceux proposés par les autres UL (reconnaissables à la mention « UL … » dans leur nom).
+
 ## [5.54.2] — 16 novembre 2026
 
 ### 🔧 Modifications

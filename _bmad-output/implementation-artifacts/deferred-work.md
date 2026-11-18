@@ -217,3 +217,9 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-recherche-utilisateurs-filtre-ul.md`
   summary: Mettre à jour les AGENTS.md de `src/components/ui/` (UserCombobox dépend de `useSession`, accepte `ulIds`) et des routes drivers/desinf-responsables (réponse avec `ulIds`).
   evidence: Relecture Blind Hunter ; fichiers de contexte agent, hors correctifs automatiques.
+- source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-1-onglet-contacts.md`
+  summary: Ajouter un test de page pour `/vehicles` couvrant la bascule Flotte / Suivi technique (visible pour RESP_VEHICULE/ADMIN hors Vue DT, panneau à la place des sections flotte).
+  evidence: aucun test de `src/app/vehicles/page.tsx` ; le hook est testé avec un booléen littéral, l'API protège l'accès.
+- source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-1-onglet-contacts.md`
+  summary: Mettre à jour `src/app/vehicles/AGENTS.md` pour `FleetViewToggle.tsx` et `useFleetTrackingView.ts`.
+  evidence: nouveaux fichiers non référencés dans l'AGENTS.md du dossier.

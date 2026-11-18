@@ -1,0 +1,245 @@
+/* Suivi technique — onglet Contacts (variables de globals.css, clair et sombre). */
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 240px;
+    flex: 1 1 240px;
+    max-width: 360px;
+    color: var(--text-secondary);
+}
+
+.toolbarActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.toolbarActions :global(.btn) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+}
+
+.sectionTitle {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 24px 0 12px;
+    color: var(--text-primary);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.contactCard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+}
+
+.sharedCard {
+    border-style: dashed;
+}
+
+.pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+}
+
+.pillShared {
+    background: rgba(139, 92, 246, 0.12);
+    border-color: rgba(139, 92, 246, 0.35);
+    color: var(--text-primary);
+}
+
+.contactName {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+.phoneLink {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.dim {
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 400;
+}
+
+.notes {
+    margin: 0;
+    white-space: pre-line;
+}
+
+.cardFooter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-primary);
+}
+
+.iconBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0 10px;
+}
+
+/* Interrupteur de partage : vraie case à cocher (role="switch"), habillée. */
+.switchLabel {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    position: relative;
+}
+
+.switchInput {
+    position: absolute;
+    opacity: 0;
+    width: 36px;
+    height: 20px;
+    margin: 0;
+    cursor: pointer;
+}
+
+.switchTrack {
+    position: relative;
+    flex: none;
+    width: 36px;
+    height: 20px;
+    border-radius: 999px;
+    background: var(--border-primary);
+    transition: background var(--transition-fast);
+}
+
+.switchTrack::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--bg-card, #fff);
+    transition: transform var(--transition-fast);
+}
+
+.switchInput:checked + .switchTrack {
+    background: var(--crf-red);
+}
+
+.switchInput:checked + .switchTrack::after {
+    transform: translateX(16px);
+}
+
+.switchInput:focus-visible + .switchTrack {
+    outline: 2px solid var(--crf-red);
+    outline-offset: 2px;
+}
+
+.fieldset {
+    border: none;
+    padding: 0;
+    margin: 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.phoneRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.checkboxLine {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.hint {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.error {
+    color: var(--crf-red);
+    font-size: 14px;
+    margin: 8px 0;
+}
+
+.danger {
+    margin-right: auto;
+    color: var(--crf-red);
+}
+
+@media (max-width: 640px) {
+    .toolbarActions {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .phoneRow {
+        grid-template-columns: 1fr auto;
+    }
+
+    .phoneRow > input:nth-child(2) {
+        grid-column: 1;
+    }
+}

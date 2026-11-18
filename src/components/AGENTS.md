@@ -26,6 +26,7 @@ Shared React UI components used across pages, plus feature-specific component su
 | `admin/` | Admin-only UI (see `admin/AGENTS.md`) |
 | `expenses/` | Expense report UI (see `expenses/AGENTS.md`) |
 | `incident/` | Incident report UI (see `incident/AGENTS.md`) |
+| `fleetTracking/` | Suivi technique view of `/vehicles` (see `fleetTracking/AGENTS.md`) |
 | `inventory/` | Inventory/stock UI (see `inventory/AGENTS.md`) |
 | `missions/` | Mission management UI (see `missions/AGENTS.md`) |
 | `stats/` | Statistics/charts UI (see `stats/AGENTS.md`) |

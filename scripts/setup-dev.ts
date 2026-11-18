@@ -14,6 +14,7 @@ import { MCP_TOKEN_DDL, MCP_TOKEN_INDEXES } from '../src/lib/mcp/schema';
 import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '../src/lib/themes/schema';
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '../src/lib/push/schema';
 import { SCHEDULED_ALERT_DDL } from '../src/lib/alerts/schema';
+import { FLEET_TRACKING_DDL } from '../src/lib/fleetTracking/schema';
 import { VEHICLE_DOCUMENT_DDL, VEHICLE_DOCUMENT_INDEX_DDL } from '../src/lib/vehicleDocuments/schema';
 import { MISSION_REPORT_ACCIDENT_COLUMNS, MISSION_REPORT_EDITS_DDL, MISSION_REPORT_EDITS_INDEX_DDL, MISSION_REPORT_SIGNED_MODE_COLUMNS } from '../src/lib/missions/edits-schema';
 import { menuSettingNeedsRebuild, menuSettingTableDdl, rebuildMenuSettingTable } from '../src/lib/menu-settings-schema';
@@ -812,6 +813,10 @@ async function main() {
     await db.execute(SCHEDULED_ALERT_DDL);
     await db.execute(VEHICLE_DOCUMENT_DDL);
     await db.execute(VEHICLE_DOCUMENT_INDEX_DDL);
+
+    // ── Suivi technique de la flotte (contacts prestataires…) ─────
+
+    for (const ddl of FLEET_TRACKING_DDL) await db.execute(ddl);
 
     // ── MenuSetting ───────────────────────────────────────────────
 
