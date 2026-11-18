@@ -92,6 +92,13 @@ context:
 
 ## Implementation Notes
 
+- `src/lib/fleetTracking/access.ts` : `requireFleetManager()` → `{ok, session, roles, ulId, userId}` ou `{ok:false, response}` (401/403/400) ; `ownsResource(access, resourceUlId)` (UL de session stricte, même pour SUPER_ADMIN) ; `parseBody(request, schema)` ; `activeUlId`.
+- `src/lib/fleetTracking/schema.ts` : `FLEET_TRACKING_DDL` / `FLEET_TRACKING_TABLES` à compléter ; utilisés par `scripts/add-fleet-tracking.ts` (`--env`, dry-run, `--apply`), `scripts/setup-dev.ts`, `src/__tests__/integration/setup.ts` (create + truncate) et testés par `src/__tests__/integration/add-fleet-tracking.test.ts` (index extraits par regex `"idx_…"`).
+- `contacts.ts` (pur, client-safe : catégories, Zod, vCard avec UID/REV/ORG) ; `contactsStore.ts` (SQL ; écritures `WHERE id = ? AND ulId = ?`, partagés en `INNER JOIN UniteLocale`).
+- UI : `src/components/fleetTracking/` — `FleetTrackingPanel` (sous-onglets via `tabs.ts`), `ContactsTab`, `ContactCard`, `ContactFormModal`, `PhoneFields`, hooks `useFleetContacts`, `useModalFocus` (focus sur `[data-autofocus]`, Échap), `useVCardExport` ; styles `fleetTracking.module.css`.
+- `/vehicles` : `src/app/vehicles/useFleetTrackingView.ts` (URL `?vue=suivi&onglet=`), `FleetViewToggle.tsx` ; la bascule Vue UL/DT est masquée en mode suivi.
+- Version 5.55.0, CHANGELOG « ✨ Nouveautés » ouvert, ligne de migration dans le CLAUDE.md racine.
+
 ## Spec Change Log
 
 ## Review Triage Log

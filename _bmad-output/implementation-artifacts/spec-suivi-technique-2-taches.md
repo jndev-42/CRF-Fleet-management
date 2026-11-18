@@ -2,7 +2,8 @@
 title: 'Suivi technique 2/5 — tâches : tableau à colonnes, assignés, rattachements, pièces jointes'
 type: 'feature'
 created: '2026-11-18'
-status: 'draft'
+status: 'in-progress'
+baseline_commit: '9558d2a0598b821c0c88480a82117361d3e04847'
 route: 'dispatch'
 review_loop_iteration: 0
 context:
