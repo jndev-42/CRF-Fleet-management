@@ -167,3 +167,31 @@ export function useTaskOptions() {
 
     return { assignees, vehicles, vehiclesLoaded };
 }
+
+/**
+ * Véhicules de l'UL (`provided` : liste déjà chargée par le parent, rien n'est
+ * relu). Sert aux modales ouvertes hors de l'onglet, ex. depuis la fiche véhicule.
+ */
+export function useUlVehicles(provided?: LinkTarget[]) {
+    const [fetched, setFetched] = useState<LinkTarget[] | null>(null);
+
+    useEffect(() => {
+        if (provided) return;
+        let cancelled = false;
+        void (async () => {
+            try {
+                const res = await fetch('/api/fleet-tracking/link-targets?type=VEHICLE', { cache: 'no-store' });
+                const targets = res.ok ? (await res.json() as { targets?: unknown }).targets : [];
+                if (!cancelled) setFetched(Array.isArray(targets) ? targets as LinkTarget[] : []);
+            } catch (e: unknown) {
+                console.error('Chargement des véhicules :', e);
+                if (!cancelled) setFetched([]);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [provided]);
+
+    return provided ? { vehicles: provided, loading: false } : { vehicles: fetched ?? [], loading: fetched === null };
+}

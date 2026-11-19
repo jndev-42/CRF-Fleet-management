@@ -1,4 +1,4 @@
-import type { Row } from '@libsql/client';
+import type { InStatement, Row } from '@libsql/client';
 import { db } from '@/lib/db';
 import {
     DOSSIER_STATUSES,
@@ -6,12 +6,14 @@ import {
     type DossierFilters,
     type DossierItem,
     type DossierStatus,
+    type DossierVehicle,
     type FleetDossier,
     type FleetDossierDetail,
     type UpdateDossierInput,
     type UpdateItemInput,
     type VehicleHistoryEntry,
 } from './dossiers';
+import { dossierHasVehicleSql } from './schema';
 import { deleteR2Objects, listAttachments, listTasks } from './tasksStore';
 
 /**
@@ -24,19 +26,34 @@ import { deleteR2Objects, listAttachments, listTasks } from './tasksStore';
 export interface DossierRow {
     id: string;
     ulId: string;
-    vehicleId: string;
+    /** Véhicules du dossier (au moins un), dans l'ordre d'affichage. */
+    vehicleIds: string[];
     title: string;
     status: DossierStatus;
 }
 
+/**
+ * Véhicules d'un dossier, dans l'ordre : lignes de FleetDossierVehicle, ou à défaut
+ * (dossier créé avant la reprise) `FleetDossier.vehicleId`.
+ */
+const DOSSIER_VEHICLE_ROWS = `
+    SELECT d.id AS dossierId, d.ulId AS dossierUlId, COALESCE(dv.vehicleId, d.vehicleId) AS vehicleId,
+           v.name AS vehicleName, v.plate AS vehiclePlate, v.ulId AS vehicleUlId
+    FROM "FleetDossier" d
+    LEFT JOIN "FleetDossierVehicle" dv ON dv.dossierId = d.id
+    LEFT JOIN "Vehicle" v ON v.id = COALESCE(dv.vehicleId, d.vehicleId)`;
+
 /** Ligne brute d'un dossier (toutes UL) : sert au contrôle d'appartenance. */
 export async function getDossierRow(id: string): Promise<DossierRow | null> {
-    const res = await db.execute({ sql: `SELECT id, ulId, vehicleId, title, status FROM "FleetDossier" WHERE id = ?`, args: [id] });
+    const [res, vehicles] = await Promise.all([
+        db.execute({ sql: `SELECT id, ulId, title, status FROM "FleetDossier" WHERE id = ?`, args: [id] }),
+        db.execute({ sql: `${DOSSIER_VEHICLE_ROWS} WHERE d.id = ? ORDER BY dv.position, dv.vehicleId`, args: [id] }),
+    ]);
     const r = res.rows[0];
     if (!r) return null;
     const status = String(r.status);
     return {
-        id: String(r.id), ulId: String(r.ulId), vehicleId: String(r.vehicleId), title: String(r.title),
+        id: String(r.id), ulId: String(r.ulId), vehicleIds: vehicles.rows.map(v => String(v.vehicleId)), title: String(r.title),
         status: (DOSSIER_STATUSES as readonly string[]).includes(status) ? status as DossierStatus : 'OPEN',
     };
 }
@@ -48,11 +65,20 @@ export async function getUlVehicle(ulId: string, vehicleId: string): Promise<{ i
     return r ? { id: String(r.id), name: String(r.name) } : null;
 }
 
+/** Parmi `vehicleIds`, ceux qui sont des véhicules de l'UL. */
+export async function getUlVehicleIds(ulId: string, vehicleIds: string[]): Promise<Set<string>> {
+    if (vehicleIds.length === 0) return new Set();
+    const res = await db.execute({
+        sql: `SELECT id FROM "Vehicle" WHERE ulId = ? AND id IN (${vehicleIds.map(() => '?').join(', ')})`,
+        args: [ulId, ...vehicleIds],
+    });
+    return new Set(res.rows.map(r => String(r.id)));
+}
+
 // ── Lecture ──────────────────────────────────────────────────────
 
 const DOSSIER_SELECT = `
-    SELECT d.id, d.ulId, d.vehicleId, d.title, d.description, d.status, d.pinned, d.createdAt, d.updatedAt, d.closedAt,
-           v.name AS vehicleName, v.plate AS vehiclePlate, v.ulId AS vehicleUlId,
+    SELECT d.id, d.ulId, d.title, d.description, d.status, d.pinned, d.createdAt, d.updatedAt, d.closedAt,
            u.name AS creatorName, u.email AS creatorEmail,
            (SELECT COUNT(*) FROM "FleetTask" t WHERE t.dossierId = d.id AND t.ulId = d.ulId) AS taskCount,
            (SELECT COUNT(*) FROM "FleetTask" t WHERE t.dossierId = d.id AND t.ulId = d.ulId AND t.status <> 'DONE') AS openTaskCount,
@@ -60,21 +86,45 @@ const DOSSIER_SELECT = `
            (SELECT COUNT(*) FROM "FleetDossierItem" i WHERE i.dossierId = d.id AND i.received = 0) AS missingItemCount,
            (SELECT COUNT(*) FROM "FleetAttachment" a WHERE a.ownerType = 'DOSSIER' AND a.ownerId = d.id) AS attachmentCount
     FROM "FleetDossier" d
-    LEFT JOIN "Vehicle" v ON v.id = d.vehicleId
     LEFT JOIN "User" u ON u.id = d.createdBy`;
 
-function toDossier(r: Row): FleetDossier {
+/** Un véhicule sorti de l'UL du dossier (changé d'UL, supprimé) n'est plus nommé. */
+function toDossierVehicle(r: Row): DossierVehicle {
+    const visible = r.vehicleName != null && String(r.vehicleUlId) === String(r.dossierUlId);
+    return visible
+        ? { id: String(r.vehicleId), name: String(r.vehicleName), plate: (r.vehiclePlate as string | null) ?? null, missing: false }
+        : { id: String(r.vehicleId), name: 'Véhicule indisponible', plate: null, missing: true };
+}
+
+/** Véhicules de chaque dossier (par lots : la liste d'une UL peut être longue). */
+async function loadDossierVehicles(dossierIds: string[]): Promise<Map<string, DossierVehicle[]>> {
+    const out = new Map<string, DossierVehicle[]>();
+    const CHUNK = 400;
+    for (let i = 0; i < dossierIds.length; i += CHUNK) {
+        const ids = dossierIds.slice(i, i + CHUNK);
+        const res = await db.execute({
+            sql: `${DOSSIER_VEHICLE_ROWS} WHERE d.id IN (${ids.map(() => '?').join(', ')}) ORDER BY d.id, dv.position, dv.vehicleId`,
+            args: ids,
+        });
+        for (const r of res.rows) {
+            const id = String(r.dossierId);
+            const list = out.get(id) ?? [];
+            list.push(toDossierVehicle(r));
+            out.set(id, list);
+        }
+    }
+    return out;
+}
+
+function toDossier(r: Row, vehicles: DossierVehicle[]): FleetDossier {
     const status = String(r.status);
-    const vehicleVisible = r.vehicleName != null && String(r.vehicleUlId) === String(r.ulId);
     return {
         id: String(r.id),
         title: String(r.title),
         description: (r.description as string | null) ?? null,
         status: (DOSSIER_STATUSES as readonly string[]).includes(status) ? status as DossierStatus : 'OPEN',
         pinned: Number(r.pinned) === 1,
-        vehicle: vehicleVisible
-            ? { id: String(r.vehicleId), name: String(r.vehicleName), plate: (r.vehiclePlate as string | null) ?? null, missing: false }
-            : { id: String(r.vehicleId), name: 'Véhicule indisponible', plate: null, missing: true },
+        vehicles,
         createdByName: (r.creatorName as string | null) ?? (r.creatorEmail as string | null) ?? null,
         createdAt: String(r.createdAt),
         updatedAt: String(r.updatedAt),
@@ -87,7 +137,13 @@ function toDossier(r: Row): FleetDossier {
     };
 }
 
-/** Dossiers de l'UL selon les filtres, les plus récents d'abord. */
+/** Lignes de dossiers enrichies de leurs véhicules. */
+async function withVehicles(rows: Row[]): Promise<FleetDossier[]> {
+    const vehicles = await loadDossierVehicles(rows.map(r => String(r.id)));
+    return rows.map(r => toDossier(r, vehicles.get(String(r.id)) ?? []));
+}
+
+/** Dossiers de l'UL selon les filtres (`vehicle` : dossiers portant ce véhicule), les plus récents d'abord. */
 export async function listDossiers(ulId: string, filters: DossierFilters): Promise<FleetDossier[]> {
     const where = ['d.ulId = ?'];
     const args: string[] = [ulId];
@@ -96,15 +152,15 @@ export async function listDossiers(ulId: string, filters: DossierFilters): Promi
         args.push(filters.status);
     }
     if (filters.vehicle) {
-        where.push('d.vehicleId = ?');
-        args.push(filters.vehicle);
+        where.push(dossierHasVehicleSql('d'));
+        args.push(filters.vehicle, filters.vehicle);
     }
     if (filters.pinned) where.push('d.pinned = 1');
     const res = await db.execute({
         sql: `${DOSSIER_SELECT} WHERE ${where.join(' AND ')} ORDER BY d.createdAt DESC, d.id`,
         args,
     });
-    return res.rows.map(toDossier);
+    return withVehicles(res.rows);
 }
 
 async function listItems(dossierId: string): Promise<DossierItem[]> {
@@ -146,19 +202,21 @@ export async function getItem(dossierId: string, itemId: string): Promise<Dossie
 export async function getDossierDetail(id: string, ulId: string, sessionUserId: string | null): Promise<FleetDossierDetail | null> {
     const res = await db.execute({ sql: `${DOSSIER_SELECT} WHERE d.id = ? AND d.ulId = ?`, args: [id, ulId] });
     if (!res.rows[0]) return null;
-    const [items, tasks, attachments] = await Promise.all([
+    const [[dossier], items, tasks, attachments] = await Promise.all([
+        withVehicles([res.rows[0]]),
         listItems(id),
         listTasks(ulId, { dossier: id }, sessionUserId),
         listAttachments('DOSSIER', id),
     ]);
-    return { ...toDossier(res.rows[0]), items, tasks, attachments };
+    return { ...dossier, items, tasks, attachments };
 }
 
 /**
- * Historique technique d'un véhicule dans l'UL : ses dossiers (ouverts et clos) et
- * les tâches qui lui sont rattachées (directement, ou via un de ses incidents ou
- * maintenances) hors de ses propres dossiers — hors dossier, ou dans le dossier d'un
- * autre véhicule —, du plus récent au plus ancien (date de création).
+ * Historique technique d'un véhicule dans l'UL : les dossiers qui le portent (ouverts
+ * et clos, seul ou avec d'autres véhicules) et les tâches qui lui sont rattachées
+ * (directement, ou via un de ses incidents ou maintenances) hors de ces dossiers —
+ * hors dossier, ou dans un dossier qui ne le porte pas —, du plus récent au plus
+ * ancien (date de création).
  */
 export async function getVehicleHistory(ulId: string, vehicleId: string, sessionUserId: string | null): Promise<VehicleHistoryEntry[]> {
     const [dossiers, tasks] = await Promise.all([
@@ -174,23 +232,40 @@ export async function getVehicleHistory(ulId: string, vehicleId: string, session
 
 // ── Écriture ─────────────────────────────────────────────────────
 
+/** Lignes FleetDossierVehicle d'un dossier, insérées seulement s'il existe dans l'UL. */
+function insertVehicleLinks(dossierId: string, ulId: string, vehicleIds: string[]): InStatement[] {
+    return vehicleIds.map((vehicleId, position) => ({
+        sql: `INSERT INTO "FleetDossierVehicle" (dossierId, vehicleId, position)
+              SELECT ?, ?, ? WHERE EXISTS (SELECT 1 FROM "FleetDossier" WHERE id = ? AND ulId = ?)`,
+        args: [dossierId, vehicleId, position, dossierId, ulId],
+    }));
+}
+
+/**
+ * Ouvre un dossier sur un ou plusieurs véhicules (déjà vérifiés dans l'UL) en une
+ * transaction. `FleetDossier.vehicleId` reçoit le premier.
+ */
 export async function createDossier(ulId: string, input: CreateDossierInput, createdBy: string | null): Promise<string> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    await db.execute({
-        sql: `INSERT INTO "FleetDossier" (id, ulId, vehicleId, title, description, status, pinned, createdBy, createdAt, updatedAt, closedAt)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-            id, ulId, input.vehicleId, input.title, input.description ?? null, input.status,
-            input.pinned ? 1 : 0, createdBy, now, now, input.status === 'CLOSED' ? now : null,
-        ],
-    });
+    await db.batch([
+        {
+            sql: `INSERT INTO "FleetDossier" (id, ulId, vehicleId, title, description, status, pinned, createdBy, createdAt, updatedAt, closedAt)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+                id, ulId, input.vehicleIds[0], input.title, input.description ?? null, input.status,
+                input.pinned ? 1 : 0, createdBy, now, now, input.status === 'CLOSED' ? now : null,
+            ],
+        },
+        ...insertVehicleLinks(id, ulId, input.vehicleIds),
+    ], 'write');
     return id;
 }
 
 /**
  * Modification partielle. `closedAt` est posé à la clôture et effacé à la
- * réouverture. `false` si le dossier n'existe plus.
+ * réouverture. `vehicleIds` (déjà vérifiés) remplace la liste des véhicules, dans la
+ * même transaction. `false` si le dossier n'existe plus.
  */
 export async function updateDossier(id: string, ulId: string, existing: { status: DossierStatus }, input: UpdateDossierInput): Promise<boolean> {
     const now = new Date().toISOString();
@@ -203,22 +278,29 @@ export async function updateDossier(id: string, ulId: string, existing: { status
     if (input.title !== undefined) set('title', input.title);
     if (input.description !== undefined) set('description', input.description);
     if (input.pinned !== undefined) set('pinned', input.pinned ? 1 : 0);
+    if (input.vehicleIds !== undefined) set('vehicleId', input.vehicleIds[0]);
     if (input.status !== undefined) {
         set('status', input.status);
         if (input.status === 'OPEN') set('closedAt', null);
         else if (existing.status !== 'CLOSED') set('closedAt', now);
     }
     set('updatedAt', now);
-    const res = await db.execute({
+    const update: InStatement = {
         sql: `UPDATE "FleetDossier" SET ${sets.join(', ')} WHERE id = ? AND ulId = ?`,
         args: [...args, id, ulId],
-    });
-    return res.rowsAffected > 0;
+    };
+    if (input.vehicleIds === undefined) return (await db.execute(update)).rowsAffected > 0;
+    const results = await db.batch([
+        update,
+        { sql: `DELETE FROM "FleetDossierVehicle" WHERE dossierId = ? AND EXISTS (SELECT 1 FROM "FleetDossier" WHERE id = ? AND ulId = ?)`, args: [id, id, ulId] },
+        ...insertVehicleLinks(id, ulId, input.vehicleIds),
+    ], 'write');
+    return results[0].rowsAffected > 0;
 }
 
 /**
- * Supprime le dossier en une transaction : le dossier, ses pièces à récupérer et ses
- * pièces jointes (clés R2 capturées par `RETURNING`) ; ses tâches sont CONSERVÉES et
+ * Supprime le dossier en une transaction : le dossier, ses véhicules, ses pièces à
+ * récupérer et ses pièces jointes (clés R2 capturées par `RETURNING`) ; ses tâches sont CONSERVÉES et
  * détachées (`dossierId` NULL). Puis, la base étant cohérente, les objets R2 au
  * mieux (un échec est journalisé). `false` si rien n'a été supprimé.
  */
@@ -230,10 +312,11 @@ export async function deleteDossier(id: string, ulId: string): Promise<boolean> 
         { sql: `DELETE FROM "FleetAttachment" WHERE ownerType = 'DOSSIER' AND ownerId = ? AND ulId = ? AND ${inUl} RETURNING r2Key`, args: [id, ulId, id, ulId] },
         { sql: `DELETE FROM "FleetDossierItem" WHERE dossierId = ? AND ${inUl}`, args: [id, id, ulId] },
         { sql: `UPDATE "FleetTask" SET dossierId = NULL, updatedAt = ? WHERE dossierId = ? AND ulId = ? AND ${inUl}`, args: [new Date().toISOString(), id, ulId, id, ulId] },
+        { sql: `DELETE FROM "FleetDossierVehicle" WHERE dossierId = ? AND ${inUl}`, args: [id, id, ulId] },
         { sql: `DELETE FROM "FleetDossier" WHERE id = ? AND ulId = ?`, args: [id, ulId] },
     ], 'write');
     await deleteR2Objects(results[0].rows.map(r => String(r.r2Key)));
-    return results[3].rowsAffected > 0;
+    return results[4].rowsAffected > 0;
 }
 
 // ── Pièces à récupérer ───────────────────────────────────────────

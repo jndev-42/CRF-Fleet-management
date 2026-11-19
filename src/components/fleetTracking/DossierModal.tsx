@@ -4,27 +4,36 @@ import { useState, type FormEvent } from 'react';
 import { Pin, PinOff } from 'lucide-react';
 import { MAX_DOSSIER_DESCRIPTION, MAX_DOSSIER_TITLE, type FleetDossier } from '@/lib/fleetTracking/dossiers';
 import type { LinkTarget } from '@/lib/fleetTracking/tasks';
+import VehicleChecklist from './VehicleChecklist';
 import { DOSSIERS_URL } from './useFleetDossiers';
 import { readError } from './useFleetContacts';
+import { useUlVehicles } from './useFleetTasks';
 import { useModalFocus } from './useModalFocus';
 import styles from './tasks.module.css';
 
 interface Props {
     /** `null` : création. */
     dossier: FleetDossier | null;
-    /** Véhicules de l'UL proposés (création seulement). */
-    vehicles: LinkTarget[];
-    /** Véhicule imposé (création depuis la fiche véhicule). */
-    fixedVehicle?: { id: string; name: string };
+    /** Véhicules de l'UL proposés ; absent : la modale les charge elle-même. */
+    vehicles?: LinkTarget[];
+    /** Création : véhicules cochés d'office (filtre de l'onglet, fiche véhicule). */
+    initialVehicleIds?: string[];
     onClose: () => void;
     /** Enregistré : identifiant du dossier. */
     onSaved: (dossierId: string) => void;
 }
 
-/** Modale de création ou de modification d'un dossier : titre, véhicule, description, épingle. */
-export default function DossierModal({ dossier, vehicles, fixedVehicle, onClose, onSaved }: Props) {
+/** Même liste d'identifiants, dans le même ordre. */
+function sameIds(a: string[], b: string[]): boolean {
+    return a.length === b.length && a.every((id, i) => id === b[i]);
+}
+
+/** Modale de création ou de modification d'un dossier : titre, véhicules, description, épingle. */
+export default function DossierModal({ dossier, vehicles: provided, initialVehicleIds = [], onClose, onSaved }: Props) {
+    const { vehicles, loading: vehiclesLoading } = useUlVehicles(provided);
     const [title, setTitle] = useState(dossier?.title ?? '');
-    const [vehicleId, setVehicleId] = useState(fixedVehicle?.id ?? dossier?.vehicle.id ?? '');
+    const initialIds = dossier ? dossier.vehicles.map(v => v.id) : initialVehicleIds.filter(Boolean);
+    const [vehicleIds, setVehicleIds] = useState<string[]>(initialIds);
     const [description, setDescription] = useState(dossier?.description ?? '');
     const [pinned, setPinned] = useState(dossier?.pinned ?? false);
     const [saving, setSaving] = useState(false);
@@ -37,13 +46,13 @@ export default function DossierModal({ dossier, vehicles, fixedVehicle, onClose,
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!title.trim()) return setError('Le titre est requis');
-        if (!vehicleId) return setError('Choisissez le véhicule concerné');
+        if (vehicleIds.length === 0) return setError('Choisissez au moins un véhicule');
         setSaving(true);
         setError(null);
         try {
             const body: Record<string, unknown> = { title: title.trim(), description: description.trim() || null, pinned };
-            // Le véhicule est fixé à la création (l'API refuse de le changer ensuite).
-            if (!dossier) body.vehicleId = vehicleId;
+            // En modification, la liste n'est envoyée que si elle a changé.
+            if (!dossier || !sameIds(vehicleIds, initialIds)) body.vehicleIds = vehicleIds;
             const res = await fetch(dossier ? `${DOSSIERS_URL}/${encodeURIComponent(dossier.id)}` : DOSSIERS_URL, {
                 method: dossier ? 'PATCH' : 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -62,7 +71,8 @@ export default function DossierModal({ dossier, vehicles, fixedVehicle, onClose,
         }
     };
 
-    const lockedVehicle = fixedVehicle?.name ?? dossier?.vehicle.name;
+    // Véhicules du dossier partis de l'UL : affichés pour pouvoir les retirer.
+    const departed = dossier?.vehicles.filter(v => v.missing) ?? [];
 
     return (
         <div className="modal-overlay" onClick={requestClose}>
@@ -82,20 +92,8 @@ export default function DossierModal({ dossier, vehicles, fixedVehicle, onClose,
                             <input id="dossier-title" data-autofocus className="form-input" value={title} maxLength={MAX_DOSSIER_TITLE}
                                 placeholder="Sinistre roue arrière droite" required onChange={e => setTitle(e.target.value)} />
                         </div>
-                        <div className="form-group">
-                            <label className="form-label" htmlFor="dossier-vehicle">Véhicule *</label>
-                            {lockedVehicle !== undefined ? (
-                                <>
-                                    <input id="dossier-vehicle" className="form-input" value={lockedVehicle} readOnly />
-                                    {dossier && <span className={styles.hint}>Le véhicule d&apos;un dossier ne change pas après sa création.</span>}
-                                </>
-                            ) : (
-                                <select id="dossier-vehicle" className="form-select" value={vehicleId} onChange={e => setVehicleId(e.target.value)}>
-                                    <option value="">Choisir un véhicule</option>
-                                    {vehicles.map(v => <option key={v.id} value={v.id}>{v.label}</option>)}
-                                </select>
-                            )}
-                        </div>
+                        <VehicleChecklist vehicles={vehicles} extra={departed} value={vehicleIds}
+                            onChange={setVehicleIds} loading={vehiclesLoading} />
                         <div className="form-group">
                             <label className="form-label" htmlFor="dossier-description">Description</label>
                             <textarea id="dossier-description" className="form-input" rows={4} value={description}

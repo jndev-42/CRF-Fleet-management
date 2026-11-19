@@ -124,4 +124,32 @@ describe('scripts/add-fleet-tracking.ts', () => {
         expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetControlAppointment"`)).rows[0].n).toBe(1);
         expect(await migrate('--apply')).toContain('Rien à faire');
     }, 60_000);
+
+    it('base de la v5.55.0 (sans FleetDossierVehicle) : table créée et véhicule de chaque dossier repris', async () => {
+        await db.execute(`DROP TABLE "FleetDossierVehicle"`);
+        await db.execute(`INSERT OR IGNORE INTO "FleetDossier" (id, ulId, vehicleId, title, createdAt, updatedAt) VALUES ('d2', 'ul', 'v2', 'Y', 't', 't')`);
+        const n = Number((await db.execute(`SELECT COUNT(*) AS n FROM "FleetDossier"`)).rows[0].n);
+        const dry = await migrate();
+        expect(dry).toContain('table FleetDossierVehicle : ABSENTE');
+        expect(dry).toContain(`dossiers à reprendre dans FleetDossierVehicle : ${n}`);
+        expect(await objects()).not.toContain('table:FleetDossierVehicle');
+
+        const out = await migrate('--apply');
+        expect(out).toContain(`✅ ${n} dossier(s) repris dans FleetDossierVehicle`);
+        expect(out).toContain('✅ Vérification');
+        expect(await objects()).toContain('index:idx_FleetDossierVehicle_vehicleId');
+        const rows = (await db.execute(`SELECT dossierId, vehicleId, position FROM "FleetDossierVehicle" WHERE dossierId = 'd2'`)).rows;
+        expect(rows.map(r => [String(r.dossierId), String(r.vehicleId), Number(r.position)])).toEqual([['d2', 'v2', 0]]);
+        expect(await migrate('--apply')).toContain('Rien à faire');
+    }, 60_000);
+
+    it('dossier créé sans véhicule dans FleetDossierVehicle (ancienne version entre migration et bascule) : rattrapé à la relance', async () => {
+        await db.execute(`INSERT INTO "FleetDossier" (id, ulId, vehicleId, title, createdAt, updatedAt) VALUES ('d3', 'ul', 'v3', 'Z', 't', 't')`);
+        // Un dossier déjà multi-véhicules n'est pas touché.
+        await db.execute(`INSERT OR IGNORE INTO "FleetDossierVehicle" (dossierId, vehicleId, position) VALUES ('d2', 'v9', 1)`);
+        expect(await migrate()).toContain('dossiers à reprendre dans FleetDossierVehicle : 1');
+        expect(await migrate('--apply')).toContain('✅ 1 dossier(s) repris');
+        expect((await db.execute(`SELECT vehicleId FROM "FleetDossierVehicle" WHERE dossierId = 'd3'`)).rows.map(r => String(r.vehicleId))).toEqual(['v3']);
+        expect((await db.execute(`SELECT COUNT(*) AS n FROM "FleetDossierVehicle" WHERE dossierId = 'd2'`)).rows[0].n).toBe(2);
+    }, 60_000);
 });

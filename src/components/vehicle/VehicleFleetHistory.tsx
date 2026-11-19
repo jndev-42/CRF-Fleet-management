@@ -93,8 +93,7 @@ function VehicleFleetHistoryContent({ vehicleName }: { vehicleName: string }) {
             {creating && history && (
                 <DossierModal
                     dossier={null}
-                    vehicles={[]}
-                    fixedVehicle={history.vehicle}
+                    initialVehicleIds={[history.vehicle.id]}
                     onClose={() => setCreating(false)}
                     onSaved={id => {
                         setCreating(false);

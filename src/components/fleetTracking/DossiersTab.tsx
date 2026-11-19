@@ -121,6 +121,7 @@ export default function DossiersTab({ openDossierId, onOpenDossier, onChanged, i
                 <DossierModal
                     dossier={null}
                     vehicles={vehicles}
+                    initialVehicleIds={filters.vehicle ? [filters.vehicle] : undefined}
                     onClose={() => setCreating(false)}
                     onSaved={(id) => {
                         setCreating(false);

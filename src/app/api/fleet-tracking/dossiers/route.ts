@@ -3,15 +3,18 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { withAudit } from '@/lib/audit/log';
 import { parseBody, requireFleetManager } from '@/lib/fleetTracking/access';
 import { createDossierSchema, dossierFiltersSchema } from '@/lib/fleetTracking/dossiers';
-import { createDossier, getDossierDetail, getUlVehicle, listDossiers } from '@/lib/fleetTracking/dossiersStore';
+import { checkDossierVehicles } from '@/lib/fleetTracking/dossierGuards';
+import { createDossier, getDossierDetail, listDossiers } from '@/lib/fleetTracking/dossiersStore';
 import { searchParamsToObject } from '@/lib/fleetTracking/tasks';
 
 /**
  * GET /api/fleet-tracking/dossiers?status=OPEN|CLOSED&vehicle=<vehicleId>&pinned=1
- * Dossiers de l'UL de session (véhicule et compteurs compris). `canManageVehicles`.
+ * Dossiers de l'UL de session (véhicules et compteurs compris) ; `vehicle` : dossiers
+ * portant ce véhicule. `canManageVehicles`.
  *
  * POST /api/fleet-tracking/dossiers
- * Ouvre un dossier sur un véhicule de l'UL de session (400 pour un véhicule d'une autre UL).
+ * Ouvre un dossier sur un ou plusieurs véhicules de l'UL de session (`vehicleIds` ;
+ * l'ancienne forme `vehicleId` reste acceptée). 400 pour un véhicule d'une autre UL.
  */
 export async function GET(request: Request) {
     try {
@@ -38,9 +41,8 @@ async function postHandler(request: Request) {
         const parsed = await parseBody(request, createDossierSchema);
         if ('response' in parsed) return parsed.response;
 
-        if (!(await getUlVehicle(access.ulId, parsed.data.vehicleId))) {
-            return NextResponse.json({ error: 'Véhicule invalide : introuvable ou hors de votre UL.' }, { status: 400 });
-        }
+        const invalid = await checkDossierVehicles(access.ulId, parsed.data.vehicleIds);
+        if (invalid) return invalid;
         const id = await createDossier(access.ulId, parsed.data, access.userId);
         const dossier = await getDossierDetail(id, access.ulId, access.session.user.id ?? null);
         return NextResponse.json(dossier ? { success: true, id, dossier } : { success: true, id }, { status: 201 });

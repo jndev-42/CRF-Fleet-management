@@ -19,7 +19,7 @@ const item = (id: string, label: string, patch: Partial<DossierItem> = {}): Doss
 
 const DOSSIER: FleetDossierDetail = {
     id: 'd-1', title: 'Sinistre roue arrière droite', description: 'Jante voilée', status: 'OPEN', pinned: false,
-    vehicle: { id: 'veh-a', name: '75-188', plate: 'GV-114-QM', missing: false },
+    vehicles: [{ id: 'veh-a', name: '75-188', plate: 'GV-114-QM', missing: false }],
     createdByName: 'Camille Roux', createdAt: '2026-11-14T10:00:00Z', updatedAt: 't', closedAt: null,
     taskCount: 1, openTaskCount: 1, itemCount: 2, missingItemCount: 2, attachmentCount: 0,
     items: [item('i-1', 'Référence du sinistre'), item('i-2', 'Devis de réparation')],
@@ -91,7 +91,7 @@ describe('DossierDetail', () => {
         expect(screen.getByRole('button', { name: 'Relancer l’assureur' })).toBeTruthy();
         expect(screen.getByText('En attente')).toBeTruthy();
         expect(screen.getByRole('link', { name: 'Appeler Assureur flotte' }).getAttribute('href')).toBe('tel:0102030405');
-        expect(screen.getByRole('link', { name: 'Fiche véhicule →' }).getAttribute('href')).toBe('/vehicles/75-188');
+        expect(screen.getByRole('link', { name: 'Fiche véhicule 75-188' }).getAttribute('href')).toBe('/vehicles/75-188');
     });
 
     it('« Clore le dossier » envoie status CLOSED et affiche « Rouvrir le dossier »', async () => {

@@ -1,6 +1,7 @@
 'use client';
 
 import { Pin } from 'lucide-react';
+import { visibleVehicles } from '@/lib/fleetTracking/dossiers';
 import type { FleetOverview, PriorityItem } from '@/lib/fleetTracking/overview';
 import { dueTone, formatDueDate, type FleetTask } from '@/lib/fleetTracking/tasks';
 import styles from './overview.module.css';
@@ -25,7 +26,7 @@ function Item({ item, today, onOpenTask, onOpenDossier }: { item: PriorityItem }
             <li className={styles.prioItem}>
                 <div className={styles.prioTitle}>Dossier « {d.title} »</div>
                 <div className={taskStyles.pills}>
-                    {!d.vehicle.missing && <span className={taskStyles.pill}>{d.vehicle.name}</span>}
+                    {visibleVehicles(d).map(v => <span key={v.id} className={taskStyles.pill}>{v.name}</span>)}
                     {d.missingItemCount > 0 && (
                         <span className={taskStyles.dim}>
                             {d.missingItemCount} pièce{d.missingItemCount > 1 ? 's' : ''} à récupérer

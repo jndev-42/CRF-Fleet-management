@@ -35,7 +35,7 @@ function dossier(over: Partial<FleetDossier> = {}): FleetDossier {
     seq += 1;
     return {
         id: `d-${seq}`, title: `Dossier ${seq}`, description: null, status: 'OPEN', pinned: false,
-        vehicle: { id: 'veh-188', name: '75-188', plate: null, missing: false }, createdByName: null,
+        vehicles: [{ id: 'veh-188', name: '75-188', plate: null, missing: false }], createdByName: null,
         createdAt: 't', updatedAt: 't', closedAt: null,
         taskCount: 0, openTaskCount: 0, itemCount: 0, missingItemCount: 0, attachmentCount: 0, ...over,
     };
@@ -208,5 +208,21 @@ describe('véhicules', () => {
             dossiers: [dossier(), dossier(), dossier({ status: 'CLOSED' })],
         }));
         expect(o.vehicles.map(v => [v.name, v.openDossiers])).toEqual([['75-182', 0], ['75-188', 2]]);
+    });
+    it('un dossier sur plusieurs véhicules compte pour chacun ; un véhicule parti ne compte pas', () => {
+        const o = buildOverview(source({
+            vehicles: [
+                { id: 'veh-188', name: '75-188', model: 'VL', plate: null },
+                { id: 'veh-182', name: '75-182', model: 'VPSP', plate: null },
+            ],
+            dossiers: [dossier({
+                vehicles: [
+                    { id: 'veh-188', name: '75-188', plate: null, missing: false },
+                    { id: 'veh-182', name: '75-182', plate: null, missing: false },
+                    { id: 'veh-old', name: 'Véhicule indisponible', plate: null, missing: true },
+                ],
+            })],
+        }));
+        expect(o.vehicles.map(v => [v.name, v.openDossiers])).toEqual([['75-182', 1], ['75-188', 1]]);
     });
 });
