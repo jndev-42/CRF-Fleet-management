@@ -134,4 +134,17 @@ describe('FleetTrackingPanel', () => {
         await waitFor(() => expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0]).not.toContain('vehicle='));
         expect((screen.getByLabelText('Véhicule') as HTMLSelectElement).value).toBe('');
     });
+
+    it('téléphone : la barre d\'onglets qui déborde est recentrée sur l\'onglet actif', () => {
+        // jsdom ne calcule aucune mise en page : largeurs et positions simulées.
+        const size = (name: string, get: (el: HTMLElement) => number) =>
+            vi.spyOn(HTMLElement.prototype, name as 'offsetLeft', 'get').mockImplementation(function (this: HTMLElement) { return get(this); });
+        size('scrollWidth', el => (el.getAttribute('role') === 'tablist' ? 600 : 0));
+        size('clientWidth', el => (el.getAttribute('role') === 'tablist' ? 300 : 0));
+        size('offsetWidth', () => 100);
+        size('offsetLeft', el => (el.id === 'fleet-tab-controles' ? 400 : 0));
+        render(<FleetTrackingPanel tab="controles" onSelectTab={vi.fn()} taskId={null} onOpenTask={vi.fn()} />);
+        // 400 − (300 − 100) / 2 = 300
+        expect(screen.getByRole('tablist').scrollLeft).toBe(300);
+    });
 });

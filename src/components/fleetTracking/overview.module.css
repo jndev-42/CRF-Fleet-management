@@ -314,13 +314,57 @@
 }
 
 @media (max-width: 640px) {
+    /* Compteurs : deux par ligne au lieu d'un par écran. */
+    .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .stats :global(.stat-card) {
+        padding: 14px 12px;
+    }
+
+    .stats :global(.stat-label) {
+        font-size: 11px;
+        letter-spacing: 0.02em;
+    }
+
+    .stats :global(.stat-value) {
+        font-size: 28px;
+    }
+
+    .statSub {
+        font-size: 12px;
+    }
+
+    .statPart {
+        padding: 0 2px;
+    }
+
+    /* Prochaine action : titre et étiquettes sur toute la largeur, « Modifier » en dessous. */
     .action {
         flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 4px 0;
         padding: 12px 16px;
     }
 
-    .rowButton {
-        margin-left: 44px;
+    .check {
+        margin: 0 11px 0 0;
+    }
+
+    .actionBody {
+        flex: 1 1 calc(100% - 33px);
+    }
+
+    .action .rowButton {
+        margin-left: 33px;
+    }
+
+    .prioItem,
+    .panelHead {
+        padding-left: 16px;
+        padding-right: 16px;
     }
 
     .headActions {

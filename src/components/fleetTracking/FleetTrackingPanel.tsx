@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import ContactsTab from './ContactsTab';
 import ControlsTab from './ControlsTab';
 import DossiersTab from './DossiersTab';
@@ -37,6 +37,14 @@ export default function FleetTrackingPanel({
     const [changeVersion, setChangeVersion] = useState(0);
     const overviewState = useFleetOverview(changeVersion);
     const bumpVersion = useCallback(() => setChangeVersion(v => v + 1), []);
+    // Téléphone : la barre d'onglets défile horizontalement ; l'onglet actif reste visible.
+    const tabBarRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const bar = tabBarRef.current;
+        const active = bar?.querySelector<HTMLElement>('[aria-selected="true"]');
+        if (!bar || !active || bar.scrollWidth <= bar.clientWidth) return;
+        bar.scrollLeft = active.offsetLeft - (bar.clientWidth - active.offsetWidth) / 2;
+    }, [tab]);
     const tabCounts = overviewState.overview?.tabCounts;
     const badge = (t: FleetTrackingTab): { count: number; label: string } | null => {
         if (!tabCounts) return null;
@@ -47,7 +55,7 @@ export default function FleetTrackingPanel({
 
     return (
         <section aria-label="Suivi technique">
-            <div className="tab-bar" role="tablist" aria-label="Sections du suivi technique">
+            <div ref={tabBarRef} className={`tab-bar ${styles.tabBar}`} role="tablist" aria-label="Sections du suivi technique">
                 {FLEET_TRACKING_TABS.map(t => {
                     const b = badge(t);
                     return (
@@ -67,7 +75,7 @@ export default function FleetTrackingPanel({
                     );
                 })}
             </div>
-            <div role="tabpanel" id={`fleet-panel-${tab}`} aria-labelledby={`fleet-tab-${tab}`}>
+            <div role="tabpanel" id={`fleet-panel-${tab}`} aria-labelledby={`fleet-tab-${tab}`} className={styles.tabPanel}>
                 {tab === 'ensemble' && (
                     <OverviewTab
                         overview={overviewState.overview}

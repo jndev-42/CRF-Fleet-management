@@ -58,10 +58,12 @@ export default function ControlsTable({ rows, onEdit }: Props) {
                                 </td>
                                 <td data-label="Contrôle">{CONTROL_TYPE_LABELS[row.controlType]}</td>
                                 <td data-label="Échéance">
-                                    <span className={dueTone(row)}>{dueLabel(row)}</span>
-                                    {row.remainingKm !== null && (
-                                        <span className={styles.muted}> · {row.remainingKm.toLocaleString('fr-FR')} km restants</span>
-                                    )}
+                                    <span className={styles.dueValue}>
+                                        <span className={dueTone(row)}>{dueLabel(row)}</span>
+                                        {row.remainingKm !== null && (
+                                            <span className={styles.muted}><span className={styles.dueSep}> · </span>{row.remainingKm.toLocaleString('fr-FR')} km restants</span>
+                                        )}
+                                    </span>
                                 </td>
                                 <td data-label="Rendez-vous">
                                     {rdv ? <span className={row.appointmentPast ? styles.muted : undefined}>{rdv}</span> : <span className={styles.muted}>—</span>}

@@ -1080,7 +1080,8 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  /* Au-dessus des boutons flottants (guide, signalement : 300) et du panneau du référentiel (310). */
+  z-index: 320;
   padding: 16px;
   animation: fadeIn var(--transition-base) ease;
 }
@@ -1268,7 +1269,7 @@ body {
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 300;
+  z-index: 330; /* au-dessus des fenêtres (320) */
   display: flex;
   flex-direction: column;
   gap: 8px;

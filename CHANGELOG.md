@@ -1,5 +1,24 @@
 # Changelog
 
+## [5.56.1] — 19 novembre 2026
+
+### 🐛 Corrections
+
+- Sur téléphone, les fenêtres (tâche, dossier, contact, rendez-vous…) passent désormais au-dessus des boutons flottants « Guide » et « Signaler un bug » : la croix de fermeture, « Annuler » et « Enregistrer » ne sont plus masqués. Cela vaut pour toutes les fenêtres de l'application. Les messages de confirmation restent visibles par-dessus une fenêtre ouverte.
+- Suivi technique sur téléphone :
+  - les onglets tiennent sur une seule ligne qui défile, et l'onglet ouvert reste visible ;
+  - la page laisse de la place en bas, pour que les derniers boutons ne restent pas sous les boutons flottants.
+- Vue d'ensemble sur téléphone :
+  - les quatre compteurs s'affichent deux par deux ;
+  - dans « Prochaines actions », le titre et les véhicules d'une tâche occupent toute la largeur, et « Modifier » passe en dessous ;
+  - les boutons de « À confirmer en priorité » sont réalignés à gauche.
+- Tâches sur téléphone :
+  - les filtres par véhicule et par personne sont côte à côte ;
+  - les filtres rapides tiennent sur une ligne qui défile ;
+  - la première tâche apparaît sans avoir à faire défiler la page.
+- Dossiers sur téléphone : le nom d'une pièce à récupérer s'affiche en entier, au lieu d'être coupé en plein mot, et ses boutons passent en dessous.
+- Contrôles sur téléphone : l'échéance et les kilomètres restants s'affichent l'un sous l'autre, et les filtres tiennent sur une ligne qui défile.
+
 ## [5.56.0] — 19 novembre 2026
 
 ### ✨ Nouveautés

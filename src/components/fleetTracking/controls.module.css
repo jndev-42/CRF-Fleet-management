@@ -145,6 +145,21 @@
         content: none;
     }
 
+    .table td::before {
+        flex: none;
+    }
+
+    /* Échéance puis kilomètres restants, l'un sous l'autre. */
+    .dueValue {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .dueSep {
+        display: none;
+    }
+
     .actionCell :global(.btn) {
         width: 100%;
         min-height: 44px;

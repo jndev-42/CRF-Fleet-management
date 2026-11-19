@@ -689,15 +689,46 @@
         grid-template-columns: 1fr;
     }
 
-    .toolbar > :global(.form-select),
     .search {
         flex: 1 1 100%;
         max-width: none;
     }
 
+    /* Véhicule et assigné côte à côte. */
+    .toolbar > :global(.form-select) {
+        flex: 1 1 calc(50% - 5px);
+        min-width: 0;
+        max-width: none;
+    }
+
+    /* Filtres rapides : une ligne qui défile jusqu'aux bords de l'écran. */
+    .filterGroup {
+        flex: 1 1 100%;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        margin: 0 -16px;
+        padding: 0 16px;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .filterGroup::-webkit-scrollbar {
+        display: none;
+    }
+
+    .filterGroup :global(.filter-btn) {
+        flex: none;
+        white-space: nowrap;
+    }
+
     .toolbarEnd {
         margin-left: 0;
         width: 100%;
+    }
+
+    .toolbarEnd > :global(.btn) {
+        flex: 1;
+        justify-content: center;
     }
 
     /* Téléphone : la pastille ouvre une feuille « Déplacer vers… » en bas d'écran. */
