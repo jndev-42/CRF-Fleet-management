@@ -13,6 +13,7 @@ import VehicleDetailGrid from './VehicleDetailGrid';
 import TripHistoryList from './TripHistoryList';
 import VehicleNotes from '@/components/vehicle/VehicleNotes';
 import VehicleDocumentsCard from '@/components/vehicle/VehicleDocumentsCard';
+import VehicleFleetHistory from '@/components/vehicle/VehicleFleetHistory';
 import CheckOutModal from '@/components/vehicle/modals/CheckOutModal';
 import CheckInModal from '@/components/vehicle/modals/CheckInModal';
 import DeleteConfirmationModal from '@/components/vehicle/modals/DeleteConfirmationModal';
@@ -275,6 +276,8 @@ function VehicleDetailPageContent() {
                         documentUrl={(documentId) => `/api/vehicles/${encodeURIComponent(vehicle.name)}/documents/${encodeURIComponent(documentId)}`}
                     />
                 )}
+
+                <VehicleFleetHistory vehicleName={vehicle.name} userRoles={userRoles} isDtView={isDtView} />
 
                 <VehicleConnectionBlock
                     vehicle={vehicle}

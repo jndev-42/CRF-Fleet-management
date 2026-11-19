@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="fr" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Suivi technique — maquettes</title>
+<style>
+/*
+  Maquettes du module « Suivi technique » (onglet de /vehicles).
+  Spec : _bmad-output/specs/spec-vehicle-action-tracking/SPEC.md (+ domain-model.md, dashboard-mockup.md).
+  Tokens : copiés de src/app/globals.css (.dark) — globals.css fait foi.
+  Écran 1 = CAP-11 · Écran 2 = CAP-4/5/6 · Écran 3 = CAP-8/9/7 · Écran 4 = CAP-4/6/7/12
+  Écran 5 = CAP-10 · Écran 6 = CAP-1/2/3 · Écran 7 = CAP-5 mobile · Écran 8 = CAP-13
+*/
+:root{
+  --crf-red:#E30613;--crf-red-light:#FF2D3A;
+  --bg-primary:#0A0B0E;--bg-secondary:#12141A;--bg-card:#181B23;--bg-card-hover:#1E2230;--bg-input:#1A1D27;
+  --border-primary:rgba(255,255,255,.06);--border-hover:rgba(255,255,255,.12);
+  --text-primary:#F0F1F5;--text-secondary:#9398A7;--text-muted:#5C6070;
+  --ok:#22C55E;--ok-bg:rgba(34,197,94,.12);--warn:#F59E0B;--warn-bg:rgba(245,158,11,.12);
+  --bad:#EF4444;--bad-bg:rgba(239,68,68,.12);--info:#60A5FA;--info-bg:rgba(96,165,250,.12);
+  --violet:#A78BFA;--violet-bg:rgba(139,92,246,.14);
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#05060a;color:var(--text-primary);font-size:14px;line-height:1.45}
+a{color:inherit;text-decoration:none}
+.toc{max-width:1280px;margin:0 auto;padding:32px 24px 8px}
+.toc h1{font-size:26px;font-weight:800;letter-spacing:-.5px}
+.toc p{color:var(--text-secondary);margin:6px 0 14px}
+.toc ol{display:flex;flex-wrap:wrap;gap:8px;list-style:none}
+.toc li a{display:inline-block;padding:6px 12px;border:1px solid var(--border-hover);border-radius:20px;font-size:13px;color:var(--text-secondary)}
+.toc li a:hover{color:var(--text-primary);background:var(--bg-card)}
+.screen{max-width:1280px;margin:28px auto 48px;padding:0 24px}
+.screen-label{font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px}
+.screen-label b{color:var(--crf-red-light)}
+.note{font-size:12.5px;color:var(--text-secondary);margin-top:10px;max-width:900px}
+.frame{border:1px solid var(--border-hover);border-radius:14px;overflow:hidden;background:var(--bg-primary);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.chrome{height:34px;background:#15171e;display:flex;align-items:center;gap:7px;padding:0 14px;border-bottom:1px solid var(--border-primary)}
+.chrome i{width:11px;height:11px;border-radius:50%;background:#3a3d47;display:block}
+.chrome span{margin-left:14px;font-size:12px;color:var(--text-muted);background:#0e1015;padding:3px 12px;border-radius:6px}
+/* header app */
+.header{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;background:rgba(18,20,26,.85);border-bottom:1px solid var(--border-primary)}
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:34px;height:34px;border-radius:9px;background:#fff;display:grid;place-items:center}
+.logo b{color:var(--crf-red);font-size:24px;line-height:1;font-weight:900}
+.brand-t{font-weight:700;font-size:15px}.brand-s{font-size:11px;color:var(--text-secondary)}
+.nav{display:flex;gap:4px}
+.nav a{padding:8px 14px;border-radius:8px;color:var(--text-secondary);font-weight:500}
+.nav a.active{color:var(--crf-red);background:rgba(227,6,19,.08)}
+.me{display:flex;align-items:center;gap:10px;color:var(--text-secondary);font-size:13px}
+.av{width:28px;height:28px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;font-weight:700;background:#2a2e3b;color:#cfd3dd;border:2px solid var(--bg-card)}
+.av.a1{background:#7c2d12;color:#fed7aa}.av.a2{background:#1e3a8a;color:#bfdbfe}.av.a3{background:#14532d;color:#bbf7d0}
+.main{padding:28px 32px 36px}
+/* page header */
+.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.ph h2{font-size:28px;font-weight:800;letter-spacing:-.5px}
+.ph p{color:var(--text-secondary);font-size:15px;margin-top:2px}
+.seg{display:flex;gap:6px;background:var(--bg-secondary);padding:4px;border-radius:12px;border:1px solid var(--border-primary)}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;white-space:nowrap;font-family:inherit}
+.btn-primary{background:var(--crf-red);color:#fff;box-shadow:0 2px 8px rgba(227,6,19,.3)}
+.btn-secondary{background:var(--bg-card);color:var(--text-primary);border-color:var(--border-primary)}
+.btn-ghost{background:transparent;color:var(--text-secondary);border-color:var(--border-hover)}
+.btn-sm{padding:6px 12px;font-size:13px}
+.seg .btn{font-size:13px;padding:6px 14px}
+.tabbar{display:flex;gap:4px;border-bottom:2px solid var(--border-primary);margin-bottom:24px}
+.tab{padding:9px 18px;color:var(--text-secondary);font-weight:500;border-bottom:2px solid transparent;margin-bottom:-2px;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:7px}
+.tab.active{color:var(--crf-red);border-bottom-color:var(--crf-red);font-weight:600}
+.count{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;background:rgba(227,6,19,.18);color:#ff8a92}
+/* generic */
+.card{background:var(--bg-card);border:1px solid var(--border-primary);border-radius:16px}
+.card-h{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border-primary)}
+.card-h h3{font-size:16px;font-weight:700}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.p-veh{background:#262b38;color:#dfe3ec;font-variant-numeric:tabular-nums}
+.p-warn{background:var(--warn-bg);color:var(--warn)}
+.p-bad{background:var(--bad-bg);color:#f87171}
+.p-ok{background:var(--ok-bg);color:#4ade80}
+.p-info{background:var(--info-bg);color:var(--info)}
+.p-violet{background:var(--violet-bg);color:var(--violet)}
+.p-muted{background:rgba(255,255,255,.05);color:var(--text-secondary)}
+.p-red{background:rgba(227,6,19,.14);color:#ff6b74}
+.muted{color:var(--text-secondary)}.dim{color:var(--text-muted)}
+.sep{color:var(--text-muted)}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.input{background:var(--bg-input);border:1px solid var(--border-hover);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
+.input.ph{color:var(--text-muted)}
+.chk{width:18px;height:18px;border-radius:5px;border:2px solid #4a4f5e;flex:none;display:inline-grid;place-items:center}
+.chk.on{background:var(--ok);border-color:var(--ok);color:#06210f;font-size:12px;font-weight:900}
+.pin{color:#fbbf24}
+/* dashboard */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.stat{padding:18px 20px;position:relative}
+.stat .lbl{font-size:13px;color:var(--text-secondary)}
+.stat .val{font-size:36px;font-weight:800;margin:8px 0 4px;font-variant-numeric:tabular-nums}
+.stat .sub{font-size:12px;color:var(--text-muted)}
+.stat .ico{position:absolute;right:18px;top:18px;color:var(--text-muted);font-size:16px}
+.grid2{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
+.action{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border-primary)}
+.action:last-child{border-bottom:0}
+.action .t{font-weight:600;margin-bottom:6px}
+.action .grow{flex:1;min-width:0}
+.prio{background:linear-gradient(180deg,rgba(245,158,11,.10),rgba(245,158,11,.04));border:1px solid rgba(245,158,11,.28);border-radius:16px;padding:16px 18px;margin-bottom:20px}
+.prio h3{font-size:15px;font-weight:700;color:#fcd34d;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.prio-item{background:rgba(0,0,0,.25);border:1px solid rgba(245,158,11,.18);border-radius:12px;padding:11px 12px;margin-top:8px}
+.prio-item .t{font-weight:600;font-size:13.5px;margin-bottom:6px}
+.veh{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--border-primary)}
+.veh:last-child{border-bottom:0}
+.code{width:46px;height:40px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:16px}
+.c1{background:rgba(34,197,94,.14);color:#4ade80}.c2{background:rgba(239,68,68,.14);color:#f87171}.c3{background:rgba(96,165,250,.14);color:#93c5fd}.c4{background:rgba(245,158,11,.14);color:#fbbf24}
+.veh .grow{flex:1}.veh b{display:block;font-size:14px}.veh small{color:var(--text-secondary);font-size:12px}
+/* kanban */
+.toolbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:start}
+.col{background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:14px;padding:12px}
+.col-h{display:flex;justify-content:space-between;align-items:center;padding:2px 4px 10px;font-weight:700;font-size:13.5px}
+.col-h .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:8px}
+.kc{background:var(--bg-card);border:1px solid var(--border-primary);border-radius:12px;padding:12px;margin-bottom:10px}
+.kc.drag{transform:rotate(2deg);box-shadow:0 14px 30px rgba(0,0,0,.55);border-color:rgba(227,6,19,.5)}
+.kc.ghost{border:2px dashed rgba(227,6,19,.35);background:transparent;height:64px}
+.kc .t{font-weight:600;margin:6px 0 8px;font-size:13.5px}
+.kc .meta{display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:12px;color:var(--text-secondary)}
+.avs{display:flex}.avs .av{margin-left:-7px;width:24px;height:24px;font-size:10px}.avs .av:first-child{margin-left:0}
+.add{border:1px dashed var(--border-hover);border-radius:10px;padding:8px;text-align:center;color:var(--text-muted);font-size:13px}
+/* dossier */
+.crumb{font-size:13px;color:var(--text-secondary);margin-bottom:12px}
+.dos-h{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:22px}
+.dos-h h2{font-size:24px;font-weight:800;letter-spacing:-.4px;margin:8px 0 6px}
+.list-i{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border-primary)}
+.list-i:last-child{border-bottom:0}
+.list-i .grow{flex:1;min-width:0}
+.list-i .val{font-size:12.5px;color:var(--text-secondary);margin-top:3px}
+.file{display:flex;align-items:center;gap:12px;padding:11px 20px;border-bottom:1px solid var(--border-primary)}
+.file:last-child{border-bottom:0}
+.ficon{width:36px;height:42px;border-radius:6px;display:grid;place-items:center;font-size:10px;font-weight:800}
+.f-pdf{background:rgba(239,68,68,.15);color:#f87171}.f-img{background:rgba(96,165,250,.15);color:#93c5fd}
+.side-k{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:8px}
+.side-b{padding:16px 18px;border-bottom:1px solid var(--border-primary)}
+.side-b:last-child{border-bottom:0}
+.tl{position:relative;padding-left:18px;font-size:12.5px;color:var(--text-secondary)}
+.tl div{margin-bottom:9px;position:relative}
+.tl div::before{content:"";position:absolute;left:-14px;top:6px;width:7px;height:7px;border-radius:50%;background:#3b4050}
+/* modal */
+.overlay{background:rgba(5,6,10,.72);padding:36px;display:grid;place-items:center}
+.modal{width:720px;background:var(--bg-secondary);border:1px solid var(--border-hover);border-radius:20px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.modal-h{display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--border-primary)}
+.modal-h h3{font-size:18px;font-weight:700}
+.modal-b{padding:20px 22px;display:grid;gap:16px}
+.f-lbl{font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-bottom:6px}
+.f-in{background:var(--bg-input);border:1px solid var(--border-hover);border-radius:8px;padding:10px 12px;font-size:14px}
+.f-in.area{min-height:64px;color:var(--text-secondary)}
+.f-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.stbtns{display:flex;gap:6px}
+.stbtns span{flex:1;text-align:center;padding:8px 6px;border-radius:8px;border:1px solid var(--border-hover);font-size:12.5px;font-weight:600;color:var(--text-secondary)}
+.stbtns span.on{border-color:var(--info);background:var(--info-bg);color:var(--info)}
+.chipx{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border-radius:20px;background:#262b38;font-size:12.5px;font-weight:600}
+.chipx i{font-style:normal;color:var(--text-muted);padding:0 4px}
+.dropdown{margin-top:6px;background:var(--bg-card);border:1px solid var(--border-hover);border-radius:10px;padding:6px;box-shadow:0 12px 30px rgba(0,0,0,.5)}
+.dd-i{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:7px;font-size:13px}
+.dd-i.hl{background:var(--bg-card-hover)}
+.dd-h{font-size:11px;color:var(--text-muted);font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:6px 9px 4px}
+.drop{border:1.5px dashed var(--border-hover);border-radius:10px;padding:14px;text-align:center;color:var(--text-secondary);font-size:13px}
+.modal-f{display:flex;justify-content:space-between;align-items:center;padding:14px 22px;border-top:1px solid var(--border-primary)}
+/* table */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:12px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;padding:12px 18px;border-bottom:1px solid var(--border-primary)}
+td{padding:13px 18px;border-bottom:1px solid var(--border-primary);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.fbtn{padding:6px 14px;border-radius:20px;border:1px solid var(--border-primary);color:var(--text-secondary);font-size:13px;font-weight:500;background:var(--bg-card)}
+.fbtn.on{border-color:var(--crf-red);color:#fff;background:var(--crf-red)}
+/* contacts */
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.ccard{padding:16px}
+.ccard h4{font-size:15px;font-weight:700;margin:8px 0 2px}
+.ccard .ln{font-size:13px;color:var(--text-secondary);margin-top:6px;display:flex;gap:8px}
+.ccard .ft{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--border-primary)}
+.toggle{width:34px;height:20px;border-radius:20px;background:#3a3f4d;position:relative;display:inline-block;vertical-align:middle}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#cfd3dd}
+.toggle.on{background:var(--ok)}.toggle.on::after{left:17px;background:#fff}
+.sect{display:flex;justify-content:space-between;align-items:flex-end;margin:28px 0 12px}
+.sect h3{font-size:17px;font-weight:700}
+.shared{border-style:dashed;border-color:rgba(139,92,246,.35)}
+/* mobile */
+.phones{display:flex;gap:28px;flex-wrap:wrap}
+.phone{width:375px;border:10px solid #1b1d24;border-radius:44px;overflow:hidden;background:var(--bg-primary);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:38px;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font-size:13px;font-weight:600}
+.m-head{display:flex;justify-content:space-between;align-items:center;padding:8px 16px 12px;border-bottom:1px solid var(--border-primary)}
+.m-body{padding:14px 16px 20px}
+.m-tabs{display:flex;gap:6px;overflow:hidden;margin:4px 0 14px}
+.m-tabs span{padding:6px 12px;border-radius:20px;font-size:12.5px;font-weight:600;border:1px solid var(--border-primary);color:var(--text-secondary);white-space:nowrap}
+.m-tabs span.on{background:rgba(227,6,19,.12);border-color:rgba(227,6,19,.45);color:#ff8a92}
+.m-sec{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:13px;margin:14px 0 8px}
+.sheet{background:var(--bg-secondary);border-top:1px solid var(--border-hover);border-radius:20px 20px 0 0;padding:10px 16px 22px}
+.grab{width:40px;height:4px;border-radius:4px;background:#3a3f4d;margin:0 auto 14px}
+.sheet-i{display:flex;align-items:center;gap:12px;padding:13px 6px;border-bottom:1px solid var(--border-primary);font-size:14px}
+.sheet-i:last-child{border-bottom:0}
+@media (max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.kanban{grid-template-columns:repeat(2,1fr)}.cgrid{grid-template-columns:1fr 1fr}}
+@media (max-width:700px){.screen{padding:0 12px}.main{padding:20px 16px}.nav{display:none}.stats,.kanban,.cgrid{grid-template-columns:1fr}.f-grid{grid-template-columns:1fr}.modal{width:100%}.overlay{padding:12px}.frame{overflow-x:auto}}
+</style>
+</head>
+<body>
+
+<header class="toc">
+  <h1>Suivi technique — maquettes</h1>
+  <p>Nouvel onglet de <code>/vehicles</code>, réservé aux responsables véhicule et aux admins. Données fictives de l'UL Paris XVIII. Thème sombre ; le clair découle des mêmes variables de <code>globals.css</code>.</p>
+  <ol>
+    <li><a href="#s1">1 · Vue d'ensemble</a></li>
+    <li><a href="#s2">2 · Tâches (tableau)</a></li>
+    <li><a href="#s3">3 · Détail d'un dossier</a></li>
+    <li><a href="#s4">4 · Modale de tâche</a></li>
+    <li><a href="#s5">5 · Contrôles</a></li>
+    <li><a href="#s6">6 · Contacts</a></li>
+    <li><a href="#s7">7 · Mobile</a></li>
+    <li><a href="#s8">8 · Historique sur la fiche véhicule</a></li>
+  </ol>
+</header>
+
+<!-- ============ 1. VUE D'ENSEMBLE ============ -->
+<section class="screen" id="s1">
+  <div class="screen-label"><b>Écran 1</b> · Vue d'ensemble — CAP-11</div>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>…/vehicles?vue=suivi</span></div>
+    <div class="header">
+      <div class="brand"><div class="logo"><b>+</b></div><div><div class="brand-t">Martine</div><div class="brand-s">UL Paris XVIII ▾</div></div></div>
+      <nav class="nav"><a class="active">Véhicules</a><a>Frais</a><a>Statistiques</a><a>Inventaire</a><a>Missions</a><a>Uniformes</a><a>Administration</a><a>Aide</a></nav>
+      <div class="me">🔔 <span class="av a1">CR</span></div>
+    </div>
+    <div class="main">
+      <div class="ph">
+        <div><h2>Véhicules</h2><p>Le point sur la flotte — Croix-Rouge Paris XVIII</p></div>
+        <div class="seg"><span class="btn btn-secondary">🚗 Flotte</span><span class="btn btn-primary">🔧 Suivi technique</span></div>
+      </div>
+      <div class="tabbar">
+        <span class="tab active">Vue d'ensemble</span><span class="tab">Tâches <span class="count">9</span></span><span class="tab">Dossiers <span class="count">4</span></span><span class="tab">Contrôles</span><span class="tab">Contacts</span>
+        <span style="margin-left:auto;padding-bottom:6px" class="row"><span class="btn btn-secondary btn-sm">+ Tâche</span><span class="btn btn-primary btn-sm">+ Nouveau dossier</span></span>
+      </div>
+
+      <div class="stats">
+        <div class="card stat"><span class="ico">🗂</span><div class="lbl">Dossiers ouverts</div><div class="val">4</div><div class="sub">Sur les 4 véhicules</div></div>
+        <div class="card stat"><span class="ico">⏱</span><div class="lbl">Échéances à traiter</div><div class="val" style="color:#f87171">3</div><div class="sub">Actions et contrôles sous 30 jours</div></div>
+        <div class="card stat"><span class="ico">📎</span><div class="lbl">Pièces à récupérer</div><div class="val" style="color:#fbbf24">6</div><div class="sub">Pour compléter les dossiers</div></div>
+        <div class="card stat"><span class="ico">📅</span><div class="lbl">Contrôles à dater</div><div class="val" style="color:#93c5fd">5</div><div class="sub">Échéances sans rendez-vous</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h"><h3>Prochaines actions</h3><div class="row"><span class="pill p-muted">Toutes ▾</span><span class="pill p-info">9 à suivre</span></div></div>
+          <div class="action"><span class="chk"></span><div class="grow"><div class="t">Confirmer le devis auprès du garage Renault <span class="pin">📌</span></div><div class="row"><span class="pill p-veh">75-188</span><span class="muted">Camille R.</span><span class="sep">·</span><span class="pill p-bad">Échéance 20/11</span><span class="pill p-warn">Prioritaire</span><span class="dim">📎 1</span></div></div><span class="btn btn-secondary btn-sm">Modifier</span></div>
+          <div class="action"><span class="chk"></span><div class="grow"><div class="t">Récupérer la référence du sinistre auprès de l'assureur</div><div class="row"><span class="pill p-veh">75-188</span><span class="muted">Thomas L.</span><span class="sep">·</span><span class="pill p-warn">Échéance 25/11</span><span class="pill p-warn">Prioritaire</span></div></div><span class="btn btn-secondary btn-sm">Modifier</span></div>
+          <div class="action"><span class="chk"></span><div class="grow"><div class="t">Demander un devis carrosserie à MVR Évolution</div><div class="row"><span class="pill p-veh">75-182</span><span class="muted">Camille R., Inès B.</span><span class="sep">·</span><span class="dim">Date à fixer</span><span class="pill p-violet">🏷 MVR Évolution</span></div></div><span class="btn btn-secondary btn-sm">Modifier</span></div>
+          <div class="action"><span class="chk"></span><div class="grow"><div class="t">Soumettre le devis au président pour accord</div><div class="row"><span class="pill p-veh">75-182</span><span class="muted">Inès B.</span><span class="sep">·</span><span class="dim">Date à fixer</span></div></div><span class="btn btn-secondary btn-sm">Modifier</span></div>
+          <div class="action"><span class="chk"></span><div class="grow"><div class="t">Prendre rendez-vous pour le contrôle technique</div><div class="row"><span class="pill p-veh">75-184</span><span class="muted">Thomas L.</span><span class="sep">·</span><span class="pill p-muted">Échéance 12/12</span><span class="pill p-info">CT</span></div></div><span class="btn btn-secondary btn-sm">Modifier</span></div>
+          <div style="padding:12px 20px;text-align:center"><a class="muted" style="font-size:13px">Voir les 9 tâches →</a></div>
+        </div>
+
+        <div>
+          <div class="prio">
+            <h3>📌 À confirmer en priorité <span class="pill p-warn" style="margin-left:auto">3 épinglés</span></h3>
+            <div class="prio-item"><div class="t">Dossier « Sinistre roue arrière droite »</div><div class="row"><span class="pill p-veh">75-188</span><span class="dim" style="font-size:12px">2 pièces à récupérer</span></div><div style="margin-top:9px"><span class="btn btn-secondary btn-sm">Ouvrir le dossier</span></div></div>
+            <div class="prio-item"><div class="t">Confirmer le devis auprès du garage Renault</div><div class="row"><span class="pill p-veh">75-188</span><span class="pill p-bad">20/11</span></div></div>
+            <div class="prio-item"><div class="t">Désinfection VPSP à caler avant le DPS du 6/12</div><div class="row"><span class="pill p-veh">75-182</span><span class="dim" style="font-size:12px">Date à fixer</span></div></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>Les 4 véhicules</h3></div>
+            <div class="veh"><div class="code c1">186</div><div class="grow"><b>Renault 5</b><small>HJ-269-FE</small></div><span class="pill p-muted">0 dossier</span></div>
+            <div class="veh"><div class="code c2">188</div><div class="grow"><b>Renault Espace</b><small>GV-114-QM</small></div><span class="pill p-red">2 dossiers</span></div>
+            <div class="veh"><div class="code c3">182</div><div class="grow"><b>Renault Master VPSP</b><small>FT-503-KD</small></div><span class="pill p-red">1 dossier</span></div>
+            <div class="veh"><div class="code c4">184</div><div class="grow"><b>Peugeot Partner</b><small>EZ-871-LB</small></div><span class="pill p-red">1 dossier</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note">L'onglet « Suivi technique » se range à côté de « Flotte » avec la même bascule que Vue UL / Vue DT ; il n'apparaît qu'aux RESP_VEHICULE et ADMIN. Chaque compteur mène à la liste filtrée correspondante. L'encart liste tous les éléments épinglés, échéance la plus proche d'abord.</p>
+</section>
+
+<!-- ============ 2. KANBAN ============ -->
+<section class="screen" id="s2">
+  <div class="screen-label"><b>Écran 2</b> · Tâches, tableau à colonnes — CAP-4, CAP-5, CAP-6</div>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>…/vehicles?vue=suivi&amp;onglet=taches</span></div>
+    <div class="main">
+      <div class="tabbar">
+        <span class="tab">Vue d'ensemble</span><span class="tab active">Tâches <span class="count">9</span></span><span class="tab">Dossiers <span class="count">4</span></span><span class="tab">Contrôles</span><span class="tab">Contacts</span>
+      </div>
+      <div class="toolbar">
+        <span class="input ph">🔎 Rechercher une tâche…</span>
+        <span class="input">🚗 Tous les véhicules ▾</span>
+        <span class="input">👤 Tout le monde ▾</span>
+        <span class="fbtn on">Mes tâches</span><span class="fbtn">📌 Épinglées</span><span class="fbtn">Prioritaires</span>
+        <span style="margin-left:auto" class="row"><span class="seg"><span class="btn btn-primary">▦ Tableau</span><span class="btn btn-secondary">☰ Liste</span></span><span class="btn btn-primary">+ Tâche</span></span>
+      </div>
+      <div class="kanban">
+        <div class="col">
+          <div class="col-h"><span><span class="dot" style="background:#9398A7"></span>À faire</span><span class="dim">3</span></div>
+          <div class="kc"><div class="row"><span class="pill p-veh">75-182</span><span class="pill p-violet">🏷 MVR Évolution</span></div><div class="t">Demander un devis carrosserie à MVR Évolution</div><div class="meta"><span>Date à fixer</span><span class="avs"><span class="av a1">CR</span><span class="av a3">IB</span></span></div></div>
+          <div class="kc"><div class="row"><span class="pill p-veh">75-184</span><span class="pill p-info">CT</span></div><div class="t">Prendre rendez-vous pour le contrôle technique</div><div class="meta"><span>📅 12/12</span><span class="avs"><span class="av a2">TL</span></span></div></div>
+          <div class="kc ghost"></div>
+          <div class="add">+ Ajouter une tâche</div>
+        </div>
+        <div class="col">
+          <div class="col-h"><span><span class="dot" style="background:#60A5FA"></span>En cours</span><span class="dim">2</span></div>
+          <div class="kc"><div class="row"><span class="pill p-veh">75-188</span><span class="pill p-warn">Prioritaire</span><span class="pin" style="margin-left:auto">📌</span></div><div class="t">Confirmer le devis auprès du garage Renault</div><div class="dim" style="font-size:12px">🗂 Sinistre roue arrière droite</div><div class="meta"><span style="color:#f87171">📅 20/11 · 📎 1</span><span class="avs"><span class="av a1">CR</span></span></div></div>
+          <div class="kc"><div class="row"><span class="pill p-veh">75-186</span></div><div class="t">Remplacer les balais d'essuie-glace</div><div class="meta"><span>📅 28/11</span><span class="avs"><span class="av a2">TL</span></span></div></div>
+        </div>
+        <div class="col">
+          <div class="col-h"><span><span class="dot" style="background:#F59E0B"></span>En attente</span><span class="dim">2</span></div>
+          <div class="kc drag"><div class="row"><span class="pill p-veh">75-188</span><span class="pill p-warn">Prioritaire</span></div><div class="t">Récupérer la référence du sinistre auprès de l'assureur</div><div class="dim" style="font-size:12px">🗂 Sinistre roue arrière droite · ⚠ Incident du 14/11</div><div class="meta"><span style="color:#fbbf24">📅 25/11</span><span class="avs"><span class="av a2">TL</span></span></div></div>
+          <div class="kc"><div class="row"><span class="pill p-veh">75-182</span></div><div class="t">Soumettre le devis au président pour accord</div><div class="meta"><span>Date à fixer · 📎 2</span><span class="avs"><span class="av a3">IB</span></span></div></div>
+        </div>
+        <div class="col">
+          <div class="col-h"><span><span class="dot" style="background:#22C55E"></span>Terminé</span><span class="dim">14</span></div>
+          <div class="kc" style="opacity:.6"><div class="row"><span class="pill p-veh">75-186</span></div><div class="t" style="text-decoration:line-through">Changer les pneus avant</div><div class="meta"><span>✓ 08/11</span><span class="avs"><span class="av a1">CR</span></span></div></div>
+          <div class="kc" style="opacity:.6"><div class="row"><span class="pill p-veh">75-182</span></div><div class="t" style="text-decoration:line-through">Déposer le véhicule chez MVR Évolution</div><div class="meta"><span>✓ 05/11</span><span class="avs"><span class="av a3">IB</span></span></div></div>
+          <div class="add">Afficher les 12 autres</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note">Glisser une carte d'une colonne à l'autre change son état (la carte inclinée est en cours de déplacement, le cadre pointillé montre où elle tombera). « Terminé » est replié au-delà de quelques cartes : rien n'est purgé, l'historique reste consultable. Les pastilles montrent véhicule, contact, dossier et incident rattachés.</p>
+</section>
+
+<!-- ============ 3. DOSSIER ============ -->
+<section class="screen" id="s3">
+  <div class="screen-label"><b>Écran 3</b> · Détail d'un dossier — CAP-8, CAP-9, CAP-7</div>
+  <div class="frame">
+    <div class="chrome"><i></i><i></i><i></i><span>…/vehicles?vue=suivi&amp;dossier=…</span></div>
+    <div class="main">
+      <div class="crumb">Suivi technique › Dossiers › <span style="color:var(--text-primary)">Sinistre roue arrière droite</span></div>
+      <div class="dos-h">
+        <div>
+          <div class="row"><span class="pill p-ok">● Ouvert</span><span class="pill p-veh">75-188 · Renault Espace</span><span class="pill p-warn">📌 Épinglé</span></div>
+          <h2>Sinistre roue arrière droite</h2>
+          <p class="muted">Jante voilée et pneu entaillé après un choc trottoir pendant le DPS du 14/11. Déclaration d'assurance en cours, véhicule utilisable en VL uniquement.</p>
+        </div>
+        <div class="row"><span class="btn btn-ghost btn-sm">📌 Désépingler</span><span class="btn btn-secondary btn-sm">Modifier</span><span class="btn btn-secondary btn-sm">✓ Clore le dossier</span></div>
+      </div>
+      <div class="grid2">
+        <div style="display:grid;gap:18px">
+          <div class="card">
+            <div class="card-h"><h3>Pièces à récupérer <span class="pill p-warn" style="margin-left:6px">2 sur 4 manquantes</span></h3><span class="btn btn-secondary btn-sm">+ Pièce</span></div>
+            <div class="list-i"><span class="chk on">✓</span><div class="grow"><b>Constat amiable</b><div class="val">📎 constat-14-11.pdf · reçu le 15/11</div></div></div>
+            <div class="list-i"><span class="chk on">✓</span><div class="grow"><b>Photos des dégâts</b><div class="val">📎 3 photos · reçues le 15/11</div></div></div>
+            <div class="list-i"><span class="chk"></span><div class="grow"><b>Référence du sinistre</b><div class="val">À demander à l'assureur — tâche liée, Thomas L.</div></div><span class="btn btn-ghost btn-sm">Marquer reçue</span></div>
+            <div class="list-i"><span class="chk"></span><div class="grow"><b>Devis de réparation</b><div class="val">Attendu du garage Renault</div></div><span class="btn btn-ghost btn-sm">Marquer reçue</span></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>Tâches du dossier</h3><span class="btn btn-secondary btn-sm">+ Tâche</span></div>
+            <div class="list-i"><span class="chk"></span><div class="grow"><b>Confirmer le devis auprès du garage Renault</b><div class="row" style="margin-top:5px"><span class="pill p-info">En cours</span><span class="muted" style="font-size:12px">Camille R. · 20/11</span></div></div></div>
+            <div class="list-i"><span class="chk"></span><div class="grow"><b>Récupérer la référence du sinistre auprès de l'assureur</b><div class="row" style="margin-top:5px"><span class="pill p-warn">En attente</span><span class="muted" style="font-size:12px">Thomas L. · 25/11</span></div></div></div>
+            <div class="list-i"><span class="chk on">✓</span><div class="grow"><b style="text-decoration:line-through;color:var(--text-secondary)">Déclarer le sinistre à l'assureur</b><div class="row" style="margin-top:5px"><span class="pill p-ok">Terminé</span><span class="muted" style="font-size:12px">Camille R. · 15/11</span></div></div></div>
+          </div>
+          <div class="card">
+            <div class="card-h"><h3>Pièces jointes</h3><span class="btn btn-secondary btn-sm">⬆ Ajouter</span></div>
+            <div class="file"><div class="ficon f-pdf">PDF</div><div class="grow" style="flex:1"><b>constat-14-11.pdf</b><div class="dim" style="font-size:12px">412 Ko · Camille R. · 15/11</div></div><span class="dim">⋯</span></div>
+            <div class="file"><div class="ficon f-img">JPG</div><div class="grow" style="flex:1"><b>roue-ar-droite-1.jpg</b><div class="dim" style="font-size:12px">1,8 Mo · Thomas L. · 15/11</div></div><span class="dim">⋯</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="side-b"><div class="side-k">Véhicule</div><div class="row"><div class="code c2" style="width:40px;height:34px;font-size:14px">188</div><div><b>Renault Espace</b><div class="dim" style="font-size:12px">GV-114-QM · fiche véhicule →</div></div></div></div>
+          <div class="side-b"><div class="side-k">Rattaché à</div><div class="row"><span class="pill p-bad">⚠ Incident du 14/11</span><span class="pill p-violet">🏷 Garage Renault Clichy</span><span class="pill p-violet">🏷 Assureur flotte (UL Paris XV)</span></div></div>
+          <div class="side-b"><div class="side-k">Contact utile</div><b>Garage Renault Clichy</b><div class="muted" style="font-size:13px;margin-top:4px">📞 01 47 39 00 00 · Atelier</div><div class="muted" style="font-size:13px">✉ atelier@exemple.fr</div></div>
+          <div class="side-b"><div class="side-k">Activité</div><div class="tl"><div>Thomas L. a passé une tâche à <b>En attente</b> · 17/11</div><div>Camille R. a coché <b>Photos des dégâts</b> · 15/11</div><div>Camille R. a épinglé le dossier · 15/11</div><div>Dossier ouvert par Camille R. · 14/11</div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note">Le contact « Assureur flotte » vient d'une autre UL (partagé) : il est rattachable mais pas modifiable. Une pièce à récupérer se coche avec une valeur (ex. numéro de sinistre) ou un fichier.</p>
+</section>
+
+<!-- ============ 4. MODALE TACHE ============ -->
+<section class="screen" id="s4">
+  <div class="screen-label"><b>Écran 4</b> · Modale de tâche — CAP-4, CAP-6, CAP-7, CAP-12</div>
+  <div class="frame">
+    <div class="overlay">
+      <div class="modal">
+        <div class="modal-h"><h3>Modifier la tâche</h3><div class="row"><span class="btn btn-ghost btn-sm">📌 Épingler</span><span class="dim" style="font-size:20px">×</span></div></div>
+        <div class="modal-b">
+          <div><div class="f-lbl">Titre</div><div class="f-in">Demander un devis carrosserie à MVR Évolution</div></div>
+          <div><div class="f-lbl">Description</div><div class="f-in area">Rayure profonde porte latérale droite. Demander un devis avec et sans peinture complète du flanc.</div></div>
+          <div><div class="f-lbl">État</div><div class="stbtns"><span class="on">À faire</span><span>En cours</span><span>En attente</span><span>Terminé</span></div></div>
+          <div class="f-grid">
+            <div><div class="f-lbl">Priorité</div><div class="f-in">Normale ▾</div></div>
+            <div><div class="f-lbl">Échéance</div><div class="f-in dim">Date à fixer 📅</div></div>
+            <div><div class="f-lbl">Dossier</div><div class="f-in dim">Aucun ▾</div></div>
+          </div>
+          <div>
+            <div class="f-lbl">Assignés</div>
+            <div class="row"><span class="chipx"><span class="av a1" style="width:20px;height:20px;font-size:9px">CR</span>Camille R. (moi)<i>×</i></span><span class="chipx"><span class="av a3" style="width:20px;height:20px;font-size:9px">IB</span>Inès B.<i>×</i></span><span class="input ph" style="padding:5px 10px">+ Ajouter</span></div>
+            <div class="dropdown" style="width:330px">
+              <div style="padding:4px 4px 8px"><span class="input ph" style="width:100%">🔎 Rechercher un responsable…</span></div>
+              <div class="dd-h">Responsables véhicule et admins de l'UL</div>
+              <div class="dd-i hl"><span class="av a2" style="width:24px;height:24px;font-size:10px">TL</span>Thomas L.<span class="dim" style="margin-left:auto;font-size:12px">Resp. véhicule</span></div>
+              <div class="dd-i"><span class="av" style="width:24px;height:24px;font-size:10px">MD</span>Marc D.<span class="dim" style="margin-left:auto;font-size:12px">Admin</span></div>
+            </div>
+            <div class="dim" style="font-size:12px;margin-top:6px">Les personnes ajoutées par quelqu'un d'autre reçoivent une notification.</div>
+          </div>
+          <div>
+            <div class="f-lbl">Rattachements</div>
+            <div class="row"><span class="chipx">🚗 75-182 · Renault Master<i>×</i></span><span class="chipx">🏷 MVR Évolution<i>×</i></span><span class="input ph" style="padding:5px 10px">+ Véhicule · contact · incident · maintenance</span></div>
+          </div>
+          <div>
+            <div class="f-lbl">Pièces jointes</div>
+            <div class="file" style="padding:8px 0;border:0"><div class="ficon f-img" style="width:30px;height:34px">JPG</div><div style="flex:1"><b style="font-size:13px">rayure-porte-droite.jpg</b><div class="dim" style="font-size:12px">2,1 Mo · Inès B. · 12/11</div></div><span class="dim">🗑</span></div>
+            <div class="drop">⬆ Glisser un fichier ici ou <u>parcourir</u> — PDF ou image</div>
+          </div>
+        </div>
+        <div class="modal-f"><span class="btn btn-ghost btn-sm" style="color:#f87171;border-color:rgba(239,68,68,.35)">Supprimer</span><div class="row"><span class="btn btn-secondary">Annuler</span><span class="btn btn-primary">Enregistrer</span></div></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">Le sélecteur d'assignés ne propose que les RESP_VEHICULE et ADMIN actifs de l'UL (même recherche que les autres sélecteurs de personnes). L'état se change aussi ici, sans glisser-déposer : c'est la voie clavier et mobile.</p>
+</section>
+
+<!-- ============ 5. CONTROLES ============ -->
+<section class="screen" id="s5">
+  <div class="screen-label"><b>Écran 5</b> · Contrôles et échéances — CAP-10</div>
+  <div class="frame">
+    <div class="main">
+      <div class="tabbar"><span class="tab">Vue d'ensemble</span><span class="tab">Tâches <span class="count">9</span></span><span class="tab">Dossiers <span class="count">4</span></span><span class="tab active">Contrôles</span><span class="tab">Contacts</span></div>
+      <div class="filters"><span class="fbtn on">Toutes (12)</span><span class="fbtn">À dater (5)</span><span class="fbtn">Sous 30 jours (3)</span><span class="fbtn">Dépassées (1)</span><span class="fbtn">Rendez-vous fixé (4)</span></div>
+      <div class="card">
+        <table>
+          <tr><th>Véhicule</th><th>Contrôle</th><th>Échéance</th><th>Rendez-vous</th><th>État</th><th></th></tr>
+          <tr><td><span class="pill p-veh">75-182</span> <span class="muted">Renault Master</span></td><td>Désinfection VPSP</td><td style="color:#f87171;font-weight:600">16/11/2026 · dépassée de 2 j</td><td class="dim">—</td><td><span class="pill p-bad">Dépassée</span></td><td><span class="btn btn-primary btn-sm">Fixer un RDV</span></td></tr>
+          <tr><td><span class="pill p-veh">75-184</span> <span class="muted">Peugeot Partner</span></td><td>Contrôle technique</td><td style="color:#fbbf24;font-weight:600">12/12/2026 · dans 24 j</td><td class="dim">—</td><td><span class="pill p-warn">À dater</span></td><td><span class="btn btn-secondary btn-sm">Fixer un RDV</span></td></tr>
+          <tr><td><span class="pill p-veh">75-188</span> <span class="muted">Renault Espace</span></td><td>Révision</td><td style="color:#fbbf24;font-weight:600">05/12/2026 · ou 120 000 km</td><td>28/11 · Garage Renault Clichy</td><td><span class="pill p-ok">RDV fixé</span></td><td><span class="btn btn-ghost btn-sm">Modifier</span></td></tr>
+          <tr><td><span class="pill p-veh">75-186</span> <span class="muted">Renault 5</span></td><td>Révision</td><td>14/03/2027</td><td class="dim">—</td><td><span class="pill p-info">À dater</span></td><td><span class="btn btn-secondary btn-sm">Fixer un RDV</span></td></tr>
+          <tr><td><span class="pill p-veh">75-186</span> <span class="muted">Renault 5</span></td><td>Contrôle technique</td><td>02/06/2028</td><td class="dim">—</td><td><span class="pill p-muted">Plus tard</span></td><td><span class="btn btn-secondary btn-sm">Fixer un RDV</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <p class="note">Les échéances viennent des données véhicule existantes (CT, révision, désinfection) ; seul le rendez-vous se saisit ici, avec un garage pris dans les contacts. « Fixer un RDV » peut créer une tâche liée en un clic.</p>
+</section>
+
+<!-- ============ 6. CONTACTS ============ -->
+<section class="screen" id="s6">
+  <div class="screen-label"><b>Écran 6</b> · Contacts et prestataires — CAP-1, CAP-2, CAP-3</div>
+  <div class="frame">
+    <div class="main">
+      <div class="tabbar"><span class="tab">Vue d'ensemble</span><span class="tab">Tâches <span class="count">9</span></span><span class="tab">Dossiers <span class="count">4</span></span><span class="tab">Contrôles</span><span class="tab active">Contacts</span></div>
+      <div class="toolbar">
+        <span class="input ph" style="min-width:260px">🔎 Nom, catégorie, ville…</span>
+        <span class="fbtn on">Tous</span><span class="fbtn">Garage</span><span class="fbtn">Carrosserie</span><span class="fbtn">Assurance</span><span class="fbtn">Dépannage</span>
+        <span style="margin-left:auto" class="row"><span class="btn btn-secondary">📲 Exporter vers le téléphone</span><span class="btn btn-primary">+ Contact</span></span>
+      </div>
+      <div class="sect"><h3>Contacts de l'UL Paris XVIII <span class="dim" style="font-weight:500;font-size:14px">· 3</span></h3></div>
+      <div class="cgrid">
+        <div class="card ccard"><span class="pill p-muted">Garage</span><h4>Garage Renault Clichy</h4><div class="ln">📞 01 47 39 00 00 <span class="dim">Atelier</span></div><div class="ln">✉ atelier@exemple.fr</div><div class="ft"><span class="muted" style="font-size:12.5px"><span class="toggle on"></span>&nbsp; Partagé aux autres UL</span><span class="dim">✎</span></div></div>
+        <div class="card ccard"><span class="pill p-muted">Carrosserie</span><h4>MVR Évolution</h4><div class="ln">📞 06 12 34 56 78 <span class="dim">Gérant</span></div><div class="ln">📍 Saint-Ouen</div><div class="ft"><span class="muted" style="font-size:12.5px"><span class="toggle"></span>&nbsp; Partagé aux autres UL</span><span class="dim">✎</span></div></div>
+        <div class="card ccard"><span class="pill p-muted">Dépannage</span><h4>Dépannage Nord 24/7</h4><div class="ln">📞 01 40 00 00 00 <span class="dim">Astreinte</span></div><div class="ln dim">Remorquage VL et VPSP</div><div class="ft"><span class="muted" style="font-size:12.5px"><span class="toggle on"></span>&nbsp; Partagé aux autres UL</span><span class="dim">✎</span></div></div>
+      </div>
+      <div class="sect"><h3>Prestataires proposés par d'autres UL <span class="dim" style="font-weight:500;font-size:14px">· lecture seule</span></h3></div>
+      <div class="cgrid">
+        <div class="card ccard shared"><div class="row"><span class="pill p-muted">Assurance</span><span class="pill p-violet">Proposé par l'UL Paris XV</span></div><h4>Assureur flotte — gestion sinistres</h4><div class="ln">📞 09 70 00 00 00 <span class="dim">Sinistres</span></div><div class="ln">✉ sinistres@exemple.fr</div><div class="ft"><span class="dim" style="font-size:12.5px">Mis à jour le 03/11</span><span class="dim">🔒</span></div></div>
+        <div class="card ccard shared"><div class="row"><span class="pill p-muted">Garage</span><span class="pill p-violet">Proposé par l'UL Paris XX</span></div><h4>Garage des Lilas — utilitaires</h4><div class="ln">📞 01 43 00 00 00</div><div class="ln dim">Spécialiste Master / Trafic</div><div class="ft"><span class="dim" style="font-size:12.5px">Mis à jour le 21/10</span><span class="dim">🔒</span></div></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">L'export télécharge un fichier .vcf (même principe que l'annuaire de la page Aide) avec les contacts de l'UL et ceux proposés ; les partagés portent « UL Paris XV » dans le nom pour les reconnaître dans le téléphone.</p>
+</section>
+
+<!-- ============ 7. MOBILE ============ -->
+<section class="screen" id="s7">
+  <div class="screen-label"><b>Écran 7</b> · Mobile — tâches en liste et changement d'état sans glisser-déposer (CAP-5)</div>
+  <div class="phones">
+    <div class="phone">
+      <div class="status-bar"><span>9:41</span><span>●●● 5G ▮</span></div>
+      <div class="m-head"><div class="brand"><div class="logo" style="width:28px;height:28px"><b style="font-size:19px">+</b></div><b>Suivi technique</b></div><span style="font-size:20px">☰</span></div>
+      <div class="m-body">
+        <div class="m-tabs"><span>Vue d'ensemble</span><span class="on">Tâches · 9</span><span>Dossiers</span><span>Contrôles</span></div>
+        <div class="row" style="margin-bottom:6px"><span class="fbtn on">Mes tâches</span><span class="fbtn">📌</span><span class="input" style="padding:5px 10px;margin-left:auto">🚗 Tous ▾</span></div>
+        <div class="m-sec"><span>En cours</span><span class="dim">2</span></div>
+        <div class="kc"><div class="row"><span class="pill p-veh">75-188</span><span class="pill p-warn">Prioritaire</span><span class="pin" style="margin-left:auto">📌</span></div><div class="t">Confirmer le devis auprès du garage Renault</div><div class="meta"><span style="color:#f87171">📅 20/11 · 📎 1</span><span class="pill p-info">En cours ▾</span></div></div>
+        <div class="kc"><div class="row"><span class="pill p-veh">75-186</span></div><div class="t">Remplacer les balais d'essuie-glace</div><div class="meta"><span>📅 28/11</span><span class="pill p-info">En cours ▾</span></div></div>
+        <div class="m-sec"><span>À faire</span><span class="dim">3</span></div>
+        <div class="kc"><div class="row"><span class="pill p-veh">75-182</span><span class="pill p-violet">🏷 MVR</span></div><div class="t">Demander un devis carrosserie à MVR Évolution</div><div class="meta"><span>Date à fixer</span><span class="pill p-muted">À faire ▾</span></div></div>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="status-bar"><span>9:41</span><span>●●● 5G ▮</span></div>
+      <div class="m-head"><div class="brand"><div class="logo" style="width:28px;height:28px"><b style="font-size:19px">+</b></div><b>Suivi technique</b></div><span style="font-size:20px">☰</span></div>
+      <div class="m-body" style="opacity:.35;padding-bottom:0">
+        <div class="kc"><div class="row"><span class="pill p-veh">75-188</span><span class="pill p-warn">Prioritaire</span></div><div class="t">Confirmer le devis auprès du garage Renault</div></div>
+        <div class="kc"><div class="row"><span class="pill p-veh">75-186</span></div><div class="t">Remplacer les balais d'essuie-glace</div></div>
+      </div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div style="font-weight:700;margin-bottom:4px">Confirmer le devis auprès du garage Renault</div>
+        <div class="dim" style="font-size:12.5px;margin-bottom:8px">Déplacer vers…</div>
+        <div class="sheet-i"><span class="dot" style="width:9px;height:9px;border-radius:50%;background:#9398A7;display:inline-block"></span>À faire</div>
+        <div class="sheet-i" style="color:var(--info);font-weight:600"><span style="width:9px;height:9px;border-radius:50%;background:#60A5FA;display:inline-block"></span>En cours <span style="margin-left:auto">✓</span></div>
+        <div class="sheet-i"><span style="width:9px;height:9px;border-radius:50%;background:#F59E0B;display:inline-block"></span>En attente</div>
+        <div class="sheet-i"><span style="width:9px;height:9px;border-radius:50%;background:#22C55E;display:inline-block"></span>Terminé</div>
+        <div class="row" style="margin-top:12px"><span class="btn btn-secondary" style="flex:1;justify-content:center">📞 Appeler le garage</span><span class="btn btn-secondary" style="flex:1;justify-content:center">Ouvrir</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">Sur téléphone, les colonnes deviennent des sections empilées ; la pastille d'état ouvre une feuille « Déplacer vers… ». Un contact rattaché s'appelle en un geste depuis la tâche.</p>
+</section>
+
+<!-- ============ 8. HISTORIQUE VEHICULE ============ -->
+<section class="screen" id="s8">
+  <div class="screen-label"><b>Écran 8</b> · Fiche véhicule, nouvelle section « Suivi technique » — CAP-13</div>
+  <div class="frame">
+    <div class="main">
+      <div class="ph"><div><h2>75-188 · Renault Espace</h2><p>GV-114-QM · VL · <span style="color:#4ade80">Disponible</span></p></div><span class="btn btn-secondary">+ Dossier pour ce véhicule</span></div>
+      <div class="dim" style="font-size:13px;margin-bottom:14px">… bandeaux, grille d'informations, documents et historique des sorties existants …</div>
+      <div class="card">
+        <div class="card-h"><h3>🔧 Suivi technique</h3><div class="row"><span class="fbtn on">Tout (7)</span><span class="fbtn">En cours (3)</span><span class="fbtn">Clos / terminé (4)</span></div></div>
+        <div class="list-i"><span class="pill p-ok" style="min-width:70px;justify-content:center">Ouvert</span><div class="grow"><b>🗂 Sinistre roue arrière droite</b><div class="val">Ouvert le 14/11/2026 · 2 tâches en cours · 2 pièces manquantes</div></div><span class="btn btn-secondary btn-sm">Ouvrir</span></div>
+        <div class="list-i"><span class="pill p-ok" style="min-width:70px;justify-content:center">Ouvert</span><div class="grow"><b>🗂 Bruit de freinage à l'avant</b><div class="val">Ouvert le 02/11/2026 · 1 tâche à faire</div></div><span class="btn btn-secondary btn-sm">Ouvrir</span></div>
+        <div class="list-i"><span class="pill p-muted" style="min-width:70px;justify-content:center">Clos</span><div class="grow"><b style="color:var(--text-secondary)">🗂 Remplacement batterie</b><div class="val">14/03/2026 → 21/03/2026 · 3 tâches · facture jointe</div></div><span class="btn btn-ghost btn-sm">Consulter</span></div>
+        <div class="list-i"><span class="pill p-muted" style="min-width:70px;justify-content:center">Terminé</span><div class="grow"><b style="color:var(--text-secondary)">✓ Révision 105 000 km</b><div class="val">Terminée le 09/01/2026 · Garage Renault Clichy</div></div><span class="btn btn-ghost btn-sm">Consulter</span></div>
+        <div class="list-i"><span class="pill p-muted" style="min-width:70px;justify-content:center">Clos</span><div class="grow"><b style="color:var(--text-secondary)">🗂 Rayure pare-chocs arrière</b><div class="val">06/2025 → 07/2025 · devis + photos joints</div></div><span class="btn btn-ghost btn-sm">Consulter</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">L'onglet n'apparaît sur la fiche qu'aux responsables. Rien n'est purgé : c'est la vie technique du véhicule, du plus récent au plus ancien.</p>
+</section>
+
+</body>
+</html>

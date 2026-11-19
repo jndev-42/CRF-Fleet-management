@@ -34,6 +34,7 @@ Singleton service clients and integration wrappers — DB, auth-adjacent role he
 |-----------|---------|
 | `contexts/` | React context providers (see `contexts/AGENTS.md`) |
 | `demo/` | Demo-mode data/logic (see `demo/AGENTS.md`) |
+| `fleetTracking/` | Suivi technique de la flotte : contacts prestataires… (see `fleetTracking/AGENTS.md`) |
 | `inventory/` | Inventory domain logic (see `inventory/AGENTS.md`) |
 | `utils/` | Generic utility functions (see `utils/AGENTS.md`) |
 

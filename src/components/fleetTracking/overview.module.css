@@ -1,0 +1,329 @@
+/* Suivi technique — Vue d'ensemble (variables de globals.css, clair et sombre). */
+
+.head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.title {
+    margin: 0 0 4px;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.headActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.headActions :global(.btn) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+}
+
+.stats {
+    margin-bottom: 24px;
+}
+
+.statButton {
+    display: block;
+    width: 100%;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+}
+
+.statButton:focus-visible {
+    outline: 2px solid var(--crf-red);
+    outline-offset: 2px;
+}
+
+.statSub {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.statPart {
+    min-height: 44px;
+    padding: 0 4px;
+    background: none;
+    border: none;
+    font: inherit;
+    color: var(--text-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.statPart:focus-visible {
+    outline: 2px solid var(--crf-red);
+    outline-offset: 2px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+.side {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
+}
+
+.panel {
+    padding: 0;
+    overflow: hidden;
+}
+
+.panelHead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.panelTitle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.panelFoot {
+    padding: 12px 20px;
+    text-align: center;
+}
+
+.emptyLine {
+    padding: 16px 20px;
+    margin: 0;
+}
+
+.pillInfo {
+    background: rgba(96, 165, 250, 0.14);
+    border-color: rgba(96, 165, 250, 0.35);
+}
+
+.pillAlert {
+    background: var(--status-maintenance-bg);
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.linkButton {
+    background: none;
+    border: none;
+    padding: 8px;
+    min-height: 44px;
+    font: inherit;
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+/* Prochaines actions */
+
+.actionList,
+.prioList,
+.vehicleList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.action {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.check {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    margin: 11px;
+    accent-color: var(--crf-red);
+    cursor: pointer;
+}
+
+.actionBody {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+}
+
+.actionTitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.rowButton {
+    flex: none;
+    min-height: 44px;
+}
+
+/* Encart prioritaire */
+
+.prio {
+    border-color: rgba(245, 158, 11, 0.45);
+}
+
+.prioItem {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.prioItem:last-child {
+    border-bottom: none;
+}
+
+.prioTitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow-wrap: anywhere;
+}
+
+/* Véhicules */
+
+.vehicle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 56px;
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border-primary);
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vehicle:hover {
+    background: var(--bg-card-hover);
+}
+
+.vehicle:focus-visible {
+    outline: 2px solid var(--crf-red);
+    outline-offset: -2px;
+}
+
+.vehicleCode {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-sm);
+    background: var(--crf-red);
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.vehicleText {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    color: var(--text-primary);
+}
+
+.vehicleText small {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+/* Message « Annuler » */
+
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: calc(100vw - 32px);
+    padding: 10px 12px 10px 16px;
+    border-radius: var(--radius-md);
+    background: var(--text-primary);
+    color: var(--bg-card);
+    box-shadow: var(--shadow-md);
+    font-size: 14px;
+}
+
+.toastButton {
+    flex: none;
+    min-height: 44px;
+    padding: 0 12px;
+    background: none;
+    border: 1px solid currentColor;
+    border-radius: var(--radius-sm);
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+@media (max-width: 900px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .action {
+        flex-wrap: wrap;
+        padding: 12px 16px;
+    }
+
+    .rowButton {
+        margin-left: 44px;
+    }
+
+    .headActions {
+        width: 100%;
+    }
+}

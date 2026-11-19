@@ -1,0 +1,48 @@
+<!-- Parent: ../AGENTS.md -->
+<!-- Generated: 2026-11-18 | Updated: 2026-11-18 -->
+
+# Fleet Tracking — Suivi technique de la flotte
+
+## Purpose
+Server-side and shared logic of the "🔧 Suivi technique" view of `/vehicles` (v5.55.0, `_bmad-output/specs/spec-vehicle-action-tracking/SPEC.md`): provider contacts directory per UL (CAP-1/2/3) tasks with assignees, links and attachments (CAP-4/5/6/7/12), folders (« dossiers ») with items to collect, attachments and the vehicle history (CAP-7/8/9/13), due controls with appointments (CAP-10) and the overview « Le point sur la flotte » (CAP-11).
+
+## Key Files
+| File | Description |
+|------|-------------|
+| `schema.ts` | Shared DDL (`FLEET_TRACKING_DDL`, `FLEET_TRACKING_TABLES`, `FLEET_TRACKING_INDEX_NAMES`) — `FleetContact`, `FleetTask` (with nullable `dossierId` for deliverable 3), `FleetTaskAssignee`, `FleetTaskLink`, `FleetAttachment` (generic owner TASK \| DOSSIER), `FleetDossier`, `FleetDossierItem`, `FleetControlAppointment` (UNIQUE vehicleId+controlType, nullable `taskId`); `FLEET_TRACKING_ADDED_COLUMNS` lists columns the migration adds with `ALTER TABLE` to an existing table — run by the prod migration `scripts/add-fleet-tracking.ts`, `scripts/setup-dev.ts` and the integration test setup |
+| `access.ts` | `requireFleetManager()` (401 / 403 `canManageVehicles` / 400 no active UL), `ownsResource()`, `activeUlId()`, `parseBody()` — **server only** (imports `@/auth`) |
+| `contacts.ts` | **Pure** (client-safe): categories + labels, Zod schemas (`.strict()`), `FleetContact` type, vCard 3.0 generator with RFC 2426 escaping |
+| `contactsStore.ts` | DB access for `FleetContact` (list own + shared with `ulName`, get, create, partial update, delete) — **server only** |
+| `tasks.ts` | **Pure** (client-safe): states/priorities/link types + French labels, Zod schemas (`.strict()`), filter schema, types (`FleetTask`, `TaskLink`, `TaskAttachment`, `AssignableManager`…), column ordering, due-date tone, deep link |
+| `attachments.ts` | **Pure** (client-safe): magic-byte detection (PDF/JPEG/PNG/WebP), 4 MB limit, file-name sanitizing (real extension), `Content-Disposition`, R2 key `fleet-tracking/<UL>/tasks/<taskId>/<id>.<ext>` |
+| `tasksStore.ts` | DB access for tasks: assignable managers (`computeSessionRoles` per member in the UL), scoped link validation and label resolution, filtered list with batch enrichment, create/update (one `write` batch), delete (DB first in one batch, R2 keys captured with `RETURNING`, then R2 best-effort, failures logged), attachment rows — **server only** |
+| `dossiers.ts` | **Pure** (client-safe): states OPEN/CLOSED + labels, Zod schemas (dossier, item, filters), types (`FleetDossier` with counters, `DossierItem`, `FleetDossierDetail`, `VehicleHistoryEntry`), `missingItemsLabel` (« 1 sur 2 manquantes »), `dossierSummary`, `compareDossiers`, `dossierDeepLink` |
+| `dossiersStore.ts` | DB access for folders: list with counters (sub-queries), detail (items, tasks via `listTasks({ dossier })`, attachments), create/update (`closedAt` set on close, cleared on reopen), delete (one batch: folder, items, attachments `RETURNING r2Key`, tasks **detached** `dossierId = NULL`; then R2 best-effort), items CRUD (receiving sets date + author, unchecking clears value, file, date and author), vehicle history — **server only** |
+| `dossierGuards.ts` | `loadOwnedDossier()` (404 / 403 other UL) and `checkTaskDossier()` (400 for a folder outside the task's UL) — **server only** |
+| `attachmentRoutes.ts` | Route bodies shared by task and folder attachments: `handleAttachmentUpload()` (per-owner cap, 413, magic bytes, R2 then DB with cleanup) and `serveAttachment()` (inline / download, sandbox CSP) — **server only** |
+| `controls.ts` | **Pure** (client-safe): control types/states/filters + French labels, `computeControls(vehicles, records, appointments, today)` (CT via `getNextCtDate`, revision via `getNextRevision` only when a real date exists, disinfection via `nextDesinfMaxDate` when `desinfTracking`; state SCHEDULED if an appointment ≥ today, else OVERDUE if due < today or revision km reached (`remainingKm ≤ 0`), else TO_SCHEDULE; `soon` = due ≤ today + 30 d or km reached, regardless of the appointment; timestamped `nextDesinfMaxDate` reduced to its Paris day), `countControls`, `matchesControlFilter` (`to_schedule` = every row without a future appointment, overdue included), `parisDay` (Europe/Paris day), `appointmentSchema` (format only), `appointmentDateError` (today → + 5 years), `appointmentTaskTitle` — reused by the overview (deliverable 5) |
+| `controlsStore.ts` | DB access for controls: `loadUlControls(ulId, today?, vehicleId?)` (UL vehicles + their `VehicleMaintenanceRecord` + appointments of vehicles **currently** in the UL, garage named only if still visible, `taskId` only if the task still exists), `upsertAppointment` (`ON CONFLICT (vehicleId, controlType)`: keeps id and author, realigns `ulId`), `getAppointmentFor`, `setAppointmentTask`, `syncTaskDueDate`, `getAppointmentRow` (with the vehicle's current UL), `getAppointment`, `deleteAppointment` (scoped to the vehicle's current UL). Never writes `Vehicle` nor `VehicleMaintenanceRecord` — **server only** |
+| `overview.ts` | **Pure** (client-safe): `FleetOverview` type, `compareNextActions` / `sortNextActions` (HIGH first, then due date ascending, no due date last, then oldest), `dossierNextDue` (closest due date among the folder's open tasks), `selectPinned` (pinned open tasks + pinned OPEN folders, closest due first, none last), `selectFallback` (closest-due HIGH open task), `computeCounters` (open folders, vehicle count, `dueSoon` = `dueSoonTasks` (open tasks due ≤ today + 30 d, minus the linked task of a counted control's appointment) + `dueSoonControls` (controls `soon`), missing items of OPEN folders, `controlsToSchedule` = controls with `state !== 'SCHEDULED'`), `buildOverview` (5 next actions + total, priority with fallback only when nothing is pinned, vehicles with open-folder count, `tabCounts`) |
+| `overviewStore.ts` | `loadUlOverview(ulId, sessionUserId, today?)`: open tasks (`listTasks`), OPEN folders (`listDossiers`), `loadUlControls`, UL vehicles (`type` exposed as `model`, no model column) → `buildOverview`. Read only, no table of its own — **server only** |
+| `taskGuards.ts` | `checkTaskTargets()` (400 on out-of-scope assignee/link) and `notifyNewAssignees()` (lazy `@/lib/push`, never throws) — **server only** |
+
+## For AI Agents
+
+### Working In This Directory
+- The UL is **always** `session.user.ulId` (via `requireFleetManager`), never a client value. Schemas are `.strict()`: an extra `ulId` field is a 400.
+- Ownership: `ownsResource()` = `!isOutsideUl(...) && resourceUlId === sessionUlId`. The extra equality is deliberate — `isOutsideUl` exempts SUPER_ADMIN, but in this module a SUPER_ADMIN acts as a manager of their active UL and cannot edit another UL's contact.
+- Only cross-UL exception: read and export of **shared** contacts (and linking a shared contact to a task). Never copy a shared contact into the local directory; never let anything else (tasks, folders, attachments) cross ULs.
+- Link labels are resolved **in the UL scope**: a target no longer visible (vehicle moved, contact unshared, row deleted) comes back as `missing: true` with a generic label and no phone.
+- `IncidentReport` and `VehicleMaintenance` have no `ulId`: always join `Vehicle`.
+- `updateContactSchema` keeps absent fields absent (`emptyToNull` returns `undefined` for `undefined`): a partial PATCH must never blank `email`/`address`/`notes`.
+- A folder's vehicle must belong to the session UL (400 otherwise) and is **immutable** after creation (`vehicleId` in PATCH → 400). A task newly put into a folder (create, or a different `dossierId`) needs an OPEN folder of the same UL (400); the unchanged current folder is accepted even if closed. Entering a folder adds the folder's vehicle link (`withDossierVehicleLink`: if absent, still in the UL, and under `MAX_TASK_LINKS`). Deleting a folder never deletes its tasks.
+- An item's `attachmentId` must be an attachment **of that folder** (400; also enforced inside the UPDATE); deleting that attachment clears it on the item (same transaction), the item stays received.
+- Controls: due dates are computed, never stored or re-entered; only the appointment is written. `getNextCtDate`, `getNextRevision` and the disinfection computation must not be changed from here. No notification or cron for these due dates.
+- No activity log on folders (the audit log is purged after 30 days).
+- Every write route is wrapped in `withAudit`; any new route requires `npm run mcp:catalog`.
+- Adding a table: append its DDL to `FLEET_TRACKING_DDL` and its name to `FLEET_TRACKING_TABLES`, add a `DELETE FROM` in `truncateTables()` of `src/__tests__/integration/setup.ts`, and extend `scripts/add-fleet-tracking.ts` checks if needed.
+
+## Dependencies
+
+### Internal
+- `@/lib/db`, `@/auth`, `@/lib/roles` (`canManageVehicles`), `@/lib/apiAuth` (`isOutsideUl`, 401/403 responses)
