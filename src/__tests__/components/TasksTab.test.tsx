@@ -274,7 +274,8 @@ describe('TasksTab', () => {
         const onChanged = vi.fn();
         render(<TasksTab openTaskId="balais" onOpenTask={vi.fn()} onChanged={onChanged} />);
         const dialog = await screen.findByRole('dialog', { name: 'Modifier la tâche' });
-        const title = within(dialog).getByLabelText('Titre *') as HTMLInputElement;
+        // Le formulaire se charge après l'ouverture de la modale : attendre le champ.
+        const title = await within(dialog).findByLabelText('Titre *') as HTMLInputElement;
         await waitFor(() => expect(title.value).toBe('Remplacer les balais'));
         fireEvent.change(title, { target: { value: 'Remplacer les balais avant' } });
         fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
