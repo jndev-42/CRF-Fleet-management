@@ -3,7 +3,7 @@ import { getErrorMessage } from '@/lib/utils/error';
 import { withAudit } from '@/lib/audit/log';
 import { parseBody, requireFleetManager } from '@/lib/fleetTracking/access';
 import { updateDossierSchema } from '@/lib/fleetTracking/dossiers';
-import { DOSSIER_NOT_FOUND, loadOwnedDossier } from '@/lib/fleetTracking/dossierGuards';
+import { checkDossierVehicles, DOSSIER_NOT_FOUND, loadOwnedDossier } from '@/lib/fleetTracking/dossierGuards';
 import { deleteDossier, getDossierDetail, updateDossier } from '@/lib/fleetTracking/dossiersStore';
 
 // La suppression efface aussi les pièces jointes sur R2.
@@ -32,8 +32,9 @@ export async function GET(_request: Request, { params }: Context) {
 
 /**
  * PATCH /api/fleet-tracking/dossiers/[id]
- * Modification partielle (titre, description, épingle, état). Le véhicule est fixé à
- * la création (`vehicleId` → 400).
+ * Modification partielle (titre, description, épingle, état, véhicules). `vehicleIds`
+ * remplace la liste des véhicules (au moins un) : chacun doit être de l'UL, ou déjà
+ * porté par le dossier. `vehicleId` seul → 400.
  * Clore pose `closedAt`, rouvrir l'efface ; clore ne supprime rien.
  */
 async function patchHandler(request: Request, { params }: Context) {
@@ -47,6 +48,11 @@ async function patchHandler(request: Request, { params }: Context) {
 
         const owned = await loadOwnedDossier(access, id);
         if (!owned.ok) return owned.response;
+
+        if (parsed.data.vehicleIds) {
+            const invalid = await checkDossierVehicles(access.ulId, parsed.data.vehicleIds, owned.row.vehicleIds);
+            if (invalid) return invalid;
+        }
 
         if (!(await updateDossier(id, access.ulId, owned.row, parsed.data))) return DOSSIER_NOT_FOUND();
 

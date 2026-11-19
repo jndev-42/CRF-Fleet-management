@@ -6,6 +6,7 @@ import { computeSessionRoles } from '@/lib/session-roles';
 import { listActiveUlMembers } from '@/lib/ulMembers';
 import type { AttachmentOwnerType } from './attachments';
 import { parsePhones } from './contacts';
+import { dossierHasVehicleSql } from './schema';
 import {
     dedupeLinks,
     formatFrDate,
@@ -392,14 +393,14 @@ export async function listTasks(
     ulId: string,
     filters: TaskFilters,
     sessionUserId: string | null,
-    /** Historique d'un véhicule : tâches hors dossier OU dans le dossier d'un AUTRE véhicule. */
+    /** Historique d'un véhicule : tâches hors dossier OU dans un dossier qui ne porte pas ce véhicule. */
     opts: { outsideDossiersOfVehicle?: string } = {},
 ): Promise<FleetTask[]> {
     const where = ['t.ulId = ?'];
     const args: (string | number)[] = [ulId];
     if (opts.outsideDossiersOfVehicle) {
-        where.push(`(t.dossierId IS NULL OR NOT EXISTS (SELECT 1 FROM "FleetDossier" d WHERE d.id = t.dossierId AND d.vehicleId = ?))`);
-        args.push(opts.outsideDossiersOfVehicle);
+        where.push(`(t.dossierId IS NULL OR NOT EXISTS (SELECT 1 FROM "FleetDossier" d WHERE d.id = t.dossierId AND ${dossierHasVehicleSql('d')}))`);
+        args.push(opts.outsideDossiersOfVehicle, opts.outsideDossiersOfVehicle);
     }
     if (filters.pinned) where.push('t.pinned = 1');
     if (filters.due) {

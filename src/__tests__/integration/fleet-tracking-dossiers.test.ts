@@ -144,7 +144,7 @@ describe('création et validation', () => {
         const json = await res.json() as { id: string; dossier: Record<string, unknown> };
         expect(json.dossier).toMatchObject({
             title: 'Sinistre roue', description: 'Jante voilée', status: 'OPEN', pinned: false, closedAt: null,
-            vehicle: { id: 'veh-a', name: '75-188', plate: 'GV-114-QM', missing: false },
+            vehicles: [{ id: 'veh-a', name: '75-188', plate: 'GV-114-QM', missing: false }],
             taskCount: 0, itemCount: 0, missingItemCount: 0, attachmentCount: 0, items: [], tasks: [], attachments: [],
         });
         const row = await dossierRow(json.id);
@@ -211,7 +211,7 @@ describe('modification', () => {
         expect(row.title).toBe('Nouveau titre');
     });
 
-    it('le véhicule est fixé à la création : vehicleId en PATCH → 400 ; corps vide → 400', async () => {
+    it('vehicleId seul en PATCH → 400 (la liste passe par vehicleIds) ; corps vide → 400', async () => {
         const id = await createDossier();
         await as(RESP_A);
         expect((await patchDossier(req('PATCH', { vehicleId: 'veh-a2' }), withId(id))).status).toBe(400);
@@ -511,5 +511,95 @@ describe('historique du véhicule', () => {
         await as(RESP_A);
         expect((await getHistory(req('GET'), withName('75-150'))).status).toBe(403);
         expect((await getHistory(req('GET'), withName('99-999'))).status).toBe(404);
+    });
+});
+
+describe('dossier sur plusieurs véhicules', () => {
+    const links = async (id: string) =>
+        (await db.execute({ sql: `SELECT vehicleId, position FROM "FleetDossierVehicle" WHERE dossierId = ? ORDER BY position`, args: [id] })).rows
+            .map(r => [String(r.vehicleId), Number(r.position)]);
+
+    it('201 : vehicleIds dans l\'ordre de choix, doublon retiré, premier véhicule dans FleetDossier.vehicleId', async () => {
+        await as(RESP_A);
+        const res = await postDossier(req('POST', { vehicleIds: ['veh-a2', 'veh-a', 'veh-a2'], title: 'Pneus hiver' }));
+        expect(res.status).toBe(201);
+        const json = await res.json() as { id: string; dossier: { vehicles: { id: string; name: string }[] } };
+        expect(json.dossier.vehicles.map(v => v.id)).toEqual(['veh-a2', 'veh-a']);
+        expect(await links(json.id)).toEqual([['veh-a2', 0], ['veh-a', 1]]);
+        expect((await dossierRow(json.id)).vehicleId).toBe('veh-a2');
+    });
+
+    it('400 : liste vide, ou un véhicule hors de l\'UL (rien n\'est écrit)', async () => {
+        const count = async () => [
+            (await db.execute(`SELECT COUNT(*) AS n FROM "FleetDossier"`)).rows[0].n,
+            (await db.execute(`SELECT COUNT(*) AS n FROM "FleetDossierVehicle"`)).rows[0].n,
+        ];
+        const before = await count();
+        await as(RESP_A);
+        expect((await postDossier(req('POST', { vehicleIds: [], title: 'X' }))).status).toBe(400);
+        expect((await postDossier(req('POST', { vehicleIds: ['veh-a', 'veh-b'], title: 'X' }))).status).toBe(400);
+        expect(await count()).toEqual(before);
+    });
+
+    it('PATCH vehicleIds remplace la liste ; un véhicule parti de l\'UL peut rester, pas en être ajouté', async () => {
+        const id = await createDossier();
+        await as(RESP_A);
+        let res = await patchDossier(req('PATCH', { vehicleIds: ['veh-a', 'veh-a2'] }), withId(id));
+        expect(res.status).toBe(200);
+        expect(await links(id)).toEqual([['veh-a', 0], ['veh-a2', 1]]);
+
+        // veh-a2 change d'UL : il reste dans le dossier (indisponible), conservable à la modification.
+        await db.execute(`UPDATE "Vehicle" SET ulId = 'ul-b' WHERE id = 'veh-a2'`);
+        const detail = await (await getDossier(req('GET'), withId(id))).json() as { dossier: { vehicles: { id: string; missing: boolean }[] } };
+        expect(detail.dossier.vehicles).toEqual([expect.objectContaining({ id: 'veh-a', missing: false }), expect.objectContaining({ id: 'veh-a2', missing: true })]);
+        expect((await patchDossier(req('PATCH', { vehicleIds: ['veh-a2', 'veh-a'], title: 'Renommé' }), withId(id))).status).toBe(200);
+        expect((await dossierRow(id)).vehicleId).toBe('veh-a2');
+        // Un véhicule d'une autre UL ne peut pas être AJOUTÉ.
+        expect((await patchDossier(req('PATCH', { vehicleIds: ['veh-a', 'veh-b'] }), withId(id))).status).toBe(400);
+        expect((await patchDossier(req('PATCH', { vehicleIds: [] }), withId(id))).status).toBe(400);
+        res = await patchDossier(req('PATCH', { vehicleIds: ['veh-a'] }), withId(id));
+        expect(await links(id)).toEqual([['veh-a', 0]]);
+    });
+
+    it('liste filtrée par véhicule et historique : le dossier apparaît pour chacun de ses véhicules', async () => {
+        const id = await createDossier({ vehicleIds: ['veh-a', 'veh-a2'], vehicleId: undefined });
+        await createDossier({ title: 'Seul', vehicleId: 'veh-a' });
+        await as(RESP_A);
+        const list = async (v: string) =>
+            ((await (await listDossiers(req('GET', undefined, `${BASE}?vehicle=${v}`))).json()) as { dossiers: { id: string }[] }).dossiers.map(d => d.id);
+        expect(await list('veh-a2')).toEqual([id]);
+        expect(await list('veh-a')).toHaveLength(2);
+        const history = await (await getHistory(req('GET'), withName('75-186'))).json() as { entries: { dossier?: { id: string } }[] };
+        expect(history.entries.map(e => e.dossier?.id)).toEqual([id]);
+    });
+
+    it('tâche rangée dans le dossier : reçoit le rattachement à chacun de ses véhicules', async () => {
+        const id = await createDossier({ vehicleIds: ['veh-a', 'veh-a2'], vehicleId: undefined });
+        await as(RESP_A);
+        const res = await postTask(req('POST', { title: 'Monter les pneus', dossierId: id }, 'http://localhost/api/fleet-tracking/tasks'));
+        expect(res.status).toBe(201);
+        const taskId = (await res.json() as { id: string }).id;
+        const rows = (await db.execute({ sql: `SELECT targetId FROM "FleetTaskLink" WHERE taskId = ? AND targetType = 'VEHICLE'`, args: [taskId] })).rows;
+        expect(rows.map(r => String(r.targetId)).sort()).toEqual(['veh-a', 'veh-a2']);
+        // Rangée dans un dossier qui porte le véhicule : pas d'entrée à part dans son historique.
+        const history = await (await getHistory(req('GET'), withName('75-186'))).json() as { entries: { kind: string }[] };
+        expect(history.entries.map(e => e.kind)).toEqual(['DOSSIER']);
+    });
+
+    it('dossier antérieur à la reprise (sans ligne FleetDossierVehicle) : lu avec son vehicleId', async () => {
+        const id = await createDossier();
+        await db.execute({ sql: `DELETE FROM "FleetDossierVehicle" WHERE dossierId = ?`, args: [id] });
+        await as(RESP_A);
+        const detail = await (await getDossier(req('GET'), withId(id))).json() as { dossier: { vehicles: { id: string }[] } };
+        expect(detail.dossier.vehicles.map(v => v.id)).toEqual(['veh-a']);
+        const listed = await (await listDossiers(req('GET', undefined, `${BASE}?vehicle=veh-a`))).json() as { dossiers: { id: string }[] };
+        expect(listed.dossiers.map(d => d.id)).toEqual([id]);
+    });
+
+    it('suppression : les véhicules du dossier sont retirés avec lui', async () => {
+        const id = await createDossier({ vehicleIds: ['veh-a', 'veh-a2'], vehicleId: undefined });
+        await as(RESP_A);
+        expect((await deleteDossier(req('DELETE'), withId(id))).status).toBe(200);
+        expect(await links(id)).toEqual([]);
     });
 });

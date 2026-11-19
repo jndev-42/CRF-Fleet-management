@@ -110,6 +110,11 @@ export interface LinkTarget {
     detail: string | null;
 }
 
+/** Rattachement « véhicule » d'une tâche à partir d'un véhicule proposé (libellé = nom, détail = plaque). */
+export function vehicleTaskLink(target: Pick<LinkTarget, 'id' | 'label' | 'detail'>): TaskLink {
+    return { type: 'VEHICLE', id: target.id, label: target.label, detail: target.detail, phone: null, vehicleName: target.label, missing: false };
+}
+
 // ── Validation ───────────────────────────────────────────────────
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

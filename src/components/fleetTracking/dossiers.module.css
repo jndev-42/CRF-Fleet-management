@@ -346,3 +346,38 @@
         min-height: 44px;
     }
 }
+
+/* ── Choix des véhicules (modale de dossier) ─────────────────────── */
+
+.vehicleFieldset {
+    border: 0;
+    margin: 0 0 16px;
+    padding: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vehicleChecklist {
+    list-style: none;
+    margin: 0;
+    padding: 4px 0;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    background: var(--bg-card);
+}
+
+.vehicleChecklist > li {
+    padding: 0 12px;
+}
+
+.vehicleOption {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 40px;
+    cursor: pointer;
+}

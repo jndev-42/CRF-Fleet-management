@@ -12,9 +12,9 @@ interface Props {
     dossier: FleetDossierDetail;
 }
 
-/** Objets rattachés aux tâches du dossier (hors son véhicule), sans doublon. */
+/** Objets rattachés aux tâches du dossier (hors ses véhicules), sans doublon. */
 export function dossierLinkedObjects(dossier: FleetDossierDetail): TaskLink[] {
-    const seen = new Set<string>([`VEHICLE:${dossier.vehicle.id}`]);
+    const seen = new Set<string>(dossier.vehicles.map(v => `VEHICLE:${v.id}`));
     const out: TaskLink[] = [];
     for (const t of dossier.tasks) {
         for (const l of t.links) {
@@ -27,23 +27,30 @@ export function dossierLinkedObjects(dossier: FleetDossierDetail): TaskLink[] {
     return out;
 }
 
-/** Colonne latérale du détail : véhicule du dossier (lien vers sa fiche) et objets rattachés à ses tâches. */
+/** Colonne latérale du détail : véhicules du dossier (lien vers leur fiche) et objets rattachés à ses tâches. */
 export default function DossierLinks({ dossier }: Props) {
     const linked = dossierLinkedObjects(dossier);
     return (
         <aside className={styles.detailSide}>
             <section className={styles.card} aria-labelledby="dossier-vehicle-title">
-                <h3 id="dossier-vehicle-title" className={styles.cardTitle}>Véhicule</h3>
-                <div className={styles.vehicle}>
-                    <Car size={20} aria-hidden="true" />
-                    <div>
-                        <div className={styles.itemLabel}>{dossier.vehicle.name}</div>
-                        {dossier.vehicle.plate && <div className={styles.rowMeta}>{dossier.vehicle.plate}</div>}
-                    </div>
-                </div>
-                {!dossier.vehicle.missing && (
-                    <Link className={taskStyles.chipLink} href={`/vehicles/${encodeURIComponent(dossier.vehicle.name)}`}>Fiche véhicule →</Link>
-                )}
+                <h3 id="dossier-vehicle-title" className={styles.cardTitle}>{dossier.vehicles.length > 1 ? 'Véhicules' : 'Véhicule'}</h3>
+                <ul className={styles.items}>
+                    {dossier.vehicles.map(v => (
+                        <li key={v.id}>
+                            <div className={styles.vehicle}>
+                                <Car size={20} aria-hidden="true" />
+                                <div>
+                                    <div className={styles.itemLabel}>{v.name}</div>
+                                    {v.plate && <div className={styles.rowMeta}>{v.plate}</div>}
+                                </div>
+                            </div>
+                            {!v.missing && (
+                                <Link className={taskStyles.chipLink} href={`/vehicles/${encodeURIComponent(v.name)}`}
+                                    aria-label={`Fiche véhicule ${v.name}`}>Fiche véhicule →</Link>
+                            )}
+                        </li>
+                    ))}
+                </ul>
             </section>
             {linked.length > 0 && (
                 <section className={styles.card} aria-labelledby="dossier-links-title">

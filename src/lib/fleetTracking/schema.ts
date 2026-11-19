@@ -156,10 +156,47 @@ export const FLEET_DOSSIER_ITEM_DDL = `CREATE TABLE IF NOT EXISTS "${FLEET_DOSSI
     "createdAt"     TEXT NOT NULL
 )`;
 
+export const FLEET_DOSSIER_VEHICLE_TABLE = 'FleetDossierVehicle';
+
+/**
+ * Véhicules d'un dossier (un ou plusieurs) : source de vérité du rattachement.
+ * `position` : ordre d'affichage (ordre de choix). `FleetDossier.vehicleId` garde le
+ * PREMIER véhicule (colonne historique, NOT NULL), tenu à jour à chaque écriture.
+ */
+export const FLEET_DOSSIER_VEHICLE_DDL = `CREATE TABLE IF NOT EXISTS "${FLEET_DOSSIER_VEHICLE_TABLE}" (
+    "dossierId" TEXT NOT NULL,
+    "vehicleId" TEXT NOT NULL,
+    "position"  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY ("dossierId", "vehicleId")
+)`;
+
+/**
+ * Reprise idempotente : chaque dossier sans véhicule dans `FleetDossierVehicle` y
+ * reçoit son `FleetDossier.vehicleId` (dossiers antérieurs à la v5.56.0).
+ */
+export const FLEET_DOSSIER_VEHICLE_BACKFILL = `INSERT OR IGNORE INTO "${FLEET_DOSSIER_VEHICLE_TABLE}" ("dossierId", "vehicleId", "position")
+    SELECT d."id", d."vehicleId", 0 FROM "${FLEET_DOSSIER_TABLE}" d
+    WHERE NOT EXISTS (SELECT 1 FROM "${FLEET_DOSSIER_VEHICLE_TABLE}" dv WHERE dv."dossierId" = d."id")`;
+
+/** Dossiers encore sans véhicule dans `FleetDossierVehicle` (reprise à faire). */
+export const FLEET_DOSSIER_VEHICLE_PENDING = `SELECT COUNT(*) AS n FROM "${FLEET_DOSSIER_TABLE}" d
+    WHERE NOT EXISTS (SELECT 1 FROM "${FLEET_DOSSIER_VEHICLE_TABLE}" dv WHERE dv."dossierId" = d."id")`;
+
+/**
+ * Condition SQL « le dossier `alias` porte le véhicule ? » (un `?` : l'id du véhicule,
+ * passé DEUX fois). Un dossier sans ligne dans FleetDossierVehicle (créé avant la
+ * reprise) compte pour son `vehicleId`.
+ */
+export function dossierHasVehicleSql(alias: string): string {
+    return `(EXISTS (SELECT 1 FROM "${FLEET_DOSSIER_VEHICLE_TABLE}" dv WHERE dv."dossierId" = ${alias}."id" AND dv."vehicleId" = ?)
+        OR (${alias}."vehicleId" = ? AND NOT EXISTS (SELECT 1 FROM "${FLEET_DOSSIER_VEHICLE_TABLE}" dv WHERE dv."dossierId" = ${alias}."id")))`;
+}
+
 export const FLEET_DOSSIER_INDEXES = [
     `CREATE INDEX IF NOT EXISTS "idx_FleetDossier_ulId_status" ON "${FLEET_DOSSIER_TABLE}" ("ulId", "status")`,
     `CREATE INDEX IF NOT EXISTS "idx_FleetDossier_vehicleId" ON "${FLEET_DOSSIER_TABLE}" ("vehicleId")`,
     `CREATE INDEX IF NOT EXISTS "idx_FleetDossierItem_dossierId" ON "${FLEET_DOSSIER_ITEM_TABLE}" ("dossierId")`,
+    `CREATE INDEX IF NOT EXISTS "idx_FleetDossierVehicle_vehicleId" ON "${FLEET_DOSSIER_VEHICLE_TABLE}" ("vehicleId")`,
 ];
 
 // ── Contrôles (livrable 4) ───────────────────────────────────────
@@ -216,6 +253,7 @@ export const FLEET_TRACKING_TABLES = [
     FLEET_DOSSIER_TABLE,
     FLEET_DOSSIER_ITEM_TABLE,
     FLEET_CONTROL_APPOINTMENT_TABLE,
+    FLEET_DOSSIER_VEHICLE_TABLE,
 ];
 
 /** Toutes les instructions DDL du module, dans l'ordre d'exécution. */
@@ -229,6 +267,7 @@ export const FLEET_TRACKING_DDL: string[] = [
     ...FLEET_TASK_INDEXES,
     FLEET_DOSSIER_DDL,
     FLEET_DOSSIER_ITEM_DDL,
+    FLEET_DOSSIER_VEHICLE_DDL,
     ...FLEET_DOSSIER_INDEXES,
     FLEET_CONTROL_APPOINTMENT_DDL,
     ...FLEET_CONTROL_INDEXES,

@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.56.0] — 19 novembre 2026
+
+### ✨ Nouveautés
+
+- Dossiers : un dossier peut désormais concerner plusieurs véhicules à la fois (par exemple une commande de pneus pour trois VL). Dans la fenêtre du dossier, on coche les véhicules concernés, avec une recherche quand l'UL en compte beaucoup. La liste des véhicules reste modifiable ensuite : on peut en ajouter ou en retirer, il en faut au moins un.
+- Un dossier sur plusieurs véhicules apparaît dans le filtre « Dossiers » de chacun d'eux, dans la section « Suivi technique » de leur fiche et dans leur nombre de dossiers ouverts sur la vue d'ensemble. Sa page liste tous ses véhicules, chacun avec un lien vers sa fiche, et une tâche ajoutée au dossier est rattachée à tous ses véhicules.
+
+### 🐛 Corrections
+
+- Dossiers : quand la liste est filtrée sur un véhicule, « Nouveau dossier » coche directement ce véhicule ; il n'est plus nécessaire de le choisir à nouveau. Depuis la fiche véhicule, « + Dossier pour ce véhicule » le coche aussi, et d'autres véhicules peuvent être ajoutés.
+- Tâches : de même, quand le tableau est filtré sur un véhicule, une nouvelle tâche est rattachée d'office à ce véhicule.
+
 ## [5.55.0] — 18 novembre 2026
 
 ### ✨ Nouveautés

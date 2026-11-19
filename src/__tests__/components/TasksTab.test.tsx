@@ -281,4 +281,25 @@ describe('TasksTab', () => {
         fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
         await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
     });
+
+    it('« Tâche » pendant un filtre véhicule : la nouvelle tâche est rattachée d\'office à ce véhicule (#176)', async () => {
+        const base = fetchMock.getMockImplementation() as (url: string, init?: RequestInit) => Promise<Response>;
+        fetchMock.mockImplementation(async (url: string, init?: RequestInit) => url.startsWith('/api/fleet-tracking/link-targets')
+            ? new Response(JSON.stringify({ targets: [{ type: 'VEHICLE', id: 'veh-9', label: '75-190', detail: 'CC-222-CC' }] }), { status: 200 })
+            : base(url, init));
+        render(<TasksTab openTaskId={null} onOpenTask={vi.fn()} />);
+        await screen.findByRole('option', { name: '75-190' });
+        fireEvent.change(screen.getByLabelText('Filtrer par véhicule'), { target: { value: 'veh-9' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Tâche' }));
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).getByText('75-190')).toBeTruthy();
+    });
+
+    it('« Tâche » sans filtre véhicule : aucun rattachement pré-rempli', async () => {
+        render(<TasksTab openTaskId={null} onOpenTask={vi.fn()} />);
+        await screen.findByRole('region', { name: /À faire/ });
+        fireEvent.click(screen.getByRole('button', { name: 'Tâche' }));
+        const dialog = await screen.findByRole('dialog');
+        expect(within(dialog).queryByText('75-188')).toBeNull();
+    });
 });

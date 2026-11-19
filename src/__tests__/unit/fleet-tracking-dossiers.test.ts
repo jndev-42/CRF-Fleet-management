@@ -10,18 +10,20 @@ import {
     dossierDeepLink,
     dossierFiltersSchema,
     dossierSummary,
+    dossierVehicleNames,
     isHistoryEntryActive,
     missingItemsLabel,
     updateDossierSchema,
     updateItemSchema,
+    visibleVehicles,
     type FleetDossier,
 } from '@/lib/fleetTracking/dossiers';
 import { buildAttachmentKey } from '@/lib/fleetTracking/attachments';
-import { createTaskSchema, taskFiltersSchema, updateTaskSchema } from '@/lib/fleetTracking/tasks';
+import { createTaskSchema, taskFiltersSchema, updateTaskSchema, vehicleTaskLink } from '@/lib/fleetTracking/tasks';
 
 const dossier = (patch: Partial<FleetDossier>): FleetDossier => ({
     id: 'd', title: 'X', description: null, status: 'OPEN', pinned: false,
-    vehicle: { id: 'v', name: '75-188', plate: null, missing: false }, createdByName: null,
+    vehicles: [{ id: 'v', name: '75-188', plate: null, missing: false }], createdByName: null,
     createdAt: '2026-11-01T00:00:00Z', updatedAt: 't', closedAt: null,
     taskCount: 0, openTaskCount: 0, itemCount: 0, missingItemCount: 0, attachmentCount: 0, ...patch,
 });
@@ -29,7 +31,10 @@ const dossier = (patch: Partial<FleetDossier>): FleetDossier => ({
 describe('dossiers.ts — validation', () => {
     it('création : défauts OPEN / non épinglé, description vide → null, strict', () => {
         expect(createDossierSchema.parse({ vehicleId: 'v', title: ' T ', description: '' }))
-            .toEqual({ vehicleId: 'v', title: 'T', description: null, status: 'OPEN', pinned: false });
+            .toEqual({ vehicleIds: ['v'], title: 'T', description: null, status: 'OPEN', pinned: false });
+        expect(createDossierSchema.parse({ vehicleIds: ['a', 'b', 'a'], title: 'T' }).vehicleIds).toEqual(['a', 'b']);
+        expect(createDossierSchema.safeParse({ vehicleIds: [], title: 'T' }).success).toBe(false);
+        expect(createDossierSchema.safeParse({ vehicleIds: Array.from({ length: 51 }, (_, i) => `v${i}`), title: 'T' }).success).toBe(false);
         expect(createDossierSchema.safeParse({ vehicleId: 'v', title: 'T', ulId: 'x' }).success).toBe(false);
         expect(createDossierSchema.safeParse({ title: 'T' }).success).toBe(false);
         expect(createDossierSchema.safeParse({ vehicleId: 'v', title: 'x'.repeat(201) }).success).toBe(false);
@@ -39,8 +44,10 @@ describe('dossiers.ts — validation', () => {
         expect(updateDossierSchema.parse({ status: 'CLOSED' })).toEqual({ status: 'CLOSED' });
         expect(updateDossierSchema.safeParse({}).success).toBe(false);
         expect(updateDossierSchema.safeParse({ status: 'DONE' }).success).toBe(false);
-        // Véhicule fixé à la création.
+        // La liste des véhicules passe par vehicleIds (au moins un).
         expect(updateDossierSchema.safeParse({ vehicleId: 'v2' }).success).toBe(false);
+        expect(updateDossierSchema.parse({ vehicleIds: ['v2', 'v2'] })).toEqual({ vehicleIds: ['v2'] });
+        expect(updateDossierSchema.safeParse({ vehicleIds: [] }).success).toBe(false);
     });
 
     it('pièces : libellé requis ≤ 200, valeur ≤ 500, attachmentId nullable', () => {
@@ -60,6 +67,22 @@ describe('dossiers.ts — validation', () => {
 });
 
 describe('dossiers.ts — affichage', () => {
+    it('véhicules : noms joints, véhicules partis écartés de visibleVehicles', () => {
+        const d = dossier({ vehicles: [
+            { id: 'a', name: '75-188', plate: null, missing: false },
+            { id: 'b', name: 'Véhicule indisponible', plate: null, missing: true },
+            { id: 'c', name: '75-186', plate: 'AA', missing: false },
+        ] });
+        expect(dossierVehicleNames(d)).toBe('75-188, Véhicule indisponible, 75-186');
+        expect(visibleVehicles(d).map(v => v.id)).toEqual(['a', 'c']);
+    });
+
+    it('vehicleTaskLink : rattachement véhicule (libellé = nom, détail = plaque)', () => {
+        expect(vehicleTaskLink({ id: 'v', label: '75-188', detail: 'GV-114-QM' })).toEqual({
+            type: 'VEHICLE', id: 'v', label: '75-188', detail: 'GV-114-QM', phone: null, vehicleName: '75-188', missing: false,
+        });
+    });
+
     it('missingItemsLabel', () => {
         expect(missingItemsLabel([])).toBeNull();
         expect(missingItemsLabel([{ received: true }, { received: false }])).toBe('1 sur 2 manquantes');

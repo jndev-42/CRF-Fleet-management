@@ -208,9 +208,9 @@ describe('OverviewTab', () => {
         const { onOpenDossier, onChanged } = renderTab(makeOverview());
         fireEvent.click(screen.getByRole('button', { name: /Nouveau dossier/ }));
         const dialog = await screen.findByRole('dialog');
-        await within(dialog).findByRole('option', { name: '75-188' });
+        const vehicle = await within(dialog).findByRole('checkbox', { name: /75-188/ });
         fireEvent.change(within(dialog).getByLabelText('Titre *'), { target: { value: 'Sinistre roue' } });
-        fireEvent.change(within(dialog).getByLabelText('Véhicule *'), { target: { value: 'veh-188' } });
+        fireEvent.click(vehicle);
         fireEvent.click(within(dialog).getByRole('button', { name: 'Enregistrer' }));
         await waitFor(() => expect(onOpenDossier).toHaveBeenCalledWith('d-new'));
         expect(onChanged).toHaveBeenCalled();
@@ -233,7 +233,7 @@ describe('OverviewTab', () => {
                     kind: 'DOSSIER', dueDate: null,
                     dossier: {
                         id: 'd-1', title: 'Sinistre roue arrière droite', description: null, status: 'OPEN', pinned: true,
-                        vehicle: { id: 'veh-188', name: '75-188', plate: null, missing: false }, createdByName: null,
+                        vehicles: [{ id: 'veh-188', name: '75-188', plate: null, missing: false }], createdByName: null,
                         createdAt: 't', updatedAt: 't', closedAt: null,
                         taskCount: 1, openTaskCount: 1, itemCount: 2, missingItemCount: 2, attachmentCount: 0,
                     },

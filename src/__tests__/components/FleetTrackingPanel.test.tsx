@@ -20,7 +20,7 @@ const TASK: FleetTaskDetail = {
 
 const DOSSIER: FleetDossier = {
     id: 'd-1', title: 'Sinistre roue arrière droite', description: null, status: 'OPEN', pinned: true,
-    vehicle: { id: 'veh-a', name: '75-188', plate: null, missing: false }, createdByName: null,
+    vehicles: [{ id: 'veh-a', name: '75-188', plate: null, missing: false }], createdByName: null,
     createdAt: '2026-11-14T10:00:00Z', updatedAt: 't', closedAt: null,
     taskCount: 2, openTaskCount: 2, itemCount: 4, missingItemCount: 2, attachmentCount: 0,
 };

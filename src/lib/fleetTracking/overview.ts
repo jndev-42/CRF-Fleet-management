@@ -160,8 +160,11 @@ export function buildOverview(src: OverviewSource): FleetOverview {
     const pinned = selectPinned(src.tasks, src.dossiers);
     const openDossiersByVehicle = new Map<string, number>();
     for (const d of src.dossiers) {
-        if (d.status !== 'OPEN' || d.vehicle.missing) continue;
-        openDossiersByVehicle.set(d.vehicle.id, (openDossiersByVehicle.get(d.vehicle.id) ?? 0) + 1);
+        if (d.status !== 'OPEN') continue;
+        // Un dossier sur plusieurs véhicules compte pour chacun d'eux.
+        for (const v of d.vehicles) {
+            if (!v.missing) openDossiersByVehicle.set(v.id, (openDossiersByVehicle.get(v.id) ?? 0) + 1);
+        }
     }
     const counters = computeCounters(src);
     return {

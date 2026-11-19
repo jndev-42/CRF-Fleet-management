@@ -1,7 +1,7 @@
 'use client';
 
 import { FolderOpen, Pin } from 'lucide-react';
-import { dossierSummary, DOSSIER_STATUS_LABELS, type FleetDossier } from '@/lib/fleetTracking/dossiers';
+import { dossierSummary, dossierVehicleNames, DOSSIER_STATUS_LABELS, type FleetDossier } from '@/lib/fleetTracking/dossiers';
 import { formatFrDate } from '@/lib/fleetTracking/tasks';
 import styles from './dossiers.module.css';
 
@@ -10,16 +10,16 @@ interface Props {
     onOpen: () => void;
     /** Libellé du bouton (« Ouvrir » par défaut ; « Consulter » pour un dossier clos). */
     actionLabel?: string;
-    /** Masque le véhicule (historique d'un véhicule). */
+    /** Masque les véhicules (historique d'un véhicule). */
     hideVehicle?: boolean;
 }
 
-/** Ligne d'un dossier : état, titre, véhicule, dates et résumé (tâches en cours, pièces manquantes). */
+/** Ligne d'un dossier : état, titre, véhicules, dates et résumé (tâches en cours, pièces manquantes). */
 export default function DossierListItem({ dossier: d, onOpen, actionLabel, hideVehicle = false }: Props) {
     const dates = d.status === 'CLOSED' && d.closedAt
         ? `${formatFrDate(d.createdAt)} → ${formatFrDate(d.closedAt)}`
         : `Ouvert le ${formatFrDate(d.createdAt)}`;
-    const meta = [hideVehicle ? null : d.vehicle.name, dates, dossierSummary(d)].filter(Boolean).join(' · ');
+    const meta = [hideVehicle ? null : dossierVehicleNames(d), dates, dossierSummary(d)].filter(Boolean).join(' · ');
     return (
         <li className={styles.row}>
             <span className={`${styles.status} ${styles[`status_${d.status}`]}`}>{DOSSIER_STATUS_LABELS[d.status]}</span>

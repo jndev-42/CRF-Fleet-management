@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { groupTasksByStatus, TASK_STATUSES, todayIso, type FleetTask, type TaskStatus } from '@/lib/fleetTracking/tasks';
+import { groupTasksByStatus, TASK_STATUSES, todayIso, vehicleTaskLink, type FleetTask, type TaskStatus } from '@/lib/fleetTracking/tasks';
 import TaskColumn from './TaskColumn';
 import TaskModal from './TaskModal';
 import TasksToolbar, { type TasksView } from './TasksToolbar';
@@ -50,6 +50,9 @@ export default function TasksTab({ openTaskId, onOpenTask, onChanged, initialFil
     }
     const { assignees, vehicles } = useTaskOptions();
     const today = todayIso();
+    // Création pendant un filtre véhicule : la tâche est rattachée d'office à ce véhicule.
+    const filterVehicle = filters.vehicle ? vehicles.find(v => v.id === filters.vehicle) : undefined;
+    const createDefaults = filterVehicle ? { links: [vehicleTaskLink(filterVehicle)] } : undefined;
 
     // Préférence d'affichage mémorisée par appareil (confort seulement).
     useEffect(() => {
@@ -145,6 +148,7 @@ export default function TasksTab({ openTaskId, onOpenTask, onChanged, initialFil
                     taskId={creating ? null : openTaskId}
                     initialStatus={creating?.status ?? 'TODO'}
                     assignees={assignees}
+                    defaults={creating ? createDefaults : undefined}
                     onClose={closeModal}
                     onSaved={(message) => {
                         setActionError(message ?? null);

@@ -1,5 +1,6 @@
 'use client';
 
+import { dossierVehicleNames } from '@/lib/fleetTracking/dossiers';
 import { useDossierOptions } from './useFleetDossiers';
 
 interface Props {
@@ -23,7 +24,7 @@ export default function DossierSelect({ value, onChange, current }: Props) {
                 <option value="">Aucun dossier</option>
                 {current && !shown.some(d => d.id === current) && <option value={current}>Dossier actuel</option>}
                 {shown.map(d => (
-                    <option key={d.id} value={d.id}>{d.title}{d.status === 'CLOSED' ? ' (clos)' : ''} — {d.vehicle.name}</option>
+                    <option key={d.id} value={d.id}>{d.title}{d.status === 'CLOSED' ? ' (clos)' : ''} — {dossierVehicleNames(d)}</option>
                 ))}
             </select>
         </div>

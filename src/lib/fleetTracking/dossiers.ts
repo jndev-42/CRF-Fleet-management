@@ -23,6 +23,8 @@ export const MAX_ITEM_LABEL = 200;
 export const MAX_ITEM_VALUE = 500;
 /** Pièces à récupérer au plus par dossier. */
 export const MAX_DOSSIER_ITEMS = 50;
+/** Véhicules au plus par dossier. */
+export const MAX_DOSSIER_VEHICLES = 50;
 
 // ── Types exposés par l'API ──────────────────────────────────────
 
@@ -41,7 +43,8 @@ export interface FleetDossier {
     description: string | null;
     status: DossierStatus;
     pinned: boolean;
-    vehicle: DossierVehicle;
+    /** Véhicules du dossier (au moins un), dans l'ordre de choix. */
+    vehicles: DossierVehicle[];
     createdByName: string | null;
     createdAt: string;
     updatedAt: string;
@@ -88,8 +91,22 @@ const emptyToNull = (v: string | null | undefined) => (v === undefined ? undefin
 
 const idSchema = z.string().trim().min(1).max(100);
 
+/** Véhicules d'un dossier : au moins un, sans doublon (ordre de choix conservé). */
+const vehicleIdsSchema = z.array(z.string().trim().min(1, 'Véhicule requis').max(100))
+    .min(1, 'Choisissez au moins un véhicule')
+    .max(MAX_DOSSIER_VEHICLES, `${MAX_DOSSIER_VEHICLES} véhicules au plus par dossier`)
+    .transform(ids => [...new Set(ids)]);
+
+/** Ancienne forme `vehicleId` (un seul véhicule) acceptée à la création : convertie en `vehicleIds`. */
+function legacyVehicleId(input: unknown): unknown {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
+    const { vehicleId, ...rest } = input as Record<string, unknown>;
+    if (vehicleId === undefined || 'vehicleIds' in rest) return input;
+    return { ...rest, vehicleIds: [vehicleId] };
+}
+
 const dossierFields = {
-    vehicleId: z.string().trim().min(1, 'Véhicule requis').max(100),
+    vehicleIds: vehicleIdsSchema,
     title: z.string().trim().min(1, 'Titre requis').max(MAX_DOSSIER_TITLE, `Titre limité à ${MAX_DOSSIER_TITLE} caractères`),
     description: z.string().trim().max(MAX_DOSSIER_DESCRIPTION, `Description limitée à ${MAX_DOSSIER_DESCRIPTION} caractères`)
         .nullable().optional().transform(emptyToNull),
@@ -97,14 +114,14 @@ const dossierFields = {
     pinned: z.boolean(),
 };
 
-export const createDossierSchema = z.object({
+export const createDossierSchema = z.preprocess(legacyVehicleId, z.object({
     ...dossierFields,
     status: dossierFields.status.default('OPEN'),
     pinned: dossierFields.pinned.default(false),
-}).strict();
+}).strict());
 
-/** Le véhicule est fixé à la création : `vehicleId` en modification → 400. */
-export const updateDossierSchema = z.object(dossierFields).omit({ vehicleId: true }).partial().strict()
+/** `vehicleIds` remplace la liste des véhicules du dossier (au moins un). */
+export const updateDossierSchema = z.object(dossierFields).partial().strict()
     .refine(v => Object.values(v).some(x => x !== undefined), 'Aucune modification');
 
 export type CreateDossierInput = z.infer<typeof createDossierSchema>;
@@ -170,6 +187,16 @@ export function compareDossiers(a: FleetDossier, b: FleetDossier): number {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
     if (a.status !== b.status) return a.status === 'OPEN' ? -1 : 1;
     return b.createdAt.localeCompare(a.createdAt);
+}
+
+/** Véhicules encore dans l'UL du dossier (les autres n'ont plus de fiche à ouvrir). */
+export function visibleVehicles(d: Pick<FleetDossier, 'vehicles'>): DossierVehicle[] {
+    return d.vehicles.filter(v => !v.missing);
+}
+
+/** « VL 1, VL 2 » : noms des véhicules d'un dossier (« Véhicule indisponible » pour un véhicule parti). */
+export function dossierVehicleNames(d: Pick<FleetDossier, 'vehicles'>): string {
+    return d.vehicles.map(v => v.name).join(', ');
 }
 
 /** Lien profond vers un dossier. */

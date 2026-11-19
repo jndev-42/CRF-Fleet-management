@@ -2,11 +2,13 @@
 
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import type { FleetDossierDetail } from '@/lib/fleetTracking/dossiers';
+import { visibleVehicles, type FleetDossierDetail } from '@/lib/fleetTracking/dossiers';
 import {
     compareTasks,
     formatDueDate,
+    MAX_TASK_LINKS,
     TASK_STATUS_LABELS,
+    vehicleTaskLink,
     type AssignableManager,
     type TaskLink,
 } from '@/lib/fleetTracking/tasks';
@@ -24,17 +26,16 @@ interface Props {
 /** Modale ouverte : `null` fermée, `{ taskId: null }` création dans le dossier. */
 type Open = null | { taskId: string | null };
 
-/** Tâches du dossier ; « + Tâche » crée une tâche rattachée au dossier et à son véhicule. */
+/** Tâches du dossier ; « + Tâche » crée une tâche rattachée au dossier et à ses véhicules. */
 export default function DossierTasks({ dossier, assignees, onTasksChanged }: Props) {
     const [open, setOpen] = useState<Open>(null);
     const tasks = [...dossier.tasks].sort((a, b) => {
         if ((a.status === 'DONE') !== (b.status === 'DONE')) return a.status === 'DONE' ? 1 : -1;
         return compareTasks(a, b);
     });
-    const vehicleLink: TaskLink[] = dossier.vehicle.missing ? [] : [{
-        type: 'VEHICLE', id: dossier.vehicle.id, label: dossier.vehicle.name, detail: dossier.vehicle.plate,
-        phone: null, vehicleName: dossier.vehicle.name, missing: false,
-    }];
+    const vehicleLinks: TaskLink[] = visibleVehicles(dossier)
+        .slice(0, MAX_TASK_LINKS)
+        .map(v => vehicleTaskLink({ id: v.id, label: v.name, detail: v.plate }));
 
     return (
         <section className={styles.card} aria-labelledby="dossier-tasks-title">
@@ -66,7 +67,7 @@ export default function DossierTasks({ dossier, assignees, onTasksChanged }: Pro
                     taskId={open.taskId}
                     initialStatus="TODO"
                     assignees={assignees}
-                    defaults={{ dossierId: dossier.id, links: vehicleLink }}
+                    defaults={{ dossierId: dossier.id, links: vehicleLinks }}
                     onClose={() => setOpen(null)}
                     onSaved={() => onTasksChanged()}
                 />

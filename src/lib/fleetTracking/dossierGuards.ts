@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { forbiddenResponse } from '@/lib/apiAuth';
 import { ownsResource, type FleetAccess } from './access';
-import { getDossierRow, getUlVehicle, type DossierRow } from './dossiersStore';
+import { getDossierRow, getUlVehicleIds, type DossierRow } from './dossiersStore';
 import { MAX_TASK_LINKS, type TaskLinkInput } from './tasks';
 
 /**
@@ -44,13 +44,27 @@ export async function checkTaskDossier(
 }
 
 /**
- * Rattachements d'une tâche qui entre dans un dossier : ajoute le véhicule du dossier
- * s'il manque, s'il est toujours dans l'UL et si la liste n'est pas pleine
- * (`MAX_TASK_LINKS`). `null` : rien à ajouter.
+ * Rattachements d'une tâche qui entre dans un dossier : ajoute les véhicules du
+ * dossier qui manquent, s'ils sont toujours dans l'UL, dans l'ordre du dossier et tant
+ * que la liste n'est pas pleine (`MAX_TASK_LINKS`). `null` : rien à ajouter.
  */
 export async function withDossierVehicleLink(ulId: string, dossier: DossierRow, links: TaskLinkInput[]): Promise<TaskLinkInput[] | null> {
-    if (links.some(l => l.type === 'VEHICLE' && l.id === dossier.vehicleId)) return null;
-    if (links.length >= MAX_TASK_LINKS) return null;
-    if (!(await getUlVehicle(ulId, dossier.vehicleId))) return null;
-    return [...links, { type: 'VEHICLE', id: dossier.vehicleId }];
+    const missing = dossier.vehicleIds.filter(id => !links.some(l => l.type === 'VEHICLE' && l.id === id));
+    if (missing.length === 0 || links.length >= MAX_TASK_LINKS) return null;
+    const inUl = await getUlVehicleIds(ulId, missing);
+    const added = missing.filter(id => inUl.has(id)).slice(0, MAX_TASK_LINKS - links.length);
+    if (added.length === 0) return null;
+    return [...links, ...added.map(id => ({ type: 'VEHICLE' as const, id }))];
+}
+
+/**
+ * Véhicules choisis pour un dossier : chacun doit être un véhicule de l'UL, ou déjà
+ * porté par le dossier modifié (`current` ; un véhicule parti de l'UL peut y rester).
+ * La réponse 400 à renvoyer, ou `null`.
+ */
+export async function checkDossierVehicles(ulId: string, vehicleIds: string[], current: string[] = []): Promise<NextResponse | null> {
+    const toCheck = vehicleIds.filter(id => !current.includes(id));
+    const inUl = await getUlVehicleIds(ulId, toCheck);
+    if (toCheck.every(id => inUl.has(id))) return null;
+    return NextResponse.json({ error: 'Véhicule invalide : introuvable ou hors de votre UL.' }, { status: 400 });
 }

@@ -15,7 +15,7 @@ import type { FleetTask } from '@/lib/fleetTracking/tasks';
 
 const dossier = (id: string, title: string, status: 'OPEN' | 'CLOSED', createdAt: string): FleetDossier => ({
     id, title, description: null, status, pinned: false,
-    vehicle: { id: 'veh-a', name: '75-188', plate: null, missing: false },
+    vehicles: [{ id: 'veh-a', name: '75-188', plate: null, missing: false }],
     createdByName: null, createdAt, updatedAt: createdAt, closedAt: status === 'CLOSED' ? '2026-03-21T10:00:00Z' : null,
     taskCount: 2, openTaskCount: status === 'OPEN' ? 2 : 0, itemCount: 2, missingItemCount: status === 'OPEN' ? 1 : 0, attachmentCount: 0,
 });
@@ -33,7 +33,12 @@ const ENTRIES: VehicleHistoryEntry[] = [
 let fetchMock: ReturnType<typeof vi.fn>;
 beforeEach(() => {
     push.mockReset();
-    fetchMock = vi.fn(async () => new Response(JSON.stringify({ vehicle: { id: 'veh-a', name: '75-188' }, entries: ENTRIES }), { status: 200 }));
+    fetchMock = vi.fn(async (url: string) => url.startsWith('/api/fleet-tracking/link-targets')
+        ? new Response(JSON.stringify({ targets: [
+            { type: 'VEHICLE', id: 'veh-a', label: '75-188', detail: 'GV-114-QM' },
+            { type: 'VEHICLE', id: 'veh-b', label: '75-186', detail: null },
+        ] }), { status: 200 })
+        : new Response(JSON.stringify({ vehicle: { id: 'veh-a', name: '75-188' }, entries: ENTRIES }), { status: 200 }));
     global.fetch = fetchMock as unknown as typeof fetch;
 });
 afterEach(() => vi.restoreAllMocks());
@@ -70,17 +75,19 @@ describe('VehicleFleetHistory', () => {
         expect(push).toHaveBeenCalledWith('/vehicles?vue=suivi&onglet=dossiers&dossier=d-2');
     });
 
-    it('« + Dossier pour ce véhicule » : véhicule imposé, création puis ouverture du dossier', async () => {
+    it('« + Dossier pour ce véhicule » : véhicule coché d\'office, un autre ajouté, création puis ouverture du dossier', async () => {
         render(<VehicleFleetHistory vehicleName="75-188" userRoles={['ADMIN']} isDtView={false} />);
         fireEvent.click(await screen.findByRole('button', { name: 'Dossier pour ce véhicule' }));
-        expect((screen.getByLabelText('Véhicule *') as HTMLInputElement).value).toBe('75-188');
+        expect((await screen.findByRole('checkbox', { name: /75-188/ }) as HTMLInputElement).checked).toBe(true);
+        fireEvent.click(screen.getByRole('checkbox', { name: /75-186/ }));
+        expect(screen.getByText('2 véhicules choisis')).toBeTruthy();
         fetchMock.mockImplementationOnce(async () => new Response(JSON.stringify({ success: true, id: 'd-new' }), { status: 201 }));
         fireEvent.change(screen.getByLabelText('Titre *'), { target: { value: 'Bruit de freinage' } });
         fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
         await vi.waitFor(() => expect(push).toHaveBeenCalledWith('/vehicles?vue=suivi&onglet=dossiers&dossier=d-new'));
         const [url, init] = fetchMock.mock.calls.at(-1) as [string, RequestInit];
         expect(url).toBe('/api/fleet-tracking/dossiers');
-        expect(JSON.parse(String(init.body))).toMatchObject({ title: 'Bruit de freinage', vehicleId: 'veh-a' });
+        expect(JSON.parse(String(init.body))).toMatchObject({ title: 'Bruit de freinage', vehicleIds: ['veh-a', 'veh-b'] });
     });
 
     it('API refusée (véhicule d\'une autre UL) : section masquée', async () => {

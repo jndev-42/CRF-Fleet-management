@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Check, Pencil, Pin, PinOff, RotateCcw, Trash2 } from 'lucide-react';
-import { DOSSIER_STATUS_LABELS, type FleetDossierDetail } from '@/lib/fleetTracking/dossiers';
+import { DOSSIER_STATUS_LABELS, dossierVehicleNames, type FleetDossierDetail } from '@/lib/fleetTracking/dossiers';
 import { formatFrDate } from '@/lib/fleetTracking/tasks';
 import { DOSSIERS_URL } from './useFleetDossiers';
 import { readError } from './useFleetContacts';
@@ -17,7 +17,7 @@ interface Props {
     onDeleted: () => void;
 }
 
-/** En-tête d'un dossier : état, véhicule, épingle, Modifier, Clore / Rouvrir, Supprimer. */
+/** En-tête d'un dossier : état, véhicules, épingle, Modifier, Clore / Rouvrir, Supprimer. */
 export default function DossierHeader({ dossier, onReplace, onEdit, onDeleted }: Props) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -64,7 +64,9 @@ export default function DossierHeader({ dossier, onReplace, onEdit, onDeleted }:
         <header className={styles.header}>
             <div className={styles.headerMeta}>
                 <span className={`${styles.status} ${styles[`status_${dossier.status}`]}`}>{DOSSIER_STATUS_LABELS[dossier.status]}</span>
-                <span>{dossier.vehicle.name}{dossier.vehicle.plate ? ` · ${dossier.vehicle.plate}` : ''}</span>
+                <span>{dossier.vehicles.length === 1 && dossier.vehicles[0].plate
+                    ? `${dossier.vehicles[0].name} · ${dossier.vehicles[0].plate}`
+                    : dossierVehicleNames(dossier)}</span>
                 {dossier.pinned && <span className={styles.pinned}><Pin size={14} aria-hidden="true" /> Épinglé</span>}
             </div>
             <h2 className={styles.title}>{dossier.title}</h2>
