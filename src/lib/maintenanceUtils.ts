@@ -144,3 +144,54 @@ export function formatDuration(days: number): string {
     }
     return `${yearStr} et ${months} mois`;
 }
+
+/**
+ * Affichage de la prochaine révision, sans valeur inventée :
+ * - la date n'existe que si un intervalle en années est configuré et qu'une base est connue
+ *   (dernière révision, sinon première immatriculation) ;
+ * - les km restants n'existent que si un intervalle en km est configuré et qu'une révision
+ *   avec kilométrage connu existe.
+ *
+ * Retourne null si aucun des deux n'est calculable. N'altère pas `getNextRevision`.
+ */
+export function getRevisionDisplay(
+    vehicle: VehicleForRevision,
+    records: MaintenanceRecord[]
+): { nextDate: Date | null; remainingKm: number | null } | null {
+    const { revisionKmInterval, revisionYearInterval } = vehicle;
+
+    const revisionRecords = records
+        .filter(r => r.type === 'REVISION' || r.type === 'CT_REVISION')
+        .sort((a, b) => a.date.localeCompare(b.date));
+    const lastRevision = revisionRecords.length > 0 ? revisionRecords[revisionRecords.length - 1] : null;
+
+    let nextDate: Date | null = null;
+    if (revisionYearInterval !== null) {
+        const base = lastRevision
+            ? new Date(lastRevision.date)
+            : vehicle.firstRegistrationDate ? new Date(vehicle.firstRegistrationDate) : null;
+        if (base) {
+            nextDate = new Date(base);
+            nextDate.setFullYear(nextDate.getFullYear() + revisionYearInterval);
+        }
+    }
+
+    let remainingKm: number | null = null;
+    if (revisionKmInterval !== null && lastRevision && lastRevision.mileage !== null && lastRevision.mileage !== undefined) {
+        remainingKm = Math.round(revisionKmInterval - (vehicle.mileage - lastRevision.mileage));
+    }
+
+    if (nextDate === null && remainingKm === null) return null;
+    return { nextDate, remainingKm };
+}
+
+/** Seuil de carburant au retour appliqué quand l'UL n'en a pas défini. */
+export const DEFAULT_MIN_FUEL_RETURN_PERCENT = 25;
+
+const FUEL_FRACTIONS: Record<number, string> = { 25: '1/4', 50: '1/2', 75: '3/4' };
+
+/** « 50 % (1/2) » ; la fraction n'est affichée que pour 25, 50 et 75. */
+export function fuelThresholdLabel(percent: number): string {
+    const fraction = FUEL_FRACTIONS[percent];
+    return fraction ? `${percent} % (${fraction})` : `${percent} %`;
+}

@@ -35,3 +35,19 @@ describe('TripItem — bouton « Voir les photos »', () => {
         expect(screen.queryByRole('button', { name: /Voir les photos/ })).toBeNull();
     });
 });
+
+describe('TripItem — responsable de la mission', () => {
+    function renderLead(missionLeadName: string | null) {
+        render(<TripItem trip={{ ...trip(null), missionLeadName }} vehicle={vehicle} userRoles={['CHVL']} onDelete={vi.fn()} onViewPhotos={vi.fn()} />);
+    }
+
+    it('affiche le responsable quand il est renseigné', () => {
+        renderLead('Paul D.');
+        expect(screen.getByText('Responsable : Paul D.')).toBeTruthy();
+    });
+
+    it('n\'affiche rien sinon', () => {
+        renderLead(null);
+        expect(screen.queryByText(/Responsable :/)).toBeNull();
+    });
+});

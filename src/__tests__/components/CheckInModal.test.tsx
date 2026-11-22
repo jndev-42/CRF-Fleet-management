@@ -511,3 +511,14 @@ describe('CheckInModal', () => {
         expect(await screen.findByText('🚨 Déclarer un incident')).toBeTruthy();
     });
 });
+
+describe('CheckInModal — seuil carburant au retour', () => {
+    it("affiche 25 % (1/4) par défaut et le seuil de l'UL sinon", async () => {
+        mockFetch();
+        const { unmount } = render(<CheckInModal vehicle={mockVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        expect(await screen.findByText(/En dessous de 25 % \(1\/4\), le plein doit être fait avant le retour/)).toBeTruthy();
+        unmount();
+        render(<CheckInModal vehicle={{ ...mockVehicle, minFuelReturnPercent: 50 }} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        expect(await screen.findByText(/En dessous de 50 % \(1\/2\)/)).toBeTruthy();
+    });
+});

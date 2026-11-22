@@ -7,6 +7,7 @@ import { canManageVehicles } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse, isOutsideUl } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 import { isEligibleDriver } from '@/lib/eligibleDrivers';
+import { missionLeadNameSchema } from '@/app/api/trips/schema';
 import { isLicenseBlocked, OTHER_DRIVER_LICENSE_BLOCKED_MESSAGE } from '@/lib/licenseGuard';
 
 const editCheckOutSchema = z.object({
@@ -14,6 +15,7 @@ const editCheckOutSchema = z.object({
     secondDriverId: z.string().optional().nullable(),
     missionType: z.string().min(1, 'Le type de mission est requis'),
     missionName: z.string().optional().nullable(),
+    missionLeadName: missionLeadNameSchema.optional().nullable(),
     mileageOut: z.number().int().min(0, 'Le kilométrage doit être positif'),
     fuelOut: z.number().int().min(0).max(100, 'Le niveau de carburant doit être entre 0 et 100'),
     parkingOut: z.string().optional().nullable(),
@@ -136,6 +138,7 @@ async function patchHandler(
                         secondDriverId = ?,
                         missionType = ?,
                         missionName = ?,
+                        missionLeadName = CASE WHEN ? THEN ? ELSE missionLeadName END,
                         mileageOut = ?,
                         fuelOut = ?,
                         parkingOut = ?,
@@ -149,6 +152,8 @@ async function patchHandler(
                     data.secondDriverId || null,
                     data.missionType,
                     data.missionName || null,
+                    data.missionLeadName === undefined ? 0 : 1,
+                    data.missionLeadName || null,
                     data.mileageOut,
                     data.fuelOut,
                     data.parkingOut || null,
@@ -198,6 +203,7 @@ async function patchHandler(
             secondDriverEmail: row.secondDriverEmail || null,
             missionType: row.missionType,
             missionName: row.missionName || null,
+            missionLeadName: row.missionLeadName || null,
             checkOutAt: row.checkOutAt,
             mileageOut: row.mileageOut,
             fuelOut: row.fuelOut,

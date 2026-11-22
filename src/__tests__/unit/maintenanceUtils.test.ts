@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getNextCtDate, getNextRevision, formatDuration } from '@/lib/maintenanceUtils';
+import { getNextCtDate, getNextRevision, formatDuration, getRevisionDisplay, fuelThresholdLabel } from '@/lib/maintenanceUtils';
 import type { MaintenanceRecord } from '@/app/vehicles/[id]/types';
 
 // ─────────────────────────────────────────────
@@ -173,5 +173,45 @@ describe('getNextRevision', () => {
         expect(result).not.toBeNull();
         // No year interval → nextDate uses firstRegistrationDate fallback? No, no year interval so nextDate falls back to today
         expect(result!.remainingKm).toBe(13000);
+    });
+});
+
+// ─────────────────────────────────────────────
+// getRevisionDisplay / fuelThresholdLabel
+// ─────────────────────────────────────────────
+
+describe('getRevisionDisplay', () => {
+    const base = { mileage: 45000, firstRegistrationDate: '2024-01-01', revisionKmInterval: 30000, revisionYearInterval: 2 };
+
+    it('sans historique : date seule, jamais de km', () => {
+        const r = getRevisionDisplay(base, []);
+        expect(r).not.toBeNull();
+        expect(r!.nextDate!.getFullYear()).toBe(2026);
+        expect(r!.remainingKm).toBeNull();
+    });
+
+    it('intervalle km seul avec dernière révision à 40 000 km : km sans date', () => {
+        const r = getRevisionDisplay(
+            { ...base, revisionYearInterval: null },
+            [makeRecord({ type: 'REVISION', mileage: 40000, date: '2025-01-01' })],
+        );
+        expect(r).toEqual({ nextDate: null, remainingKm: 25000 });
+    });
+
+    it('date et km quand les deux sont calculables', () => {
+        const r = getRevisionDisplay(base, [makeRecord({ type: 'CT_REVISION', mileage: 40000, date: '2025-06-01' })]);
+        expect(r!.nextDate!.getFullYear()).toBe(2027);
+        expect(r!.remainingKm).toBe(25000);
+    });
+
+    it('retourne null sans aucun calcul possible', () => {
+        expect(getRevisionDisplay({ ...base, revisionYearInterval: null }, [])).toBeNull();
+        expect(getRevisionDisplay({ ...base, firstRegistrationDate: null, revisionKmInterval: null }, [])).toBeNull();
+    });
+});
+
+describe('fuelThresholdLabel', () => {
+    it.each([[25, '25 % (1/4)'], [50, '50 % (1/2)'], [75, '75 % (3/4)'], [30, '30 %']])('%i → %s', (p, label) => {
+        expect(fuelThresholdLabel(p)).toBe(label);
     });
 });

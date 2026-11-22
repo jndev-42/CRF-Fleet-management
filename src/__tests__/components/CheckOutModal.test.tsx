@@ -304,4 +304,32 @@ describe('CheckOutModal', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Annuler' }));
         expect(onClose).toHaveBeenCalled();
     });
+
+    it('propose le champ « Responsable de la mission » et reprend le seuil carburant de l\'UL', async () => {
+        mockFetch();
+        render(<CheckOutModal vehicle={{ ...mockVehicle, minFuelReturnPercent: 50 }} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('Jean Dupont');
+        expect(screen.getByLabelText('Responsable de la mission')).toBeTruthy();
+        expect(screen.getByText(/En dessous de 50 % \(1\/2\)/)).toBeTruthy();
+    });
+
+    it('affiche 25 % (1/4) sans seuil d\'UL', async () => {
+        mockFetch();
+        render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('Jean Dupont');
+        expect(screen.getByText(/En dessous de 25 % \(1\/4\)/)).toBeTruthy();
+    });
+
+    it('envoie le responsable de la mission rogné dans le POST', async () => {
+        const fetchMock = mockFetch();
+        render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('Jean Dupont');
+        fireEvent.change(screen.getByLabelText('Responsable de la mission'), { target: { value: '  Paul D. (CI) ' } });
+        fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+        await waitFor(() => {
+            const call = fetchMock.mock.calls.find(c => String(c[0]) === '/api/trips' && (c[1] as RequestInit)?.method === 'POST');
+            expect(call).toBeTruthy();
+            expect(JSON.parse((call![1] as RequestInit).body as string).missionLeadName).toBe('Paul D. (CI)');
+        });
+    });
 });

@@ -15,6 +15,7 @@ interface UL {
     defaultParkingSpots?: string[];
     stampImage?: string | null;
     dtCode?: string | null;
+    minFuelReturnPercent?: number | null;
 }
 
 export default function ULsTab({
@@ -35,6 +36,7 @@ export default function ULsTab({
     const [formName, setFormName] = useState('');
     const [formSlug, setFormSlug] = useState('');
     const [formDtCode, setFormDtCode] = useState('');
+    const [formMinFuel, setFormMinFuel] = useState('');
     const [phoneNumbers, setPhoneNumbers] = useState<PhoneNum[]>([]);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
     const [stampImage, setStampImage] = useState<string | null>(null);
@@ -70,6 +72,7 @@ export default function ULsTab({
             setFormName(ul.name);
             setFormSlug(ul.slug);
             setFormDtCode(ul.dtCode || '');
+            setFormMinFuel(ul.minFuelReturnPercent != null ? String(ul.minFuelReturnPercent) : '');
             setPhoneNumbers(ul.phoneNumbers || []);
             setDefaultParkingSpots(ul.defaultParkingSpots || []);
             setStampImage(ul.stampImage || null);
@@ -78,6 +81,7 @@ export default function ULsTab({
             setFormName('');
             setFormSlug('');
             setFormDtCode('');
+            setFormMinFuel('');
             setPhoneNumbers([]);
             setDefaultParkingSpots([]);
             setStampImage(null);
@@ -185,6 +189,7 @@ export default function ULsTab({
                         name: formName.trim(),
                         slug: formSlug.trim(),
                         dtCode: formDtCode.trim() || null,
+                        minFuelReturnPercent: formMinFuel.trim() === '' ? null : Number(formMinFuel),
                         phoneNumbers: validPhoneNumbers,
                         defaultParkingSpots: validParkingSpots,
                         stampImage: stampImage || null,
@@ -439,6 +444,28 @@ export default function ULsTab({
                                         Sélectionnez une DT existante dans la liste ou saisissez un nouveau nom pour en créer une nouvelle.
                                     </p>
                                 </div>
+
+                                {editingUl && (
+                                    <div>
+                                        <label htmlFor="ul-min-fuel" style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>
+                                            Seuil carburant au retour (%)
+                                        </label>
+                                        <input
+                                            id="ul-min-fuel"
+                                            type="number"
+                                            min={0}
+                                            max={100}
+                                            step={1}
+                                            className="form-input"
+                                            placeholder="25"
+                                            value={formMinFuel}
+                                            onChange={e => setFormMinFuel(e.target.value)}
+                                        />
+                                        <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                                            Niveau en dessous duquel le plein doit être fait (véhicules thermiques). Vide = 25 % (1/4).
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div style={{ borderTop: '1px solid var(--border-primary)', paddingTop: 16 }}>
                                     <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', display: 'block', marginBottom: 4 }}>

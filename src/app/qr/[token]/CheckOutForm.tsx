@@ -7,6 +7,7 @@ import DataCorrectionFields from '@/components/vehicle/DataCorrectionFields';
 import { useQrDrivers } from './useQrDrivers';
 import type { QRVehicle } from './types';
 import { missionTypesForVehicle, missionTypeLabel } from '@/lib/mission-types';
+import { DEFAULT_MIN_FUEL_RETURN_PERCENT, fuelThresholdLabel } from '@/lib/maintenanceUtils';
 import { submitWithMileageDecreaseConfirm } from '@/components/vehicle/submitWithMileageDecreaseConfirm';
 
 export default function CheckOutForm({
@@ -21,6 +22,7 @@ export default function CheckOutForm({
     const [form, setForm] = useState({
         missionType: 'DPS',
         missionName: '',
+        missionLeadName: '',
         conditionOut: 'Bon état',
         cleanlinessOut: 'Propre',
         commentsOut: '',
@@ -52,6 +54,7 @@ export default function CheckOutForm({
             body: JSON.stringify({
                 missionType: form.missionType,
                 missionName: form.missionName || undefined,
+                missionLeadName: form.missionLeadName.trim() || undefined,
                 conditionOut: form.conditionOut,
                 cleanlinessOut: form.cleanlinessOut,
                 parkingOut: form.parkingOut || undefined,
@@ -116,6 +119,11 @@ export default function CheckOutForm({
                 onMileageChange={value => { setCorrectedMileage(value); setMileageTouched(true); }}
                 onFuelChange={value => { setCorrectedFuel(value); setFuelTouched(true); }}
             />
+            {vehicle.fuelType !== 'Électrique' && (
+                <div className="form-hint" style={{ marginTop: -8 }}>
+                    En dessous de {fuelThresholdLabel(vehicle.minFuelReturnPercent ?? DEFAULT_MIN_FUEL_RETURN_PERCENT)}, le plein doit avoir été fait sinon le signaler
+                </div>
+            )}
 
             <div>
                 <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
@@ -155,6 +163,21 @@ export default function CheckOutForm({
                     placeholder="Ex : DPS Football Stade de France"
                     value={form.missionName}
                     onChange={e => setForm(f => ({ ...f, missionName: e.target.value }))}
+                />
+            </div>
+
+            <div>
+                <label htmlFor="qr-mission-lead" style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: 'var(--text-secondary)' }}>
+                    Responsable de la mission
+                </label>
+                <input
+                    id="qr-mission-lead"
+                    className="form-input"
+                    type="text"
+                    placeholder="si applicable (CI, CDPE…)"
+                    maxLength={120}
+                    value={form.missionLeadName}
+                    onChange={e => setForm(f => ({ ...f, missionLeadName: e.target.value }))}
                 />
             </div>
 

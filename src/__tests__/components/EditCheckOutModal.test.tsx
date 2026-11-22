@@ -127,4 +127,24 @@ describe('EditCheckOutModal', () => {
         expect(screen.getByRole('dialog')).toBeTruthy();
         expect(container.querySelector('.modal-overlay')?.getAttribute('aria-hidden')).toBeNull();
     });
+
+    it('pré-remplit le responsable de la mission et envoie null quand il est vidé', async () => {
+        const fetchMock = vi.fn().mockImplementation((input: string | URL | Request) => {
+            const url = typeof input === 'string' ? input : String(input);
+            if (url.includes('/api/users')) return Promise.resolve(new Response(JSON.stringify({ users: [{ id: 'user-1', name: 'Jean Dupont', email: 'jean@test.com' }] }), { status: 200 }));
+            return Promise.resolve(new Response(JSON.stringify({ success: true }), { status: 200 }));
+        });
+        vi.spyOn(global, 'fetch').mockImplementation(fetchMock as typeof fetch);
+        const onSuccess = vi.fn();
+
+        render(<EditCheckOutModal trip={{ ...mockTrip, missionLeadName: 'Paul D.' }} vehicle={mockVehicle} onClose={vi.fn()} onSuccess={onSuccess} />);
+        const input = screen.getByLabelText('Responsable de la mission') as HTMLInputElement;
+        expect(input.value).toBe('Paul D.');
+        fireEvent.change(input, { target: { value: '' } });
+        fireEvent.click(screen.getByRole('button', { name: /Enregistrer les modifications/ }));
+
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+        const patchCall = fetchMock.mock.calls.find(c => (c[1] as RequestInit)?.method === 'PATCH');
+        expect(JSON.parse((patchCall![1] as RequestInit).body as string).missionLeadName).toBeNull();
+    });
 });

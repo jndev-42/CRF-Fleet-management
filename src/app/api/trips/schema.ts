@@ -13,10 +13,14 @@ export const missionTypeSchema = z.enum(MISSION_TYPES, {
         : 'Type de mission inconnu'),
 });
 
+/** Responsable de la mission (CI, CDPE…) : texte libre optionnel, vide → NULL côté route. */
+export const missionLeadNameSchema = z.string().trim().max(120, 'Le responsable de la mission est limité à 120 caractères');
+
 export const checkOutSchema = z.object({
     vehicleId: z.string().min(1),
     missionType: missionTypeSchema,
     missionName: z.string().optional(),
+    missionLeadName: missionLeadNameSchema.optional(),
     conditionOut: z.string().min(1, "L'état du véhicule est requis"),
     cleanlinessOut: z.string().optional(),
     parkingOut: z.string().optional(),

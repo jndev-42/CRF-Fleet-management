@@ -12,6 +12,7 @@ import {
     negativeMileageMessage,
 } from '@/lib/utils/mileageAnomaly';
 import type { QRVehicle } from './types';
+import { DEFAULT_MIN_FUEL_RETURN_PERCENT, fuelThresholdLabel } from '@/lib/maintenanceUtils';
 
 export default function CheckInForm({
     vehicle,
@@ -209,6 +210,11 @@ export default function CheckInForm({
                             onChange={e => setForm(f => ({ ...f, fuelIn: Number(e.target.value) }))}
                             required
                         />
+                        {vehicle.fuelType !== 'Électrique' && (
+                            <div className="form-hint">
+                                En dessous de {fuelThresholdLabel(vehicle.minFuelReturnPercent ?? DEFAULT_MIN_FUEL_RETURN_PERCENT)}, le plein doit être fait avant le retour sinon le signaler
+                            </div>
+                        )}
                     </div>
                 </>
             )}

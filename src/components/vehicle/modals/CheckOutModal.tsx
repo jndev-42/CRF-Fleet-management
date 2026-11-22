@@ -10,6 +10,7 @@ import IncidentReportModal from './IncidentReportModal';
 import { uploadMediaSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 import { missionTypesForVehicle, missionTypeLabel } from '@/lib/mission-types';
+import { DEFAULT_MIN_FUEL_RETURN_PERCENT, fuelThresholdLabel } from '@/lib/maintenanceUtils';
 import { submitWithMileageDecreaseConfirm } from '@/components/vehicle/submitWithMileageDecreaseConfirm';
 
 interface CheckOutModalProps {
@@ -38,6 +39,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         secondDriverId: '',
         missionType: 'DPS',
         missionName: '',
+        missionLeadName: '',
         conditionOut: lastTrip?.conditionIn || 'Bon état',
         cleanlinessOut: lastTrip?.cleanlinessIn || 'Propre',
         parkingOut: vehicle.parkingSpot as string,
@@ -175,6 +177,7 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                     vehicleId: vehicle.id,
                     missionType: form.missionType,
                     missionName: form.missionName || undefined,
+                    missionLeadName: form.missionLeadName.trim() || undefined,
                     conditionOut: form.conditionOut,
                     cleanlinessOut: form.cleanlinessOut,
                     parkingOut: form.parkingOut || undefined,
@@ -338,9 +341,21 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                                 {vehicle.fuelType === 'Électrique' ? (
                                     <div className="form-hint">En dessous de 50%, merci de le signaler ou de recharger le véhicule</div>
                                 ) : (
-                                    <div className="form-hint">En dessous de 25% (1/4), le plein doit avoir été fait sinon le signaler</div>
+                                    <div className="form-hint">En dessous de {fuelThresholdLabel(vehicle.minFuelReturnPercent ?? DEFAULT_MIN_FUEL_RETURN_PERCENT)}, le plein doit avoir été fait sinon le signaler</div>
                                 )}
                             </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="checkout-mission-lead">Responsable de la mission</label>
+                            <input
+                                id="checkout-mission-lead"
+                                className="form-input"
+                                placeholder="si applicable (CI, CDPE…)"
+                                maxLength={120}
+                                value={form.missionLeadName}
+                                onChange={(e) => setForm({ ...form, missionLeadName: e.target.value })}
+                            />
                         </div>
 
                         {/* État et propreté */}

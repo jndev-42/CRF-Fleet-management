@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ULsTab from '@/components/admin/ULsTab';
 
-const ulParis: { id: string; name: string; slug: string; dtCode?: string | null } = { id: 'ul-paris-18', name: 'Paris 18', slug: 'paris-18', dtCode: 'DT 75' };
+const ulParis: { id: string; name: string; slug: string; dtCode?: string | null; minFuelReturnPercent?: number | null } = { id: 'ul-paris-18', name: 'Paris 18', slug: 'paris-18', dtCode: 'DT 75' };
 const ulLyon: { id: string; name: string; slug: string } = { id: 'ul-lyon-3', name: 'Lyon 3', slug: 'lyon-3' };
 
 function getUrl(input: string | URL | Request): string {
@@ -162,5 +162,28 @@ describe('ULsTab', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 
         expect(await screen.findByText(/Slug déjà utilisé/)).toBeTruthy();
+    });
+
+    it('affiche le seuil de l\'UL puis envoie null quand le champ est vidé', async () => {
+        const fetchMock = mockFetch(async (input, init) => {
+            if (getUrl(input) === '/api/ul' && !init?.method) {
+                return new Response(JSON.stringify({ uls: [{ ...ulParis, minFuelReturnPercent: 50 }] }), { status: 200 });
+            }
+            return defaultFetchHandler(input, init);
+        });
+        render(<ULsTab isSuperAdmin userUlId="ul-paris-18" />);
+        await screen.findByText('Unité Locale Paris 18');
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Modifier' })[0]);
+        const input = screen.getByLabelText('Seuil carburant au retour (%)') as HTMLInputElement;
+        expect(input.value).toBe('50');
+        fireEvent.change(input, { target: { value: '' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+        await waitFor(() => {
+            const call = fetchMock.mock.calls.find(c => (c[1] as RequestInit)?.method === 'PATCH');
+            expect(call).toBeTruthy();
+            expect(JSON.parse((call![1] as RequestInit).body as string).minFuelReturnPercent).toBeNull();
+        });
     });
 });

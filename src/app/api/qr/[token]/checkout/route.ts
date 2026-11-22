@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { missionTypeSchema } from '@/app/api/trips/schema';
+import { missionLeadNameSchema, missionTypeSchema } from '@/app/api/trips/schema';
 import { DESINFECTION_MISSION_TYPE, isVpspVehicleType } from '@/lib/mission-types';
 import { db } from '@/lib/db';
 import { auth } from '@/auth';
@@ -23,6 +23,7 @@ import { isLicenseBlocked, LICENSE_BLOCKED_MESSAGE, secondDriverLicenseError } f
 const checkOutSchema = z.object({
     missionType: missionTypeSchema,
     missionName: z.string().optional(),
+    missionLeadName: missionLeadNameSchema.optional(),
     conditionOut: z.string().min(1, "L'état du véhicule est requis"),
     cleanlinessOut: z.string().optional(),
     parkingOut: z.string().optional(),
@@ -147,10 +148,10 @@ async function postHandler(
         try {
             await tx.execute({
                 sql: `INSERT INTO Trip (
-                        id, vehicleId, driverId, secondDriverId, missionType, missionName,
+                        id, vehicleId, driverId, secondDriverId, missionType, missionName, missionLeadName,
                         checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut,
                         parkingOut, dsaChecked, commentsOut, checklistOut, createdAt
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     tripId,
                     vehicleId,
@@ -158,6 +159,7 @@ async function postHandler(
                     secondDriverId,
                     data.missionType,
                     data.missionName || null,
+                    data.missionLeadName || null,
                     timestamp,
                     mileageOut,
                     fuelOut,

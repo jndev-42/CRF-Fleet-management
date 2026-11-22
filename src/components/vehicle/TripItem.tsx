@@ -26,6 +26,11 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                     <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
                         {trip.missionType}{trip.missionName ? ` — ${trip.missionName}` : ''}
                     </span>
+                    {trip.missionLeadName && (
+                        <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+                            Responsable : {trip.missionLeadName}
+                        </span>
+                    )}
                     {trip.desinfType && (
                         <span style={{
                             marginLeft: 10,

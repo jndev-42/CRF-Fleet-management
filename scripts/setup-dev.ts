@@ -94,7 +94,8 @@ async function main() {
             "stampImage" TEXT,
             "dtCode" TEXT,
             "qrToken" TEXT,
-            "uniformQrToken" TEXT
+            "uniformQrToken" TEXT,
+            "minFuelReturnPercent" INTEGER
         )
     `);
 
@@ -222,6 +223,7 @@ async function main() {
             "secondDriverId"         TEXT REFERENCES "User" ("id"),
             "missionType"            TEXT,
             "missionName"            TEXT,
+            "missionLeadName"        TEXT,
             "checkOutAt"             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "checkInAt"              DATETIME,
             "mileageOut"             INTEGER,
@@ -895,6 +897,17 @@ async function main() {
             "updatedAt"              DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     `);
+
+    // Migrations idempotentes : responsable de la mission et seuil carburant par UL
+    for (const [table, column, ddl] of [
+        ['Trip', 'missionLeadName', 'TEXT'],
+        ['UniteLocale', 'minFuelReturnPercent', 'INTEGER'],
+    ] as const) {
+        const cols = await db.execute(`PRAGMA table_info("${table}")`);
+        if (!cols.rows.some(r => r.name === column)) {
+            await db.execute(`ALTER TABLE "${table}" ADD COLUMN "${column}" ${ddl}`);
+        }
+    }
 
     // Migrations idempotentes pour ExpenseReport
     const expCols = await db.execute('PRAGMA table_info("ExpenseReport")');

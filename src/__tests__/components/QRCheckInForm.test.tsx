@@ -76,3 +76,16 @@ describe('CheckInForm (QR) — responsable de la désinfection', () => {
         expect(fetchMock.mock.calls.some(([u]) => String(u).includes('/desinf-responsables'))).toBe(false);
     });
 });
+
+describe('CheckInForm (QR) — seuil carburant au retour', () => {
+    it("reprend le seuil de l'UL dans l'aide (thermique)", async () => {
+        render(<CheckInForm vehicle={{ ...vehicle, minFuelReturnPercent: 50, activeTrip: { ...trip, missionType: 'DPS' } }} token="tok-1" onSuccess={vi.fn()} />);
+        expect(await screen.findByText(/En dessous de 50 % \(1\/2\), le plein doit être fait avant le retour/)).toBeTruthy();
+    });
+
+    it('aucune aide de seuil pour un véhicule électrique', async () => {
+        render(<CheckInForm vehicle={{ ...vehicle, fuelType: 'Électrique', minFuelReturnPercent: 50, activeTrip: { ...trip, missionType: 'DPS' } }} token="tok-1" onSuccess={vi.fn()} />);
+        await new Promise(r => setTimeout(r, 0));
+        expect(screen.queryByText(/le plein doit être fait avant le retour/)).toBeNull();
+    });
+});
