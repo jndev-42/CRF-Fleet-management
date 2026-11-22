@@ -176,7 +176,7 @@ describe('liste', () => {
         const closed = await createDossier({ title: 'Clos 188' });
         const other = await createDossier({ title: 'Ouvert 186', vehicleId: 'veh-a2' });
         await as(RESP_A);
-        await patchDossier(req('PATCH', { status: 'CLOSED' }), withId(closed));
+        await patchDossier(req('PATCH', { status: 'CLOSED', closeReason: 'REPAIRED' }), withId(closed));
 
         await as(ADMIN_A);
         const ids = async (qs: string) => ((await (await listDossiers(req('GET', undefined, `${BASE}${qs}`))).json()) as { dossiers: { id: string }[] }).dossiers.map(d => d.id).sort();
@@ -192,14 +192,14 @@ describe('modification', () => {
     it('clôture pose closedAt, réouverture l\'efface ; épingle et titre modifiables par un autre responsable', async () => {
         const id = await createDossier();
         await as(ADMIN_A);
-        let res = await patchDossier(req('PATCH', { status: 'CLOSED' }), withId(id));
+        let res = await patchDossier(req('PATCH', { status: 'CLOSED', closeReason: 'REPAIRED' }), withId(id));
         expect(res.status).toBe(200);
         const closedAt = (await dossierRow(id)).closedAt;
         expect(closedAt).toBeTruthy();
         expect(((await res.json()) as { dossier: { status: string } }).dossier.status).toBe('CLOSED');
 
         // Re-clore ne change pas la date.
-        await patchDossier(req('PATCH', { status: 'CLOSED' }), withId(id));
+        await patchDossier(req('PATCH', { status: 'CLOSED', closeReason: 'REPAIRED' }), withId(id));
         expect((await dossierRow(id)).closedAt).toBe(closedAt);
 
         res = await patchDossier(req('PATCH', { status: 'OPEN', pinned: true, title: 'Nouveau titre' }), withId(id));
@@ -384,7 +384,7 @@ describe('tâches rattachées à un dossier', () => {
         const res = await postTask(req('POST', { title: 'Dans le dossier', dossierId: id }, TASKS));
         const taskId = (await res.json() as { id: string }).id;
         const other = (await (await postTask(req('POST', { title: 'Ailleurs' }, TASKS))).json() as { id: string }).id;
-        await patchDossier(req('PATCH', { status: 'CLOSED' }), withId(id));
+        await patchDossier(req('PATCH', { status: 'CLOSED', closeReason: 'REPAIRED' }), withId(id));
 
         const created = await postTask(req('POST', { title: 'X', dossierId: id }, TASKS));
         expect(created.status).toBe(400);
@@ -458,7 +458,7 @@ describe('historique du véhicule', () => {
         const closed = await createDossier({ title: 'Remplacement batterie' });
         await db.execute({ sql: `UPDATE "FleetDossier" SET createdAt = '2025-03-14T10:00:00Z' WHERE id = ?`, args: [closed] });
         await as(RESP_A);
-        await patchDossier(req('PATCH', { status: 'CLOSED' }), withId(closed));
+        await patchDossier(req('PATCH', { status: 'CLOSED', closeReason: 'REPAIRED' }), withId(closed));
         const open = await createDossier({ title: 'Bruit de freinage' });
         await db.execute({ sql: `UPDATE "FleetDossier" SET createdAt = '2026-11-02T10:00:00Z' WHERE id = ?`, args: [open] });
 

@@ -186,4 +186,26 @@ describe('ULsTab', () => {
             expect(JSON.parse((call![1] as RequestInit).body as string).minFuelReturnPercent).toBeNull();
         });
     });
+
+    it('case « Photos de départ obligatoires » : reflète l\'UL et part dans le PATCH', async () => {
+        const fetchMock = mockFetch(async (input, init) => {
+            if (getUrl(input) === '/api/ul' && !init?.method) {
+                return new Response(JSON.stringify({ uls: [{ ...ulParis, checkoutPhotosRequired: false }] }), { status: 200 });
+            }
+            return defaultFetchHandler(input, init);
+        });
+        render(<ULsTab isSuperAdmin userUlId="ul-paris-18" />);
+        await screen.findByText('Unité Locale Paris 18');
+
+        fireEvent.click(screen.getAllByRole('button', { name: 'Modifier' })[0]);
+        const box = screen.getByLabelText('Photos de départ obligatoires') as HTMLInputElement;
+        expect(box.checked).toBe(false);
+        fireEvent.click(box);
+        fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+        await waitFor(() => {
+            const call = fetchMock.mock.calls.find(c => (c[1] as RequestInit)?.method === 'PATCH');
+            expect(JSON.parse((call![1] as RequestInit).body as string).checkoutPhotosRequired).toBe(true);
+        });
+    });
 });

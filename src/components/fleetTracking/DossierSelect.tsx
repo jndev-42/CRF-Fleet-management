@@ -1,6 +1,6 @@
 'use client';
 
-import { dossierVehicleNames } from '@/lib/fleetTracking/dossiers';
+import { dossierVehicleNames, isDossierActive } from '@/lib/fleetTracking/dossiers';
 import { useDossierOptions } from './useFleetDossiers';
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
  */
 export default function DossierSelect({ value, onChange, current }: Props) {
     const dossiers = useDossierOptions();
-    const shown = dossiers.filter(d => d.status === 'OPEN' || d.id === current);
+    const shown = dossiers.filter(d => isDossierActive(d.status) || d.id === current);
     return (
         <div className="form-group">
             <label className="form-label" htmlFor="task-dossier">Dossier</label>

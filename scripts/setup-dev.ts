@@ -14,7 +14,7 @@ import { MCP_TOKEN_DDL, MCP_TOKEN_INDEXES } from '../src/lib/mcp/schema';
 import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '../src/lib/themes/schema';
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '../src/lib/push/schema';
 import { SCHEDULED_ALERT_DDL } from '../src/lib/alerts/schema';
-import { FLEET_DOSSIER_VEHICLE_BACKFILL, FLEET_TRACKING_DDL } from '../src/lib/fleetTracking/schema';
+import { FLEET_DOSSIER_SOURCE_INDEX, FLEET_DOSSIER_V58_COLUMNS, FLEET_DOSSIER_VEHICLE_BACKFILL, FLEET_TRACKING_DDL } from '../src/lib/fleetTracking/schema';
 import { VEHICLE_DOCUMENT_DDL, VEHICLE_DOCUMENT_INDEX_DDL } from '../src/lib/vehicleDocuments/schema';
 import { MISSION_REPORT_ACCIDENT_COLUMNS, MISSION_REPORT_EDITS_DDL, MISSION_REPORT_EDITS_INDEX_DDL, MISSION_REPORT_SIGNED_MODE_COLUMNS } from '../src/lib/missions/edits-schema';
 import { menuSettingNeedsRebuild, menuSettingTableDdl, rebuildMenuSettingTable } from '../src/lib/menu-settings-schema';
@@ -95,7 +95,8 @@ async function main() {
             "dtCode" TEXT,
             "qrToken" TEXT,
             "uniformQrToken" TEXT,
-            "minFuelReturnPercent" INTEGER
+            "minFuelReturnPercent" INTEGER,
+            "checkoutPhotosRequired" INTEGER
         )
     `);
 
@@ -224,6 +225,7 @@ async function main() {
             "missionType"            TEXT,
             "missionName"            TEXT,
             "missionLeadName"        TEXT,
+            "photosSkipped"          INTEGER,
             "checkOutAt"             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "checkInAt"              DATETIME,
             "mileageOut"             INTEGER,
@@ -821,6 +823,14 @@ async function main() {
     for (const ddl of FLEET_TRACKING_DDL) await db.execute(ddl);
     // Base de dev antérieure aux dossiers multi-véhicules : véhicule de chaque dossier repris.
     await db.execute(FLEET_DOSSIER_VEHICLE_BACKFILL);
+    // Base de dev antérieure à la v5.58.0 : motif de clôture et origine des dossiers.
+    const dossierCols = await db.execute('PRAGMA table_info("FleetDossier")');
+    for (const { column, ddl } of FLEET_DOSSIER_V58_COLUMNS) {
+        if (!dossierCols.rows.some(r => r.name === column)) {
+            await db.execute(`ALTER TABLE "FleetDossier" ADD COLUMN "${column}" ${ddl}`);
+        }
+    }
+    await db.execute(FLEET_DOSSIER_SOURCE_INDEX);
 
     // ── MenuSetting ───────────────────────────────────────────────
 
@@ -902,6 +912,8 @@ async function main() {
     for (const [table, column, ddl] of [
         ['Trip', 'missionLeadName', 'TEXT'],
         ['UniteLocale', 'minFuelReturnPercent', 'INTEGER'],
+        ['UniteLocale', 'checkoutPhotosRequired', 'INTEGER'],
+        ['Trip', 'photosSkipped', 'INTEGER'],
     ] as const) {
         const cols = await db.execute(`PRAGMA table_info("${table}")`);
         if (!cols.rows.some(r => r.name === column)) {

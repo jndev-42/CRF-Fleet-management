@@ -1,5 +1,5 @@
 import { addDays, CONTROL_SOON_DAYS, type ControlRow } from './controls';
-import type { FleetDossier } from './dossiers';
+import { isDossierActive, type FleetDossier } from './dossiers';
 import type { FleetTask } from './tasks';
 
 /**
@@ -124,7 +124,7 @@ export function selectPinned(tasks: FleetTask[], dossiers: FleetDossier[]): Prio
     const items: PriorityItem[] = [
         ...tasks.filter(t => t.pinned && t.status !== 'DONE')
             .map(task => ({ kind: 'TASK' as const, dueDate: task.dueDate, task })),
-        ...dossiers.filter(d => d.pinned && d.status === 'OPEN')
+        ...dossiers.filter(d => d.pinned && isDossierActive(d.status))
             .map(dossier => ({ kind: 'DOSSIER' as const, dueDate: dossierNextDue(dossier.id, tasks), dossier })),
     ];
     return items.sort((a, b) => compareDue(a.dueDate, b.dueDate) || itemTitle(a).localeCompare(itemTitle(b), 'fr'));
@@ -138,7 +138,7 @@ export function selectFallback(tasks: FleetTask[]): FleetTask | null {
 /** Les quatre compteurs. */
 export function computeCounters(src: OverviewSource): OverviewCounters {
     const limit = addDays(src.today, OVERVIEW_SOON_DAYS);
-    const openDossiers = src.dossiers.filter(d => d.status === 'OPEN');
+    const openDossiers = src.dossiers.filter(d => isDossierActive(d.status));
     const soonControls = src.controls.filter(c => c.soon);
     // Un rendez-vous et sa tâche liée ne comptent qu'une fois (côté contrôle).
     const linkedTaskIds = new Set(soonControls.flatMap(c => (c.appointment?.taskId ? [c.appointment.taskId] : [])));
@@ -160,7 +160,7 @@ export function buildOverview(src: OverviewSource): FleetOverview {
     const pinned = selectPinned(src.tasks, src.dossiers);
     const openDossiersByVehicle = new Map<string, number>();
     for (const d of src.dossiers) {
-        if (d.status !== 'OPEN') continue;
+        if (!isDossierActive(d.status)) continue;
         // Un dossier sur plusieurs véhicules compte pour chacun d'eux.
         for (const v of d.vehicles) {
             if (!v.missing) openDossiersByVehicle.set(v.id, (openDossiersByVehicle.get(v.id) ?? 0) + 1);

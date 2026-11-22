@@ -82,6 +82,16 @@
     border-color: var(--status-available);
 }
 
+.status_NEW {
+    color: var(--crf-red);
+    border-color: var(--crf-red);
+}
+
+.status_WAITING {
+    color: var(--status-inuse);
+    border-color: var(--status-inuse);
+}
+
 .status_CLOSED,
 .status_DONE {
     color: var(--text-secondary);
@@ -424,4 +434,25 @@
     .tabPanel {
         padding-bottom: 88px;
     }
+}
+
+.closeForm {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.closeLabel,
+.closeReason {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.sourceLink {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--crf-red);
 }

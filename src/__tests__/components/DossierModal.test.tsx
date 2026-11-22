@@ -18,7 +18,7 @@ const VEHICLES: LinkTarget[] = [
 const dossier = (patch: Partial<FleetDossier> = {}): FleetDossier => ({
     id: 'd-1', title: 'Pneus hiver', description: null, status: 'OPEN', pinned: false,
     vehicles: [{ id: 'veh-a', name: '75-188', plate: 'GV-114-QM', missing: false }], createdByName: null,
-    createdAt: 't', updatedAt: 't', closedAt: null,
+    createdAt: 't', updatedAt: 't', closedAt: null, closeReason: null, sourceType: null, sourceId: null,
     taskCount: 0, openTaskCount: 0, itemCount: 0, missingItemCount: 0, attachmentCount: 0, ...patch,
 });
 

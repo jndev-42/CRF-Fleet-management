@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import { unauthorizedResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 import { notifyIncidentSubmitted } from '@/lib/incidentNotifications';
+import { createIncidentDossier } from '@/lib/fleetTracking/incidentDossiers';
 
 const incidentSchema = z.object({
     vehicleId: z.string().min(1),
@@ -89,6 +90,8 @@ async function postHandler(request: Request) {
         });
 
         if (data.status === 'SUBMITTED') {
+            // Dossier « Nouveau » du suivi technique : non bloquant (jamais d'exception).
+            await createIncidentDossier(id);
             await notifyIncidentSubmitted({ vehicleId: data.vehicleId, type: data.type, authorId: session.user.id, actorId: session.user.id });
         }
 

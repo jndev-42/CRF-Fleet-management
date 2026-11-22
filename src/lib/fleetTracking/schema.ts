@@ -118,7 +118,7 @@ export const FLEET_DOSSIER_ITEM_TABLE = 'FleetDossierItem';
 
 /**
  * Dossier du suivi technique d'une UL (sinistre, panne…) rattaché à un véhicule de
- * l'UL. `status` : OPEN | CLOSED ; `closedAt` posé à la clôture, effacé à la
+ * l'UL. `status` : NEW | OPEN | WAITING | CLOSED (tout sauf CLOSED est « ouvert ») ; `closeReason` : motif obligatoire à la clôture (effacé à la réouverture) ; `sourceType`/`sourceId` : origine d'un dossier créé automatiquement (INCIDENT_REPORT + id de la déclaration) ; `closedAt` posé à la clôture, effacé à la
  * réouverture ; `pinned` : 0/1. Regroupe des tâches (`FleetTask.dossierId`), des
  * pièces à récupérer et des pièces jointes (`FleetAttachment` ownerType DOSSIER).
  * Jamais purgé : c'est l'historique technique du véhicule.
@@ -134,8 +134,31 @@ export const FLEET_DOSSIER_DDL = `CREATE TABLE IF NOT EXISTS "${FLEET_DOSSIER_TA
     "createdBy"   TEXT,
     "createdAt"   TEXT NOT NULL,
     "updatedAt"   TEXT NOT NULL,
-    "closedAt"    TEXT
+    "closedAt"    TEXT,
+    "closeReason" TEXT,
+    "sourceType"  TEXT,
+    "sourceId"    TEXT
 )`;
+
+/**
+ * Colonnes ajoutées à `FleetDossier` en v5.58.0 (motif de clôture, origine d'un dossier
+ * créé automatiquement). Ajoutées par `scripts/add-checkout-photos-and-dossier-tickets.ts`
+ * et `scripts/setup-dev.ts` à une table existante ; le CREATE TABLE ci-dessus les porte
+ * déjà pour une base neuve.
+ */
+export const FLEET_DOSSIER_V58_COLUMNS: { column: string; ddl: string }[] = [
+    { column: 'closeReason', ddl: 'TEXT' },
+    { column: 'sourceType', ddl: 'TEXT' },
+    { column: 'sourceId', ddl: 'TEXT' },
+];
+
+/**
+ * Un seul dossier automatique par source (déclaration d'incident). Hors
+ * `FLEET_TRACKING_DDL` : l'index référence des colonnes qu'une base existante n'a pas
+ * avant l'`ALTER TABLE` ; à exécuter APRÈS l'ajout des colonnes.
+ */
+export const FLEET_DOSSIER_SOURCE_INDEX_NAME = 'idx_FleetDossier_source';
+export const FLEET_DOSSIER_SOURCE_INDEX = `CREATE UNIQUE INDEX IF NOT EXISTS "${FLEET_DOSSIER_SOURCE_INDEX_NAME}" ON "FleetDossier" ("sourceType", "sourceId") WHERE "sourceId" IS NOT NULL`;
 
 /**
  * Pièce à récupérer d'un dossier (devis, référence sinistre, facture…). `received`

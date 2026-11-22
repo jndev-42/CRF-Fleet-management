@@ -29,6 +29,8 @@ export const checkOutSchema = z.object({
     secondDriverId: z.string().optional().nullable(),
     driveFolderId: z.string().max(512).refine(v => isAcceptableMediaRef(v, 'trip-photos'), 'Dossier de photos invalide').optional(),
     checklistOut: z.record(z.string(), z.boolean()).optional(),
+    /** Prise validée sans photo malgré l'obligation de l'UL (dérogation : simple trace). */
+    photosSkipped: z.boolean().optional(),
     dataIncorrect: z.boolean().optional(),
     correctedMileage: z.number().int().min(0).optional(),
     correctedFuel: z.number().int().min(0).max(100).optional(),

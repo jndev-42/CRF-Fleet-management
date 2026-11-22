@@ -20,7 +20,7 @@ const item = (id: string, label: string, patch: Partial<DossierItem> = {}): Doss
 const DOSSIER: FleetDossierDetail = {
     id: 'd-1', title: 'Sinistre roue arrière droite', description: 'Jante voilée', status: 'OPEN', pinned: false,
     vehicles: [{ id: 'veh-a', name: '75-188', plate: 'GV-114-QM', missing: false }],
-    createdByName: 'Camille Roux', createdAt: '2026-11-14T10:00:00Z', updatedAt: 't', closedAt: null,
+    createdByName: 'Camille Roux', createdAt: '2026-11-14T10:00:00Z', updatedAt: 't', closedAt: null, closeReason: null, sourceType: null, sourceId: null,
     taskCount: 1, openTaskCount: 1, itemCount: 2, missingItemCount: 2, attachmentCount: 0,
     items: [item('i-1', 'Référence du sinistre'), item('i-2', 'Devis de réparation')],
     tasks: [{
@@ -48,7 +48,7 @@ beforeEach(() => {
             }), { status: 200 });
         }
         if (url === '/api/fleet-tracking/dossiers/d-1' && init?.method === 'PATCH') {
-            return new Response(JSON.stringify({ success: true, dossier: { ...DOSSIER, status: 'CLOSED', closedAt: '2026-11-18T10:00:00Z' } }), { status: 200 });
+            return new Response(JSON.stringify({ success: true, dossier: { ...DOSSIER, status: 'CLOSED', closedAt: '2026-11-18T10:00:00Z', closeReason: 'INSURANCE' } }), { status: 200 });
         }
         if (url === '/api/fleet-tracking/tasks' && init?.method === 'POST') return new Response(JSON.stringify({ success: true, id: 't-new' }), { status: 201 });
         if (url === '/api/fleet-tracking/dossiers/d-1/attachments' && init?.method === 'POST') {
@@ -87,9 +87,9 @@ describe('DossierDetail', () => {
     it('en-tête, tâches du dossier et objets rattachés (contact appelable, sans doublon du véhicule)', async () => {
         renderDetail();
         expect(await screen.findByRole('heading', { name: 'Sinistre roue arrière droite' })).toBeTruthy();
-        expect(screen.getByText('Ouvert')).toBeTruthy();
+        expect(screen.getAllByText('En cours').length).toBeGreaterThan(0);
         expect(screen.getByRole('button', { name: 'Relancer l’assureur' })).toBeTruthy();
-        expect(screen.getByText('En attente')).toBeTruthy();
+        expect(screen.getAllByText('En attente').length).toBeGreaterThan(0);
         expect(screen.getByRole('link', { name: 'Appeler Assureur flotte' }).getAttribute('href')).toBe('tel:0102030405');
         expect(screen.getByRole('link', { name: 'Fiche véhicule 75-188' }).getAttribute('href')).toBe('/vehicles/75-188');
     });
@@ -97,9 +97,15 @@ describe('DossierDetail', () => {
     it('« Clore le dossier » envoie status CLOSED et affiche « Rouvrir le dossier »', async () => {
         const { onChanged } = renderDetail();
         fireEvent.click(await screen.findByRole('button', { name: 'Clore le dossier' }));
+        // Le motif est obligatoire : la confirmation reste désactivée tant qu'il n'est pas choisi.
+        const confirm = screen.getByRole('button', { name: 'Confirmer la clôture' }) as HTMLButtonElement;
+        expect(confirm.disabled).toBe(true);
+        fireEvent.change(screen.getByLabelText('Motif de clôture'), { target: { value: 'INSURANCE' } });
+        fireEvent.click(confirm);
         expect(await screen.findByRole('button', { name: 'Rouvrir le dossier' })).toBeTruthy();
         const call = fetchMock.mock.calls.find(([u, i]) => u === '/api/fleet-tracking/dossiers/d-1' && (i as RequestInit)?.method === 'PATCH');
-        expect(JSON.parse(String((call![1] as RequestInit).body))).toEqual({ status: 'CLOSED' });
+        expect(JSON.parse(String((call![1] as RequestInit).body))).toEqual({ status: 'CLOSED', closeReason: 'INSURANCE' });
+        expect(screen.getByText('Motif : Pris en charge par l\'assurance')).toBeTruthy();
         expect(onChanged).toHaveBeenCalled();
     });
 
@@ -207,5 +213,23 @@ describe('DossierDetail', () => {
         render(<DossierSelect value="d-closed" onChange={vi.fn()} current="d-closed" />);
         expect(await screen.findByRole('option', { name: 'Remplacement batterie (clos) — 75-188' })).toBeTruthy();
         expect(screen.getByRole('option', { name: 'Sinistre roue arrière droite — 75-188' })).toBeTruthy();
+    });
+
+    it('dossier issu d\'une déclaration : lien vers son PDF', async () => {
+        const sourced = { ...DOSSIER, sourceType: 'INCIDENT_REPORT' as const, sourceId: 'rep-42' };
+        fetchMock.mockImplementation(async (url: string) => {
+            if (url.startsWith('/api/fleet-tracking/link-targets')) return new Response(JSON.stringify({ targets: [] }), { status: 200 });
+            return new Response(JSON.stringify({ dossier: sourced, dossiers: [] }), { status: 200 });
+        });
+        renderDetail();
+        const link = await screen.findByRole('link', { name: /Voir la déclaration d.incident/ });
+        expect(link.getAttribute('href')).toBe('/api/incidents/rep-42/pdf');
+    });
+
+    it('ligne de liste d\'un dossier clos : affiche le motif de clôture', async () => {
+        const { default: DossierListItem } = await import('@/components/fleetTracking/DossierListItem');
+        render(<ul><DossierListItem dossier={{ ...DOSSIER, status: 'CLOSED', closedAt: '2026-11-18T10:00:00Z', closeReason: 'REPAIRED' }} onOpen={vi.fn()} /></ul>);
+        expect(screen.getByText(/Réparé/)).toBeTruthy();
+        expect(screen.getByText('Clos')).toBeTruthy();
     });
 });

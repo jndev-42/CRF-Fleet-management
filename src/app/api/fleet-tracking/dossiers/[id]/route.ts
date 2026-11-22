@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getErrorMessage } from '@/lib/utils/error';
 import { withAudit } from '@/lib/audit/log';
 import { parseBody, requireFleetManager } from '@/lib/fleetTracking/access';
-import { updateDossierSchema } from '@/lib/fleetTracking/dossiers';
+import { CLOSE_REASON_REQUIRED, updateDossierSchema } from '@/lib/fleetTracking/dossiers';
 import { checkDossierVehicles, DOSSIER_NOT_FOUND, loadOwnedDossier } from '@/lib/fleetTracking/dossierGuards';
 import { deleteDossier, getDossierDetail, updateDossier } from '@/lib/fleetTracking/dossiersStore';
 
@@ -35,7 +35,7 @@ export async function GET(_request: Request, { params }: Context) {
  * Modification partielle (titre, description, épingle, état, véhicules). `vehicleIds`
  * remplace la liste des véhicules (au moins un) : chacun doit être de l'UL, ou déjà
  * porté par le dossier. `vehicleId` seul → 400.
- * Clore pose `closedAt`, rouvrir l'efface ; clore ne supprime rien.
+ * Clore exige `closeReason` (400 sinon) et pose `closedAt` ; rouvrir (ou passer à NEW / OPEN / WAITING) efface `closedAt` et `closeReason` ; clore ne supprime rien.
  */
 async function patchHandler(request: Request, { params }: Context) {
     try {
@@ -48,6 +48,16 @@ async function patchHandler(request: Request, { params }: Context) {
 
         const owned = await loadOwnedDossier(access, id);
         if (!owned.ok) return owned.response;
+
+        // Un motif n'a de sens que sur un dossier clos.
+        const finalStatus = parsed.data.status ?? owned.row.status;
+        // Le motif d'un dossier clos ne s'efface pas.
+        if (finalStatus === 'CLOSED' && parsed.data.closeReason === null) {
+            return NextResponse.json({ error: CLOSE_REASON_REQUIRED }, { status: 400 });
+        }
+        if (parsed.data.closeReason && finalStatus !== 'CLOSED') {
+            return NextResponse.json({ error: 'Le motif de clôture ne s\'applique qu\'à un dossier clos' }, { status: 400 });
+        }
 
         if (parsed.data.vehicleIds) {
             const invalid = await checkDossierVehicles(access.ulId, parsed.data.vehicleIds, owned.row.vehicleIds);

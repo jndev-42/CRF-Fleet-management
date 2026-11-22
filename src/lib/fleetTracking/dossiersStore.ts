@@ -1,7 +1,9 @@
 import type { InStatement, Row } from '@libsql/client';
 import { db } from '@/lib/db';
 import {
+    CLOSE_REASONS,
     DOSSIER_STATUSES,
+    type DossierCloseReason,
     type CreateDossierInput,
     type DossierFilters,
     type DossierItem,
@@ -78,7 +80,7 @@ export async function getUlVehicleIds(ulId: string, vehicleIds: string[]): Promi
 // ── Lecture ──────────────────────────────────────────────────────
 
 const DOSSIER_SELECT = `
-    SELECT d.id, d.ulId, d.title, d.description, d.status, d.pinned, d.createdAt, d.updatedAt, d.closedAt,
+    SELECT d.id, d.ulId, d.title, d.description, d.status, d.pinned, d.createdAt, d.updatedAt, d.closedAt, d.closeReason, d.sourceType, d.sourceId,
            u.name AS creatorName, u.email AS creatorEmail,
            (SELECT COUNT(*) FROM "FleetTask" t WHERE t.dossierId = d.id AND t.ulId = d.ulId) AS taskCount,
            (SELECT COUNT(*) FROM "FleetTask" t WHERE t.dossierId = d.id AND t.ulId = d.ulId AND t.status <> 'DONE') AS openTaskCount,
@@ -129,6 +131,9 @@ function toDossier(r: Row, vehicles: DossierVehicle[]): FleetDossier {
         createdAt: String(r.createdAt),
         updatedAt: String(r.updatedAt),
         closedAt: (r.closedAt as string | null) ?? null,
+        closeReason: (CLOSE_REASONS as readonly string[]).includes(String(r.closeReason)) ? r.closeReason as DossierCloseReason : null,
+        sourceType: r.sourceType === 'INCIDENT_REPORT' ? 'INCIDENT_REPORT' : null,
+        sourceId: r.sourceType === 'INCIDENT_REPORT' ? (r.sourceId as string | null) ?? null : null,
         taskCount: Number(r.taskCount ?? 0),
         openTaskCount: Number(r.openTaskCount ?? 0),
         itemCount: Number(r.itemCount ?? 0),
@@ -147,10 +152,9 @@ async function withVehicles(rows: Row[]): Promise<FleetDossier[]> {
 export async function listDossiers(ulId: string, filters: DossierFilters): Promise<FleetDossier[]> {
     const where = ['d.ulId = ?'];
     const args: string[] = [ulId];
-    if (filters.status) {
-        where.push('d.status = ?');
-        args.push(filters.status);
-    }
+    // OPEN = « ouverts » : Nouveau, En cours et En attente.
+    if (filters.status === 'OPEN') where.push(`d.status <> 'CLOSED'`);
+    else if (filters.status === 'CLOSED') where.push(`d.status = 'CLOSED'`);
     if (filters.vehicle) {
         where.push(dossierHasVehicleSql('d'));
         args.push(filters.vehicle, filters.vehicle);
@@ -250,11 +254,12 @@ export async function createDossier(ulId: string, input: CreateDossierInput, cre
     const now = new Date().toISOString();
     await db.batch([
         {
-            sql: `INSERT INTO "FleetDossier" (id, ulId, vehicleId, title, description, status, pinned, createdBy, createdAt, updatedAt, closedAt)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO "FleetDossier" (id, ulId, vehicleId, title, description, status, pinned, createdBy, createdAt, updatedAt, closedAt, closeReason)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
                 id, ulId, input.vehicleIds[0], input.title, input.description ?? null, input.status,
                 input.pinned ? 1 : 0, createdBy, now, now, input.status === 'CLOSED' ? now : null,
+                input.status === 'CLOSED' ? input.closeReason ?? null : null,
             ],
         },
         ...insertVehicleLinks(id, ulId, input.vehicleIds),
@@ -281,8 +286,16 @@ export async function updateDossier(id: string, ulId: string, existing: { status
     if (input.vehicleIds !== undefined) set('vehicleId', input.vehicleIds[0]);
     if (input.status !== undefined) {
         set('status', input.status);
-        if (input.status === 'OPEN') set('closedAt', null);
-        else if (existing.status !== 'CLOSED') set('closedAt', now);
+        if (input.status === 'CLOSED') {
+            if (existing.status !== 'CLOSED') set('closedAt', now);
+            set('closeReason', input.closeReason ?? null);
+        } else {
+            // Réouverture (ou passage Nouveau / En cours / En attente) : plus de clôture.
+            set('closedAt', null);
+            set('closeReason', null);
+        }
+    } else if (input.closeReason !== undefined) {
+        set('closeReason', input.closeReason);
     }
     set('updatedAt', now);
     const update: InStatement = {

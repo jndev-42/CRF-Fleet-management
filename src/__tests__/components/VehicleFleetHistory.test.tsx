@@ -16,7 +16,7 @@ import type { FleetTask } from '@/lib/fleetTracking/tasks';
 const dossier = (id: string, title: string, status: 'OPEN' | 'CLOSED', createdAt: string): FleetDossier => ({
     id, title, description: null, status, pinned: false,
     vehicles: [{ id: 'veh-a', name: '75-188', plate: null, missing: false }],
-    createdByName: null, createdAt, updatedAt: createdAt, closedAt: status === 'CLOSED' ? '2026-03-21T10:00:00Z' : null,
+    createdByName: null, createdAt, updatedAt: createdAt, closedAt: status === 'CLOSED' ? '2026-03-21T10:00:00Z' : null, closeReason: status === 'CLOSED' ? 'REPAIRED' : null, sourceType: null, sourceId: null,
     taskCount: 2, openTaskCount: status === 'OPEN' ? 2 : 0, itemCount: 2, missingItemCount: status === 'OPEN' ? 1 : 0, attachmentCount: 0,
 });
 const TASK: FleetTask = {

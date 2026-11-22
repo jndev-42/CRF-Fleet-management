@@ -1,0 +1,10 @@
+/* Au-dessus de la modale de prise (320) et de ses fenêtres filles. */
+.overlay {
+  z-index: 10001;
+}
+
+.text {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}

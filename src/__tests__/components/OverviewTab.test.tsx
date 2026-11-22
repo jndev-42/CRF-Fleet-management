@@ -234,7 +234,7 @@ describe('OverviewTab', () => {
                     dossier: {
                         id: 'd-1', title: 'Sinistre roue arrière droite', description: null, status: 'OPEN', pinned: true,
                         vehicles: [{ id: 'veh-188', name: '75-188', plate: null, missing: false }], createdByName: null,
-                        createdAt: 't', updatedAt: 't', closedAt: null,
+                        createdAt: 't', updatedAt: 't', closedAt: null, closeReason: null, sourceType: null, sourceId: null,
                         taskCount: 1, openTaskCount: 1, itemCount: 2, missingItemCount: 2, attachmentCount: 0,
                     },
                 }],

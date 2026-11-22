@@ -36,7 +36,7 @@ function dossier(over: Partial<FleetDossier> = {}): FleetDossier {
     return {
         id: `d-${seq}`, title: `Dossier ${seq}`, description: null, status: 'OPEN', pinned: false,
         vehicles: [{ id: 'veh-188', name: '75-188', plate: null, missing: false }], createdByName: null,
-        createdAt: 't', updatedAt: 't', closedAt: null,
+        createdAt: 't', updatedAt: 't', closedAt: null, closeReason: null, sourceType: null, sourceId: null,
         taskCount: 0, openTaskCount: 0, itemCount: 0, missingItemCount: 0, attachmentCount: 0, ...over,
     };
 }
@@ -224,5 +224,36 @@ describe('véhicules', () => {
             })],
         }));
         expect(o.vehicles.map(v => [v.name, v.openDossiers])).toEqual([['75-182', 1], ['75-188', 1]]);
+    });
+});
+
+describe('dossiers Nouveau et En attente = ouverts', () => {
+    it('comptent dans les compteurs (dossiers ouverts, pièces manquantes) ; le clos non', () => {
+        const c = computeCounters(source({
+            dossiers: [
+                dossier({ status: 'NEW', missingItemCount: 1 }),
+                dossier({ status: 'WAITING', missingItemCount: 2 }),
+                dossier({ status: 'CLOSED', missingItemCount: 5 }),
+            ],
+        }));
+        expect(c.openDossiers).toBe(2);
+        expect(c.missingItems).toBe(3);
+    });
+
+    it('selectPinned garde les dossiers épinglés Nouveau et En attente, pas le clos', () => {
+        const items = selectPinned([], [
+            dossier({ status: 'NEW', pinned: true }),
+            dossier({ status: 'WAITING', pinned: true }),
+            dossier({ status: 'CLOSED', pinned: true }),
+        ]);
+        expect(items.map(i => i.kind)).toEqual(['DOSSIER', 'DOSSIER']);
+    });
+
+    it('comptent par véhicule', () => {
+        const o = buildOverview(source({
+            vehicles: [{ id: 'veh-188', name: '75-188', model: 'VL', plate: null }],
+            dossiers: [dossier({ status: 'NEW' }), dossier({ status: 'WAITING' }), dossier({ status: 'CLOSED' })],
+        }));
+        expect(o.vehicles.map(v => [v.name, v.openDossiers])).toEqual([['75-188', 2]]);
     });
 });

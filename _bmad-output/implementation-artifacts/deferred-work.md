@@ -248,3 +248,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-retours-martine-carnet-entretien.md`
   summary: Mettre à jour les AGENTS.md des routes touchées (trips, trips/[id]/checkout, qr/[token]/checkout — INSERT passé à 17 colonnes —, qr/[token]/vehicle, ul) avec missionLeadName et minFuelReturnPercent.
   evidence: `src/app/api/trips/AGENTS.md:22` et `src/app/api/qr/[token]/checkout/AGENTS.md:25,45` décrivent encore l'ancien schéma.
+- source_spec: `_bmad-output/implementation-artifacts/spec-retours-martine-calendrier-photos-tickets.md`
+  summary: Créer, si besoin, les dossiers « Nouveau » des déclarations d'incident déjà envoyées avant la v5.58.0 (reprise idempotente via l'index unique de source).
+  evidence: `createIncidentDossier` n'est appelé qu'au passage à SUBMITTED ; les déclarations envoyées avant le déploiement n'ont aucun dossier.

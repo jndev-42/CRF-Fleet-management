@@ -20,6 +20,7 @@ npx tsx scripts/setup-admin.ts <email>  # Promote user to ADMIN
 npx tsx scripts/renault-login-test.ts   # Test Renault Connect auth
 npx tsx scripts/generate-signing-cert.ts --env preview   # Certificat .p12 de scellement (local | preview | prod ; préfixe le CN)
 npx tsx scripts/add-expense-sealed-pdf.ts       # Migration prod : colonnes de scellement des notes de frais
+npx tsx scripts/add-checkout-photos-and-dossier-tickets.ts # Migration prod : colonnes UniteLocale.checkoutPhotosRequired, Trip.photosSkipped, FleetDossier.closeReason / sourceType / sourceId et index unique partiel idx_FleetDossier_source (photos de départ obligatoires par UL, dossiers créés depuis les déclarations d'incident, motif de clôture ; idempotente, écriture atomique ; dry-run ; --apply pour écrire ; --env <fichier>) — À EXÉCUTER AVANT LE DÉPLOIEMENT de la v5.58.0 : sans les colonnes, GET /api/ul, la fiche véhicule, POST /api/trips et les dossiers du suivi technique répondent 500
 npx tsx scripts/add-expense-pending-receipts.ts # Migration prod : dépôt transitoire des justificatifs (pré-scellement)
 npx tsx scripts/add-expense-budgets.ts          # Migration prod : budgets analytiques (dry-run ; --apply pour écrire)
 npx tsx scripts/add-vehicle-transmission.ts     # Migration prod : colonne Vehicle.transmission (boîte de vitesses)

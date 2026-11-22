@@ -24,7 +24,7 @@ import { createTaskSchema, taskFiltersSchema, updateTaskSchema, vehicleTaskLink 
 const dossier = (patch: Partial<FleetDossier>): FleetDossier => ({
     id: 'd', title: 'X', description: null, status: 'OPEN', pinned: false,
     vehicles: [{ id: 'v', name: '75-188', plate: null, missing: false }], createdByName: null,
-    createdAt: '2026-11-01T00:00:00Z', updatedAt: 't', closedAt: null,
+    createdAt: '2026-11-01T00:00:00Z', updatedAt: 't', closedAt: null, closeReason: null, sourceType: null, sourceId: null,
     taskCount: 0, openTaskCount: 0, itemCount: 0, missingItemCount: 0, attachmentCount: 0, ...patch,
 });
 
@@ -41,7 +41,7 @@ describe('dossiers.ts — validation', () => {
     });
 
     it('modification : partielle, au moins un champ, description absente reste absente', () => {
-        expect(updateDossierSchema.parse({ status: 'CLOSED' })).toEqual({ status: 'CLOSED' });
+        expect(updateDossierSchema.parse({ status: 'CLOSED', closeReason: 'REPAIRED' })).toEqual({ status: 'CLOSED', closeReason: 'REPAIRED' });
         expect(updateDossierSchema.safeParse({}).success).toBe(false);
         expect(updateDossierSchema.safeParse({ status: 'DONE' }).success).toBe(false);
         // La liste des véhicules passe par vehicleIds (au moins un).
@@ -115,5 +115,28 @@ describe('dossiers.ts — affichage', () => {
     it('clé R2 d\'une pièce jointe de dossier', () => {
         expect(buildAttachmentKey('DOSSIER', 'paris-18', 'd1', 'a1', 'png')).toBe('fleet-tracking/paris-18/dossiers/d1/a1.png');
         expect(() => buildAttachmentKey('DOSSIER', 'paris-18', '../d', 'a1', 'png')).toThrow();
+    });
+});
+
+describe('dossiers Nouveau et En attente = ouverts', () => {
+    it('dossierSummary détaille tâches en cours et pièces manquantes', () => {
+        for (const status of ['NEW', 'WAITING'] as const) {
+            expect(dossierSummary(dossier({ status, openTaskCount: 1, missingItemCount: 2 }))).toBe('1 tâche en cours · 2 pièces manquantes');
+        }
+    });
+
+    it('compareDossiers : Nouveau et En attente passent avant les clos', () => {
+        const list = [
+            dossier({ id: 'closed', status: 'CLOSED', createdAt: '2026-12-01' }),
+            dossier({ id: 'waiting', status: 'WAITING', createdAt: '2026-01-01' }),
+            dossier({ id: 'new', status: 'NEW', createdAt: '2026-02-01' }),
+        ].sort(compareDossiers);
+        expect(list.map(d => d.id)).toEqual(['new', 'waiting', 'closed']);
+    });
+
+    it('isHistoryEntryActive : actif pour Nouveau et En attente', () => {
+        for (const status of ['NEW', 'WAITING'] as const) {
+            expect(isHistoryEntryActive({ kind: 'DOSSIER', date: 't', dossier: dossier({ status }) })).toBe(true);
+        }
     });
 });

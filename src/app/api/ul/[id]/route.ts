@@ -16,6 +16,8 @@ const updateUlSchema = z.object({
     dtCode: z.string().nullable().optional(),
     /** Seuil de carburant au retour (%) ; null = valeur par défaut (25). */
     minFuelReturnPercent: z.number().int().min(0).max(100).nullable().optional(),
+    /** Photos de départ obligatoires (dérogation possible à la prise). */
+    checkoutPhotosRequired: z.boolean().optional(),
 });
 
 /** DELETE /api/ul/[id] — Supprimer une UL (ADMIN uniquement) */
@@ -70,9 +72,9 @@ async function patchHandler(request: Request, { params }: { params: Promise<{ id
             }
             throw zodErr;
         }
-        const { name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode, minFuelReturnPercent } = parsed;
+        const { name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode, minFuelReturnPercent, checkoutPhotosRequired } = parsed;
 
-        if (!name && !slug && !phoneNumbers && !defaultParkingSpots && stampImage === undefined && dtCode === undefined && minFuelReturnPercent === undefined) {
+        if (!name && !slug && !phoneNumbers && !defaultParkingSpots && stampImage === undefined && dtCode === undefined && minFuelReturnPercent === undefined && checkoutPhotosRequired === undefined) {
             return NextResponse.json({ error: 'Aucune donnée à modifier' }, { status: 400 });
         }
 
@@ -89,6 +91,10 @@ async function patchHandler(request: Request, { params }: { params: Promise<{ id
         }
         if (minFuelReturnPercent !== undefined) {
             await db.execute({ sql: `UPDATE "UniteLocale" SET minFuelReturnPercent = ? WHERE id = ?`, args: [minFuelReturnPercent, id] });
+        }
+
+        if (checkoutPhotosRequired !== undefined) {
+            await db.execute({ sql: `UPDATE "UniteLocale" SET checkoutPhotosRequired = ? WHERE id = ?`, args: [checkoutPhotosRequired ? 1 : 0, id] });
         }
 
         return NextResponse.json({ success: true });

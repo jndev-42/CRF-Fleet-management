@@ -16,6 +16,7 @@ interface UL {
     stampImage?: string | null;
     dtCode?: string | null;
     minFuelReturnPercent?: number | null;
+    checkoutPhotosRequired?: boolean;
 }
 
 export default function ULsTab({
@@ -37,6 +38,7 @@ export default function ULsTab({
     const [formSlug, setFormSlug] = useState('');
     const [formDtCode, setFormDtCode] = useState('');
     const [formMinFuel, setFormMinFuel] = useState('');
+    const [formPhotosRequired, setFormPhotosRequired] = useState(false);
     const [phoneNumbers, setPhoneNumbers] = useState<PhoneNum[]>([]);
     const [defaultParkingSpots, setDefaultParkingSpots] = useState<string[]>([]);
     const [stampImage, setStampImage] = useState<string | null>(null);
@@ -73,6 +75,7 @@ export default function ULsTab({
             setFormSlug(ul.slug);
             setFormDtCode(ul.dtCode || '');
             setFormMinFuel(ul.minFuelReturnPercent != null ? String(ul.minFuelReturnPercent) : '');
+            setFormPhotosRequired(ul.checkoutPhotosRequired === true);
             setPhoneNumbers(ul.phoneNumbers || []);
             setDefaultParkingSpots(ul.defaultParkingSpots || []);
             setStampImage(ul.stampImage || null);
@@ -82,6 +85,7 @@ export default function ULsTab({
             setFormSlug('');
             setFormDtCode('');
             setFormMinFuel('');
+            setFormPhotosRequired(false);
             setPhoneNumbers([]);
             setDefaultParkingSpots([]);
             setStampImage(null);
@@ -190,6 +194,7 @@ export default function ULsTab({
                         slug: formSlug.trim(),
                         dtCode: formDtCode.trim() || null,
                         minFuelReturnPercent: formMinFuel.trim() === '' ? null : Number(formMinFuel),
+                        checkoutPhotosRequired: formPhotosRequired,
                         phoneNumbers: validPhoneNumbers,
                         defaultParkingSpots: validParkingSpots,
                         stampImage: stampImage || null,
@@ -463,6 +468,23 @@ export default function ULsTab({
                                         />
                                         <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
                                             Niveau en dessous duquel le plein doit être fait (véhicules thermiques). Vide = 25 % (1/4).
+                                        </p>
+                                    </div>
+                                )}
+
+                                {editingUl && (
+                                    <div>
+                                        <label htmlFor="ul-photos-required" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                                            <input
+                                                id="ul-photos-required"
+                                                type="checkbox"
+                                                checked={formPhotosRequired}
+                                                onChange={e => setFormPhotosRequired(e.target.checked)}
+                                            />
+                                            Photos de départ obligatoires
+                                        </label>
+                                        <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+                                            À la prise d&apos;un véhicule (prise depuis la fiche du véhicule ; le parcours QR n&apos;a pas de photos), le chauffeur doit joindre au minimum 4 photos (avant, arrière, côtés gauche et droit). Il peut continuer sans photo : la sortie est alors marquée « Sans photo » dans l&apos;historique.
                                         </p>
                                     </div>
                                 )}
