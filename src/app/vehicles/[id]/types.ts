@@ -14,6 +14,8 @@ export interface Trip {
     secondDriverEmail: string | null;
     missionType: string;
     missionName: string | null;
+    /** Responsable de la mission (CI, CDPE…), texte libre optionnel */
+    missionLeadName?: string | null;
     checkOutAt: string;
     checkInAt: string | null;
     mileageOut: number;
@@ -69,6 +71,8 @@ export interface Vehicle {
     desinfTracking: boolean;
     /** Périodicité de désinfection en mois (1, 2 ou 3 — défaut 3), utilisée pour les VPSP */
     desinfIntervalMonths: number;
+    /** Seuil de carburant au retour de l'UL du véhicule, en % (défaut 25) */
+    minFuelReturnPercent?: number;
     notes: string | null;
     vin: string | null;
     /**

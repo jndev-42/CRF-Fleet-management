@@ -24,6 +24,7 @@ export default function EditCheckOutModal({ trip, vehicle, onClose, onSuccess }:
         // délibérément, pas un type écrit à l'insu de l'utilisateur.
         missionType: trip.missionType || '',
         missionName: trip.missionName || '',
+        missionLeadName: trip.missionLeadName || '',
         mileageOut: trip.mileageOut ?? vehicle.mileage,
         fuelOut: trip.fuelOut ?? vehicle.fuelLevel,
         parkingOut: trip.parkingOut || vehicle.parkingSpot || '',
@@ -68,6 +69,7 @@ export default function EditCheckOutModal({ trip, vehicle, onClose, onSuccess }:
                     secondDriverId: form.secondDriverId || undefined,
                     missionType: form.missionType,
                     missionName: form.missionName || undefined,
+                    missionLeadName: form.missionLeadName.trim() || null,
                     mileageOut: Number(form.mileageOut),
                     fuelOut: Number(form.fuelOut),
                     parkingOut: form.parkingOut || undefined,
@@ -187,6 +189,18 @@ export default function EditCheckOutModal({ trip, vehicle, onClose, onSuccess }:
                                     onChange={(e) => setForm({ ...form, missionName: e.target.value })}
                                 />
                             </div>
+                        </div>
+
+                        <div className="form-group">
+                            <label className="form-label" htmlFor="edit-mission-lead">Responsable de la mission</label>
+                            <input
+                                id="edit-mission-lead"
+                                className="form-input"
+                                placeholder="si applicable (CI, CDPE…)"
+                                maxLength={120}
+                                value={form.missionLeadName}
+                                onChange={(e) => setForm({ ...form, missionLeadName: e.target.value })}
+                            />
                         </div>
 
                         {/* Kilométrage et Carburant */}

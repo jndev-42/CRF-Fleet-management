@@ -5,6 +5,7 @@ import { auth } from '@/auth';
 import { canManageVehicles } from '@/lib/roles';
 import { recalcVehicleStatus } from '@/lib/vehicleStatusRecalc';
 import { withAudit } from '@/lib/audit/log';
+import { DEFAULT_MIN_FUEL_RETURN_PERCENT } from '@/lib/maintenanceUtils';
 import { listVehicleDocuments, deleteVehicleDocuments } from '@/lib/vehicleDocuments/server';
 
 export const dynamic = 'force-dynamic';
@@ -66,6 +67,13 @@ export async function GET(
             );
         }
 
+        // Seuil de carburant au retour de l'UL du véhicule (texte d'aide seulement).
+        const ulRes = row.ulId
+            ? await db.execute({ sql: `SELECT minFuelReturnPercent FROM UniteLocale WHERE id = ?`, args: [row.ulId] })
+            : null;
+        const minFuelReturnPercent = (ulRes?.rows[0]?.minFuelReturnPercent as number | null | undefined)
+            ?? DEFAULT_MIN_FUEL_RETURN_PERCENT;
+
         // Fetch trips using the actual vehicle UUID — JOIN User to get display name/email
         const tripsResult = await db.execute({
             sql: `SELECT t.*,
@@ -126,6 +134,7 @@ export async function GET(
             hasDSA: !!row.hasDSA,
             desinfTracking: !!row.desinfTracking,
             desinfIntervalMonths: (row.desinfIntervalMonths as number | null) ?? 3,
+            minFuelReturnPercent,
             notes: row.notes,
             vin: row.vin,
             connection: connectionRow ? {
@@ -168,6 +177,7 @@ export async function GET(
                 secondDriverEmail: tRow.secondDriverEmail || null,
                 missionType: tRow.missionType,
                 missionName: tRow.missionName,
+                missionLeadName: (tRow.missionLeadName as string | null) || null,
                 checkOutAt: new Date(tRow.checkOutAt as string),
                 mileageOut: tRow.mileageOut,
                 fuelOut: tRow.fuelOut,

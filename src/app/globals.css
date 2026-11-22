@@ -1100,6 +1100,19 @@ body {
   flex-direction: column;
 }
 
+.modal-content {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: var(--shadow-lg);
+}
+
 .modal-header {
   padding: 20px 20px 0;
   display: flex;
@@ -1152,7 +1165,8 @@ body {
     align-items: flex-end;
   }
 
-  .modal {
+  .modal,
+  .modal-content {
     border-radius: var(--radius-xl) var(--radius-xl) 8px 8px;
     max-height: 95vh;
   }

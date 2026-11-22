@@ -92,6 +92,7 @@ async function createTables() {
     secondDriverId TEXT REFERENCES "User"(id),
     missionType TEXT,
     missionName TEXT,
+    missionLeadName TEXT,
     checkOutAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     checkInAt DATETIME,
     mileageOut INTEGER,
@@ -146,7 +147,8 @@ async function createTables() {
     stampImage TEXT,
     dtCode TEXT,
     qrToken TEXT,
-    uniformQrToken TEXT
+    uniformQrToken TEXT,
+    minFuelReturnPercent INTEGER
   )`);
 
   // Index partiel — deux UL ne peuvent pas porter le même token QR, mais autant
@@ -543,7 +545,8 @@ async function createTables() {
     stampImage TEXT,
     dtCode TEXT,
     qrToken TEXT,
-    uniformQrToken TEXT
+    uniformQrToken TEXT,
+    minFuelReturnPercent INTEGER
   )`);
 
   // Index partiel — deux UL ne peuvent pas porter le même token QR, mais autant

@@ -234,4 +234,34 @@ describe('PATCH /api/trips/[id]/checkout', () => {
       expect(response.status).toBe(200);
     });
   });
+
+  describe('missionLeadName', () => {
+    async function setup() {
+      // @ts-expect-error — admin session
+      mockedAuth.mockResolvedValue(adminSession);
+      await seedUser({ id: 'user-driver-1', name: 'Conducteur 1', email: 'driver1@test.com' });
+      await seedVehicle({ id: 'VL001', status: 'IN_USE', mileage: 50000, fuelLevel: 50 });
+      await seedTrip({ id: 'trip-lead', vehicleId: 'VL001', driverId: 'user-driver-1', checkInAt: null, mileageOut: 50000, fuelOut: 50, missionType: 'DPS' });
+    }
+    const base = { ...validEditBody, secondDriverId: undefined };
+    async function lead() {
+      const r = await db.execute({ sql: 'SELECT missionLeadName FROM Trip WHERE id = ?', args: ['trip-lead'] });
+      return r.rows[0].missionLeadName;
+    }
+
+    it('enregistre la valeur rognée, efface sur null et conserve si la clé est absente', async () => {
+      await setup();
+      let [req, ctx] = makeRequest('trip-lead', { ...base, missionLeadName: '  X ' });
+      expect((await PATCH(req, ctx)).status).toBe(200);
+      expect(await lead()).toBe('X');
+
+      [req, ctx] = makeRequest('trip-lead', { ...base });
+      expect((await PATCH(req, ctx)).status).toBe(200);
+      expect(await lead()).toBe('X');
+
+      [req, ctx] = makeRequest('trip-lead', { ...base, missionLeadName: null });
+      expect((await PATCH(req, ctx)).status).toBe(200);
+      expect(await lead()).toBeNull();
+    });
+  });
 });

@@ -260,4 +260,23 @@ describe('CheckOutForm (QR) — correction kilométrage / carburant', () => {
         await waitFor(() => expect(onSuccess).toHaveBeenCalled());
         expect(lastCheckoutBody().missionType).toBe('Entraînement');
     });
+
+    it('envoie le responsable de la mission rogné', async () => {
+        render(<CheckOutForm vehicle={vehicle} token="tok-1" onSuccess={vi.fn()} />);
+        fireEvent.change(screen.getByLabelText('Responsable de la mission'), { target: { value: '  Paul D. (CI) ' } });
+        fireEvent.click(screen.getByRole('button', { name: /Confirmer l'emprunt/ }));
+        await waitFor(() => expect(lastCheckoutBody().missionLeadName).toBe('Paul D. (CI)'));
+    });
+
+    it('n\'envoie rien quand le responsable est vide', async () => {
+        render(<CheckOutForm vehicle={vehicle} token="tok-1" onSuccess={vi.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: /Confirmer l'emprunt/ }));
+        await waitFor(() => expect(lastCheckoutBody()).toBeTruthy());
+        expect(lastCheckoutBody().missionLeadName).toBeUndefined();
+    });
+
+    it('reprend le seuil carburant de l\'UL dans l\'aide', () => {
+        render(<CheckOutForm vehicle={{ ...vehicle, minFuelReturnPercent: 50 }} token="tok-1" onSuccess={vi.fn()} />);
+        expect(screen.getByText(/En dessous de 50 % \(1\/2\)/)).toBeTruthy();
+    });
 });

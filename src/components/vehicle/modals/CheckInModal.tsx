@@ -3,6 +3,7 @@ import { Trip, Vehicle } from '@/app/vehicles/[id]/types';
 import { isVehicleConnected, formatDate } from '@/app/vehicles/[id]/utils';
 import { useUL } from '@/lib/contexts/ULContext';
 import FuelBar from '@/components/vehicle/FuelBar';
+import { DEFAULT_MIN_FUEL_RETURN_PERCENT, fuelThresholdLabel } from '@/lib/maintenanceUtils';
 import ChecklistItems from '../ChecklistItems';
 import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
@@ -395,6 +396,11 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                     aria-valuenow={form.fuelIn}
                                 />
                                 <FuelBar level={form.fuelIn} electric={vehicle.fuelType === 'Électrique'} style={{ marginTop: 8 }} />
+                                {vehicle.fuelType !== 'Électrique' && (
+                                    <div className="form-hint">
+                                        En dessous de {fuelThresholdLabel(vehicle.minFuelReturnPercent ?? DEFAULT_MIN_FUEL_RETURN_PERCENT)}, le plein doit être fait avant le retour sinon le signaler
+                                    </div>
+                                )}
                             </div>
                         )}
 

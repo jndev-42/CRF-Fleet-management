@@ -1,6 +1,6 @@
 import DetailCard from '@/components/vehicle/DetailCard';
 import { Vehicle, MaintenanceRecord } from '@/app/vehicles/[id]/types';
-import { getNextCtDate, getNextRevision, formatDuration } from '@/lib/maintenanceUtils';
+import { getNextCtDate, getRevisionDisplay, formatDuration } from '@/lib/maintenanceUtils';
 
 interface MaintenanceCardProps {
     vehicle: Vehicle;
@@ -39,30 +39,57 @@ function ctColor(days: number): { bg: string; border: string; value: string } {
     };
 }
 
+/** Échéance formatée : « dans 9 mois », « En retard (2 mois) », « Aujourd'hui ». */
+function dueLabel(days: number): string {
+    if (days < 0) return `En retard (${formatDuration(Math.abs(days))})`;
+    if (days === 0) return "Aujourd'hui";
+    return `dans ${formatDuration(days)}`;
+}
+
+function lower(label: string): string {
+    return label.replace(/^En retard/, 'en retard').replace(/^Aujourd'hui/, "aujourd'hui");
+}
+
 export default function MaintenanceCard({ vehicle, records, onClick, onEdit }: MaintenanceCardProps) {
     const nextCt = getNextCtDate(vehicle, records);
-    const nextRevision = getNextRevision(vehicle, records);
+    const revision = getRevisionDisplay(vehicle, records);
 
     const ctDays = nextCt ? diffDays(nextCt) : null;
-    const colors = ctDays !== null ? ctColor(ctDays) : undefined;
+    const revDays = revision?.nextDate ? diffDays(revision.nextDate) : null;
 
-    let ctLabel = '—';
-    if (ctDays !== null) {
-        if (ctDays < 0) {
-            ctLabel = `En retard (${formatDuration(Math.abs(ctDays))})`;
-        } else if (ctDays === 0) {
-            ctLabel = "Aujourd'hui";
-        } else {
-            ctLabel = `dans ${formatDuration(ctDays)}`;
-        }
+    const remainingKm = revision?.remainingKm ?? null;
+    const kmOverdue = remainingKm !== null && remainingKm < 0;
+    const kmLabel = remainingKm !== null ? Math.abs(remainingKm).toLocaleString('fr-FR') : '';
+
+    // Valeur de la carte : l'échéance la plus proche, nommée. Une révision dépassée en km est en retard.
+    let nearest: { text: string; days: number } | null = null;
+    if (ctDays !== null) nearest = { text: `CT ${lower(dueLabel(ctDays))}`, days: ctDays };
+    if (kmOverdue) {
+        nearest = { text: `Révision dépassée de ${kmLabel} km`, days: -1 };
+    } else if (revDays !== null && (nearest === null || revDays < nearest.days)) {
+        nearest = { text: `Révision ${lower(dueLabel(revDays))}`, days: revDays };
     }
 
-    const hasRevision = nextRevision !== null;
+    const colors = nearest ? ctColor(nearest.days) : undefined;
+    const value = nearest ? nearest.text : '—';
+
+    let revisionText: string | null = null;
+    if (kmOverdue) {
+        revisionText = `dépassée de ${kmLabel} km`;
+    } else if (revision) {
+        const dateOverdue = revDays !== null && revDays < 0;
+        const parts: string[] = [];
+        if (revDays !== null) parts.push(dueLabel(revDays));
+        if (remainingKm !== null && !dateOverdue) {
+            parts.push(`${revDays !== null ? 'ou' : 'dans'} ${kmLabel} km`);
+        }
+        revisionText = parts.join(' ');
+    }
 
     return (
         <DetailCard
             title="Entretien"
-            value={ctDays !== null ? ctLabel : '—'}
+            value={value}
             subtitle="Voir l'historique"
             backgroundColor={colors?.bg}
             borderColor={colors?.border}
@@ -70,17 +97,10 @@ export default function MaintenanceCard({ vehicle, records, onClick, onEdit }: M
             onEdit={onEdit}
             onClick={onClick}
         >
-            {hasRevision && nextRevision && (
-                <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
-                    {(() => {
-                        const revDays = diffDays(nextRevision.nextDate);
-                        const dateLabel = revDays < 0
-                            ? `Révision en retard (${formatDuration(Math.abs(revDays))})`
-                            : `Révision dans ${formatDuration(revDays)}`;
-                        return `${dateLabel} · ${nextRevision.remainingKm.toLocaleString('fr-FR')} km`;
-                    })()}
-                </div>
-            )}
+            <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+                <div>Contrôle technique : {ctDays !== null ? dueLabel(ctDays) : '—'}</div>
+                {revisionText !== null && <div>Révision : {revisionText}</div>}
+            </div>
         </DetailCard>
     );
 }

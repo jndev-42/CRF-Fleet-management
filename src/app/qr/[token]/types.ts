@@ -11,6 +11,7 @@ export interface ActiveTrip {
     secondDriverEmail: string | null;
     missionType: string;
     missionName: string | null;
+    missionLeadName?: string | null;
     checkOutAt: string;
     mileageOut: number;
     fuelOut: number;
@@ -35,6 +36,8 @@ export interface QRVehicle {
      */
     connection: { status: string } | null;
     maxFuelCapacity: number | null;
+    /** Seuil de carburant au retour de l'UL du véhicule, en % (défaut 25) */
+    minFuelReturnPercent?: number;
     /** Documents PDF liés au véhicule (métadonnées seulement) — vide s'il n'y en a pas. */
     documents?: VehicleDocumentMeta[];
     /** Date ISO du dernier dépôt de la photo — `null` si le véhicule n'en a pas. */

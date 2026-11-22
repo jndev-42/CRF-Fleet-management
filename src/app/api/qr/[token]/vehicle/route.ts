@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { auth } from '@/auth';
 import { isQrBlocked } from '@/lib/roles';
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
+import { DEFAULT_MIN_FUEL_RETURN_PERCENT } from '@/lib/maintenanceUtils';
 import { listVehicleDocuments } from '@/lib/vehicleDocuments/server';
 
 /**
@@ -38,6 +39,7 @@ export async function GET(
                          t.secondDriverId AS trip_secondDriverId,
                          t.missionType AS trip_missionType,
                          t.missionName AS trip_missionName,
+                         t.missionLeadName AS trip_missionLeadName,
                          t.checkOutAt  AS trip_checkOutAt,
                          t.mileageOut  AS trip_mileageOut,
                          t.fuelOut     AS trip_fuelOut,
@@ -53,9 +55,11 @@ export async function GET(
                          u.email       AS trip_driverEmail,
                          u2.name       AS trip_secondDriverName,
                          u2.email      AS trip_secondDriverEmail,
-                         vc.status     AS connection_status
+                         vc.status     AS connection_status,
+                         ul.minFuelReturnPercent AS ul_minFuelReturnPercent
                   FROM Vehicle v
                   LEFT JOIN VehicleConnection vc ON vc.vehicleId = v.id
+                  LEFT JOIN UniteLocale ul ON ul.id = v.ulId
                   LEFT JOIN Trip t ON t.vehicleId = v.id AND t.checkInAt IS NULL
                   LEFT JOIN "User" u  ON u.id = t.driverId
                   LEFT JOIN "User" u2 ON u2.id = t.secondDriverId
@@ -82,6 +86,7 @@ export async function GET(
                 secondDriverEmail: row.trip_secondDriverEmail as string | null,
                 missionType: row.trip_missionType as string,
                 missionName: row.trip_missionName as string | null,
+                missionLeadName: (row.trip_missionLeadName as string | null) || null,
                 checkOutAt: row.trip_checkOutAt as string,
                 mileageOut: row.trip_mileageOut as number,
                 fuelOut: row.trip_fuelOut as number,
@@ -115,6 +120,8 @@ export async function GET(
             maxFuelCapacity: row.maxFuelCapacity as number | null,
             maxBatteryCapacityKwh: row.maxBatteryCapacityKwh as number | null,
             ulId: row.ulId as string,
+            // Seuil de carburant au retour de l'UL du véhicule (texte d'aide seulement).
+            minFuelReturnPercent: (row.ul_minFuelReturnPercent as number | null) ?? DEFAULT_MIN_FUEL_RETURN_PERCENT,
             // Métadonnées des documents seulement : le binaire passe par
             // /api/qr/[token]/documents/[documentId], la clé R2 n'est jamais exposée.
             documents: await listVehicleDocuments(row.id as string),

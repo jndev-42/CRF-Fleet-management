@@ -238,3 +238,13 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-suivi-technique-4-controles.md`
   summary: Nettoyer les données du suivi technique (RDV, rattachements, dossiers) à la suppression d'un véhicule ou d'un contact.
   evidence: pas de clé étrangère ni de suppression en cascade ; la route DELETE véhicule ne touche pas aux tables Fleet*.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-retours-martine-carnet-entretien.md`
+  summary: L'onglet « Suivi technique › Contrôles » affiche encore des km de révision restants inventés (intervalle complet) quand aucune révision avec kilométrage n'est connue, alors que la carte Entretien ne les affiche plus.
+  evidence: `src/lib/fleetTracking/controls.ts:184` utilise `getNextRevision` (branche « use full interval as remaining ») ; aligner sur `getRevisionDisplay` demande une décision car `fleetTracking/AGENTS.md:40` interdit de modifier `getNextRevision` depuis le suivi technique.
+- source_spec: `_bmad-output/implementation-artifacts/spec-retours-martine-carnet-entretien.md`
+  summary: Tester la couleur de la carte Entretien (échéance la plus proche) et le libellé « en retard » en minuscules.
+  evidence: `MaintenanceCard.test.tsx` ne vérifie que le texte ; revenir à `ctColor(ctDays)` ne casserait aucun test.
+- source_spec: `_bmad-output/implementation-artifacts/spec-retours-martine-carnet-entretien.md`
+  summary: Mettre à jour les AGENTS.md des routes touchées (trips, trips/[id]/checkout, qr/[token]/checkout — INSERT passé à 17 colonnes —, qr/[token]/vehicle, ul) avec missionLeadName et minFuelReturnPercent.
+  evidence: `src/app/api/trips/AGENTS.md:22` et `src/app/api/qr/[token]/checkout/AGENTS.md:25,45` décrivent encore l'ancien schéma.

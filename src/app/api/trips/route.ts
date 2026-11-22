@@ -186,10 +186,10 @@ async function postHandler(request: Request) {
         try {
             await tx.execute({
                 sql: `INSERT INTO Trip (
-                        id, vehicleId, driverId, secondDriverId, missionType, missionName,
+                        id, vehicleId, driverId, secondDriverId, missionType, missionName, missionLeadName,
                         checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut,
                         driveFolderId, checklistOut, createdAt
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     tripId,
                     data.vehicleId,
@@ -197,6 +197,7 @@ async function postHandler(request: Request) {
                     data.secondDriverId || null,
                     data.missionType,
                     data.missionName || null,
+                    data.missionLeadName || null,
                     timestamp, // checkOutAt
                     mileageOut,
                     fuelOut,
@@ -249,6 +250,7 @@ async function postHandler(request: Request) {
                 driverEmail: session.user.email || null,
                 missionType: data.missionType,
                 missionName: data.missionName || null,
+                missionLeadName: data.missionLeadName || null,
                 checkOutAt: timestamp,
                 mileageOut,
                 fuelOut,

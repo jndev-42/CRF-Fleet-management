@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.57.0] — 22 novembre 2026
+
+### ✨ Ajouté
+
+- Responsable de la mission : un champ facultatif « Responsable de la mission » (CI, CDPE…) à la prise du véhicule, depuis la fiche véhicule comme depuis le QR code, modifiable dans « Modifier la prise ». Quand il est renseigné, il apparaît sur chaque ligne de l'historique des sorties.
+- Seuil de carburant au retour par UL : chaque UL peut fixer son propre seuil (par défaut 25 %) dans l'onglet « Unités Locales ». Les textes d'aide à la prise et au retour des véhicules thermiques reprennent ce seuil.
+
+### 🐛 Corrections
+
+- Les fenêtres de réservation (et quatre autres : QR codes des véhicules, des UL, des uniformes, des stocks) défilent désormais : le bas de la fenêtre, donc « Valider », reste accessible sur un petit écran.
+- Carte « Entretien » : elle nomme l'échéance affichée (« Révision dans 18 jours », « CT dans 9 mois ») et détaille sur deux lignes le contrôle technique et la révision. Sans révision connue, plus de kilomètres restants inventés.
+
 ## [5.56.1] — 19 novembre 2026
 
 ### 🐛 Corrections
