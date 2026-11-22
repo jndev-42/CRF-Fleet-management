@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Check, Pencil, Pin, PinOff, RotateCcw, Trash2 } from 'lucide-react';
-import { DOSSIER_STATUS_LABELS, dossierVehicleNames, type FleetDossierDetail } from '@/lib/fleetTracking/dossiers';
+import { FileText, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import { DOSSIER_STATUS_LABELS, dossierVehicleNames, incidentReportLink, type FleetDossierDetail } from '@/lib/fleetTracking/dossiers';
 import { formatFrDate } from '@/lib/fleetTracking/tasks';
 import { DOSSIERS_URL } from './useFleetDossiers';
 import { readError } from './useFleetContacts';
+import DossierStatusControl from './DossierStatusControl';
 import styles from './dossiers.module.css';
 import taskStyles from './tasks.module.css';
 
@@ -59,7 +60,6 @@ export default function DossierHeader({ dossier, onReplace, onEdit, onDeleted }:
         }
     };
 
-    const open = dossier.status === 'OPEN';
     return (
         <header className={styles.header}>
             <div className={styles.headerMeta}>
@@ -75,6 +75,13 @@ export default function DossierHeader({ dossier, onReplace, onEdit, onDeleted }:
                 {dossier.closedAt ? ` · clos le ${formatFrDate(dossier.closedAt)}` : ''}
             </p>
             {dossier.description && <p className={styles.description}>{dossier.description}</p>}
+            {dossier.sourceType === 'INCIDENT_REPORT' && dossier.sourceId && (
+                <p>
+                    <a href={incidentReportLink(dossier.sourceId)} target="_blank" rel="noopener noreferrer" className={styles.sourceLink}>
+                        <FileText size={14} aria-hidden="true" /> Voir la déclaration d&apos;incident (PDF)
+                    </a>
+                </p>
+            )}
             <div className={styles.actions}>
                 <button type="button" className="btn btn-secondary" aria-pressed={dossier.pinned} disabled={busy} onClick={() => void patch({ pinned: !dossier.pinned })}>
                     {dossier.pinned ? <PinOff size={16} aria-hidden="true" /> : <Pin size={16} aria-hidden="true" />}
@@ -83,10 +90,7 @@ export default function DossierHeader({ dossier, onReplace, onEdit, onDeleted }:
                 <button type="button" className="btn btn-secondary" disabled={busy} onClick={onEdit}>
                     <Pencil size={16} aria-hidden="true" /> Modifier
                 </button>
-                <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void patch({ status: open ? 'CLOSED' : 'OPEN' })}>
-                    {open ? <Check size={16} aria-hidden="true" /> : <RotateCcw size={16} aria-hidden="true" />}
-                    {open ? 'Clore le dossier' : 'Rouvrir le dossier'}
-                </button>
+                <DossierStatusControl dossier={dossier} busy={busy} onPatch={body => void patch(body)} />
                 <button type="button" className={`btn btn-secondary ${taskStyles.danger}`} disabled={busy} onClick={() => void remove()}>
                     <Trash2 size={16} aria-hidden="true" /> Supprimer
                 </button>

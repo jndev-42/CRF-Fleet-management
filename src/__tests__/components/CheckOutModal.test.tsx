@@ -332,4 +332,101 @@ describe('CheckOutModal', () => {
             expect(JSON.parse((call![1] as RequestInit).body as string).missionLeadName).toBe('Paul D. (CI)');
         });
     });
+
+    describe('photos obligatoires (UL)', () => {
+        const required = { ...mockVehicle, checkoutPhotosRequired: true };
+
+        function postBody(fetchMock: ReturnType<typeof mockFetch>) {
+            const call = fetchMock.mock.calls.find(c => String(c[0]) === '/api/trips' && (c[1] as RequestInit)?.method === 'POST');
+            return call ? JSON.parse((call[1] as RequestInit).body as string) : null;
+        }
+
+        it('UL à photos optionnelles : « (Optionnel) », aucune fenêtre, rien de plus dans le POST', async () => {
+            const fetchMock = mockFetch();
+            const onSuccess = vi.fn();
+            render(<CheckOutModal vehicle={mockVehicle} onClose={vi.fn()} onSuccess={onSuccess} />);
+            await screen.findByDisplayValue('Jean Dupont');
+            expect(screen.getByText(/Photos avant départ \(Optionnel\)/)).toBeTruthy();
+            fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+            await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+            expect(screen.queryByText(/Photos obligatoires/)).toBeNull();
+            expect(postBody(fetchMock).photosSkipped).toBeUndefined();
+        });
+
+        it('UL obligatoire : pas de « (Optionnel) », consigne des 4 photos', async () => {
+            mockFetch();
+            render(<CheckOutModal vehicle={required} onClose={vi.fn()} onSuccess={vi.fn()} />);
+            await screen.findByDisplayValue('Jean Dupont');
+            expect(screen.queryByText(/Photos avant départ \(Optionnel\)/)).toBeNull();
+            expect(screen.getByText(/Au minimum 4 photos : avant, arrière, côté gauche et côté droit/)).toBeTruthy();
+        });
+
+        it('sans photo : la fenêtre s\'ouvre ; « Prendre des photos » n\'envoie rien', async () => {
+            const fetchMock = mockFetch();
+            render(<CheckOutModal vehicle={required} onClose={vi.fn()} onSuccess={vi.fn()} />);
+            await screen.findByDisplayValue('Jean Dupont');
+            fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+            expect(await screen.findByText(/Photos obligatoires/)).toBeTruthy();
+            expect(screen.getByRole('dialog', { name: /Photos obligatoires/ }).textContent?.toLowerCase()).not.toContain('urgence');
+
+            fireEvent.click(screen.getByRole('button', { name: 'Prendre des photos' }));
+            expect(screen.queryByText(/Photos obligatoires/)).toBeNull();
+            expect(postBody(fetchMock)).toBeNull();
+        });
+
+        it('Échap dans la fenêtre « Photos obligatoires » ne ferme pas toute la prise', async () => {
+            mockFetch();
+            const onClose = vi.fn();
+            render(<CheckOutModal vehicle={required} onClose={onClose} onSuccess={vi.fn()} />);
+            await screen.findByDisplayValue('Jean Dupont');
+            fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+            await screen.findByText(/Photos obligatoires/);
+            fireEvent.keyDown(window, { key: 'Escape' });
+            expect(onClose).not.toHaveBeenCalled();
+            expect(screen.queryByText(/Photos obligatoires/)).toBeNull();
+            // Fenêtre fermée : Échap referme de nouveau la prise.
+            fireEvent.keyDown(window, { key: 'Escape' });
+            expect(onClose).toHaveBeenCalledTimes(1);
+        });
+
+        it('photos choisies mais envoi sans dossier : la prise est tracée « sans photo »', async () => {
+            const { uploadMediaSafely } = await import('@/lib/imageCompression');
+            vi.mocked(uploadMediaSafely).mockResolvedValueOnce({ success: true, folderId: undefined, fileIds: [] } as never);
+            const fetchMock = mockFetch();
+            const onSuccess = vi.fn();
+            const { container } = render(<CheckOutModal vehicle={required} onClose={vi.fn()} onSuccess={onSuccess} />);
+            await screen.findByDisplayValue('Jean Dupont');
+            const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+            fireEvent.change(input, { target: { files: [new File(['x'], 'p.jpg', { type: 'image/jpeg' })] } });
+            await waitFor(() => expect(container.querySelectorAll('img').length).toBeGreaterThan(0));
+            fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+            await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+            expect(postBody(fetchMock).photosSkipped).toBe(true);
+        });
+
+        it('« Continuer sans photo » envoie la prise avec photosSkipped', async () => {
+            const fetchMock = mockFetch();
+            const onSuccess = vi.fn();
+            render(<CheckOutModal vehicle={required} onClose={vi.fn()} onSuccess={onSuccess} />);
+            await screen.findByDisplayValue('Jean Dupont');
+            fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+            fireEvent.click(await screen.findByRole('button', { name: 'Continuer sans photo' }));
+            await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+            expect(postBody(fetchMock).photosSkipped).toBe(true);
+        });
+
+        it('avec une photo : aucune fenêtre, pas de photosSkipped', async () => {
+            const fetchMock = mockFetch();
+            const onSuccess = vi.fn();
+            const { container } = render(<CheckOutModal vehicle={required} onClose={vi.fn()} onSuccess={onSuccess} />);
+            await screen.findByDisplayValue('Jean Dupont');
+            const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+            fireEvent.change(input, { target: { files: [new File(['x'], 'p.jpg', { type: 'image/jpeg' })] } });
+            await waitFor(() => expect(container.querySelectorAll('img').length).toBeGreaterThan(0));
+            fireEvent.click(screen.getByRole('button', { name: /Prendre le véhicule/ }));
+            await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+            expect(screen.queryByText(/Photos obligatoires/)).toBeNull();
+            expect(postBody(fetchMock).photosSkipped).toBeUndefined();
+        });
+    });
 });

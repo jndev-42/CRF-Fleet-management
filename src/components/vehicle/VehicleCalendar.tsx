@@ -7,60 +7,29 @@ import { useUL } from '@/lib/contexts/ULContext';
 import { UNASSIGNED_DRIVER_NAME, isUnassignedDriverName } from '@/lib/reservationDriver';
 import { canManageVehicles } from '@/lib/roles';
 import { isMaintenanceEditable } from '@/lib/maintenanceStatus';
-import { getDaySpanLabel, overlapsDay } from '@/lib/calendarDaySpan';
+import {
+  type CalendarEvent,
+  type CalendarVehicle,
+  type CalendarReservation,
+  type CalendarTrip,
+  type CalendarMaintenance,
+  buildCalendarEvents,
+  eventsForDay,
+  mergeCalendarData,
+  monthName,
+} from '@/lib/calendarEvents';
+import { useCalendarView } from './useCalendarView';
+import CalendarEventCard from './CalendarEventCard';
+import CalendarViewSwitcher from './CalendarViewSwitcher';
+import CalendarWeekView from './CalendarWeekView';
+import CalendarDayView from './CalendarDayView';
 import EditMaintenanceEventModal from './modals/EditMaintenanceEventModal';
 import DeleteMaintenanceEventModal from './modals/DeleteMaintenanceEventModal';
 
-interface Vehicle {
-  id: string;
-  name: string;
-  plate: string;
-  type: string;
-  status: string;
-}
-
-interface Reservation {
-  id: string;
-  vehicleId: string;
-  vehicleName: string;
-  vehiclePlate: string;
-  userEmail: string;
-  userName: string;
-  startTime: string;
-  endTime: string;
-  reason: string | null;
-  status: string;
-}
-
-interface Trip {
-  id: string;
-  vehicleId: string;
-  vehicleName: string;
-  vehiclePlate: string;
-  driverName: string;
-  secondDriverName: string | null;
-  missionType: string;
-  missionName: string | null;
-  checkOutAt: string;
-  checkInAt: string | null;
-  isOngoing: boolean;
-}
-
-interface MaintenanceEvent {
-  id: string;
-  vehicleId: string;
-  vehicleName: string;
-  vehiclePlate: string;
-  startDate: string;
-  endDate: string | null;
-  reason: string;
-  isEndDateUnknown: boolean;
-}
-
-type CalendarEvent =
-  | { type: 'RESERVATION'; data: Reservation; startTime: Date; endTime: Date }
-  | { type: 'TRIP'; data: Trip; startTime: Date; endTime: Date | null; isOngoing: boolean }
-  | { type: 'MAINTENANCE'; data: MaintenanceEvent; startTime: Date; endTime: Date | null; isEndDateUnknown: boolean };
+type Vehicle = CalendarVehicle;
+type Reservation = CalendarReservation;
+type Trip = CalendarTrip;
+type MaintenanceEvent = CalendarMaintenance;
 
 interface CalendarDay {
   date: Date;
@@ -70,10 +39,8 @@ interface CalendarDay {
   events: CalendarEvent[];
 }
 
-const MONTH_NAMES = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-];
+const PERIOD_WORD = { month: 'mois', week: 'semaine', day: 'jour' } as const;
+const PERIOD_LABEL = { month: 'Mois', week: 'Semaine', day: 'Jour' } as const;
 
 const DAY_NAMES = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
@@ -86,7 +53,7 @@ interface VehicleCalendarProps {
 export default function VehicleCalendar({ dtView = false, refreshKey = 0 }: VehicleCalendarProps) {
   const { activeUL } = useUL();
   const { data: session } = useSession();
-  const [currentDate, setCurrentDate] = useState<Date>(() => new Date());
+  const { view, setView, currentDate, goPrev, goNext, goToday, openDay, monthsKey, label } = useCalendarView();
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('ALL');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
@@ -122,36 +89,38 @@ export default function VehicleCalendar({ dtView = false, refreshKey = 0 }: Vehi
     });
   };
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth(); // 0-indexed
-
-  const monthParam = useMemo(() => {
-    return `${year}-${String(month + 1).padStart(2, '0')}`;
-  }, [year, month]);
+  // Numéro de la dernière requête : une réponse plus ancienne (navigation rapide) est ignorée.
+  const requestIdRef = useRef(0);
 
   const fetchData = useCallback(async (silent = false) => {
+    const requestId = ++requestIdRef.current;
     if (!silent) setLoading(true);
     try {
-      let url = `/api/vehicles/calendar?month=${monthParam}`;
-      if (dtView) {
-        url += `&view=dt`;
-      }
-      if (selectedVehicleId !== 'ALL') {
-        url += `&vehicleId=${encodeURIComponent(selectedVehicleId)}`;
-      }
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('Erreur chargement calendrier');
-      const data = await res.json();
-      setVehicles(data.vehicles || []);
-      setReservations(data.reservations || []);
-      setTrips(data.trips || []);
-      setMaintenances(data.maintenances || []);
+      // Une semaine à cheval sur deux mois charge les deux, fusionnés sans doublon.
+      const responses = await Promise.all(monthsKey.split(',').map(async monthParam => {
+        let url = `/api/vehicles/calendar?month=${monthParam}`;
+        if (dtView) {
+          url += `&view=dt`;
+        }
+        if (selectedVehicleId !== 'ALL') {
+          url += `&vehicleId=${encodeURIComponent(selectedVehicleId)}`;
+        }
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Erreur chargement calendrier');
+        return res.json();
+      }));
+      if (requestId !== requestIdRef.current) return;
+      const data = mergeCalendarData(responses);
+      setVehicles(data.vehicles);
+      setReservations(data.reservations);
+      setTrips(data.trips);
+      setMaintenances(data.maintenances);
     } catch (err) {
-      console.error('Erreur calendrier:', err);
+      if (requestId === requestIdRef.current) console.error('Erreur calendrier:', err);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
-  }, [monthParam, selectedVehicleId, dtView]);
+  }, [monthsKey, selectedVehicleId, dtView]);
 
   // Un changement de `refreshKey` seul recharge en silence : la grille reste affichée.
   const lastRefreshKeyRef = useRef(refreshKey);
@@ -163,130 +132,43 @@ export default function VehicleCalendar({ dtView = false, refreshKey = 0 }: Vehi
     }
   }, [fetchData, showCalendar, activeUL?.id, refreshKey]);
 
-  // Handlers for month navigation
-  const handlePrevMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
-  };
-
-  const handleToday = () => {
-    setCurrentDate(new Date());
-  };
+  const events = useMemo(
+    () => buildCalendarEvents({ reservations, trips, maintenances }),
+    [reservations, trips, maintenances],
+  );
 
   // Build grid days for the selected month (Monday to Sunday)
   const calendarDays = useMemo<CalendarDay[]>(() => {
+    if (view !== 'month') return [];
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const firstDayOfMonth = new Date(year, month, 1);
     const lastDayOfMonth = new Date(year, month + 1, 0);
+    // ISO day index for Monday = 0 ... Sunday = 6
+    const startDayOfWeek = (new Date(year, month, 1).getDay() + 6) % 7;
 
-    // Get ISO day index for Monday = 0 ... Sunday = 6
-    const startDayOfWeek = (firstDayOfMonth.getDay() + 6) % 7;
-
-    const days: CalendarDay[] = [];
-
-    // Add days from previous month to fill the first week row
+    const dates: { date: Date; isCurrentMonth: boolean }[] = [];
     for (let i = startDayOfWeek; i > 0; i--) {
-      const d = new Date(year, month, 1 - i);
-      days.push({
-        date: d,
-        dayNumber: d.getDate(),
-        isCurrentMonth: false,
-        isToday: d.getTime() === today.getTime(),
-        events: [],
-      });
+      dates.push({ date: new Date(year, month, 1 - i), isCurrentMonth: false });
     }
-
-    // Add days of current month
     for (let i = 1; i <= lastDayOfMonth.getDate(); i++) {
-      const d = new Date(year, month, i);
-      days.push({
-        date: d,
-        dayNumber: i,
-        isCurrentMonth: true,
-        isToday: d.getTime() === today.getTime(),
-        events: [],
-      });
+      dates.push({ date: new Date(year, month, i), isCurrentMonth: true });
     }
-
-    // Add days from next month to complete the last week row
-    const totalDaysSoFar = days.length;
-    const remainingDays = (7 - (totalDaysSoFar % 7)) % 7;
+    const remainingDays = (7 - (dates.length % 7)) % 7;
     for (let i = 1; i <= remainingDays; i++) {
-      const d = new Date(year, month + 1, i);
-      days.push({
-        date: d,
-        dayNumber: d.getDate(),
-        isCurrentMonth: false,
-        isToday: d.getTime() === today.getTime(),
-        events: [],
-      });
+      dates.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
     }
 
-    // Process & map events onto days
-    const allEvents: CalendarEvent[] = [
-      ...reservations.map(r => ({
-        type: 'RESERVATION' as const,
-        data: r,
-        startTime: new Date(r.startTime),
-        endTime: new Date(r.endTime),
-      })),
-      ...trips.map(t => ({
-        type: 'TRIP' as const,
-        data: t,
-        startTime: new Date(t.checkOutAt),
-        endTime: t.checkInAt ? new Date(t.checkInAt) : null,
-        isOngoing: !t.checkInAt,
-      })),
-      ...maintenances.map(m => {
-        const start = new Date(m.startDate.includes('T') ? m.startDate : `${m.startDate}T00:00:00`);
-        const end = m.endDate ? new Date(m.endDate.includes('T') ? m.endDate : `${m.endDate}T23:59:59`) : null;
-        return {
-          type: 'MAINTENANCE' as const,
-          data: m,
-          startTime: start,
-          endTime: end,
-          isEndDateUnknown: !m.endDate,
-        };
-      }),
-    ];
-
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    days.forEach(day => {
-      const dayStart = new Date(day.date);
-      dayStart.setHours(0, 0, 0, 0);
-
-      const dayEnd = new Date(day.date);
-      dayEnd.setHours(23, 59, 59, 999);
-
-      day.events = allEvents.filter(event => {
-        if (event.type === 'RESERVATION') {
-          return overlapsDay(event.startTime, event.endTime, dayStart, dayEnd);
-        } else if (event.type === 'TRIP') {
-          if (event.isOngoing) {
-            return event.startTime <= dayEnd && dayStart <= todayEnd;
-          } else {
-            return overlapsDay(event.startTime, event.endTime!, dayStart, dayEnd);
-          }
-        } else {
-          // MAINTENANCE
-          if (event.isEndDateUnknown) {
-            return event.startTime <= dayEnd && dayStart <= todayEnd;
-          } else {
-            return event.startTime <= dayEnd && event.endTime! >= dayStart;
-          }
-        }
-      });
-    });
-
-    return days;
-  }, [year, month, reservations, trips, maintenances]);
+    return dates.map(({ date, isCurrentMonth }) => ({
+      date,
+      dayNumber: date.getDate(),
+      isCurrentMonth,
+      isToday: date.getTime() === today.getTime(),
+      events: eventsForDay(events, date),
+    }));
+  }, [view, currentDate, events]);
 
   const formatDateFull = (dateStr: string | null) => {
     if (!dateStr) return 'Non restitué (En cours)';
@@ -331,7 +213,7 @@ export default function VehicleCalendar({ dtView = false, refreshKey = 0 }: Vehi
           <span className={styles.titleIcon}>📅</span>
           <div>
             <h2 className={styles.title}>Planning des véhicules</h2>
-            <p className={styles.subtitle}>Réservations & Emprunts par mois</p>
+            <p className={styles.subtitle}>Réservations & Emprunts par {PERIOD_WORD[view]}</p>
           </div>
         </div>
 
@@ -339,32 +221,34 @@ export default function VehicleCalendar({ dtView = false, refreshKey = 0 }: Vehi
           <div className={styles.monthNav}>
             <button
               className={styles.navBtn}
-              onClick={handlePrevMonth}
-              aria-label="Mois précédent"
+              onClick={goPrev}
+              aria-label={`${PERIOD_LABEL[view]} précédent${view === 'week' ? 'e' : ''}`}
               type="button"
             >
               ◀
             </button>
             <span className={styles.currentMonthLabel}>
-              {MONTH_NAMES[month]} {year}
+              {label}
             </span>
             <button
               className={styles.navBtn}
-              onClick={handleNextMonth}
-              aria-label="Mois suivant"
+              onClick={goNext}
+              aria-label={`${PERIOD_LABEL[view]} suivant${view === 'week' ? 'e' : ''}`}
               type="button"
             >
               ▶
             </button>
             <button
               className={styles.navBtn}
-              onClick={handleToday}
+              onClick={goToday}
               style={{ marginLeft: '0.25rem', borderLeft: '1px solid var(--border-primary)' }}
               type="button"
             >
               Aujourd&apos;hui
             </button>
           </div>
+
+          <CalendarViewSwitcher view={view} onChange={setView} />
 
           <select
             className={styles.selectVehicle}
@@ -422,114 +306,60 @@ export default function VehicleCalendar({ dtView = false, refreshKey = 0 }: Vehi
           Chargement du calendrier...
         </div>
       ) : (
-        <div className={styles.gridContainer}>
-          <div className={styles.grid}>
-            {DAY_NAMES.map(dayName => (
-              <div key={dayName} className={styles.dayHeader}>
-                {dayName}
-              </div>
-            ))}
+        <>
+          {view === 'month' && (
+            <div className={styles.gridContainer}>
+              <div className={styles.grid}>
+                {DAY_NAMES.map(dayName => (
+                  <div key={dayName} className={styles.dayHeader}>
+                    {dayName}
+                  </div>
+                ))}
 
-            {calendarDays.map((day, idx) => (
-              <div
-                key={idx}
-                className={`
-                  ${styles.dayCell}
-                  ${!day.isCurrentMonth ? styles.dayCellOtherMonth : ''}
-                  ${day.isToday ? styles.dayCellToday : ''}
-                `}
-              >
-                <div className={styles.dayNumberRow}>
-                  <span className={`${styles.dayNumber} ${day.isToday ? styles.todayBadge : ''}`}>
-                    {day.dayNumber}
-                  </span>
-                </div>
+                {calendarDays.map((day, idx) => (
+                  <div
+                    key={idx}
+                    className={`
+                      ${styles.dayCell}
+                      ${!day.isCurrentMonth ? styles.dayCellOtherMonth : ''}
+                      ${day.isToday ? styles.dayCellToday : ''}
+                    `}
+                  >
+                    <div className={styles.dayNumberRow}>
+                      <button
+                        type="button"
+                        className={styles.dayNumberButton}
+                        onClick={() => openDay(day.date)}
+                        aria-label={`Voir la journée du ${day.dayNumber} ${monthName(day.date.getMonth()).toLowerCase()}`}
+                      >
+                        <span className={`${styles.dayNumber} ${day.isToday ? styles.todayBadge : ''}`}>
+                          {day.dayNumber}
+                        </span>
+                      </button>
+                    </div>
 
-                <div className={styles.eventList}>
-                  {day.events.map((event, eIdx) => {
-                    if (event.type === 'RESERVATION') {
-                      const res = event.data;
-                      return (
-                        <div
-                          key={`res-${res.id}-${eIdx}`}
-                          className={`${styles.eventItem} ${styles.eventReservation}`}
-                          onClick={() => setSelectedEvent(event)}
-                          title={`Réservation : ${res.vehicleName} (${res.userName})`}
-                        >
-                          <div className={styles.eventHeader}>
-                            <span className={styles.eventVehicle}>{res.vehicleName}</span>
-                            <span className={styles.eventTime}>
-                              {getDaySpanLabel(event.startTime, event.endTime, day.date)}
-                            </span>
-                          </div>
-                          <div className={styles.eventSubtext}>
-                            🧑 {res.userName || res.userEmail.split('@')[0]}
-                          </div>
-                        </div>
-                      );
-                    } else if (event.type === 'TRIP') {
-                      const trip = event.data;
-                      const isOngoing = event.isOngoing;
-                      return (
-                        <div
-                          key={`trip-${trip.id}-${eIdx}`}
-                          className={`
-                            ${styles.eventItem}
-                            ${isOngoing ? styles.eventTripOngoing : styles.eventTripCompleted}
-                          `}
-                          onClick={() => setSelectedEvent(event)}
-                          title={`Emprunt ${isOngoing ? 'en cours' : ''} : ${trip.vehicleName} (${trip.driverName})`}
-                        >
-                          <div className={styles.eventHeader}>
-                            <span className={styles.eventVehicle}>{trip.vehicleName}</span>
-                            {isOngoing ? (
-                              <span className={styles.ongoingBadge}>⏳ En cours</span>
-                            ) : (
-                              <span className={styles.eventTime}>
-                                {getDaySpanLabel(event.startTime, event.endTime!, day.date)}
-                              </span>
-                            )}
-                          </div>
-                          <div className={styles.eventSubtext}>
-                            🚗 {trip.driverName} {trip.secondDriverName ? ` & ${trip.secondDriverName}` : ''}
-                          </div>
-                        </div>
-                      );
-                    } else {
-                      const maint = event.data;
-                      const isUnknown = event.isEndDateUnknown;
-                      return (
-                        <div
-                          key={`maint-${maint.id}-${eIdx}`}
-                          className={`
-                            ${styles.eventItem}
-                            ${isUnknown ? styles.eventMaintenanceOngoing : styles.eventMaintenanceCompleted}
-                          `}
-                          onClick={() => setSelectedEvent(event)}
-                          title={`Maintenance ${isUnknown ? '(fin inconnue)' : ''} : ${maint.vehicleName} (${maint.reason})`}
-                        >
-                          <div className={styles.eventHeader}>
-                            <span className={styles.eventVehicle}>{maint.vehicleName}</span>
-                            {isUnknown ? (
-                              <span className={styles.ongoingBadgeRed}>🔧 Maint.</span>
-                            ) : (
-                              <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
-                                🔧 Maint.
-                              </span>
-                            )}
-                          </div>
-                          <div className={styles.eventSubtext}>
-                            🛠️ {maint.reason}
-                          </div>
-                        </div>
-                      );
-                    }
-                  })}
-                </div>
+                    <div className={styles.eventList}>
+                      {day.events.map((event, eIdx) => (
+                        <CalendarEventCard
+                          key={`${event.type}-${event.data.id}-${eIdx}`}
+                          event={event}
+                          day={day.date}
+                          onSelect={setSelectedEvent}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )}
+          {view === 'week' && (
+            <CalendarWeekView date={currentDate} events={events} onSelect={setSelectedEvent} onOpenDay={openDay} />
+          )}
+          {view === 'day' && (
+            <CalendarDayView date={currentDate} events={events} onSelect={setSelectedEvent} />
+          )}
+        </>
       )}
 
       {/* Event Details Modal */}

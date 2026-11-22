@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Vehicle } from '@/app/vehicles/[id]/types';
 import { isVehicleConnected } from '@/app/vehicles/[id]/utils';
 
@@ -7,6 +7,7 @@ import DataCorrectionFields from '@/components/vehicle/DataCorrectionFields';
 import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
+import PhotosRequiredModal from './PhotosRequiredModal';
 import { uploadMediaSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
 import { missionTypesForVehicle, missionTypeLabel } from '@/lib/mission-types';
@@ -28,7 +29,6 @@ interface CheckOutModalProps {
  * onSuccess is called only after the API request completes successfully.
  */
 export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }: CheckOutModalProps) {
-    useEscapeKey(onClose);
     // Find the last completed trip to pre-fill condition and cleanliness
     const lastTrip = vehicle.trips?.find(t => t.checkInAt);
 
@@ -59,6 +59,13 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
     const [sessionLoading, setSessionLoading] = useState(true);
     const [users, setUsers] = useState<{ id: string; name: string | null; email: string }[]>([]);
     const [photos, setPhotos] = useState<File[]>([]);
+    // UL à photos obligatoires : sans photo, une fenêtre propose d'en prendre ou de continuer (dérogation tracée).
+    const photosRequired = vehicle.checkoutPhotosRequired === true;
+    const [showPhotosRequired, setShowPhotosRequired] = useState(false);
+    // Échap ferme la fenêtre « Photos obligatoires » (la sienne), pas toute la prise.
+    useEscapeKey(onClose, !showPhotosRequired);
+    const [highlightPhotos, setHighlightPhotos] = useState(false);
+    const photosRef = useRef<HTMLDivElement>(null);
     // Booléen hissé hors de l'effet : `isVehicleConnected(vehicle)` y lirait l'objet `vehicle`
     // entier, que `exhaustive-deps` exigerait alors en dépendance — l'effet se rejouerait à
     // chaque nouvelle identité de `vehicle`. Une primitive garde les dépendances granulaires.
@@ -143,8 +150,27 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
         });
     }, [vehicle.id, vehicle.type, connected, vehicle.vin, vehicle.fuelType, vehicle.maxFuelCapacity]);
 
-    async function handleSubmit(e: React.FormEvent) {
+    function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
+        if (photosRequired && photos.length === 0) {
+            setShowPhotosRequired(true);
+            return;
+        }
+        void submitCheckOut(false);
+    }
+
+    function handleTakePhotos() {
+        setShowPhotosRequired(false);
+        setHighlightPhotos(true);
+        photosRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    }
+
+    function handleContinueWithoutPhotos() {
+        setShowPhotosRequired(false);
+        void submitCheckOut(true);
+    }
+
+    async function submitCheckOut(photosSkipped: boolean) {
         setSubmitting(true);
 
         try {
@@ -185,6 +211,8 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                     dsaChecked: isDsaChecked,
                     secondDriverId: form.secondDriverId || undefined,
                     driveFolderId,
+                    // UL à photos obligatoires : une prise sans dossier de photos (aucune, ou envoi sans résultat) reste tracée.
+                    photosSkipped: (photosSkipped || (photosRequired && !driveFolderId)) || undefined,
                     checklistOut: Object.keys(checklistOut).length > 0 ? checklistOut : undefined,
                     dataIncorrect: dataIncorrect || undefined,
                     correctedMileage: dataIncorrect && correctedMileage !== '' ? correctedMileage : undefined,
@@ -410,11 +438,20 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                             />
                         </div>
 
-                        {/* Photos (Optionnel) */}
-                        <div className="form-group" style={{ marginTop: 16 }}>
+                        {/* Photos (optionnelles, ou obligatoires selon l'UL) */}
+                        <div
+                            ref={photosRef}
+                            className="form-group"
+                            style={{
+                                marginTop: 16,
+                                ...(highlightPhotos && photos.length === 0 ? { outline: '2px solid var(--crf-red)', outlineOffset: 4, borderRadius: 'var(--radius-md)' } : {}),
+                            }}
+                        >
                             <PhotoPicker
-                                label="📸 Photos avant départ (Optionnel)"
-                                hint="Ces photos seront envoyées sur un Google Drive. Maximum 15 Mo par photo · 150 Mo max au total."
+                                label={photosRequired ? '📸 Photos avant départ' : '📸 Photos avant départ (Optionnel)'}
+                                hint={photosRequired
+                                    ? 'Au minimum 4 photos : avant, arrière, côté gauche et côté droit. Maximum 15 Mo par photo · 150 Mo max au total.'
+                                    : 'Ces photos seront envoyées sur un Google Drive. Maximum 15 Mo par photo · 150 Mo max au total.'}
                                 photos={photos}
                                 onPhotosChange={setPhotos}
                                 maxSizeMB={15}
@@ -441,6 +478,10 @@ export default function CheckOutModal({ vehicle, onClose, onSuccess, onRefetch }
                     </div>
                 </form>
             </div>
+
+            {showPhotosRequired && (
+                <PhotosRequiredModal onTakePhotos={handleTakePhotos} onContinue={handleContinueWithoutPhotos} />
+            )}
 
             {showIncidentReport && (
                 <IncidentReportModal

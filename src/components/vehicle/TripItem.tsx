@@ -31,6 +31,11 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                             Responsable : {trip.missionLeadName}
                         </span>
                     )}
+                    {trip.photosSkipped && (
+                        <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+                            📷 Sans photo
+                        </span>
+                    )}
                     {trip.desinfType && (
                         <span style={{
                             marginLeft: 10,

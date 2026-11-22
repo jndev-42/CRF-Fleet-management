@@ -16,6 +16,8 @@ export interface Trip {
     missionName: string | null;
     /** Responsable de la mission (CI, CDPE…), texte libre optionnel */
     missionLeadName?: string | null;
+    /** Prise validée sans photo malgré l'obligation de l'UL */
+    photosSkipped?: boolean;
     checkOutAt: string;
     checkInAt: string | null;
     mileageOut: number;
@@ -73,6 +75,8 @@ export interface Vehicle {
     desinfIntervalMonths: number;
     /** Seuil de carburant au retour de l'UL du véhicule, en % (défaut 25) */
     minFuelReturnPercent?: number;
+    /** Photos de départ obligatoires dans l'UL du véhicule (dérogation possible) */
+    checkoutPhotosRequired?: boolean;
     notes: string | null;
     vin: string | null;
     /**

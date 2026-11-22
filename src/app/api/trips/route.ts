@@ -188,8 +188,8 @@ async function postHandler(request: Request) {
                 sql: `INSERT INTO Trip (
                         id, vehicleId, driverId, secondDriverId, missionType, missionName, missionLeadName,
                         checkOutAt, mileageOut, fuelOut, conditionOut, cleanlinessOut, parkingOut, dsaChecked, commentsOut,
-                        driveFolderId, checklistOut, createdAt
-                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                        driveFolderId, checklistOut, photosSkipped, createdAt
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 args: [
                     tripId,
                     data.vehicleId,
@@ -208,6 +208,7 @@ async function postHandler(request: Request) {
                     data.commentsOut || null,
                     data.driveFolderId || null,
                     data.checklistOut ? JSON.stringify(data.checklistOut) : null,
+                    data.photosSkipped && !data.driveFolderId ? 1 : 0,
                     timestamp // createdAt
                 ]
             });
@@ -251,6 +252,7 @@ async function postHandler(request: Request) {
                 missionType: data.missionType,
                 missionName: data.missionName || null,
                 missionLeadName: data.missionLeadName || null,
+                photosSkipped: !!data.photosSkipped && !data.driveFolderId,
                 checkOutAt: timestamp,
                 mileageOut,
                 fuelOut,

@@ -9,13 +9,45 @@ import type { FleetTask, TaskAttachment } from './tasks';
  * et par les composants client.
  */
 
-export const DOSSIER_STATUSES = ['OPEN', 'CLOSED'] as const;
+/**
+ * `NEW` : créé automatiquement (déclaration d'incident), pas encore pris en charge ;
+ * `OPEN` : en cours (valeur historique, conservée) ; `WAITING` : en attente ;
+ * `CLOSED` : clos, avec un motif. « Ouvert » = tout sauf `CLOSED` (`isDossierActive`).
+ */
+export const DOSSIER_STATUSES = ['NEW', 'OPEN', 'WAITING', 'CLOSED'] as const;
 export type DossierStatus = typeof DOSSIER_STATUSES[number];
 
 export const DOSSIER_STATUS_LABELS: Record<DossierStatus, string> = {
-    OPEN: 'Ouvert',
+    NEW: 'Nouveau',
+    OPEN: 'En cours',
+    WAITING: 'En attente',
     CLOSED: 'Clos',
 };
+
+/** Un dossier est « ouvert » dès qu'il n'est pas clos (Nouveau, En cours, En attente). */
+export function isDossierActive(status: DossierStatus): boolean {
+    return status !== 'CLOSED';
+}
+
+/** Motif de clôture, obligatoire pour clore un dossier. */
+export const CLOSE_REASONS = ['NO_ACTION', 'REPAIRED', 'INSURANCE', 'OTHER'] as const;
+export type DossierCloseReason = typeof CLOSE_REASONS[number];
+
+export const CLOSE_REASON_LABELS: Record<DossierCloseReason, string> = {
+    NO_ACTION: 'Sans suite',
+    REPAIRED: 'Réparé',
+    INSURANCE: 'Pris en charge par l\'assurance',
+    OTHER: 'Autre',
+};
+
+/** Origine d'un dossier créé automatiquement. */
+export const DOSSIER_SOURCE_TYPES = ['INCIDENT_REPORT'] as const;
+export type DossierSourceType = typeof DOSSIER_SOURCE_TYPES[number];
+
+/** Lien vers la déclaration d'incident à l'origine d'un dossier (son PDF). */
+export function incidentReportLink(sourceId: string): string {
+    return `/api/incidents/${encodeURIComponent(sourceId)}/pdf`;
+}
 
 export const MAX_DOSSIER_TITLE = 200;
 export const MAX_DOSSIER_DESCRIPTION = 5000;
@@ -49,6 +81,11 @@ export interface FleetDossier {
     createdAt: string;
     updatedAt: string;
     closedAt: string | null;
+    /** Motif de clôture (dossier clos). */
+    closeReason: DossierCloseReason | null;
+    /** Origine d'un dossier créé automatiquement ; `null` pour un dossier créé à la main. */
+    sourceType: DossierSourceType | null;
+    sourceId: string | null;
     taskCount: number;
     /** Tâches non terminées. */
     openTaskCount: number;
@@ -111,18 +148,22 @@ const dossierFields = {
     description: z.string().trim().max(MAX_DOSSIER_DESCRIPTION, `Description limitée à ${MAX_DOSSIER_DESCRIPTION} caractères`)
         .nullable().optional().transform(emptyToNull),
     status: z.enum(DOSSIER_STATUSES),
+    closeReason: z.enum(CLOSE_REASONS, { error: 'Motif de clôture invalide' }).nullable().optional(),
     pinned: z.boolean(),
 };
+
+export const CLOSE_REASON_REQUIRED = 'Choisissez un motif de clôture';
 
 export const createDossierSchema = z.preprocess(legacyVehicleId, z.object({
     ...dossierFields,
     status: dossierFields.status.default('OPEN'),
     pinned: dossierFields.pinned.default(false),
-}).strict());
+}).strict().refine(v => v.status !== 'CLOSED' || !!v.closeReason, { message: CLOSE_REASON_REQUIRED, path: ['closeReason'] }));
 
 /** `vehicleIds` remplace la liste des véhicules du dossier (au moins un). */
 export const updateDossierSchema = z.object(dossierFields).partial().strict()
-    .refine(v => Object.values(v).some(x => x !== undefined), 'Aucune modification');
+    .refine(v => Object.values(v).some(x => x !== undefined), 'Aucune modification')
+    .refine(v => v.status !== 'CLOSED' || !!v.closeReason, { message: CLOSE_REASON_REQUIRED, path: ['closeReason'] });
 
 export type CreateDossierInput = z.infer<typeof createDossierSchema>;
 export type UpdateDossierInput = z.infer<typeof updateDossierSchema>;
@@ -147,9 +188,12 @@ export const updateItemSchema = z.object({
 
 export type UpdateItemInput = z.infer<typeof updateItemSchema>;
 
-/** Filtres de la liste (`GET /api/fleet-tracking/dossiers?…`). */
+/**
+ * Filtres de la liste (`GET /api/fleet-tracking/dossiers?…`). `status=OPEN` : dossiers
+ * ouverts (tout sauf clos) ; `status=CLOSED` : dossiers clos.
+ */
 export const dossierFiltersSchema = z.object({
-    status: z.enum(DOSSIER_STATUSES).optional(),
+    status: z.enum(['OPEN', 'CLOSED']).optional(),
     vehicle: idSchema.optional(),
     pinned: z.enum(['1', 'true']).optional(),
 });
@@ -172,7 +216,7 @@ export function missingItemsLabel(items: { received: boolean }[]): string | null
 export function dossierSummary(d: Pick<FleetDossier, 'status' | 'taskCount' | 'openTaskCount' | 'missingItemCount' | 'attachmentCount'>): string {
     const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
     const parts: string[] = [];
-    if (d.status === 'OPEN') {
+    if (isDossierActive(d.status)) {
         if (d.openTaskCount > 0) parts.push(plural(d.openTaskCount, 'tâche en cours', 'tâches en cours'));
         if (d.missingItemCount > 0) parts.push(plural(d.missingItemCount, 'pièce manquante', 'pièces manquantes'));
     } else if (d.taskCount > 0) {
@@ -185,7 +229,8 @@ export function dossierSummary(d: Pick<FleetDossier, 'status' | 'taskCount' | 'o
 /** Ordre de la liste : épinglés, puis ouverts, puis les plus récents. */
 export function compareDossiers(a: FleetDossier, b: FleetDossier): number {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    if (a.status !== b.status) return a.status === 'OPEN' ? -1 : 1;
+    const aActive = isDossierActive(a.status);
+    if (aActive !== isDossierActive(b.status)) return aActive ? -1 : 1;
     return b.createdAt.localeCompare(a.createdAt);
 }
 
@@ -206,5 +251,5 @@ export function dossierDeepLink(dossierId: string): string {
 
 /** Entrée de l'historique « en cours » (dossier ouvert, tâche non terminée) ou « clos / terminé ». */
 export function isHistoryEntryActive(entry: VehicleHistoryEntry): boolean {
-    return entry.kind === 'DOSSIER' ? entry.dossier.status === 'OPEN' : entry.task.status !== 'DONE';
+    return entry.kind === 'DOSSIER' ? isDossierActive(entry.dossier.status) : entry.task.status !== 'DONE';
 }

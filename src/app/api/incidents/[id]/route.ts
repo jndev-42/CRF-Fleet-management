@@ -13,6 +13,7 @@ import {
 import { unauthorizedResponse, forbiddenResponse } from '@/lib/apiAuth';
 import { withAudit } from '@/lib/audit/log';
 import { notifyIncidentSubmitted } from '@/lib/incidentNotifications';
+import { createIncidentDossier } from '@/lib/fleetTracking/incidentDossiers';
 
 const updateIncidentSchema = z.object({
     type: z.enum(['ACCIDENT', 'FLASH']).optional().nullable(),
@@ -199,6 +200,8 @@ async function patchHandler(
 
         // Passage DRAFT -> SUBMITTED : les Responsables sont prévenus, une seule fois
         if (data.status === 'SUBMITTED' && check.rows[0].status !== 'SUBMITTED') {
+            // Dossier « Nouveau » du suivi technique : non bloquant (jamais d'exception).
+            await createIncidentDossier(id);
             const updated = await db.execute({
                 sql: `SELECT vehicleId, type FROM "IncidentReport" WHERE id = ?`,
                 args: [id],

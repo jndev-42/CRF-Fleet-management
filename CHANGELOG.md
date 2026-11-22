@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.58.0] — 22 novembre 2026
+
+### ✨ Ajouté
+
+- Calendrier des véhicules : un sélecteur « Mois / Semaine / Jour ». La vue Semaine affiche les sept jours en colonnes, la vue Jour toutes les réservations d'une journée chargée. Un clic sur un numéro de jour ouvre la vue Jour ; votre choix de vue est retenu.
+- Photos de départ obligatoires : chaque UL peut exiger au minimum 4 photos (avant, arrière, côté gauche, côté droit) à la prise d'un véhicule depuis sa fiche, dans l'onglet « Unités Locales ». Sans photo, une fenêtre propose de « Prendre des photos » ou de « Continuer sans photo » ; dans ce cas la sortie est marquée « 📷 Sans photo » dans l'historique.
+- Suivi technique : une déclaration d'incident envoyée (accident, avis de contravention) crée automatiquement un dossier « Nouveau », visible des responsables véhicule de l'UL et muni d'un lien vers la déclaration (les déclarations envoyées avant la mise à jour n'en ont pas). Les dossiers ont maintenant les statuts Nouveau, En cours, En attente et Clos ; clore un dossier demande un motif (Sans suite, Réparé, Pris en charge par l'assurance, Autre).
+
+### 🔄 Modifié
+
+- Dans le suivi technique, le statut « Ouvert » des dossiers existants devient « En cours ».
+- Dans le suivi technique, un dossier est « ouvert » tant qu'il n'est pas clos : les dossiers Nouveau, En cours et En attente apparaissent dans « Ouverts » et dans le point sur la flotte.
+
 ## [5.57.0] — 22 novembre 2026
 
 ### ✨ Ajouté

@@ -8,7 +8,7 @@ import { createDossier, getDossierDetail, listDossiers } from '@/lib/fleetTracki
 import { searchParamsToObject } from '@/lib/fleetTracking/tasks';
 
 /**
- * GET /api/fleet-tracking/dossiers?status=OPEN|CLOSED&vehicle=<vehicleId>&pinned=1
+ * GET /api/fleet-tracking/dossiers?status=OPEN|CLOSED (OPEN = ouverts : tout sauf clos)&vehicle=<vehicleId>&pinned=1
  * Dossiers de l'UL de session (véhicules et compteurs compris) ; `vehicle` : dossiers
  * portant ce véhicule. `canManageVehicles`.
  *

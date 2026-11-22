@@ -28,7 +28,7 @@ export async function GET() {
             return unauthorizedResponse();
         }
 
-        const res = await db.execute(`SELECT id, name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode, minFuelReturnPercent FROM "UniteLocale" ORDER BY name ASC`);
+        const res = await db.execute(`SELECT id, name, slug, phoneNumbers, defaultParkingSpots, stampImage, dtCode, minFuelReturnPercent, checkoutPhotosRequired FROM "UniteLocale" ORDER BY name ASC`);
         const uls = res.rows.map(r => ({
             id: r.id,
             name: r.name,
@@ -38,6 +38,7 @@ export async function GET() {
             stampImage: (r.stampImage as string) || null,
             dtCode: (r.dtCode as string) || null,
             minFuelReturnPercent: (r.minFuelReturnPercent as number | null) ?? null,
+            checkoutPhotosRequired: Number(r.checkoutPhotosRequired ?? 0) === 1,
         }));
 
         return NextResponse.json({ uls });

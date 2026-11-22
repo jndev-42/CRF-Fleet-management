@@ -69,10 +69,11 @@ export async function GET(
 
         // Seuil de carburant au retour de l'UL du véhicule (texte d'aide seulement).
         const ulRes = row.ulId
-            ? await db.execute({ sql: `SELECT minFuelReturnPercent FROM UniteLocale WHERE id = ?`, args: [row.ulId] })
+            ? await db.execute({ sql: `SELECT minFuelReturnPercent, checkoutPhotosRequired FROM UniteLocale WHERE id = ?`, args: [row.ulId] })
             : null;
         const minFuelReturnPercent = (ulRes?.rows[0]?.minFuelReturnPercent as number | null | undefined)
             ?? DEFAULT_MIN_FUEL_RETURN_PERCENT;
+        const checkoutPhotosRequired = Number(ulRes?.rows[0]?.checkoutPhotosRequired ?? 0) === 1;
 
         // Fetch trips using the actual vehicle UUID — JOIN User to get display name/email
         const tripsResult = await db.execute({
@@ -135,6 +136,7 @@ export async function GET(
             desinfTracking: !!row.desinfTracking,
             desinfIntervalMonths: (row.desinfIntervalMonths as number | null) ?? 3,
             minFuelReturnPercent,
+            checkoutPhotosRequired,
             notes: row.notes,
             vin: row.vin,
             connection: connectionRow ? {
@@ -178,6 +180,7 @@ export async function GET(
                 missionType: tRow.missionType,
                 missionName: tRow.missionName,
                 missionLeadName: (tRow.missionLeadName as string | null) || null,
+                photosSkipped: Number(tRow.photosSkipped ?? 0) === 1,
                 checkOutAt: new Date(tRow.checkOutAt as string),
                 mileageOut: tRow.mileageOut,
                 fuelOut: tRow.fuelOut,

@@ -3,7 +3,7 @@
  *
  * Fichiers testés : src/components/vehicle/VehicleCalendar.tsx
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 // Seul mock du fichier : `VehicleCalendar` lit les rôles via `useSession` pour gater les
@@ -495,5 +495,125 @@ describe('VehicleCalendar — modifier / supprimer une maintenance', () => {
 
     // Chemin distinct de la suppression, bien qu'il partage `onSuccess → fetchData()`.
     await waitFor(() => expect(calendarCalls(fetchSpy)).toBeGreaterThan(before));
+  });
+});
+
+describe('VehicleCalendar — vues Mois / Semaine / Jour', () => {
+  const dayEvents = Array.from({ length: 10 }, (_, i) => ({
+    id: `res-d${i}`,
+    vehicleId: 'v-1',
+    vehicleName: `Véhicule ${i}`,
+    vehiclePlate: 'AB-123-CD',
+    userEmail: `u${i}@crf.fr`,
+    userName: `Chauffeur ${i}`,
+    startTime: new Date(now.getFullYear(), now.getMonth(), 10, 8 + (i % 8), 0, 0).toISOString(),
+    endTime: new Date(now.getFullYear(), now.getMonth(), 10, 9 + (i % 8), 0, 0).toISOString(),
+    reason: null,
+    status: 'VALIDATED',
+  }));
+
+  function mockMonth() {
+    return vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ ...mockCalendarData, reservations: dayEvents, trips: [], maintenances: [] }),
+    } as Response);
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it('propose Mois / Semaine / Jour, Mois par défaut', async () => {
+    mockMonth();
+    render(<VehicleCalendar />);
+    expect(screen.getByRole('button', { name: 'Mois' }).getAttribute('aria-pressed')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Semaine' }).getAttribute('aria-pressed')).toBe('false');
+    expect(screen.getByRole('button', { name: 'Jour' })).toBeTruthy();
+  });
+
+  it('vue Jour : les 10 réservations du jour sont toutes visibles', async () => {
+    mockMonth();
+    render(<VehicleCalendar />);
+    await waitFor(() => expect(screen.getAllByText(/Chauffeur 0/).length).toBeGreaterThan(0));
+    // Clic sur le numéro du 10 du mois → vue Jour sur cette date.
+    fireEvent.click(screen.getByRole('button', { name: new RegExp(`^Voir la journée du 10 `) }));
+    const dayView = await screen.findByTestId('calendar-day-view');
+    for (let i = 0; i < 10; i++) {
+      expect(dayView.textContent).toContain(`Chauffeur ${i}`);
+    }
+    expect(localStorage.getItem('vehicle_calendar_view')).toBe('day');
+  });
+
+  it('vue Semaine : sept colonnes, navigation par semaine', async () => {
+    const fetchSpy = mockMonth();
+    render(<VehicleCalendar />);
+    fireEvent.click(screen.getByRole('button', { name: 'Semaine' }));
+    const week = await screen.findByTestId('calendar-week-view');
+    expect(week.querySelectorAll('button[aria-label^="Voir la journée"]')).toHaveLength(7);
+    expect(screen.getByLabelText('Semaine précédente')).toBeTruthy();
+    fireEvent.click(screen.getByLabelText('Semaine suivante'));
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
+  it('mémorise la vue choisie et la rétablit au rechargement', async () => {
+    mockMonth();
+    localStorage.setItem('vehicle_calendar_view', 'week');
+    render(<VehicleCalendar />);
+    expect(await screen.findByTestId('calendar-week-view')).toBeTruthy();
+  });
+
+  it('ouvre la modale de détail depuis la vue Jour', async () => {
+    mockMonth();
+    render(<VehicleCalendar />);
+    await waitFor(() => expect(screen.getAllByText(/Chauffeur 3/).length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole('button', { name: /^Voir la journée du 10 / }));
+    const dayView = await screen.findByTestId('calendar-day-view');
+    fireEvent.click(dayView.querySelector('[title*="Chauffeur 3"]') as HTMLElement);
+    expect(await screen.findByText('Chauffeur (Réservé par)')).toBeTruthy();
+  });
+});
+
+describe('VehicleCalendar — semaine à cheval sur deux mois', () => {
+  const mkRes = (id: string, name: string, d: Date) => ({
+    id, vehicleId: 'v-1', vehicleName: 'VSAV 01', vehiclePlate: 'AB-123-CD', userEmail: 'x@crf.fr', userName: name,
+    startTime: d.toISOString(), endTime: new Date(d.getTime() + 3600_000).toISOString(), reason: null, status: 'VALIDATED',
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('charge octobre ET novembre, affiche les deux réservations, le libellé change à la semaine suivante', async () => {
+    // Seule la Date est simulée : waitFor continue d'utiliser les vrais timers.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 28, 12, 0, 0));
+    localStorage.clear();
+    localStorage.setItem('vehicle_calendar_view', 'week');
+
+    const fetchSpy = vi.spyOn(global, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const octo = mkRes('res-oct', 'Chauffeur Octobre', new Date(2026, 9, 28, 9, 0));
+      const nov = mkRes('res-nov', 'Chauffeur Novembre', new Date(2026, 10, 1, 9, 0));
+      const reservations = url.includes('month=2026-10') ? [octo] : url.includes('month=2026-11') ? [nov] : [];
+      return { ok: true, json: async () => ({ vehicles: [], reservations, trips: [], maintenances: [] }) } as Response;
+    });
+
+    render(<VehicleCalendar />);
+    const week = await screen.findByTestId('calendar-week-view');
+    await waitFor(() => {
+      expect(week.textContent).toContain('Chauffeur Octobre');
+      expect(week.textContent).toContain('Chauffeur Novembre');
+    });
+    const urls = fetchSpy.mock.calls.map(c => String(c[0]));
+    expect(urls.some(u => u.includes('month=2026-10'))).toBe(true);
+    expect(urls.some(u => u.includes('month=2026-11'))).toBe(true);
+
+    const label = screen.getByText(/oct\.? – .*nov/);
+    const before = label.textContent;
+    fireEvent.click(screen.getByLabelText('Semaine suivante'));
+    await waitFor(() => expect(screen.getByLabelText('Semaine précédente')).toBeTruthy());
+    const after = screen.getByTestId('vehicle-calendar').querySelector('[class*="currentMonthLabel"]')?.textContent;
+    expect(after).toBeTruthy();
+    expect(after).not.toBe(before);
   });
 });

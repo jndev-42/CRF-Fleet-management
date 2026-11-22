@@ -1,7 +1,7 @@
 'use client';
 
 import { FolderOpen, Pin } from 'lucide-react';
-import { dossierSummary, dossierVehicleNames, DOSSIER_STATUS_LABELS, type FleetDossier } from '@/lib/fleetTracking/dossiers';
+import { CLOSE_REASON_LABELS, dossierSummary, dossierVehicleNames, DOSSIER_STATUS_LABELS, isDossierActive, type FleetDossier } from '@/lib/fleetTracking/dossiers';
 import { formatFrDate } from '@/lib/fleetTracking/tasks';
 import styles from './dossiers.module.css';
 
@@ -19,7 +19,7 @@ export default function DossierListItem({ dossier: d, onOpen, actionLabel, hideV
     const dates = d.status === 'CLOSED' && d.closedAt
         ? `${formatFrDate(d.createdAt)} → ${formatFrDate(d.closedAt)}`
         : `Ouvert le ${formatFrDate(d.createdAt)}`;
-    const meta = [hideVehicle ? null : dossierVehicleNames(d), dates, dossierSummary(d)].filter(Boolean).join(' · ');
+    const meta = [hideVehicle ? null : dossierVehicleNames(d), dates, d.closeReason ? CLOSE_REASON_LABELS[d.closeReason] : null, dossierSummary(d)].filter(Boolean).join(' · ');
     return (
         <li className={styles.row}>
             <span className={`${styles.status} ${styles[`status_${d.status}`]}`}>{DOSSIER_STATUS_LABELS[d.status]}</span>
@@ -31,8 +31,8 @@ export default function DossierListItem({ dossier: d, onOpen, actionLabel, hideV
                 </div>
                 <div className={styles.rowMeta}>{meta}</div>
             </div>
-            <button type="button" className="btn btn-secondary" onClick={onOpen} aria-label={`${actionLabel ?? (d.status === 'OPEN' ? 'Ouvrir' : 'Consulter')} le dossier ${d.title}`}>
-                {actionLabel ?? (d.status === 'OPEN' ? 'Ouvrir' : 'Consulter')}
+            <button type="button" className="btn btn-secondary" onClick={onOpen} aria-label={`${actionLabel ?? (isDossierActive(d.status) ? 'Ouvrir' : 'Consulter')} le dossier ${d.title}`}>
+                {actionLabel ?? (isDossierActive(d.status) ? 'Ouvrir' : 'Consulter')}
             </button>
         </li>
     );

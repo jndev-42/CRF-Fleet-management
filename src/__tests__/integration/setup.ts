@@ -18,7 +18,7 @@ import { MCP_TOKEN_DDL, MCP_TOKEN_INDEXES } from '@/lib/mcp/schema';
 import { SEASONAL_THEME_DDL, SEASONAL_THEME_UL_DDL } from '@/lib/themes/schema';
 import { PUSH_SUBSCRIPTION_DDL, PUSH_SUBSCRIPTION_USER_INDEX_DDL } from '@/lib/push/schema';
 import { SCHEDULED_ALERT_DDL } from '@/lib/alerts/schema';
-import { FLEET_TRACKING_DDL } from '@/lib/fleetTracking/schema';
+import { FLEET_DOSSIER_SOURCE_INDEX, FLEET_TRACKING_DDL } from '@/lib/fleetTracking/schema';
 import { VEHICLE_DOCUMENT_DDL, VEHICLE_DOCUMENT_INDEX_DDL } from '@/lib/vehicleDocuments/schema';
 import { MISSION_REPORT_EDITS_DDL, MISSION_REPORT_EDITS_INDEX_DDL } from '@/lib/missions/edits-schema';
 
@@ -93,6 +93,7 @@ async function createTables() {
     missionType TEXT,
     missionName TEXT,
     missionLeadName TEXT,
+    photosSkipped INTEGER,
     checkOutAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     checkInAt DATETIME,
     mileageOut INTEGER,
@@ -148,7 +149,8 @@ async function createTables() {
     dtCode TEXT,
     qrToken TEXT,
     uniformQrToken TEXT,
-    minFuelReturnPercent INTEGER
+    minFuelReturnPercent INTEGER,
+    checkoutPhotosRequired INTEGER
   )`);
 
   // Index partiel — deux UL ne peuvent pas porter le même token QR, mais autant
@@ -418,6 +420,7 @@ async function createTables() {
   await db.execute(VEHICLE_DOCUMENT_DDL);
   await db.execute(VEHICLE_DOCUMENT_INDEX_DDL);
   for (const ddl of FLEET_TRACKING_DDL) await db.execute(ddl);
+  await db.execute(FLEET_DOSSIER_SOURCE_INDEX);
 
   await db.execute(`CREATE TABLE IF NOT EXISTS "VehicleMaintenanceRecord" (
     id TEXT PRIMARY KEY,
@@ -546,7 +549,8 @@ async function createTables() {
     dtCode TEXT,
     qrToken TEXT,
     uniformQrToken TEXT,
-    minFuelReturnPercent INTEGER
+    minFuelReturnPercent INTEGER,
+    checkoutPhotosRequired INTEGER
   )`);
 
   // Index partiel — deux UL ne peuvent pas porter le même token QR, mais autant

@@ -51,3 +51,16 @@ describe('TripItem — responsable de la mission', () => {
         expect(screen.queryByText(/Responsable :/)).toBeNull();
     });
 });
+
+describe('TripItem — sortie sans photo', () => {
+    it('affiche « Sans photo » pour une dérogation, sans mention d\'urgence', () => {
+        const { container } = render(<TripItem trip={{ ...trip(null), photosSkipped: true }} vehicle={vehicle} userRoles={['CHVL']} onDelete={vi.fn()} onViewPhotos={vi.fn()} />);
+        expect(screen.getByText(/Sans photo/)).toBeTruthy();
+        expect(container.textContent?.toLowerCase()).not.toContain('urgence');
+    });
+
+    it('rien sans dérogation', () => {
+        render(<TripItem trip={trip(null)} vehicle={vehicle} userRoles={['CHVL']} onDelete={vi.fn()} onViewPhotos={vi.fn()} />);
+        expect(screen.queryByText(/Sans photo/)).toBeNull();
+    });
+});
