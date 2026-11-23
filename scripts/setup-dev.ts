@@ -226,6 +226,7 @@ async function main() {
             "missionName"            TEXT,
             "missionLeadName"        TEXT,
             "photosSkipped"          INTEGER,
+            "photosSkippedIn"        INTEGER,
             "checkOutAt"             DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             "checkInAt"              DATETIME,
             "mileageOut"             INTEGER,
@@ -914,6 +915,7 @@ async function main() {
         ['UniteLocale', 'minFuelReturnPercent', 'INTEGER'],
         ['UniteLocale', 'checkoutPhotosRequired', 'INTEGER'],
         ['Trip', 'photosSkipped', 'INTEGER'],
+        ['Trip', 'photosSkippedIn', 'INTEGER'],
     ] as const) {
         const cols = await db.execute(`PRAGMA table_info("${table}")`);
         if (!cols.rows.some(r => r.name === column)) {

@@ -207,7 +207,8 @@ async function patchHandler(
                         incident = ?,
                         commentsIn = ?, parkingPhoto = ?, driveFolderId = ?, checklistIn = ?,
                         renaultDataValidated = ?, renaultLastCheckedAt = ?,
-                        desinfResponsable = ?, desinfLotNumber = ?, desinfType = ?
+                        desinfResponsable = ?, desinfLotNumber = ?, desinfType = ?,
+                        photosSkippedIn = ?
                       WHERE id = ?`,
                 args: [
                     timestamp,
@@ -226,6 +227,8 @@ async function patchHandler(
                     data.desinfResponsable || null,
                     data.desinfLotNumber || null,
                     data.desinfType || null,
+                    // Dérogation « sans photo » : seulement si aucune photo n'est jointe au retour.
+                    data.photosSkipped && !data.driveFolderId ? 1 : 0,
                     id
                 ]
             });

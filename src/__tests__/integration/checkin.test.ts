@@ -394,3 +394,55 @@ describe('PATCH /api/trips/[id]/checkin — lien de la notification d\'incident'
     }));
   });
 });
+
+describe('PATCH /api/trips/[id]/checkin — photosSkipped (photos obligatoires au retour)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  async function checkIn(extra: Record<string, unknown>): Promise<unknown> {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedVehicle();
+    await seedTrip({ id: 'trip-skip', driverId: 'user-driver' });
+    const [req, ctx] = makeRequest('trip-skip', { ...validCheckInBody, ...extra });
+    const res = await PATCH(req, ctx);
+    expect(res.status).toBe(200);
+    const row = await db.execute({ sql: 'SELECT photosSkippedIn FROM Trip WHERE id = ?', args: ['trip-skip'] });
+    return row.rows[0].photosSkippedIn;
+  }
+
+  it('dérogation sans photo : photosSkippedIn = 1', async () => {
+    expect(await checkIn({ photosSkipped: true })).toBe(1);
+  });
+
+  it('sans indication : photosSkippedIn = 0', async () => {
+    expect(await checkIn({})).toBe(0);
+  });
+
+  it('photosSkipped avec un dossier de photos : photosSkippedIn = 0', async () => {
+    expect(await checkIn({ photosSkipped: true, driveFolderId: 'drive-folder-123' })).toBe(0);
+  });
+
+  it('400 quand photosSkipped n\'est pas un booléen', async () => {
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(driverSession);
+    await seedUser({ id: 'user-driver', email: 'driver@test.com' });
+    await seedVehicle();
+    await seedTrip({ id: 'trip-skip', driverId: 'user-driver' });
+    const [req, ctx] = makeRequest('trip-skip', { ...validCheckInBody, photosSkipped: 'oui' });
+    expect((await PATCH(req, ctx)).status).toBe(400);
+  });
+
+  it('GET /api/vehicles/[id] renvoie photosSkippedIn des sorties', async () => {
+    await checkIn({ photosSkipped: true });
+    // @ts-expect-error — partial session object for testing
+    mockedAuth.mockResolvedValue(adminSession);
+    const res = await GETVehicle(new Request('http://localhost/api/vehicles/VL186'), {
+      params: Promise.resolve({ id: 'VL186' }),
+    });
+    const vehicle = await res.json();
+    expect(vehicle.trips[0].photosSkippedIn).toBe(true);
+  });
+});

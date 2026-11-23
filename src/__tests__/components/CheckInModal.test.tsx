@@ -522,3 +522,173 @@ describe('CheckInModal — seuil carburant au retour', () => {
         expect(await screen.findByText(/En dessous de 50 % \(1\/2\)/)).toBeTruthy();
     });
 });
+
+describe('CheckInModal — photos obligatoires au retour', () => {
+    const requiredVehicle: Vehicle = { ...mockVehicle, checkoutPhotosRequired: true };
+
+    function pickPhoto(container: HTMLElement) {
+        const fileInput = container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+        fireEvent.change(fileInput, {
+            target: { files: [new File(['x'], 'p.jpg', { type: 'image/jpeg' })] },
+        });
+    }
+
+    function patchCalls(fetchMock: ReturnType<typeof mockFetch>) {
+        return fetchMock.mock.calls.filter(c => (c[1] as RequestInit)?.method === 'PATCH');
+    }
+
+    function patchBody(fetchMock: ReturnType<typeof mockFetch>) {
+        return JSON.parse((patchCalls(fetchMock)[0][1] as RequestInit).body as string);
+    }
+
+    async function submit() {
+        await screen.findByDisplayValue('12000');
+        fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+    }
+
+    it('UL optionnelle : « (Optionnel) », aucune fenêtre, rien envoyé', async () => {
+        const fetchMock = mockFetch();
+        render(<CheckInModal vehicle={mockVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        expect(screen.getByText(/Photos après le retour \(Optionnel\)/)).toBeTruthy();
+
+        await submit();
+        await waitFor(() => expect(patchCalls(fetchMock)).toHaveLength(1));
+        expect(screen.queryByText('📸 Photos obligatoires')).toBeNull();
+        expect(patchBody(fetchMock).photosSkipped).toBeUndefined();
+    });
+
+    it('UL obligatoire : pas de « (Optionnel) », consigne des 4 photos', () => {
+        mockFetch();
+        render(<CheckInModal vehicle={requiredVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        expect(screen.queryByText(/\(Optionnel\)/)).toBeNull();
+        expect(screen.getByText(/Au minimum 4 photos : avant, arrière, côté gauche et côté droit\./)).toBeTruthy();
+    });
+
+    it('sans photo : la fenêtre s\'ouvre et rien n\'est envoyé ; « Prendre des photos » ne soumet rien', async () => {
+        const fetchMock = mockFetch();
+        render(<CheckInModal vehicle={requiredVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await submit();
+
+        expect(await screen.findByText('📸 Photos obligatoires')).toBeTruthy();
+        expect(patchCalls(fetchMock)).toHaveLength(0);
+
+        fireEvent.click(screen.getByRole('button', { name: /Prendre des photos/ }));
+        await waitFor(() => expect(screen.queryByText('📸 Photos obligatoires')).toBeNull());
+        expect(patchCalls(fetchMock)).toHaveLength(0);
+    });
+
+    it('la fenêtre parle du retour, pas du départ', async () => {
+        mockFetch();
+        render(<CheckInModal vehicle={requiredVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await submit();
+        const dialog = (await screen.findByText('📸 Photos obligatoires')).closest('[role="dialog"]') as HTMLElement;
+        expect(dialog.textContent).toContain('au retour');
+        expect(dialog.textContent).not.toContain('départ');
+    });
+
+    it('« Continuer sans photo » envoie le retour avec photosSkipped', async () => {
+        const fetchMock = mockFetch();
+        render(<CheckInModal vehicle={requiredVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await submit();
+
+        fireEvent.click(await screen.findByRole('button', { name: /Continuer sans photo/ }));
+        await waitFor(() => expect(patchCalls(fetchMock)).toHaveLength(1));
+        expect(patchBody(fetchMock).photosSkipped).toBe(true);
+    });
+
+    it('avec une photo : aucune fenêtre, pas de photosSkipped', async () => {
+        const fetchMock = mockFetch();
+        const { container } = render(<CheckInModal vehicle={requiredVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('12000');
+        pickPhoto(container);
+        await screen.findAllByAltText('Aperçu');
+        fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+        await waitFor(() => expect(patchCalls(fetchMock)).toHaveLength(1));
+        expect(screen.queryByText('📸 Photos obligatoires')).toBeNull();
+        expect(patchBody(fetchMock).photosSkipped).toBeUndefined();
+    });
+
+    it('photo choisie mais envoi sans dossier obtenu : photosSkipped', async () => {
+        vi.mocked(uploadMediaSafely).mockResolvedValueOnce({ success: true, folderId: undefined, fileIds: [] } as never);
+        const fetchMock = mockFetch();
+        const { container } = render(<CheckInModal vehicle={requiredVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('12000');
+        pickPhoto(container);
+        await screen.findAllByAltText('Aperçu');
+        fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+        await waitFor(() => expect(patchCalls(fetchMock)).toHaveLength(1));
+        expect(patchBody(fetchMock).photosSkipped).toBe(true);
+    });
+
+    it('Échap dans la fenêtre photos ne ferme pas la modale de retour', async () => {
+        mockFetch();
+        const onClose = vi.fn();
+        render(<CheckInModal vehicle={requiredVehicle} trip={mockTrip} onClose={onClose} onSuccess={vi.fn()} />);
+        await submit();
+        await screen.findByText('📸 Photos obligatoires');
+
+        fireEvent.keyDown(window, { key: 'Escape' });
+        await waitFor(() => expect(screen.queryByText('📸 Photos obligatoires')).toBeNull());
+        expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('anomalie km + sans photo : les deux fenêtres l\'une après l\'autre, puis un seul envoi', async () => {
+        const fetchMock = mockFetch();
+        render(<CheckInModal vehicle={requiredVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await screen.findByDisplayValue('12000');
+        fireEvent.change(screen.getByLabelText(/Kilométrage actuel/), { target: { value: '12400' } });
+        fireEvent.click(screen.getByRole('button', { name: /Rendre le véhicule/ }));
+
+        // 1re fenêtre : photos ; la fenêtre d'anomalie n'est pas encore là.
+        await screen.findByText('📸 Photos obligatoires');
+        expect(screen.queryByText('⚠️ Kilométrage inhabituel')).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: /Continuer sans photo/ }));
+
+        // 2e fenêtre : anomalie, toujours aucune requête.
+        await screen.findByText('⚠️ Kilométrage inhabituel');
+        expect(screen.queryByText('📸 Photos obligatoires')).toBeNull();
+        expect(patchCalls(fetchMock)).toHaveLength(0);
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmer quand même' }));
+
+        await waitFor(() => expect(patchCalls(fetchMock)).toHaveLength(1));
+        const body = patchBody(fetchMock);
+        expect(body.confirmMileageAnomaly).toBe(true);
+        expect(body.photosSkipped).toBe(true);
+    });
+
+    it('confirmation km côté serveur après « Continuer sans photo » : le second envoi porte les deux indicateurs', async () => {
+        let patchCount = 0;
+        const fetchMock = mockFetch(async (input, init) => {
+            if (getUrl(input).includes('/checkin') && init?.method === 'PATCH') {
+                patchCount += 1;
+                if (patchCount === 1) {
+                    return new Response(
+                        JSON.stringify({
+                            error: 'Kilométrage inhabituel, confirmation requise.',
+                            code: 'MILEAGE_CONFIRM_REQUIRED',
+                            delta: 480,
+                            maxKm: 300,
+                            durationLabel: '2 jours',
+                        }),
+                        { status: 400 }
+                    );
+                }
+                return new Response(JSON.stringify({ success: true }), { status: 200 });
+            }
+            return defaultFetchHandler(input, init);
+        });
+        render(<CheckInModal vehicle={requiredVehicle} trip={mockTrip} onClose={vi.fn()} onSuccess={vi.fn()} />);
+        await submit();
+
+        fireEvent.click(await screen.findByRole('button', { name: /Continuer sans photo/ }));
+        await screen.findByText('⚠️ Kilométrage inhabituel');
+        fireEvent.click(screen.getByRole('button', { name: 'Confirmer quand même' }));
+
+        await waitFor(() => expect(patchCalls(fetchMock)).toHaveLength(2));
+        const second = JSON.parse((patchCalls(fetchMock)[1][1] as RequestInit).body as string);
+        expect(second.confirmMileageAnomaly).toBe(true);
+        expect(second.photosSkipped).toBe(true);
+    });
+});

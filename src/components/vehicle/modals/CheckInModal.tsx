@@ -8,6 +8,7 @@ import ChecklistItems from '../ChecklistItems';
 import UserCombobox from '@/components/ui/UserCombobox';
 import PhotoPicker from '@/components/ui/PhotoPicker';
 import IncidentReportModal from './IncidentReportModal';
+import PhotosRequiredModal from './PhotosRequiredModal';
 import MarineApprovedOverlay from '@/components/ui/MarineApprovedOverlay';
 import { uploadMediaSafely } from '@/lib/imageCompression';
 import { useEscapeKey } from '@/lib/hooks/useEscapeKey';
@@ -115,6 +116,13 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
     const [mileageConfirm, setMileageConfirm] =
         useState<{ delta: number; maxKm: number; durationLabel: string } | null>(null);
     const showMileageConfirm = mileageConfirm !== null;
+    // UL à photos obligatoires : sans photo, une fenêtre propose d'en prendre ou de continuer (dérogation tracée).
+    const photosRequired = vehicle.checkoutPhotosRequired === true;
+    const [showPhotosRequired, setShowPhotosRequired] = useState(false);
+    const [highlightPhotos, setHighlightPhotos] = useState(false);
+    const photosRef = useRef<HTMLDivElement>(null);
+    /** Décision « Continuer sans photo », conservée jusqu'à l'envoi (la fenêtre d'anomalie km peut s'intercaler). */
+    const photosSkippedRef = useRef(false);
     /** Dossier Drive déjà créé : évite de ré-uploader les photos au rejeu après un 400. */
     const uploadedFolderIdRef = useRef<string | undefined>(undefined);
     /** Anti-boucle : un second MILEAGE_CONFIRM_REQUIRED après confirmation affiche l'erreur brute. */
@@ -122,7 +130,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
 
     // Le hook pose son listener sur window : sans `enabled`, un seul Escape exécuterait
     // à la fois la fermeture de la modale imbriquée et celle du check-in (perte de saisie).
-    useEscapeKey(onClose, !showMileageConfirm && !showIncidentReport);
+    useEscapeKey(onClose, !showMileageConfirm && !showIncidentReport && !showPhotosRequired);
 
     // form.mileageIn est typé `number | ''` : sans le garde typeof, un champ vidé
     // coercerait à 0 et produirait un faux 'negative' bloquant.
@@ -184,6 +192,29 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
             alert('Le numéro de lot et le type de désinfection sont obligatoires.');
             return;
         }
+
+        // Fenêtre photos AVANT toute écriture et avant la fenêtre d'anomalie km : une seule fenêtre à la fois.
+        if (photosRequired && photos.length === 0) {
+            setShowPhotosRequired(true);
+            return;
+        }
+
+        await continueAfterPhotos(false);
+    }
+
+    function handleTakePhotos() {
+        setShowPhotosRequired(false);
+        setHighlightPhotos(true);
+        photosRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    }
+
+    function handleContinueWithoutPhotos() {
+        setShowPhotosRequired(false);
+        void continueAfterPhotos(true);
+    }
+
+    async function continueAfterPhotos(photosSkipped: boolean) {
+        photosSkippedRef.current = photosSkipped;
 
         // Ouverture de la modale AVANT setSubmitting et AVANT l'upload Drive : sinon les photos
         // partiraient alors que l'utilisateur peut encore cliquer « Corriger ».
@@ -247,6 +278,8 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     checklistIn: Object.keys(checklistIn).length > 0 ? checklistIn : undefined,
                     confirmMileageAnomaly: confirmed ? true : undefined,
                     driveFolderId,
+                    // UL à photos obligatoires : un retour sans dossier de photos (aucune, ou envoi sans résultat) reste tracé.
+                    photosSkipped: (photosSkippedRef.current || (photosRequired && !driveFolderId)) || undefined,
                     desinfResponsable: isDesinf ? desinfResponsableName : undefined,
                     desinfLotNumber: isDesinf ? desinfLotNumber.trim() : (hasDesinfTracking ? desinfLotNumber.trim() : undefined),
                     desinfType: isDesinf ? undefined : (hasDesinfTracking ? desinfType : undefined),
@@ -580,11 +613,20 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                             />
                         </div>
 
-                        {/* Photos (Optionnel) */}
-                        <div className="form-group" style={{ marginTop: 16 }}>
+                        {/* Photos (optionnelles, ou obligatoires selon l'UL) */}
+                        <div
+                            ref={photosRef}
+                            className="form-group"
+                            style={{
+                                marginTop: 16,
+                                ...(highlightPhotos && photos.length === 0 ? { outline: '2px solid var(--crf-red)', outlineOffset: 4, borderRadius: 'var(--radius-md)' } : {}),
+                            }}
+                        >
                             <PhotoPicker
-                                label="📸 Photos après le retour (Optionnel)"
-                                hint="Ces photos seront envoyées sur un Google Drive. Maximum 15 Mo par photo · 150 Mo max au total."
+                                label={photosRequired ? '📸 Photos après le retour' : '📸 Photos après le retour (Optionnel)'}
+                                hint={photosRequired
+                                    ? 'Au minimum 4 photos : avant, arrière, côté gauche et côté droit. Maximum 15 Mo par photo · 150 Mo max au total.'
+                                    : 'Ces photos seront envoyées sur un Google Drive. Maximum 15 Mo par photo · 150 Mo max au total.'}
                                 photos={photos}
                                 onPhotosChange={(next) => {
                                     // Le jeu de photos change : le dossier Drive déjà créé ne
@@ -617,6 +659,10 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                     </div>
                 </form>
             </div>
+
+            {showPhotosRequired && (
+                <PhotosRequiredModal stage="retour" onTakePhotos={handleTakePhotos} onContinue={handleContinueWithoutPhotos} />
+            )}
 
             {mileageConfirm !== null && (
                 <MileageAnomalyModal

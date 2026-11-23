@@ -18,6 +18,8 @@ export interface Trip {
     missionLeadName?: string | null;
     /** Prise validée sans photo malgré l'obligation de l'UL */
     photosSkipped?: boolean;
+    /** Retour validé sans photo malgré l'obligation de l'UL */
+    photosSkippedIn?: boolean;
     checkOutAt: string;
     checkInAt: string | null;
     mileageOut: number;

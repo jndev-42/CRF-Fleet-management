@@ -187,7 +187,7 @@ describe('ULsTab', () => {
         });
     });
 
-    it('case « Photos de départ obligatoires » : reflète l\'UL et part dans le PATCH', async () => {
+    it('case « Photos obligatoires (prise et retour) » : reflète l\'UL et part dans le PATCH', async () => {
         const fetchMock = mockFetch(async (input, init) => {
             if (getUrl(input) === '/api/ul' && !init?.method) {
                 return new Response(JSON.stringify({ uls: [{ ...ulParis, checkoutPhotosRequired: false }] }), { status: 200 });
@@ -198,8 +198,9 @@ describe('ULsTab', () => {
         await screen.findByText('Unité Locale Paris 18');
 
         fireEvent.click(screen.getAllByRole('button', { name: 'Modifier' })[0]);
-        const box = screen.getByLabelText('Photos de départ obligatoires') as HTMLInputElement;
+        const box = screen.getByLabelText('Photos obligatoires (prise et retour)') as HTMLInputElement;
         expect(box.checked).toBe(false);
+        expect(screen.getByText(/À la prise et au retour d'un véhicule/)).toBeTruthy();
         fireEvent.click(box);
         fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }));
 

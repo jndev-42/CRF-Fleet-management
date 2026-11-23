@@ -53,14 +53,27 @@ describe('TripItem — responsable de la mission', () => {
 });
 
 describe('TripItem — sortie sans photo', () => {
-    it('affiche « Sans photo » pour une dérogation, sans mention d\'urgence', () => {
+    it('affiche « Départ sans photo » pour une dérogation, sans mention d\'urgence', () => {
         const { container } = render(<TripItem trip={{ ...trip(null), photosSkipped: true }} vehicle={vehicle} userRoles={['CHVL']} onDelete={vi.fn()} onViewPhotos={vi.fn()} />);
-        expect(screen.getByText(/Sans photo/)).toBeTruthy();
+        expect(screen.getByText(/Départ sans photo/)).toBeTruthy();
+        expect(screen.queryByText(/Retour sans photo/)).toBeNull();
         expect(container.textContent?.toLowerCase()).not.toContain('urgence');
+    });
+
+    it('affiche « Retour sans photo » pour une dérogation au retour', () => {
+        render(<TripItem trip={{ ...trip(null), photosSkippedIn: true }} vehicle={vehicle} userRoles={['CHVL']} onDelete={vi.fn()} onViewPhotos={vi.fn()} />);
+        expect(screen.getByText(/Retour sans photo/)).toBeTruthy();
+        expect(screen.queryByText(/Départ sans photo/)).toBeNull();
+    });
+
+    it('affiche les deux pastilles quand départ et retour sont sans photo', () => {
+        render(<TripItem trip={{ ...trip(null), photosSkipped: true, photosSkippedIn: true }} vehicle={vehicle} userRoles={['CHVL']} onDelete={vi.fn()} onViewPhotos={vi.fn()} />);
+        expect(screen.getByText(/Départ sans photo/)).toBeTruthy();
+        expect(screen.getByText(/Retour sans photo/)).toBeTruthy();
     });
 
     it('rien sans dérogation', () => {
         render(<TripItem trip={trip(null)} vehicle={vehicle} userRoles={['CHVL']} onDelete={vi.fn()} onViewPhotos={vi.fn()} />);
-        expect(screen.queryByText(/Sans photo/)).toBeNull();
+        expect(screen.queryByText(/sans photo/)).toBeNull();
     });
 });
