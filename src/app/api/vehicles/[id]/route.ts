@@ -181,6 +181,7 @@ export async function GET(
                 missionName: tRow.missionName,
                 missionLeadName: (tRow.missionLeadName as string | null) || null,
                 photosSkipped: Number(tRow.photosSkipped ?? 0) === 1,
+                photosSkippedIn: Number(tRow.photosSkippedIn ?? 0) === 1,
                 checkOutAt: new Date(tRow.checkOutAt as string),
                 mileageOut: tRow.mileageOut,
                 fuelOut: tRow.fuelOut,

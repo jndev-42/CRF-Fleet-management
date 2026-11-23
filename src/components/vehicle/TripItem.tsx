@@ -33,7 +33,12 @@ export default function TripItem({ trip, vehicle, userRoles, onDelete, onViewPho
                     )}
                     {trip.photosSkipped && (
                         <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
-                            📷 Sans photo
+                            📷 Départ sans photo
+                        </span>
+                    )}
+                    {trip.photosSkippedIn && (
+                        <span style={{ marginLeft: 12, fontSize: 13, color: 'var(--text-secondary)' }}>
+                            📷 Retour sans photo
                         </span>
                     )}
                     {trip.desinfType && (

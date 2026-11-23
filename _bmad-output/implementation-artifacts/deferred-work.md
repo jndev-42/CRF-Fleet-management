@@ -251,3 +251,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-retours-martine-calendrier-photos-tickets.md`
   summary: Créer, si besoin, les dossiers « Nouveau » des déclarations d'incident déjà envoyées avant la v5.58.0 (reprise idempotente via l'index unique de source).
   evidence: `createIncidentDossier` n'est appelé qu'au passage à SUBMITTED ; les déclarations envoyées avant le déploiement n'ont aucun dossier.
+- source_spec: `_bmad-output/implementation-artifacts/spec-photos-obligatoires-retour.md`
+  summary: Corriger la ligne CLAUDE.md du script add-trip-photos-skipped-in.ts : sans la colonne, seul PATCH /api/trips/[id]/checkin répond 500 (la fiche véhicule lit `t.*` et retombe à false).
+  evidence: `src/app/api/vehicles/[id]/route.ts` mappe `Number(tRow.photosSkippedIn ?? 0)` sur un `SELECT t.*`.

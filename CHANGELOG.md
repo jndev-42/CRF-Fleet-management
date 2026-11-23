@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.59.0] — 23 novembre 2026
+
+### ✨ Ajouté
+
+- Photos obligatoires au retour : dans les UL qui exigent des photos, le retour d'un véhicule depuis sa fiche suit la même règle qu'à la prise. Sans photo, une fenêtre propose de « Prendre des photos » ou de « Continuer sans photo ». Le réglage de l'UL est le même pour la prise et le retour (le retour par QR code n'a pas de photos).
+- Dans l'historique des sorties, « 📷 Départ sans photo » et « 📷 Retour sans photo » distinguent les deux cas.
+
+### 🔄 Modifié
+
+- La pastille « 📷 Sans photo » de l'historique devient « 📷 Départ sans photo ».
+- Dans « Unités Locales », la case « Photos obligatoires (prise et retour) » précise que l'obligation vaut à la prise et au retour.
+
 ## [5.58.0] — 22 novembre 2026
 
 ### ✨ Ajouté

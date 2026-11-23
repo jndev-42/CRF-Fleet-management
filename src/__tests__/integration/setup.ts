@@ -94,6 +94,7 @@ async function createTables() {
     missionName TEXT,
     missionLeadName TEXT,
     photosSkipped INTEGER,
+    photosSkippedIn INTEGER,
     checkOutAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     checkInAt DATETIME,
     mileageOut INTEGER,

@@ -17,4 +17,6 @@ export const checkInSchema = z.object({
     desinfType: z.string().optional(),
     /** Confirmation explicite d'un kilométrage inhabituel (cf. src/lib/utils/mileageAnomaly.ts). */
     confirmMileageAnomaly: z.boolean().optional(),
+    /** UL à photos obligatoires : retour validé sans photo (dérogation tracée sur la sortie). */
+    photosSkipped: z.boolean().optional(),
 });

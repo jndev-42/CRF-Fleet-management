@@ -481,10 +481,10 @@ export default function ULsTab({
                                                 checked={formPhotosRequired}
                                                 onChange={e => setFormPhotosRequired(e.target.checked)}
                                             />
-                                            Photos de départ obligatoires
+                                            Photos obligatoires (prise et retour)
                                         </label>
                                         <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
-                                            À la prise d&apos;un véhicule (prise depuis la fiche du véhicule ; le parcours QR n&apos;a pas de photos), le chauffeur doit joindre au minimum 4 photos (avant, arrière, côtés gauche et droit). Il peut continuer sans photo : la sortie est alors marquée « Sans photo » dans l&apos;historique.
+                                            À la prise et au retour d&apos;un véhicule depuis sa fiche (le parcours QR n&apos;a pas de photos), le chauffeur doit joindre au minimum 4 photos (avant, arrière, côtés gauche et droit). Il peut continuer sans photo : la sortie est alors marquée « Départ sans photo » ou « Retour sans photo » dans l&apos;historique.
                                         </p>
                                     </div>
                                 )}
