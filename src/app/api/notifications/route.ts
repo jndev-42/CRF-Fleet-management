@@ -12,32 +12,27 @@ export async function GET() {
             return unauthorizedResponse();
         }
 
-        // Find user ID from email
-        const userRes = await db.execute({
-            sql: `SELECT id FROM "User" WHERE email = ?`,
-            args: [session.user.email]
+        const ulId = session.user.ulId || 'default';
+
+        // Une seule requête : la ligne du compte est toujours là (LEFT JOIN), avec des colonnes
+        // de notification NULL s'il n'en a aucune. Aucune ligne = compte inconnu.
+        const res = await db.execute({
+            sql: `
+                SELECT n.id, n.title, n.message, n.url, n.isRead, n.createdAt
+                FROM "User" u
+                LEFT JOIN "Notification" n ON n.userId = u.id AND n.ulId = ?
+                WHERE u.email = ?
+                ORDER BY n.createdAt DESC
+            `,
+            args: [ulId, session.user.email]
         });
 
-        if (userRes.rows.length === 0) {
+        if (res.rows.length === 0) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        const userId = userRes.rows[0].id as string;
-        const ulId = session.user.ulId || 'default';
-
-        // Fetch notifications
-        const notificationsRes = await db.execute({
-            sql: `
-                SELECT id, title, message, url, isRead, createdAt
-                FROM "Notification"
-                WHERE userId = ? AND ulId = ?
-                ORDER BY createdAt DESC
-            `,
-            args: [userId, ulId]
-        });
-
         // Convert the sqlite data structure into a simple array
-        const notifications = notificationsRes.rows.map(row => ({
+        const notifications = res.rows.filter(row => row.id !== null).map(row => ({
             id: row.id,
             title: row.title,
             message: row.message,

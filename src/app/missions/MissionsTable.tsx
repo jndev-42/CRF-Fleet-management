@@ -91,7 +91,7 @@ export default function MissionsTable({ reports }: MissionsTableProps) {
                                 ) : '—'}
                             </td>
                             <td>
-                                <Link href={`/missions/${r.id}`} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.25rem 0.6rem' }}>
+                                <Link href={`/missions/${r.id}`} prefetch={false} className="btn btn-secondary" style={{ fontSize: '0.8rem', padding: '0.25rem 0.6rem' }}>
                                     Voir
                                 </Link>
                             </td>

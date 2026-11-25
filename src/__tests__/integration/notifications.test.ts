@@ -12,7 +12,7 @@ vi.mock('@/auth', () => ({ auth: vi.fn() }));
 import { GET, DELETE as DELETE_ALL } from '@/app/api/notifications/route';
 import { DELETE as DELETE_ONE } from '@/app/api/notifications/[id]/route';
 import { auth } from '@/auth';
-import { seedUser, seedNotification } from './setup';
+import { db, seedUser, seedNotification } from './setup';
 
 const mockedAuth = vi.mocked(auth);
 
@@ -38,6 +38,47 @@ describe('GET /api/notifications', () => {
         const body = await res.json();
         expect(body.notifications).toHaveLength(1);
         expect(body.notifications[0].title).toBe('Titre 1');
+    });
+
+    it('retourne 404 pour un compte inconnu', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'inconnu@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        const res = await GET();
+        expect(res.status).toBe(404);
+    });
+
+    it('retourne une liste vide pour un compte sans notification dans son UL active', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        await seedUser({ id: 'user-1', email: 'user@test.com' });
+        await seedNotification({ id: 'notif-1', userId: 'user-1', ulId: 'ul-lyon-3' });
+
+        const res = await GET();
+        expect(res.status).toBe(200);
+        expect((await res.json()).notifications).toEqual([]);
+    });
+
+    it('ne retourne jamais les notifications d\'une autre personne de la même UL', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        await seedUser({ id: 'user-1', email: 'user@test.com' });
+        await seedUser({ id: 'user-2', email: 'autre@test.com' });
+        await seedNotification({ id: 'notif-1', userId: 'user-1', ulId: 'ul-paris-18' });
+        await seedNotification({ id: 'notif-2', userId: 'user-2', ulId: 'ul-paris-18' });
+
+        const body = await (await GET()).json();
+        expect(body.notifications.map((n: { id: string }) => n.id)).toEqual(['notif-1']);
+    });
+
+    it('trie de la plus récente à la plus ancienne et garde la forme de la réponse', async () => {
+        mockedAuth.mockResolvedValue({ user: { email: 'user@test.com', roles: ['CHVL'], ulId: 'ul-paris-18' } } as never);
+        await seedUser({ id: 'user-1', email: 'user@test.com' });
+        await seedNotification({ id: 'ancienne', userId: 'user-1', ulId: 'ul-paris-18' });
+        await seedNotification({ id: 'recente', userId: 'user-1', ulId: 'ul-paris-18' });
+        await db.execute(`UPDATE "Notification" SET createdAt = '2026-01-01 08:00:00' WHERE id = 'ancienne'`);
+        await db.execute(`UPDATE "Notification" SET createdAt = '2026-02-01 08:00:00' WHERE id = 'recente'`);
+
+        const body = await (await GET()).json();
+        expect(body.notifications.map((n: { id: string }) => n.id)).toEqual(['recente', 'ancienne']);
+        expect(body.notifications[0]).toMatchObject({ isRead: false, createdAt: '2026-02-01T08:00:00.000Z' });
+        expect(Object.keys(body.notifications[0]).sort()).toEqual(['createdAt', 'id', 'isRead', 'message', 'title', 'url']);
     });
 });
 
