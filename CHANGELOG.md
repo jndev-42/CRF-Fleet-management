@@ -1,5 +1,16 @@
 # Changelog
 
+## [5.59.1] — 25 novembre 2026
+
+### 🔄 Modifié
+
+- Tutoriel : il présente maintenant les notes de frais et les uniformes, l'emprunt par QR code et les photos obligatoires dans certaines UL. La cloche est expliquée à tout le monde.
+- Tutoriel : il ne montre que les menus auxquels vous avez accès. Les responsables inventaire et mission, les présidents et les cadres voient désormais les étapes qui les concernent.
+
+### 🐛 Corrigé
+
+- À la prise et au retour d'un véhicule, le texte sous les photos n'annonce plus un envoi sur Google Drive : les photos sont jointes à la sortie.
+
 ## [5.59.0] — 23 novembre 2026
 
 ### ✨ Ajouté

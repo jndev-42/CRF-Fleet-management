@@ -3,6 +3,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
+import { useMenuSettings } from '@/lib/contexts/MenuSettingsContext';
+import { canSeeInventoryMenu, canSeeMenu, canSeeMissionsMenu, canSeeUniformsMenu, type MenuVisibility } from '@/lib/menuVisibility';
+import { canAccessAdminPanel, canManageInventory, canManageMissionReports, canViewStatsPage, isAdminOrAbove, isInactive } from '@/lib/roles';
 
 // ──────────────────────────────────────────────────────────────
 // Tour Step Definitions
@@ -79,11 +82,11 @@ const TOUR_STEPS: TourStep[] = [
         title: 'Prendre un véhicule (Check-out)',
         body: (
             <>
-                Depuis la fiche d&apos;un véhicule <strong>disponible</strong>, cliquez sur <em>&ldquo;🚗 Prendre le véhicule&rdquo;</em>. Un formulaire vous demandera :<br /><br />
+                Depuis la page Véhicules (<em>&ldquo;🚗 Emprunter&rdquo;</em>), la fiche d&apos;un véhicule <strong>disponible</strong> (<em>&ldquo;🚗 Prendre le véhicule&rdquo;</em>) ou le <strong>QR code</strong> collé sur le véhicule. Un formulaire vous demandera :<br /><br />
                 • <strong>Type de mission</strong> (DPS, PAPS, Maraude, etc.)<br />
-                • <strong>État du véhicule</strong> au départ<br />
-                • <strong>Photos</strong> avant départ (optionnel)<br />
-                • <strong>Vérification du DSA</strong> si le véhicule en est équipé<br /><br />
+                • <strong>État et propreté</strong> au départ<br />
+                • <strong>Vérifications</strong> propres au véhicule (DSA s&apos;il en est équipé…)<br />
+                • <strong>Photos</strong> avant départ, obligatoires dans certaines UL<br /><br />
                 Votre identité est automatiquement remplie via votre compte Google.
             </>
         ),
@@ -110,15 +113,25 @@ const TOUR_STEPS: TourStep[] = [
                 Quand la mission est terminée, cliquez sur <em>&ldquo;✅ Rendre le véhicule&rdquo;</em>. Le formulaire demande :<br /><br />
                 • <strong>Kilométrage</strong> et <strong>niveau de carburant</strong> actuels (sauf véhicules connectés)<br />
                 • <strong>Place de stationnement</strong> où vous garez le véhicule<br />
-                • <strong>État du véhicule</strong> et checklist (vitres, radio, tour du véhicule)<br />
+                • <strong>État, propreté</strong> et vérifications propres au véhicule<br />
+                • <strong>Photos</strong> au retour, obligatoires dans certaines UL<br />
                 • <strong>Incident</strong> éventuel à signaler<br /><br />
-                <strong>Qui peut rendre ?</strong> Le conducteur principal, le 2ème conducteur, ou un administrateur.
+                <strong>Qui peut rendre ?</strong> Le conducteur principal, le 2ème conducteur, un responsable véhicule ou un administrateur.
             </>
         ),
         icon: '✅',
     },
 
-    // ── PART 4: Statistiques (ADMIN, CHVL, CHVPSP — pas INACTIF) ──
+    // ── PART 4: Notes de frais (menu visible) ──
+    {
+        target: '[data-tour="nav-expenses"]',
+        title: 'Notes de frais',
+        body: <>Le menu <strong>Frais</strong> permet de saisir une dépense, joindre ses justificatifs, signer la note et suivre sa validation jusqu&apos;au remboursement.</>,
+        icon: '💶',
+        position: 'bottom',
+    },
+
+    // ── PART 5: Statistiques (canViewStatsPage) ──
     {
         target: '[data-tour="nav-stats"]',
         title: 'Page Statistiques',
@@ -127,22 +140,22 @@ const TOUR_STEPS: TourStep[] = [
         position: 'bottom',
     },
 
-    // ── PART 5: Missions — comptes rendus (ADMIN, CI/RPAPS) ──
+    // ── PART 6: Missions — comptes rendus (mêmes règles que la Navbar) ──
     {
         target: '[data-tour="nav-missions"]',
         title: 'Comptes rendus de mission',
-        body: <>Le menu <strong>Missions</strong> permet de saisir et consulter les comptes rendus opérationnels (DPS, PAPS, Réseau…) : victimes, incidents, présence UL 18…</>,
+        body: <>Le menu <strong>Missions</strong> permet de saisir et consulter les comptes rendus opérationnels (DPS, PAPS, Réseaux) : interventions, équipage, matériel utilisé, incidents, rapport signé…</>,
         icon: '📋',
         position: 'bottom',
     },
 
-    // ── PART 6: Inventaire (ADMIN uniquement) ──
+    // ── PART 7: Inventaire (mêmes règles que la Navbar) ──
     {
         target: '[data-tour="nav-inventory"]',
         title: 'Inventaire',
         body: (
             <>
-                Le menu <strong>Inventaire</strong> permet de gérer le matériel de la flotte :<br /><br />
+                Le menu <strong>Inventaire</strong> permet de suivre le matériel de l&apos;UL :<br /><br />
                 • Suivi des <strong>stocks</strong> par article et catégorie<br />
                 • Alertes <strong>stock bas</strong> et <strong>dates d&apos;expiration</strong> proches<br />
                 • Historique des mouvements et gestion des lots
@@ -152,11 +165,20 @@ const TOUR_STEPS: TourStep[] = [
         position: 'bottom',
     },
 
-    // ── PART 7: Administration (ADMIN) ──
+    // ── PART 8: Uniformes (menu visible) ──
+    {
+        target: '[data-tour="nav-uniforms"]',
+        title: 'Uniformes',
+        body: <>Le menu <strong>Uniformes</strong> permet d&apos;emprunter une pièce par taille, de la rendre propre ou sale, et de marquer les pièces lavées.</>,
+        icon: '👕',
+        position: 'bottom',
+    },
+
+    // ── PART 9: Administration (canAccessAdminPanel ; gestion des comptes : admin) ──
     {
         target: '[data-tour="nav-admin"]',
         title: 'Page Administration',
-        body: <>Le menu <strong>Administration</strong> centralise la gestion des utilisateurs et des paramètres de l&apos;application.</>,
+        body: <>Le menu <strong>Administration</strong> regroupe les utilisateurs, la <strong>validation des papiers</strong> des chauffeurs et les réglages ouverts à votre rôle.</>,
         icon: '⚙️',
         position: 'bottom',
     },
@@ -167,9 +189,8 @@ const TOUR_STEPS: TourStep[] = [
             <>
                 Dans la page Administration, onglet <strong>Utilisateurs</strong>, vous pouvez :<br /><br />
                 • <strong>Créer / supprimer</strong> des comptes<br />
-                • Attribuer des <strong>rôles</strong> (Admin, Responsable, CI/RPAPS, etc.)<br />
-                • <strong>Valider les papiers</strong> des conducteurs (permis, etc.)<br />
-                • <strong>Impersonner</strong> un utilisateur pour tester son accès (ADMIN uniquement)
+                • Attribuer des <strong>rôles</strong> par UL (chauffeur, responsable, CI/RPAPS…)<br />
+                • <strong>Valider les papiers</strong> des chauffeurs (permis, etc.)
             </>
         ),
         icon: '👤',
@@ -177,12 +198,12 @@ const TOUR_STEPS: TourStep[] = [
     {
         target: '[data-tour="notifications"]',
         title: 'Notifications',
-        body: "La cloche vous informe des alertes importantes : incidents signalés, anomalies kilométriques, etc. Un badge rouge apparaît quand vous avez des notifications non lues.",
+        body: "La cloche rassemble ce qui vous concerne : réservations, notes de frais, incidents, échéances… Un badge rouge apparaît quand vous avez des notifications non lues.",
         icon: '🔔',
         position: 'bottom',
     },
 
-    // ── PART 8: Aide (tous) ──
+    // ── PART 10: Aide (tous) ──
     {
         target: '[data-tour="aide"]',
         title: "Page d'aide",
@@ -257,20 +278,14 @@ function closeBurgerMenu() {
 /**
  * Returns the subset of TOUR_STEPS visible for a given set of user roles.
  *
- * Filtering rules (applied to each step's `target` selector):
- *  - nav-stats      → requires one of: ADMIN, CHVL, CHVPSP (and NOT INACTIF)
- *  - nav-missions   → requires one of: ADMIN, CI/RPAPS
- *  - nav-inventory  → requires: ADMIN
- *  - nav-admin      → requires: ADMIN
- *  - notifications  → requires: ADMIN
- *  - Check-out/in cards (identified by title) → excluded for INACTIF
- *  - "Gérer les utilisateurs" info card → requires: ADMIN
+ * Les étapes de menu suivent les conditions de la Navbar (rôle + réglage « Menus ») :
+ * une étape ne doit jamais présenter un menu que l'utilisateur n'a pas.
+ * Les cartes d'emprunt et la cloche sont masquées pour un compte inactif ;
+ * « Gérer les utilisateurs » est réservée aux administrateurs.
  */
-function buildActiveSteps(roles: string[]): TourStep[] {
-    const isAdmin   = roles.includes('ADMIN');
-    const isCiRpaps = roles.includes('CI/RPAPS');
-    const isInactif = roles.includes('INACTIF');
-    const hasStats  = isAdmin || roles.includes('CHVL') || roles.includes('CHVPSP');
+function buildActiveSteps(roles: string[], getVisibility: (key: string) => MenuVisibility): TourStep[] {
+    const isActive = !isInactive(roles);
+    const isAdmin = isAdminOrAbove(roles);
 
     const checkoutTitles = new Set([
         'Emprunter & Rendre un véhicule',
@@ -280,16 +295,27 @@ function buildActiveSteps(roles: string[]): TourStep[] {
     ]);
 
     return TOUR_STEPS.filter((step) => {
-        const t = step.target;
+        switch (step.target) {
+            case '[data-tour="nav-expenses"]':
+                return isActive && canSeeMenu(getVisibility('expenses'), roles);
+            case '[data-tour="nav-stats"]':
+                return canViewStatsPage(roles) && canSeeMenu(getVisibility('stats'), roles);
+            case '[data-tour="nav-inventory"]':
+                return (canAccessAdminPanel(roles) || canManageInventory(roles)) && canSeeInventoryMenu(getVisibility('inventory'), roles);
+            case '[data-tour="nav-missions"]':
+                return isActive
+                    && (canAccessAdminPanel(roles) || canManageMissionReports(roles) || roles.includes('CI/RPAPS'))
+                    && canSeeMissionsMenu(getVisibility('missions'), roles);
+            case '[data-tour="nav-uniforms"]':
+                return isActive && canSeeUniformsMenu(getVisibility('uniforms'), roles);
+            case '[data-tour="nav-admin"]':
+                return canAccessAdminPanel(roles);
+            case '[data-tour="notifications"]':
+                return isActive;
+        }
 
-        if (t === '[data-tour="nav-stats"]')     return hasStats && !isInactif;
-        if (t === '[data-tour="nav-missions"]')  return isAdmin || isCiRpaps;
-        if (t === '[data-tour="nav-inventory"]') return isAdmin;
-        if (t === '[data-tour="nav-admin"]')     return isAdmin;
-        if (t === '[data-tour="notifications"]') return isAdmin;
-
-        if (!t && step.title === 'Gérer les utilisateurs') return isAdmin;
-        if (!t && checkoutTitles.has(step.title))          return !isInactif;
+        if (step.title === 'Gérer les utilisateurs') return isAdmin;
+        if (checkoutTitles.has(step.title)) return isActive;
 
         return true;
     });
@@ -301,7 +327,8 @@ function buildActiveSteps(roles: string[]): TourStep[] {
 // ──────────────────────────────────────────────────────────────
 
 export default function GuidedTour({ roles = [] }: { roles?: string[] }) {
-    const activeSteps = buildActiveSteps(roles);
+    const { getVisibility } = useMenuSettings();
+    const activeSteps = buildActiveSteps(roles, getVisibility);
 
     const [isActive, setIsActive] = useState(false);
     const [step, setStep] = useState(0);

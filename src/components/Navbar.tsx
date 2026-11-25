@@ -129,7 +129,7 @@ export default function Navbar({ user }: NavbarProps) {
                         </div>
                         <Link href="/vehicles" className={`nav-link${pathname.startsWith('/vehicles') || pathname === '/' ? ' active' : ''}`} data-tour="nav-vehicles" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/vehicles') || pathname === '/' ? 'page' : undefined}>Véhicules</Link>
                         {canSeeMenu(getVisibility('expenses'), userRoles) && (
-                            <Link href="/expenses" className={`nav-link${pathname === '/expenses' ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname === '/expenses' ? 'page' : undefined}>Frais</Link>
+                            <Link href="/expenses" className={`nav-link${pathname === '/expenses' ? ' active' : ''}`} data-tour="nav-expenses" onClick={() => setIsOpen(false)} aria-current={pathname === '/expenses' ? 'page' : undefined}>Frais</Link>
                         )}
                         {!isInactive(userRoles) && canSeeMenu(getVisibility('stats'), userRoles) && (
                             <Link href="/stats" className={`nav-link${pathname === '/stats' ? ' active' : ''}`} data-tour="nav-stats" onClick={() => setIsOpen(false)} aria-current={pathname === '/stats' ? 'page' : undefined}>Statistiques</Link>
@@ -141,7 +141,7 @@ export default function Navbar({ user }: NavbarProps) {
                             <Link href="/missions" className={`nav-link${pathname.startsWith('/missions') ? ' active' : ''}`} data-tour="nav-missions" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/missions') ? 'page' : undefined}>Missions</Link>
                         )}
                         {!isInactive(userRoles) && canSeeUniformsMenu(getVisibility('uniforms'), userRoles) && (
-                            <Link href="/uniforms" className={`nav-link${pathname.startsWith('/uniforms') ? ' active' : ''}`} onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/uniforms') ? 'page' : undefined}>Uniformes</Link>
+                            <Link href="/uniforms" className={`nav-link${pathname.startsWith('/uniforms') ? ' active' : ''}`} data-tour="nav-uniforms" onClick={() => setIsOpen(false)} aria-current={pathname.startsWith('/uniforms') ? 'page' : undefined}>Uniformes</Link>
                         )}
                         {canAccessAdminPanel(userRoles) && (
                             <Link href="/users" className={`nav-link${pathname === '/users' ? ' active' : ''}`} data-tour="nav-admin" onClick={() => setIsOpen(false)} aria-current={pathname === '/users' ? 'page' : undefined}>Administration</Link>
