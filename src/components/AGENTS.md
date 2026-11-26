@@ -10,7 +10,7 @@ Shared React UI components used across pages, plus feature-specific component su
 | File | Description |
 |------|-------------|
 | `Navbar.tsx` | Main app navigation |
-| `NotificationBell.tsx` | In-app notification dropdown |
+| `NotificationBell.tsx` | In-app notification dropdown (data and polling in `useNotifications.ts`: visible tab only, every 5 min, single request in flight) |
 | `PhotoViewer.tsx` | Lightbox for a trip's photos (R2 prefix ; a non-R2 reference shows no photo, no request) |
 | `ThemeProvider.tsx` / `ThemeToggle.tsx` | Dark/light theme (next-themes) |
 | `PushProvider.tsx` | Web Push bootstrap (service worker `/sw.js`, subscription, opt-in banner) and `usePush()` |

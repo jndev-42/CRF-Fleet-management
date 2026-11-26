@@ -57,6 +57,8 @@ export default function VehicleCard({ vehicle, isDtView, renaultData: rData, isF
       <Link
         href={`/vehicles/${vehicle.name}${isDtView ? '?dtView=true' : ''}`}
         className="vehicle-card"
+        // Un préchargement par carte affichée = une fonction serveur réveillée par véhicule de la liste
+        prefetch={false}
       >
         <div className="vehicle-card-header" style={{ gap: 12 }}>
           {/* Le nom revient à la ligne entre ses mots ; le badge d'UL, insécable, passe sous le nom

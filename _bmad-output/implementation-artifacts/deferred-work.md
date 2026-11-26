@@ -254,3 +254,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-photos-obligatoires-retour.md`
   summary: Corriger la ligne CLAUDE.md du script add-trip-photos-skipped-in.ts : sans la colonne, seul PATCH /api/trips/[id]/checkin répond 500 (la fiche véhicule lit `t.*` et retombe à false).
   evidence: `src/app/api/vehicles/[id]/route.ts` mappe `Number(tRow.photosSkippedIn ?? 0)` sur un `SELECT t.*`.
+- source_spec: `_bmad-output/implementation-artifacts/spec-notifications-interrogation-econome.md`
+  summary: Réduire les appels déclenchés à chaque retour sur l'onglet (session NextAuth, thèmes saisonniers, papiers, calendrier).
+  evidence: Mesuré sur /vehicles (build de production) : 7 appels par retour, même après 10 s, dont 2 /api/auth/session (`refetchOnWindowFocus` de SessionProvider), 2 /api/themes/active (`focus` + `visibilitychange` dans SeasonalThemeContext) et 2 /api/me/license-check (LicenseBanner + useBorrowEligibility).

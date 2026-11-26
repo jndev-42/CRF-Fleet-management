@@ -3,18 +3,11 @@
 import { useState, useEffect, useRef, useSyncExternalStore, useId, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { Bell, Trash2, X } from 'lucide-react';
 import { useUL } from '@/lib/contexts/ULContext';
 import { usePush } from '@/components/PushProvider';
-
-type Notification = {
-    id: string;
-    title: string;
-    message: string;
-    url?: string;
-    isRead: boolean;
-    createdAt: string;
-};
+import { useNotifications, type AppNotification } from '@/components/useNotifications';
 
 // Même point de rupture que le reste de l'appli : en dessous, la cloche est dans le menu hamburger.
 const MOBILE_QUERY = '(max-width: 768px)';
@@ -48,9 +41,7 @@ export function NotificationBell({ onNavigate }: { onNavigate?: () => void } = {
 
 // useSearchParams() below requires a Suspense boundary (Next.js App Router) — the wrapper above provides it.
 function NotificationBellContent({ onNavigate }: { onNavigate?: () => void }) {
-    const [notifications, setNotifications] = useState<Notification[]>([]);
     const [isOpen, setIsOpen] = useState(false);
-    const [isLoading, setIsLoading] = useState(true);
     const { status: pushStatus, subscribe: pushSubscribe, unsubscribe: pushUnsubscribe, error: pushError, busy: pushBusy } = usePush();
     const [pushBlocked, setPushBlocked] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -63,30 +54,13 @@ function NotificationBellContent({ onNavigate }: { onNavigate?: () => void }) {
     const searchParams = useSearchParams();
     const { activeUL } = useUL();
 
-    // Fetch Notifications
-    const fetchNotifications = async () => {
-        try {
-            const res = await fetch('/api/notifications');
-            if (res.ok) {
-                const data = await res.json();
-                setNotifications(data.notifications || []);
-            }
-        } catch (error) {
-            console.error("Failed to fetch notifications:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Fetch on mount or when active UL changes
-    useEffect(() => {
-        setIsLoading(true);
-        fetchNotifications();
-
-        // Optional: Poll every 1 minute
-        const intervalId = setInterval(fetchNotifications, 60000);
-        return () => clearInterval(intervalId);
-    }, [activeUL?.id]);
+    // L'e-mail fait partie de la portée : une impersonation change de personne sans changer d'UL.
+    // Session momentanément perdue (réseau absent au réveil) : la dernière portée connue est gardée.
+    const { data: session } = useSession();
+    const currentScope = session?.user?.email ? `${session.user.email}|${activeUL?.id ?? ''}` : null;
+    const [scope, setScope] = useState(currentScope ?? '');
+    if (currentScope !== null && currentScope !== scope) setScope(currentScope);
+    const { notifications, isLoading, reload, removeLocally } = useNotifications(scope);
 
     // Detect if the user arrived from a push notification click (?fromPush=true)
     // If so, find and delete any in-app notifications matching the current page
@@ -98,12 +72,9 @@ function NotificationBellContent({ onNavigate }: { onNavigate?: () => void }) {
             // Wait for notifications to be loaded, then find and delete matching ones
             const cleanup = async () => {
                 try {
-                    // Fetch fresh notifications to make sure we have the latest
-                    const res = await fetch('/api/notifications');
-                    if (res.ok) {
-                        const data = await res.json();
-                        const allNotifs: Notification[] = data.notifications || [];
-
+                    // Partage la requête déjà en vol (celle du montage, en arrivant d'un push)
+                    const allNotifs = await reload();
+                    if (allNotifs) {
                         // Find notifications whose URL contains the current page path
                         const matching = allNotifs.filter(n => {
                             if (!n.url) return false;
@@ -121,8 +92,7 @@ function NotificationBellContent({ onNavigate }: { onNavigate?: () => void }) {
                         );
 
                         // Update local state
-                        const matchingIds = new Set(matching.map(n => n.id));
-                        setNotifications(prev => prev.filter(n => !matchingIds.has(n.id)));
+                        removeLocally(new Set(matching.map(n => n.id)));
                     }
                 } catch (error) {
                     console.error("Failed to clean up push notifications:", error);
@@ -136,7 +106,7 @@ function NotificationBellContent({ onNavigate }: { onNavigate?: () => void }) {
 
             cleanup();
         }
-    }, [searchParams]);
+    }, [searchParams, reload, removeLocally]);
 
     // Interrupteur visible seulement si le navigateur gère le push et que l'état est connu
     const pushEnabled = pushStatus === 'enabled';
@@ -197,11 +167,11 @@ function NotificationBellContent({ onNavigate }: { onNavigate?: () => void }) {
         };
     }, [isOpen, isMobile]);
 
-    const handleNotificationClick = async (notification: Notification) => {
+    const handleNotificationClick = async (notification: AppNotification) => {
         // Delete it from DB
         try {
             await fetch(`/api/notifications/${notification.id}`, { method: 'DELETE' });
-            setNotifications(prev => prev.filter(n => n.id !== notification.id));
+            removeLocally(new Set([notification.id]));
         } catch (error) {
             console.error("Failed to delete notification", error);
         }
@@ -223,7 +193,7 @@ function NotificationBellContent({ onNavigate }: { onNavigate?: () => void }) {
         e.stopPropagation(); // prevent closing if they just want to clear
         try {
             await fetch('/api/notifications', { method: 'DELETE' });
-            setNotifications([]);
+            removeLocally('all');
         } catch (error) {
             console.error("Failed to clear notifications", error);
         }

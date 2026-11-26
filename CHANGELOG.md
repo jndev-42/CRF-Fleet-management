@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.59.2] — 25 novembre 2026
+
+### 🔄 Modifié
+
+- Cloche de notifications : elle se met à jour toutes les 5 minutes quand l'appli est affichée, et dès que vous y revenez après une pause. Quand l'appli n'est pas affichée, elle n'interroge plus le serveur. Les notifications push ne changent pas.
+- Changement d'Unité Locale : la cloche n'affiche plus, même un instant, les notifications de l'Unité Locale précédente.
+
 ## [5.59.1] — 25 novembre 2026
 
 ### 🔄 Modifié
