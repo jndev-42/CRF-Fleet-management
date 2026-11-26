@@ -60,3 +60,10 @@ _bmad/render/
 
 # Journaux des scripts de migration
 scripts/out/
+
+# graphify : fichiers locaux (chemins absolus, cache, état du poste)
+graphify-out/cache/
+graphify-out/.graphify_python
+graphify-out/.graphify_root
+graphify-out/manifest.json
+graphify-out/.graphify_build_state.json

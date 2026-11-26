@@ -1,0 +1,12 @@
+# graphify : le graphe ne couvre que le code de l'application et ses tests (src/, tests dans src/__tests__).
+# Tout le reste (outillage .claude/_bmad, scripts, docs, exemples, config) est exclu,
+# ainsi que les AGENTS.md / CLAUDE.md de src/ et les fichiers non-code.
+/*
+!/src/
+*.md
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.svg
