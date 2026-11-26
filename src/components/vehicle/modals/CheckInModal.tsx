@@ -626,7 +626,7 @@ export default function CheckInModal({ vehicle, trip, onClose, onSuccess, onRefe
                                 label={photosRequired ? '📸 Photos après le retour' : '📸 Photos après le retour (Optionnel)'}
                                 hint={photosRequired
                                     ? 'Au minimum 4 photos : avant, arrière, côté gauche et côté droit. Maximum 15 Mo par photo · 150 Mo max au total.'
-                                    : 'Ces photos seront envoyées sur un Google Drive. Maximum 15 Mo par photo · 150 Mo max au total.'}
+                                    : 'Ces photos seront jointes à la sortie du véhicule. Maximum 15 Mo par photo · 150 Mo max au total.'}
                                 photos={photos}
                                 onPhotosChange={(next) => {
                                     // Le jeu de photos change : le dossier Drive déjà créé ne

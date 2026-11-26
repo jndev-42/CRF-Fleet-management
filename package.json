@@ -1,6 +1,6 @@
 {
   "name": "martine",
-  "version": "5.59.0",
+  "version": "5.59.1",
   "private": true,
   "scripts": {
     "predev": "tsx scripts/dev-db.ts",
